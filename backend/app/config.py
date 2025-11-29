@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     images_bucket: str = "bluemoxon-images"
     backup_bucket: str = "bluemoxon-backups"
 
+    # Local images path (for development)
+    local_images_path: str = "/tmp/bluemoxon-images"
+
     # CORS
     cors_origins: str = "*"
 

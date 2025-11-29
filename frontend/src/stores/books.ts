@@ -9,16 +9,26 @@ export interface Book {
   publisher: { id: number; name: string; tier: string | null } | null
   binder: { id: number; name: string } | null
   publication_date: string | null
+  edition: string | null
   volumes: number
   category: string | null
   inventory_type: string
   binding_type: string | null
   binding_authenticated: boolean
+  binding_description: string | null
+  condition_grade: string | null
+  condition_notes: string | null
   value_low: number | null
   value_mid: number | null
   value_high: number | null
+  purchase_price: number | null
+  purchase_date: string | null
+  purchase_source: string | null
+  discount_pct: number | null
+  roi_pct: number | null
   status: string
   notes: string | null
+  provenance: string | null
   has_analysis: boolean
   image_count: number
 }

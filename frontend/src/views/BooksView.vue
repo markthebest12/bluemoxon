@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBooksStore } from '@/stores/books'
+import BookThumbnail from '@/components/books/BookThumbnail.vue'
+import ImageCarousel from '@/components/books/ImageCarousel.vue'
 
 const route = useRoute()
 const router = useRouter()
 const booksStore = useBooksStore()
+
+// Carousel state
+const carouselVisible = ref(false)
+const carouselBookId = ref<number | null>(null)
 
 onMounted(() => {
   // Apply URL query params as filters
@@ -29,6 +35,16 @@ function formatCurrency(value: number | null): string {
 
 function viewBook(id: number) {
   router.push(`/books/${id}`)
+}
+
+function openCarousel(bookId: number) {
+  carouselBookId.value = bookId
+  carouselVisible.value = true
+}
+
+function closeCarousel() {
+  carouselVisible.value = false
+  carouselBookId.value = null
 }
 </script>
 
@@ -64,36 +80,47 @@ function viewBook(id: number) {
       <div
         v-for="book in booksStore.books"
         :key="book.id"
-        @click="viewBook(book.id)"
         class="card cursor-pointer hover:shadow-lg transition-shadow"
       >
-        <h3 class="text-lg font-semibold text-gray-800 line-clamp-2">
-          {{ book.title }}
-        </h3>
-        <p class="text-gray-600 mt-1">
-          {{ book.author?.name || 'Unknown Author' }}
-        </p>
-        <p class="text-sm text-gray-500 mt-1">
-          {{ book.publisher?.name }} ({{ book.publication_date }})
-        </p>
+        <div class="flex gap-4">
+          <!-- Thumbnail -->
+          <BookThumbnail
+            :book-id="book.id"
+            size="md"
+            @click="openCarousel(book.id)"
+          />
 
-        <div class="flex items-center justify-between mt-4">
-          <span class="text-lg font-bold text-victorian-gold">
-            {{ formatCurrency(book.value_mid) }}
-          </span>
-          <div class="flex items-center space-x-2">
-            <span
-              v-if="book.binding_authenticated"
-              class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded"
-            >
-              {{ book.binder?.name }}
-            </span>
-            <span
-              v-if="book.volumes > 1"
-              class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
-            >
-              {{ book.volumes }} vols
-            </span>
+          <!-- Book info -->
+          <div class="flex-1 min-w-0" @click="viewBook(book.id)">
+            <h3 class="text-lg font-semibold text-gray-800 line-clamp-2">
+              {{ book.title }}
+            </h3>
+            <p class="text-gray-600 mt-1">
+              {{ book.author?.name || 'Unknown Author' }}
+            </p>
+            <p class="text-sm text-gray-500 mt-1">
+              {{ book.publisher?.name }} ({{ book.publication_date }})
+            </p>
+
+            <div class="flex items-center justify-between mt-3">
+              <span class="text-lg font-bold text-victorian-gold">
+                {{ formatCurrency(book.value_mid) }}
+              </span>
+              <div class="flex items-center space-x-2">
+                <span
+                  v-if="book.binding_authenticated"
+                  class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded"
+                >
+                  {{ book.binder?.name }}
+                </span>
+                <span
+                  v-if="book.volumes > 1"
+                  class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
+                >
+                  {{ book.volumes }} vols
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -119,5 +146,13 @@ function viewBook(id: number) {
         Next
       </button>
     </div>
+
+    <!-- Image Carousel Modal -->
+    <ImageCarousel
+      v-if="carouselBookId"
+      :book-id="carouselBookId"
+      :visible="carouselVisible"
+      @close="closeCarousel"
+    />
   </div>
 </template>

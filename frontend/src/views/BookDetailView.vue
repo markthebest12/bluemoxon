@@ -3,24 +3,37 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBooksStore } from '@/stores/books'
 import { api } from '@/services/api'
+import BookThumbnail from '@/components/books/BookThumbnail.vue'
+import ImageCarousel from '@/components/books/ImageCarousel.vue'
+import AnalysisViewer from '@/components/books/AnalysisViewer.vue'
 
 const route = useRoute()
 const booksStore = useBooksStore()
-const analysis = ref<string | null>(null)
-const showAnalysis = ref(false)
+
+// Image gallery state
+const images = ref<any[]>([])
+const carouselVisible = ref(false)
+const carouselInitialIndex = ref(0)
+
+// Analysis state
+const analysisVisible = ref(false)
+const hasAnalysis = ref(false)
 
 onMounted(async () => {
   const id = Number(route.params.id)
   await booksStore.fetchBook(id)
 
-  // Fetch analysis if available
+  // Fetch images
+  try {
+    const response = await api.get(`/books/${id}/images`)
+    images.value = response.data
+  } catch {
+    images.value = []
+  }
+
+  // Check if analysis exists
   if (booksStore.currentBook?.has_analysis) {
-    try {
-      const response = await api.get(`/books/${id}/analysis/raw`)
-      analysis.value = response.data
-    } catch {
-      // No analysis available
-    }
+    hasAnalysis.value = true
   }
 })
 
@@ -32,6 +45,23 @@ function formatCurrency(value: number | null): string {
     minimumFractionDigits: 0
   }).format(value)
 }
+
+function openCarousel(index: number = 0) {
+  carouselInitialIndex.value = index
+  carouselVisible.value = true
+}
+
+function closeCarousel() {
+  carouselVisible.value = false
+}
+
+function openAnalysis() {
+  analysisVisible.value = true
+}
+
+function closeAnalysis() {
+  analysisVisible.value = false
+}
 </script>
 
 <template>
@@ -39,7 +69,7 @@ function formatCurrency(value: number | null): string {
     <p class="text-gray-500">Loading book details...</p>
   </div>
 
-  <div v-else-if="booksStore.currentBook" class="max-w-4xl mx-auto">
+  <div v-else-if="booksStore.currentBook" class="max-w-5xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
       <div class="flex justify-between items-start">
@@ -59,8 +89,33 @@ function formatCurrency(value: number | null): string {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Main Info -->
+      <!-- Main Content (2 columns) -->
       <div class="lg:col-span-2 space-y-6">
+        <!-- Image Gallery -->
+        <div class="card">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Images</h2>
+          <div v-if="images.length > 0" class="grid grid-cols-4 gap-3">
+            <button
+              v-for="(img, idx) in images"
+              :key="img.id"
+              @click="openCarousel(idx)"
+              class="aspect-square rounded overflow-hidden hover:ring-2 hover:ring-moxon-500 transition-all"
+            >
+              <img
+                :src="img.thumbnail_url"
+                :alt="img.caption || `Image ${idx + 1}`"
+                class="w-full h-full object-cover"
+              />
+            </button>
+          </div>
+          <div v-else class="flex items-center justify-center py-8">
+            <div class="text-center">
+              <BookThumbnail :book-id="booksStore.currentBook.id" size="lg" />
+              <p class="text-sm text-gray-500 mt-3">No images available</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Publication Details -->
         <div class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Publication Details</h2>
@@ -124,19 +179,18 @@ function formatCurrency(value: number | null): string {
           <p class="text-gray-700 whitespace-pre-wrap">{{ booksStore.currentBook.notes }}</p>
         </div>
 
-        <!-- Analysis -->
-        <div v-if="analysis" class="card">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold text-gray-800">Analysis</h2>
-            <button
-              @click="showAnalysis = !showAnalysis"
-              class="text-moxon-600 hover:text-moxon-800 text-sm"
-            >
-              {{ showAnalysis ? 'Hide' : 'Show' }} Full Analysis
+        <!-- Analysis Button -->
+        <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
+              <p class="text-sm text-gray-600 mt-1">
+                View the full Napoleon-style acquisition analysis for this book.
+              </p>
+            </div>
+            <button @click="openAnalysis" class="btn-primary">
+              View Analysis
             </button>
-          </div>
-          <div v-if="showAnalysis" class="prose max-w-none">
-            <pre class="whitespace-pre-wrap text-sm">{{ analysis }}</pre>
           </div>
         </div>
       </div>
@@ -180,7 +234,41 @@ function formatCurrency(value: number | null): string {
             </div>
           </dl>
         </div>
+
+        <!-- Quick Stats -->
+        <div class="card">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Info</h2>
+          <dl class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <dt class="text-gray-500">Images</dt>
+              <dd class="font-medium">{{ images.length }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-gray-500">Has Analysis</dt>
+              <dd class="font-medium">{{ hasAnalysis ? 'Yes' : 'No' }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-gray-500">Inventory Type</dt>
+              <dd class="font-medium">{{ booksStore.currentBook.inventory_type }}</dd>
+            </div>
+          </dl>
+        </div>
       </div>
     </div>
+
+    <!-- Image Carousel Modal -->
+    <ImageCarousel
+      :book-id="booksStore.currentBook.id"
+      :visible="carouselVisible"
+      :initial-index="carouselInitialIndex"
+      @close="closeCarousel"
+    />
+
+    <!-- Analysis Viewer Modal -->
+    <AnalysisViewer
+      :book-id="booksStore.currentBook.id"
+      :visible="analysisVisible"
+      @close="closeAnalysis"
+    />
   </div>
 </template>

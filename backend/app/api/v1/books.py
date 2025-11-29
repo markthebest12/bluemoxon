@@ -260,3 +260,67 @@ def check_duplicate_title(
             for b in matches
         ],
     }
+
+
+# Analysis endpoints
+@router.get("/{book_id}/analysis")
+def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
+    """Get parsed analysis for a book."""
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.analysis:
+        raise HTTPException(status_code=404, detail="No analysis available")
+
+    return {
+        "id": book.analysis.id,
+        "book_id": book_id,
+        "executive_summary": book.analysis.executive_summary,
+        "condition_assessment": book.analysis.condition_assessment,
+        "binding_elaborateness_tier": book.analysis.binding_elaborateness_tier,
+        "market_analysis": book.analysis.market_analysis,
+        "historical_significance": book.analysis.historical_significance,
+        "recommendations": book.analysis.recommendations,
+        "risk_factors": book.analysis.risk_factors,
+        "source_filename": book.analysis.source_filename,
+    }
+
+
+@router.get("/{book_id}/analysis/raw")
+def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
+    """Get raw markdown analysis for a book."""
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.analysis or not book.analysis.full_markdown:
+        raise HTTPException(status_code=404, detail="No analysis available")
+
+    return book.analysis.full_markdown
+
+
+@router.put("/{book_id}/analysis")
+def update_book_analysis(
+    book_id: int,
+    full_markdown: str,
+    db: Session = Depends(get_db),
+):
+    """Update or create analysis for a book."""
+    from app.models import BookAnalysis
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.analysis:
+        book.analysis.full_markdown = full_markdown
+    else:
+        analysis = BookAnalysis(
+            book_id=book_id,
+            full_markdown=full_markdown,
+        )
+        db.add(analysis)
+
+    db.commit()
+    return {"message": "Analysis updated"}
