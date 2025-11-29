@@ -1,11 +1,11 @@
 """Database session management."""
 
 import json
-from typing import Generator
+from collections.abc import Generator
 
 import boto3
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 

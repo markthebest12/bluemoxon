@@ -1,6 +1,6 @@
 """Book Image model."""
 
-from sqlalchemy import String, Integer, Text, Boolean, ForeignKey
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base

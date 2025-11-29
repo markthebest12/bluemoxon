@@ -1,11 +1,11 @@
 """Authors API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Author
-from app.schemas.reference import AuthorCreate, AuthorUpdate, AuthorResponse
+from app.schemas.reference import AuthorCreate, AuthorResponse, AuthorUpdate
 
 router = APIRouter()
 

@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from app.config import get_settings
 from app.api.v1 import router as api_router
+from app.config import get_settings
 
 settings = get_settings()
 

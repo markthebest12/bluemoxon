@@ -4,13 +4,13 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
-from app.config import get_settings
 
 router = APIRouter()
 
@@ -65,7 +65,7 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     # Try to find primary image
     image = db.query(BookImage).filter(
         BookImage.book_id == book_id,
-        BookImage.is_primary == True
+        BookImage.is_primary .is_(True)
     ).first()
 
     # If no primary, get first image by display order
@@ -148,7 +148,7 @@ async def upload_image(
     if is_primary:
         db.query(BookImage).filter(
             BookImage.book_id == book_id,
-            BookImage.is_primary == True
+            BookImage.is_primary .is_(True)
         ).update({BookImage.is_primary: False})
 
     # Get next display order
@@ -209,7 +209,7 @@ def update_image(
             # Unset any existing primary
             db.query(BookImage).filter(
                 BookImage.book_id == book_id,
-                BookImage.is_primary == True,
+                BookImage.is_primary .is_(True),
                 BookImage.id != image_id
             ).update({BookImage.is_primary: False})
         image.is_primary = is_primary

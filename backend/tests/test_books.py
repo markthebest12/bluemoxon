@@ -1,6 +1,5 @@
 """Book API tests."""
 
-import pytest
 
 
 class TestListBooks:

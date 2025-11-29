@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Publisher
-from app.schemas.reference import PublisherCreate, PublisherUpdate, PublisherResponse
+from app.schemas.reference import PublisherCreate, PublisherResponse, PublisherUpdate
 
 router = APIRouter()
 

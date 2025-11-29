@@ -1,8 +1,8 @@
 """Search API endpoints."""
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
 
 from app.db import get_db
 from app.models import Book, BookAnalysis

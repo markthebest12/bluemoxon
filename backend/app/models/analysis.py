@@ -1,6 +1,6 @@
 """Book Analysis model."""
 
-from sqlalchemy import JSON, String, Integer, Text, ForeignKey, Index
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin

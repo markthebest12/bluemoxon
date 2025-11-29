@@ -2,7 +2,17 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import books, search, stats, publishers, authors, binders, export, images, placeholder
+from app.api.v1 import (
+    authors,
+    binders,
+    books,
+    export,
+    images,
+    placeholder,
+    publishers,
+    search,
+    stats,
+)
 
 router = APIRouter()
 

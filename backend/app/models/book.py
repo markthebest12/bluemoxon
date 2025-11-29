@@ -1,10 +1,9 @@
 """Book model - Main entity."""
 
-import os
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import String, Integer, Text, Boolean, Numeric, Date, ForeignKey, Index
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin

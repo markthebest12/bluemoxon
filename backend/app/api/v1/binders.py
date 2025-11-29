@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Binder
-from app.schemas.reference import BinderCreate, BinderUpdate, BinderResponse
+from app.schemas.reference import BinderCreate, BinderResponse, BinderUpdate
 
 router = APIRouter()
 

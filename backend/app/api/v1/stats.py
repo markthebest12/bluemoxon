@@ -1,11 +1,11 @@
 """Statistics API endpoints."""
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
 from app.db import get_db
-from app.models import Book, Publisher, Binder
+from app.models import Binder, Book, Publisher
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ def get_overview(db: Session = Depends(get_db)):
 
     # Authenticated bindings count
     authenticated_count = db.query(Book).filter(
-        Book.binding_authenticated == True,
+        Book.binding_authenticated .is_(True),
         Book.inventory_type == "PRIMARY",
     ).count()
 
@@ -210,7 +210,7 @@ def get_bindings(db: Session = Depends(get_db)):
         func.count(Book.id),
         func.sum(Book.value_mid),
     ).join(Book, Book.binder_id == Binder.id).filter(
-        Book.binding_authenticated == True,
+        Book.binding_authenticated .is_(True),
         Book.inventory_type == "PRIMARY",
     ).group_by(Binder.id).order_by(func.count(Book.id).desc()).all()
 

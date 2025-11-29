@@ -527,7 +527,7 @@ echo "=== Validation Complete ==="
 | Ruff linting | ✅ Configured | `poetry run ruff check .` |
 | Mypy type checking | ✅ Configured | `poetry run mypy app/` |
 | Ruff formatting | ✅ Configured | `poetry run ruff format --check .` |
-| Pytest tests | ✅ 20 tests | Books, Stats, Health endpoints |
+| Pytest tests | ✅ 38 tests | Books, Stats, Health, Images, Analysis |
 | Integration tests | ⚠️ Future | Add testcontainers for PostgreSQL |
 
 ### Frontend

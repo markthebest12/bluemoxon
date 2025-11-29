@@ -31,6 +31,44 @@ python scripts/sync_from_legacy.py --source ~/projects/book-collection --apply
 
 ## Migration Scripts
 
+### seed_from_csv.py
+
+Seeds the database from book-collection CSV files:
+
+```bash
+cd backend
+poetry run python ../scripts/seed_from_csv.py
+```
+
+This imports:
+- `PRIMARY_COLLECTION.csv` → PRIMARY inventory
+- `EXTENDED_INVENTORY.csv` → EXTENDED inventory
+- Detects authenticated binders from Notes field
+- Creates Author, Publisher, Binder records
+
+### import_assets.py
+
+Imports images and analysis documents:
+
+```bash
+cd backend
+poetry run python ../scripts/import_assets.py
+```
+
+This imports:
+- Screenshots from `book-collection-assets/screenshots/`
+- Analysis markdown from `book-collection/documentation/book_analysis/`
+
+**What it does:**
+1. Parses screenshot filenames to match books (e.g., `screenshot-Tennyson_1867_01_cover.jpg`)
+2. Copies images to local storage (`/tmp/bluemoxon-images/`)
+3. Imports analysis markdown as full_markdown content
+4. Extracts executive summary from first paragraph
+
+**Environment variables:**
+- `DATABASE_URL` - PostgreSQL connection (default: localhost)
+- `LOCAL_IMAGES_PATH` - Where to store images (default: `/tmp/bluemoxon-images`)
+
 ### migrate_primary.py
 
 Migrates `PRIMARY_COLLECTION.csv`:

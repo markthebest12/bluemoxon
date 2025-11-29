@@ -1,12 +1,12 @@
 """Pydantic schemas."""
 
+from app.schemas.analysis import AnalysisResponse, AnalysisUpdate
 from app.schemas.book import (
     BookCreate,
-    BookUpdate,
-    BookResponse,
     BookListResponse,
+    BookResponse,
+    BookUpdate,
 )
-from app.schemas.analysis import AnalysisResponse, AnalysisUpdate
 from app.schemas.common import PaginationParams
 
 __all__ = [
