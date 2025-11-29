@@ -28,11 +28,16 @@ def list_books(
     binding_authenticated: bool | None = None,
     min_value: float | None = None,
     max_value: float | None = None,
+    has_images: bool | None = None,
+    has_analysis: bool | None = None,
     sort_by: str = "title",
     sort_order: str = "asc",
     db: Session = Depends(get_db),
 ):
     """List books with filtering and pagination."""
+    from sqlalchemy import exists
+    from app.models import BookImage, BookAnalysis
+
     query = db.query(Book)
 
     # Apply filters
@@ -54,6 +59,22 @@ def list_books(
         query = query.filter(Book.value_mid >= min_value)
     if max_value is not None:
         query = query.filter(Book.value_mid <= max_value)
+
+    # Filter by has_images
+    if has_images is not None:
+        image_exists = exists().where(BookImage.book_id == Book.id)
+        if has_images:
+            query = query.filter(image_exists)
+        else:
+            query = query.filter(~image_exists)
+
+    # Filter by has_analysis
+    if has_analysis is not None:
+        analysis_exists = exists().where(BookAnalysis.book_id == Book.id)
+        if has_analysis:
+            query = query.filter(analysis_exists)
+        else:
+            query = query.filter(~analysis_exists)
 
     # Get total count
     total = query.count()

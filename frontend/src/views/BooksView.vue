@@ -1,19 +1,49 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBooksStore } from '@/stores/books'
+import { useReferencesStore } from '@/stores/references'
 import BookThumbnail from '@/components/books/BookThumbnail.vue'
 import ImageCarousel from '@/components/books/ImageCarousel.vue'
 
 const route = useRoute()
 const router = useRouter()
 const booksStore = useBooksStore()
+const referencesStore = useReferencesStore()
 
 // Carousel state
 const carouselVisible = ref(false)
 const carouselBookId = ref<number | null>(null)
 
-onMounted(() => {
+// Filter panel state
+const showFilters = ref(false)
+
+// Sort options
+const sortOptions = [
+  { value: 'title', label: 'Title' },
+  { value: 'value_mid', label: 'Value' },
+  { value: 'publication_date', label: 'Date' },
+  { value: 'created_at', label: 'Recently Added' },
+]
+
+// Count active filters
+const activeFilterCount = computed(() => {
+  let count = 0
+  const f = booksStore.filters
+  if (f.binder_id) count++
+  if (f.publisher_id) count++
+  if (f.binding_authenticated !== undefined) count++
+  if (f.has_images !== undefined) count++
+  if (f.has_analysis !== undefined) count++
+  if (f.status) count++
+  if (f.category) count++
+  return count
+})
+
+onMounted(async () => {
+  // Load reference data for filters
+  await referencesStore.fetchAll()
+
   // Apply URL query params as filters
   if (route.query.inventory_type) {
     booksStore.filters.inventory_type = route.query.inventory_type as string
@@ -23,6 +53,23 @@ onMounted(() => {
   }
   booksStore.fetchBooks()
 })
+
+function applyFilters() {
+  booksStore.setFilters(booksStore.filters)
+}
+
+function clearFilters() {
+  booksStore.filters = { inventory_type: booksStore.filters.inventory_type }
+  booksStore.setFilters(booksStore.filters)
+}
+
+function toggleSort(field: string) {
+  if (booksStore.sortBy === field) {
+    booksStore.setSort(field, booksStore.sortOrder === 'asc' ? 'desc' : 'asc')
+  } else {
+    booksStore.setSort(field, field === 'value_mid' || field === 'created_at' ? 'desc' : 'asc')
+  }
+}
 
 function formatCurrency(value: number | null): string {
   if (value === null) return '-'
@@ -50,10 +97,10 @@ function closeCarousel() {
 
 <template>
   <div>
-    <div class="flex justify-between items-center mb-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-gray-800">Book Collection</h1>
       <div class="flex items-center space-x-4">
-        <!-- Filter by inventory type -->
         <select
           v-model="booksStore.filters.inventory_type"
           @change="booksStore.setFilters(booksStore.filters)"
@@ -67,6 +114,127 @@ function closeCarousel() {
         <RouterLink to="/books/new" class="btn-primary">
           + Add Book
         </RouterLink>
+      </div>
+    </div>
+
+    <!-- Filter & Sort Bar -->
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+      <!-- Filter Toggle Button -->
+      <button
+        @click="showFilters = !showFilters"
+        class="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        Filters
+        <span v-if="activeFilterCount > 0" class="px-2 py-0.5 text-xs bg-moxon-600 text-white rounded-full">
+          {{ activeFilterCount }}
+        </span>
+      </button>
+
+      <!-- Sort Options -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600">Sort:</span>
+        <div class="flex gap-1">
+          <button
+            v-for="option in sortOptions"
+            :key="option.value"
+            @click="toggleSort(option.value)"
+            class="px-3 py-1.5 text-sm rounded-lg transition-colors"
+            :class="booksStore.sortBy === option.value
+              ? 'bg-moxon-600 text-white'
+              : 'bg-white border hover:bg-gray-100'"
+          >
+            {{ option.label }}
+            <span v-if="booksStore.sortBy === option.value" class="ml-1">
+              {{ booksStore.sortOrder === 'asc' ? '↑' : '↓' }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Results count -->
+      <div class="ml-auto text-sm text-gray-600">
+        {{ booksStore.total }} books
+      </div>
+    </div>
+
+    <!-- Expandable Filter Panel -->
+    <div v-if="showFilters" class="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Binder Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Bindery</label>
+          <select v-model="booksStore.filters.binder_id" class="input text-sm">
+            <option :value="undefined">All Binderies</option>
+            <option v-for="binder in referencesStore.binders" :key="binder.id" :value="binder.id">
+              {{ binder.name }} ({{ binder.book_count }})
+            </option>
+          </select>
+        </div>
+
+        <!-- Publisher Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+          <select v-model="booksStore.filters.publisher_id" class="input text-sm">
+            <option :value="undefined">All Publishers</option>
+            <option v-for="pub in referencesStore.publishers" :key="pub.id" :value="pub.id">
+              {{ pub.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Authenticated Binding Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Binding</label>
+          <select v-model="booksStore.filters.binding_authenticated" class="input text-sm">
+            <option :value="undefined">All Bindings</option>
+            <option :value="true">Authenticated Only</option>
+            <option :value="false">Non-Authenticated</option>
+          </select>
+        </div>
+
+        <!-- Has Images Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Images</label>
+          <select v-model="booksStore.filters.has_images" class="input text-sm">
+            <option :value="undefined">Any</option>
+            <option :value="true">With Images</option>
+            <option :value="false">Missing Images</option>
+          </select>
+        </div>
+
+        <!-- Has Analysis Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Analysis</label>
+          <select v-model="booksStore.filters.has_analysis" class="input text-sm">
+            <option :value="undefined">Any</option>
+            <option :value="true">With Analysis</option>
+            <option :value="false">Missing Analysis</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select v-model="booksStore.filters.status" class="input text-sm">
+            <option value="">All Statuses</option>
+            <option value="ON_HAND">On Hand</option>
+            <option value="IN_TRANSIT">In Transit</option>
+            <option value="SOLD">Sold</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Filter Actions -->
+      <div class="flex gap-2 mt-4 pt-4 border-t">
+        <button @click="applyFilters" class="btn-primary text-sm">
+          Apply Filters
+        </button>
+        <button @click="clearFilters" class="btn-secondary text-sm">
+          Clear Filters
+        </button>
       </div>
     </div>
 
@@ -106,10 +274,11 @@ function closeCarousel() {
               <span class="text-lg font-bold text-victorian-gold">
                 {{ formatCurrency(book.value_mid) }}
               </span>
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-1">
                 <span
                   v-if="book.binding_authenticated"
                   class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded"
+                  :title="book.binder?.name"
                 >
                   {{ book.binder?.name }}
                 </span>
@@ -117,7 +286,21 @@ function closeCarousel() {
                   v-if="book.volumes > 1"
                   class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
                 >
-                  {{ book.volumes }} vols
+                  {{ book.volumes }}v
+                </span>
+                <span
+                  v-if="book.image_count > 0"
+                  class="px-1.5 py-1 text-xs bg-blue-100 text-blue-700 rounded"
+                  :title="`${book.image_count} images`"
+                >
+                  {{ book.image_count }}img
+                </span>
+                <span
+                  v-if="book.has_analysis"
+                  class="px-1.5 py-1 text-xs bg-green-100 text-green-700 rounded"
+                  title="Has analysis"
+                >
+                  A
                 </span>
               </div>
             </div>

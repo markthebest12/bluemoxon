@@ -38,8 +38,11 @@ interface Filters {
   category?: string
   status?: string
   publisher_id?: number
+  author_id?: number
   binder_id?: number
   binding_authenticated?: boolean
+  has_images?: boolean
+  has_analysis?: boolean
 }
 
 export const useBooksStore = defineStore('books', () => {
