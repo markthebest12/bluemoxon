@@ -35,9 +35,24 @@ def normalize_title(title: str) -> str:
     """Normalize a title for matching."""
     # Remove common words and punctuation
     normalized = title.lower()
+    # Replace hyphens and underscores with spaces BEFORE removing punctuation
+    normalized = re.sub(r'[-_]', ' ', normalized)
     normalized = re.sub(r'[^\w\s]', '', normalized)
     normalized = re.sub(r'\s+', ' ', normalized).strip()
     return normalized
+
+
+def get_significant_words(text: str) -> set[str]:
+    """Extract significant words from text (excluding common words)."""
+    stopwords = {
+        'the', 'a', 'an', 'of', 'and', 'or', 'in', 'on', 'at', 'to', 'for',
+        'by', 'with', 'from', 'as', 'is', 'was', 'are', 'were', 'be', 'been',
+        'his', 'her', 'their', 'its', 'new', 'old', 'vol', 'volume', 'volumes',
+        'edition', 'complete', 'works', 'selected', 'collected', 'life', 'letters',
+    }
+    words = set(normalize_title(text).split())
+    # Remove stopwords and very short words, but keep years
+    return {w for w in words if (len(w) > 2 or re.match(r'^\d{4}$', w)) and w not in stopwords}
 
 
 def extract_book_key_from_filename(filename: str) -> tuple[str, str | None, str | None]:
@@ -56,18 +71,27 @@ def extract_book_key_from_filename(filename: str) -> tuple[str, str | None, str 
     # Split by underscore
     parts = name.split("_")
 
-    # Try to find year (4 digits)
+    # Try to find year (4 digits or year range like 1867-1880) - take the FIRST one
     year = None
     year_idx = None
     for i, part in enumerate(parts):
-        if re.match(r'^\d{4}$', part):
-            year = part
+        # Match single year (1867) or year range (1867-1880)
+        if re.match(r'^\d{4}(-\d{4})?$', part):
+            # Extract first year from range if present
+            year = part[:4]
             year_idx = i
             break
 
-    # Book name is everything before the year
+    # Book name is everything before the year (excluding binder names that might come after)
+    # Common binders: Sangorski, Zaehnsdorf, Riviere, Bayntun
+    binders = {'sangorski', 'zaehnsdorf', 'riviere', 'bayntun', 'sutcliffe'}
+
     if year_idx:
-        book_name = "_".join(parts[:year_idx])
+        # Check if item before year is a binder name
+        name_parts = parts[:year_idx]
+        # Remove binder from name parts if present
+        name_parts = [p for p in name_parts if p.lower() not in binders]
+        book_name = "_".join(name_parts) if name_parts else parts[0]
     else:
         book_name = "_".join(parts[:-2]) if len(parts) > 2 else parts[0]
 
@@ -81,8 +105,14 @@ def extract_book_key_from_filename(filename: str) -> tuple[str, str | None, str 
 
 
 def find_matching_book(session, book_key: str, year: str | None) -> Book | None:
-    """Find a matching book in the database."""
-    # Try exact title match first
+    """Find a matching book in the database using word-based matching."""
+    # Get significant words from the search key
+    key_words = get_significant_words(book_key)
+
+    if not key_words:
+        return None
+
+    # Try exact substring match first
     book = session.query(Book).filter(
         Book.title.ilike(f"%{book_key}%")
     ).first()
@@ -90,13 +120,36 @@ def find_matching_book(session, book_key: str, year: str | None) -> Book | None:
     if book:
         return book
 
-    # Try normalized matching
-    normalized_key = normalize_title(book_key)
+    # Try word-based matching
     books = session.query(Book).all()
+    best_match = None
+    best_score = 0
 
     for b in books:
-        if normalized_key in normalize_title(b.title):
-            return b
+        title_words = get_significant_words(b.title)
+
+        # Calculate match score: how many key words are in title
+        matching_words = key_words & title_words
+        if not matching_words:
+            continue
+
+        # Score based on percentage of key words matched
+        score = len(matching_words) / len(key_words)
+
+        # Bonus for year match
+        if year and b.year_start and str(b.year_start) == year:
+            score += 0.3
+        elif year and b.publication_date and year in b.publication_date:
+            score += 0.2
+
+        # Require at least 50% of key words to match
+        if score > best_score and len(matching_words) >= len(key_words) * 0.5:
+            best_score = score
+            best_match = b
+
+    # Only return if we have a good match (at least 60% score)
+    if best_score >= 0.6:
+        return best_match
 
     return None
 

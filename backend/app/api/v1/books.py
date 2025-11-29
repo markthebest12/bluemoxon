@@ -149,11 +149,25 @@ def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_d
 
 @router.delete("/{book_id}", status_code=204)
 def delete_book(book_id: int, db: Session = Depends(get_db)):
-    """Delete a book."""
+    """Delete a book and all associated images/analysis."""
+    from pathlib import Path
+    from app.config import get_settings
+    from app.models import BookImage
+
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
+    # Delete physical image files before cascade deleting database records
+    settings = get_settings()
+    images_path = Path(settings.local_images_path)
+    book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+    for image in book_images:
+        file_path = images_path / image.s3_key
+        if file_path.exists():
+            file_path.unlink()
+
+    # Delete book (cascades to images and analysis in database)
     db.delete(book)
     db.commit()
 

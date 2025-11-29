@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useBooksStore } from '@/stores/books'
 import { api } from '@/services/api'
 import BookThumbnail from '@/components/books/BookThumbnail.vue'
@@ -8,6 +8,7 @@ import ImageCarousel from '@/components/books/ImageCarousel.vue'
 import AnalysisViewer from '@/components/books/AnalysisViewer.vue'
 
 const route = useRoute()
+const router = useRouter()
 const booksStore = useBooksStore()
 
 // Image gallery state
@@ -18,6 +19,11 @@ const carouselInitialIndex = ref(0)
 // Analysis state
 const analysisVisible = ref(false)
 const hasAnalysis = ref(false)
+
+// Delete confirmation state
+const deleteModalVisible = ref(false)
+const deleting = ref(false)
+const deleteError = ref<string | null>(null)
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -62,6 +68,32 @@ function openAnalysis() {
 function closeAnalysis() {
   analysisVisible.value = false
 }
+
+function openDeleteModal() {
+  deleteError.value = null
+  deleteModalVisible.value = true
+}
+
+function closeDeleteModal() {
+  deleteModalVisible.value = false
+}
+
+async function confirmDelete() {
+  if (!booksStore.currentBook) return
+
+  deleting.value = true
+  deleteError.value = null
+
+  try {
+    await booksStore.deleteBook(booksStore.currentBook.id)
+    deleteModalVisible.value = false
+    router.push('/books')
+  } catch (e: any) {
+    deleteError.value = e.message || 'Failed to delete book'
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -76,9 +108,14 @@ function closeAnalysis() {
         <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
           &larr; Back to Collection
         </RouterLink>
-        <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
-          Edit Book
-        </RouterLink>
+        <div class="flex gap-2">
+          <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
+            Edit Book
+          </RouterLink>
+          <button @click="openDeleteModal" class="btn-danger">
+            Delete
+          </button>
+        </div>
       </div>
       <h1 class="text-3xl font-bold text-gray-800">
         {{ booksStore.currentBook.title }}
@@ -270,5 +307,59 @@ function closeAnalysis() {
       :visible="analysisVisible"
       @close="closeAnalysis"
     />
+
+    <!-- Delete Confirmation Modal -->
+    <Teleport to="body">
+      <div
+        v-if="deleteModalVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <!-- Backdrop -->
+        <div
+          class="absolute inset-0 bg-black/50"
+          @click="closeDeleteModal"
+        ></div>
+
+        <!-- Modal -->
+        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">
+            Delete Book
+          </h3>
+
+          <div class="mb-6">
+            <p class="text-gray-600 mb-3">
+              Are you sure you want to delete this book?
+            </p>
+            <p class="font-medium text-gray-800 mb-2">
+              "{{ booksStore.currentBook.title }}"
+            </p>
+            <p class="text-sm text-red-600">
+              This will permanently delete the book along with all associated images ({{ images.length }}) and analysis data.
+            </p>
+          </div>
+
+          <div v-if="deleteError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            {{ deleteError }}
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              @click="closeDeleteModal"
+              :disabled="deleting"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              @click="confirmDelete"
+              :disabled="deleting"
+              class="btn-danger"
+            >
+              {{ deleting ? 'Deleting...' : 'Delete Book' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
