@@ -81,6 +81,48 @@ export const useBooksStore = defineStore('books', () => {
     }
   }
 
+  async function createBook(bookData: Partial<Book>) {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await api.post('/books', bookData)
+      return response.data
+    } catch (e: any) {
+      error.value = e.message || 'Failed to create book'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateBook(id: number, bookData: Partial<Book>) {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await api.put(`/books/${id}`, bookData)
+      currentBook.value = response.data
+      return response.data
+    } catch (e: any) {
+      error.value = e.message || 'Failed to update book'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteBook(id: number) {
+    loading.value = true
+    error.value = null
+    try {
+      await api.delete(`/books/${id}`)
+    } catch (e: any) {
+      error.value = e.message || 'Failed to delete book'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters
     page.value = 1
@@ -112,6 +154,9 @@ export const useBooksStore = defineStore('books', () => {
     sortOrder,
     fetchBooks,
     fetchBook,
+    createBook,
+    updateBook,
+    deleteBook,
     setFilters,
     setSort,
     setPage

@@ -52,8 +52,8 @@ class Book(Base, TimestampMixin):
     purchase_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     purchase_date: Mapped[date | None] = mapped_column(Date)
     purchase_source: Mapped[str | None] = mapped_column(String(200))
-    discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # Up to 9999.99%
+    roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # Up to 99999.99%
 
     # Status
     status: Mapped[str] = mapped_column(String(20), default="ON_HAND")

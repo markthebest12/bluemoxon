@@ -17,9 +17,21 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/books/new',
+      name: 'book-create',
+      component: () => import('@/views/BookCreateView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/books/:id',
       name: 'book-detail',
       component: () => import('@/views/BookDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/books/:id/edit',
+      name: 'book-edit',
+      component: () => import('@/views/BookEditView.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -37,11 +49,22 @@ const router = createRouter({
 })
 
 // Navigation guard for authentication
+let authInitialized = false
+
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
+  // Initialize auth on first navigation
+  if (!authInitialized) {
+    await authStore.checkAuth()
+    authInitialized = true
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } })
+  } else if (to.name === 'login' && authStore.isAuthenticated) {
+    // Redirect to home if already logged in
+    next({ name: 'home' })
   } else {
     next()
   }

@@ -42,9 +42,14 @@ function formatCurrency(value: number | null): string {
   <div v-else-if="booksStore.currentBook" class="max-w-4xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
-      <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
-        &larr; Back to Collection
-      </RouterLink>
+      <div class="flex justify-between items-start">
+        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
+          &larr; Back to Collection
+        </RouterLink>
+        <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
+          Edit Book
+        </RouterLink>
+      </div>
       <h1 class="text-3xl font-bold text-gray-800">
         {{ booksStore.currentBook.title }}
       </h1>

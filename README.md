@@ -84,7 +84,9 @@ npm run dev
 ### Local URLs
 - **Frontend:** http://localhost:5173
 - **Backend API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
+- **Swagger UI:** http://localhost:8000/docs (interactive API explorer)
+- **ReDoc:** http://localhost:8000/redoc (alternative API docs)
+- **OpenAPI Spec:** http://localhost:8000/openapi.json
 
 ### Infrastructure Deployment
 

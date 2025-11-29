@@ -109,6 +109,10 @@ def create_book(book_data: BookCreate, db: Session = Depends(get_db)):
         book.year_start = int(parts[0]) if parts[0].isdigit() else None
         book.year_end = int(parts[-1]) if parts[-1].isdigit() else None
 
+    # Auto-set binding_authenticated when binder is selected
+    if book.binder_id:
+        book.binding_authenticated = True
+
     db.add(book)
     db.commit()
     db.refresh(book)
@@ -133,6 +137,10 @@ def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_d
         book.year_start = int(parts[0]) if parts[0].isdigit() else None
         book.year_end = int(parts[-1]) if parts[-1].isdigit() else None
 
+    # Auto-set binding_authenticated when binder is set/unset
+    if "binder_id" in update_data:
+        book.binding_authenticated = book.binder_id is not None
+
     db.commit()
     db.refresh(book)
 
@@ -156,7 +164,14 @@ def update_book_status(
     status: str = Query(...),
     db: Session = Depends(get_db),
 ):
-    """Update book status."""
+    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED)."""
+    valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
+    if status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
+        )
+
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -165,3 +180,83 @@ def update_book_status(
     db.commit()
 
     return {"message": "Status updated", "status": status}
+
+
+@router.patch("/{book_id}/inventory-type")
+def update_book_inventory_type(
+    book_id: int,
+    inventory_type: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Move book between inventory types (PRIMARY, EXTENDED, FLAGGED)."""
+    valid_types = ["PRIMARY", "EXTENDED", "FLAGGED"]
+    if inventory_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid inventory type. Must be one of: {', '.join(valid_types)}",
+        )
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    old_type = book.inventory_type
+    book.inventory_type = inventory_type
+    db.commit()
+
+    return {
+        "message": "Inventory type updated",
+        "old_type": old_type,
+        "new_type": inventory_type,
+    }
+
+
+@router.post("/bulk/status")
+def bulk_update_status(
+    book_ids: list[int],
+    status: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Bulk update status for multiple books."""
+    valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
+    if status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
+        )
+
+    updated = db.query(Book).filter(Book.id.in_(book_ids)).update(
+        {Book.status: status},
+        synchronize_session=False,
+    )
+    db.commit()
+
+    return {"message": f"Updated {updated} books", "status": status}
+
+
+@router.get("/duplicates/check")
+def check_duplicate_title(
+    title: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Check if a title already exists in the collection (duplicate detection)."""
+    # Search for similar titles (case-insensitive)
+    matches = db.query(Book).filter(
+        Book.title.ilike(f"%{title}%"),
+        Book.inventory_type == "PRIMARY",
+    ).all()
+
+    return {
+        "query": title,
+        "matches_found": len(matches),
+        "matches": [
+            {
+                "id": b.id,
+                "title": b.title,
+                "author": b.author.name if b.author else None,
+                "binder": b.binder.name if b.binder else None,
+                "value_mid": float(b.value_mid) if b.value_mid else None,
+            }
+            for b in matches
+        ],
+    }

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Author
+from app.schemas.reference import AuthorCreate, AuthorUpdate, AuthorResponse
 
 router = APIRouter()
 
@@ -58,3 +59,70 @@ def get_author(author_id: int, db: Session = Depends(get_db)):
             for b in author.books
         ],
     }
+
+
+@router.post("", response_model=AuthorResponse, status_code=201)
+def create_author(author_data: AuthorCreate, db: Session = Depends(get_db)):
+    """Create a new author."""
+    # Check for existing author with same name
+    existing = db.query(Author).filter(Author.name == author_data.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Author with this name already exists")
+
+    author = Author(**author_data.model_dump())
+    db.add(author)
+    db.commit()
+    db.refresh(author)
+
+    return AuthorResponse(
+        id=author.id,
+        name=author.name,
+        birth_year=author.birth_year,
+        death_year=author.death_year,
+        era=author.era,
+        first_acquired_date=author.first_acquired_date,
+        book_count=len(author.books),
+    )
+
+
+@router.put("/{author_id}", response_model=AuthorResponse)
+def update_author(author_id: int, author_data: AuthorUpdate, db: Session = Depends(get_db)):
+    """Update an author."""
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(status_code=404, detail="Author not found")
+
+    update_data = author_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(author, field, value)
+
+    db.commit()
+    db.refresh(author)
+
+    return AuthorResponse(
+        id=author.id,
+        name=author.name,
+        birth_year=author.birth_year,
+        death_year=author.death_year,
+        era=author.era,
+        first_acquired_date=author.first_acquired_date,
+        book_count=len(author.books),
+    )
+
+
+@router.delete("/{author_id}", status_code=204)
+def delete_author(author_id: int, db: Session = Depends(get_db)):
+    """Delete an author. Will fail if author has associated books."""
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(status_code=404, detail="Author not found")
+
+    if author.books:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete author with {len(author.books)} associated books. "
+            "Remove books first or reassign them to another author.",
+        )
+
+    db.delete(author)
+    db.commit()

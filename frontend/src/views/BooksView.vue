@@ -48,6 +48,9 @@ function viewBook(id: number) {
           <option value="EXTENDED">Extended Inventory</option>
           <option value="FLAGGED">Flagged for Removal</option>
         </select>
+        <RouterLink to="/books/new" class="btn-primary">
+          + Add Book
+        </RouterLink>
       </div>
     </div>
 
