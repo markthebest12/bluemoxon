@@ -39,22 +39,52 @@ bluemoxon/
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- AWS CLI configured
-- Docker (for local development)
+- Docker
+- Poetry (`curl -sSL https://install.python-poetry.org | python3 -`)
 
 ### Local Development
 
+**One-command setup** (if using profile-scripts):
 ```bash
-# Backend
+source ~/.zshrc
+bmx-setup
+```
+
+**Manual setup:**
+```bash
+# Start PostgreSQL
+docker-compose up -d postgres
+
+# Backend (Terminal 1)
 cd backend
+cp .env.example .env
 poetry install
+poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 
-# Frontend
+# Frontend (Terminal 2)
 cd frontend
+cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+### Shell Aliases (via profile-scripts)
+
+| Alias | Description |
+|-------|-------------|
+| `bmx` | cd to bluemoxon |
+| `bmx-api` | Start backend server |
+| `bmx-web` | Start frontend server |
+| `bmx-db-start` | Start PostgreSQL container |
+| `bmx-db-stop` | Stop PostgreSQL container |
+| `bmx-db-psql` | Connect to database |
+| `bmx-migrate` | Run Alembic migrations |
+
+### Local URLs
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
 
 ### Infrastructure Deployment
 
