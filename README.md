@@ -105,6 +105,7 @@ cdk deploy --all
 - [Deployment](docs/DEPLOYMENT.md) - AWS setup guide
 - [Development](docs/DEVELOPMENT.md) - Local dev setup
 - [Migration](docs/MIGRATION.md) - Data migration from legacy system
+- [Validation](docs/VALIDATION.md) - CI/CD validation blueprint
 
 ## License
 

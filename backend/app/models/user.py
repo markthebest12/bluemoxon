@@ -1,7 +1,6 @@
 """User model - Cognito user metadata."""
 
-from sqlalchemy import String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -17,4 +16,4 @@ class User(Base, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255))
     display_name: Mapped[str | None] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(20), default="viewer")  # admin, editor, viewer
-    preferences: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    preferences: Mapped[dict | None] = mapped_column(JSON, default=dict)  # JSON for cross-DB

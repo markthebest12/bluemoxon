@@ -1,13 +1,22 @@
 """Book model - Main entity."""
 
+import os
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import String, Integer, Text, Boolean, Numeric, Date, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+# Use TSVECTOR for PostgreSQL, Text for SQLite (testing)
+# This allows tests to run with SQLite while production uses PostgreSQL
+try:
+    from sqlalchemy.dialects.postgresql import TSVECTOR
+
+    SearchVectorType = TSVECTOR
+except ImportError:
+    SearchVectorType = Text  # type: ignore
 
 
 class Book(Base, TimestampMixin):
@@ -65,8 +74,8 @@ class Book(Base, TimestampMixin):
     # Legacy reference (for migration)
     legacy_row: Mapped[int | None] = mapped_column(Integer)
 
-    # Full-text search
-    search_vector: Mapped[str | None] = mapped_column(TSVECTOR)
+    # Full-text search (PostgreSQL only, nullable for SQLite tests)
+    search_vector: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     author = relationship("Author", back_populates="books")
@@ -76,7 +85,6 @@ class Book(Base, TimestampMixin):
     images = relationship("BookImage", back_populates="book", order_by="BookImage.display_order")
 
     __table_args__ = (
-        Index("books_search_idx", "search_vector", postgresql_using="gin"),
         Index("books_inventory_type_idx", "inventory_type"),
         Index("books_category_idx", "category"),
         Index("books_status_idx", "status"),
