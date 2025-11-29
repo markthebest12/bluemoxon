@@ -1,0 +1,83 @@
+"""Book model - Main entity."""
+
+from datetime import date
+from decimal import Decimal
+
+from sqlalchemy import String, Integer, Text, Boolean, Numeric, Date, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin
+
+
+class Book(Base, TimestampMixin):
+    """Book entity - represents a single book or set in the collection."""
+
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Basic info
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    author_id: Mapped[int | None] = mapped_column(ForeignKey("authors.id"))
+    publisher_id: Mapped[int | None] = mapped_column(ForeignKey("publishers.id"))
+    binder_id: Mapped[int | None] = mapped_column(ForeignKey("binders.id"))
+
+    # Publication
+    publication_date: Mapped[str | None] = mapped_column(String(50))  # "1867-1880" or "1851"
+    year_start: Mapped[int | None] = mapped_column(Integer)
+    year_end: Mapped[int | None] = mapped_column(Integer)
+    edition: Mapped[str | None] = mapped_column(String(100))
+    volumes: Mapped[int] = mapped_column(Integer, default=1)
+
+    # Classification
+    category: Mapped[str | None] = mapped_column(String(50))
+    inventory_type: Mapped[str] = mapped_column(String(20), default="PRIMARY")
+
+    # Binding
+    binding_type: Mapped[str | None] = mapped_column(String(50))
+    binding_authenticated: Mapped[bool] = mapped_column(Boolean, default=False)
+    binding_description: Mapped[str | None] = mapped_column(Text)
+
+    # Condition
+    condition_grade: Mapped[str | None] = mapped_column(String(20))
+    condition_notes: Mapped[str | None] = mapped_column(Text)
+
+    # Valuation
+    value_low: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    value_mid: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    value_high: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+
+    # Acquisition
+    purchase_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    purchase_date: Mapped[date | None] = mapped_column(Date)
+    purchase_source: Mapped[str | None] = mapped_column(String(200))
+    discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+
+    # Status
+    status: Mapped[str] = mapped_column(String(20), default="ON_HAND")
+
+    # Notes
+    notes: Mapped[str | None] = mapped_column(Text)
+    provenance: Mapped[str | None] = mapped_column(Text)
+
+    # Legacy reference (for migration)
+    legacy_row: Mapped[int | None] = mapped_column(Integer)
+
+    # Full-text search
+    search_vector: Mapped[str | None] = mapped_column(TSVECTOR)
+
+    # Relationships
+    author = relationship("Author", back_populates="books")
+    publisher = relationship("Publisher", back_populates="books")
+    binder = relationship("Binder", back_populates="books")
+    analysis = relationship("BookAnalysis", back_populates="book", uselist=False)
+    images = relationship("BookImage", back_populates="book", order_by="BookImage.display_order")
+
+    __table_args__ = (
+        Index("books_search_idx", "search_vector", postgresql_using="gin"),
+        Index("books_inventory_type_idx", "inventory_type"),
+        Index("books_category_idx", "category"),
+        Index("books_status_idx", "status"),
+    )
