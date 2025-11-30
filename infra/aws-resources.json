@@ -1,0 +1,69 @@
+{
+  "region": "us-west-2",
+  "account_id": "266672885920",
+  "domain": "bluemoxon.com",
+  "vpc": {
+    "vpc_id": "vpc-023f4b1dc7c2c4296",
+    "internet_gateway_id": "igw-0c8c2413e3958ec04",
+    "nat_gateway_id": "nat-0551444ab65c31f8c",
+    "elastic_ip_allocation_id": "eipalloc-098bcae03133fb25a"
+  },
+  "subnets": {
+    "public_a": "subnet-0b170eacdfed1ec3a",
+    "public_b": "subnet-04e95aa299c6e1018",
+    "private_a": "subnet-026cb4a2cf0464f88",
+    "private_b": "subnet-0ffc724f850e0a438",
+    "isolated_a": "subnet-037b7953df0ccd042",
+    "isolated_b": "subnet-03e9217cb4472f0a0"
+  },
+  "route_tables": {
+    "public": "rtb-047fb09852afa8c21",
+    "private": "rtb-03b11ae30d0b64149",
+    "isolated": "rtb-082c18ad4fd08b193"
+  },
+  "security_groups": {
+    "aurora": "sg-0bdf28db1cea9797e",
+    "lambda": "sg-0ae3f0f22c08e0c62"
+  },
+  "aurora": {
+    "cluster_identifier": "bluemoxon-cluster",
+    "instance_identifier": "bluemoxon-instance-1",
+    "endpoint": "bluemoxon-cluster.cluster-cp4c0cuuyq2m.us-west-2.rds.amazonaws.com",
+    "reader_endpoint": "bluemoxon-cluster.cluster-ro-cp4c0cuuyq2m.us-west-2.rds.amazonaws.com",
+    "port": 5432,
+    "database_name": "bluemoxon",
+    "subnet_group": "bluemoxon-db-subnet-group"
+  },
+  "secrets": {
+    "db_credentials": "arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl"
+  },
+  "cognito": {
+    "user_pool_id": "us-west-2_PvdIpXVKF",
+    "client_id": "3ndaok3psd2ncqfjrdb57825he",
+    "domain": "bluemoxon.auth.us-west-2.amazoncognito.com"
+  },
+  "lambda": {
+    "function_name": "bluemoxon-api",
+    "function_arn": "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-api",
+    "role_arn": "arn:aws:iam::266672885920:role/bluemoxon-lambda-role"
+  },
+  "api_gateway": {
+    "api_id": "h7q9ga51xa",
+    "endpoint": "https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com"
+  },
+  "s3": {
+    "frontend_bucket": "bluemoxon-frontend",
+    "images_bucket": "bluemoxon-images"
+  },
+  "cloudfront": {
+    "distribution_id": "E16BJX90QWQNQO",
+    "domain_name": "d2yd5bvqaomg54.cloudfront.net",
+    "oac_id": "EZGSJYMZAFG0S"
+  },
+  "acm": {
+    "certificate_arn": "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861"
+  },
+  "route53": {
+    "hosted_zone_id": "Z09346283AE9VMIQQJ8VL"
+  }
+}
