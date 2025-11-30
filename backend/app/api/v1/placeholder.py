@@ -1,6 +1,5 @@
 """Placeholder image endpoint."""
 
-
 from fastapi import APIRouter
 from fastapi.responses import Response
 

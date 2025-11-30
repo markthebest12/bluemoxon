@@ -1,6 +1,5 @@
 """Books API endpoints."""
 
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -121,9 +120,9 @@ def list_books(
                 primary_image = min(book.images, key=lambda x: x.display_order)
 
         if primary_image:
-            book_dict[
-                "primary_image_url"
-            ] = f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
 
         items.append(BookResponse(**book_dict))
 
