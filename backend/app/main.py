@@ -21,7 +21,6 @@ app = FastAPI(
 # Default "*" is for local development only
 if settings.cors_origins == "*":
     # Local development: allow all origins
-    # nosemgrep: python.fastapi.security.wildcard-cors.wildcard-cors
     origins = ["*"]
 else:
     # Production: use comma-separated list from environment
@@ -29,7 +28,8 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    # nosemgrep: python.fastapi.security.wildcard-cors.wildcard-cors
+    allow_origins=origins,  # Controlled by CORS_ORIGINS env var in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
