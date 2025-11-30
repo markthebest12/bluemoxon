@@ -1,6 +1,5 @@
 """Books API endpoints."""
 
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -47,7 +46,8 @@ def list_books(
 ):
     """List books with filtering and pagination."""
     from sqlalchemy import exists
-    from app.models import BookImage, BookAnalysis
+
+    from app.models import BookAnalysis, BookImage
 
     query = db.query(Book)
 
@@ -200,6 +200,7 @@ def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_d
 def delete_book(book_id: int, db: Session = Depends(get_db)):
     """Delete a book and all associated images/analysis."""
     from pathlib import Path
+
     from app.config import get_settings
     from app.models import BookImage
 

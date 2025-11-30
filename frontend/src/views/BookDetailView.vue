@@ -1,97 +1,97 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useBooksStore } from '@/stores/books'
-import { api } from '@/services/api'
-import BookThumbnail from '@/components/books/BookThumbnail.vue'
-import ImageCarousel from '@/components/books/ImageCarousel.vue'
-import AnalysisViewer from '@/components/books/AnalysisViewer.vue'
+import { onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useBooksStore } from "@/stores/books";
+import { api } from "@/services/api";
+import BookThumbnail from "@/components/books/BookThumbnail.vue";
+import ImageCarousel from "@/components/books/ImageCarousel.vue";
+import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
-const route = useRoute()
-const router = useRouter()
-const booksStore = useBooksStore()
+const route = useRoute();
+const router = useRouter();
+const booksStore = useBooksStore();
 
 // Image gallery state
-const images = ref<any[]>([])
-const carouselVisible = ref(false)
-const carouselInitialIndex = ref(0)
+const images = ref<any[]>([]);
+const carouselVisible = ref(false);
+const carouselInitialIndex = ref(0);
 
 // Analysis state
-const analysisVisible = ref(false)
-const hasAnalysis = ref(false)
+const analysisVisible = ref(false);
+const hasAnalysis = ref(false);
 
 // Delete confirmation state
-const deleteModalVisible = ref(false)
-const deleting = ref(false)
-const deleteError = ref<string | null>(null)
+const deleteModalVisible = ref(false);
+const deleting = ref(false);
+const deleteError = ref<string | null>(null);
 
 onMounted(async () => {
-  const id = Number(route.params.id)
-  await booksStore.fetchBook(id)
+  const id = Number(route.params.id);
+  await booksStore.fetchBook(id);
 
   // Fetch images
   try {
-    const response = await api.get(`/books/${id}/images`)
-    images.value = response.data
+    const response = await api.get(`/books/${id}/images`);
+    images.value = response.data;
   } catch {
-    images.value = []
+    images.value = [];
   }
 
   // Check if analysis exists
   if (booksStore.currentBook?.has_analysis) {
-    hasAnalysis.value = true
+    hasAnalysis.value = true;
   }
-})
+});
 
 function formatCurrency(value: number | null): string {
-  if (value === null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0
-  }).format(value)
+  if (value === null) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+  }).format(value);
 }
 
 function openCarousel(index: number = 0) {
-  carouselInitialIndex.value = index
-  carouselVisible.value = true
+  carouselInitialIndex.value = index;
+  carouselVisible.value = true;
 }
 
 function closeCarousel() {
-  carouselVisible.value = false
+  carouselVisible.value = false;
 }
 
 function openAnalysis() {
-  analysisVisible.value = true
+  analysisVisible.value = true;
 }
 
 function closeAnalysis() {
-  analysisVisible.value = false
+  analysisVisible.value = false;
 }
 
 function openDeleteModal() {
-  deleteError.value = null
-  deleteModalVisible.value = true
+  deleteError.value = null;
+  deleteModalVisible.value = true;
 }
 
 function closeDeleteModal() {
-  deleteModalVisible.value = false
+  deleteModalVisible.value = false;
 }
 
 async function confirmDelete() {
-  if (!booksStore.currentBook) return
+  if (!booksStore.currentBook) return;
 
-  deleting.value = true
-  deleteError.value = null
+  deleting.value = true;
+  deleteError.value = null;
 
   try {
-    await booksStore.deleteBook(booksStore.currentBook.id)
-    deleteModalVisible.value = false
-    router.push('/books')
+    await booksStore.deleteBook(booksStore.currentBook.id);
+    deleteModalVisible.value = false;
+    router.push("/books");
   } catch (e: any) {
-    deleteError.value = e.message || 'Failed to delete book'
+    deleteError.value = e.message || "Failed to delete book";
   } finally {
-    deleting.value = false
+    deleting.value = false;
   }
 }
 </script>
@@ -105,23 +105,27 @@ async function confirmDelete() {
     <!-- Header -->
     <div class="mb-8">
       <div class="flex justify-between items-start">
-        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
+        <RouterLink
+          to="/books"
+          class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block"
+        >
           &larr; Back to Collection
         </RouterLink>
         <div class="flex gap-2">
-          <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
+          <RouterLink
+            :to="`/books/${booksStore.currentBook.id}/edit`"
+            class="btn-secondary"
+          >
             Edit Book
           </RouterLink>
-          <button @click="openDeleteModal" class="btn-danger">
-            Delete
-          </button>
+          <button @click="openDeleteModal" class="btn-danger">Delete</button>
         </div>
       </div>
       <h1 class="text-3xl font-bold text-gray-800">
         {{ booksStore.currentBook.title }}
       </h1>
       <p class="text-xl text-gray-600 mt-2">
-        {{ booksStore.currentBook.author?.name || 'Unknown Author' }}
+        {{ booksStore.currentBook.author?.name || "Unknown Author" }}
       </p>
     </div>
 
@@ -155,24 +159,33 @@ async function confirmDelete() {
 
         <!-- Publication Details -->
         <div class="card">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">Publication Details</h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            Publication Details
+          </h2>
           <dl class="grid grid-cols-2 gap-4">
             <div>
               <dt class="text-sm text-gray-500">Publisher</dt>
               <dd class="font-medium">
-                {{ booksStore.currentBook.publisher?.name || '-' }}
-                <span v-if="booksStore.currentBook.publisher?.tier" class="text-xs text-moxon-600">
+                {{ booksStore.currentBook.publisher?.name || "-" }}
+                <span
+                  v-if="booksStore.currentBook.publisher?.tier"
+                  class="text-xs text-moxon-600"
+                >
                   ({{ booksStore.currentBook.publisher.tier }})
                 </span>
               </dd>
             </div>
             <div>
               <dt class="text-sm text-gray-500">Date</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.publication_date || '-' }}</dd>
+              <dd class="font-medium">
+                {{ booksStore.currentBook.publication_date || "-" }}
+              </dd>
             </div>
             <div>
               <dt class="text-sm text-gray-500">Edition</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.edition || '-' }}</dd>
+              <dd class="font-medium">
+                {{ booksStore.currentBook.edition || "-" }}
+              </dd>
             </div>
             <div>
               <dt class="text-sm text-gray-500">Volumes</dt>
@@ -180,7 +193,9 @@ async function confirmDelete() {
             </div>
             <div>
               <dt class="text-sm text-gray-500">Category</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.category || '-' }}</dd>
+              <dd class="font-medium">
+                {{ booksStore.currentBook.category || "-" }}
+              </dd>
             </div>
             <div>
               <dt class="text-sm text-gray-500">Status</dt>
@@ -195,7 +210,9 @@ async function confirmDelete() {
           <dl class="space-y-2">
             <div>
               <dt class="text-sm text-gray-500">Type</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.binding_type || '-' }}</dd>
+              <dd class="font-medium">
+                {{ booksStore.currentBook.binding_type || "-" }}
+              </dd>
             </div>
             <div v-if="booksStore.currentBook.binding_authenticated">
               <dt class="text-sm text-gray-500">Bindery</dt>
@@ -205,7 +222,9 @@ async function confirmDelete() {
             </div>
             <div v-if="booksStore.currentBook.binding_description">
               <dt class="text-sm text-gray-500">Description</dt>
-              <dd class="text-gray-700">{{ booksStore.currentBook.binding_description }}</dd>
+              <dd class="text-gray-700">
+                {{ booksStore.currentBook.binding_description }}
+              </dd>
             </div>
           </dl>
         </div>
@@ -213,14 +232,21 @@ async function confirmDelete() {
         <!-- Notes -->
         <div v-if="booksStore.currentBook.notes" class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Notes</h2>
-          <p class="text-gray-700 whitespace-pre-wrap">{{ booksStore.currentBook.notes }}</p>
+          <p class="text-gray-700 whitespace-pre-wrap">
+            {{ booksStore.currentBook.notes }}
+          </p>
         </div>
 
         <!-- Analysis Button -->
-        <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
+        <div
+          v-if="hasAnalysis"
+          class="card bg-victorian-cream border-victorian-burgundy/20"
+        >
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
+              <h2 class="text-lg font-semibold text-gray-800">
+                Detailed Analysis
+              </h2>
               <p class="text-sm text-gray-600 mt-1">
                 View the full Napoleon-style acquisition analysis for this book.
               </p>
@@ -244,11 +270,15 @@ async function confirmDelete() {
           </div>
           <div class="flex justify-between mt-4 text-sm">
             <div class="text-center">
-              <p class="font-medium">{{ formatCurrency(booksStore.currentBook.value_low) }}</p>
+              <p class="font-medium">
+                {{ formatCurrency(booksStore.currentBook.value_low) }}
+              </p>
               <p class="text-gray-500">Low</p>
             </div>
             <div class="text-center">
-              <p class="font-medium">{{ formatCurrency(booksStore.currentBook.value_high) }}</p>
+              <p class="font-medium">
+                {{ formatCurrency(booksStore.currentBook.value_high) }}
+              </p>
               <p class="text-gray-500">High</p>
             </div>
           </div>
@@ -259,15 +289,21 @@ async function confirmDelete() {
           <dl class="space-y-2">
             <div>
               <dt class="text-sm text-gray-500">Purchase Price</dt>
-              <dd class="font-medium">{{ formatCurrency(booksStore.currentBook.purchase_price) }}</dd>
+              <dd class="font-medium">
+                {{ formatCurrency(booksStore.currentBook.purchase_price) }}
+              </dd>
             </div>
             <div v-if="booksStore.currentBook.discount_pct">
               <dt class="text-sm text-gray-500">Discount</dt>
-              <dd class="font-medium text-green-600">{{ booksStore.currentBook.discount_pct }}%</dd>
+              <dd class="font-medium text-green-600">
+                {{ booksStore.currentBook.discount_pct }}%
+              </dd>
             </div>
             <div v-if="booksStore.currentBook.roi_pct">
               <dt class="text-sm text-gray-500">ROI</dt>
-              <dd class="font-medium text-green-600">{{ booksStore.currentBook.roi_pct }}%</dd>
+              <dd class="font-medium text-green-600">
+                {{ booksStore.currentBook.roi_pct }}%
+              </dd>
             </div>
           </dl>
         </div>
@@ -282,11 +318,13 @@ async function confirmDelete() {
             </div>
             <div class="flex justify-between">
               <dt class="text-gray-500">Has Analysis</dt>
-              <dd class="font-medium">{{ hasAnalysis ? 'Yes' : 'No' }}</dd>
+              <dd class="font-medium">{{ hasAnalysis ? "Yes" : "No" }}</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-gray-500">Inventory Type</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.inventory_type }}</dd>
+              <dd class="font-medium">
+                {{ booksStore.currentBook.inventory_type }}
+              </dd>
             </div>
           </dl>
         </div>
@@ -321,10 +359,10 @@ async function confirmDelete() {
         ></div>
 
         <!-- Modal -->
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-          <h3 class="text-xl font-semibold text-gray-800 mb-4">
-            Delete Book
-          </h3>
+        <div
+          class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+        >
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">Delete Book</h3>
 
           <div class="mb-6">
             <p class="text-gray-600 mb-3">
@@ -334,11 +372,15 @@ async function confirmDelete() {
               "{{ booksStore.currentBook.title }}"
             </p>
             <p class="text-sm text-red-600">
-              This will permanently delete the book along with all associated images ({{ images.length }}) and analysis data.
+              This will permanently delete the book along with all associated
+              images ({{ images.length }}) and analysis data.
             </p>
           </div>
 
-          <div v-if="deleteError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <div
+            v-if="deleteError"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+          >
             {{ deleteError }}
           </div>
 
@@ -355,7 +397,7 @@ async function confirmDelete() {
               :disabled="deleting"
               class="btn-danger"
             >
-              {{ deleting ? 'Deleting...' : 'Delete Book' }}
+              {{ deleting ? "Deleting..." : "Delete Book" }}
             </button>
           </div>
         </div>

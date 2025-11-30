@@ -1,107 +1,107 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useBooksStore, type Book } from '@/stores/books'
-import { useReferencesStore } from '@/stores/references'
+import { ref, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useBooksStore, type Book } from "@/stores/books";
+import { useReferencesStore } from "@/stores/references";
 
 const props = defineProps<{
-  bookId?: number
-}>()
+  bookId?: number;
+}>();
 
-const router = useRouter()
-const booksStore = useBooksStore()
-const refsStore = useReferencesStore()
+const router = useRouter();
+const booksStore = useBooksStore();
+const refsStore = useReferencesStore();
 
-const isEditing = computed(() => !!props.bookId)
+const isEditing = computed(() => !!props.bookId);
 
 // Form data
 const form = ref({
-  title: '',
+  title: "",
   author_id: null as number | null,
   publisher_id: null as number | null,
   binder_id: null as number | null,
-  publication_date: '',
-  edition: '',
+  publication_date: "",
+  edition: "",
   volumes: 1,
-  category: '',
-  inventory_type: 'PRIMARY',
-  binding_type: '',
-  binding_description: '',
-  condition_grade: '',
-  condition_notes: '',
+  category: "",
+  inventory_type: "PRIMARY",
+  binding_type: "",
+  binding_description: "",
+  condition_grade: "",
+  condition_notes: "",
   value_low: null as number | null,
   value_mid: null as number | null,
   value_high: null as number | null,
   purchase_price: null as number | null,
-  purchase_date: '',
-  purchase_source: '',
-  status: 'ON_HAND',
-  notes: '',
-  provenance: ''
-})
+  purchase_date: "",
+  purchase_source: "",
+  status: "ON_HAND",
+  notes: "",
+  provenance: "",
+});
 
-const saving = ref(false)
-const errorMessage = ref('')
+const saving = ref(false);
+const errorMessage = ref("");
 
 // Category options
 const categories = [
-  'Victorian Poetry',
-  'Victorian Literature',
-  'Victorian Biography',
-  'Romantic Poetry',
-  'Romantic Literature',
-  'Reference',
-  'History',
-  'Education',
-  'Literature'
-]
+  "Victorian Poetry",
+  "Victorian Literature",
+  "Victorian Biography",
+  "Romantic Poetry",
+  "Romantic Literature",
+  "Reference",
+  "History",
+  "Education",
+  "Literature",
+];
 
 // Status options
-const statuses = ['ON_HAND', 'IN_TRANSIT', 'SOLD', 'REMOVED']
+const statuses = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
 
 onMounted(async () => {
   // Fetch reference data for dropdowns
-  await refsStore.fetchAll()
+  await refsStore.fetchAll();
 
   // If editing, load the book data
   if (props.bookId) {
-    await booksStore.fetchBook(props.bookId)
+    await booksStore.fetchBook(props.bookId);
     if (booksStore.currentBook) {
-      populateForm(booksStore.currentBook)
+      populateForm(booksStore.currentBook);
     }
   }
-})
+});
 
 function populateForm(book: Book) {
   form.value = {
-    title: book.title || '',
+    title: book.title || "",
     author_id: book.author?.id || null,
     publisher_id: book.publisher?.id || null,
     binder_id: book.binder?.id || null,
-    publication_date: book.publication_date || '',
-    edition: (book as any).edition || '',
+    publication_date: book.publication_date || "",
+    edition: (book as any).edition || "",
     volumes: book.volumes || 1,
-    category: book.category || '',
-    inventory_type: book.inventory_type || 'PRIMARY',
-    binding_type: book.binding_type || '',
-    binding_description: (book as any).binding_description || '',
-    condition_grade: (book as any).condition_grade || '',
-    condition_notes: (book as any).condition_notes || '',
+    category: book.category || "",
+    inventory_type: book.inventory_type || "PRIMARY",
+    binding_type: book.binding_type || "",
+    binding_description: (book as any).binding_description || "",
+    condition_grade: (book as any).condition_grade || "",
+    condition_notes: (book as any).condition_notes || "",
     value_low: book.value_low,
     value_mid: book.value_mid,
     value_high: book.value_high,
     purchase_price: (book as any).purchase_price || null,
-    purchase_date: (book as any).purchase_date || '',
-    purchase_source: (book as any).purchase_source || '',
-    status: book.status || 'ON_HAND',
-    notes: book.notes || '',
-    provenance: (book as any).provenance || ''
-  }
+    purchase_date: (book as any).purchase_date || "",
+    purchase_source: (book as any).purchase_source || "",
+    status: book.status || "ON_HAND",
+    notes: book.notes || "",
+    provenance: (book as any).provenance || "",
+  };
 }
 
 async function handleSubmit() {
-  saving.value = true
-  errorMessage.value = ''
+  saving.value = true;
+  errorMessage.value = "";
 
   try {
     // Prepare data - only include non-empty values
@@ -109,50 +109,57 @@ async function handleSubmit() {
       title: form.value.title,
       volumes: form.value.volumes,
       inventory_type: form.value.inventory_type,
-      status: form.value.status
-    }
+      status: form.value.status,
+    };
 
     // Optional fields
-    if (form.value.author_id) data.author_id = form.value.author_id
-    if (form.value.publisher_id) data.publisher_id = form.value.publisher_id
-    if (form.value.binder_id) data.binder_id = form.value.binder_id
-    if (form.value.publication_date) data.publication_date = form.value.publication_date
-    if (form.value.edition) data.edition = form.value.edition
-    if (form.value.category) data.category = form.value.category
-    if (form.value.binding_type) data.binding_type = form.value.binding_type
-    if (form.value.binding_description) data.binding_description = form.value.binding_description
-    if (form.value.condition_grade) data.condition_grade = form.value.condition_grade
-    if (form.value.condition_notes) data.condition_notes = form.value.condition_notes
-    if (form.value.value_low !== null) data.value_low = form.value.value_low
-    if (form.value.value_mid !== null) data.value_mid = form.value.value_mid
-    if (form.value.value_high !== null) data.value_high = form.value.value_high
-    if (form.value.purchase_price !== null) data.purchase_price = form.value.purchase_price
-    if (form.value.purchase_date) data.purchase_date = form.value.purchase_date
-    if (form.value.purchase_source) data.purchase_source = form.value.purchase_source
-    if (form.value.notes) data.notes = form.value.notes
-    if (form.value.provenance) data.provenance = form.value.provenance
+    if (form.value.author_id) data.author_id = form.value.author_id;
+    if (form.value.publisher_id) data.publisher_id = form.value.publisher_id;
+    if (form.value.binder_id) data.binder_id = form.value.binder_id;
+    if (form.value.publication_date)
+      data.publication_date = form.value.publication_date;
+    if (form.value.edition) data.edition = form.value.edition;
+    if (form.value.category) data.category = form.value.category;
+    if (form.value.binding_type) data.binding_type = form.value.binding_type;
+    if (form.value.binding_description)
+      data.binding_description = form.value.binding_description;
+    if (form.value.condition_grade)
+      data.condition_grade = form.value.condition_grade;
+    if (form.value.condition_notes)
+      data.condition_notes = form.value.condition_notes;
+    if (form.value.value_low !== null) data.value_low = form.value.value_low;
+    if (form.value.value_mid !== null) data.value_mid = form.value.value_mid;
+    if (form.value.value_high !== null) data.value_high = form.value.value_high;
+    if (form.value.purchase_price !== null)
+      data.purchase_price = form.value.purchase_price;
+    if (form.value.purchase_date) data.purchase_date = form.value.purchase_date;
+    if (form.value.purchase_source)
+      data.purchase_source = form.value.purchase_source;
+    if (form.value.notes) data.notes = form.value.notes;
+    if (form.value.provenance) data.provenance = form.value.provenance;
 
-    let result
+    let result;
     if (isEditing.value && props.bookId) {
-      result = await booksStore.updateBook(props.bookId, data)
+      result = await booksStore.updateBook(props.bookId, data);
     } else {
-      result = await booksStore.createBook(data)
+      result = await booksStore.createBook(data);
     }
 
     // Navigate to the book detail page
-    router.push(`/books/${result.id}`)
+    router.push(`/books/${result.id}`);
   } catch (e: any) {
-    errorMessage.value = e.response?.data?.detail || e.message || 'Failed to save book'
+    errorMessage.value =
+      e.response?.data?.detail || e.message || "Failed to save book";
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 function cancel() {
   if (props.bookId) {
-    router.push(`/books/${props.bookId}`)
+    router.push(`/books/${props.bookId}`);
   } else {
-    router.push('/books')
+    router.push("/books");
   }
 }
 </script>
@@ -160,16 +167,23 @@ function cancel() {
 <template>
   <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto space-y-8">
     <!-- Error message -->
-    <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+    <div
+      v-if="errorMessage"
+      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
+    >
       {{ errorMessage }}
     </div>
 
     <!-- Basic Information -->
     <div class="card">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">
+        Basic Information
+      </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Title *</label
+          >
           <input
             v-model="form.title"
             type="text"
@@ -180,20 +194,32 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Author</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Author</label
+          >
           <select v-model="form.author_id" class="input w-full">
             <option :value="null">-- Select Author --</option>
-            <option v-for="author in refsStore.authors" :key="author.id" :value="author.id">
+            <option
+              v-for="author in refsStore.authors"
+              :key="author.id"
+              :value="author.id"
+            >
               {{ author.name }}
             </option>
           </select>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Publisher</label
+          >
           <select v-model="form.publisher_id" class="input w-full">
             <option :value="null">-- Select Publisher --</option>
-            <option v-for="pub in refsStore.publishers" :key="pub.id" :value="pub.id">
+            <option
+              v-for="pub in refsStore.publishers"
+              :key="pub.id"
+              :value="pub.id"
+            >
               {{ pub.name }}
               <template v-if="pub.tier"> ({{ pub.tier }})</template>
             </option>
@@ -201,7 +227,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Publication Date</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Publication Date</label
+          >
           <input
             v-model="form.publication_date"
             type="text"
@@ -211,7 +239,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Edition</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Edition</label
+          >
           <input
             v-model="form.edition"
             type="text"
@@ -221,7 +251,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Volumes</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Volumes</label
+          >
           <input
             v-model.number="form.volumes"
             type="number"
@@ -231,15 +263,21 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Category</label
+          >
           <select v-model="form.category" class="input w-full">
             <option value="">-- Select Category --</option>
-            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">
+              {{ cat }}
+            </option>
           </select>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Inventory Type</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Inventory Type</label
+          >
           <select v-model="form.inventory_type" class="input w-full">
             <option value="PRIMARY">Primary Collection</option>
             <option value="EXTENDED">Extended Inventory</option>
@@ -248,10 +286,12 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Status</label
+          >
           <select v-model="form.status" class="input w-full">
             <option v-for="status in statuses" :key="status" :value="status">
-              {{ status.replace('_', ' ') }}
+              {{ status.replace("_", " ") }}
             </option>
           </select>
         </div>
@@ -269,18 +309,27 @@ function cancel() {
           </label>
           <select v-model="form.binder_id" class="input w-full">
             <option :value="null">-- No Premium Binding --</option>
-            <option v-for="binder in refsStore.binders" :key="binder.id" :value="binder.id">
+            <option
+              v-for="binder in refsStore.binders"
+              :key="binder.id"
+              :value="binder.id"
+            >
               {{ binder.name }}
-              <template v-if="binder.full_name"> - {{ binder.full_name }}</template>
+              <template v-if="binder.full_name">
+                - {{ binder.full_name }}</template
+              >
             </option>
           </select>
           <p class="text-xs text-gray-500 mt-1">
-            Selecting a binder automatically marks this as an authenticated binding
+            Selecting a binder automatically marks this as an authenticated
+            binding
           </p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Binding Type</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Binding Type</label
+          >
           <input
             v-model="form.binding_type"
             type="text"
@@ -290,7 +339,9 @@ function cancel() {
         </div>
 
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Binding Description</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Binding Description</label
+          >
           <textarea
             v-model="form.binding_description"
             rows="2"
@@ -306,7 +357,9 @@ function cancel() {
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Condition</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Condition Grade</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Condition Grade</label
+          >
           <input
             v-model="form.condition_grade"
             type="text"
@@ -316,7 +369,9 @@ function cancel() {
         </div>
 
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Condition Notes</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Condition Notes</label
+          >
           <textarea
             v-model="form.condition_notes"
             rows="2"
@@ -332,7 +387,9 @@ function cancel() {
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Valuation</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Value Low ($)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Value Low ($)</label
+          >
           <input
             v-model.number="form.value_low"
             type="number"
@@ -343,7 +400,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Value Mid ($)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Value Mid ($)</label
+          >
           <input
             v-model.number="form.value_mid"
             type="number"
@@ -354,7 +413,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Value High ($)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Value High ($)</label
+          >
           <input
             v-model.number="form.value_high"
             type="number"
@@ -371,7 +432,9 @@ function cancel() {
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Acquisition</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Price ($)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Purchase Price ($)</label
+          >
           <input
             v-model.number="form.purchase_price"
             type="number"
@@ -382,7 +445,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Purchase Date</label
+          >
           <input
             v-model="form.purchase_date"
             type="date"
@@ -391,7 +456,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Source</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Purchase Source</label
+          >
           <input
             v-model="form.purchase_source"
             type="text"
@@ -407,7 +474,9 @@ function cancel() {
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Notes</h2>
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Notes</label
+          >
           <textarea
             v-model="form.notes"
             rows="4"
@@ -417,7 +486,9 @@ function cancel() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Provenance</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Provenance</label
+          >
           <textarea
             v-model="form.provenance"
             rows="2"
@@ -434,7 +505,7 @@ function cancel() {
         Cancel
       </button>
       <button type="submit" :disabled="saving" class="btn-primary">
-        {{ saving ? 'Saving...' : (isEditing ? 'Update Book' : 'Create Book') }}
+        {{ saving ? "Saving..." : isEditing ? "Update Book" : "Create Book" }}
       </button>
     </div>
   </form>

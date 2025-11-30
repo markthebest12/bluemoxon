@@ -1,6 +1,5 @@
 """Book Images API endpoints."""
 
-import io
 import os
 import shutil
 import uuid
@@ -9,7 +8,7 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -152,8 +151,8 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
             return RedirectResponse(url=presigned_url, status_code=302)
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
-                raise HTTPException(status_code=404, detail="Image file not found in S3")
-            raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=404, detail="Image file not found in S3") from None
+            raise HTTPException(status_code=500, detail=str(e)) from e
     else:
         # For local development, serve from local path
         file_path = LOCAL_IMAGES_PATH / image.s3_key

@@ -1,97 +1,101 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useBooksStore } from '@/stores/books'
-import { useReferencesStore } from '@/stores/references'
-import BookThumbnail from '@/components/books/BookThumbnail.vue'
-import ImageCarousel from '@/components/books/ImageCarousel.vue'
+import { onMounted, ref, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useBooksStore } from "@/stores/books";
+import { useReferencesStore } from "@/stores/references";
+import BookThumbnail from "@/components/books/BookThumbnail.vue";
+import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
-const route = useRoute()
-const router = useRouter()
-const booksStore = useBooksStore()
-const referencesStore = useReferencesStore()
+const route = useRoute();
+const router = useRouter();
+const booksStore = useBooksStore();
+const referencesStore = useReferencesStore();
 
 // Carousel state
-const carouselVisible = ref(false)
-const carouselBookId = ref<number | null>(null)
+const carouselVisible = ref(false);
+const carouselBookId = ref<number | null>(null);
 
 // Filter panel state
-const showFilters = ref(false)
+const showFilters = ref(false);
 
 // Sort options
 const sortOptions = [
-  { value: 'title', label: 'Title' },
-  { value: 'value_mid', label: 'Value' },
-  { value: 'publication_date', label: 'Date' },
-  { value: 'created_at', label: 'Recently Added' },
-]
+  { value: "title", label: "Title" },
+  { value: "value_mid", label: "Value" },
+  { value: "publication_date", label: "Date" },
+  { value: "created_at", label: "Recently Added" },
+];
 
 // Count active filters
 const activeFilterCount = computed(() => {
-  let count = 0
-  const f = booksStore.filters
-  if (f.binder_id) count++
-  if (f.publisher_id) count++
-  if (f.binding_authenticated !== undefined) count++
-  if (f.has_images !== undefined) count++
-  if (f.has_analysis !== undefined) count++
-  if (f.status) count++
-  if (f.category) count++
-  return count
-})
+  let count = 0;
+  const f = booksStore.filters;
+  if (f.binder_id) count++;
+  if (f.publisher_id) count++;
+  if (f.binding_authenticated !== undefined) count++;
+  if (f.has_images !== undefined) count++;
+  if (f.has_analysis !== undefined) count++;
+  if (f.status) count++;
+  if (f.category) count++;
+  return count;
+});
 
 onMounted(async () => {
   // Load reference data for filters
-  await referencesStore.fetchAll()
+  await referencesStore.fetchAll();
 
   // Apply URL query params as filters
   if (route.query.inventory_type) {
-    booksStore.filters.inventory_type = route.query.inventory_type as string
+    booksStore.filters.inventory_type = route.query.inventory_type as string;
   }
   if (route.query.binding_authenticated) {
-    booksStore.filters.binding_authenticated = route.query.binding_authenticated === 'true'
+    booksStore.filters.binding_authenticated =
+      route.query.binding_authenticated === "true";
   }
-  booksStore.fetchBooks()
-})
+  booksStore.fetchBooks();
+});
 
 function applyFilters() {
-  booksStore.setFilters(booksStore.filters)
+  booksStore.setFilters(booksStore.filters);
 }
 
 function clearFilters() {
-  booksStore.filters = { inventory_type: booksStore.filters.inventory_type }
-  booksStore.setFilters(booksStore.filters)
+  booksStore.filters = { inventory_type: booksStore.filters.inventory_type };
+  booksStore.setFilters(booksStore.filters);
 }
 
 function toggleSort(field: string) {
   if (booksStore.sortBy === field) {
-    booksStore.setSort(field, booksStore.sortOrder === 'asc' ? 'desc' : 'asc')
+    booksStore.setSort(field, booksStore.sortOrder === "asc" ? "desc" : "asc");
   } else {
-    booksStore.setSort(field, field === 'value_mid' || field === 'created_at' ? 'desc' : 'asc')
+    booksStore.setSort(
+      field,
+      field === "value_mid" || field === "created_at" ? "desc" : "asc",
+    );
   }
 }
 
 function formatCurrency(value: number | null): string {
-  if (value === null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0
-  }).format(value)
+  if (value === null) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+  }).format(value);
 }
 
 function viewBook(id: number) {
-  router.push(`/books/${id}`)
+  router.push(`/books/${id}`);
 }
 
 function openCarousel(bookId: number) {
-  carouselBookId.value = bookId
-  carouselVisible.value = true
+  carouselBookId.value = bookId;
+  carouselVisible.value = true;
 }
 
 function closeCarousel() {
-  carouselVisible.value = false
-  carouselBookId.value = null
+  carouselVisible.value = false;
+  carouselBookId.value = null;
 }
 </script>
 
@@ -118,17 +122,32 @@ function closeCarousel() {
     </div>
 
     <!-- Filter & Sort Bar -->
-    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+    <div
+      class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg"
+    >
       <!-- Filter Toggle Button -->
       <button
         @click="showFilters = !showFilters"
         class="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+          />
         </svg>
         Filters
-        <span v-if="activeFilterCount > 0" class="px-2 py-0.5 text-xs bg-moxon-600 text-white rounded-full">
+        <span
+          v-if="activeFilterCount > 0"
+          class="px-2 py-0.5 text-xs bg-moxon-600 text-white rounded-full"
+        >
           {{ activeFilterCount }}
         </span>
       </button>
@@ -142,13 +161,15 @@ function closeCarousel() {
             :key="option.value"
             @click="toggleSort(option.value)"
             class="px-3 py-1.5 text-sm rounded-lg transition-colors"
-            :class="booksStore.sortBy === option.value
-              ? 'bg-moxon-600 text-white'
-              : 'bg-white border hover:bg-gray-100'"
+            :class="
+              booksStore.sortBy === option.value
+                ? 'bg-moxon-600 text-white'
+                : 'bg-white border hover:bg-gray-100'
+            "
           >
             {{ option.label }}
             <span v-if="booksStore.sortBy === option.value" class="ml-1">
-              {{ booksStore.sortOrder === 'asc' ? '↑' : '↓' }}
+              {{ booksStore.sortOrder === "asc" ? "↑" : "↓" }}
             </span>
           </button>
         </div>
@@ -161,14 +182,23 @@ function closeCarousel() {
     </div>
 
     <!-- Expandable Filter Panel -->
-    <div v-if="showFilters" class="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+    <div
+      v-if="showFilters"
+      class="mb-6 p-4 bg-white border rounded-lg shadow-sm"
+    >
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <!-- Binder Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Bindery</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Bindery</label
+          >
           <select v-model="booksStore.filters.binder_id" class="input text-sm">
             <option :value="undefined">All Binderies</option>
-            <option v-for="binder in referencesStore.binders" :key="binder.id" :value="binder.id">
+            <option
+              v-for="binder in referencesStore.binders"
+              :key="binder.id"
+              :value="binder.id"
+            >
               {{ binder.name }} ({{ binder.book_count }})
             </option>
           </select>
@@ -176,10 +206,21 @@ function closeCarousel() {
 
         <!-- Publisher Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
-          <select v-model="booksStore.filters.publisher_id" class="input text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Publisher</label
+          >
+          <select
+            v-model="booksStore.filters.publisher_id"
+            class="input text-sm"
+          >
             <option :value="undefined">All Publishers</option>
-            <option v-for="pub in referencesStore.publishers.filter(p => p.book_count > 0)" :key="pub.id" :value="pub.id">
+            <option
+              v-for="pub in referencesStore.publishers.filter(
+                (p) => p.book_count > 0,
+              )"
+              :key="pub.id"
+              :value="pub.id"
+            >
               {{ pub.name }} ({{ pub.book_count }})
             </option>
           </select>
@@ -187,8 +228,13 @@ function closeCarousel() {
 
         <!-- Authenticated Binding Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Binding</label>
-          <select v-model="booksStore.filters.binding_authenticated" class="input text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Binding</label
+          >
+          <select
+            v-model="booksStore.filters.binding_authenticated"
+            class="input text-sm"
+          >
             <option :value="undefined">All Bindings</option>
             <option :value="true">Authenticated Only</option>
             <option :value="false">Non-Authenticated</option>
@@ -197,7 +243,9 @@ function closeCarousel() {
 
         <!-- Has Images Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Images</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Images</label
+          >
           <select v-model="booksStore.filters.has_images" class="input text-sm">
             <option :value="undefined">Any</option>
             <option :value="true">With Images</option>
@@ -207,8 +255,13 @@ function closeCarousel() {
 
         <!-- Has Analysis Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Analysis</label>
-          <select v-model="booksStore.filters.has_analysis" class="input text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Analysis</label
+          >
+          <select
+            v-model="booksStore.filters.has_analysis"
+            class="input text-sm"
+          >
             <option :value="undefined">Any</option>
             <option :value="true">With Analysis</option>
             <option :value="false">Missing Analysis</option>
@@ -217,7 +270,9 @@ function closeCarousel() {
 
         <!-- Status Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Status</label
+          >
           <select v-model="booksStore.filters.status" class="input text-sm">
             <option value="">All Statuses</option>
             <option value="ON_HAND">On Hand</option>
@@ -265,7 +320,7 @@ function closeCarousel() {
               {{ book.title }}
             </h3>
             <p class="text-gray-600 mt-1">
-              {{ book.author?.name || 'Unknown Author' }}
+              {{ book.author?.name || "Unknown Author" }}
             </p>
             <p class="text-sm text-gray-500 mt-1">
               {{ book.publisher?.name }} ({{ book.publication_date }})
@@ -311,7 +366,10 @@ function closeCarousel() {
     </div>
 
     <!-- Pagination -->
-    <div v-if="booksStore.totalPages > 1" class="flex justify-center mt-8 space-x-2">
+    <div
+      v-if="booksStore.totalPages > 1"
+      class="flex justify-center mt-8 space-x-2"
+    >
       <button
         @click="booksStore.setPage(booksStore.page - 1)"
         :disabled="booksStore.page === 1"

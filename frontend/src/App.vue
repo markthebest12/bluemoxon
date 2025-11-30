@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { RouterView } from 'vue-router'
-import NavBar from '@/components/layout/NavBar.vue'
-import { useAuthStore } from '@/stores/auth'
+import { onMounted } from "vue";
+import { RouterView } from "vue-router";
+import NavBar from "@/components/layout/NavBar.vue";
+import { useAuthStore } from "@/stores/auth";
 
-const authStore = useAuthStore()
+const authStore = useAuthStore();
 
 onMounted(() => {
-  authStore.checkAuth()
-})
+  authStore.checkAuth();
+});
 </script>
 
 <template>
