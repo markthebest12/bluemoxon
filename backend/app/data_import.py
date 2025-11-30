@@ -119,9 +119,9 @@ def handler(event, context):
 
 
 if __name__ == "__main__":
-    # For local testing
+    # For local testing (CLI output is intentional)
     import sys
 
     if len(sys.argv) > 2:
         result = import_from_s3(sys.argv[1], sys.argv[2])
-        print(json.dumps(result, indent=2))
+        print(json.dumps(result, indent=2))  # noqa: T201

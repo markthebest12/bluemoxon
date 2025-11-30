@@ -31,6 +31,7 @@ ruff = "^0.8.0"
 mypy = "^1.8.0"
 httpx = "^0.26.0"
 pip-audit = "^2.7.0"
+bandit = "^1.7.0"  # Python SAST security scanner
 
 [build-system]
 requires = ["poetry-core"]
@@ -54,10 +55,17 @@ select = [
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
+    "S",      # flake8-bandit (security)
+    "A",      # flake8-builtins
+    "T20",    # flake8-print (no print statements)
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in default argument (required for FastAPI Depends)
+    "S101",   # assert usage (ok in tests)
+    "S104",   # binding to all interfaces (ok for containerized apps)
+    "S105",   # hardcoded password detection (false positives on variable names)
+    "S106",   # hardcoded password detection (false positives on variable names)
 ]
 
 [tool.ruff.lint.isort]

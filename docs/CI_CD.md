@@ -40,14 +40,16 @@ Runs on all pull requests and pushes to main. Ensures code quality before merge.
 
 | Job | Description | Blocking |
 |-----|-------------|----------|
-| `backend-lint` | Ruff linting and format check | Yes |
+| `backend-lint` | Ruff linting and format check (incl. security rules) | Yes |
 | `backend-test` | Pytest with PostgreSQL | Yes |
 | `backend-typecheck` | Mypy type checking | No |
 | `frontend-lint` | ESLint + Prettier | Yes |
 | `frontend-typecheck` | Vue-tsc | Yes |
 | `frontend-test` | Vitest | No |
 | `frontend-build` | Production build | Yes |
-| `security-scan` | pip-audit, npm audit, Trivy | No |
+| `sast-scan` | Bandit + Semgrep SAST analysis | **Yes** |
+| `dependency-scan` | pip-audit + npm audit | **Yes** |
+| `secret-scan` | Trivy + Gitleaks | **Yes** |
 
 ### Deploy Workflow (`deploy.yml`)
 
@@ -170,15 +172,74 @@ Updates are grouped by type to reduce PR noise.
 
 ## Security Scanning
 
-The CI pipeline includes security scanning:
+The CI pipeline includes comprehensive security scanning that **blocks deployment** on failures.
 
-| Tool | Purpose |
-|------|---------|
-| `pip-audit` | Python dependency vulnerabilities |
-| `npm audit` | Node.js dependency vulnerabilities |
-| `trivy` | Filesystem scanning for secrets and vulnerabilities |
+### Security Gates (All Blocking)
 
-Security issues are reported but don't block merges (currently). Review the output and address HIGH/CRITICAL issues promptly.
+| Category | Tools | Blocks Deployment |
+|----------|-------|-------------------|
+| **SAST** | Bandit, Semgrep, Ruff (S rules) | Yes |
+| **Dependency Scan** | pip-audit (Python), npm audit (Node.js) | Yes |
+| **Secret Detection** | Trivy, Gitleaks | Yes |
+
+### SAST (Static Application Security Testing)
+
+**Bandit** - Python-specific security scanner
+- Checks for common security issues (SQL injection, hardcoded passwords, etc.)
+- Runs on all Python code in `app/`
+- Fails on HIGH severity issues
+
+**Semgrep** - Multi-language SAST
+- Rules: `p/python`, `p/javascript`, `p/typescript`, `p/security-audit`, `p/owasp-top-ten`
+- Covers Python, JavaScript/TypeScript, Vue templates
+- Checks for OWASP Top 10 vulnerabilities
+
+**Ruff Security Rules (S)** - Integrated in linting
+- Equivalent to flake8-bandit rules
+- Runs as part of backend-lint job
+
+### Dependency Scanning
+
+**pip-audit** (Python)
+- Scans `requirements.txt` for known vulnerabilities
+- Uses OSV vulnerability database
+- Blocks on ANY known vulnerability (`--strict`)
+
+**npm audit** (Node.js)
+- Scans `package-lock.json` for vulnerabilities
+- Blocks on HIGH or CRITICAL severity
+
+### Secret Detection
+
+**Trivy**
+- Scans filesystem for hardcoded secrets
+- Checks for API keys, tokens, passwords
+- Blocks on HIGH/CRITICAL findings
+
+**Gitleaks**
+- Scans git history for leaked secrets
+- Runs on full commit history
+- Warning only (license required for exit codes)
+
+### Suppressing False Positives
+
+For intentional security exceptions (e.g., test data, local dev paths):
+
+```python
+# Bandit
+password = "test"  # nosec B105
+
+# Ruff
+local_path = "/tmp/test"  # noqa: S108
+
+# Both
+value = "/tmp/data"  # noqa: S108 # nosec B108
+```
+
+### Security Reports
+
+Security scan artifacts are uploaded and retained for 30 days:
+- `bandit-report.json` - Detailed Bandit findings
 
 ## Smoke Tests
 

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     backup_bucket: str = "bluemoxon-backups"
 
     # Local images path (for development)
-    local_images_path: str = "/tmp/bluemoxon-images"
+    local_images_path: str = "/tmp/bluemoxon-images"  # noqa: S108 # nosec B108
 
     # CORS
     cors_origins: str = "*"
