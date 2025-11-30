@@ -1,5 +1,7 @@
 """Test fixtures and configuration."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,15 +12,21 @@ from app.db import get_db
 from app.main import app
 from app.models.base import Base
 
-# Use in-memory SQLite for tests
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+# Use DATABASE_URL from environment (CI uses PostgreSQL) or SQLite for local
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+if DATABASE_URL:
+    # PostgreSQL in CI
+    engine = create_engine(DATABASE_URL)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+else:
+    # SQLite in-memory for fast local tests
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 @pytest.fixture(scope="function")

@@ -1,0 +1,75 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Python backend dependencies (Poetry)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(backend)"
+    labels:
+      - "dependencies"
+      - "backend"
+    reviewers:
+      - "markthebest12"
+    groups:
+      # Group minor/patch updates together
+      python-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Node.js frontend dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(frontend)"
+    labels:
+      - "dependencies"
+      - "frontend"
+    reviewers:
+      - "markthebest12"
+    groups:
+      # Group Vue ecosystem updates
+      vue-ecosystem:
+        patterns:
+          - "vue*"
+          - "@vue/*"
+          - "pinia"
+          - "vue-router"
+      # Group dev dependencies
+      dev-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"

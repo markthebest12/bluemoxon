@@ -1,0 +1,324 @@
+# Deploy Pipeline - Deploys to production on push to main
+# Uses AWS OIDC for secure, keyless authentication
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+# Only one deployment at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-west-2
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  # AWS Resource IDs (from infra/aws-resources.json)
+  LAMBDA_FUNCTION_NAME: bluemoxon-api
+  S3_FRONTEND_BUCKET: bluemoxon-frontend
+  S3_IMAGES_BUCKET: bluemoxon-images
+  CLOUDFRONT_DISTRIBUTION_ID: E16BJX90QWQNQO
+
+# Required for AWS OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ============================================
+  # CI Checks (must pass before deploy)
+  # ============================================
+
+  ci:
+    name: CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  # ============================================
+  # Build Lambda Package
+  # ============================================
+
+  build-backend:
+    name: Build Lambda Package
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Lambda package with Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/backend:/app:ro \
+            -v /tmp/lambda-deploy:/output \
+            --platform linux/amd64 \
+            amazonlinux:2023 \
+            /bin/bash -c "
+              dnf install -y python3.11 python3.11-pip zip > /dev/null 2>&1
+              python3.11 -m pip install -q -t /output -r /app/requirements.txt
+              cp -r /app/app /output/
+            "
+
+      - name: Create deployment zip
+        run: |
+          cd /tmp/lambda-deploy
+          zip -q -r ${{ github.workspace }}/lambda-package.zip . \
+            -x "*.pyc" -x "*__pycache__*" -x "*.dist-info/*"
+
+          # Report package size
+          ls -lh ${{ github.workspace }}/lambda-package.zip
+
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda-package.zip
+          retention-days: 1
+
+  # ============================================
+  # Build Frontend
+  # ============================================
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build for production
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api.bluemoxon.com/api/v1
+          VITE_COGNITO_USER_POOL_ID: us-west-2_PvdIpXVKF
+          VITE_COGNITO_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
+          VITE_COGNITO_DOMAIN: bluemoxon.auth.us-west-2.amazoncognito.com
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  # ============================================
+  # Deploy to AWS
+  # ============================================
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    environment: production  # GitHub Environment for protection rules
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+          path: .
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+
+      # ---- Deploy Lambda ----
+      - name: Upload Lambda to S3
+        run: |
+          aws s3 cp lambda-package.zip \
+            s3://${{ env.S3_FRONTEND_BUCKET }}/lambda/bluemoxon-api.zip
+
+      - name: Update Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --s3-bucket ${{ env.S3_FRONTEND_BUCKET }} \
+            --s3-key lambda/bluemoxon-api.zip
+
+      - name: Wait for Lambda update
+        run: |
+          echo "Waiting for Lambda function to be ready..."
+          aws lambda wait function-updated \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
+          echo "Lambda function updated successfully"
+
+      # ---- Deploy Frontend ----
+      - name: Sync frontend to S3
+        run: |
+          aws s3 sync frontend-dist/ s3://${{ env.S3_FRONTEND_BUCKET }}/ \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html" \
+            --exclude "*.json"
+
+          # Upload index.html and JSON with no-cache
+          aws s3 cp frontend-dist/index.html \
+            s3://${{ env.S3_FRONTEND_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+          # Upload any JSON config files with no-cache
+          if ls frontend-dist/*.json 1> /dev/null 2>&1; then
+            for f in frontend-dist/*.json; do
+              aws s3 cp "$f" "s3://${{ env.S3_FRONTEND_BUCKET }}/$(basename $f)" \
+                --cache-control "no-cache,no-store,must-revalidate"
+            done
+          fi
+
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          echo "CloudFront invalidation started: $INVALIDATION_ID"
+
+          # Wait for invalidation to complete (optional, adds ~1-2 min)
+          echo "Waiting for invalidation to complete..."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --id $INVALIDATION_ID
+          echo "CloudFront invalidation completed"
+
+  # ============================================
+  # Smoke Tests
+  # ============================================
+
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Wait for deployment to propagate
+        run: sleep 30
+
+      - name: Test API health endpoint
+        run: |
+          echo "Testing API health..."
+          response=$(curl -s -w "\n%{http_code}" https://api.bluemoxon.com/health)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Health check failed!"
+            exit 1
+          fi
+
+          # Verify response contains expected fields
+          if ! echo "$body" | grep -q '"status"'; then
+            echo "Health response missing status field!"
+            exit 1
+          fi
+
+          echo "API health check passed!"
+
+      - name: Test API books endpoint
+        run: |
+          echo "Testing books API..."
+          response=$(curl -s -w "\n%{http_code}" "https://api.bluemoxon.com/api/v1/books?per_page=1")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Books API check failed!"
+            exit 1
+          fi
+
+          # Verify pagination response
+          if ! echo "$body" | grep -q '"total"'; then
+            echo "Books response missing pagination!"
+            exit 1
+          fi
+
+          echo "Books API check passed!"
+
+      - name: Test frontend loads
+        run: |
+          echo "Testing frontend..."
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://bluemoxon.com)
+
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Frontend check failed!"
+            exit 1
+          fi
+
+          # Check that HTML contains expected content
+          if ! curl -s https://bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
+            echo "Frontend doesn't contain expected content!"
+            exit 1
+          fi
+
+          echo "Frontend check passed!"
+
+      - name: Test image endpoint (presigned URL)
+        run: |
+          echo "Testing image presigned URL redirect..."
+          # Get first book with images
+          book_response=$(curl -s "https://api.bluemoxon.com/api/v1/books?has_images=true&per_page=1")
+
+          if echo "$book_response" | grep -q '"primary_image_url"'; then
+            image_url=$(echo "$book_response" | grep -o '"primary_image_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+            if [[ -n "$image_url" ]]; then
+              echo "Testing image URL: $image_url"
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L "$image_url")
+
+              # Should be 200 after following redirect, or 302 for redirect
+              if [[ "$http_code" == "200" ]] || [[ "$http_code" == "302" ]]; then
+                echo "Image endpoint working!"
+              else
+                echo "Image endpoint returned $http_code"
+              fi
+            fi
+          else
+            echo "No books with images found, skipping image test"
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "========================================"
+          echo "Deployment completed successfully!"
+          echo "========================================"
+          echo ""
+          echo "URLs:"
+          echo "  Frontend: https://bluemoxon.com"
+          echo "  API:      https://api.bluemoxon.com"
+          echo ""
+          echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Commit: ${{ github.sha }}"
+          echo "========================================"
