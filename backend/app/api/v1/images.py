@@ -1,11 +1,15 @@
 """Book Images API endpoints."""
 
+import io
+import os
 import shutil
 import uuid
 from pathlib import Path
 
+import boto3
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -23,10 +27,32 @@ LOCAL_IMAGES_PATH = Path(settings.local_images_path)
 # Placeholder image path
 PLACEHOLDER_PATH = LOCAL_IMAGES_PATH / "placeholder.jpg"
 
+# S3 prefix for book images
+S3_IMAGES_PREFIX = "books/"
+
+
+def is_production() -> bool:
+    """Check if we're running in production (AWS Lambda)."""
+    return settings.database_secret_arn is not None
+
+
+def get_s3_client():
+    """Get S3 client using Lambda's AWS_REGION env var."""
+    # Lambda automatically sets AWS_REGION to the function's region
+    region = os.environ.get("AWS_REGION", settings.aws_region)
+    return boto3.client("s3", region_name=region)
+
 
 def ensure_images_dir():
     """Ensure images directory exists."""
     LOCAL_IMAGES_PATH.mkdir(parents=True, exist_ok=True)
+
+
+def get_api_base_url() -> str:
+    """Get the API base URL for constructing absolute URLs."""
+    if is_production():
+        return "https://api.bluemoxon.com"
+    return ""  # Relative URLs for local dev
 
 
 @router.get("")
@@ -40,12 +66,14 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
         BookImage.book_id == book_id
     ).order_by(BookImage.display_order).all()
 
+    base_url = get_api_base_url()
+
     return [
         {
             "id": img.id,
             "s3_key": img.s3_key,
-            "url": f"/api/v1/books/{book_id}/images/{img.id}/file",
-            "thumbnail_url": f"/api/v1/books/{book_id}/images/{img.id}/thumbnail",
+            "url": f"{base_url}/api/v1/books/{book_id}/images/{img.id}/file",
+            "thumbnail_url": f"{base_url}/api/v1/books/{book_id}/images/{img.id}/thumbnail",
             "image_type": img.image_type,
             "display_order": img.display_order,
             "is_primary": img.is_primary,
@@ -74,11 +102,13 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
             BookImage.book_id == book_id
         ).order_by(BookImage.display_order).first()
 
+    base_url = get_api_base_url()
+
     if image:
         return {
             "id": image.id,
-            "url": f"/api/v1/books/{book_id}/images/{image.id}/file",
-            "thumbnail_url": f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
+            "url": f"{base_url}/api/v1/books/{book_id}/images/{image.id}/file",
+            "thumbnail_url": f"{base_url}/api/v1/books/{book_id}/images/{image.id}/thumbnail",
             "image_type": image.image_type,
             "caption": image.caption,
         }
@@ -86,8 +116,8 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     # Return placeholder info
     return {
         "id": None,
-        "url": "/api/v1/images/placeholder",
-        "thumbnail_url": "/api/v1/images/placeholder",
+        "url": f"{base_url}/api/v1/images/placeholder",
+        "thumbnail_url": f"{base_url}/api/v1/images/placeholder",
         "image_type": "placeholder",
         "caption": "No image available",
     }
@@ -95,7 +125,9 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{image_id}/file")
 def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
-    """Serve the actual image file."""
+    """Serve the actual image file or redirect to S3."""
+    from fastapi.responses import RedirectResponse
+
     image = db.query(BookImage).filter(
         BookImage.id == image_id,
         BookImage.book_id == book_id
@@ -104,12 +136,31 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    # For local development, serve from local path
-    file_path = LOCAL_IMAGES_PATH / image.s3_key
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Image file not found")
+    if is_production():
+        # In production, redirect to presigned S3 URL
+        try:
+            s3 = get_s3_client()
+            s3_key = S3_IMAGES_PREFIX + image.s3_key
 
-    return FileResponse(file_path)
+            # Generate presigned URL (valid for 1 hour)
+            presigned_url = s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": settings.images_bucket, "Key": s3_key},
+                ExpiresIn=3600,
+            )
+
+            return RedirectResponse(url=presigned_url, status_code=302)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchKey":
+                raise HTTPException(status_code=404, detail="Image file not found in S3")
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        # For local development, serve from local path
+        file_path = LOCAL_IMAGES_PATH / image.s3_key
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Image file not found")
+
+        return FileResponse(file_path)
 
 
 @router.get("/{image_id}/thumbnail")
