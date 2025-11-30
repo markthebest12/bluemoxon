@@ -11,6 +11,7 @@ export interface Publisher {
   id: number
   name: string
   tier: string | null
+  book_count: number
 }
 
 export interface Binder {

@@ -179,8 +179,8 @@ function closeCarousel() {
           <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
           <select v-model="booksStore.filters.publisher_id" class="input text-sm">
             <option :value="undefined">All Publishers</option>
-            <option v-for="pub in referencesStore.publishers" :key="pub.id" :value="pub.id">
-              {{ pub.name }}
+            <option v-for="pub in referencesStore.publishers.filter(p => p.book_count > 0)" :key="pub.id" :value="pub.id">
+              {{ pub.name }} ({{ pub.book_count }})
             </option>
           </select>
         </div>
