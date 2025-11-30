@@ -116,6 +116,7 @@ jobs:
           name: frontend-dist
           path: frontend/dist
           retention-days: 1
+          overwrite: true  # CI job may have uploaded same artifact
 
   # ============================================
   # Deploy to AWS
