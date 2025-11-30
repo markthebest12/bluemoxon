@@ -254,6 +254,7 @@ function closeCarousel() {
           <!-- Thumbnail -->
           <BookThumbnail
             :book-id="book.id"
+            :image-url="book.primary_image_url"
             size="md"
             @click="openCarousel(book.id)"
           />

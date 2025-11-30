@@ -1,8 +1,11 @@
 """Books API endpoints."""
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.models import Book
 from app.schemas.book import (
@@ -13,6 +16,14 @@ from app.schemas.book import (
 )
 
 router = APIRouter()
+settings = get_settings()
+
+
+def get_api_base_url() -> str:
+    """Get the API base URL for constructing absolute URLs."""
+    if settings.database_secret_arn is not None:  # Production check
+        return "https://api.bluemoxon.com"
+    return ""  # Relative URLs for local dev
 
 
 @router.get("", response_model=BookListResponse)
@@ -90,11 +101,28 @@ def list_books(
     books = query.offset(offset).limit(per_page).all()
 
     # Build response
+    base_url = get_api_base_url()
     items = []
     for book in books:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
         book_dict["image_count"] = len(book.images) if book.images else 0
+
+        # Get primary image URL
+        primary_image = None
+        if book.images:
+            # First try to find one marked as primary
+            for img in book.images:
+                if img.is_primary:
+                    primary_image = img
+                    break
+            # Otherwise use first image by display order
+            if not primary_image:
+                primary_image = min(book.images, key=lambda x: x.display_order)
+
+        if primary_image:
+            book_dict["primary_image_url"] = f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+
         items.append(BookResponse(**book_dict))
 
     return BookListResponse(

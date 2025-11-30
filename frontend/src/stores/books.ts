@@ -31,6 +31,7 @@ export interface Book {
   provenance: string | null
   has_analysis: boolean
   image_count: number
+  primary_image_url: string | null
 }
 
 interface Filters {

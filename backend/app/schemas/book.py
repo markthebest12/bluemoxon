@@ -115,6 +115,7 @@ class BookResponse(BookBase):
     year_end: int | None = None
     has_analysis: bool = False
     image_count: int = 0
+    primary_image_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
