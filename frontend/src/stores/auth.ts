@@ -57,10 +57,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       if (result.nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP') {
-        // User needs to set up TOTP
-        const { setUpTOTP } = await import('aws-amplify/auth')
-        const totpSetup = await setUpTOTP()
-        totpSetupUri.value = totpSetup.getSetupUri('BlueMoxon', username).toString()
+        // User needs to set up TOTP - details are in the result
+        const totpSetupDetails = result.nextStep.totpSetupDetails
+        if (totpSetupDetails) {
+          totpSetupUri.value = totpSetupDetails.getSetupUri('BlueMoxon', username).toString()
+        }
         mfaStep.value = 'totp_setup'
         return // Wait for user to set up and verify TOTP
       }
@@ -102,10 +103,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const { verifyTOTPSetup, confirmSignIn } = await import('aws-amplify/auth')
-      await verifyTOTPSetup({ code })
-
-      // After TOTP is verified, confirm the sign-in
+      // During sign-in TOTP setup, just use confirmSignIn with the code
+      const { confirmSignIn } = await import('aws-amplify/auth')
       const result = await confirmSignIn({ challengeResponse: code })
 
       if (result.isSignedIn) {
