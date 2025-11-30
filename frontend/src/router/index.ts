@@ -57,7 +57,7 @@ const router = createRouter({
 // Navigation guard for authentication
 let authInitialized = false
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
   // Initialize auth on first navigation
