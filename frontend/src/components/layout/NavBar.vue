@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+const router = useRouter()
 const authStore = useAuthStore()
+
+async function handleSignOut() {
+  await authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -49,7 +55,7 @@ const authStore = useAuthStore()
               {{ authStore.user?.email }}
             </RouterLink>
             <button
-              @click="authStore.logout()"
+              @click="handleSignOut"
               class="text-sm hover:text-moxon-200 transition-colors"
             >
               Sign Out
