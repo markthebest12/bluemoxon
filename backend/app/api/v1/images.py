@@ -9,11 +9,16 @@ import boto3
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
+
+# Thumbnail settings
+THUMBNAIL_SIZE = (300, 300)  # Max width/height for thumbnails
+THUMBNAIL_QUALITY = 85  # JPEG quality for thumbnails
 
 router = APIRouter()
 
@@ -45,6 +50,40 @@ def get_s3_client():
 def ensure_images_dir():
     """Ensure images directory exists."""
     LOCAL_IMAGES_PATH.mkdir(parents=True, exist_ok=True)
+
+
+def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> bool:
+    """Generate a thumbnail from an image file.
+
+    Args:
+        image_path: Path to the original image
+        thumbnail_path: Path where thumbnail should be saved
+
+    Returns:
+        True if thumbnail was created successfully, False otherwise
+    """
+    try:
+        with Image.open(image_path) as img:
+            # Convert to RGB if necessary (for PNG with transparency)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+
+            # Create thumbnail maintaining aspect ratio
+            img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+
+            # Save as JPEG for consistent format and smaller size
+            img.save(thumbnail_path, "JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
+            return True
+    except Exception:
+        return False
+
+
+def get_thumbnail_key(s3_key: str) -> str:
+    """Get the S3 key for a thumbnail from the original image key.
+
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    """
+    return f"thumb_{s3_key}"
 
 
 def get_api_base_url() -> str:
@@ -170,9 +209,58 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{image_id}/thumbnail")
 def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_db)):
-    """Serve thumbnail version (for now, same as full image)."""
-    # TODO: Implement actual thumbnail generation
-    return get_image_file(book_id, image_id, db)
+    """Serve thumbnail version of the image."""
+    from fastapi.responses import RedirectResponse
+
+    image = (
+        db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
+    )
+
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    thumbnail_key = get_thumbnail_key(image.s3_key)
+
+    if is_production():
+        # In production, redirect to presigned S3 URL for thumbnail
+        try:
+            s3 = get_s3_client()
+            s3_key = S3_IMAGES_PREFIX + thumbnail_key
+
+            # Check if thumbnail exists, fall back to full image if not
+            try:
+                s3.head_object(Bucket=settings.images_bucket, Key=s3_key)
+            except ClientError:
+                # Thumbnail doesn't exist, fall back to full image
+                s3_key = S3_IMAGES_PREFIX + image.s3_key
+
+            presigned_url = s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": settings.images_bucket, "Key": s3_key},
+                ExpiresIn=3600,
+            )
+
+            return RedirectResponse(url=presigned_url, status_code=302)
+        except ClientError as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        # For local development, serve thumbnail from local path
+        thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_key
+
+        # If thumbnail doesn't exist, try to generate it
+        if not thumbnail_path.exists():
+            original_path = LOCAL_IMAGES_PATH / image.s3_key
+            if original_path.exists():
+                generate_thumbnail(original_path, thumbnail_path)
+
+        # If thumbnail still doesn't exist, fall back to original
+        if not thumbnail_path.exists():
+            file_path = LOCAL_IMAGES_PATH / image.s3_key
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="Image file not found")
+            return FileResponse(file_path)
+
+        return FileResponse(thumbnail_path)
 
 
 @router.post("", status_code=201)
@@ -199,6 +287,11 @@ async def upload_image(
     # Save file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+
+    # Generate thumbnail
+    thumbnail_name = get_thumbnail_key(unique_name)
+    thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
+    generate_thumbnail(file_path, thumbnail_path)
 
     # If this is primary, unset any existing primary
     if is_primary:
@@ -282,10 +375,14 @@ def delete_image(book_id: int, image_id: int, db: Session = Depends(get_db)):
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    # Delete file
+    # Delete file and thumbnail
     file_path = LOCAL_IMAGES_PATH / image.s3_key
     if file_path.exists():
         file_path.unlink()
+
+    thumbnail_path = LOCAL_IMAGES_PATH / get_thumbnail_key(image.s3_key)
+    if thumbnail_path.exists():
+        thumbnail_path.unlink()
 
     # Delete record
     db.delete(image)
