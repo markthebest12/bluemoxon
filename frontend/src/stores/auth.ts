@@ -1,9 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-// Dev mode: bypass Cognito auth when VITE_DEV_AUTH=true
-const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === 'true'
-
 interface User {
   username: string
   email: string
@@ -20,16 +17,6 @@ export const useAuthStore = defineStore('auth', () => {
   const isEditor = computed(() => ['admin', 'editor'].includes(user.value?.role || ''))
 
   async function checkAuth() {
-    // Dev mode: auto-authenticate
-    if (DEV_AUTH) {
-      user.value = {
-        username: 'dev-user',
-        email: 'dev@bluemoxon.local',
-        role: 'admin'
-      }
-      return
-    }
-
     loading.value = true
     try {
       const { getCurrentUser, fetchAuthSession } = await import('aws-amplify/auth')
@@ -49,16 +36,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(username: string, password: string) {
-    // Dev mode: accept any credentials
-    if (DEV_AUTH) {
-      user.value = {
-        username: username || 'dev-user',
-        email: username || 'dev@bluemoxon.local',
-        role: 'admin'
-      }
-      return
-    }
-
     loading.value = true
     error.value = null
     try {
@@ -74,11 +51,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    if (DEV_AUTH) {
-      user.value = null
-      return
-    }
-
     const { signOut } = await import('aws-amplify/auth')
     await signOut()
     user.value = null

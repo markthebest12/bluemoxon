@@ -29,11 +29,11 @@ graph TB
         end
 
         subgraph Auth["Authentication"]
-            COG[Cognito User Pool<br/>us-west-2_PvdIpXVKF<br/>MFA Required]
+            COG[Cognito User Pool<br/>us-west-2_PvdIpXVKF]
         end
 
         subgraph Compute["Compute Layer"]
-            APIGW[API Gateway HTTP<br/>h7q9ga51xa]
+            APIGW[API Gateway HTTP<br/>api.bluemoxon.com]
             Lambda[Lambda: bluemoxon-api<br/>Python 3.11 / FastAPI]
         end
 
@@ -263,7 +263,7 @@ sequenceDiagram
 | User Pool ID | `us-west-2_PvdIpXVKF` |
 | App Client ID | `3ndaok3psd2ncqfjrdb57825he` |
 | Domain | `bluemoxon.auth.us-west-2.amazoncognito.com` |
-| MFA | Required (TOTP) |
+| MFA | Off (can be enabled later) |
 | Self-Signup | Disabled (admin invite only) |
 | Password Policy | 12+ chars, upper, lower, number, symbol |
 
@@ -295,9 +295,13 @@ sequenceDiagram
 |----------|-------|
 | API ID | `h7q9ga51xa` |
 | Type | HTTP API |
-| Endpoint | `https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com` |
+| Custom Domain | `api.bluemoxon.com` |
+| Regional Endpoint | `d-2bb05h3tf4.execute-api.us-west-2.amazonaws.com` |
+| Raw Endpoint | `https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com` |
 | Stage | `$default` (auto-deploy) |
-| CORS | Enabled for bluemoxon.com, localhost:5173 |
+| API Mapping ID | `3d0r7t` |
+| ACM Certificate | `arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a` |
+| CORS | Enabled for bluemoxon.com |
 
 ### Storage
 
@@ -392,11 +396,13 @@ aws cognito-idp admin-create-user \
 
 | Environment | URL |
 |-------------|-----|
-| Frontend (Production) | https://bluemoxon.com |
-| Frontend (CloudFront) | https://d2yd5bvqaomg54.cloudfront.net |
-| API (Production) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
-| API Health Check | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com/health |
+| Frontend | https://bluemoxon.com |
+| API | https://api.bluemoxon.com |
+| API Health Check | https://api.bluemoxon.com/health |
+| Books API | https://api.bluemoxon.com/api/v1/books |
 | Cognito Login | https://bluemoxon.auth.us-west-2.amazoncognito.com |
+| CloudFront (raw) | https://d2yd5bvqaomg54.cloudfront.net |
+| API Gateway (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
 
 ## Configuration File
 

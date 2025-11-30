@@ -1,11 +1,13 @@
 """Alembic environment configuration."""
 
+import json
+import os
 from logging.config import fileConfig
 
+import boto3
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from app.config import get_settings
 from app.models import Base
 
 config = context.config
@@ -15,8 +17,34 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+def get_database_url() -> str:
+    """Get database URL, fetching from Secrets Manager if configured."""
+    # Check if URL already set (e.g., by migrate.py)
+    url = config.get_main_option("sqlalchemy.url")
+    if url and "localhost" not in url:
+        return url
+
+    # Check for Secrets Manager ARN
+    secret_arn = os.environ.get("DATABASE_SECRET_ARN")
+    if secret_arn:
+        region = os.environ.get("AWS_REGION", "us-west-2")
+        client = boto3.client("secretsmanager", region_name=region)
+        response = client.get_secret_value(SecretId=secret_arn)
+        secret = json.loads(response["SecretString"])
+        return (
+            f"postgresql://{secret['username']}:{secret['password']}"
+            f"@{secret['host']}:{secret['port']}/{secret['dbname']}"
+        )
+
+    # Fall back to config/env var
+    return url or os.environ.get(
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/bluemoxon"
+    )
+
+
+# Set database URL (supports both local dev and AWS Lambda)
+config.set_main_option("sqlalchemy.url", get_database_url())
 
 
 def run_migrations_offline() -> None:

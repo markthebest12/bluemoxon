@@ -40,16 +40,27 @@
   "cognito": {
     "user_pool_id": "us-west-2_PvdIpXVKF",
     "client_id": "3ndaok3psd2ncqfjrdb57825he",
-    "domain": "bluemoxon.auth.us-west-2.amazoncognito.com"
+    "domain": "bluemoxon.auth.us-west-2.amazoncognito.com",
+    "mfa": "OFF"
   },
   "lambda": {
-    "function_name": "bluemoxon-api",
-    "function_arn": "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-api",
+    "api": {
+      "function_name": "bluemoxon-api",
+      "function_arn": "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-api"
+    },
+    "migrate": {
+      "function_name": "bluemoxon-migrate",
+      "function_arn": "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-migrate"
+    },
     "role_arn": "arn:aws:iam::266672885920:role/bluemoxon-lambda-role"
   },
   "api_gateway": {
     "api_id": "h7q9ga51xa",
-    "endpoint": "https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com"
+    "custom_domain": "api.bluemoxon.com",
+    "regional_endpoint": "d-2bb05h3tf4.execute-api.us-west-2.amazonaws.com",
+    "raw_endpoint": "https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com",
+    "api_mapping_id": "3d0r7t",
+    "certificate_arn": "arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a"
   },
   "s3": {
     "frontend_bucket": "bluemoxon-frontend",
