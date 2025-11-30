@@ -42,7 +42,8 @@ Response:
       "volumes": 2,
       "value_mid": 450.00,
       "has_analysis": true,
-      "image_count": 4
+      "image_count": 4,
+      "primary_image_url": "https://api.bluemoxon.com/api/v1/books/1/images/1/file"
     }
   ],
   "total": 71,
@@ -51,6 +52,8 @@ Response:
   "pages": 8
 }
 ```
+
+**Note:** `primary_image_url` is included directly in list response for efficient thumbnail loading. Returns `null` for books without images.
 
 ---
 
@@ -89,7 +92,8 @@ Response:
   "roi_pct": 135,
   "status": "ON_HAND",
   "has_analysis": true,
-  "image_count": 3
+  "image_count": 3,
+  "primary_image_url": "https://api.bluemoxon.com/api/v1/books/407/images/1/file"
 }
 ```
 
@@ -326,7 +330,10 @@ Returns the primary image or first image by display order.
 GET /books/{book_id}/images/{image_id}/file
 ```
 
-Returns the actual image file (binary).
+In production: Returns a 302 redirect to a presigned S3 URL (valid for 1 hour).
+In development: Returns the actual image file (binary).
+
+**Note:** The presigned URL approach avoids Lambda payload size limits for large images.
 
 ---
 
