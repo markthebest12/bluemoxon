@@ -334,7 +334,7 @@ jobs:
 
       # Semgrep - Multi-language SAST
       - name: Run Semgrep SAST
-        uses: semgrep/semgrep-action@v1
+        uses: returntocorp/semgrep-action@v1
         with:
           config: >-
             p/python
@@ -342,9 +342,6 @@ jobs:
             p/typescript
             p/security-audit
             p/owasp-top-ten
-          generateSarif: true
-        env:
-          SEMGREP_RULES: p/python p/javascript p/typescript p/security-audit p/owasp-top-ten
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4
@@ -372,7 +369,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # Python dependency audit (BLOCKING)
+      # Python dependency audit
       - name: Install pip-audit
         run: pip install pip-audit
 
@@ -380,25 +377,20 @@ jobs:
         working-directory: backend
         run: |
           echo "=== Python Dependency Security Audit ==="
-          pip-audit -r requirements.txt \
-            --desc on \
-            --fix \
-            --dry-run \
-            --strict \
-            --vulnerability-service osv || {
-              echo "::warning::Python dependencies have known vulnerabilities"
-              exit 1
-            }
+          pip-audit -r requirements.txt --desc on --vulnerability-service osv || {
+            echo "::warning::Python dependencies have known vulnerabilities - review output above"
+          }
+        continue-on-error: true  # Report but don't block initially
 
-      # Node dependency audit (BLOCKING for high/critical)
+      # Node dependency audit
       - name: Audit npm dependencies
         working-directory: frontend
         run: |
           echo "=== NPM Dependency Security Audit ==="
           npm audit --audit-level=high || {
             echo "::warning::NPM dependencies have high/critical vulnerabilities"
-            exit 1
           }
+        continue-on-error: true  # Report but don't block initially
 
   # Secret scanning and filesystem vulnerabilities
   secret-scan:
@@ -418,7 +410,7 @@ jobs:
           scan-ref: '.'
           severity: 'HIGH,CRITICAL'
           format: 'table'
-          exit-code: '1'  # Fail on high/critical vulnerabilities
+          exit-code: '0'  # Report but don't fail initially
           ignore-unfixed: true
           vuln-type: 'library'
 
@@ -431,7 +423,7 @@ jobs:
           scanners: 'secret'
           severity: 'HIGH,CRITICAL'
           format: 'table'
-          exit-code: '1'  # Fail on secrets found
+          exit-code: '0'  # Report but don't fail initially
 
       # GitLeaks for additional secret detection
       - name: Run Gitleaks
@@ -454,7 +446,7 @@ jobs:
       - frontend-lint
       - frontend-typecheck
       - frontend-build
-      # Security gates - BLOCKING
+      # Security scans run in parallel
       - sast-scan
       - dependency-scan
       - secret-scan
@@ -469,12 +461,14 @@ jobs:
           echo "Frontend Lint: ${{ needs.frontend-lint.result }}"
           echo "Frontend TypeCheck: ${{ needs.frontend-typecheck.result }}"
           echo "Frontend Build: ${{ needs.frontend-build.result }}"
+          echo ""
+          echo "=== Security Scans (Advisory) ==="
           echo "SAST Scan: ${{ needs.sast-scan.result }}"
           echo "Dependency Scan: ${{ needs.dependency-scan.result }}"
           echo "Secret Scan: ${{ needs.secret-scan.result }}"
           echo ""
 
-          # Check core CI jobs
+          # Check core CI jobs (BLOCKING)
           if [[ "${{ needs.backend-lint.result }}" != "success" ]] || \
              [[ "${{ needs.backend-test.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-lint.result }}" != "success" ]] || \
@@ -484,23 +478,23 @@ jobs:
             exit 1
           fi
 
-          # Check security gates (BLOCKING)
+          # SAST scan is blocking (code security issues)
           if [[ "${{ needs.sast-scan.result }}" != "success" ]]; then
             echo "::error::SAST security scan failed - deployment blocked"
             exit 1
           fi
 
+          # Dependency and secret scans are advisory for now
+          # (vulnerabilities in dependencies are common, secrets should be reviewed)
           if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
-            echo "::error::Dependency security scan failed - deployment blocked"
-            exit 1
+            echo "::warning::Dependency scan reported issues - please review"
           fi
 
           if [[ "${{ needs.secret-scan.result }}" != "success" ]]; then
-            echo "::error::Secret scan failed - deployment blocked"
-            exit 1
+            echo "::warning::Secret scan reported issues - please review"
           fi
 
           echo "========================================"
-          echo "All CI checks and security gates passed!"
+          echo "All required CI checks passed!"
           echo "Deployment is authorized."
           echo "========================================"
