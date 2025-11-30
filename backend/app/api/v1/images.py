@@ -61,9 +61,12 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    images = db.query(BookImage).filter(
-        BookImage.book_id == book_id
-    ).order_by(BookImage.display_order).all()
+    images = (
+        db.query(BookImage)
+        .filter(BookImage.book_id == book_id)
+        .order_by(BookImage.display_order)
+        .all()
+    )
 
     base_url = get_api_base_url()
 
@@ -90,16 +93,20 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Book not found")
 
     # Try to find primary image
-    image = db.query(BookImage).filter(
-        BookImage.book_id == book_id,
-        BookImage.is_primary .is_(True)
-    ).first()
+    image = (
+        db.query(BookImage)
+        .filter(BookImage.book_id == book_id, BookImage.is_primary.is_(True))
+        .first()
+    )
 
     # If no primary, get first image by display order
     if not image:
-        image = db.query(BookImage).filter(
-            BookImage.book_id == book_id
-        ).order_by(BookImage.display_order).first()
+        image = (
+            db.query(BookImage)
+            .filter(BookImage.book_id == book_id)
+            .order_by(BookImage.display_order)
+            .first()
+        )
 
     base_url = get_api_base_url()
 
@@ -127,10 +134,9 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
     """Serve the actual image file or redirect to S3."""
     from fastapi.responses import RedirectResponse
 
-    image = db.query(BookImage).filter(
-        BookImage.id == image_id,
-        BookImage.book_id == book_id
-    ).first()
+    image = (
+        db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
+    )
 
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -197,14 +203,11 @@ async def upload_image(
     # If this is primary, unset any existing primary
     if is_primary:
         db.query(BookImage).filter(
-            BookImage.book_id == book_id,
-            BookImage.is_primary .is_(True)
+            BookImage.book_id == book_id, BookImage.is_primary.is_(True)
         ).update({BookImage.is_primary: False})
 
     # Get next display order
-    max_order = db.query(BookImage).filter(
-        BookImage.book_id == book_id
-    ).count()
+    max_order = db.query(BookImage).filter(BookImage.book_id == book_id).count()
 
     # Create database record
     image = BookImage(
@@ -239,10 +242,9 @@ def update_image(
     db: Session = Depends(get_db),
 ):
     """Update image metadata."""
-    image = db.query(BookImage).filter(
-        BookImage.id == image_id,
-        BookImage.book_id == book_id
-    ).first()
+    image = (
+        db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
+    )
 
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -259,8 +261,8 @@ def update_image(
             # Unset any existing primary
             db.query(BookImage).filter(
                 BookImage.book_id == book_id,
-                BookImage.is_primary .is_(True),
-                BookImage.id != image_id
+                BookImage.is_primary.is_(True),
+                BookImage.id != image_id,
             ).update({BookImage.is_primary: False})
         image.is_primary = is_primary
 
@@ -273,10 +275,9 @@ def update_image(
 @router.delete("/{image_id}", status_code=204)
 def delete_image(book_id: int, image_id: int, db: Session = Depends(get_db)):
     """Delete an image."""
-    image = db.query(BookImage).filter(
-        BookImage.id == image_id,
-        BookImage.book_id == book_id
-    ).first()
+    image = (
+        db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
+    )
 
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")

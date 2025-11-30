@@ -121,7 +121,9 @@ def list_books(
                 primary_image = min(book.images, key=lambda x: x.display_order)
 
         if primary_image:
-            book_dict["primary_image_url"] = f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            book_dict[
+                "primary_image_url"
+            ] = f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
 
         items.append(BookResponse(**book_dict))
 
@@ -289,9 +291,13 @@ def bulk_update_status(
             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
         )
 
-    updated = db.query(Book).filter(Book.id.in_(book_ids)).update(
-        {Book.status: status},
-        synchronize_session=False,
+    updated = (
+        db.query(Book)
+        .filter(Book.id.in_(book_ids))
+        .update(
+            {Book.status: status},
+            synchronize_session=False,
+        )
     )
     db.commit()
 
@@ -305,10 +311,14 @@ def check_duplicate_title(
 ):
     """Check if a title already exists in the collection (duplicate detection)."""
     # Search for similar titles (case-insensitive)
-    matches = db.query(Book).filter(
-        Book.title.ilike(f"%{title}%"),
-        Book.inventory_type == "PRIMARY",
-    ).all()
+    matches = (
+        db.query(Book)
+        .filter(
+            Book.title.ilike(f"%{title}%"),
+            Book.inventory_type == "PRIMARY",
+        )
+        .all()
+    )
 
     return {
         "query": title,

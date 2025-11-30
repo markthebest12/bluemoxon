@@ -58,14 +58,11 @@ def handler(event, context):
         run_migrations()
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": "Migrations completed successfully"})
+            "body": json.dumps({"message": "Migrations completed successfully"}),
         }
     except Exception as e:
         logger.error(f"Migration failed: {e}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": str(e)})
-        }
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
 
 if __name__ == "__main__":

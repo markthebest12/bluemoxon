@@ -23,28 +23,40 @@ def get_overview(db: Session = Depends(get_db)):
     flagged_count = flagged.count()
 
     # Value sums for primary collection
-    primary_value = db.query(
-        func.sum(Book.value_low),
-        func.sum(Book.value_mid),
-        func.sum(Book.value_high),
-    ).filter(Book.inventory_type == "PRIMARY").first()
+    primary_value = (
+        db.query(
+            func.sum(Book.value_low),
+            func.sum(Book.value_mid),
+            func.sum(Book.value_high),
+        )
+        .filter(Book.inventory_type == "PRIMARY")
+        .first()
+    )
 
     # Volume count
-    total_volumes = db.query(func.sum(Book.volumes)).filter(
-        Book.inventory_type == "PRIMARY"
-    ).scalar() or 0
+    total_volumes = (
+        db.query(func.sum(Book.volumes)).filter(Book.inventory_type == "PRIMARY").scalar() or 0
+    )
 
     # Authenticated bindings count
-    authenticated_count = db.query(Book).filter(
-        Book.binding_authenticated .is_(True),
-        Book.inventory_type == "PRIMARY",
-    ).count()
+    authenticated_count = (
+        db.query(Book)
+        .filter(
+            Book.binding_authenticated.is_(True),
+            Book.inventory_type == "PRIMARY",
+        )
+        .count()
+    )
 
     # In-transit count
-    in_transit_count = db.query(Book).filter(
-        Book.status == "IN_TRANSIT",
-        Book.inventory_type == "PRIMARY",
-    ).count()
+    in_transit_count = (
+        db.query(Book)
+        .filter(
+            Book.status == "IN_TRANSIT",
+            Book.inventory_type == "PRIMARY",
+        )
+        .count()
+    )
 
     return {
         "primary": {
@@ -103,20 +115,21 @@ def get_collection_metrics(db: Session = Depends(get_db)):
     avg_roi = sum(rois) / len(rois) if rois else 0
 
     # Tier 1 publisher count
-    tier_1_count = db.query(Book).join(Publisher).filter(
-        Book.inventory_type == "PRIMARY",
-        Publisher.tier == "TIER_1",
-    ).count()
+    tier_1_count = (
+        db.query(Book)
+        .join(Publisher)
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Publisher.tier == "TIER_1",
+        )
+        .count()
+    )
 
     tier_1_pct = (tier_1_count / total_count * 100) if total_count > 0 else 0
 
     # Total purchase cost and current value
-    total_purchase = sum(
-        float(b.purchase_price) for b in primary_books if b.purchase_price
-    )
-    total_value = sum(
-        float(b.value_mid) for b in primary_books if b.value_mid
-    )
+    total_purchase = sum(float(b.purchase_price) for b in primary_books if b.purchase_price)
+    total_value = sum(float(b.value_mid) for b in primary_books if b.value_mid)
 
     return {
         "victorian_percentage": round(victorian_pct, 1),
@@ -133,13 +146,16 @@ def get_collection_metrics(db: Session = Depends(get_db)):
 @router.get("/by-category")
 def get_by_category(db: Session = Depends(get_db)):
     """Get counts by category."""
-    results = db.query(
-        Book.category,
-        func.count(Book.id),
-        func.sum(Book.value_mid),
-    ).filter(
-        Book.inventory_type == "PRIMARY"
-    ).group_by(Book.category).all()
+    results = (
+        db.query(
+            Book.category,
+            func.count(Book.id),
+            func.sum(Book.value_mid),
+        )
+        .filter(Book.inventory_type == "PRIMARY")
+        .group_by(Book.category)
+        .all()
+    )
 
     return [
         {
@@ -154,15 +170,20 @@ def get_by_category(db: Session = Depends(get_db)):
 @router.get("/by-publisher")
 def get_by_publisher(db: Session = Depends(get_db)):
     """Get counts by publisher with tier info."""
-    results = db.query(
-        Publisher.name,
-        Publisher.tier,
-        func.count(Book.id),
-        func.sum(Book.value_mid),
-        func.sum(Book.volumes),
-    ).join(Book, Book.publisher_id == Publisher.id).filter(
-        Book.inventory_type == "PRIMARY"
-    ).group_by(Publisher.id).order_by(Publisher.tier, func.count(Book.id).desc()).all()
+    results = (
+        db.query(
+            Publisher.name,
+            Publisher.tier,
+            func.count(Book.id),
+            func.sum(Book.value_mid),
+            func.sum(Book.volumes),
+        )
+        .join(Book, Book.publisher_id == Publisher.id)
+        .filter(Book.inventory_type == "PRIMARY")
+        .group_by(Publisher.id)
+        .order_by(Publisher.tier, func.count(Book.id).desc())
+        .all()
+    )
 
     return [
         {
@@ -181,14 +202,19 @@ def get_by_author(db: Session = Depends(get_db)):
     """Get counts by author."""
     from app.models import Author
 
-    results = db.query(
-        Author.name,
-        func.count(Book.id),
-        func.sum(Book.value_mid),
-        func.sum(Book.volumes),
-    ).join(Book, Book.author_id == Author.id).filter(
-        Book.inventory_type == "PRIMARY"
-    ).group_by(Author.id).order_by(func.count(Book.id).desc()).all()
+    results = (
+        db.query(
+            Author.name,
+            func.count(Book.id),
+            func.sum(Book.value_mid),
+            func.sum(Book.volumes),
+        )
+        .join(Book, Book.author_id == Author.id)
+        .filter(Book.inventory_type == "PRIMARY")
+        .group_by(Author.id)
+        .order_by(func.count(Book.id).desc())
+        .all()
+    )
 
     return [
         {
@@ -204,15 +230,22 @@ def get_by_author(db: Session = Depends(get_db)):
 @router.get("/bindings")
 def get_bindings(db: Session = Depends(get_db)):
     """Get authenticated binding counts by binder."""
-    results = db.query(
-        Binder.name,
-        Binder.full_name,
-        func.count(Book.id),
-        func.sum(Book.value_mid),
-    ).join(Book, Book.binder_id == Binder.id).filter(
-        Book.binding_authenticated .is_(True),
-        Book.inventory_type == "PRIMARY",
-    ).group_by(Binder.id).order_by(func.count(Book.id).desc()).all()
+    results = (
+        db.query(
+            Binder.name,
+            Binder.full_name,
+            func.count(Book.id),
+            func.sum(Book.value_mid),
+        )
+        .join(Book, Book.binder_id == Binder.id)
+        .filter(
+            Book.binding_authenticated.is_(True),
+            Book.inventory_type == "PRIMARY",
+        )
+        .group_by(Binder.id)
+        .order_by(func.count(Book.id).desc())
+        .all()
+    )
 
     return [
         {
@@ -274,10 +307,14 @@ def get_by_era(db: Session = Depends(get_db)):
 @router.get("/pending-deliveries")
 def get_pending_deliveries(db: Session = Depends(get_db)):
     """Get list of books currently in transit."""
-    books = db.query(Book).filter(
-        Book.status == "IN_TRANSIT",
-        Book.inventory_type == "PRIMARY",
-    ).all()
+    books = (
+        db.query(Book)
+        .filter(
+            Book.status == "IN_TRANSIT",
+            Book.inventory_type == "PRIMARY",
+        )
+        .all()
+    )
 
     return {
         "count": len(books),

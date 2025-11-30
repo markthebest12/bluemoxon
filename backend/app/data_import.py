@@ -39,11 +39,11 @@ def import_from_s3(bucket: str, key: str) -> dict:
 
     # Connect using psycopg2 directly for COPY support
     conn = psycopg2.connect(
-        host=creds['host'],
-        port=creds['port'],
-        database=creds['dbname'],
-        user=creds['username'],
-        password=creds['password']
+        host=creds["host"],
+        port=creds["port"],
+        database=creds["dbname"],
+        user=creds["username"],
+        password=creds["password"],
     )
 
     success_count = 0
@@ -56,8 +56,7 @@ def import_from_s3(bucket: str, key: str) -> dict:
         # Parse COPY blocks and execute them
         # COPY format: COPY tablename (cols) FROM stdin; data... \.
         copy_pattern = re.compile(
-            r'COPY\s+([\w.]+)\s*\(([^)]+)\)\s+FROM\s+stdin;(.*?)\\\.',
-            re.DOTALL | re.IGNORECASE
+            r"COPY\s+([\w.]+)\s*\(([^)]+)\)\s+FROM\s+stdin;(.*?)\\\.", re.DOTALL | re.IGNORECASE
         )
 
         for match in copy_pattern.finditer(sql_content):
@@ -112,22 +111,17 @@ def handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "message": "Data import completed",
-                **result
-            })
+            "body": json.dumps({"message": "Data import completed", **result}),
         }
     except Exception as e:
         logger.error(f"Data import failed: {e}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": str(e)})
-        }
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
 
 if __name__ == "__main__":
     # For local testing
     import sys
+
     if len(sys.argv) > 2:
         result = import_from_s3(sys.argv[1], sys.argv[2])
         print(json.dumps(result, indent=2))

@@ -37,13 +37,15 @@ def search(
         if scope == "books" or scope == "all":
             books = book_query.limit(per_page if scope == "books" else per_page // 2).all()
             for book in books:
-                results.append({
-                    "type": "book",
-                    "id": book.id,
-                    "title": book.title,
-                    "author": book.author.name if book.author else None,
-                    "snippet": _get_snippet(book.notes or book.binding_description or "", q),
-                })
+                results.append(
+                    {
+                        "type": "book",
+                        "id": book.id,
+                        "title": book.title,
+                        "author": book.author.name if book.author else None,
+                        "snippet": _get_snippet(book.notes or book.binding_description or "", q),
+                    }
+                )
 
     # Search analyses
     if scope in ("all", "analyses"):
@@ -61,15 +63,17 @@ def search(
                 per_page if scope == "analyses" else per_page // 2
             ).all()
             for analysis in analyses:
-                results.append({
-                    "type": "analysis",
-                    "id": analysis.id,
-                    "book_id": analysis.book_id,
-                    "title": analysis.book.title if analysis.book else "Unknown",
-                    "snippet": _get_snippet(
-                        analysis.executive_summary or analysis.full_markdown or "", q
-                    ),
-                })
+                results.append(
+                    {
+                        "type": "analysis",
+                        "id": analysis.id,
+                        "book_id": analysis.book_id,
+                        "title": analysis.book.title if analysis.book else "Unknown",
+                        "snippet": _get_snippet(
+                            analysis.executive_summary or analysis.full_markdown or "", q
+                        ),
+                    }
+                )
 
     return {
         "query": q,
@@ -91,7 +95,7 @@ def _get_snippet(text: str, query: str, context_chars: int = 100) -> str:
     pos = lower_text.find(lower_query)
 
     if pos == -1:
-        return text[:context_chars * 2] + "..." if len(text) > context_chars * 2 else text
+        return text[: context_chars * 2] + "..." if len(text) > context_chars * 2 else text
 
     start = max(0, pos - context_chars)
     end = min(len(text), pos + len(query) + context_chars)

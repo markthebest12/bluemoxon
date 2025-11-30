@@ -78,7 +78,9 @@ def create_publisher(publisher_data: PublisherCreate, db: Session = Depends(get_
 
 
 @router.put("/{publisher_id}", response_model=PublisherResponse)
-def update_publisher(publisher_id: int, publisher_data: PublisherUpdate, db: Session = Depends(get_db)):
+def update_publisher(
+    publisher_id: int, publisher_data: PublisherUpdate, db: Session = Depends(get_db)
+):
     """Update a publisher."""
     publisher = db.query(Publisher).filter(Publisher.id == publisher_id).first()
     if not publisher:

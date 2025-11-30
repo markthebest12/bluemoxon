@@ -1,7 +1,6 @@
 """Book API tests."""
 
 
-
 class TestListBooks:
     """Tests for GET /api/v1/books."""
 
@@ -179,9 +178,7 @@ class TestInventoryType:
         book_id = create_response.json()["id"]
 
         # Move to FLAGGED
-        response = client.patch(
-            f"/api/v1/books/{book_id}/inventory-type?inventory_type=FLAGGED"
-        )
+        response = client.patch(f"/api/v1/books/{book_id}/inventory-type?inventory_type=FLAGGED")
         assert response.status_code == 200
         assert response.json()["old_type"] == "PRIMARY"
         assert response.json()["new_type"] == "FLAGGED"
