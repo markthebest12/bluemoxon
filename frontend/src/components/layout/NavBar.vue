@@ -42,9 +42,12 @@ const authStore = useAuthStore()
         <!-- User Menu -->
         <div class="flex items-center space-x-4">
           <template v-if="authStore.isAuthenticated">
-            <span class="text-sm text-moxon-200">
+            <RouterLink
+              to="/profile"
+              class="text-sm text-moxon-200 hover:text-white transition-colors"
+            >
               {{ authStore.user?.email }}
-            </span>
+            </RouterLink>
             <button
               @click="authStore.logout()"
               class="text-sm hover:text-moxon-200 transition-colors"
