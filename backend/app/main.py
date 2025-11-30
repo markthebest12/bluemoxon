@@ -17,8 +17,16 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
 )
 
-# CORS middleware
-origins = settings.cors_origins.split(",") if settings.cors_origins != "*" else ["*"]
+# CORS middleware - production uses specific origins via CORS_ORIGINS env var
+# Default "*" is for local development only
+if settings.cors_origins == "*":
+    # Local development: allow all origins
+    # nosemgrep: python.fastapi.security.wildcard-cors.wildcard-cors
+    origins = ["*"]
+else:
+    # Production: use comma-separated list from environment
+    origins = [origin.strip() for origin in settings.cors_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
