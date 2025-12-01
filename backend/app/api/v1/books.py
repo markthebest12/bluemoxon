@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.v1.images import get_cloudfront_url, is_production
+from app.auth import require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
@@ -180,8 +181,12 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=BookResponse, status_code=201)
-def create_book(book_data: BookCreate, db: Session = Depends(get_db)):
-    """Create a new book."""
+def create_book(
+    book_data: BookCreate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Create a new book. Requires editor role."""
     book = Book(**book_data.model_dump())
 
     # Parse year from publication_date
@@ -202,8 +207,13 @@ def create_book(book_data: BookCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{book_id}", response_model=BookResponse)
-def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_db)):
-    """Update a book."""
+def update_book(
+    book_id: int,
+    book_data: BookUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Update a book. Requires editor role."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -229,8 +239,12 @@ def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_d
 
 
 @router.delete("/{book_id}", status_code=204)
-def delete_book(book_id: int, db: Session = Depends(get_db)):
-    """Delete a book and all associated images/analysis."""
+def delete_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete a book and all associated images/analysis. Requires editor role."""
     from pathlib import Path
 
     from app.config import get_settings
@@ -259,6 +273,7 @@ def update_book_status(
     book_id: int,
     status: str = Query(...),
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
     """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED)."""
     valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
@@ -283,6 +298,7 @@ def update_book_inventory_type(
     book_id: int,
     inventory_type: str = Query(...),
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
     """Move book between inventory types (PRIMARY, EXTENDED, FLAGGED)."""
     valid_types = ["PRIMARY", "EXTENDED", "FLAGGED"]
@@ -312,6 +328,7 @@ def bulk_update_status(
     book_ids: list[int],
     status: str = Query(...),
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
     """Bulk update status for multiple books."""
     valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
@@ -409,6 +426,7 @@ def update_book_analysis(
     book_id: int,
     full_markdown: str,
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
     """Update or create analysis for a book."""
     from app.models import BookAnalysis

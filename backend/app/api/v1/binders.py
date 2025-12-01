@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.db import get_db
 from app.models import Binder
 from app.schemas.reference import BinderCreate, BinderResponse, BinderUpdate
@@ -53,8 +54,12 @@ def get_binder(binder_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=BinderResponse, status_code=201)
-def create_binder(binder_data: BinderCreate, db: Session = Depends(get_db)):
-    """Create a new binder."""
+def create_binder(
+    binder_data: BinderCreate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Create a new binder. Requires editor role."""
     # Check for existing binder with same name
     existing = db.query(Binder).filter(Binder.name == binder_data.name).first()
     if existing:
@@ -75,8 +80,13 @@ def create_binder(binder_data: BinderCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{binder_id}", response_model=BinderResponse)
-def update_binder(binder_id: int, binder_data: BinderUpdate, db: Session = Depends(get_db)):
-    """Update a binder."""
+def update_binder(
+    binder_id: int,
+    binder_data: BinderUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Update a binder. Requires editor role."""
     binder = db.query(Binder).filter(Binder.id == binder_id).first()
     if not binder:
         raise HTTPException(status_code=404, detail="Binder not found")
@@ -98,8 +108,12 @@ def update_binder(binder_id: int, binder_data: BinderUpdate, db: Session = Depen
 
 
 @router.delete("/{binder_id}", status_code=204)
-def delete_binder(binder_id: int, db: Session = Depends(get_db)):
-    """Delete a binder. Will fail if binder has associated books."""
+def delete_binder(
+    binder_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete a binder. Requires editor role. Will fail if binder has associated books."""
     binder = db.query(Binder).filter(Binder.id == binder_id).first()
     if not binder:
         raise HTTPException(status_code=404, detail="Binder not found")

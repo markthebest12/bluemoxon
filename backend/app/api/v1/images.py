@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from PIL import Image
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
@@ -280,8 +281,9 @@ async def upload_image(
     is_primary: bool = Query(default=False),
     caption: str = Query(default=None),
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
-    """Upload a new image for a book."""
+    """Upload a new image for a book. Requires editor role."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -342,8 +344,9 @@ def update_image(
     caption: str = Query(default=None),
     display_order: int = Query(default=None),
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
-    """Update image metadata."""
+    """Update image metadata. Requires editor role."""
     image = (
         db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
     )
@@ -375,8 +378,13 @@ def update_image(
 
 
 @router.delete("/{image_id}", status_code=204)
-def delete_image(book_id: int, image_id: int, db: Session = Depends(get_db)):
-    """Delete an image."""
+def delete_image(
+    book_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete an image. Requires editor role."""
     image = (
         db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
     )

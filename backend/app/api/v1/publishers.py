@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.db import get_db
 from app.models import Publisher
 from app.schemas.reference import PublisherCreate, PublisherResponse, PublisherUpdate
@@ -55,8 +56,12 @@ def get_publisher(publisher_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=PublisherResponse, status_code=201)
-def create_publisher(publisher_data: PublisherCreate, db: Session = Depends(get_db)):
-    """Create a new publisher."""
+def create_publisher(
+    publisher_data: PublisherCreate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Create a new publisher. Requires editor role."""
     # Check for existing publisher with same name
     existing = db.query(Publisher).filter(Publisher.name == publisher_data.name).first()
     if existing:
@@ -79,9 +84,12 @@ def create_publisher(publisher_data: PublisherCreate, db: Session = Depends(get_
 
 @router.put("/{publisher_id}", response_model=PublisherResponse)
 def update_publisher(
-    publisher_id: int, publisher_data: PublisherUpdate, db: Session = Depends(get_db)
+    publisher_id: int,
+    publisher_data: PublisherUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
-    """Update a publisher."""
+    """Update a publisher. Requires editor role."""
     publisher = db.query(Publisher).filter(Publisher.id == publisher_id).first()
     if not publisher:
         raise HTTPException(status_code=404, detail="Publisher not found")
@@ -104,8 +112,12 @@ def update_publisher(
 
 
 @router.delete("/{publisher_id}", status_code=204)
-def delete_publisher(publisher_id: int, db: Session = Depends(get_db)):
-    """Delete a publisher. Will fail if publisher has associated books."""
+def delete_publisher(
+    publisher_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete a publisher. Requires editor role. Will fail if publisher has associated books."""
     publisher = db.query(Publisher).filter(Publisher.id == publisher_id).first()
     if not publisher:
         raise HTTPException(status_code=404, detail="Publisher not found")

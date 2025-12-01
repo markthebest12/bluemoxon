@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.db import get_db
 from app.models import Author
 from app.schemas.reference import AuthorCreate, AuthorResponse, AuthorUpdate
@@ -62,8 +63,12 @@ def get_author(author_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=AuthorResponse, status_code=201)
-def create_author(author_data: AuthorCreate, db: Session = Depends(get_db)):
-    """Create a new author."""
+def create_author(
+    author_data: AuthorCreate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Create a new author. Requires editor role."""
     # Check for existing author with same name
     existing = db.query(Author).filter(Author.name == author_data.name).first()
     if existing:
@@ -86,8 +91,13 @@ def create_author(author_data: AuthorCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{author_id}", response_model=AuthorResponse)
-def update_author(author_id: int, author_data: AuthorUpdate, db: Session = Depends(get_db)):
-    """Update an author."""
+def update_author(
+    author_id: int,
+    author_data: AuthorUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Update an author. Requires editor role."""
     author = db.query(Author).filter(Author.id == author_id).first()
     if not author:
         raise HTTPException(status_code=404, detail="Author not found")
@@ -111,8 +121,12 @@ def update_author(author_id: int, author_data: AuthorUpdate, db: Session = Depen
 
 
 @router.delete("/{author_id}", status_code=204)
-def delete_author(author_id: int, db: Session = Depends(get_db)):
-    """Delete an author. Will fail if author has associated books."""
+def delete_author(
+    author_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete an author. Requires editor role. Will fail if author has associated books."""
     author = db.query(Author).filter(Author.id == author_id).first()
     if not author:
         raise HTTPException(status_code=404, detail="Author not found")
