@@ -170,6 +170,115 @@ jobs:
         run: poetry run mypy app/ --ignore-missing-imports
         continue-on-error: true  # Non-blocking for now
 
+  backend-validate:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Validate model exports
+        run: |
+          echo "=== Checking all models are exported from __init__.py ==="
+          # Get all model files (excluding base.py and __init__.py)
+          model_files=$(find app/models -name "*.py" ! -name "__init__.py" ! -name "base.py" -exec basename {} .py \;)
+
+          # Check each model is imported in __init__.py
+          errors=0
+          for model in $model_files; do
+            # Convert snake_case to PascalCase for class name
+            class_name=$(echo "$model" | sed -r 's/(^|_)([a-z])/\U\2/g')
+            if ! grep -q "from app.models.$model import" app/models/__init__.py; then
+              echo "::error::Model file '$model.py' is not imported in app/models/__init__.py"
+              errors=$((errors + 1))
+            fi
+          done
+
+          if [ $errors -gt 0 ]; then
+            echo "::error::$errors model(s) not properly exported. Add them to app/models/__init__.py"
+            exit 1
+          fi
+          echo "All models are properly exported!"
+
+      - name: Validate Alembic migrations
+        run: |
+          echo "=== Validating Alembic migration chain ==="
+          # Check that alembic can resolve the migration chain
+          poetry run python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+
+          config = Config('alembic.ini')
+          script = ScriptDirectory.from_config(config)
+
+          # Get all revisions
+          revisions = list(script.walk_revisions())
+          print(f'Found {len(revisions)} migration(s)')
+
+          # Check for head
+          heads = script.get_heads()
+          if len(heads) == 0:
+              print('::error::No migration head found')
+              sys.exit(1)
+          elif len(heads) > 1:
+              print(f'::error::Multiple migration heads found: {heads}')
+              print('This indicates a branching problem in migrations')
+              sys.exit(1)
+
+          print(f'Migration head: {heads[0]}')
+
+          # Verify each revision has valid down_revision
+          for rev in revisions:
+              if rev.down_revision is not None:
+                  try:
+                      script.get_revision(rev.down_revision)
+                  except:
+                      print(f'::error::Migration {rev.revision} references invalid down_revision {rev.down_revision}')
+                      sys.exit(1)
+
+          print('Migration chain is valid!')
+          "
+
+      - name: Check for model/migration sync
+        run: |
+          echo "=== Checking model files have been considered for migrations ==="
+          # This is advisory - new models should have migrations
+          # Get git diff to see if any model files were added
+          if git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "app/models/.*\.py"; then
+            echo "Model files were modified in this PR"
+            if ! git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "alembic/versions/"; then
+              echo "::warning::Model files were modified but no migration files were added. If you added/changed database columns, you need to create a migration."
+            fi
+          fi
+          echo "Check complete!"
+
   # ============================================
   # Frontend Jobs
   # ============================================
@@ -449,6 +558,7 @@ jobs:
     needs:
       - backend-lint
       - backend-test
+      - backend-validate
       - frontend-lint
       - frontend-typecheck
       - frontend-build
@@ -464,6 +574,7 @@ jobs:
           echo "=== CI Results ==="
           echo "Backend Lint: ${{ needs.backend-lint.result }}"
           echo "Backend Test: ${{ needs.backend-test.result }}"
+          echo "Backend Validation: ${{ needs.backend-validate.result }}"
           echo "Frontend Lint: ${{ needs.frontend-lint.result }}"
           echo "Frontend TypeCheck: ${{ needs.frontend-typecheck.result }}"
           echo "Frontend Build: ${{ needs.frontend-build.result }}"
@@ -477,6 +588,7 @@ jobs:
           # Check core CI jobs (BLOCKING)
           if [[ "${{ needs.backend-lint.result }}" != "success" ]] || \
              [[ "${{ needs.backend-test.result }}" != "success" ]] || \
+             [[ "${{ needs.backend-validate.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-lint.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-typecheck.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-build.result }}" != "success" ]]; then
