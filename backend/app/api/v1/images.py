@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 
 import boto3
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -409,7 +409,7 @@ def delete_image(
 @router.put("/reorder")
 def reorder_images(
     book_id: int,
-    image_ids: list[int],
+    image_ids: list[int] = Body(..., embed=False),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
