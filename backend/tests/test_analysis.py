@@ -58,7 +58,8 @@ Very good condition.
 """
         response = client.put(
             f"/api/v1/books/{book_id}/analysis",
-            params={"full_markdown": markdown_content},
+            content=markdown_content,
+            headers={"Content-Type": "text/plain"},
         )
         assert response.status_code == 200
         assert response.json()["message"] == "Analysis updated"
@@ -77,13 +78,15 @@ Very good condition.
         # Create initial analysis
         client.put(
             f"/api/v1/books/{book_id}/analysis",
-            params={"full_markdown": "# Initial Analysis"},
+            content="# Initial Analysis",
+            headers={"Content-Type": "text/plain"},
         )
 
         # Update analysis
         response = client.put(
             f"/api/v1/books/{book_id}/analysis",
-            params={"full_markdown": "# Updated Analysis\n\nNew content here."},
+            content="# Updated Analysis\n\nNew content here.",
+            headers={"Content-Type": "text/plain"},
         )
         assert response.status_code == 200
 
@@ -96,7 +99,8 @@ Very good condition.
         """Test 404 when book doesn't exist."""
         response = client.put(
             "/api/v1/books/999/analysis",
-            params={"full_markdown": "# Test"},
+            content="# Test",
+            headers={"Content-Type": "text/plain"},
         )
         assert response.status_code == 404
 
@@ -117,7 +121,8 @@ class TestAnalysisWithBookInfo:
         # Add analysis
         client.put(
             f"/api/v1/books/{book_id}/analysis",
-            params={"full_markdown": "# Test Analysis"},
+            content="# Test Analysis",
+            headers={"Content-Type": "text/plain"},
         )
 
         # Now has analysis
