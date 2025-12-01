@@ -145,6 +145,21 @@ export const useBooksStore = defineStore("books", () => {
     }
   }
 
+  async function updateAnalysis(bookId: number, markdown: string) {
+    try {
+      await api.put(`/books/${bookId}/analysis`, markdown, {
+        headers: { "Content-Type": "text/plain" },
+      });
+      // Update has_analysis flag on current book if loaded
+      if (currentBook.value && currentBook.value.id === bookId) {
+        currentBook.value.has_analysis = true;
+      }
+    } catch (e: any) {
+      error.value = e.message || "Failed to update analysis";
+      throw e;
+    }
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -179,6 +194,7 @@ export const useBooksStore = defineStore("books", () => {
     createBook,
     updateBook,
     deleteBook,
+    updateAnalysis,
     setFilters,
     setSort,
     setPage,
