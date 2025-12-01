@@ -45,7 +45,13 @@ function handleClick() {
     @click="handleClick"
   >
     <!-- Image or Placeholder -->
-    <img :src="imageUrl || placeholderUrl" alt="Book image" class="w-full h-full object-cover" />
+    <img
+      :src="imageUrl || placeholderUrl"
+      alt="Book image"
+      loading="lazy"
+      decoding="async"
+      class="w-full h-full object-cover"
+    />
 
     <!-- Image indicator badge (only for actual images) -->
     <div

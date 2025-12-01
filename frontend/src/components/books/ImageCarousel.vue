@@ -144,6 +144,8 @@ function handleBackdropClick(e: MouseEvent) {
             <img
               :src="images[currentIndex].url"
               :alt="images[currentIndex].caption || `Image ${currentIndex + 1}`"
+              decoding="async"
+              fetchpriority="high"
               class="w-full h-full object-contain"
             />
 
@@ -213,6 +215,8 @@ function handleBackdropClick(e: MouseEvent) {
               <img
                 :src="img.thumbnail_url"
                 :alt="`Thumbnail ${idx + 1}`"
+                loading="lazy"
+                decoding="async"
                 class="w-full h-full object-cover"
               />
             </button>

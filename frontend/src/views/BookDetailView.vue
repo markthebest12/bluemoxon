@@ -208,6 +208,8 @@ function getStatusColor(status: string): string {
               <img
                 :src="img.thumbnail_url"
                 :alt="img.caption || `Image ${idx + 1}`"
+                loading="lazy"
+                decoding="async"
                 class="w-full h-full object-cover"
               />
             </button>
