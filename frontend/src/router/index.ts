@@ -69,6 +69,14 @@ const router = createRouter({
 // Navigation guard for authentication
 let authInitialized = false;
 
+// Fallback scroll reset for browsers where scrollBehavior doesn't work (Chrome)
+router.afterEach(() => {
+  // Use nextTick equivalent to ensure DOM is updated
+  setTimeout(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, 0);
+});
+
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
 
