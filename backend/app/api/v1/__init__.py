@@ -12,6 +12,7 @@ from app.api.v1 import (
     publishers,
     search,
     stats,
+    users,
 )
 
 router = APIRouter()
@@ -25,3 +26,4 @@ router.include_router(publishers.router, prefix="/publishers", tags=["publishers
 router.include_router(authors.router, prefix="/authors", tags=["authors"])
 router.include_router(binders.router, prefix="/binders", tags=["binders"])
 router.include_router(export.router, prefix="/export", tags=["export"])
+router.include_router(users.router, prefix="/users", tags=["users"])
