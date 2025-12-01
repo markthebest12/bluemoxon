@@ -6,6 +6,11 @@ import App from "./App.vue";
 import router from "./router";
 import "./assets/main.css";
 
+// Disable browser's native scroll restoration - let Vue Router handle it
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
 // Configure Amplify
 Amplify.configure({
   Auth: {

@@ -8,8 +8,12 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition;
     }
-    // Otherwise scroll to top
-    return { top: 0 };
+    // Otherwise scroll to top with slight delay to ensure DOM is ready
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({ top: 0, left: 0, behavior: "instant" });
+      }, 0);
+    });
   },
   routes: [
     {
