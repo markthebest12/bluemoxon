@@ -70,12 +70,14 @@ CloudFront → API Gateway → Lambda → Aurora Serverless v2
 
 ### Rollback Capabilities
 
-| Component | Current State | Recommendation | Cost Impact |
-|-----------|---------------|----------------|-------------|
-| **Lambda** | No versioning | Enable versioning + aliases | +$0/month (free tier) |
-| **Frontend (S3)** | No versioning | Enable S3 versioning | +$0.50-1/month |
-| **Database** | Daily snapshots | Keep current (Aurora auto-snapshots free) | $0 |
-| **Infrastructure** | CDK deployed | Document manual rollback procedures | $0 |
+| Component | Current State | Recommendation | Cost Impact | Status |
+|-----------|---------------|----------------|-------------|--------|
+| **Lambda** | Versioning + prod alias | Keep last 3 versions | +$0/month (free tier) | DONE |
+| **Frontend (S3)** | Versioning enabled | 30-day lifecycle rule | +$0.50-1/month | DONE |
+| **Database** | Daily snapshots | Keep current (Aurora auto-snapshots free) | $0 | DONE |
+| **Infrastructure** | CDK deployed | Document manual rollback procedures | $0 | DONE |
+
+**Rollback documentation:** See [ROLLBACK.md](./ROLLBACK.md) for procedures.
 
 ### Recommended Rollback Strategy (Budget-Conscious)
 
@@ -283,12 +285,12 @@ on:
 
 ### High Priority (Do Soon)
 
-| Item | Category | Effort | Impact |
-|------|----------|--------|--------|
-| Lambda Versioning | Infrastructure | Low | High (rollback capability) |
-| S3 Versioning | Infrastructure | Low | High (rollback capability) |
-| Route-based Code Splitting | Frontend | Low | Medium (faster loads) |
-| CloudFront Cache Headers | Frontend | Low | Medium (faster loads) |
+| Item | Category | Effort | Impact | Status |
+|------|----------|--------|--------|--------|
+| Lambda Versioning | Infrastructure | Low | High (rollback capability) | DONE |
+| S3 Versioning | Infrastructure | Low | High (rollback capability) | DONE |
+| Route-based Code Splitting | Frontend | Low | Medium (faster loads) | DONE |
+| CloudFront Cache Headers | Frontend | Low | Medium (faster loads) | DONE |
 
 ### Medium Priority (Do When Time Permits)
 
