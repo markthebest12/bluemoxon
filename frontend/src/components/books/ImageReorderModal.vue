@@ -101,7 +101,9 @@ async function save() {
 
   try {
     const imageIds = orderedImages.value.map((img) => img.id);
-    await api.put(`/books/${props.bookId}/images/reorder`, imageIds);
+    console.log("[ImageReorder] Saving order:", imageIds, "for book:", props.bookId);
+    const response = await api.put(`/books/${props.bookId}/images/reorder`, imageIds);
+    console.log("[ImageReorder] Save response:", response.status, response.data);
 
     // Update display_order in the local array
     const updatedImages = orderedImages.value.map((img, idx) => ({
@@ -112,6 +114,7 @@ async function save() {
     emit("reordered", updatedImages);
     emit("close");
   } catch (e: any) {
+    console.error("[ImageReorder] Save error:", e.response?.status, e.response?.data, e.message);
     error.value = e.response?.data?.detail || e.message || "Failed to save order";
   } finally {
     saving.value = false;

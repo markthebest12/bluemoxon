@@ -70,7 +70,8 @@ const router = createRouter({
 let authInitialized = false;
 
 // Fallback scroll reset for browsers where scrollBehavior doesn't work (Chrome mobile)
-router.afterEach(() => {
+router.afterEach((to) => {
+  console.log(`[Router] afterEach: navigated to ${to.path}, scrolling to top`);
   // Use multiple approaches for maximum browser compatibility
   setTimeout(() => {
     // Method 1: Standard scrollTo
@@ -78,6 +79,7 @@ router.afterEach(() => {
     // Method 2: Direct property set (needed for some mobile browsers)
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+    console.log("[Router] Scroll reset complete");
   }, 50); // Longer delay for mobile Chrome
 });
 
