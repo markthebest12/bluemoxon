@@ -208,12 +208,12 @@ aws s3 cp dist/index.html s3://bluemoxon-frontend/ \
 
 ### Speed Improvements (Free)
 
-| Improvement | Current | After | Effort |
-|-------------|---------|-------|--------|
-| **Parallel Jobs** | Sequential | Parallel lint/test/typecheck | Low |
-| **Dependency Caching** | Basic | Aggressive caching | Low |
-| **Conditional Deploys** | Always deploy | Only on changes to relevant paths | Medium |
-| **Skip CI on Docs** | Runs on all commits | Skip for .md files | Low |
+| Improvement | Current | After | Effort | Status |
+|-------------|---------|-------|--------|--------|
+| **Parallel Jobs** | Sequential | Parallel lint/test/typecheck | Low | DONE |
+| **Dependency Caching** | Basic | Aggressive caching | Low | DONE |
+| **Conditional Deploys** | Always deploy | Only on changes to relevant paths | Medium | DONE |
+| **Skip CI on Docs** | Runs on all commits | Skip for .md files | Low | DONE |
 
 #### 1. Parallel Job Optimization
 Already implemented - lint, test, typecheck run in parallel.
@@ -251,12 +251,12 @@ on:
 
 ### Feature Improvements
 
-| Feature | Description | Effort | Cost |
-|---------|-------------|--------|------|
-| **Deployment Notifications** | Slack/email on deploy success/failure | Low | $0 |
-| **Preview Environments** | PR previews (expensive, skip for internal) | High | +$10-20/month |
-| **Automated Dependency Updates** | Dependabot already configured | Done | $0 |
-| **Release Tags** | Auto-tag releases on main deploy | Low | $0 |
+| Feature | Description | Effort | Cost | Status |
+|---------|-------------|--------|------|--------|
+| **Deployment Notifications** | Slack/email on deploy success/failure | Low | $0 | Planned |
+| **Preview Environments** | PR previews (expensive, skip for internal) | High | +$10-20/month | Not planned |
+| **Automated Dependency Updates** | Dependabot already configured | Done | $0 | DONE |
+| **Release Tags** | Auto-tag releases on main deploy | Low | $0 | DONE |
 
 #### Release Tagging
 ```yaml
