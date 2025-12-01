@@ -153,18 +153,21 @@ CDK doesn't have built-in rollback, but:
 
 ### Current State
 - Vue 3 SPA served via CloudFront
-- No code splitting configured
-- Images served via Lambda presigned URLs
+- Route-based code splitting configured
+- Thumbnail generation (300x300 JPEG) on upload
+- CloudFront cache headers configured in deploy workflow
+- DNS preconnect hints for API/S3/Cognito
+- Bundle analysis available via `npm run bundle:analyze`
 
 ### Recommendations (Cost-Conscious)
 
-| Improvement | Description | Effort | Cost |
-|-------------|-------------|--------|------|
-| **Route-based Code Splitting** | Lazy load views with `defineAsyncComponent` | Low | $0 |
-| **Image Optimization** | Generate WebP thumbnails at upload time | Medium | $0 |
-| **CloudFront Caching Headers** | Set proper Cache-Control on S3 objects | Low | $0 |
-| **Preconnect DNS** | Add `<link rel="preconnect">` for API domain | Low | $0 |
-| **Bundle Analysis** | Use `rollup-plugin-visualizer` to identify bloat | Low | $0 |
+| Improvement | Description | Effort | Cost | Status |
+|-------------|-------------|--------|------|--------|
+| **Route-based Code Splitting** | Lazy load views with dynamic imports | Low | $0 | DONE |
+| **Image Optimization** | Generate thumbnails at upload time | Medium | $0 | DONE |
+| **CloudFront Caching Headers** | Set proper Cache-Control on S3 objects | Low | $0 | DONE |
+| **Preconnect DNS** | Add `<link rel="preconnect">` for API domain | Low | $0 | DONE |
+| **Bundle Analysis** | Use `rollup-plugin-visualizer` to identify bloat | Low | $0 | DONE |
 
 #### 1. Route-based Code Splitting
 ```typescript
