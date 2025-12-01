@@ -6,8 +6,20 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/dependabot.yml'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/dependabot.yml'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_call:  # Allow this workflow to be called from deploy.yml
 
 # Cancel in-progress runs for the same PR/branch
