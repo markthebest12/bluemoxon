@@ -1,6 +1,6 @@
 """Books API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.v1.images import get_cloudfront_url, is_production
@@ -424,11 +424,14 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
 @router.put("/{book_id}/analysis")
 def update_book_analysis(
     book_id: int,
-    full_markdown: str,
+    full_markdown: str = Body(..., media_type="text/plain"),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
-    """Update or create analysis for a book."""
+    """Update or create analysis for a book.
+
+    Accepts raw markdown text in the request body.
+    """
     from app.models import BookAnalysis
 
     book = db.query(Book).filter(Book.id == book_id).first()
