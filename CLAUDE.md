@@ -37,6 +37,30 @@ gh pr merge <pr-number> --squash --delete-branch --auto
 - If CI passes, deploys to production automatically
 - Creates version tag: v{YYYY.MM.DD}-{short-sha}
 
+### CRITICAL: Post-Deploy Validation
+
+**ALWAYS watch the deploy workflow after merging to main.** CI passing does NOT guarantee the deploy succeeds - smoke tests run AFTER deployment.
+
+```bash
+# Watch deploy workflow after merge
+gh run list --workflow Deploy --limit 1   # Get run ID
+gh run watch <run-id> --exit-status       # Watch until complete
+
+# Or check deploy status
+gh run list --workflow Deploy
+```
+
+**Smoke tests verify:**
+- API health endpoint returns 200
+- Books API returns paginated response
+- Frontend loads with expected content
+- **Image URLs return `Content-Type: image/*`** (not error pages)
+
+**If smoke tests fail:**
+1. Check the failed step: `gh run view <run-id> --log-failed`
+2. Fix the issue on a new branch
+3. The failed deploy did NOT create a release tag
+
 ### Version Tagging
 Tags are automatically created on successful deploy. Manual tagging:
 ```bash
@@ -137,7 +161,8 @@ npm run dev                # Dev server
 
 # Git/CI
 gh pr create               # Create PR
-gh pr checks <n> --watch   # Watch CI
+gh pr checks <n> --watch   # Watch CI on PR
 gh pr merge <n> --squash --auto  # Auto-merge when CI passes
 gh run list --workflow Deploy    # Check deploy status
+gh run watch <id> --exit-status  # Watch deploy + smoke tests (REQUIRED after merge)
 ```
