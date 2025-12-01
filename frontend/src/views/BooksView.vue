@@ -91,13 +91,14 @@ function toggleSort(field: string) {
   }
 }
 
-function formatCurrency(value: number | null): string {
-  if (value === null) return "-";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function viewBook(id: number) {
@@ -396,8 +397,8 @@ function closeCarousel() {
             </p>
 
             <div class="flex items-center justify-between mt-3">
-              <span class="text-lg font-bold text-victorian-gold">
-                {{ formatCurrency(book.value_mid) }}
+              <span class="text-sm text-gray-600">
+                {{ formatDate(book.purchase_date) }}
               </span>
               <div class="flex items-center space-x-1">
                 <span
@@ -411,14 +412,7 @@ function closeCarousel() {
                   v-if="book.volumes > 1"
                   class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
                 >
-                  {{ book.volumes }}v
-                </span>
-                <span
-                  v-if="book.image_count > 0"
-                  class="px-1.5 py-1 text-xs bg-blue-100 text-blue-700 rounded"
-                  :title="`${book.image_count} images`"
-                >
-                  {{ book.image_count }}img
+                  {{ book.volumes }} vols
                 </span>
                 <span
                   v-if="book.has_analysis"
