@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.v1.images import get_cloudfront_url, is_production
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
@@ -137,9 +138,14 @@ def list_books(
                 primary_image = min(book.images, key=lambda x: x.display_order)
 
         if primary_image:
-            book_dict["primary_image_url"] = (
-                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
-            )
+            if is_production():
+                # Use CloudFront CDN URL in production
+                book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+            else:
+                # Use API endpoint for local development
+                book_dict["primary_image_url"] = (
+                    f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+                )
 
         items.append(BookResponse(**book_dict))
 
