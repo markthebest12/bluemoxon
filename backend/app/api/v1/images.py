@@ -406,6 +406,40 @@ def delete_image(
     db.commit()
 
 
+@router.put("/reorder")
+def reorder_images(
+    book_id: int,
+    image_ids: list[int],
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Reorder images by providing ordered list of image IDs. Requires editor role."""
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Verify all image_ids belong to this book
+    existing_images = (
+        db.query(BookImage).filter(BookImage.book_id == book_id, BookImage.id.in_(image_ids)).all()
+    )
+
+    if len(existing_images) != len(image_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Some image IDs do not belong to this book",
+        )
+
+    # Update display_order based on position in the array
+    for order, image_id in enumerate(image_ids):
+        db.query(BookImage).filter(BookImage.id == image_id).update(
+            {BookImage.display_order: order}
+        )
+
+    db.commit()
+
+    return {"message": "Images reordered successfully", "order": image_ids}
+
+
 # Standalone placeholder endpoint (not book-specific)
 @router.get("/placeholder", include_in_schema=False)
 def get_placeholder_image():

@@ -5,6 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { api } from "@/services/api";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
+import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const route = useRoute();
@@ -15,6 +16,7 @@ const booksStore = useBooksStore();
 const images = ref<any[]>([]);
 const carouselVisible = ref(false);
 const carouselInitialIndex = ref(0);
+const reorderModalVisible = ref(false);
 
 // Analysis state
 const analysisVisible = ref(false);
@@ -68,6 +70,18 @@ function openCarousel(index: number = 0) {
 
 function closeCarousel() {
   carouselVisible.value = false;
+}
+
+function openReorderModal() {
+  reorderModalVisible.value = true;
+}
+
+function closeReorderModal() {
+  reorderModalVisible.value = false;
+}
+
+function handleImagesReordered(newImages: typeof images.value) {
+  images.value = newImages;
 }
 
 function openAnalysis() {
@@ -197,7 +211,24 @@ function getStatusColor(status: string): string {
       <div class="lg:col-span-2 space-y-6">
         <!-- Image Gallery -->
         <div class="card">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">Images</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Images</h2>
+            <button
+              v-if="images.length > 1"
+              @click="openReorderModal"
+              class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                />
+              </svg>
+              Reorder
+            </button>
+          </div>
           <div v-if="images.length > 0" class="grid grid-cols-4 gap-3">
             <button
               v-for="(img, idx) in images"
@@ -452,6 +483,15 @@ function getStatusColor(status: string): string {
       :visible="carouselVisible"
       :initial-index="carouselInitialIndex"
       @close="closeCarousel"
+    />
+
+    <!-- Image Reorder Modal -->
+    <ImageReorderModal
+      :book-id="booksStore.currentBook.id"
+      :visible="reorderModalVisible"
+      :images="images"
+      @close="closeReorderModal"
+      @reordered="handleImagesReordered"
     />
 
     <!-- Analysis Viewer Modal -->
