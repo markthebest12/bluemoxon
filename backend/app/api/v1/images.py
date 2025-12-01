@@ -6,7 +6,6 @@ import uuid
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
@@ -138,16 +137,18 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
             url = f"{base_url}/api/v1/books/{book_id}/images/{img.id}/file"
             thumbnail_url = f"{base_url}/api/v1/books/{book_id}/images/{img.id}/thumbnail"
 
-        result.append({
-            "id": img.id,
-            "s3_key": img.s3_key,
-            "url": url,
-            "thumbnail_url": thumbnail_url,
-            "image_type": img.image_type,
-            "display_order": img.display_order,
-            "is_primary": img.is_primary,
-            "caption": img.caption,
-        })
+        result.append(
+            {
+                "id": img.id,
+                "s3_key": img.s3_key,
+                "url": url,
+                "thumbnail_url": thumbnail_url,
+                "image_type": img.image_type,
+                "display_order": img.display_order,
+                "is_primary": img.is_primary,
+                "caption": img.caption,
+            }
+        )
 
     return result
 
