@@ -69,12 +69,16 @@ const router = createRouter({
 // Navigation guard for authentication
 let authInitialized = false;
 
-// Fallback scroll reset for browsers where scrollBehavior doesn't work (Chrome)
+// Fallback scroll reset for browsers where scrollBehavior doesn't work (Chrome mobile)
 router.afterEach(() => {
-  // Use nextTick equivalent to ensure DOM is updated
+  // Use multiple approaches for maximum browser compatibility
   setTimeout(() => {
+    // Method 1: Standard scrollTo
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, 0);
+    // Method 2: Direct property set (needed for some mobile browsers)
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 50); // Longer delay for mobile Chrome
 });
 
 router.beforeEach(async (to, _from, next) => {
