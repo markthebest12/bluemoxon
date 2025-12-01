@@ -143,10 +143,10 @@ function handleBackdropClick(e: MouseEvent) {
         </div>
 
         <!-- Carousel -->
-        <div v-else class="relative w-full max-w-5xl mx-4">
+        <div v-else class="relative w-full max-w-5xl mx-4 flex flex-col max-h-[90vh]">
           <!-- Main image -->
           <div
-            class="relative aspect-[4/3] bg-black rounded-lg overflow-hidden"
+            class="relative flex-1 min-h-0 bg-black rounded-lg overflow-hidden"
           >
             <img
               :src="images[currentIndex].url"
@@ -221,7 +221,7 @@ function handleBackdropClick(e: MouseEvent) {
           <!-- Thumbnails -->
           <div
             v-if="images.length > 1"
-            class="flex justify-center gap-2 mt-4 overflow-x-auto py-2"
+            class="flex justify-center gap-2 mt-4 overflow-x-auto py-2 flex-shrink-0"
           >
             <button
               v-for="(img, idx) in images"
