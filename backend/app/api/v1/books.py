@@ -246,50 +246,64 @@ def delete_book(
 ):
     """Delete a book and all associated images/analysis. Requires editor role."""
     import logging
+    import traceback
 
-    from app.api.v1.images import (
-        LOCAL_IMAGES_PATH,
-        S3_IMAGES_PREFIX,
-        get_thumbnail_key,
-        is_production,
-    )
     from app.models import BookImage
 
     logger = logging.getLogger(__name__)
-    book = db.query(Book).filter(Book.id == book_id).first()
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
 
-    # Get all images for this book before deleting
-    book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+    try:
+        book = db.query(Book).filter(Book.id == book_id).first()
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
 
-    # Delete physical image files
-    if is_production():
-        # In production, delete from S3
-        import boto3
+        # Get all images for this book before deleting
+        book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+        logger.info("Deleting book %s with %d images", book_id, len(book_images))
 
-        s3 = boto3.client("s3", region_name=settings.aws_region)
-        for image in book_images:
-            # Delete original and thumbnail from S3
-            for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
-                try:
-                    s3.delete_object(
-                        Bucket=settings.images_bucket,
-                        Key=f"{S3_IMAGES_PREFIX}{key}",
-                    )
-                except Exception:
-                    logger.warning("Failed to delete S3 object: %s", key)
-    else:
-        # In development, delete from local filesystem
-        for image in book_images:
-            for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
-                file_path = LOCAL_IMAGES_PATH / key
-                if file_path.exists():
-                    file_path.unlink()
+        # Delete physical image files from S3 (production uses S3)
+        if settings.database_secret_arn is not None:
+            # In production, delete from S3
+            import os
 
-    # Delete book (cascades to images and analysis in database)
-    db.delete(book)
-    db.commit()
+            import boto3
+
+            from app.api.v1.images import S3_IMAGES_PREFIX, get_thumbnail_key
+
+            region = os.environ.get("AWS_REGION", settings.aws_region)
+            s3 = boto3.client("s3", region_name=region)
+            bucket = os.environ.get("IMAGES_BUCKET", settings.images_bucket)
+
+            for image in book_images:
+                # Delete original and thumbnail from S3
+                for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
+                    try:
+                        full_key = f"{S3_IMAGES_PREFIX}{key}"
+                        logger.info("Deleting S3 object: %s/%s", bucket, full_key)
+                        s3.delete_object(Bucket=bucket, Key=full_key)
+                    except Exception as e:
+                        logger.warning("Failed to delete S3 object %s: %s", key, str(e))
+        else:
+            # In development, delete from local filesystem
+            from app.api.v1.images import LOCAL_IMAGES_PATH, get_thumbnail_key
+
+            for image in book_images:
+                for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
+                    file_path = LOCAL_IMAGES_PATH / key
+                    if file_path.exists():
+                        file_path.unlink()
+
+        # Delete book (cascades to images and analysis in database)
+        logger.info("Deleting book %s from database", book_id)
+        db.delete(book)
+        db.commit()
+        logger.info("Successfully deleted book %s", book_id)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error deleting book %s: %s\n%s", book_id, str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to delete book: {str(e)}") from e
 
 
 @router.patch("/{book_id}/status")
