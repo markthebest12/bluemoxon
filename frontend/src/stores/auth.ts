@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
+import api from "@/services/api";
 
 interface User {
   username: string;
@@ -24,16 +25,26 @@ export const useAuthStore = defineStore("auth", () => {
   async function checkAuth() {
     loading.value = true;
     try {
-      const { getCurrentUser, fetchAuthSession } = await import("aws-amplify/auth");
+      const { getCurrentUser } = await import("aws-amplify/auth");
       const currentUser = await getCurrentUser();
-      const session = await fetchAuthSession();
 
+      // Basic user info from Cognito
       user.value = {
         username: currentUser.username,
         email: currentUser.signInDetails?.loginId || "",
-        role: (session.tokens?.idToken?.payload?.["custom:role"] as string) || "viewer",
+        role: "viewer", // Default, will be updated from API
       };
       mfaStep.value = "none";
+
+      // Fetch actual role from our backend database
+      try {
+        const response = await api.get("/users/me");
+        if (response.data.role) {
+          user.value.role = response.data.role;
+        }
+      } catch (e) {
+        console.warn("Could not fetch user role from API:", e);
+      }
     } catch {
       user.value = null;
     } finally {

@@ -43,6 +43,14 @@ async function handleSignOut() {
           >
             Search
           </RouterLink>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            to="/admin"
+            class="hover:text-moxon-200 transition-colors"
+            active-class="text-moxon-200"
+          >
+            Admin
+          </RouterLink>
         </div>
 
         <!-- User Menu -->
