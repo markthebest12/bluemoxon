@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
 
+    # API Key for CLI/automation access (optional)
+    api_key: str | None = None
+
     class Config:
         env_file = ".env"
         case_sensitive = False

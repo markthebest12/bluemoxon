@@ -271,7 +271,7 @@ def get_by_era(db: Session = Depends(get_db)):
         "Unknown": 0,
     }
 
-    era_values = {k: 0.0 for k in era_counts.keys()}
+    era_values = dict.fromkeys(era_counts.keys(), 0.0)
 
     for book in primary_books:
         year = book.year_start or book.year_end

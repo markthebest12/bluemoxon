@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Annotated
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -16,6 +16,13 @@ from app.models.user import User
 
 security = HTTPBearer(auto_error=False)
 settings = get_settings()
+
+
+def verify_api_key(api_key: str | None) -> bool:
+    """Verify API key for CLI/automation access."""
+    if not settings.api_key:
+        return False
+    return api_key == settings.api_key
 
 
 @lru_cache(maxsize=1)
@@ -111,9 +118,19 @@ class CurrentUser:
 
 async def get_current_user_optional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    x_api_key: Annotated[str | None, Header()] = None,
     db: Session = Depends(get_db),
 ) -> CurrentUser | None:
-    """Get current user from JWT token (returns None if not authenticated)."""
+    """Get current user from JWT token or API key (returns None if not authenticated)."""
+    # Check API key first (for CLI/automation access)
+    if verify_api_key(x_api_key):
+        return CurrentUser(
+            cognito_sub="api-key-user",
+            email="api@localhost",
+            role="admin",
+            db_user=None,
+        )
+
     if credentials is None:
         return None
 
