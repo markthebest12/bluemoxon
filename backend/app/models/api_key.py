@@ -17,7 +17,8 @@ class APIKey(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    key_prefix: Mapped[str] = mapped_column(String(8), nullable=False)  # First 8 chars for display
+    # First 8 chars for display
+    key_prefix: Mapped[str] = mapped_column(String(8), nullable=False)
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
