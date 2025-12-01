@@ -353,10 +353,10 @@ jobs:
 
           echo "Frontend check passed!"
 
-      - name: Test image endpoint (presigned URL)
+      - name: Test image endpoint (CloudFront CDN)
         run: |
-          echo "Testing image presigned URL redirect..."
-          # Get first book with images
+          echo "Testing image CloudFront CDN..."
+          # Get first book with images via API
           book_response=$(curl -s "https://api.bluemoxon.com/api/v1/books?has_images=true&per_page=1")
 
           if echo "$book_response" | grep -q '"primary_image_url"'; then
@@ -364,17 +364,42 @@ jobs:
 
             if [[ -n "$image_url" ]]; then
               echo "Testing image URL: $image_url"
-              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L "$image_url")
 
-              # Should be 200 after following redirect, or 302 for redirect
-              if [[ "$http_code" == "200" ]] || [[ "$http_code" == "302" ]]; then
-                echo "Image endpoint working!"
-              else
-                echo "Image endpoint returned $http_code"
+              # Get headers and body info
+              response=$(curl -sI -L "$image_url")
+              http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
+              content_type=$(echo "$response" | grep -i "^content-type:" | tail -1 | awk '{print $2}' | tr -d '\r')
+              content_length=$(echo "$response" | grep -i "^content-length:" | tail -1 | awk '{print $2}' | tr -d '\r')
+
+              echo "HTTP Code: $http_code"
+              echo "Content-Type: $content_type"
+              echo "Content-Length: $content_length"
+
+              # Verify HTTP 200
+              if [[ "$http_code" != "200" ]]; then
+                echo "ERROR: Image returned HTTP $http_code, expected 200"
+                exit 1
               fi
+
+              # Verify content-type is an image (not text/html error page)
+              if [[ ! "$content_type" =~ ^image/ ]]; then
+                echo "ERROR: Image returned content-type '$content_type', expected image/*"
+                echo "This usually means CloudFront is returning an error page!"
+                exit 1
+              fi
+
+              # Verify content-length is reasonable (> 1KB, not a tiny error page)
+              if [[ "$content_length" -lt 1000 ]]; then
+                echo "ERROR: Image content-length $content_length is suspiciously small"
+                exit 1
+              fi
+
+              echo "Image endpoint working! Content verified as $content_type ($content_length bytes)"
+            else
+              echo "WARNING: No image URL found in response"
             fi
           else
-            echo "No books with images found, skipping image test"
+            echo "WARNING: No books with images found, skipping image test"
           fi
 
       - name: Deployment summary
