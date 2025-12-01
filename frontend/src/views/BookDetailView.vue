@@ -25,6 +25,15 @@ const deleteModalVisible = ref(false);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
 
+// Status management
+const statusOptions = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
+const updatingStatus = ref(false);
+
+// Provenance editing
+const provenanceEditing = ref(false);
+const provenanceText = ref("");
+const savingProvenance = ref(false);
+
 onMounted(async () => {
   const id = Number(route.params.id);
   await booksStore.fetchBook(id);
@@ -92,6 +101,61 @@ async function confirmDelete() {
     deleteError.value = e.message || "Failed to delete book";
   } finally {
     deleting.value = false;
+  }
+}
+
+async function updateStatus(newStatus: string) {
+  if (!booksStore.currentBook || updatingStatus.value) return;
+
+  updatingStatus.value = true;
+  try {
+    await api.patch(`/books/${booksStore.currentBook.id}/status?status=${newStatus}`);
+    booksStore.currentBook.status = newStatus;
+  } catch (e: any) {
+    console.error("Failed to update status:", e);
+  } finally {
+    updatingStatus.value = false;
+  }
+}
+
+function startProvenanceEdit() {
+  provenanceText.value = booksStore.currentBook?.provenance || "";
+  provenanceEditing.value = true;
+}
+
+function cancelProvenanceEdit() {
+  provenanceEditing.value = false;
+  provenanceText.value = "";
+}
+
+async function saveProvenance() {
+  if (!booksStore.currentBook || savingProvenance.value) return;
+
+  savingProvenance.value = true;
+  try {
+    await booksStore.updateBook(booksStore.currentBook.id, {
+      provenance: provenanceText.value || null,
+    });
+    provenanceEditing.value = false;
+  } catch (e: any) {
+    console.error("Failed to save provenance:", e);
+  } finally {
+    savingProvenance.value = false;
+  }
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case "ON_HAND":
+      return "bg-green-100 text-green-800";
+    case "IN_TRANSIT":
+      return "bg-blue-100 text-blue-800";
+    case "SOLD":
+      return "bg-gray-100 text-gray-800";
+    case "REMOVED":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 }
 </script>
@@ -199,7 +263,22 @@ async function confirmDelete() {
             </div>
             <div>
               <dt class="text-sm text-gray-500">Status</dt>
-              <dd class="font-medium">{{ booksStore.currentBook.status }}</dd>
+              <dd>
+                <select
+                  :value="booksStore.currentBook.status"
+                  @change="updateStatus(($event.target as HTMLSelectElement).value)"
+                  :disabled="updatingStatus"
+                  :class="[
+                    'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer',
+                    getStatusColor(booksStore.currentBook.status),
+                    updatingStatus ? 'opacity-50' : ''
+                  ]"
+                >
+                  <option v-for="status in statusOptions" :key="status" :value="status">
+                    {{ status.replace('_', ' ') }}
+                  </option>
+                </select>
+              </dd>
             </div>
           </dl>
         </div>
@@ -235,6 +314,56 @@ async function confirmDelete() {
           <p class="text-gray-700 whitespace-pre-wrap">
             {{ booksStore.currentBook.notes }}
           </p>
+        </div>
+
+        <!-- Provenance -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Provenance</h2>
+            <button
+              v-if="!provenanceEditing"
+              @click="startProvenanceEdit"
+              class="text-sm text-moxon-600 hover:text-moxon-800"
+            >
+              {{ booksStore.currentBook.provenance ? 'Edit' : 'Add provenance' }}
+            </button>
+          </div>
+
+          <!-- View mode -->
+          <div v-if="!provenanceEditing">
+            <p v-if="booksStore.currentBook.provenance" class="text-gray-700 whitespace-pre-wrap">
+              {{ booksStore.currentBook.provenance }}
+            </p>
+            <p v-else class="text-gray-400 italic">
+              No provenance information recorded. Click "Add provenance" to document ownership history.
+            </p>
+          </div>
+
+          <!-- Edit mode -->
+          <div v-else>
+            <textarea
+              v-model="provenanceText"
+              rows="4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moxon-500 focus:border-moxon-500"
+              placeholder="Document ownership history, previous owners, bookplates, inscriptions, etc."
+            ></textarea>
+            <div class="flex justify-end gap-2 mt-3">
+              <button
+                @click="cancelProvenanceEdit"
+                :disabled="savingProvenance"
+                class="btn-secondary text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                @click="saveProvenance"
+                :disabled="savingProvenance"
+                class="btn-primary text-sm"
+              >
+                {{ savingProvenance ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Analysis Button -->
