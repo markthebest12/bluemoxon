@@ -60,6 +60,7 @@ def get_signing_key(token: str) -> dict | None:
 def verify_cognito_token(token: str) -> dict | None:
     """Verify a Cognito JWT token and return claims."""
     import logging
+
     logger = logging.getLogger(__name__)
 
     if not settings.cognito_user_pool_id:
@@ -75,7 +76,9 @@ def verify_cognito_token(token: str) -> dict | None:
         region = settings.cognito_user_pool_id.split("_")[0]
         issuer = f"https://cognito-idp.{region}.amazonaws.com/{settings.cognito_user_pool_id}"
 
-        logger.info(f"Auth: Decoding token with issuer={issuer}, client_id={settings.cognito_app_client_id}")
+        logger.info(
+            f"Auth: Decoding token with issuer={issuer}, client_id={settings.cognito_app_client_id}"
+        )
 
         claims = jwt.decode(
             token,
@@ -88,7 +91,9 @@ def verify_cognito_token(token: str) -> dict | None:
 
         # Check token expiration
         if claims.get("exp", 0) < time.time():
-            logger.warning(f"Auth: Token expired at {claims.get('exp')}, current time {time.time()}")
+            logger.warning(
+                f"Auth: Token expired at {claims.get('exp')}, current time {time.time()}"
+            )
             return None
 
         return claims
@@ -132,6 +137,7 @@ async def get_current_user_optional(
 ) -> CurrentUser | None:
     """Get current user from JWT token or API key (returns None if not authenticated)."""
     import logging
+
     logger = logging.getLogger(__name__)
 
     # Check API key first (for CLI/automation access)
