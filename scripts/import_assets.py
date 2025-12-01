@@ -7,8 +7,39 @@ import shutil
 import sys
 from pathlib import Path
 
+from PIL import Image
+
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+
+# Thumbnail settings (match backend/app/api/v1/images.py)
+THUMBNAIL_SIZE = (300, 300)
+THUMBNAIL_QUALITY = 85
+
+
+def generate_thumbnail(source_path: Path, thumbnail_path: Path) -> bool:
+    """Generate a thumbnail from source image.
+
+    Args:
+        source_path: Path to the original image
+        thumbnail_path: Path where thumbnail should be saved
+
+    Returns:
+        True if thumbnail was generated successfully, False otherwise
+    """
+    try:
+        with Image.open(source_path) as img:
+            # Convert RGBA/P mode to RGB for JPEG output
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            # Use LANCZOS for high-quality downsampling
+            img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+            img.save(thumbnail_path, "JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
+            return True
+    except Exception as e:
+        print(f"  Warning: Failed to generate thumbnail for {source_path.name}: {e}")
+        return False
+
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -207,6 +238,11 @@ def import_images(session):
             dest_path = LOCAL_IMAGES_PATH / new_filename
 
             shutil.copy2(img_path, dest_path)
+
+            # Generate thumbnail
+            thumb_filename = f"thumb_{new_filename.rsplit('.', 1)[0]}.jpg"
+            thumb_path = LOCAL_IMAGES_PATH / thumb_filename
+            generate_thumbnail(dest_path, thumb_path)
 
             # Create database record
             book_image = BookImage(

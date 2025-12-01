@@ -22,8 +22,8 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Location | Priority | Effort |
 |---------|----------|----------|--------|
-| **Thumbnail Generation** | `backend/app/api/v1/images.py:174` | Medium | Medium |
-| Currently returns full image as thumbnail. Should implement actual resizing using Pillow or Lambda@Edge with Sharp. | | | |
+| ~~**Thumbnail Generation**~~ | `backend/app/api/v1/images.py` | ~~Medium~~ | ~~Medium~~ |
+| ✅ DONE - Pillow-based thumbnail generation (300x300 JPEG) implemented in images.py and import_assets.py. Thumbnails generated on upload and import. | | | |
 
 ### Testing Gaps
 
@@ -299,7 +299,7 @@ on:
 
 | Item | Category | Effort | Impact |
 |------|----------|--------|--------|
-| Thumbnail Generation | Features | Medium | Medium (faster list views) |
+| Thumbnail Generation | Features | Medium | Medium (faster list views) | DONE |
 | Book Status Management UI | Features | Low | Medium (workflow improvement) |
 | Advanced Filtering | Features | Medium | Medium (usability) |
 | Image Gallery Lightbox | Features | Low | Medium (UX improvement) |
