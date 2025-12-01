@@ -45,6 +45,7 @@ def list_books(
     year_end: int | None = None,
     has_images: bool | None = None,
     has_analysis: bool | None = None,
+    has_provenance: bool | None = None,
     sort_by: str = "title",
     sort_order: str = "asc",
     db: Session = Depends(get_db),
@@ -103,6 +104,13 @@ def list_books(
             query = query.filter(analysis_exists)
         else:
             query = query.filter(~analysis_exists)
+
+    # Filter by has_provenance
+    if has_provenance is not None:
+        if has_provenance:
+            query = query.filter(Book.provenance.isnot(None), Book.provenance != "")
+        else:
+            query = query.filter((Book.provenance.is_(None)) | (Book.provenance == ""))
 
     # Get total count
     total = query.count()

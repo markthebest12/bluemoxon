@@ -50,6 +50,7 @@ const activeFilterCount = computed(() => {
   if (f.condition_grade) count++;
   if (f.has_images !== undefined) count++;
   if (f.has_analysis !== undefined) count++;
+  if (f.has_provenance !== undefined) count++;
   if (f.status) count++;
   if (f.category) count++;
   if (f.min_value !== undefined || f.max_value !== undefined) count++;
@@ -294,6 +295,16 @@ function closeCarousel() {
             <option :value="undefined">Any</option>
             <option :value="true">With Analysis</option>
             <option :value="false">Missing Analysis</option>
+          </select>
+        </div>
+
+        <!-- Has Provenance Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Provenance</label>
+          <select v-model="booksStore.filters.has_provenance" class="input text-sm">
+            <option :value="undefined">Any</option>
+            <option :value="true">With Provenance</option>
+            <option :value="false">No Provenance</option>
           </select>
         </div>
 
