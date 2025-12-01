@@ -168,21 +168,26 @@ function getStatusColor(status: string): string {
   <div v-else-if="booksStore.currentBook" class="max-w-5xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
-      <div class="flex justify-between items-start">
-        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0">
+        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 inline-block">
           &larr; Back to Collection
         </RouterLink>
         <div class="flex gap-2">
-          <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
+          <RouterLink
+            :to="`/books/${booksStore.currentBook.id}/edit`"
+            class="btn-secondary text-sm sm:text-base px-3 sm:px-4"
+          >
             Edit Book
           </RouterLink>
-          <button @click="openDeleteModal" class="btn-danger">Delete</button>
+          <button @click="openDeleteModal" class="btn-danger text-sm sm:text-base px-3 sm:px-4">
+            Delete
+          </button>
         </div>
       </div>
-      <h1 class="text-3xl font-bold text-gray-800">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mt-4">
         {{ booksStore.currentBook.title }}
       </h1>
-      <p class="text-xl text-gray-600 mt-2">
+      <p class="text-lg sm:text-xl text-gray-600 mt-2">
         {{ booksStore.currentBook.author?.name || "Unknown Author" }}
       </p>
     </div>

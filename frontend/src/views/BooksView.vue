@@ -115,20 +115,25 @@ function closeCarousel() {
 <template>
   <div>
     <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">Book Collection</h1>
-      <div class="flex items-center space-x-4">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Book Collection</h1>
+      <div class="flex items-center gap-2 sm:gap-4">
         <select
           v-model="booksStore.filters.inventory_type"
           @change="booksStore.setFilters(booksStore.filters)"
-          class="input w-48"
+          class="input text-sm sm:text-base flex-1 sm:flex-none sm:w-48 min-w-0"
         >
-          <option value="">All Inventories</option>
-          <option value="PRIMARY">Primary Collection</option>
-          <option value="EXTENDED">Extended Inventory</option>
-          <option value="FLAGGED">Flagged for Removal</option>
+          <option value="">All</option>
+          <option value="PRIMARY">Primary</option>
+          <option value="EXTENDED">Extended</option>
+          <option value="FLAGGED">Flagged</option>
         </select>
-        <RouterLink to="/books/new" class="btn-primary"> + Add Book </RouterLink>
+        <RouterLink
+          to="/books/new"
+          class="btn-primary whitespace-nowrap text-sm sm:text-base px-3 sm:px-4"
+        >
+          + Add Book
+        </RouterLink>
       </div>
     </div>
 

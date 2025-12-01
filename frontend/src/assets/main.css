@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent horizontal scroll on mobile */
+@layer base {
+  html,
+  body {
+    @apply overflow-x-hidden;
+  }
+}
+
 /* Custom styles for BlueMoxon */
 @layer components {
   .btn-primary {
