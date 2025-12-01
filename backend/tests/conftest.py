@@ -8,9 +8,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth import CurrentUser, require_editor
 from app.db import get_db
 from app.main import app
 from app.models.base import Base
+
+
+# Mock editor user for tests
+def get_mock_editor():
+    """Return a mock editor user for tests."""
+    return CurrentUser(
+        cognito_sub="test-user-123",
+        email="test@example.com",
+        role="editor",
+        db_user=None,
+    )
+
 
 # Use DATABASE_URL from environment (CI uses PostgreSQL) or SQLite for local
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -43,7 +56,7 @@ def db():
 
 @pytest.fixture(scope="function")
 def client(db):
-    """Create a test client with database override."""
+    """Create a test client with database override and mock auth."""
 
     def override_get_db():
         try:
@@ -52,6 +65,7 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_editor] = get_mock_editor
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
