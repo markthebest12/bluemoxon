@@ -66,8 +66,7 @@ onMounted(async () => {
     booksStore.filters.inventory_type = route.query.inventory_type as string;
   }
   if (route.query.binding_authenticated) {
-    booksStore.filters.binding_authenticated =
-      route.query.binding_authenticated === "true";
+    booksStore.filters.binding_authenticated = route.query.binding_authenticated === "true";
   }
   booksStore.fetchBooks();
 });
@@ -85,10 +84,7 @@ function toggleSort(field: string) {
   if (booksStore.sortBy === field) {
     booksStore.setSort(field, booksStore.sortOrder === "asc" ? "desc" : "asc");
   } else {
-    booksStore.setSort(
-      field,
-      field === "value_mid" || field === "created_at" ? "desc" : "asc",
-    );
+    booksStore.setSort(field, field === "value_mid" || field === "created_at" ? "desc" : "asc");
   }
 }
 
@@ -132,27 +128,18 @@ function closeCarousel() {
           <option value="EXTENDED">Extended Inventory</option>
           <option value="FLAGGED">Flagged for Removal</option>
         </select>
-        <RouterLink to="/books/new" class="btn-primary">
-          + Add Book
-        </RouterLink>
+        <RouterLink to="/books/new" class="btn-primary"> + Add Book </RouterLink>
       </div>
     </div>
 
     <!-- Filter & Sort Bar -->
-    <div
-      class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg"
-    >
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
       <!-- Filter Toggle Button -->
       <button
         @click="showFilters = !showFilters"
         class="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -193,30 +180,19 @@ function closeCarousel() {
       </div>
 
       <!-- Results count -->
-      <div class="ml-auto text-sm text-gray-600">
-        {{ booksStore.total }} books
-      </div>
+      <div class="ml-auto text-sm text-gray-600">{{ booksStore.total }} books</div>
     </div>
 
     <!-- Expandable Filter Panel -->
-    <div
-      v-if="showFilters"
-      class="mb-6 p-4 bg-white border rounded-lg shadow-sm"
-    >
+    <div v-if="showFilters" class="mb-6 p-4 bg-white border rounded-lg shadow-sm">
       <!-- Row 1: Reference Filters -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <!-- Binder Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Bindery</label
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Bindery</label>
           <select v-model="booksStore.filters.binder_id" class="input text-sm">
             <option :value="undefined">All Binderies</option>
-            <option
-              v-for="binder in referencesStore.binders"
-              :key="binder.id"
-              :value="binder.id"
-            >
+            <option v-for="binder in referencesStore.binders" :key="binder.id" :value="binder.id">
               {{ binder.name }} ({{ binder.book_count }})
             </option>
           </select>
@@ -224,18 +200,11 @@ function closeCarousel() {
 
         <!-- Publisher Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Publisher</label
-          >
-          <select
-            v-model="booksStore.filters.publisher_id"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Publisher</label>
+          <select v-model="booksStore.filters.publisher_id" class="input text-sm">
             <option :value="undefined">All Publishers</option>
             <option
-              v-for="pub in referencesStore.publishers.filter(
-                (p) => p.book_count > 0,
-              )"
+              v-for="pub in referencesStore.publishers.filter((p) => p.book_count > 0)"
               :key="pub.id"
               :value="pub.id"
             >
@@ -246,13 +215,8 @@ function closeCarousel() {
 
         <!-- Publisher Tier Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Publisher Tier</label
-          >
-          <select
-            v-model="booksStore.filters.publisher_tier"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Publisher Tier</label>
+          <select v-model="booksStore.filters.publisher_tier" class="input text-sm">
             <option :value="undefined">All Tiers</option>
             <option v-for="tier in publisherTiers" :key="tier" :value="tier">
               {{ tier }}
@@ -262,13 +226,8 @@ function closeCarousel() {
 
         <!-- Binding Type Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Binding Type</label
-          >
-          <select
-            v-model="booksStore.filters.binding_type"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Binding Type</label>
+          <select v-model="booksStore.filters.binding_type" class="input text-sm">
             <option :value="undefined">All Types</option>
             <option v-for="type in bindingTypes" :key="type" :value="type">
               {{ type }}
@@ -278,13 +237,8 @@ function closeCarousel() {
 
         <!-- Authenticated Binding Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Premium Binding</label
-          >
-          <select
-            v-model="booksStore.filters.binding_authenticated"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Premium Binding</label>
+          <select v-model="booksStore.filters.binding_authenticated" class="input text-sm">
             <option :value="undefined">Any</option>
             <option :value="true">Authenticated Only</option>
             <option :value="false">Non-Authenticated</option>
@@ -293,13 +247,8 @@ function closeCarousel() {
 
         <!-- Condition Grade Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Condition</label
-          >
-          <select
-            v-model="booksStore.filters.condition_grade"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+          <select v-model="booksStore.filters.condition_grade" class="input text-sm">
             <option :value="undefined">Any Condition</option>
             <option v-for="grade in conditionGrades" :key="grade" :value="grade">
               {{ grade }}
@@ -312,9 +261,7 @@ function closeCarousel() {
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <!-- Status Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Status</label
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <select v-model="booksStore.filters.status" class="input text-sm">
             <option value="">All Statuses</option>
             <option value="ON_HAND">On Hand</option>
@@ -325,9 +272,7 @@ function closeCarousel() {
 
         <!-- Has Images Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Images</label
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Images</label>
           <select v-model="booksStore.filters.has_images" class="input text-sm">
             <option :value="undefined">Any</option>
             <option :value="true">With Images</option>
@@ -337,13 +282,8 @@ function closeCarousel() {
 
         <!-- Has Analysis Filter -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Analysis</label
-          >
-          <select
-            v-model="booksStore.filters.has_analysis"
-            class="input text-sm"
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Analysis</label>
+          <select v-model="booksStore.filters.has_analysis" class="input text-sm">
             <option :value="undefined">Any</option>
             <option :value="true">With Analysis</option>
             <option :value="false">Missing Analysis</option>
@@ -352,9 +292,7 @@ function closeCarousel() {
 
         <!-- Year Range -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Year Range</label
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Year Range</label>
           <div class="flex gap-1">
             <input
               v-model.number="booksStore.filters.year_start"
@@ -377,9 +315,7 @@ function closeCarousel() {
 
         <!-- Value Range -->
         <div class="lg:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Value Range ($)</label
-          >
+          <label class="block text-sm font-medium text-gray-700 mb-1">Value Range ($)</label>
           <div class="flex gap-1">
             <input
               v-model.number="booksStore.filters.min_value"
@@ -403,12 +339,8 @@ function closeCarousel() {
 
       <!-- Filter Actions -->
       <div class="flex gap-2 mt-4 pt-4 border-t">
-        <button @click="applyFilters" class="btn-primary text-sm">
-          Apply Filters
-        </button>
-        <button @click="clearFilters" class="btn-secondary text-sm">
-          Clear Filters
-        </button>
+        <button @click="applyFilters" class="btn-primary text-sm">Apply Filters</button>
+        <button @click="clearFilters" class="btn-secondary text-sm">Clear Filters</button>
       </div>
     </div>
 
@@ -485,10 +417,7 @@ function closeCarousel() {
     </div>
 
     <!-- Pagination -->
-    <div
-      v-if="booksStore.totalPages > 1"
-      class="flex justify-center mt-8 space-x-2"
-    >
+    <div v-if="booksStore.totalPages > 1" class="flex justify-center mt-8 space-x-2">
       <button
         @click="booksStore.setPage(booksStore.page - 1)"
         :disabled="booksStore.page === 1"
@@ -496,9 +425,7 @@ function closeCarousel() {
       >
         Previous
       </button>
-      <span class="px-4 py-2">
-        Page {{ booksStore.page }} of {{ booksStore.totalPages }}
-      </span>
+      <span class="px-4 py-2"> Page {{ booksStore.page }} of {{ booksStore.totalPages }} </span>
       <button
         @click="booksStore.setPage(booksStore.page + 1)"
         :disabled="booksStore.page === booksStore.totalPages"

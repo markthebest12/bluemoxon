@@ -54,18 +54,12 @@ async function handleSignOut() {
             >
               {{ authStore.user?.email }}
             </RouterLink>
-            <button
-              @click="handleSignOut"
-              class="text-sm hover:text-moxon-200 transition-colors"
-            >
+            <button @click="handleSignOut" class="text-sm hover:text-moxon-200 transition-colors">
               Sign Out
             </button>
           </template>
           <template v-else>
-            <RouterLink
-              to="/login"
-              class="text-sm hover:text-moxon-200 transition-colors"
-            >
+            <RouterLink to="/login" class="text-sm hover:text-moxon-200 transition-colors">
               Sign In
             </RouterLink>
           </template>

@@ -79,26 +79,14 @@ function resetLogin() {
       </div>
 
       <!-- Error display -->
-      <div
-        v-if="error"
-        class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-6"
-      >
+      <div v-if="error" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-6">
         {{ error }}
       </div>
 
       <!-- Login form -->
-      <form
-        v-if="authStore.mfaStep === 'none'"
-        @submit.prevent="handleLogin"
-        class="space-y-6"
-      >
+      <form v-if="authStore.mfaStep === 'none'" @submit.prevent="handleLogin" class="space-y-6">
         <div>
-          <label
-            for="email"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Email
-          </label>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1"> Email </label>
           <input
             id="email"
             v-model="email"
@@ -110,10 +98,7 @@ function resetLogin() {
         </div>
 
         <div>
-          <label
-            for="password"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
             Password
           </label>
           <input
@@ -126,11 +111,7 @@ function resetLogin() {
           />
         </div>
 
-        <button
-          type="submit"
-          class="btn-primary w-full"
-          :disabled="authStore.loading"
-        >
+        <button type="submit" class="btn-primary w-full" :disabled="authStore.loading">
           {{ authStore.loading ? "Signing in..." : "Sign In" }}
         </button>
       </form>
@@ -140,8 +121,8 @@ function resetLogin() {
         <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
           <p class="font-medium mb-2">Set up two-factor authentication</p>
           <p>
-            Scan this QR code with your authenticator app (Google Authenticator,
-            Authy, 1Password, etc.)
+            Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password,
+            etc.)
           </p>
         </div>
 
@@ -158,9 +139,7 @@ function resetLogin() {
 
         <!-- Manual entry option -->
         <details class="text-sm text-gray-600">
-          <summary class="cursor-pointer hover:text-gray-800">
-            Can't scan? Enter manually
-          </summary>
+          <summary class="cursor-pointer hover:text-gray-800">Can't scan? Enter manually</summary>
           <code class="block mt-2 p-2 bg-gray-100 rounded text-xs break-all">
             {{ authStore.totpSetupUri }}
           </code>
@@ -168,10 +147,7 @@ function resetLogin() {
 
         <form @submit.prevent="handleTotpSubmit" class="space-y-4">
           <div>
-            <label
-              for="totp"
-              class="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Enter 6-digit code from your app
             </label>
             <input
@@ -197,10 +173,7 @@ function resetLogin() {
           </button>
         </form>
 
-        <button
-          @click="resetLogin"
-          class="w-full text-sm text-gray-500 hover:text-gray-700"
-        >
+        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
           Cancel and start over
         </button>
       </div>
@@ -213,10 +186,7 @@ function resetLogin() {
 
         <form @submit.prevent="handleTotpSubmit" class="space-y-4">
           <div>
-            <label
-              for="totp"
-              class="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Verification Code
             </label>
             <input
@@ -242,18 +212,12 @@ function resetLogin() {
           </button>
         </form>
 
-        <button
-          @click="resetLogin"
-          class="w-full text-sm text-gray-500 hover:text-gray-700"
-        >
+        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
           Use a different account
         </button>
       </div>
 
-      <p
-        v-if="authStore.mfaStep === 'none'"
-        class="text-center text-sm text-gray-500 mt-6"
-      >
+      <p v-if="authStore.mfaStep === 'none'" class="text-center text-sm text-gray-500 mt-6">
         Contact administrator for access
       </p>
     </div>

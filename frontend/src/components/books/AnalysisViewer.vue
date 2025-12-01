@@ -27,7 +27,7 @@ watch(
     } else {
       document.body.style.overflow = "";
     }
-  },
+  }
 );
 
 async function loadAnalysis() {
@@ -51,17 +51,11 @@ const formattedAnalysis = computed(() => {
 
   let html = analysis.value
     // Headers
-    .replace(
-      /^### (.+)$/gm,
-      '<h3 class="text-lg font-semibold mt-6 mb-2 text-gray-800">$1</h3>',
-    )
-    .replace(
-      /^## (.+)$/gm,
-      '<h2 class="text-xl font-bold mt-8 mb-3 text-gray-900">$1</h2>',
-    )
+    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-2 text-gray-800">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-3 text-gray-900">$1</h2>')
     .replace(
       /^# (.+)$/gm,
-      '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900 border-b pb-2">$1</h1>',
+      '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900 border-b pb-2">$1</h1>'
     )
     // Bold and italic
     .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
@@ -70,12 +64,9 @@ const formattedAnalysis = computed(() => {
     // Code blocks
     .replace(
       /```(\w*)\n([\s\S]*?)```/g,
-      '<pre class="bg-gray-100 p-4 rounded my-4 overflow-x-auto"><code>$2</code></pre>',
+      '<pre class="bg-gray-100 p-4 rounded my-4 overflow-x-auto"><code>$2</code></pre>'
     )
-    .replace(
-      /`([^`]+)`/g,
-      '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>',
-    )
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
     // Lists
     .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
     .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4">$2</li>')
@@ -84,7 +75,7 @@ const formattedAnalysis = computed(() => {
     // Blockquotes
     .replace(
       /^> (.+)$/gm,
-      '<blockquote class="border-l-4 border-gray-300 pl-4 my-4 text-gray-600">$1</blockquote>',
+      '<blockquote class="border-l-4 border-gray-300 pl-4 my-4 text-gray-600">$1</blockquote>'
     )
     // Line breaks - convert double newlines to paragraphs
     .replace(/\n\n/g, '</p><p class="my-3">')
@@ -98,10 +89,7 @@ const formattedAnalysis = computed(() => {
   html = html.replace(/<p class="my-3"><\/p>/g, "");
 
   // Wrap list items in ul/ol
-  html = html.replace(
-    /(<li class="ml-4">.+?<\/li>)+/g,
-    '<ul class="list-disc my-3">$&</ul>',
-  );
+  html = html.replace(/(<li class="ml-4">.+?<\/li>)+/g, '<ul class="list-disc my-3">$&</ul>');
 
   return html;
 });
@@ -116,11 +104,7 @@ function handleBackdropClick(e: MouseEvent) {
 <template>
   <Teleport to="body">
     <Transition name="slide">
-      <div
-        v-if="visible"
-        class="fixed inset-0 z-50 flex"
-        @click="handleBackdropClick"
-      >
+      <div v-if="visible" class="fixed inset-0 z-50 flex" @click="handleBackdropClick">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50" />
 
@@ -129,20 +113,10 @@ function handleBackdropClick(e: MouseEvent) {
           class="relative ml-auto w-full max-w-3xl bg-white shadow-xl h-full overflow-hidden flex flex-col"
         >
           <!-- Header -->
-          <div
-            class="flex items-center justify-between px-6 py-4 border-b bg-victorian-cream"
-          >
+          <div class="flex items-center justify-between px-6 py-4 border-b bg-victorian-cream">
             <h2 class="text-xl font-semibold text-gray-800">Book Analysis</h2>
-            <button
-              @click="emit('close')"
-              class="text-gray-500 hover:text-gray-700"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+            <button @click="emit('close')" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

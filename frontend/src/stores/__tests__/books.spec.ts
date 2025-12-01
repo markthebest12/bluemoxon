@@ -70,9 +70,7 @@ describe("Books Store", () => {
 
     it("updates books and total on success", async () => {
       const store = useBooksStore();
-      const mockBooks = [
-        { id: 1, title: "Test Book", author: null, publisher: null },
-      ];
+      const mockBooks = [{ id: 1, title: "Test Book", author: null, publisher: null }];
       vi.mocked(api.get).mockResolvedValue({
         data: { items: mockBooks, total: 1 },
       });

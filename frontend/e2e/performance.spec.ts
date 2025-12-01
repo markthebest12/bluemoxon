@@ -60,8 +60,12 @@ async function measurePerformance(page: any): Promise<PerformanceMetrics> {
   const resourceTiming = await page.evaluate(() => {
     const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
     const jsResources = resources.filter((r) => r.initiatorType === "script");
-    const cssResources = resources.filter((r) => r.initiatorType === "link" || r.name.endsWith(".css"));
-    const imageResources = resources.filter((r) => r.initiatorType === "img" || /\.(jpg|jpeg|png|gif|webp|svg)/.test(r.name));
+    const cssResources = resources.filter(
+      (r) => r.initiatorType === "link" || r.name.endsWith(".css")
+    );
+    const imageResources = resources.filter(
+      (r) => r.initiatorType === "img" || /\.(jpg|jpeg|png|gif|webp|svg)/.test(r.name)
+    );
 
     return {
       totalResources: resources.length,
@@ -113,10 +117,16 @@ test.describe("Performance Tests", () => {
     console.log(`   First Contentful Paint (FCP):  ${formatMs(metrics.firstContentfulPaint)}`);
     console.log(`   Largest Contentful Paint (LCP): ${formatMs(metrics.largestContentfulPaint)}`);
     console.log("\n📦 Resources:");
-    console.log(`   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`);
+    console.log(
+      `   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`
+    );
     console.log(`   JS:    ${metrics.jsResources} files (${formatBytes(metrics.jsTransferSize)})`);
-    console.log(`   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`);
-    console.log(`   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`);
+    console.log(
+      `   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`
+    );
+    console.log(
+      `   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`
+    );
 
     // Assertions for performance budgets
     expect(metrics.firstContentfulPaint).toBeLessThan(2500); // FCP < 2.5s (Good)
@@ -140,10 +150,16 @@ test.describe("Performance Tests", () => {
     console.log(`   First Contentful Paint (FCP):  ${formatMs(metrics.firstContentfulPaint)}`);
     console.log(`   Largest Contentful Paint (LCP): ${formatMs(metrics.largestContentfulPaint)}`);
     console.log("\n📦 Resources:");
-    console.log(`   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`);
+    console.log(
+      `   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`
+    );
     console.log(`   JS:    ${metrics.jsResources} files (${formatBytes(metrics.jsTransferSize)})`);
-    console.log(`   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`);
-    console.log(`   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`);
+    console.log(
+      `   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`
+    );
+    console.log(
+      `   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`
+    );
 
     // Books page may be slower due to images
     expect(metrics.firstContentfulPaint).toBeLessThan(3000);
@@ -166,10 +182,16 @@ test.describe("Performance Tests", () => {
     console.log(`   First Contentful Paint (FCP):  ${formatMs(metrics.firstContentfulPaint)}`);
     console.log(`   Largest Contentful Paint (LCP): ${formatMs(metrics.largestContentfulPaint)}`);
     console.log("\n📦 Resources:");
-    console.log(`   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`);
+    console.log(
+      `   Total: ${metrics.totalResources} resources (${formatBytes(metrics.totalTransferSize)})`
+    );
     console.log(`   JS:    ${metrics.jsResources} files (${formatBytes(metrics.jsTransferSize)})`);
-    console.log(`   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`);
-    console.log(`   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`);
+    console.log(
+      `   CSS:   ${metrics.cssResources} files (${formatBytes(metrics.cssTransferSize)})`
+    );
+    console.log(
+      `   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`
+    );
 
     expect(metrics.firstContentfulPaint).toBeLessThan(3000);
   });

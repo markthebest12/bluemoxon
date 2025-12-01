@@ -44,7 +44,7 @@ watch(
     } else {
       document.body.style.overflow = "";
     }
-  },
+  }
 );
 
 async function loadImages() {
@@ -117,12 +117,7 @@ function handleBackdropClick(e: MouseEvent) {
           @click="emit('close')"
           class="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
         >
-          <svg
-            class="w-8 h-8"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -145,9 +140,7 @@ function handleBackdropClick(e: MouseEvent) {
         <!-- Carousel -->
         <div v-else class="relative w-full max-w-5xl mx-4 flex flex-col max-h-[90vh]">
           <!-- Main image -->
-          <div
-            class="relative flex-1 min-h-0 bg-black rounded-lg overflow-hidden"
-          >
+          <div class="relative flex-1 min-h-0 bg-black rounded-lg overflow-hidden">
             <img
               :src="images[currentIndex].url"
               :alt="images[currentIndex].caption || `Image ${currentIndex + 1}`"
@@ -156,16 +149,11 @@ function handleBackdropClick(e: MouseEvent) {
 
             <!-- Caption -->
             <div
-              v-if="
-                images[currentIndex].caption || images[currentIndex].image_type
-              "
+              v-if="images[currentIndex].caption || images[currentIndex].image_type"
               class="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-3"
             >
               <p class="text-sm">
-                {{
-                  images[currentIndex].caption ||
-                  images[currentIndex].image_type
-                }}
+                {{ images[currentIndex].caption || images[currentIndex].image_type }}
               </p>
             </div>
           </div>
@@ -176,12 +164,7 @@ function handleBackdropClick(e: MouseEvent) {
             @click="prev"
             class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 text-white hover:text-gray-300"
           >
-            <svg
-              class="w-10 h-10"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -196,12 +179,7 @@ function handleBackdropClick(e: MouseEvent) {
             @click="next"
             class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 text-white hover:text-gray-300"
           >
-            <svg
-              class="w-10 h-10"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -212,9 +190,7 @@ function handleBackdropClick(e: MouseEvent) {
           </button>
 
           <!-- Counter -->
-          <div
-            class="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm"
-          >
+          <div class="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
             {{ currentIndex + 1 }} / {{ images.length }}
           </div>
 

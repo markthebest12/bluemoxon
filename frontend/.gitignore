@@ -21,3 +21,7 @@ dist/
 
 # Bundle analyzer
 stats.html
+
+# Test results
+test-results/
+playwright-report/

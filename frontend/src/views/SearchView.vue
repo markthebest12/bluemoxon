@@ -74,9 +74,7 @@ function viewResult(result: any) {
     </div>
 
     <div v-else-if="results.length > 0" class="space-y-4">
-      <p class="text-sm text-gray-500 mb-4">
-        {{ results.length }} results found
-      </p>
+      <p class="text-sm text-gray-500 mb-4">{{ results.length }} results found</p>
 
       <div
         v-for="result in results"
@@ -104,10 +102,7 @@ function viewResult(result: any) {
             </p>
           </div>
         </div>
-        <p
-          v-if="result.snippet"
-          class="text-gray-500 text-sm mt-2 line-clamp-2"
-        >
+        <p v-if="result.snippet" class="text-gray-500 text-sm mt-2 line-clamp-2">
           {{ result.snippet }}
         </p>
       </div>

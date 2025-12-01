@@ -18,25 +18,20 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
   const isAdmin = computed(() => user.value?.role === "admin");
-  const isEditor = computed(() =>
-    ["admin", "editor"].includes(user.value?.role || ""),
-  );
+  const isEditor = computed(() => ["admin", "editor"].includes(user.value?.role || ""));
   const needsMfa = computed(() => mfaStep.value !== "none");
 
   async function checkAuth() {
     loading.value = true;
     try {
-      const { getCurrentUser, fetchAuthSession } =
-        await import("aws-amplify/auth");
+      const { getCurrentUser, fetchAuthSession } = await import("aws-amplify/auth");
       const currentUser = await getCurrentUser();
       const session = await fetchAuthSession();
 
       user.value = {
         username: currentUser.username,
         email: currentUser.signInDetails?.loginId || "",
-        role:
-          (session.tokens?.idToken?.payload?.["custom:role"] as string) ||
-          "viewer",
+        role: (session.tokens?.idToken?.payload?.["custom:role"] as string) || "viewer",
       };
       mfaStep.value = "none";
     } catch {
@@ -65,9 +60,7 @@ export const useAuthStore = defineStore("auth", () => {
         // User needs to set up TOTP - details are in the result
         const totpSetupDetails = result.nextStep.totpSetupDetails;
         if (totpSetupDetails) {
-          totpSetupUri.value = totpSetupDetails
-            .getSetupUri("BlueMoxon", username)
-            .toString();
+          totpSetupUri.value = totpSetupDetails.getSetupUri("BlueMoxon", username).toString();
         }
         mfaStep.value = "totp_setup";
         return; // Wait for user to set up and verify TOTP

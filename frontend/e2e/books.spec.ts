@@ -7,7 +7,9 @@ test.describe("Books Page", () => {
 
   test("displays book list", async ({ page }) => {
     // Wait for books to load
-    await expect(page.locator('[data-testid="book-card"], .book-card, article').first()).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('[data-testid="book-card"], .book-card, article').first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("shows book count", async ({ page }) => {
@@ -39,7 +41,7 @@ test.describe("Books Page", () => {
 
     // Click on the book (or its link)
     const bookLink = firstBook.getByRole("link").first();
-    if (await bookLink.count() > 0) {
+    if ((await bookLink.count()) > 0) {
       await bookLink.click();
       await expect(page).toHaveURL(/\/books\/\d+/);
     }
@@ -50,7 +52,7 @@ test.describe("Books Page", () => {
     const nextButton = page.getByRole("button", { name: /next|›/i });
     const pageNumbers = page.locator('[data-testid="pagination"], .pagination');
 
-    if (await nextButton.isVisible() || await pageNumbers.isVisible()) {
+    if ((await nextButton.isVisible()) || (await pageNumbers.isVisible())) {
       // Pagination exists
       expect(true).toBeTruthy();
     }

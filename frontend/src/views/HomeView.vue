@@ -47,10 +47,7 @@ function formatCurrency(value: number): string {
       <p class="text-gray-500">Loading statistics...</p>
     </div>
 
-    <div
-      v-else-if="stats"
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-    >
+    <div v-else-if="stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Total Items -->
       <div class="card">
         <h3 class="text-sm font-medium text-gray-500 uppercase">Total Items</h3>
@@ -62,9 +59,7 @@ function formatCurrency(value: number): string {
 
       <!-- Total Volumes -->
       <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">
-          Total Volumes
-        </h3>
+        <h3 class="text-sm font-medium text-gray-500 uppercase">Total Volumes</h3>
         <p class="text-3xl font-bold text-moxon-600 mt-2">
           {{ stats.primary.volumes }}
         </p>
@@ -73,9 +68,7 @@ function formatCurrency(value: number): string {
 
       <!-- Collection Value -->
       <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">
-          Collection Value
-        </h3>
+        <h3 class="text-sm font-medium text-gray-500 uppercase">Collection Value</h3>
         <p class="text-3xl font-bold text-victorian-gold mt-2">
           {{ formatCurrency(stats.primary.value_mid) }}
         </p>
@@ -87,9 +80,7 @@ function formatCurrency(value: number): string {
 
       <!-- Authenticated Bindings -->
       <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">
-          Premium Bindings
-        </h3>
+        <h3 class="text-sm font-medium text-gray-500 uppercase">Premium Bindings</h3>
         <p class="text-3xl font-bold text-victorian-burgundy mt-2">
           {{ stats.authenticated_bindings }}
         </p>
@@ -101,16 +92,12 @@ function formatCurrency(value: number): string {
     <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
       <RouterLink to="/books" class="card hover:shadow-lg transition-shadow">
         <h3 class="text-lg font-semibold text-gray-800">Browse Collection</h3>
-        <p class="text-gray-500 mt-2">
-          View and filter your complete book inventory
-        </p>
+        <p class="text-gray-500 mt-2">View and filter your complete book inventory</p>
       </RouterLink>
 
       <RouterLink to="/search" class="card hover:shadow-lg transition-shadow">
         <h3 class="text-lg font-semibold text-gray-800">Search</h3>
-        <p class="text-gray-500 mt-2">
-          Search across books and analysis documents
-        </p>
+        <p class="text-gray-500 mt-2">Search across books and analysis documents</p>
       </RouterLink>
 
       <RouterLink
@@ -118,9 +105,7 @@ function formatCurrency(value: number): string {
         class="card hover:shadow-lg transition-shadow"
       >
         <h3 class="text-lg font-semibold text-gray-800">Premium Bindings</h3>
-        <p class="text-gray-500 mt-2">
-          View authenticated Zaehnsdorf, Riviere, and more
-        </p>
+        <p class="text-gray-500 mt-2">View authenticated Zaehnsdorf, Riviere, and more</p>
       </RouterLink>
     </div>
   </div>

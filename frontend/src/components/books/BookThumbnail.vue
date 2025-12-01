@@ -45,23 +45,14 @@ function handleClick() {
     @click="handleClick"
   >
     <!-- Image or Placeholder -->
-    <img
-      :src="imageUrl || placeholderUrl"
-      alt="Book image"
-      class="w-full h-full object-cover"
-    />
+    <img :src="imageUrl || placeholderUrl" alt="Book image" class="w-full h-full object-cover" />
 
     <!-- Image indicator badge (only for actual images) -->
     <div
       v-if="hasImage"
       class="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded"
     >
-      <svg
-        class="w-3 h-3 inline"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"

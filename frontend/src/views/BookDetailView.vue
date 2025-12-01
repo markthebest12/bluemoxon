@@ -169,17 +169,11 @@ function getStatusColor(status: string): string {
     <!-- Header -->
     <div class="mb-8">
       <div class="flex justify-between items-start">
-        <RouterLink
-          to="/books"
-          class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block"
-        >
+        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 mb-4 inline-block">
           &larr; Back to Collection
         </RouterLink>
         <div class="flex gap-2">
-          <RouterLink
-            :to="`/books/${booksStore.currentBook.id}/edit`"
-            class="btn-secondary"
-          >
+          <RouterLink :to="`/books/${booksStore.currentBook.id}/edit`" class="btn-secondary">
             Edit Book
           </RouterLink>
           <button @click="openDeleteModal" class="btn-danger">Delete</button>
@@ -223,18 +217,13 @@ function getStatusColor(status: string): string {
 
         <!-- Publication Details -->
         <div class="card">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">
-            Publication Details
-          </h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Publication Details</h2>
           <dl class="grid grid-cols-2 gap-4">
             <div>
               <dt class="text-sm text-gray-500">Publisher</dt>
               <dd class="font-medium">
                 {{ booksStore.currentBook.publisher?.name || "-" }}
-                <span
-                  v-if="booksStore.currentBook.publisher?.tier"
-                  class="text-xs text-moxon-600"
-                >
+                <span v-if="booksStore.currentBook.publisher?.tier" class="text-xs text-moxon-600">
                   ({{ booksStore.currentBook.publisher.tier }})
                 </span>
               </dd>
@@ -271,11 +260,11 @@ function getStatusColor(status: string): string {
                   :class="[
                     'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer',
                     getStatusColor(booksStore.currentBook.status),
-                    updatingStatus ? 'opacity-50' : ''
+                    updatingStatus ? 'opacity-50' : '',
                   ]"
                 >
                   <option v-for="status in statusOptions" :key="status" :value="status">
-                    {{ status.replace('_', ' ') }}
+                    {{ status.replace("_", " ") }}
                   </option>
                 </select>
               </dd>
@@ -325,7 +314,7 @@ function getStatusColor(status: string): string {
               @click="startProvenanceEdit"
               class="text-sm text-moxon-600 hover:text-moxon-800"
             >
-              {{ booksStore.currentBook.provenance ? 'Edit' : 'Add provenance' }}
+              {{ booksStore.currentBook.provenance ? "Edit" : "Add provenance" }}
             </button>
           </div>
 
@@ -335,7 +324,8 @@ function getStatusColor(status: string): string {
               {{ booksStore.currentBook.provenance }}
             </p>
             <p v-else class="text-gray-400 italic">
-              No provenance information recorded. Click "Add provenance" to document ownership history.
+              No provenance information recorded. Click "Add provenance" to document ownership
+              history.
             </p>
           </div>
 
@@ -360,29 +350,22 @@ function getStatusColor(status: string): string {
                 :disabled="savingProvenance"
                 class="btn-primary text-sm"
               >
-                {{ savingProvenance ? 'Saving...' : 'Save' }}
+                {{ savingProvenance ? "Saving..." : "Save" }}
               </button>
             </div>
           </div>
         </div>
 
         <!-- Analysis Button -->
-        <div
-          v-if="hasAnalysis"
-          class="card bg-victorian-cream border-victorian-burgundy/20"
-        >
+        <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-gray-800">
-                Detailed Analysis
-              </h2>
+              <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
               <p class="text-sm text-gray-600 mt-1">
                 View the full Napoleon-style acquisition analysis for this book.
               </p>
             </div>
-            <button @click="openAnalysis" class="btn-primary">
-              View Analysis
-            </button>
+            <button @click="openAnalysis" class="btn-primary">View Analysis</button>
           </div>
         </div>
       </div>
@@ -424,15 +407,11 @@ function getStatusColor(status: string): string {
             </div>
             <div v-if="booksStore.currentBook.discount_pct">
               <dt class="text-sm text-gray-500">Discount</dt>
-              <dd class="font-medium text-green-600">
-                {{ booksStore.currentBook.discount_pct }}%
-              </dd>
+              <dd class="font-medium text-green-600">{{ booksStore.currentBook.discount_pct }}%</dd>
             </div>
             <div v-if="booksStore.currentBook.roi_pct">
               <dt class="text-sm text-gray-500">ROI</dt>
-              <dd class="font-medium text-green-600">
-                {{ booksStore.currentBook.roi_pct }}%
-              </dd>
+              <dd class="font-medium text-green-600">{{ booksStore.currentBook.roi_pct }}%</dd>
             </div>
           </dl>
         </div>
@@ -477,32 +456,21 @@ function getStatusColor(status: string): string {
 
     <!-- Delete Confirmation Modal -->
     <Teleport to="body">
-      <div
-        v-if="deleteModalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-      >
+      <div v-if="deleteModalVisible" class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
-        <div
-          class="absolute inset-0 bg-black/50"
-          @click="closeDeleteModal"
-        ></div>
+        <div class="absolute inset-0 bg-black/50" @click="closeDeleteModal"></div>
 
         <!-- Modal -->
-        <div
-          class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-        >
+        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
           <h3 class="text-xl font-semibold text-gray-800 mb-4">Delete Book</h3>
 
           <div class="mb-6">
-            <p class="text-gray-600 mb-3">
-              Are you sure you want to delete this book?
-            </p>
-            <p class="font-medium text-gray-800 mb-2">
-              "{{ booksStore.currentBook.title }}"
-            </p>
+            <p class="text-gray-600 mb-3">Are you sure you want to delete this book?</p>
+            <p class="font-medium text-gray-800 mb-2">"{{ booksStore.currentBook.title }}"</p>
             <p class="text-sm text-red-600">
-              This will permanently delete the book along with all associated
-              images ({{ images.length }}) and analysis data.
+              This will permanently delete the book along with all associated images ({{
+                images.length
+              }}) and analysis data.
             </p>
           </div>
 
@@ -514,18 +482,10 @@ function getStatusColor(status: string): string {
           </div>
 
           <div class="flex justify-end gap-3">
-            <button
-              @click="closeDeleteModal"
-              :disabled="deleting"
-              class="btn-secondary"
-            >
+            <button @click="closeDeleteModal" :disabled="deleting" class="btn-secondary">
               Cancel
             </button>
-            <button
-              @click="confirmDelete"
-              :disabled="deleting"
-              class="btn-danger"
-            >
+            <button @click="confirmDelete" :disabled="deleting" class="btn-danger">
               {{ deleting ? "Deleting..." : "Delete Book" }}
             </button>
           </div>

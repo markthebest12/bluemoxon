@@ -40,8 +40,7 @@ async function handleChangePassword() {
     if (e.name === "NotAuthorizedException") {
       error.value = "Current password is incorrect";
     } else if (e.name === "InvalidPasswordException") {
-      error.value =
-        "Password does not meet requirements (12+ chars, upper, lower, number, symbol)";
+      error.value = "Password does not meet requirements (12+ chars, upper, lower, number, symbol)";
     } else {
       error.value = e.message || "Failed to change password";
     }
@@ -57,9 +56,7 @@ async function handleChangePassword() {
 
     <!-- Account Info -->
     <div class="card mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">
-        Account Information
-      </h2>
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">Account Information</h2>
       <dl class="space-y-3">
         <div>
           <dt class="text-sm text-gray-500">Email</dt>
@@ -78,26 +75,17 @@ async function handleChangePassword() {
     <div class="card">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Change Password</h2>
 
-      <div
-        v-if="error"
-        class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4"
-      >
+      <div v-if="error" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4">
         {{ error }}
       </div>
 
-      <div
-        v-if="success"
-        class="bg-green-50 text-green-700 p-4 rounded-lg text-sm mb-4"
-      >
+      <div v-if="success" class="bg-green-50 text-green-700 p-4 rounded-lg text-sm mb-4">
         {{ success }}
       </div>
 
       <form @submit.prevent="handleChangePassword" class="space-y-4">
         <div>
-          <label
-            for="currentPassword"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">
             Current Password
           </label>
           <input
@@ -111,10 +99,7 @@ async function handleChangePassword() {
         </div>
 
         <div>
-          <label
-            for="newPassword"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
             New Password
           </label>
           <input
@@ -132,10 +117,7 @@ async function handleChangePassword() {
         </div>
 
         <div>
-          <label
-            for="confirmPassword"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
             Confirm New Password
           </label>
           <input
@@ -158,20 +140,14 @@ async function handleChangePassword() {
     <div class="card mt-8">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Security</h2>
       <div class="flex items-center text-sm">
-        <svg
-          class="w-5 h-5 text-green-500 mr-2"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
+        <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
           <path
             fill-rule="evenodd"
             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
             clip-rule="evenodd"
           />
         </svg>
-        <span class="text-gray-700"
-          >Two-factor authentication enabled (TOTP)</span
-        >
+        <span class="text-gray-700">Two-factor authentication enabled (TOTP)</span>
       </div>
     </div>
   </div>
