@@ -4,14 +4,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/dependabot.yml'
-      - 'LICENSE'
-      - '.gitignore'
+  # Don't run CI directly on main push - Deploy workflow calls CI via workflow_call
+  # This prevents race condition where two CI runs cancel each other
   pull_request:
     branches: [main]
     paths-ignore:
