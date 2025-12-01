@@ -26,17 +26,34 @@ const sortOptions = [
   { value: "created_at", label: "Recently Added" },
 ];
 
+// Filter options
+const publisherTiers = ["Tier 1", "Tier 2", "Tier 3"];
+const bindingTypes = [
+  "Full leather",
+  "Half leather",
+  "Quarter leather",
+  "Cloth",
+  "Paper boards",
+  "Vellum",
+];
+const conditionGrades = ["Fine", "Very Good", "Good", "Fair", "Poor"];
+
 // Count active filters
 const activeFilterCount = computed(() => {
   let count = 0;
   const f = booksStore.filters;
   if (f.binder_id) count++;
   if (f.publisher_id) count++;
+  if (f.publisher_tier) count++;
   if (f.binding_authenticated !== undefined) count++;
+  if (f.binding_type) count++;
+  if (f.condition_grade) count++;
   if (f.has_images !== undefined) count++;
   if (f.has_analysis !== undefined) count++;
   if (f.status) count++;
   if (f.category) count++;
+  if (f.min_value !== undefined || f.max_value !== undefined) count++;
+  if (f.year_start !== undefined || f.year_end !== undefined) count++;
   return count;
 });
 
@@ -186,7 +203,8 @@ function closeCarousel() {
       v-if="showFilters"
       class="mb-6 p-4 bg-white border rounded-lg shadow-sm"
     >
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <!-- Row 1: Reference Filters -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <!-- Binder Filter -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1"
@@ -226,18 +244,82 @@ function closeCarousel() {
           </select>
         </div>
 
+        <!-- Publisher Tier Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Publisher Tier</label
+          >
+          <select
+            v-model="booksStore.filters.publisher_tier"
+            class="input text-sm"
+          >
+            <option :value="undefined">All Tiers</option>
+            <option v-for="tier in publisherTiers" :key="tier" :value="tier">
+              {{ tier }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Binding Type Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Binding Type</label
+          >
+          <select
+            v-model="booksStore.filters.binding_type"
+            class="input text-sm"
+          >
+            <option :value="undefined">All Types</option>
+            <option v-for="type in bindingTypes" :key="type" :value="type">
+              {{ type }}
+            </option>
+          </select>
+        </div>
+
         <!-- Authenticated Binding Filter -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Binding</label
+            >Premium Binding</label
           >
           <select
             v-model="booksStore.filters.binding_authenticated"
             class="input text-sm"
           >
-            <option :value="undefined">All Bindings</option>
+            <option :value="undefined">Any</option>
             <option :value="true">Authenticated Only</option>
             <option :value="false">Non-Authenticated</option>
+          </select>
+        </div>
+
+        <!-- Condition Grade Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Condition</label
+          >
+          <select
+            v-model="booksStore.filters.condition_grade"
+            class="input text-sm"
+          >
+            <option :value="undefined">Any Condition</option>
+            <option v-for="grade in conditionGrades" :key="grade" :value="grade">
+              {{ grade }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Row 2: Status, Images, Analysis, Date/Value Ranges -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Status</label
+          >
+          <select v-model="booksStore.filters.status" class="input text-sm">
+            <option value="">All Statuses</option>
+            <option value="ON_HAND">On Hand</option>
+            <option value="IN_TRANSIT">In Transit</option>
+            <option value="SOLD">Sold</option>
           </select>
         </div>
 
@@ -268,17 +350,54 @@ function closeCarousel() {
           </select>
         </div>
 
-        <!-- Status Filter -->
+        <!-- Year Range -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1"
-            >Status</label
+            >Year Range</label
           >
-          <select v-model="booksStore.filters.status" class="input text-sm">
-            <option value="">All Statuses</option>
-            <option value="ON_HAND">On Hand</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="SOLD">Sold</option>
-          </select>
+          <div class="flex gap-1">
+            <input
+              v-model.number="booksStore.filters.year_start"
+              type="number"
+              placeholder="From"
+              class="input text-sm w-1/2"
+              min="1400"
+              max="2025"
+            />
+            <input
+              v-model.number="booksStore.filters.year_end"
+              type="number"
+              placeholder="To"
+              class="input text-sm w-1/2"
+              min="1400"
+              max="2025"
+            />
+          </div>
+        </div>
+
+        <!-- Value Range -->
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Value Range ($)</label
+          >
+          <div class="flex gap-1">
+            <input
+              v-model.number="booksStore.filters.min_value"
+              type="number"
+              placeholder="Min"
+              class="input text-sm w-1/2"
+              min="0"
+              step="50"
+            />
+            <input
+              v-model.number="booksStore.filters.max_value"
+              type="number"
+              placeholder="Max"
+              class="input text-sm w-1/2"
+              min="0"
+              step="50"
+            />
+          </div>
         </div>
       </div>
 

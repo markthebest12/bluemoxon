@@ -39,9 +39,16 @@ interface Filters {
   category?: string;
   status?: string;
   publisher_id?: number;
+  publisher_tier?: string;
   author_id?: number;
   binder_id?: number;
   binding_authenticated?: boolean;
+  binding_type?: string;
+  condition_grade?: string;
+  min_value?: number;
+  max_value?: number;
+  year_start?: number;
+  year_end?: number;
   has_images?: boolean;
   has_analysis?: boolean;
 }

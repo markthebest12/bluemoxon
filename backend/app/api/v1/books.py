@@ -32,11 +32,16 @@ def list_books(
     category: str | None = None,
     status: str | None = None,
     publisher_id: int | None = None,
+    publisher_tier: str | None = None,
     author_id: int | None = None,
     binder_id: int | None = None,
     binding_authenticated: bool | None = None,
+    binding_type: str | None = None,
+    condition_grade: str | None = None,
     min_value: float | None = None,
     max_value: float | None = None,
+    year_start: int | None = None,
+    year_end: int | None = None,
     has_images: bool | None = None,
     has_analysis: bool | None = None,
     sort_by: str = "title",
@@ -59,16 +64,28 @@ def list_books(
         query = query.filter(Book.status == status)
     if publisher_id:
         query = query.filter(Book.publisher_id == publisher_id)
+    if publisher_tier:
+        from app.models import Publisher
+
+        query = query.join(Publisher).filter(Publisher.tier == publisher_tier)
     if author_id:
         query = query.filter(Book.author_id == author_id)
     if binder_id:
         query = query.filter(Book.binder_id == binder_id)
     if binding_authenticated is not None:
         query = query.filter(Book.binding_authenticated == binding_authenticated)
+    if binding_type:
+        query = query.filter(Book.binding_type == binding_type)
+    if condition_grade:
+        query = query.filter(Book.condition_grade == condition_grade)
     if min_value is not None:
         query = query.filter(Book.value_mid >= min_value)
     if max_value is not None:
         query = query.filter(Book.value_mid <= max_value)
+    if year_start is not None:
+        query = query.filter(Book.year_start >= year_start)
+    if year_end is not None:
+        query = query.filter(Book.year_end <= year_end)
 
     # Filter by has_images
     if has_images is not None:
