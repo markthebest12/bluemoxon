@@ -35,15 +35,18 @@ This document tracks planned features, improvements, and technical debt for the 
 
 ### Missing UI Features
 
-| Feature | Description | Priority | Effort |
-|---------|-------------|----------|--------|
-| **Role-Based Authorization** | Architecture defines admin/editor/viewer roles; `users.role` field exists but not enforced in API | Low | Medium |
-| **Book Status Management** | Schema has ON_HAND, IN_TRANSIT, SOLD, DONATED statuses but no UI to track changes | Medium | Low |
-| **Provenance Tracking** | Database has `provenance` field for ownership history; add display/editing in book detail | Low | Low |
-| **Analysis Management UI** | `book_analyses` table exists but no frontend UI to create/edit (only read from import) | Medium | Medium |
-| **Image Gallery Lightbox** | Book detail shows images but no full-screen viewer | Medium | Low |
-| **Image Drag-and-Drop Reordering** | `display_order` exists in database but no UI to reorder | Low | Medium |
-| **Advanced Filtering** | Filter by: binder, publisher tier, binding type, condition grade, date range | Medium | Medium |
+| Feature | Description | Priority | Effort | Status |
+|---------|-------------|----------|--------|--------|
+| **Role-Based Authorization** | Architecture defines admin/editor/viewer roles; `users.role` field exists but not enforced in API | Low | Medium | |
+| ~~**Book Status Management**~~ | ~~Schema has ON_HAND, IN_TRANSIT, SOLD, DONATED statuses but no UI to track changes~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
+| ✅ DONE - Color-coded dropdown selector on book detail page for status management (ON_HAND, IN_TRANSIT, SOLD, REMOVED) | | | | |
+| ~~**Provenance Tracking**~~ | ~~Database has `provenance` field for ownership history; add display/editing in book detail~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
+| ✅ DONE - View/edit modes for ownership history, inscriptions, bookplates on book detail page | | | | |
+| **Analysis Management UI** | `book_analyses` table exists but no frontend UI to create/edit (only read from import) | Medium | Medium | |
+| **Image Gallery Lightbox** | Book detail shows images but no full-screen viewer | Medium | Low | ✅ DONE |
+| **Image Drag-and-Drop Reordering** | `display_order` exists in database but no UI to reorder | Low | Medium | |
+| ~~**Advanced Filtering**~~ | ~~Filter by: binder, publisher tier, binding type, condition grade, date range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
+| ✅ DONE - Expanded filter panel with: bindery, publisher, publisher tier, binding type, premium binding, condition grade, status, images, analysis, year range, value range | | | | |
 
 ### New Feature Ideas
 
