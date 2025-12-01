@@ -240,10 +240,17 @@ Response:
 
 ## Book Analysis API
 
+Book analyses are detailed markdown documents providing professional valuations,
+historical context, and collection significance for each book. Analyses can be
+viewed by all authenticated users but only created/edited by users with the
+**editor** or **admin** role.
+
 ### Get Book Analysis (Parsed)
 ```
 GET /books/{book_id}/analysis
 ```
+
+Returns a structured JSON object with parsed analysis fields.
 
 Example:
 ```bash
@@ -266,6 +273,8 @@ Response:
 }
 ```
 
+Returns 404 if no analysis exists for the book.
+
 ---
 
 ### Get Raw Analysis Markdown
@@ -273,16 +282,74 @@ Response:
 GET /books/{book_id}/analysis/raw
 ```
 
-Returns plain text markdown content of the analysis file.
+Returns the raw markdown content of the analysis file as plain text.
+
+Example:
+```bash
+curl "http://localhost:8000/api/v1/books/407/analysis/raw"
+```
+
+Response: Plain text markdown content.
+
+Returns 404 if no analysis exists for the book.
 
 ---
 
-### Update/Create Analysis
+### Create or Update Analysis
 ```
 PUT /books/{book_id}/analysis
 ```
 
+**Authentication Required:** Editor or Admin role
+
+Creates a new analysis or updates an existing one. The request body should be
+raw markdown text (not JSON).
+
+Headers:
+- `Content-Type: text/plain`
+- `Authorization: Bearer <token>`
+
 Request Body: Raw markdown string
+
+Example:
+```bash
+curl -X PUT "http://localhost:8000/api/v1/books/407/analysis" \
+  -H "Content-Type: text/plain" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '# Book Analysis
+
+## Executive Summary
+
+This is a first edition of...
+
+## Historical Significance
+
+Published in 1848...'
+```
+
+Response:
+```json
+{
+  "message": "Analysis updated successfully"
+}
+```
+
+Error Responses:
+- 401 Unauthorized - Not authenticated
+- 403 Forbidden - User does not have editor or admin role
+- 404 Not Found - Book not found
+
+**Frontend Usage:**
+
+The analysis can be edited directly in the BlueMoxon web interface:
+
+1. Navigate to a book's detail page
+2. Click the document icon to open the Analysis Viewer
+3. Click the **Edit** button in the header (visible only to editors/admins)
+4. Edit the markdown content in the textarea
+5. Click **Save** to persist changes
+
+For books without an analysis, editors will see a **Create Analysis** button.
 
 ---
 

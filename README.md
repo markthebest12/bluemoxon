@@ -9,9 +9,10 @@ Victorian Book Collection Management Web Application
 BlueMoxon is a web application for managing a Victorian book collection with:
 - Browse and search across inventory with full-text search
 - Detailed book analysis documents with markdown rendering
-- Image gallery for book photos
+- In-app analysis editor for creating and updating book valuations (editor role)
+- Image gallery for book photos with drag-and-drop reordering
 - CSV and PDF export capabilities
-- Role-based access control with 2FA
+- Role-based access control with 2FA (admin/editor/viewer)
 
 ## Tech Stack
 
