@@ -6,7 +6,6 @@ import uuid
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
