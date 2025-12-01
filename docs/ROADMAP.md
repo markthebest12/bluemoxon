@@ -29,9 +29,9 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
-| **Playwright E2E Tests** | Not started | Low | High |
-| **Vitest Frontend Unit Tests** | Not configured | Medium | Medium |
-| **Prettier Configuration** | Not enforced | Low | Low |
+| ~~**Playwright E2E Tests**~~ | ✅ Configured | ~~Low~~ | ~~High~~ |
+| ~~**Vitest Frontend Unit Tests**~~ | ✅ 21 tests passing | ~~Medium~~ | ~~Medium~~ |
+| ~~**Prettier Configuration**~~ | ✅ Configured | ~~Low~~ | ~~Low~~ |
 
 ### Missing UI Features
 
