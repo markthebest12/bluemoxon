@@ -385,6 +385,9 @@ def delete_image(
     _user=Depends(require_editor),
 ):
     """Delete an image. Requires editor role."""
+    import logging
+
+    logger = logging.getLogger(__name__)
     image = (
         db.query(BookImage).filter(BookImage.id == image_id, BookImage.book_id == book_id).first()
     )
@@ -392,14 +395,27 @@ def delete_image(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    # Delete file and thumbnail
-    file_path = LOCAL_IMAGES_PATH / image.s3_key
-    if file_path.exists():
-        file_path.unlink()
+    # Delete file and thumbnail from storage
+    if is_production():
+        # In production, delete from S3
+        s3 = get_s3_client()
+        for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
+            try:
+                s3.delete_object(
+                    Bucket=settings.images_bucket,
+                    Key=f"{S3_IMAGES_PREFIX}{key}",
+                )
+            except Exception:
+                logger.warning("Failed to delete S3 object: %s", key)
+    else:
+        # In development, delete from local filesystem
+        file_path = LOCAL_IMAGES_PATH / image.s3_key
+        if file_path.exists():
+            file_path.unlink()
 
-    thumbnail_path = LOCAL_IMAGES_PATH / get_thumbnail_key(image.s3_key)
-    if thumbnail_path.exists():
-        thumbnail_path.unlink()
+        thumbnail_path = LOCAL_IMAGES_PATH / get_thumbnail_key(image.s3_key)
+        if thumbnail_path.exists():
+            thumbnail_path.unlink()
 
     # Delete record
     db.delete(image)

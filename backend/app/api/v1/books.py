@@ -245,23 +245,47 @@ def delete_book(
     _user=Depends(require_editor),
 ):
     """Delete a book and all associated images/analysis. Requires editor role."""
-    from pathlib import Path
+    import logging
 
-    from app.config import get_settings
+    from app.api.v1.images import (
+        LOCAL_IMAGES_PATH,
+        S3_IMAGES_PREFIX,
+        get_thumbnail_key,
+        is_production,
+    )
     from app.models import BookImage
 
+    logger = logging.getLogger(__name__)
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Delete physical image files before cascade deleting database records
-    settings = get_settings()
-    images_path = Path(settings.local_images_path)
+    # Get all images for this book before deleting
     book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
-    for image in book_images:
-        file_path = images_path / image.s3_key
-        if file_path.exists():
-            file_path.unlink()
+
+    # Delete physical image files
+    if is_production():
+        # In production, delete from S3
+        import boto3
+
+        s3 = boto3.client("s3", region_name=settings.aws_region)
+        for image in book_images:
+            # Delete original and thumbnail from S3
+            for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
+                try:
+                    s3.delete_object(
+                        Bucket=settings.images_bucket,
+                        Key=f"{S3_IMAGES_PREFIX}{key}",
+                    )
+                except Exception:
+                    logger.warning("Failed to delete S3 object: %s", key)
+    else:
+        # In development, delete from local filesystem
+        for image in book_images:
+            for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
+                file_path = LOCAL_IMAGES_PATH / key
+                if file_path.exists():
+                    file_path.unlink()
 
     # Delete book (cascades to images and analysis in database)
     db.delete(book)
