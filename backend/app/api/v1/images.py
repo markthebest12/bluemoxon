@@ -34,10 +34,28 @@ PLACEHOLDER_PATH = LOCAL_IMAGES_PATH / "placeholder.jpg"
 # S3 prefix for book images
 S3_IMAGES_PREFIX = "books/"
 
+# CloudFront CDN URL for images (production only)
+CLOUDFRONT_CDN_URL = "https://bluemoxon.com/book-images"
+
 
 def is_production() -> bool:
     """Check if we're running in production (AWS Lambda)."""
     return settings.database_secret_arn is not None
+
+
+def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
+    """Get the CloudFront CDN URL for an image.
+
+    Args:
+        s3_key: The S3 key (filename) of the image
+        is_thumbnail: If True, returns the thumbnail URL
+
+    Returns:
+        Full CloudFront URL for the image
+    """
+    if is_thumbnail:
+        s3_key = get_thumbnail_key(s3_key)
+    return f"{CLOUDFRONT_CDN_URL}/{S3_IMAGES_PREFIX}{s3_key}"
 
 
 def get_s3_client():
@@ -109,19 +127,29 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
 
     base_url = get_api_base_url()
 
-    return [
-        {
+    result = []
+    for img in images:
+        if is_production():
+            # Use CloudFront CDN URLs for caching
+            url = get_cloudfront_url(img.s3_key)
+            thumbnail_url = get_cloudfront_url(img.s3_key, is_thumbnail=True)
+        else:
+            # Use API endpoints for local development
+            url = f"{base_url}/api/v1/books/{book_id}/images/{img.id}/file"
+            thumbnail_url = f"{base_url}/api/v1/books/{book_id}/images/{img.id}/thumbnail"
+
+        result.append({
             "id": img.id,
             "s3_key": img.s3_key,
-            "url": f"{base_url}/api/v1/books/{book_id}/images/{img.id}/file",
-            "thumbnail_url": f"{base_url}/api/v1/books/{book_id}/images/{img.id}/thumbnail",
+            "url": url,
+            "thumbnail_url": thumbnail_url,
             "image_type": img.image_type,
             "display_order": img.display_order,
             "is_primary": img.is_primary,
             "caption": img.caption,
-        }
-        for img in images
-    ]
+        })
+
+    return result
 
 
 @router.get("/primary")
@@ -150,10 +178,19 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     base_url = get_api_base_url()
 
     if image:
+        if is_production():
+            # Use CloudFront CDN URLs for caching
+            url = get_cloudfront_url(image.s3_key)
+            thumbnail_url = get_cloudfront_url(image.s3_key, is_thumbnail=True)
+        else:
+            # Use API endpoints for local development
+            url = f"{base_url}/api/v1/books/{book_id}/images/{image.id}/file"
+            thumbnail_url = f"{base_url}/api/v1/books/{book_id}/images/{image.id}/thumbnail"
+
         return {
             "id": image.id,
-            "url": f"{base_url}/api/v1/books/{book_id}/images/{image.id}/file",
-            "thumbnail_url": f"{base_url}/api/v1/books/{book_id}/images/{image.id}/thumbnail",
+            "url": url,
+            "thumbnail_url": thumbnail_url,
             "image_type": image.image_type,
             "caption": image.caption,
         }
@@ -170,7 +207,7 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{image_id}/file")
 def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
-    """Serve the actual image file or redirect to S3."""
+    """Serve the actual image file or redirect to CloudFront/S3."""
     from fastapi.responses import RedirectResponse
 
     image = (
@@ -181,23 +218,9 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Image not found")
 
     if is_production():
-        # In production, redirect to presigned S3 URL
-        try:
-            s3 = get_s3_client()
-            s3_key = S3_IMAGES_PREFIX + image.s3_key
-
-            # Generate presigned URL (valid for 1 hour)
-            presigned_url = s3.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.images_bucket, "Key": s3_key},
-                ExpiresIn=3600,
-            )
-
-            return RedirectResponse(url=presigned_url, status_code=302)
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchKey":
-                raise HTTPException(status_code=404, detail="Image file not found in S3") from None
-            raise HTTPException(status_code=500, detail=str(e)) from e
+        # In production, redirect to CloudFront CDN URL (cached)
+        cloudfront_url = get_cloudfront_url(image.s3_key)
+        return RedirectResponse(url=cloudfront_url, status_code=302)
     else:
         # For local development, serve from local path
         file_path = LOCAL_IMAGES_PATH / image.s3_key
@@ -222,27 +245,10 @@ def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_d
     thumbnail_key = get_thumbnail_key(image.s3_key)
 
     if is_production():
-        # In production, redirect to presigned S3 URL for thumbnail
-        try:
-            s3 = get_s3_client()
-            s3_key = S3_IMAGES_PREFIX + thumbnail_key
-
-            # Check if thumbnail exists, fall back to full image if not
-            try:
-                s3.head_object(Bucket=settings.images_bucket, Key=s3_key)
-            except ClientError:
-                # Thumbnail doesn't exist, fall back to full image
-                s3_key = S3_IMAGES_PREFIX + image.s3_key
-
-            presigned_url = s3.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.images_bucket, "Key": s3_key},
-                ExpiresIn=3600,
-            )
-
-            return RedirectResponse(url=presigned_url, status_code=302)
-        except ClientError as e:
-            raise HTTPException(status_code=500, detail=str(e)) from e
+        # In production, redirect to CloudFront CDN URL (cached)
+        # CloudFront will return 404 if thumbnail doesn't exist, which is acceptable
+        cloudfront_url = get_cloudfront_url(image.s3_key, is_thumbnail=True)
+        return RedirectResponse(url=cloudfront_url, status_code=302)
     else:
         # For local development, serve thumbnail from local path
         thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_key
