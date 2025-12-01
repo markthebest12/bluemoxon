@@ -430,9 +430,13 @@ def reorder_images(
         )
 
     # Update display_order based on position in the array
+    # Also update is_primary: first image becomes primary, others become non-primary
     for order, image_id in enumerate(image_ids):
         db.query(BookImage).filter(BookImage.id == image_id).update(
-            {BookImage.display_order: order}
+            {
+                BookImage.display_order: order,
+                BookImage.is_primary: (order == 0),  # First image is primary
+            }
         )
 
     db.commit()

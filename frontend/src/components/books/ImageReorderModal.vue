@@ -257,8 +257,10 @@ function close() {
 
           <!-- Footer -->
           <div class="flex justify-end gap-3 p-4 border-t">
-            <button @click="close" :disabled="saving" class="btn-secondary">Cancel</button>
-            <button @click="save" :disabled="saving" class="btn-primary">
+            <button type="button" @click="close" :disabled="saving" class="btn-secondary">
+              Cancel
+            </button>
+            <button type="button" @click="save" :disabled="saving" class="btn-primary">
               {{ saving ? "Saving..." : "Save Order" }}
             </button>
           </div>
