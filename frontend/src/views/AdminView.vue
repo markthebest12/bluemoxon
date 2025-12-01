@@ -126,13 +126,19 @@ function formatDate(dateStr: string | null): string {
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Email
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Role
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Actions
               </th>
             </tr>
@@ -216,31 +222,47 @@ function formatDate(dateStr: string | null): string {
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Name
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Key Prefix
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Created
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Last Used
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Status
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Actions
               </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="key in adminStore.apiKeys" :key="key.id" :class="{ 'opacity-50': !key.is_active }">
+            <tr
+              v-for="key in adminStore.apiKeys"
+              :key="key.id"
+              :class="{ 'opacity-50': !key.is_active }"
+            >
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">{{ key.name }}</div>
-                <div class="text-xs text-gray-500">by {{ key.created_by_email || 'Unknown' }}</div>
+                <div class="text-xs text-gray-500">by {{ key.created_by_email || "Unknown" }}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <code class="text-sm bg-gray-100 px-2 py-1 rounded">{{ key.key_prefix }}...</code>
@@ -256,7 +278,7 @@ function formatDate(dateStr: string | null): string {
                   class="px-2 py-1 text-xs rounded-full"
                   :class="key.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                 >
-                  {{ key.is_active ? 'Active' : 'Revoked' }}
+                  {{ key.is_active ? "Active" : "Revoked" }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm">
@@ -284,13 +306,14 @@ function formatDate(dateStr: string | null): string {
     <div
       v-if="showNewKeyModal && adminStore.newlyCreatedKey"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click.self="showNewKeyModal = false; adminStore.clearNewKey()"
+      @click.self="
+        showNewKeyModal = false;
+        adminStore.clearNewKey();
+      "
     >
       <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
         <h3 class="text-lg font-bold text-gray-800 mb-2">API Key Created</h3>
-        <p class="text-sm text-amber-600 mb-4">
-          Save this key now - it won't be shown again!
-        </p>
+        <p class="text-sm text-amber-600 mb-4">Save this key now - it won't be shown again!</p>
 
         <div class="bg-gray-100 p-4 rounded-lg mb-4">
           <label class="block text-xs text-gray-500 mb-1">API Key</label>
@@ -306,12 +329,16 @@ function formatDate(dateStr: string | null): string {
         </div>
 
         <p class="text-sm text-gray-600 mb-4">
-          Use this key in the <code class="bg-gray-100 px-1 rounded">X-API-Key</code> header for API requests.
+          Use this key in the <code class="bg-gray-100 px-1 rounded">X-API-Key</code> header for API
+          requests.
         </p>
 
         <div class="flex justify-end">
           <button
-            @click="showNewKeyModal = false; adminStore.clearNewKey()"
+            @click="
+              showNewKeyModal = false;
+              adminStore.clearNewKey();
+            "
             class="btn-primary"
           >
             Done
