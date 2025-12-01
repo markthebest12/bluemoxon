@@ -51,6 +51,7 @@ interface Filters {
   year_end?: number;
   has_images?: boolean;
   has_analysis?: boolean;
+  has_provenance?: boolean;
 }
 
 export const useBooksStore = defineStore("books", () => {
