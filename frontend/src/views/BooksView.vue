@@ -61,9 +61,11 @@ onMounted(async () => {
   // Load reference data for filters
   await referencesStore.fetchAll();
 
-  // Apply URL query params as filters
+  // Apply URL query params as filters, defaulting to PRIMARY collection
   if (route.query.inventory_type) {
     booksStore.filters.inventory_type = route.query.inventory_type as string;
+  } else {
+    booksStore.filters.inventory_type = "PRIMARY";
   }
   if (route.query.binding_authenticated) {
     booksStore.filters.binding_authenticated = route.query.binding_authenticated === "true";
