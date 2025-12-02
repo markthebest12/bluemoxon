@@ -48,9 +48,9 @@ function formatCurrency(value: number): string {
     </div>
 
     <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-      <!-- Total Items -->
+      <!-- Total Collections -->
       <div class="card !p-3 md:!p-6">
-        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Total Items</h3>
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Collections</h3>
         <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
           {{ stats.primary.count }}
         </p>

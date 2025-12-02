@@ -310,7 +310,7 @@ const exportCSV = () => {
         <h3>Collection Summary ({{ summaryLabel }})</h3>
         <div class="summary-grid">
           <div class="summary-item">
-            <span class="label">Items</span>
+            <span class="label">Collections</span>
             <span class="value">{{ stats.totalItems }}</span>
           </div>
           <div class="summary-item">
