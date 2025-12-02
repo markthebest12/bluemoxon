@@ -71,7 +71,7 @@ function formatCurrency(value: number): string {
 
       <!-- Collection Value -->
       <div class="card !p-3 md:!p-6">
-        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Value</h3>
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Est. Value</h3>
         <p class="text-xl md:text-3xl font-bold text-victorian-gold mt-1 md:mt-2">
           {{ formatCurrency(stats.primary.value_mid) }}
         </p>

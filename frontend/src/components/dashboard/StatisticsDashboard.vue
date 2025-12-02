@@ -351,7 +351,7 @@ onMounted(async () => {
 
       <!-- Cumulative Value Growth - full width at bottom -->
       <div class="card !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Cumulative Collection Value</h3>
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Cumulative Est. Value</h3>
         <div class="h-48 md:h-64">
           <Line
             v-if="acquisitionData.length > 0"
