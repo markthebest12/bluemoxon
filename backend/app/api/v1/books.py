@@ -500,3 +500,22 @@ def update_book_analysis(
 
     db.commit()
     return {"message": "Analysis updated"}
+
+
+@router.delete("/{book_id}/analysis")
+def delete_book_analysis(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Delete analysis for a book. Requires editor role."""
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.analysis:
+        raise HTTPException(status_code=404, detail="No analysis to delete")
+
+    db.delete(book.analysis)
+    db.commit()
+    return {"message": "Analysis deleted"}
