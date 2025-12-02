@@ -31,7 +31,7 @@ This document tracks planned features, improvements, and technical debt for the 
 | Feature | Description | Priority | Effort | Status |
 |---------|-------------|----------|--------|--------|
 | ~~**Playwright E2E Tests**~~ | ~~End-to-end browser testing~~ | ~~Low~~ | ~~High~~ | ✅ Configured |
-| ~~**Vitest Frontend Unit Tests**~~ | ~~21 tests passing~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
+| ~~**Vitest Frontend Unit Tests**~~ | ~~27 tests passing (books store + insurance report)~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Prettier Configuration**~~ | ~~Code formatting~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 
 ### Missing UI Features
@@ -49,13 +49,22 @@ This document tracks planned features, improvements, and technical debt for the 
 
 ### New Feature Ideas
 
-| Feature | Description | Priority | Effort |
-|---------|-------------|----------|--------|
-| **Collection Statistics Dashboard** | Richer visualizations: value over time, acquisition trends, publisher/binder distribution charts | Medium | Medium |
-| **Print/Export Views** | PDF catalog generation, insurance valuation report | Low | High |
-| **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium |
-| **Backup/Restore UI** | Database backup scheduling, export/import functionality | Low | Medium |
-| **Mobile Responsive Improvements** | Current UI is desktop-focused | Low | Medium |
+| Feature | Description | Priority | Effort | Status |
+|---------|-------------|----------|--------|--------|
+| **Collection Statistics Dashboard** | Richer visualizations: value over time, acquisition trends, publisher/binder distribution charts | Medium | Medium | |
+| ~~**Insurance/Export Reports**~~ | ~~Insurance valuation report with CSV export, report type selector (Primary/Extended/Full)~~ | ~~Low~~ | ~~High~~ | ✅ DONE |
+| **PDF Catalog Generation** | Printable PDF catalog with images | Low | High | |
+| **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
+| **Backup/Restore UI** | Database backup scheduling, export/import functionality | Low | Medium | |
+| **Mobile Responsive Improvements** | Current UI is desktop-focused | Low | Medium | |
+
+### Recently Completed (Not Previously Tracked)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Image Upload/Delete** | Upload new images and delete existing from book detail page | ✅ DONE |
+| **User Profile Names** | Editable first/last name on user profiles | ✅ DONE |
+| **Insurance Report View** | Browser-print optimized report with CSV export for Primary/Extended/Full inventory | ✅ DONE |
 
 ---
 
@@ -316,7 +325,8 @@ on:
 | Role-Based Authorization | Features | Medium | Low (single admin) | |
 | Audit Logging | Features | Medium | Low (internal use) | |
 | ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
-| Print/Export Views | Features | High | Low (occasional need) | |
+| ~~Insurance/Export Reports~~ | Features | ~~High~~ | ~~Low (occasional need)~~ | ✅ DONE |
+| PDF Catalog Generation | Features | High | Low (occasional need) | |
 | Mobile Responsive | Features | Medium | Low (desktop primary) | |
 
 ---
