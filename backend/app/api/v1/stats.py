@@ -25,43 +25,45 @@ TIER_1_PUBLISHERS = [
 
 @router.get("/overview")
 def get_overview(db: Session = Depends(get_db)):
-    """Get collection overview statistics."""
-    # Total counts by inventory type
-    primary = db.query(Book).filter(Book.inventory_type == "PRIMARY")
-    extended = db.query(Book).filter(Book.inventory_type == "EXTENDED")
-    flagged = db.query(Book).filter(Book.inventory_type == "FLAGGED")
+    """Get collection overview statistics.
 
-    primary_count = primary.count()
-    extended_count = extended.count()
-    flagged_count = flagged.count()
+    Returns current stats for ON_HAND books only, plus week-over-week changes.
+    """
+    # Base filter: PRIMARY + ON_HAND only
+    on_hand_filter = (Book.inventory_type == "PRIMARY") & (Book.status == "ON_HAND")
 
-    # Value sums for primary collection
+    # Current counts (ON_HAND only)
+    primary_on_hand = db.query(Book).filter(on_hand_filter)
+    primary_count = primary_on_hand.count()
+
+    # Extended and flagged (all statuses for reference)
+    extended_count = db.query(Book).filter(Book.inventory_type == "EXTENDED").count()
+    flagged_count = db.query(Book).filter(Book.inventory_type == "FLAGGED").count()
+
+    # Value sums for ON_HAND books
     primary_value_row = (
         db.query(
             func.sum(Book.value_low),
             func.sum(Book.value_mid),
             func.sum(Book.value_high),
         )
-        .filter(Book.inventory_type == "PRIMARY")
+        .filter(on_hand_filter)
         .first()
     )
 
-    # Extract values with None handling
     value_low = float(primary_value_row[0] or 0) if primary_value_row else 0.0
     value_mid = float(primary_value_row[1] or 0) if primary_value_row else 0.0
     value_high = float(primary_value_row[2] or 0) if primary_value_row else 0.0
 
-    # Volume count
-    total_volumes = (
-        db.query(func.sum(Book.volumes)).filter(Book.inventory_type == "PRIMARY").scalar() or 0
-    )
+    # Volume count (ON_HAND only)
+    total_volumes = db.query(func.sum(Book.volumes)).filter(on_hand_filter).scalar() or 0
 
-    # Authenticated bindings count
+    # Authenticated bindings count (ON_HAND only)
     authenticated_count = (
         db.query(Book)
         .filter(
+            on_hand_filter,
             Book.binding_authenticated.is_(True),
-            Book.inventory_type == "PRIMARY",
         )
         .count()
     )
@@ -75,6 +77,26 @@ def get_overview(db: Session = Depends(get_db)):
         )
         .count()
     )
+
+    # Calculate week-over-week changes
+    # Books that arrived this week = ON_HAND books updated in last 7 days
+    one_week_ago = datetime.now() - timedelta(days=7)
+
+    # This week's arrivals (approximation using updated_at)
+    week_arrivals = (
+        db.query(Book)
+        .filter(
+            on_hand_filter,
+            Book.updated_at >= one_week_ago,
+        )
+        .all()
+    )
+
+    # Calculate deltas
+    week_count_delta = len(week_arrivals)
+    week_volumes_delta = sum(b.volumes or 1 for b in week_arrivals)
+    week_value_delta = sum(float(b.value_mid or 0) for b in week_arrivals)
+    week_premium_delta = sum(1 for b in week_arrivals if b.binding_authenticated)
 
     return {
         "primary": {
@@ -93,6 +115,13 @@ def get_overview(db: Session = Depends(get_db)):
         "total_items": primary_count + extended_count + flagged_count,
         "authenticated_bindings": authenticated_count,
         "in_transit": in_transit_count,
+        # Week-over-week changes (positive = growth)
+        "week_delta": {
+            "count": week_count_delta,
+            "volumes": week_volumes_delta,
+            "value_mid": round(week_value_delta, 2),
+            "authenticated_bindings": week_premium_delta,
+        },
     }
 
 

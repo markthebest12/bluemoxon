@@ -3,6 +3,13 @@ import { ref, onMounted } from "vue";
 import { api } from "@/services/api";
 import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
 
+interface WeekDelta {
+  count: number;
+  volumes: number;
+  value_mid: number;
+  authenticated_bindings: number;
+}
+
 interface Stats {
   primary: {
     count: number;
@@ -15,6 +22,8 @@ interface Stats {
   flagged: { count: number };
   total_items: number;
   authenticated_bindings: number;
+  in_transit: number;
+  week_delta: WeekDelta;
 }
 
 const stats = ref<Stats | null>(null);
@@ -38,6 +47,27 @@ function formatCurrency(value: number): string {
     minimumFractionDigits: 0,
   }).format(value);
 }
+
+function formatDelta(value: number, isCurrency = false): string {
+  if (value === 0) return "—";
+  const prefix = value > 0 ? "+" : "";
+  if (isCurrency) {
+    return prefix + formatCurrency(value);
+  }
+  return prefix + value.toString();
+}
+
+function getTrendClass(value: number): string {
+  if (value > 0) return "text-green-600";
+  if (value < 0) return "text-red-600";
+  return "text-gray-400";
+}
+
+function getTrendArrow(value: number): string {
+  if (value > 0) return "↑";
+  if (value < 0) return "↓";
+  return "→";
+}
 </script>
 
 <template>
@@ -51,19 +81,42 @@ function formatCurrency(value: number): string {
     <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Collections -->
       <div class="card !p-3 md:!p-6">
-        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Collections</h3>
-        <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
-          {{ stats.primary.count }}
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">On Hand</h3>
+        <div class="flex items-baseline gap-2 mt-1 md:mt-2">
+          <p class="text-2xl md:text-3xl font-bold text-moxon-600">
+            {{ stats.primary.count }}
+          </p>
+          <span
+            v-if="stats.week_delta"
+            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.count)]"
+          >
+            {{ getTrendArrow(stats.week_delta.count) }}
+            {{ formatDelta(stats.week_delta.count) }}
+          </span>
+        </div>
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">
+          Primary collection
+          <span v-if="stats.in_transit" class="text-gray-400"
+            >({{ stats.in_transit }} in transit)</span
+          >
         </p>
-        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Primary collection</p>
       </div>
 
       <!-- Total Volumes -->
       <div class="card !p-3 md:!p-6">
         <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Volumes</h3>
-        <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
-          {{ stats.primary.volumes }}
-        </p>
+        <div class="flex items-baseline gap-2 mt-1 md:mt-2">
+          <p class="text-2xl md:text-3xl font-bold text-moxon-600">
+            {{ stats.primary.volumes }}
+          </p>
+          <span
+            v-if="stats.week_delta"
+            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.volumes)]"
+          >
+            {{ getTrendArrow(stats.week_delta.volumes) }}
+            {{ formatDelta(stats.week_delta.volumes) }}
+          </span>
+        </div>
         <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">
           Including multi-volume sets
         </p>
@@ -72,21 +125,49 @@ function formatCurrency(value: number): string {
       <!-- Collection Value -->
       <div class="card !p-3 md:!p-6">
         <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Est. Value</h3>
-        <p class="text-xl md:text-3xl font-bold text-victorian-gold mt-1 md:mt-2">
-          {{ formatCurrency(stats.primary.value_mid) }}
-        </p>
+        <div class="flex items-baseline gap-2 mt-1 md:mt-2">
+          <p class="text-xl md:text-3xl font-bold text-victorian-gold">
+            {{ formatCurrency(stats.primary.value_mid) }}
+          </p>
+          <span
+            v-if="stats.week_delta"
+            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.value_mid)]"
+          >
+            {{ getTrendArrow(stats.week_delta.value_mid) }}
+          </span>
+        </div>
         <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">
-          {{ formatCurrency(stats.primary.value_low) }} -
-          {{ formatCurrency(stats.primary.value_high) }}
+          <span v-if="stats.week_delta && stats.week_delta.value_mid !== 0">
+            <span :class="getTrendClass(stats.week_delta.value_mid)">
+              {{ formatDelta(stats.week_delta.value_mid, true) }}
+            </span>
+            this week
+          </span>
+          <span v-else>
+            {{ formatCurrency(stats.primary.value_low) }} -
+            {{ formatCurrency(stats.primary.value_high) }}
+          </span>
         </p>
       </div>
 
       <!-- Authenticated Bindings -->
       <div class="card !p-3 md:!p-6">
         <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Premium</h3>
-        <p class="text-2xl md:text-3xl font-bold text-victorian-burgundy mt-1 md:mt-2">
-          {{ stats.authenticated_bindings }}
-        </p>
+        <div class="flex items-baseline gap-2 mt-1 md:mt-2">
+          <p class="text-2xl md:text-3xl font-bold text-victorian-burgundy">
+            {{ stats.authenticated_bindings }}
+          </p>
+          <span
+            v-if="stats.week_delta"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(stats.week_delta.authenticated_bindings),
+            ]"
+          >
+            {{ getTrendArrow(stats.week_delta.authenticated_bindings) }}
+            {{ formatDelta(stats.week_delta.authenticated_bindings) }}
+          </span>
+        </div>
         <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Authenticated bindings</p>
       </div>
     </div>
