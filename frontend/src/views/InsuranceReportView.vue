@@ -10,16 +10,27 @@ const error = ref<string | null>(null);
 onMounted(async () => {
   loading.value = true;
   try {
-    // Fetch all books (high per_page to get everything in one request)
-    const response = await api.get("/books", {
-      params: {
-        per_page: 500,
-        inventory_type: "PRIMARY",
-        sort_by: "value_mid",
-        sort_order: "desc",
-      },
-    });
-    books.value = response.data.items;
+    // Fetch all PRIMARY books (paginated, max 100 per request)
+    const allBooks: Book[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await api.get("/books", {
+        params: {
+          page,
+          per_page: 100,
+          inventory_type: "PRIMARY",
+          sort_by: "value_mid",
+          sort_order: "desc",
+        },
+      });
+      allBooks.push(...response.data.items);
+      hasMore = page < response.data.pages;
+      page++;
+    }
+
+    books.value = allBooks;
   } catch (e: any) {
     error.value = e.message || "Failed to fetch books";
   } finally {
