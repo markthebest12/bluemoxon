@@ -47,44 +47,44 @@ function formatCurrency(value: number): string {
       <p class="text-gray-500">Loading statistics...</p>
     </div>
 
-    <div v-else-if="stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Items -->
-      <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">Total Items</h3>
-        <p class="text-3xl font-bold text-moxon-600 mt-2">
+      <div class="card !p-3 md:!p-6">
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Total Items</h3>
+        <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
           {{ stats.primary.count }}
         </p>
-        <p class="text-sm text-gray-500 mt-1">Primary collection</p>
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Primary collection</p>
       </div>
 
       <!-- Total Volumes -->
-      <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">Total Volumes</h3>
-        <p class="text-3xl font-bold text-moxon-600 mt-2">
+      <div class="card !p-3 md:!p-6">
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Volumes</h3>
+        <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
           {{ stats.primary.volumes }}
         </p>
-        <p class="text-sm text-gray-500 mt-1">Including multi-volume sets</p>
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Including multi-volume sets</p>
       </div>
 
       <!-- Collection Value -->
-      <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">Collection Value</h3>
-        <p class="text-3xl font-bold text-victorian-gold mt-2">
+      <div class="card !p-3 md:!p-6">
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Value</h3>
+        <p class="text-xl md:text-3xl font-bold text-victorian-gold mt-1 md:mt-2">
           {{ formatCurrency(stats.primary.value_mid) }}
         </p>
-        <p class="text-sm text-gray-500 mt-1">
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">
           {{ formatCurrency(stats.primary.value_low) }} -
           {{ formatCurrency(stats.primary.value_high) }}
         </p>
       </div>
 
       <!-- Authenticated Bindings -->
-      <div class="card">
-        <h3 class="text-sm font-medium text-gray-500 uppercase">Premium Bindings</h3>
-        <p class="text-3xl font-bold text-victorian-burgundy mt-2">
+      <div class="card !p-3 md:!p-6">
+        <h3 class="text-xs md:text-sm font-medium text-gray-500 uppercase">Premium</h3>
+        <p class="text-2xl md:text-3xl font-bold text-victorian-burgundy mt-1 md:mt-2">
           {{ stats.authenticated_bindings }}
         </p>
-        <p class="text-sm text-gray-500 mt-1">Authenticated bindings</p>
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Authenticated bindings</p>
       </div>
     </div>
 
