@@ -62,12 +62,20 @@ interface PublisherData {
   volumes: number;
 }
 
+interface AuthorData {
+  author: string;
+  count: number;
+  value: number;
+  volumes: number;
+}
+
 // State
 const loading = ref(true);
 const acquisitionData = ref<AcquisitionMonth[]>([]);
 const binderData = ref<BinderData[]>([]);
 const eraData = ref<EraData[]>([]);
 const publisherData = ref<PublisherData[]>([]);
+const authorData = ref<AuthorData[]>([]);
 
 // Colors
 const chartColors = {
@@ -160,7 +168,11 @@ const barChartOptions = {
     x: {
       beginAtZero: true,
       grid: { color: "rgba(0,0,0,0.05)" },
-      ticks: { font: { size: 10 } },
+      ticks: {
+        font: { size: 10 },
+        stepSize: 1,
+        callback: (value: string | number) => Number.isInteger(Number(value)) ? value : "",
+      },
     },
     y: {
       grid: { display: false },
@@ -169,25 +181,34 @@ const barChartOptions = {
   },
 };
 
-// Computed chart data
-const acquisitionChartData = computed(() => ({
-  labels: acquisitionData.value.map((d) => {
-    const date = new Date(d.year, d.month - 1);
-    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-  }),
-  datasets: [
-    {
-      label: "Value Added",
-      data: acquisitionData.value.map((d) => d.value),
-      borderColor: chartColors.primary,
-      backgroundColor: chartColors.primaryLight,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-    },
-  ],
-}));
+// Computed chart data - cumulative value growth
+const acquisitionChartData = computed(() => {
+  // Calculate cumulative values
+  let cumulative = 0;
+  const cumulativeData = acquisitionData.value.map((d) => {
+    cumulative += d.value;
+    return cumulative;
+  });
+
+  return {
+    labels: acquisitionData.value.map((d) => {
+      const date = new Date(d.year, d.month - 1);
+      return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    }),
+    datasets: [
+      {
+        label: "Cumulative Value",
+        data: cumulativeData,
+        borderColor: chartColors.primary,
+        backgroundColor: chartColors.primaryLight,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+    ],
+  };
+});
 
 const binderChartData = computed(() => ({
   labels: binderData.value.map((d) => d.binder),
@@ -231,20 +252,38 @@ const publisherChartData = computed(() => {
   };
 });
 
+// Check if there are any tier 1 publishers
+const hasTier1Publishers = computed(() => {
+  return publisherData.value.some((p) => p.tier === "TIER_1");
+});
+
+const authorChartData = computed(() => ({
+  labels: authorData.value.slice(0, 8).map((d) => d.author),
+  datasets: [
+    {
+      data: authorData.value.slice(0, 8).map((d) => d.count),
+      backgroundColor: chartColors.burgundy,
+      borderRadius: 4,
+    },
+  ],
+}));
+
 // Fetch all data
 onMounted(async () => {
   try {
-    const [acqRes, binderRes, eraRes, pubRes] = await Promise.all([
+    const [acqRes, binderRes, eraRes, pubRes, authorRes] = await Promise.all([
       api.get("/stats/acquisitions-by-month"),
       api.get("/stats/bindings"),
       api.get("/stats/by-era"),
       api.get("/stats/by-publisher"),
+      api.get("/stats/by-author"),
     ]);
 
     acquisitionData.value = acqRes.data;
     binderData.value = binderRes.data;
     eraData.value = eraRes.data;
     publisherData.value = pubRes.data;
+    authorData.value = authorRes.data;
   } catch (e) {
     console.error("Failed to load statistics", e);
   } finally {
@@ -262,19 +301,6 @@ onMounted(async () => {
     </div>
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-      <!-- Acquisition Trends -->
-      <div class="card !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Value Growth by Month</h3>
-        <div class="h-48 md:h-64">
-          <Line
-            v-if="acquisitionData.length > 0"
-            :data="acquisitionChartData"
-            :options="lineChartOptions"
-          />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No acquisition data available</p>
-        </div>
-      </div>
-
       <!-- Premium Bindings Distribution -->
       <div class="card !p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-3">Premium Bindings</h3>
@@ -297,16 +323,42 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Top Tier 1 Publishers -->
-      <div class="card !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Top Tier 1 Publishers</h3>
-        <div class="h-40 md:h-48">
+      <!-- Top Authors -->
+      <div class="card !p-4">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Top Authors</h3>
+        <div class="h-48 md:h-56">
           <Bar
-            v-if="publisherData.length > 0"
+            v-if="authorData.length > 0"
+            :data="authorChartData"
+            :options="barChartOptions"
+          />
+          <p v-else class="text-gray-400 text-sm text-center py-8">No author data available</p>
+        </div>
+      </div>
+
+      <!-- Top Tier 1 Publishers -->
+      <div class="card !p-4">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Top Tier 1 Publishers</h3>
+        <div class="h-48 md:h-56">
+          <Bar
+            v-if="hasTier1Publishers"
             :data="publisherChartData"
             :options="barChartOptions"
           />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No publisher data available</p>
+          <p v-else class="text-gray-400 text-sm text-center py-8">No Tier 1 publisher data available</p>
+        </div>
+      </div>
+
+      <!-- Cumulative Value Growth - full width at bottom -->
+      <div class="card !p-4 col-span-1 lg:col-span-2">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Cumulative Collection Value</h3>
+        <div class="h-48 md:h-64">
+          <Line
+            v-if="acquisitionData.length > 0"
+            :data="acquisitionChartData"
+            :options="lineChartOptions"
+          />
+          <p v-else class="text-gray-400 text-sm text-center py-8">No acquisition data available</p>
         </div>
       </div>
     </div>
