@@ -404,6 +404,71 @@ aws cognito-idp admin-create-user \
 | CloudFront (raw) | https://d2yd5bvqaomg54.cloudfront.net |
 | API Gateway (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
 
+## Monitoring & Observability
+
+### CloudWatch Dashboard
+
+**Dashboard Name:** `BlueMoxon-API`
+**URL:** https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API
+
+The dashboard displays:
+
+| Panel | Metrics |
+|-------|---------|
+| API Latency | p50, p90, p99, Average (ms) |
+| API Request Count | Total requests per minute |
+| API Errors | 4xx and 5xx error counts |
+| API Availability | Calculated availability % |
+| Lambda Duration | p50, p90, p99 execution time |
+| Lambda Invocations & Errors | Request and error counts |
+| Lambda Concurrent Executions | Peak concurrency |
+| CloudFront Requests | CDN request volume |
+| CloudFront Error Rate | 4xx/5xx error percentages |
+
+### CloudWatch Alarms
+
+| Alarm Name | Condition | Period | Action |
+|------------|-----------|--------|--------|
+| `BlueMoxon-API-HighLatency` | p99 latency > 3000ms | 5 min (2 eval) | - |
+| `BlueMoxon-API-5xxErrors` | 5xx errors > 5 | 5 min | - |
+| `BlueMoxon-Lambda-Errors` | Errors >= 1 | 5 min | - |
+
+To add SNS notifications to alarms:
+```bash
+aws cloudwatch put-metric-alarm \
+  --alarm-name "BlueMoxon-API-5xxErrors" \
+  --alarm-actions arn:aws:sns:us-west-2:266672885920:your-topic \
+  --profile bluemoxon --region us-west-2
+```
+
+### CloudFront Access Logs
+
+| Setting | Value |
+|---------|-------|
+| Log Bucket | `bluemoxon-logs` |
+| Log Prefix | `cloudfront/` |
+| Region | us-west-2 |
+
+Logs include: request time, client IP, URI path, HTTP status, bytes sent, referrer, user agent.
+
+### Health Check Endpoints
+
+| Endpoint | Purpose | Use Case |
+|----------|---------|----------|
+| `GET /health` | Simple liveness | Load balancer checks |
+| `GET /api/v1/health/live` | Kubernetes liveness | Container orchestration |
+| `GET /api/v1/health/ready` | Readiness (DB check) | Traffic routing |
+| `GET /api/v1/health/deep` | Full validation | CI/CD, monitoring |
+| `GET /api/v1/health/info` | Service metadata | Debugging |
+
+The `/deep` endpoint validates:
+- Database connectivity and query execution
+- S3 bucket accessibility
+- Cognito user pool (if IAM permissions allow)
+- Critical configuration settings
+
+---
+
 ## Configuration File
 
 All resource IDs are stored in: `infra/aws-resources.json`

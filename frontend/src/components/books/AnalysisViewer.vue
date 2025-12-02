@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
@@ -11,6 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
+  deleted: [];
 }>();
 
 const booksStore = useBooksStore();
@@ -20,10 +23,19 @@ const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
 const loading = ref(true);
 const saving = ref(false);
+const deleting = ref(false);
 const error = ref<string | null>(null);
 const editMode = ref(false);
+const showDeleteConfirm = ref(false);
+const showPreview = ref(true);
 
 const canEdit = computed(() => authStore.isEditor);
+
+// Configure marked for GFM (GitHub Flavored Markdown) with tables
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
 
 onMounted(async () => {
   await loadAnalysis();
@@ -38,6 +50,7 @@ watch(
       document.body.style.overflow = "";
       // Reset edit mode when closing
       editMode.value = false;
+      showDeleteConfirm.value = false;
     }
   }
 );
@@ -73,6 +86,7 @@ function startEditing() {
 function cancelEditing() {
   editedAnalysis.value = analysis.value || "";
   editMode.value = false;
+  error.value = null;
 }
 
 async function saveAnalysis() {
@@ -91,53 +105,46 @@ async function saveAnalysis() {
   }
 }
 
-// Simple markdown to HTML conversion (basic)
+async function deleteAnalysis() {
+  if (deleting.value) return;
+
+  deleting.value = true;
+  error.value = null;
+  try {
+    await api.delete(`/books/${props.bookId}/analysis`);
+    analysis.value = null;
+    editedAnalysis.value = "";
+    showDeleteConfirm.value = false;
+    // Update the book's has_analysis flag
+    if (booksStore.currentBook) {
+      booksStore.currentBook.has_analysis = false;
+    }
+    emit("deleted");
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || e.message || "Failed to delete analysis.";
+  } finally {
+    deleting.value = false;
+  }
+}
+
+// Render markdown to sanitized HTML
+function renderMarkdown(markdown: string): string {
+  if (!markdown) return "";
+  const rawHtml = marked(markdown) as string;
+  return DOMPurify.sanitize(rawHtml);
+}
+
+// Computed property for rendered analysis (view mode)
 const formattedAnalysis = computed(() => {
   if (!analysis.value) return "";
+  return renderMarkdown(analysis.value);
+});
 
-  let html = analysis.value
-    // Headers
-    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-2 text-gray-800">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-3 text-gray-900">$1</h2>')
-    .replace(
-      /^# (.+)$/gm,
-      '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900 border-b pb-2">$1</h1>'
-    )
-    // Bold and italic
-    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    // Code blocks
-    .replace(
-      /```(\w*)\n([\s\S]*?)```/g,
-      '<pre class="bg-gray-100 p-4 rounded my-4 overflow-x-auto"><code>$2</code></pre>'
-    )
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
-    // Lists
-    .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4">$2</li>')
-    // Horizontal rules
-    .replace(/^---$/gm, '<hr class="my-6 border-gray-300">')
-    // Blockquotes
-    .replace(
-      /^> (.+)$/gm,
-      '<blockquote class="border-l-4 border-gray-300 pl-4 my-4 text-gray-600">$1</blockquote>'
-    )
-    // Line breaks - convert double newlines to paragraphs
-    .replace(/\n\n/g, '</p><p class="my-3">')
-    // Single newlines to <br>
-    .replace(/\n/g, "<br>");
-
-  // Wrap in paragraph
-  html = '<p class="my-3">' + html + "</p>";
-
-  // Clean up empty paragraphs
-  html = html.replace(/<p class="my-3"><\/p>/g, "");
-
-  // Wrap list items in ul/ol
-  html = html.replace(/(<li class="ml-4">.+?<\/li>)+/g, '<ul class="list-disc my-3">$&</ul>');
-
-  return html;
+// Computed property for live preview (edit mode)
+const previewHtml = computed(() => {
+  if (!editedAnalysis.value)
+    return '<p class="text-gray-400 italic">Start typing to see preview...</p>';
+  return renderMarkdown(editedAnalysis.value);
 });
 
 function handleBackdropClick(e: MouseEvent) {
@@ -145,18 +152,43 @@ function handleBackdropClick(e: MouseEvent) {
     emit("close");
   }
 }
+
+// Keyboard shortcuts
+function handleKeydown(e: KeyboardEvent) {
+  if (editMode.value && e.metaKey && e.key === "s") {
+    e.preventDefault();
+    saveAnalysis();
+  }
+  if (e.key === "Escape") {
+    if (showDeleteConfirm.value) {
+      showDeleteConfirm.value = false;
+    } else if (editMode.value) {
+      cancelEditing();
+    } else {
+      emit("close");
+    }
+  }
+}
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="slide">
-      <div v-if="visible" class="fixed inset-0 z-50 flex" @click="handleBackdropClick">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-50 flex"
+        @click="handleBackdropClick"
+        @keydown="handleKeydown"
+      >
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50" />
 
-        <!-- Panel -->
+        <!-- Panel - wider in edit mode -->
         <div
-          class="relative ml-auto w-full max-w-3xl bg-white shadow-xl h-full overflow-hidden flex flex-col"
+          :class="[
+            'relative ml-auto bg-white shadow-xl h-full overflow-hidden flex flex-col transition-all duration-300',
+            editMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl',
+          ]"
         >
           <!-- Header -->
           <div class="flex items-center justify-between px-6 py-4 border-b bg-victorian-cream">
@@ -164,9 +196,36 @@ function handleBackdropClick(e: MouseEvent) {
               {{ editMode ? "Edit Analysis" : "Book Analysis" }}
             </h2>
             <div class="flex items-center gap-2">
-              <!-- Edit/Save buttons for editors -->
+              <!-- Edit mode controls -->
               <template v-if="canEdit && !loading">
                 <template v-if="editMode">
+                  <!-- Preview toggle -->
+                  <button
+                    @click="showPreview = !showPreview"
+                    :class="[
+                      'px-3 py-1.5 text-sm rounded flex items-center gap-1',
+                      showPreview
+                        ? 'bg-gray-200 text-gray-700'
+                        : 'text-gray-500 hover:text-gray-700',
+                    ]"
+                    title="Toggle preview"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                    Preview
+                  </button>
                   <button
                     @click="cancelEditing"
                     :disabled="saving"
@@ -212,6 +271,22 @@ function handleBackdropClick(e: MouseEvent) {
                     </svg>
                     Edit
                   </button>
+                  <!-- Delete button (only if analysis exists) -->
+                  <button
+                    v-if="analysis"
+                    @click="showDeleteConfirm = true"
+                    class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+                    title="Delete analysis"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
                 </template>
               </template>
               <button @click="emit('close')" class="text-gray-500 hover:text-gray-700 ml-2">
@@ -227,15 +302,69 @@ function handleBackdropClick(e: MouseEvent) {
             </div>
           </div>
 
+          <!-- Delete confirmation modal -->
+          <div
+            v-if="showDeleteConfirm"
+            class="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
+          >
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Analysis?</h3>
+              <p class="text-gray-600 mb-4">
+                This will permanently delete the analysis for this book. This action cannot be
+                undone.
+              </p>
+              <div
+                v-if="error"
+                class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+              >
+                {{ error }}
+              </div>
+              <div class="flex justify-end gap-3">
+                <button
+                  @click="showDeleteConfirm = false"
+                  :disabled="deleting"
+                  class="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="deleteAnalysis"
+                  :disabled="deleting"
+                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <svg v-if="deleting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  {{ deleting ? "Deleting..." : "Delete" }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Content -->
-          <div class="flex-1 overflow-y-auto p-6">
+          <div class="flex-1 overflow-hidden">
             <!-- Loading -->
-            <div v-if="loading" class="text-center py-12">
+            <div v-if="loading" class="h-full flex items-center justify-center">
               <p class="text-gray-500">Loading analysis...</p>
             </div>
 
-            <!-- Error -->
-            <div v-else-if="error && !editMode" class="text-center py-12">
+            <!-- Error (not in edit mode) -->
+            <div
+              v-else-if="error && !editMode"
+              class="h-full flex flex-col items-center justify-center p-6"
+            >
               <p class="text-gray-500">{{ error }}</p>
               <button
                 v-if="canEdit && !analysis"
@@ -246,33 +375,67 @@ function handleBackdropClick(e: MouseEvent) {
               </button>
             </div>
 
-            <!-- Edit Mode -->
+            <!-- Edit Mode - Split pane -->
             <div v-else-if="editMode" class="h-full flex flex-col">
               <div
                 v-if="error"
-                class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
               >
                 {{ error }}
               </div>
-              <textarea
-                v-model="editedAnalysis"
-                class="flex-1 w-full p-4 border border-gray-300 rounded font-mono text-sm resize-none focus:ring-2 focus:ring-victorian-burgundy focus:border-transparent"
-                placeholder="Enter markdown analysis..."
-              ></textarea>
-              <p class="mt-2 text-xs text-gray-500">
-                Supports Markdown formatting: # headers, **bold**, *italic*, - lists, etc.
-              </p>
+              <div class="flex-1 flex overflow-hidden">
+                <!-- Editor pane -->
+                <div :class="['flex flex-col', showPreview ? 'w-1/2 border-r' : 'w-full']">
+                  <div class="px-4 py-2 bg-gray-50 border-b text-xs text-gray-500 font-medium">
+                    MARKDOWN
+                  </div>
+                  <textarea
+                    v-model="editedAnalysis"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none"
+                    placeholder="Enter markdown analysis...
+
+# Executive Summary
+Brief overview of the item...
+
+## Condition Assessment
+Detailed condition notes...
+
+## Market Analysis
+| Comparable | Price | Source |
+|------------|-------|--------|
+| Similar item | $500 | AbeBooks |
+
+## Recommendations
+- Point 1
+- Point 2"
+                  ></textarea>
+                </div>
+                <!-- Preview pane -->
+                <div v-if="showPreview" class="w-1/2 flex flex-col overflow-hidden">
+                  <div class="px-4 py-2 bg-gray-50 border-b text-xs text-gray-500 font-medium">
+                    PREVIEW
+                  </div>
+                  <div class="flex-1 overflow-y-auto p-6">
+                    <article class="analysis-content" v-html="previewHtml" />
+                  </div>
+                </div>
+              </div>
+              <div class="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500 flex justify-between">
+                <span
+                  >Supports GitHub Flavored Markdown: # headers, **bold**, *italic*, - lists, |
+                  tables |</span
+                >
+                <span class="text-gray-400">⌘S to save • Esc to cancel</span>
+              </div>
             </div>
 
             <!-- View Mode - Analysis content -->
-            <article
-              v-else-if="analysis"
-              class="prose prose-sm max-w-none text-gray-700"
-              v-html="formattedAnalysis"
-            />
+            <div v-else-if="analysis" class="h-full overflow-y-auto p-6">
+              <article class="analysis-content" v-html="formattedAnalysis" />
+            </div>
 
             <!-- No analysis but can create -->
-            <div v-else-if="canEdit" class="text-center py-12">
+            <div v-else-if="canEdit" class="h-full flex flex-col items-center justify-center p-6">
               <p class="text-gray-500 mb-4">No analysis available for this book.</p>
               <button
                 @click="startEditing"
@@ -307,5 +470,95 @@ function handleBackdropClick(e: MouseEvent) {
 .slide-enter-from > div:first-child,
 .slide-leave-to > div:first-child {
   opacity: 0;
+}
+
+/* Analysis content styling - applied to rendered markdown */
+.analysis-content {
+  @apply text-gray-700 leading-relaxed;
+}
+
+.analysis-content :deep(h1) {
+  @apply text-2xl font-bold mt-8 mb-4 text-gray-900 border-b pb-2;
+}
+
+.analysis-content :deep(h2) {
+  @apply text-xl font-bold mt-8 mb-3 text-gray-900;
+}
+
+.analysis-content :deep(h3) {
+  @apply text-lg font-semibold mt-6 mb-2 text-gray-800;
+}
+
+.analysis-content :deep(h4) {
+  @apply text-base font-semibold mt-4 mb-2 text-gray-800;
+}
+
+.analysis-content :deep(p) {
+  @apply my-3;
+}
+
+.analysis-content :deep(ul) {
+  @apply list-disc ml-6 my-3;
+}
+
+.analysis-content :deep(ol) {
+  @apply list-decimal ml-6 my-3;
+}
+
+.analysis-content :deep(li) {
+  @apply my-1;
+}
+
+.analysis-content :deep(strong) {
+  @apply font-semibold;
+}
+
+.analysis-content :deep(em) {
+  @apply italic;
+}
+
+.analysis-content :deep(code) {
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.analysis-content :deep(pre) {
+  @apply bg-gray-100 p-4 rounded my-4 overflow-x-auto;
+}
+
+.analysis-content :deep(pre code) {
+  @apply bg-transparent p-0;
+}
+
+.analysis-content :deep(blockquote) {
+  @apply border-l-4 border-gray-300 pl-4 my-4 text-gray-600 italic;
+}
+
+.analysis-content :deep(hr) {
+  @apply my-6 border-gray-300;
+}
+
+.analysis-content :deep(a) {
+  @apply text-victorian-burgundy hover:underline;
+}
+
+/* Table styling - critical for Napoleon-style analyses */
+.analysis-content :deep(table) {
+  @apply w-full my-4 border-collapse text-sm;
+}
+
+.analysis-content :deep(thead) {
+  @apply bg-gray-100;
+}
+
+.analysis-content :deep(th) {
+  @apply px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300;
+}
+
+.analysis-content :deep(td) {
+  @apply px-3 py-2 border border-gray-300;
+}
+
+.analysis-content :deep(tr:nth-child(even)) {
+  @apply bg-gray-50;
 }
 </style>
