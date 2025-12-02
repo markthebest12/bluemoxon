@@ -181,76 +181,57 @@ function formatDate(dateStr: string | null): string {
 
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
-      <div v-else class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+      <div v-else class="space-y-3">
+        <div
+          v-for="user in adminStore.users"
+          :key="user.id"
+          class="bg-white rounded-lg shadow p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-gray-900 truncate">{{ user.email }}</div>
+              <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
+            </div>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <select
+                :value="user.role"
+                @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
+                class="text-sm border rounded px-2 py-1"
+                :class="{
+                  'bg-purple-100 text-purple-800': user.role === 'admin',
+                  'bg-blue-100 text-blue-800': user.role === 'editor',
+                  'bg-gray-100 text-gray-800': user.role === 'viewer',
+                }"
               >
-                Email
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Role
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="user in adminStore.users" :key="user.id">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">{{ user.email }}</div>
-                <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <select
-                  :value="user.role"
-                  @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
-                  class="text-sm border rounded px-2 py-1"
-                  :class="{
-                    'bg-purple-100 text-purple-800': user.role === 'admin',
-                    'bg-blue-100 text-blue-800': user.role === 'editor',
-                    'bg-gray-100 text-gray-800': user.role === 'viewer',
-                  }"
-                >
-                  <option value="viewer">Viewer</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+              <div v-if="confirmDeleteUser !== user.id">
                 <button
-                  v-if="confirmDeleteUser !== user.id"
                   @click="confirmDeleteUser = user.id"
-                  class="text-red-600 hover:text-red-800"
+                  class="text-red-600 hover:text-red-800 text-sm"
                 >
                   Delete
                 </button>
-                <div v-else class="flex items-center gap-2">
-                  <span class="text-red-600 text-xs">Confirm?</span>
-                  <button
-                    @click="deleteUser(user.id)"
-                    class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    @click="confirmDeleteUser = null"
-                    class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                  >
-                    No
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+              <div v-else class="flex items-center gap-2">
+                <button
+                  @click="deleteUser(user.id)"
+                  class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                >
+                  Yes
+                </button>
+                <button
+                  @click="confirmDeleteUser = null"
+                  class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
