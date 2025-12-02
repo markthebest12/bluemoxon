@@ -284,9 +284,7 @@ def get_user_mfa_status(
 
         # Also check pool-level MFA config - if MFA is required and user is CONFIRMED,
         # they have MFA set up (even if UserMFASettingList is empty)
-        pool_mfa_config = cognito.get_user_pool_mfa_config(
-            UserPoolId=settings.cognito_user_pool_id
-        )
+        pool_mfa_config = cognito.get_user_pool_mfa_config(UserPoolId=settings.cognito_user_pool_id)
         mfa_required = pool_mfa_config.get("MfaConfiguration") == "ON"
         user_confirmed = user_response.get("UserStatus") == "CONFIRMED"
 
@@ -297,7 +295,9 @@ def get_user_mfa_status(
             "user_id": user_id,
             "email": user.email,
             "mfa_enabled": mfa_enabled,
-            "mfa_methods": mfa_options if mfa_options else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
+            "mfa_methods": mfa_options
+            if mfa_options
+            else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
             "pool_mfa_required": mfa_required,
         }
     except ClientError as e:
