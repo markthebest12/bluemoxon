@@ -44,7 +44,8 @@ This document tracks planned features, improvements, and technical debt for the 
 | ✅ DONE - View/edit modes for ownership history, inscriptions, bookplates on book detail page | | | | |
 | **Analysis Management UI** | `book_analyses` table exists but no frontend UI to create/edit (only read from import) | Medium | Medium | |
 | **Image Gallery Lightbox** | Book detail shows images but no full-screen viewer | Medium | Low | ✅ DONE |
-| **Image Drag-and-Drop Reordering** | `display_order` exists in database but no UI to reorder | Low | Medium | |
+| ~~**Image Drag-and-Drop Reordering**~~ | ~~`display_order` exists in database but no UI to reorder~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
+| ✅ DONE - Drag-and-drop interface for reordering book images with display_order persistence | | | | |
 | ~~**Advanced Filtering**~~ | ~~Filter by: binder, publisher tier, binding type, condition grade, date range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ✅ DONE - Expanded filter panel with: bindery, publisher, publisher tier, binding type, premium binding, condition grade, status, images, analysis, year range, value range | | | | |
 

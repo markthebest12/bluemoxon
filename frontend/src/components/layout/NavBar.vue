@@ -44,11 +44,11 @@ function closeDropdown() {
             Collection
           </RouterLink>
           <RouterLink
-            to="/search"
+            to="/reports/insurance"
             class="hover:text-moxon-200 transition-colors"
             active-class="text-moxon-200"
           >
-            Search
+            Reports
           </RouterLink>
         </div>
 
