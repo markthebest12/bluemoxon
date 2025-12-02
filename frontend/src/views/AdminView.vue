@@ -263,9 +263,11 @@ function formatDate(dateStr: string | null): string {
 
       <div v-else class="space-y-3">
         <div v-for="user in adminStore.users" :key="user.id" class="bg-white rounded-lg shadow p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-medium text-gray-900 truncate">{{ user.email }}</div>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-gray-900 break-all sm:truncate">
+                {{ user.email }}
+              </div>
               <div class="text-xs text-gray-500">
                 ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
@@ -274,7 +276,7 @@ function formatDate(dateStr: string | null): string {
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
               <select
                 :value="user.role"
                 @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
