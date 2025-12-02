@@ -72,6 +72,10 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
+[tool.ruff.lint.per-file-ignores]
+# migrate.py has unusual import structure due to sys.path manipulation for Lambda
+"app/migrate.py" = ["I001"]
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
