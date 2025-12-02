@@ -7,6 +7,8 @@ interface User {
   cognito_sub: string;
   email: string;
   role: string;
+  first_name?: string | null;
+  last_name?: string | null;
   mfa_enabled?: boolean;
 }
 

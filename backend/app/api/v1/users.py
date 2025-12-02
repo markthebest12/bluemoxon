@@ -249,6 +249,8 @@ def list_users(
             "cognito_sub": u.cognito_sub,
             "email": u.email,
             "role": u.role,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
         }
         for u in users
     ]

@@ -266,10 +266,10 @@ function formatDate(dateStr: string | null): string {
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div class="min-w-0">
               <div class="text-sm font-medium text-gray-900 break-all sm:truncate">
-                {{ user.email }}
+                {{ user.first_name || user.email }}
               </div>
-              <div class="text-xs text-gray-500">
-                ID: {{ user.id }}
+              <div class="text-xs text-gray-500 break-all sm:truncate">
+                {{ user.first_name ? user.email : "" }} ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
                   <span v-if="user.mfa_enabled" class="text-green-600">MFA On</span>
                   <span v-else class="text-amber-600">MFA Off</span>
