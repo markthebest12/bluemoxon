@@ -119,55 +119,62 @@ function closeCarousel() {
 <template>
   <div>
     <!-- Header with Search -->
-    <div class="flex flex-col gap-4 mb-6">
+    <div class="flex flex-col gap-3 mb-4 sm:mb-6">
       <!-- Title row -->
-      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Book Collection</h1>
-        <RouterLink
-          to="/books/new"
-          class="btn-primary whitespace-nowrap text-sm sm:text-base px-3 sm:px-4 self-start sm:self-auto"
-        >
-          + Add Book
+      <div class="flex justify-between items-center">
+        <h1 class="text-xl sm:text-3xl font-bold text-gray-800">Collection</h1>
+        <RouterLink to="/books/new" class="btn-primary text-sm px-3 py-1.5 sm:px-4 sm:py-2">
+          + Add
         </RouterLink>
       </div>
 
-      <!-- Search bar -->
-      <div class="flex gap-2">
-        <div class="relative flex-1">
-          <svg
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      <!-- Search bar - stacked on mobile -->
+      <div class="flex flex-col sm:flex-row gap-2">
+        <div class="relative flex-1 flex gap-2">
+          <div class="relative flex-1">
+            <svg
+              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              v-model="booksStore.filters.q"
+              type="text"
+              placeholder="Search..."
+              class="input pl-9 sm:pl-10 w-full text-sm sm:text-base"
+              @keyup.enter="booksStore.setFilters(booksStore.filters)"
             />
-          </svg>
-          <input
-            v-model="booksStore.filters.q"
-            type="text"
-            placeholder="Search books, authors, notes..."
-            class="input pl-10 w-full"
-            @keyup.enter="booksStore.setFilters(booksStore.filters)"
-          />
+          </div>
+          <button
+            @click="booksStore.setFilters(booksStore.filters)"
+            class="btn-primary px-3 sm:px-4 text-sm"
+            :disabled="booksStore.loading"
+          >
+            <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <span class="hidden sm:inline">Search</span>
+          </button>
         </div>
-        <button
-          @click="booksStore.setFilters(booksStore.filters)"
-          class="btn-primary px-4"
-          :disabled="booksStore.loading"
-        >
-          Search
-        </button>
         <select
           v-model="booksStore.filters.inventory_type"
           @change="booksStore.setFilters(booksStore.filters)"
-          class="input w-32 sm:w-40"
+          class="input text-sm sm:text-base w-full sm:w-40"
         >
-          <option value="">All</option>
+          <option value="">All Collections</option>
           <option value="PRIMARY">Primary</option>
           <option value="EXTENDED">Extended</option>
           <option value="FLAGGED">Flagged</option>
@@ -176,13 +183,13 @@ function closeCarousel() {
     </div>
 
     <!-- Filter & Sort Bar -->
-    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+    <div class="flex items-center gap-2 sm:gap-4 mb-4 sm:mb-6 p-2 sm:p-4 bg-gray-50 rounded-lg">
       <!-- Filter Toggle Button -->
       <button
         @click="showFilters = !showFilters"
-        class="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-100 transition-colors"
+        class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border rounded-lg hover:bg-gray-100 transition-colors text-sm"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -190,19 +197,39 @@ function closeCarousel() {
             d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
           />
         </svg>
-        Filters
+        <span class="hidden sm:inline">Filters</span>
         <span
           v-if="activeFilterCount > 0"
-          class="px-2 py-0.5 text-xs bg-moxon-600 text-white rounded-full"
+          class="px-1.5 py-0.5 text-xs bg-moxon-600 text-white rounded-full"
         >
           {{ activeFilterCount }}
         </span>
       </button>
 
-      <!-- Sort Options -->
+      <!-- Sort - Dropdown on mobile, buttons on desktop -->
       <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-600">Sort:</span>
-        <div class="flex gap-1">
+        <!-- Mobile: Sort dropdown -->
+        <select
+          v-model="booksStore.sortBy"
+          @change="booksStore.setSort(booksStore.sortBy, booksStore.sortOrder)"
+          class="sm:hidden input text-sm py-1.5"
+        >
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+        <button
+          @click="
+            booksStore.setSort(booksStore.sortBy, booksStore.sortOrder === 'asc' ? 'desc' : 'asc')
+          "
+          class="sm:hidden px-2 py-1.5 bg-white border rounded-lg text-sm"
+        >
+          {{ booksStore.sortOrder === "asc" ? "↑" : "↓" }}
+        </button>
+
+        <!-- Desktop: Sort buttons -->
+        <span class="hidden sm:inline text-sm text-gray-600">Sort:</span>
+        <div class="hidden sm:flex gap-1">
           <button
             v-for="option in sortOptions"
             :key="option.value"
@@ -223,7 +250,7 @@ function closeCarousel() {
       </div>
 
       <!-- Results count -->
-      <div class="ml-auto text-sm text-gray-600">{{ booksStore.total }} books</div>
+      <div class="ml-auto text-xs sm:text-sm text-gray-600">{{ booksStore.total }}</div>
     </div>
 
     <!-- Expandable Filter Panel -->
