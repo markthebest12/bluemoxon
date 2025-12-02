@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { api } from "@/services/api";
@@ -38,6 +38,21 @@ const deleteError = ref<string | null>(null);
 // Status management
 const statusOptions = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
 const updatingStatus = ref(false);
+
+// Computed property for back link that preserves filter state
+const backToCollectionLink = computed(() => {
+  const query: Record<string, string> = {};
+  if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
+    query.inventory_type = booksStore.filters.inventory_type;
+  }
+  if (booksStore.filters.q) {
+    query.q = booksStore.filters.q;
+  }
+  if (booksStore.filters.binding_authenticated !== undefined) {
+    query.binding_authenticated = String(booksStore.filters.binding_authenticated);
+  }
+  return { path: "/books", query };
+});
 
 // Provenance editing
 const provenanceEditing = ref(false);
@@ -240,7 +255,7 @@ function getStatusColor(status: string): string {
     <!-- Header -->
     <div class="mb-8">
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0">
-        <RouterLink to="/books" class="text-moxon-600 hover:text-moxon-800 inline-block">
+        <RouterLink :to="backToCollectionLink" class="text-moxon-600 hover:text-moxon-800 inline-block">
           &larr; Back to Collection
         </RouterLink>
         <div class="flex gap-2">
