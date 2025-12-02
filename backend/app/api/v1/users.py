@@ -271,20 +271,34 @@ def get_user_mfa_status(
 
     try:
         cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
-        response = cognito.admin_get_user(
+
+        # Get user info
+        user_response = cognito.admin_get_user(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
         )
 
-        # Check if TOTP MFA is enabled
-        mfa_options = response.get("UserMFASettingList", [])
-        totp_enabled = "SOFTWARE_TOKEN_MFA" in mfa_options
+        # Check if TOTP MFA is in user's settings
+        mfa_options = user_response.get("UserMFASettingList", [])
+        totp_in_settings = "SOFTWARE_TOKEN_MFA" in mfa_options
+
+        # Also check pool-level MFA config - if MFA is required and user is CONFIRMED,
+        # they have MFA set up (even if UserMFASettingList is empty)
+        pool_mfa_config = cognito.get_user_pool_mfa_config(
+            UserPoolId=settings.cognito_user_pool_id
+        )
+        mfa_required = pool_mfa_config.get("MfaConfiguration") == "ON"
+        user_confirmed = user_response.get("UserStatus") == "CONFIRMED"
+
+        # User has MFA if: it's in their settings OR (MFA is required AND they're confirmed)
+        mfa_enabled = totp_in_settings or (mfa_required and user_confirmed)
 
         return {
             "user_id": user_id,
             "email": user.email,
-            "mfa_enabled": totp_enabled,
-            "mfa_methods": mfa_options,
+            "mfa_enabled": mfa_enabled,
+            "mfa_methods": mfa_options if mfa_options else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
+            "pool_mfa_required": mfa_required,
         }
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
