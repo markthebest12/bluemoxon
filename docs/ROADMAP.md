@@ -41,7 +41,7 @@ This document tracks planned features, improvements, and technical debt for the 
 | **Role-Based Authorization** | Architecture defines admin/editor/viewer roles; `users.role` field exists but not enforced in API | Low | Medium | |
 | ~~**Book Status Management**~~ | ~~Color-coded dropdown selector on book detail page (ON_HAND, IN_TRANSIT, SOLD, REMOVED)~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
 | ~~**Provenance Tracking**~~ | ~~View/edit modes for ownership history, inscriptions, bookplates~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
-| **Analysis Management UI** | `book_analyses` table exists but no frontend UI to create/edit (only read from import) | Medium | Medium | |
+| ~~**Analysis Management UI**~~ | ~~Split-pane markdown editor with live preview, delete functionality~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Image Gallery Lightbox**~~ | ~~Full-screen image viewer on book detail~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
 | ~~**Image Drag-and-Drop Reordering**~~ | ~~Drag-and-drop interface for reordering images with display_order persistence~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Advanced Filtering**~~ | ~~Filter panel: bindery, publisher, tier, binding type, condition, status, year/value range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
@@ -62,6 +62,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Analysis Management UI** | Split-pane markdown editor with live GFM preview, delete functionality, keyboard shortcuts | ✅ DONE |
 | **Collection Statistics Dashboard** | Interactive charts: value growth, bindery distribution, era breakdown, top publishers | ✅ DONE |
 | **Image Upload/Delete** | Upload new images and delete existing from book detail page | ✅ DONE |
 | **User Profile Names** | Editable first/last name on user profiles | ✅ DONE |
@@ -316,7 +317,7 @@ on:
 | ~~Advanced Filtering~~ | Features | ~~Medium~~ | ~~Medium (usability)~~ | ✅ DONE |
 | ~~Image Gallery Lightbox~~ | Features | ~~Low~~ | ~~Medium (UX improvement)~~ | ✅ DONE |
 | ~~Vitest Frontend Tests~~ | Testing | ~~Medium~~ | ~~Medium (code quality)~~ | ✅ DONE |
-| Analysis Management UI | Features | Medium | Medium (content editing) | |
+| ~~Analysis Management UI~~ | ~~Features~~ | ~~Medium~~ | ~~Medium (content editing)~~ | ✅ DONE |
 | ~~Collection Statistics Dashboard~~ | Features | ~~Medium~~ | ~~Medium (insights)~~ | ✅ DONE |
 
 ### Low Priority (Nice to Have)

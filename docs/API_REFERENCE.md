@@ -354,10 +354,49 @@ The analysis can be edited directly in the BlueMoxon web interface:
 1. Navigate to a book's detail page
 2. Click the document icon to open the Analysis Viewer
 3. Click the **Edit** button in the header (visible only to editors/admins)
-4. Edit the markdown content in the textarea
-5. Click **Save** to persist changes
+4. Edit markdown in the **split-pane editor** with live preview
+5. Click **Save** to persist changes (or press ⌘S)
+
+Features:
+- **Split-pane editor**: Left side for markdown, right side for live preview
+- **Toggle preview**: Click the eye icon to hide/show preview pane
+- **Full GFM support**: Tables, code blocks, lists, and all GitHub Flavored Markdown
+- **Keyboard shortcuts**: ⌘S to save, Esc to cancel
 
 For books without an analysis, editors will see a **Create Analysis** button.
+
+---
+
+### Delete Analysis
+```
+DELETE /books/{book_id}/analysis
+```
+
+**Authentication Required:** Editor or Admin role
+
+Permanently deletes the analysis for a book.
+
+Example:
+```bash
+curl -X DELETE "http://localhost:8000/api/v1/books/407/analysis" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+```json
+{
+  "message": "Analysis deleted"
+}
+```
+
+Error Responses:
+- 401 Unauthorized - Not authenticated
+- 403 Forbidden - User does not have editor or admin role
+- 404 Not Found - Book not found or no analysis to delete
+
+**Frontend Usage:**
+
+In the Analysis Viewer panel, editors/admins will see a trash icon button next to the Edit button. Clicking it shows a confirmation modal before deletion.
 
 ---
 
@@ -1178,7 +1217,8 @@ Most write operations require **editor** or **admin** role:
 - `DELETE /books/{id}` - Delete book
 - `POST /books/{id}/images` - Upload image
 - `PUT /books/{id}/images/reorder` - Reorder images
-- `PUT /books/{id}/analysis` - Update analysis
+- `PUT /books/{id}/analysis` - Create/update analysis
+- `DELETE /books/{id}/analysis` - Delete analysis
 
 Admin-only operations:
 - All `/users/*` endpoints
