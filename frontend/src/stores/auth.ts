@@ -45,7 +45,8 @@ export const useAuthStore = defineStore("auth", () => {
       // Check if user has MFA set up
       try {
         const mfaPreference = await fetchMFAPreference();
-        const hasMfa = mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
+        const hasMfa =
+          mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
         if (!hasMfa) {
           // User needs to set up MFA
           mfaStep.value = "mfa_setup_required";
