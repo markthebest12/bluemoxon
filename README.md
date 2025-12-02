@@ -41,47 +41,36 @@ bluemoxon/
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- Docker
 - Poetry (`curl -sSL https://install.python-poetry.org | python3 -`)
+- Docker (optional - only for local database debugging)
 
-### Local Development
+### Local Development (Minimal)
 
-**One-command setup** (if using profile-scripts):
+**No Docker required for daily work.** Tests use SQLite, auth is mocked.
+
 ```bash
-source ~/.zshrc
-bmx-setup
+# Frontend (hot reload)
+cd frontend && npm install && npm run dev
+
+# Backend tests (uses SQLite in-memory)
+cd backend && poetry install && poetry run pytest
+
+# Linting (runs automatically via pre-commit)
+poetry run ruff check . && npm run lint
 ```
 
-**Manual setup:**
-```bash
-# Start PostgreSQL
-docker-compose up -d postgres
+Push to a branch and let CI validate against real AWS services.
 
-# Backend (Terminal 1)
+### Full Local Stack (Optional)
+
+Only needed when debugging PostgreSQL-specific issues:
+
+```bash
+docker-compose up -d postgres
 cd backend
-cp .env.example .env
-poetry install
 poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
-
-# Frontend (Terminal 2)
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
 ```
-
-### Shell Aliases (via profile-scripts)
-
-| Alias | Description |
-|-------|-------------|
-| `bmx` | cd to bluemoxon |
-| `bmx-api` | Start backend server |
-| `bmx-web` | Start frontend server |
-| `bmx-db-start` | Start PostgreSQL container |
-| `bmx-db-stop` | Stop PostgreSQL container |
-| `bmx-db-psql` | Connect to database |
-| `bmx-migrate` | Run Alembic migrations |
 
 ### Local URLs
 - **Frontend:** http://localhost:5173
