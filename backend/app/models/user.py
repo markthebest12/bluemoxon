@@ -18,4 +18,5 @@ class User(Base, TimestampMixin):
     last_name: Mapped[str | None] = mapped_column(String(100))
     display_name: Mapped[str | None] = mapped_column(String(100))  # Deprecated, use first_name
     role: Mapped[str] = mapped_column(String(20), default="viewer")  # admin, editor, viewer
+    mfa_exempt: Mapped[bool] = mapped_column(default=False)  # If True, user can skip MFA
     preferences: Mapped[dict | None] = mapped_column(JSON, default=dict)  # JSON for cross-DB

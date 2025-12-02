@@ -8,6 +8,7 @@ interface User {
   role: string;
   first_name?: string;
   last_name?: string;
+  mfa_exempt?: boolean;
 }
 
 type MfaStep =
@@ -42,23 +43,9 @@ export const useAuthStore = defineStore("auth", () => {
         role: "viewer", // Default, will be updated from API
       };
 
-      // Check if user has MFA set up
-      try {
-        const mfaPreference = await fetchMFAPreference();
-        const hasMfa =
-          mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
-        if (!hasMfa) {
-          // User needs to set up MFA
-          mfaStep.value = "mfa_setup_required";
-        } else {
-          mfaStep.value = "none";
-        }
-      } catch (e) {
-        console.warn("Could not fetch MFA preference:", e);
-        mfaStep.value = "none";
-      }
-
-      // Fetch actual role and profile from our backend database
+      // Fetch actual role and profile from our backend database FIRST
+      // (we need mfa_exempt before deciding on MFA requirement)
+      let isMfaExempt = false;
       try {
         const response = await api.get("/users/me");
         if (response.data.role) {
@@ -70,8 +57,31 @@ export const useAuthStore = defineStore("auth", () => {
         if (response.data.last_name) {
           user.value.last_name = response.data.last_name;
         }
+        isMfaExempt = response.data.mfa_exempt === true;
+        user.value.mfa_exempt = isMfaExempt;
       } catch (e) {
         console.warn("Could not fetch user profile from API:", e);
+      }
+
+      // Check if user has MFA set up (skip if MFA-exempt)
+      if (!isMfaExempt) {
+        try {
+          const mfaPreference = await fetchMFAPreference();
+          const hasMfa =
+            mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
+          if (!hasMfa) {
+            // User needs to set up MFA
+            mfaStep.value = "mfa_setup_required";
+          } else {
+            mfaStep.value = "none";
+          }
+        } catch (e) {
+          console.warn("Could not fetch MFA preference:", e);
+          mfaStep.value = "none";
+        }
+      } else {
+        // User is MFA-exempt, skip MFA check
+        mfaStep.value = "none";
       }
     } catch {
       user.value = null;
