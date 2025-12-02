@@ -182,11 +182,7 @@ function formatDate(dateStr: string | null): string {
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
       <div v-else class="space-y-3">
-        <div
-          v-for="user in adminStore.users"
-          :key="user.id"
-          class="bg-white rounded-lg shadow p-4"
-        >
+        <div v-for="user in adminStore.users" :key="user.id" class="bg-white rounded-lg shadow p-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-sm font-medium text-gray-900 truncate">{{ user.email }}</div>
