@@ -53,7 +53,7 @@ This document tracks planned features, improvements, and technical debt for the 
 |---------|-------------|----------|--------|--------|
 | ~~**Collection Statistics Dashboard**~~ | ~~Value growth chart, premium bindings distribution, era breakdown, top publishers~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Insurance/Export Reports**~~ | ~~Insurance valuation report with CSV export, report type selector (Primary/Extended/Full)~~ | ~~Low~~ | ~~High~~ | ✅ DONE |
-| **PDF Catalog Generation** | Printable PDF catalog with images | Low | High | |
+| **Add Images to Insurance Report** | Include book thumbnails in printable report | Low | Low | |
 | **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
 | ~~**Mobile Responsive Improvements**~~ | ~~Tailwind responsive classes across all views, touch support for modals~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
 
@@ -350,7 +350,7 @@ on:
 | Audit Logging | Features | Medium | Low (internal use) | |
 | ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
 | ~~Insurance/Export Reports~~ | Features | ~~High~~ | ~~Low (occasional need)~~ | ✅ DONE |
-| PDF Catalog Generation | Features | High | Low (occasional need) | |
+| Add Images to Insurance Report | Features | Low | Low (occasional need) | |
 | ~~Mobile Responsive~~ | ~~Features~~ | ~~Medium~~ | ~~Low (desktop primary)~~ | ✅ DONE |
 
 ---
