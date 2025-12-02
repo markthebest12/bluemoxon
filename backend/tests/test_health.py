@@ -73,7 +73,7 @@ class TestDeepHealthCheck:
         db_check = data["checks"]["database"]
         if db_check["status"] == "healthy":
             assert "latency_ms" in db_check
-            assert isinstance(db_check["latency_ms"], (int, float))
+            assert isinstance(db_check["latency_ms"], int | float)
 
     def test_deep_health_overall_status_logic(self, client):
         """Test overall status reflects component statuses."""
