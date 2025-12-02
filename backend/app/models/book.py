@@ -80,8 +80,20 @@ class Book(Base, TimestampMixin):
     author = relationship("Author", back_populates="books")
     publisher = relationship("Publisher", back_populates="books")
     binder = relationship("Binder", back_populates="books")
-    analysis = relationship("BookAnalysis", back_populates="book", uselist=False)
-    images = relationship("BookImage", back_populates="book", order_by="BookImage.display_order")
+    analysis = relationship(
+        "BookAnalysis",
+        back_populates="book",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    images = relationship(
+        "BookImage",
+        back_populates="book",
+        order_by="BookImage.display_order",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         Index("books_inventory_type_idx", "inventory_type"),
