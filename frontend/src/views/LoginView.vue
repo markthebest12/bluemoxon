@@ -63,8 +63,8 @@ async function handleNewPasswordSubmit() {
     return;
   }
 
-  if (newPassword.value.length < 12) {
-    localError.value = "Password must be at least 12 characters";
+  if (newPassword.value.length < 8) {
+    localError.value = "Password must be at least 8 characters";
     return;
   }
 
@@ -79,10 +79,6 @@ async function handleNewPasswordSubmit() {
   }
   if (!/[0-9]/.test(newPassword.value)) {
     localError.value = "Password must contain at least one number";
-    return;
-  }
-  if (!/[^A-Za-z0-9]/.test(newPassword.value)) {
-    localError.value = "Password must contain at least one symbol";
     return;
   }
 
@@ -182,7 +178,7 @@ function resetLogin() {
               v-model="newPassword"
               type="password"
               required
-              minlength="12"
+              minlength="8"
               class="input"
               placeholder="Enter new password"
             />
@@ -197,7 +193,7 @@ function resetLogin() {
               v-model="confirmPassword"
               type="password"
               required
-              minlength="12"
+              minlength="8"
               class="input"
               placeholder="Confirm new password"
             />
@@ -206,17 +202,16 @@ function resetLogin() {
           <div class="text-xs text-gray-500 space-y-1">
             <p class="font-medium">Password requirements:</p>
             <ul class="list-disc list-inside">
-              <li>At least 12 characters</li>
+              <li>At least 8 characters</li>
               <li>Uppercase and lowercase letters</li>
               <li>At least one number</li>
-              <li>At least one symbol</li>
             </ul>
           </div>
 
           <button
             type="submit"
             class="btn-primary w-full"
-            :disabled="authStore.loading || newPassword.length < 12 || confirmPassword.length < 12"
+            :disabled="authStore.loading || newPassword.length < 8 || confirmPassword.length < 8"
           >
             {{ authStore.loading ? "Setting password..." : "Set Password" }}
           </button>

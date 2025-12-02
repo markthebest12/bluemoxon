@@ -46,11 +46,11 @@ class AuthStack(Stack):
                 otp=True,  # TOTP only
             ),
             password_policy=cognito.PasswordPolicy(
-                min_length=12,
+                min_length=8,
                 require_lowercase=True,
                 require_uppercase=True,
                 require_digits=True,
-                require_symbols=True,
+                require_symbols=False,
                 temp_password_validity=Duration.days(7),
             ),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,

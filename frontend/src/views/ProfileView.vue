@@ -48,8 +48,8 @@ async function handleChangePassword() {
     return;
   }
 
-  if (newPassword.value.length < 12) {
-    error.value = "Password must be at least 12 characters";
+  if (newPassword.value.length < 8) {
+    error.value = "Password must be at least 8 characters";
     return;
   }
 
@@ -68,7 +68,7 @@ async function handleChangePassword() {
     if (e.name === "NotAuthorizedException") {
       error.value = "Current password is incorrect";
     } else if (e.name === "InvalidPasswordException") {
-      error.value = "Password does not meet requirements (12+ chars, upper, lower, number, symbol)";
+      error.value = "Password does not meet requirements (8+ chars, upper, lower, number)";
     } else {
       error.value = e.message || "Failed to change password";
     }
@@ -177,12 +177,12 @@ async function handleChangePassword() {
             v-model="newPassword"
             type="password"
             required
-            minlength="12"
+            minlength="8"
             class="input"
             autocomplete="new-password"
           />
           <p class="text-xs text-gray-500 mt-1">
-            At least 12 characters with uppercase, lowercase, number, and symbol
+            At least 8 characters with uppercase, lowercase, and number
           </p>
         </div>
 
