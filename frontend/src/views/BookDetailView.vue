@@ -432,6 +432,18 @@ function getStatusColor(status: string): string {
               <p class="text-gray-500">High</p>
             </div>
           </div>
+          <!-- Purchase Price -->
+          <div
+            v-if="booksStore.currentBook.purchase_price"
+            class="mt-4 pt-4 border-t border-gray-200"
+          >
+            <div class="text-center">
+              <p class="text-xl font-semibold text-gray-700">
+                {{ formatCurrency(booksStore.currentBook.purchase_price) }}
+              </p>
+              <p class="text-sm text-gray-500">Purchase Price</p>
+            </div>
+          </div>
         </div>
 
         <div v-if="booksStore.currentBook.purchase_price" class="card">
