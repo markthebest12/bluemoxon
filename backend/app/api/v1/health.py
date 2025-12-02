@@ -107,6 +107,13 @@ def check_cognito() -> dict[str, Any]:
         }
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        # AccessDeniedException is an IAM issue, not a service health issue
+        if error_code == "AccessDeniedException":
+            return {
+                "status": "skipped",
+                "reason": "IAM permissions not configured for Cognito describe",
+                "latency_ms": round((time.time() - start) * 1000, 2),
+            }
         return {
             "status": "unhealthy",
             "error": error_code,
