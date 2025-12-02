@@ -68,19 +68,43 @@ onMounted(async () => {
   } else {
     booksStore.filters.inventory_type = "PRIMARY";
   }
+  if (route.query.q) {
+    booksStore.filters.q = route.query.q as string;
+  }
   if (route.query.binding_authenticated) {
     booksStore.filters.binding_authenticated = route.query.binding_authenticated === "true";
   }
   booksStore.fetchBooks();
 });
 
+// Sync filters to URL for back button support
+function updateUrlWithFilters() {
+  const query: Record<string, string> = {};
+
+  // Only add non-default values to URL
+  if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
+    query.inventory_type = booksStore.filters.inventory_type;
+  }
+  if (booksStore.filters.q) {
+    query.q = booksStore.filters.q;
+  }
+  if (booksStore.filters.binding_authenticated !== undefined) {
+    query.binding_authenticated = String(booksStore.filters.binding_authenticated);
+  }
+
+  // Replace current URL to preserve back button behavior
+  router.replace({ query });
+}
+
 function applyFilters() {
   booksStore.setFilters(booksStore.filters);
+  updateUrlWithFilters();
 }
 
 function clearFilters() {
   booksStore.filters = { inventory_type: booksStore.filters.inventory_type };
   booksStore.setFilters(booksStore.filters);
+  updateUrlWithFilters();
 }
 
 function toggleSort(field: string) {
@@ -150,11 +174,11 @@ function closeCarousel() {
               type="text"
               placeholder="Search..."
               class="input pl-9 sm:pl-10 w-full text-sm sm:text-base"
-              @keyup.enter="booksStore.setFilters(booksStore.filters)"
+              @keyup.enter="applyFilters"
             />
           </div>
           <button
-            @click="booksStore.setFilters(booksStore.filters)"
+            @click="applyFilters"
             class="btn-primary px-3 sm:px-4 text-sm"
             :disabled="booksStore.loading"
           >
@@ -171,7 +195,7 @@ function closeCarousel() {
         </div>
         <select
           v-model="booksStore.filters.inventory_type"
-          @change="booksStore.setFilters(booksStore.filters)"
+          @change="applyFilters"
           class="input text-sm sm:text-base w-full sm:w-40"
         >
           <option value="">All Collections</option>
