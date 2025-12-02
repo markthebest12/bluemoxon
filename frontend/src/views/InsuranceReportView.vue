@@ -68,9 +68,7 @@ const stats = computed(() => {
 
 // Sort books by value (highest first) for insurance report
 const sortedBooks = computed(() => {
-  return [...onHandBooks.value].sort(
-    (a, b) => Number(b.value_mid || 0) - Number(a.value_mid || 0)
-  );
+  return [...onHandBooks.value].sort((a, b) => Number(b.value_mid || 0) - Number(a.value_mid || 0));
 });
 
 // Format currency (handles string values from API Decimal fields)
