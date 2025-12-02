@@ -7,6 +7,13 @@ interface User {
   cognito_sub: string;
   email: string;
   role: string;
+  mfa_enabled?: boolean;
+}
+
+interface ImpersonationResult {
+  email: string;
+  temp_password: string;
+  note: string;
 }
 
 interface APIKey {
@@ -144,12 +151,78 @@ export const useAdminStore = defineStore("admin", () => {
     newlyCreatedKey.value = null;
   }
 
+  // MFA management
+  const impersonationCredentials = ref<ImpersonationResult | null>(null);
+
+  async function getUserMfaStatus(userId: number) {
+    error.value = null;
+    try {
+      const response = await api.get(`/users/${userId}/mfa`);
+      // Update local user state
+      const user = users.value.find((u) => u.id === userId);
+      if (user) {
+        user.mfa_enabled = response.data.mfa_enabled;
+      }
+      return response.data;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to get MFA status";
+      throw e;
+    }
+  }
+
+  async function disableUserMfa(userId: number) {
+    error.value = null;
+    try {
+      await api.post(`/users/${userId}/mfa/disable`);
+      // Update local state
+      const user = users.value.find((u) => u.id === userId);
+      if (user) {
+        user.mfa_enabled = false;
+      }
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to disable MFA";
+      throw e;
+    }
+  }
+
+  async function enableUserMfa(userId: number) {
+    error.value = null;
+    try {
+      await api.post(`/users/${userId}/mfa/enable`);
+      // Update local state
+      const user = users.value.find((u) => u.id === userId);
+      if (user) {
+        user.mfa_enabled = true;
+      }
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to enable MFA";
+      throw e;
+    }
+  }
+
+  async function impersonateUser(userId: number) {
+    error.value = null;
+    try {
+      const response = await api.post(`/users/${userId}/impersonate`);
+      impersonationCredentials.value = response.data;
+      return response.data;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to impersonate user";
+      throw e;
+    }
+  }
+
+  function clearImpersonation() {
+    impersonationCredentials.value = null;
+  }
+
   return {
     users,
     apiKeys,
     loading,
     error,
     newlyCreatedKey,
+    impersonationCredentials,
     fetchUsers,
     updateUserRole,
     deleteUser,
@@ -158,5 +231,10 @@ export const useAdminStore = defineStore("admin", () => {
     revokeAPIKey,
     inviteUser,
     clearNewKey,
+    getUserMfaStatus,
+    disableUserMfa,
+    enableUserMfa,
+    impersonateUser,
+    clearImpersonation,
   };
 });

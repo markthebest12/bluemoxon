@@ -253,3 +253,152 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"message": f"User {user_id} deleted"}
+
+
+@router.get("/{user_id}/mfa")
+def get_user_mfa_status(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Get MFA status for a user. Requires admin role."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured")
+
+    try:
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        response = cognito.admin_get_user(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+        )
+
+        # Check if TOTP MFA is enabled
+        mfa_options = response.get("UserMFASettingList", [])
+        totp_enabled = "SOFTWARE_TOKEN_MFA" in mfa_options
+
+        return {
+            "user_id": user_id,
+            "email": user.email,
+            "mfa_enabled": totp_enabled,
+            "mfa_methods": mfa_options,
+        }
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+
+
+@router.post("/{user_id}/mfa/disable")
+def disable_user_mfa(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Disable MFA for a user. Requires admin role."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured")
+
+    try:
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+
+        # Disable TOTP MFA
+        cognito.admin_set_user_mfa_preference(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
+        )
+
+        return {"message": f"MFA disabled for {user.email}"}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+
+
+@router.post("/{user_id}/mfa/enable")
+def enable_user_mfa(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Enable MFA requirement for a user. User will be prompted to set up MFA on next login."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured")
+
+    try:
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+
+        # Enable TOTP MFA
+        cognito.admin_set_user_mfa_preference(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
+        )
+
+        return {"message": f"MFA enabled for {user.email}"}
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+
+
+@router.post("/{user_id}/impersonate")
+def impersonate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Generate impersonation credentials for a user.
+    Resets the user's password to a temporary one for admin login.
+    Requires admin role.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow impersonating yourself
+    if current_user.db_user and current_user.db_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot impersonate yourself")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured")
+
+    try:
+        import secrets
+        import string
+
+        # Generate a secure temporary password
+        alphabet = string.ascii_letters + string.digits + "!@#$%"
+        temp_password = "".join(secrets.choice(alphabet) for _ in range(16))
+
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+
+        # Set permanent password (user won't need to change it)
+        cognito.admin_set_user_password(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            Password=temp_password,
+            Permanent=True,
+        )
+
+        logger.info(f"Admin {current_user.email} impersonating user {user.email}")
+
+        return {
+            "message": f"Temporary credentials generated for {user.email}",
+            "email": user.email,
+            "temp_password": temp_password,
+            "note": "Log out and use these credentials. User should reset password after.",
+        }
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None

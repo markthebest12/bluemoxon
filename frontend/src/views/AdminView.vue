@@ -19,6 +19,10 @@ const inviteRole = ref("viewer");
 const inviteLoading = ref(false);
 const inviteSuccess = ref<string | null>(null);
 
+// Impersonation modal
+const showImpersonateModal = ref(false);
+const mfaLoading = ref<number | null>(null);
+
 onMounted(async () => {
   // Redirect if not admin
   if (!authStore.isAdmin) {
@@ -27,6 +31,11 @@ onMounted(async () => {
   }
 
   await Promise.all([adminStore.fetchUsers(), adminStore.fetchAPIKeys()]);
+
+  // Load MFA status for each user (in background)
+  for (const user of adminStore.users) {
+    loadMfaStatus(user.id);
+  }
 });
 
 async function updateRole(userId: number, newRole: string) {
@@ -90,6 +99,38 @@ async function revokeKey(keyId: number) {
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
+}
+
+async function toggleMfa(userId: number, currentlyEnabled: boolean | undefined) {
+  mfaLoading.value = userId;
+  try {
+    if (currentlyEnabled) {
+      await adminStore.disableUserMfa(userId);
+    } else {
+      await adminStore.enableUserMfa(userId);
+    }
+  } catch {
+    // Error is set in store
+  } finally {
+    mfaLoading.value = null;
+  }
+}
+
+async function loadMfaStatus(userId: number) {
+  try {
+    await adminStore.getUserMfaStatus(userId);
+  } catch {
+    // Silently fail - MFA status just won't show
+  }
+}
+
+async function impersonateUser(userId: number) {
+  try {
+    await adminStore.impersonateUser(userId);
+    showImpersonateModal.value = true;
+  } catch {
+    // Error is set in store
+  }
 }
 
 function formatDate(dateStr: string | null): string {
@@ -186,9 +227,15 @@ function formatDate(dateStr: string | null): string {
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-sm font-medium text-gray-900 truncate">{{ user.email }}</div>
-              <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
+              <div class="text-xs text-gray-500">
+                ID: {{ user.id }}
+                <span v-if="user.mfa_enabled !== undefined" class="ml-2">
+                  <span v-if="user.mfa_enabled" class="text-green-600">MFA On</span>
+                  <span v-else class="text-amber-600">MFA Off</span>
+                </span>
+              </div>
             </div>
-            <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
               <select
                 :value="user.role"
                 @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
@@ -203,6 +250,30 @@ function formatDate(dateStr: string | null): string {
                 <option value="editor">Editor</option>
                 <option value="admin">Admin</option>
               </select>
+              <!-- MFA Toggle -->
+              <button
+                @click="toggleMfa(user.id, user.mfa_enabled)"
+                :disabled="mfaLoading === user.id"
+                class="text-xs px-2 py-1 rounded border"
+                :class="
+                  user.mfa_enabled
+                    ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                    : 'border-green-300 text-green-700 hover:bg-green-50'
+                "
+              >
+                {{
+                  mfaLoading === user.id ? "..." : user.mfa_enabled ? "Disable MFA" : "Enable MFA"
+                }}
+              </button>
+              <!-- Impersonate (not for self) -->
+              <button
+                v-if="authStore.user?.email !== user.email"
+                @click="impersonateUser(user.id)"
+                class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                Login As
+              </button>
+              <!-- Delete -->
               <div v-if="confirmDeleteUser !== user.id">
                 <button
                   @click="confirmDeleteUser = user.id"
@@ -378,6 +449,69 @@ function formatDate(dateStr: string | null): string {
             class="btn-primary"
           >
             Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Impersonation Modal -->
+    <div
+      v-if="showImpersonateModal && adminStore.impersonationCredentials"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="
+        showImpersonateModal = false;
+        adminStore.clearImpersonation();
+      "
+    >
+      <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Login As User</h3>
+        <p class="text-sm text-amber-600 mb-4">
+          Temporary credentials generated. The user's password has been changed.
+        </p>
+
+        <div class="space-y-3 mb-4">
+          <div class="bg-gray-100 p-3 rounded-lg">
+            <label class="block text-xs text-gray-500 mb-1">Email</label>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 text-sm">{{ adminStore.impersonationCredentials.email }}</code>
+              <button
+                @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
+                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+          <div class="bg-gray-100 p-3 rounded-lg">
+            <label class="block text-xs text-gray-500 mb-1">Temporary Password</label>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 text-sm break-all">{{
+                adminStore.impersonationCredentials.temp_password
+              }}</code>
+              <button
+                @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
+                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-sm text-gray-600 mb-4">
+          Sign out and use these credentials to log in as this user. Remember to notify the user to
+          reset their password afterward.
+        </p>
+
+        <div class="flex justify-end gap-2">
+          <button
+            @click="
+              showImpersonateModal = false;
+              adminStore.clearImpersonation();
+            "
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          >
+            Close
           </button>
         </div>
       </div>
