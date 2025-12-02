@@ -63,8 +63,26 @@ async function handleNewPasswordSubmit() {
     return;
   }
 
-  if (newPassword.value.length < 8) {
-    localError.value = "Password must be at least 8 characters";
+  if (newPassword.value.length < 12) {
+    localError.value = "Password must be at least 12 characters";
+    return;
+  }
+
+  // Check for required character types
+  if (!/[A-Z]/.test(newPassword.value)) {
+    localError.value = "Password must contain at least one uppercase letter";
+    return;
+  }
+  if (!/[a-z]/.test(newPassword.value)) {
+    localError.value = "Password must contain at least one lowercase letter";
+    return;
+  }
+  if (!/[0-9]/.test(newPassword.value)) {
+    localError.value = "Password must contain at least one number";
+    return;
+  }
+  if (!/[^A-Za-z0-9]/.test(newPassword.value)) {
+    localError.value = "Password must contain at least one symbol";
     return;
   }
 
@@ -164,7 +182,7 @@ function resetLogin() {
               v-model="newPassword"
               type="password"
               required
-              minlength="8"
+              minlength="12"
               class="input"
               placeholder="Enter new password"
             />
@@ -179,18 +197,26 @@ function resetLogin() {
               v-model="confirmPassword"
               type="password"
               required
-              minlength="8"
+              minlength="12"
               class="input"
               placeholder="Confirm new password"
             />
           </div>
 
-          <p class="text-xs text-gray-500">Password must be at least 8 characters</p>
+          <div class="text-xs text-gray-500 space-y-1">
+            <p class="font-medium">Password requirements:</p>
+            <ul class="list-disc list-inside">
+              <li>At least 12 characters</li>
+              <li>Uppercase and lowercase letters</li>
+              <li>At least one number</li>
+              <li>At least one symbol</li>
+            </ul>
+          </div>
 
           <button
             type="submit"
             class="btn-primary w-full"
-            :disabled="authStore.loading || newPassword.length < 8 || confirmPassword.length < 8"
+            :disabled="authStore.loading || newPassword.length < 12 || confirmPassword.length < 12"
           >
             {{ authStore.loading ? "Setting password..." : "Set Password" }}
           </button>
