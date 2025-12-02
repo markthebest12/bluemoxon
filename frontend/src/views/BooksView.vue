@@ -75,17 +75,19 @@ function syncFiltersFromUrl() {
   }
 }
 
-// Watch for route query changes (handles back button navigation)
+// Track if we've initialized
+const initialized = ref(false);
+
+// Watch for route changes (handles back button navigation)
 watch(
-  () => route.query,
-  () => {
-    // Only sync if we're on the books list route (not a book detail page)
-    if (route.path === "/books" || route.path === "/") {
+  () => route.fullPath,
+  (newPath) => {
+    // Only sync if we're on the books list route and already initialized
+    if (initialized.value && (newPath.startsWith("/books?") || newPath === "/books")) {
       syncFiltersFromUrl();
       booksStore.fetchBooks();
     }
-  },
-  { deep: true }
+  }
 );
 
 onMounted(async () => {
@@ -94,7 +96,10 @@ onMounted(async () => {
 
   // Apply URL query params as filters
   syncFiltersFromUrl();
-  booksStore.fetchBooks();
+  await booksStore.fetchBooks();
+
+  // Mark as initialized after first load
+  initialized.value = true;
 });
 
 // Sync filters to URL for back button support
