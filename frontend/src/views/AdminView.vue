@@ -23,6 +23,14 @@ const inviteSuccess = ref<string | null>(null);
 const showImpersonateModal = ref(false);
 const mfaLoading = ref<number | null>(null);
 
+// Password reset modal
+const showResetPasswordModal = ref(false);
+const resetPasswordUserId = ref<number | null>(null);
+const resetPasswordEmail = ref("");
+const resetNewPassword = ref("");
+const resetPasswordLoading = ref(false);
+const resetPasswordSuccess = ref(false);
+
 onMounted(async () => {
   // Redirect if not admin
   if (!authStore.isAdmin) {
@@ -130,6 +138,37 @@ async function impersonateUser(userId: number) {
     showImpersonateModal.value = true;
   } catch {
     // Error is set in store
+  }
+}
+
+function openResetPasswordModal(userId: number, email: string) {
+  resetPasswordUserId.value = userId;
+  resetPasswordEmail.value = email;
+  resetNewPassword.value = "";
+  resetPasswordSuccess.value = false;
+  showResetPasswordModal.value = true;
+}
+
+function closeResetPasswordModal() {
+  showResetPasswordModal.value = false;
+  resetPasswordUserId.value = null;
+  resetPasswordEmail.value = "";
+  resetNewPassword.value = "";
+  resetPasswordSuccess.value = false;
+}
+
+async function handleResetPassword() {
+  if (!resetPasswordUserId.value || !resetNewPassword.value) return;
+
+  resetPasswordLoading.value = true;
+  try {
+    await adminStore.resetUserPassword(resetPasswordUserId.value, resetNewPassword.value);
+    resetPasswordSuccess.value = true;
+    resetNewPassword.value = "";
+  } catch {
+    // Error is set in store
+  } finally {
+    resetPasswordLoading.value = false;
   }
 }
 
@@ -264,6 +303,14 @@ function formatDate(dateStr: string | null): string {
                 {{
                   mfaLoading === user.id ? "..." : user.mfa_enabled ? "Disable MFA" : "Enable MFA"
                 }}
+              </button>
+              <!-- Reset Password (not for self) -->
+              <button
+                v-if="authStore.user?.email !== user.email"
+                @click="openResetPasswordModal(user.id, user.email)"
+                class="text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                Reset PW
               </button>
               <!-- Impersonate (not for self) -->
               <button
@@ -512,6 +559,75 @@ function formatDate(dateStr: string | null): string {
             class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
           >
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div
+      v-if="showResetPasswordModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeResetPasswordModal"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Reset Password</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          Set a new password for <span class="font-medium">{{ resetPasswordEmail }}</span>
+        </p>
+
+        <div v-if="adminStore.error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+          {{ adminStore.error }}
+        </div>
+
+        <div v-if="resetPasswordSuccess" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+          Password reset successfully! The user can now log in with the new password.
+        </div>
+
+        <form v-if="!resetPasswordSuccess" @submit.prevent="handleResetPassword" class="space-y-4">
+          <div>
+            <label for="resetNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <input
+              id="resetNewPassword"
+              v-model="resetNewPassword"
+              type="password"
+              required
+              minlength="8"
+              class="input"
+              placeholder="Enter new password"
+              autocomplete="new-password"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              At least 8 characters with uppercase, lowercase, and number
+            </p>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              @click="closeResetPasswordModal"
+              class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="resetPasswordLoading || resetNewPassword.length < 8"
+            >
+              {{ resetPasswordLoading ? "Resetting..." : "Reset Password" }}
+            </button>
+          </div>
+        </form>
+
+        <div v-else class="flex justify-end">
+          <button
+            @click="closeResetPasswordModal"
+            class="btn-primary"
+          >
+            Done
           </button>
         </div>
       </div>

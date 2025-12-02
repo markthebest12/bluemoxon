@@ -406,6 +406,56 @@ def enable_user_mfa(
         raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
 
 
+class ResetPasswordRequest(BaseModel):
+    """Request body for resetting a user's password."""
+
+    new_password: str
+
+
+@router.post("/{user_id}/reset-password")
+def reset_user_password(
+    user_id: int,
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Reset a user's password (admin only)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow resetting your own password this way
+    if current_user.db_user and current_user.db_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Use profile page to change your own password")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured")
+
+    try:
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+
+        # Set permanent password
+        cognito.admin_set_user_password(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            Password=request.new_password,
+            Permanent=True,
+        )
+
+        logger.info(f"Admin {current_user.email} reset password for user {user.email}")
+
+        return {"message": f"Password reset successfully for {user.email}"}
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Cognito error resetting password: {error_code} - {error_msg}")
+        if error_code == "InvalidPasswordException":
+            raise HTTPException(
+                status_code=400, detail="Password does not meet requirements"
+            ) from None
+        raise HTTPException(status_code=500, detail=f"Failed to reset password: {error_msg}") from None
+
+
 @router.post("/{user_id}/impersonate")
 def impersonate_user(
     user_id: int,

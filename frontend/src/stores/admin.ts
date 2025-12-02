@@ -216,6 +216,19 @@ export const useAdminStore = defineStore("admin", () => {
     impersonationCredentials.value = null;
   }
 
+  async function resetUserPassword(userId: number, newPassword: string) {
+    error.value = null;
+    try {
+      const response = await api.post(`/users/${userId}/reset-password`, {
+        new_password: newPassword,
+      });
+      return response.data;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to reset password";
+      throw e;
+    }
+  }
+
   return {
     users,
     apiKeys,
@@ -236,5 +249,6 @@ export const useAdminStore = defineStore("admin", () => {
     enableUserMfa,
     impersonateUser,
     clearImpersonation,
+    resetUserPassword,
   };
 });
