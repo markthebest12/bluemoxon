@@ -1,4 +1,4 @@
-# BlueMoxon Project Instructions
+# BlueMoxon (bmx) Project Instructions
 
 ## CRITICAL: CI/CD Workflow Requirements
 

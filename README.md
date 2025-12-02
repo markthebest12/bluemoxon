@@ -1,8 +1,9 @@
-# BlueMoxon
+# BlueMoxon (bmx)
 
 Victorian Book Collection Management Web Application
 
 **Name Origin:** Papa Smurf (Blue) + Edward Moxon (Victorian publisher of Tennyson)
+**Short Name:** bmx (used in shell aliases, scripts, and conversation)
 
 ## Overview
 
