@@ -21,7 +21,7 @@ BlueMoxon is a web application for managing a Victorian book collection with:
 - **Database:** PostgreSQL (Aurora Serverless v2)
 - **Auth:** AWS Cognito with MFA
 - **Infrastructure:** AWS CDK (Python)
-- **CI/CD:** AWS CodePipeline + CodeBuild
+- **CI/CD:** GitHub Actions
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ bluemoxon/
 ├── backend/           # FastAPI application
 ├── infra/             # AWS CDK infrastructure
 ├── scripts/           # Migration and utility scripts
-├── buildspec/         # CodeBuild specifications
+├── .github/workflows/ # GitHub Actions CI/CD
 └── docs/              # Documentation
 ```
 
