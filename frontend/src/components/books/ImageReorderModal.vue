@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onUnmounted } from "vue";
 import { api } from "@/services/api";
 
 const props = defineProps<{
@@ -27,16 +27,29 @@ const error = ref<string | null>(null);
 const draggedIndex = ref<number | null>(null);
 const dropTargetIndex = ref<number | null>(null);
 
+// Touch drag state
+const touchedIndex = ref<number | null>(null);
+const itemRefs = ref<HTMLElement[]>([]);
+
+// Lock body scroll when modal is visible
 watch(
   () => props.visible,
   (visible) => {
     if (visible) {
+      document.body.style.overflow = "hidden";
       // Clone the images array
       orderedImages.value = [...props.images].sort((a, b) => a.display_order - b.display_order);
       error.value = null;
+    } else {
+      document.body.style.overflow = "";
     }
   }
 );
+
+// Clean up on unmount
+onUnmounted(() => {
+  document.body.style.overflow = "";
+});
 
 function handleDragStart(e: DragEvent, index: number) {
   draggedIndex.value = index;
@@ -79,6 +92,53 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 function handleDragEnd() {
   draggedIndex.value = null;
   dropTargetIndex.value = null;
+}
+
+// Touch event handlers for mobile drag-and-drop
+function handleTouchStart(_e: TouchEvent, index: number) {
+  touchedIndex.value = index;
+  draggedIndex.value = index;
+}
+
+function handleTouchMove(e: TouchEvent) {
+  if (touchedIndex.value === null) return;
+
+  const touch = e.touches[0];
+  const currentY = touch.clientY;
+
+  // Find which item we're over
+  for (let i = 0; i < itemRefs.value.length; i++) {
+    const el = itemRefs.value[i];
+    if (!el) continue;
+
+    const rect = el.getBoundingClientRect();
+    if (currentY >= rect.top && currentY <= rect.bottom) {
+      dropTargetIndex.value = i;
+      break;
+    }
+  }
+}
+
+function handleTouchEnd() {
+  if (touchedIndex.value !== null && dropTargetIndex.value !== null) {
+    if (touchedIndex.value !== dropTargetIndex.value) {
+      // Reorder the array
+      const items = [...orderedImages.value];
+      const [draggedItem] = items.splice(touchedIndex.value, 1);
+      items.splice(dropTargetIndex.value, 0, draggedItem);
+      orderedImages.value = items;
+    }
+  }
+
+  touchedIndex.value = null;
+  draggedIndex.value = null;
+  dropTargetIndex.value = null;
+}
+
+function setItemRef(el: HTMLElement | null, index: number) {
+  if (el) {
+    itemRefs.value[index] = el;
+  }
 }
 
 function moveUp(index: number) {
@@ -161,8 +221,9 @@ function close() {
               <div
                 v-for="(img, index) in orderedImages"
                 :key="img.id"
+                :ref="(el) => setItemRef(el as HTMLElement, index)"
                 :class="[
-                  'flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-move',
+                  'flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-move touch-none',
                   draggedIndex === index
                     ? 'opacity-50 border-moxon-300'
                     : dropTargetIndex === index
@@ -175,6 +236,9 @@ function close() {
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, index)"
                 @dragend="handleDragEnd"
+                @touchstart="handleTouchStart($event, index)"
+                @touchmove="handleTouchMove($event)"
+                @touchend="handleTouchEnd"
               >
                 <!-- Drag Handle -->
                 <div class="text-gray-400 flex-shrink-0">
