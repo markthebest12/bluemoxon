@@ -142,6 +142,37 @@ python script.py > .tmp/output.txt
 aws lambda invoke --payload '{}' .tmp/result.json
 ```
 
+## Local Development Strategy
+
+**Minimal local dev - no Docker required for daily work.**
+
+### What to run locally:
+| Component | Command | Purpose |
+|-----------|---------|---------|
+| Frontend | `npm run dev` | Hot reload for UI changes |
+| Backend tests | `poetry run pytest` | Fast unit tests (uses SQLite) |
+| Linting | Pre-commit hooks | Auto-runs on commit |
+
+### What runs in AWS only:
+- PostgreSQL (Aurora) - tests use SQLite in-memory
+- Cognito auth - tests mock auth, API key bypasses it
+- S3 images - not needed for most development
+- CloudWatch - production monitoring only
+
+### Service Bypasses (already configured):
+- **Database**: `conftest.py` uses SQLite when `DATABASE_URL` not set
+- **Cognito**: Returns "skipped" when `cognito_user_pool_id` empty
+- **Auth in tests**: Mocked with `get_mock_editor()`
+- **API Key**: `X-API-Key` header bypasses Cognito entirely
+
+### When you DO need full local stack:
+```bash
+# Only if debugging database-specific issues
+docker-compose up -d postgres
+poetry run alembic upgrade head
+poetry run uvicorn app.main:app --reload
+```
+
 ## Project Structure
 
 ```
