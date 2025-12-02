@@ -51,7 +51,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Priority | Effort | Status |
 |---------|-------------|----------|--------|--------|
-| **Collection Statistics Dashboard** | Richer visualizations: value over time, acquisition trends, publisher/binder distribution charts | Medium | Medium | |
+| ~~**Collection Statistics Dashboard**~~ | ~~Value growth chart, premium bindings distribution, era breakdown, top publishers~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Insurance/Export Reports**~~ | ~~Insurance valuation report with CSV export, report type selector (Primary/Extended/Full)~~ | ~~Low~~ | ~~High~~ | ✅ DONE |
 | **PDF Catalog Generation** | Printable PDF catalog with images | Low | High | |
 | **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
@@ -62,6 +62,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Collection Statistics Dashboard** | Interactive charts: value growth, bindery distribution, era breakdown, top publishers | ✅ DONE |
 | **Image Upload/Delete** | Upload new images and delete existing from book detail page | ✅ DONE |
 | **User Profile Names** | Editable first/last name on user profiles | ✅ DONE |
 | **Insurance Report View** | Browser-print optimized report with CSV export for Primary/Extended/Full inventory | ✅ DONE |
@@ -316,7 +317,7 @@ on:
 | ~~Image Gallery Lightbox~~ | Features | ~~Low~~ | ~~Medium (UX improvement)~~ | ✅ DONE |
 | ~~Vitest Frontend Tests~~ | Testing | ~~Medium~~ | ~~Medium (code quality)~~ | ✅ DONE |
 | Analysis Management UI | Features | Medium | Medium (content editing) | |
-| Collection Statistics Dashboard | Features | Medium | Medium (insights) | |
+| ~~Collection Statistics Dashboard~~ | Features | ~~Medium~~ | ~~Medium (insights)~~ | ✅ DONE |
 
 ### Low Priority (Nice to Have)
 
