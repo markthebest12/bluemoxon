@@ -37,7 +37,7 @@ test.describe("Statistics Dashboard", () => {
     });
   });
 
-  test("shows chart containers for all four charts", async ({ page }) => {
+  test("shows chart containers for all five charts", async ({ page }) => {
     await page.goto("/");
     // Wait for charts section
     await expect(page.locator("text=Collection Analytics")).toBeVisible({
@@ -45,10 +45,11 @@ test.describe("Statistics Dashboard", () => {
     });
 
     // Verify chart section headers are present
-    await expect(page.locator("text=Value Growth by Month")).toBeVisible();
     await expect(page.locator("text=Premium Bindings")).toBeVisible();
     await expect(page.locator("text=Books by Era")).toBeVisible();
+    await expect(page.locator("text=Top Authors")).toBeVisible();
     await expect(page.locator("text=Top Tier 1 Publishers")).toBeVisible();
+    await expect(page.locator("text=Cumulative Collection Value")).toBeVisible();
   });
 
   test("dashboard stat cards display values", async ({ page }) => {
