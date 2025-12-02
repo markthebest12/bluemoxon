@@ -255,7 +255,10 @@ function getStatusColor(status: string): string {
     <!-- Header -->
     <div class="mb-8">
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0">
-        <RouterLink :to="backToCollectionLink" class="text-moxon-600 hover:text-moxon-800 inline-block">
+        <RouterLink
+          :to="backToCollectionLink"
+          class="text-moxon-600 hover:text-moxon-800 inline-block"
+        >
           &larr; Back to Collection
         </RouterLink>
         <div class="flex gap-2">
