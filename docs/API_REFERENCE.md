@@ -666,6 +666,153 @@ Response:
 
 ---
 
+## Health Check API
+
+Health check endpoints for monitoring, Kubernetes probes, and CI/CD validation.
+
+### Liveness Probe
+```
+GET /health/live
+```
+
+Simple check that the service is running. Use for Kubernetes liveness probes.
+
+Response:
+```json
+{"status": "ok"}
+```
+
+---
+
+### Readiness Probe
+```
+GET /health/ready
+```
+
+Checks if the service is ready to accept traffic. Validates database connectivity.
+
+Response:
+```json
+{
+  "status": "ready",
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 12.5,
+      "book_count": 71
+    }
+  }
+}
+```
+
+Possible status values: `ready`, `not_ready`
+
+---
+
+### Deep Health Check
+```
+GET /health/deep
+```
+
+Comprehensive health check that validates all system dependencies:
+- **Database**: PostgreSQL connectivity and query execution
+- **S3**: Images bucket accessibility
+- **Cognito**: User pool availability (if configured)
+- **Config**: Critical configuration validation
+
+Use this endpoint for:
+- CI/CD deployment validation
+- Monitoring dashboards
+- Troubleshooting connectivity issues
+
+Response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-12-02T15:30:00Z",
+  "version": "0.1.0",
+  "environment": "production",
+  "total_latency_ms": 145.2,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 12.5,
+      "book_count": 71
+    },
+    "s3": {
+      "status": "healthy",
+      "bucket": "bluemoxon-images",
+      "latency_ms": 85.3,
+      "has_objects": true
+    },
+    "cognito": {
+      "status": "healthy",
+      "user_pool": "bluemoxon-users",
+      "latency_ms": 45.1
+    },
+    "config": {
+      "status": "healthy",
+      "environment": "production",
+      "debug": false,
+      "issues": null
+    }
+  }
+}
+```
+
+Possible status values:
+- `healthy`: All checks passed
+- `degraded`: Some non-critical checks failed
+- `unhealthy`: Critical checks failed
+
+---
+
+### Service Info
+```
+GET /health/info
+```
+
+Returns service metadata, version, and configuration summary.
+
+Response:
+```json
+{
+  "service": "bluemoxon-api",
+  "version": "0.1.0",
+  "environment": "production",
+  "region": "us-west-2",
+  "features": {
+    "cognito_auth": true,
+    "s3_images": true,
+    "api_key_auth": true
+  },
+  "endpoints": {
+    "docs": null,
+    "redoc": null,
+    "health": "/health",
+    "api": "/api/v1"
+  }
+}
+```
+
+Note: `docs` and `redoc` are only available when `debug=true`.
+
+---
+
+### Root Health Check
+```
+GET /health
+```
+
+Simple liveness check at the root level (outside `/api/v1`).
+
+Response:
+```json
+{"status": "healthy", "version": "0.1.0"}
+```
+
+---
+
 ## Export API
 
 ### Export to CSV

@@ -7,6 +7,7 @@ from app.api.v1 import (
     binders,
     books,
     export,
+    health,
     images,
     placeholder,
     publishers,
@@ -17,6 +18,7 @@ from app.api.v1 import (
 
 router = APIRouter()
 
+router.include_router(health.router, prefix="/health", tags=["health"])
 router.include_router(books.router, prefix="/books", tags=["books"])
 router.include_router(images.router, prefix="/books/{book_id}/images", tags=["images"])
 router.include_router(placeholder.router, prefix="/images", tags=["images"])

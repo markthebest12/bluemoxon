@@ -290,9 +290,9 @@ jobs:
       - name: Wait for deployment to propagate
         run: sleep 30
 
-      - name: Test API health endpoint
+      - name: Test API liveness
         run: |
-          echo "Testing API health..."
+          echo "Testing API liveness probe..."
           response=$(curl -s -w "\n%{http_code}" https://api.bluemoxon.com/health)
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
@@ -301,17 +301,53 @@ jobs:
           echo "HTTP Code: $http_code"
 
           if [[ "$http_code" != "200" ]]; then
-            echo "Health check failed!"
+            echo "Liveness check failed!"
+            exit 1
+          fi
+          echo "API liveness check passed!"
+
+      - name: Test API deep health check
+        run: |
+          echo "Running deep health check..."
+          response=$(curl -s -w "\n%{http_code}" https://api.bluemoxon.com/api/v1/health/deep)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+          echo "Response:"
+          echo "$body" | jq '.' 2>/dev/null || echo "$body"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Deep health check endpoint failed!"
             exit 1
           fi
 
-          # Verify response contains expected fields
-          if ! echo "$body" | grep -q '"status"'; then
-            echo "Health response missing status field!"
+          # Check overall status
+          status=$(echo "$body" | jq -r '.status' 2>/dev/null)
+          if [[ "$status" == "unhealthy" ]]; then
+            echo "CRITICAL: System is unhealthy!"
+            echo "$body" | jq '.checks' 2>/dev/null
+            exit 1
+          elif [[ "$status" == "degraded" ]]; then
+            echo "WARNING: System is degraded but operational"
+            echo "$body" | jq '.checks' 2>/dev/null
+          fi
+
+          # Verify database is healthy (critical)
+          db_status=$(echo "$body" | jq -r '.checks.database.status' 2>/dev/null)
+          if [[ "$db_status" != "healthy" ]]; then
+            echo "CRITICAL: Database is not healthy!"
+            echo "$body" | jq '.checks.database' 2>/dev/null
             exit 1
           fi
 
-          echo "API health check passed!"
+          # Log latency metrics
+          db_latency=$(echo "$body" | jq -r '.checks.database.latency_ms' 2>/dev/null)
+          total_latency=$(echo "$body" | jq -r '.total_latency_ms' 2>/dev/null)
+          echo "Database latency: ${db_latency}ms"
+          echo "Total health check latency: ${total_latency}ms"
+
+          echo "Deep health check passed!"
 
       - name: Test API books endpoint
         run: |
