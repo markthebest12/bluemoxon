@@ -1,47 +1,47 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { api } from '@/services/api'
-import type { Book } from '@/stores/books'
+import { ref, computed, onMounted } from "vue";
+import { api } from "@/services/api";
+import type { Book } from "@/stores/books";
 
-const books = ref<Book[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+const books = ref<Book[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 onMounted(async () => {
-  loading.value = true
+  loading.value = true;
   try {
     // Fetch all books (high per_page to get everything in one request)
-    const response = await api.get('/books', {
+    const response = await api.get("/books", {
       params: {
         per_page: 500,
-        inventory_type: 'PRIMARY',
-        sort_by: 'value_mid',
-        sort_order: 'desc'
-      }
-    })
-    books.value = response.data.items
+        inventory_type: "PRIMARY",
+        sort_by: "value_mid",
+        sort_order: "desc",
+      },
+    });
+    books.value = response.data.items;
   } catch (e: any) {
-    error.value = e.message || 'Failed to fetch books'
+    error.value = e.message || "Failed to fetch books";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-})
+});
 
 // Filter to ON_HAND items only for insurance purposes
 const onHandBooks = computed(() => {
-  return books.value.filter(book => book.status === 'ON_HAND')
-})
+  return books.value.filter((book) => book.status === "ON_HAND");
+});
 
 // Collection statistics
 const stats = computed(() => {
-  const items = onHandBooks.value
-  const totalItems = items.length
-  const totalVolumes = items.reduce((sum, b) => sum + (b.volumes || 1), 0)
-  const totalValueLow = items.reduce((sum, b) => sum + (b.value_low || 0), 0)
-  const totalValueMid = items.reduce((sum, b) => sum + (b.value_mid || 0), 0)
-  const totalValueHigh = items.reduce((sum, b) => sum + (b.value_high || 0), 0)
-  const totalPurchaseCost = items.reduce((sum, b) => sum + (b.purchase_price || 0), 0)
-  const authenticatedBindings = items.filter(b => b.binding_authenticated).length
+  const items = onHandBooks.value;
+  const totalItems = items.length;
+  const totalVolumes = items.reduce((sum, b) => sum + (b.volumes || 1), 0);
+  const totalValueLow = items.reduce((sum, b) => sum + (b.value_low || 0), 0);
+  const totalValueMid = items.reduce((sum, b) => sum + (b.value_mid || 0), 0);
+  const totalValueHigh = items.reduce((sum, b) => sum + (b.value_high || 0), 0);
+  const totalPurchaseCost = items.reduce((sum, b) => sum + (b.purchase_price || 0), 0);
+  const authenticatedBindings = items.filter((b) => b.binding_authenticated).length;
 
   return {
     totalItems,
@@ -50,90 +50,90 @@ const stats = computed(() => {
     totalValueMid,
     totalValueHigh,
     totalPurchaseCost,
-    authenticatedBindings
-  }
-})
+    authenticatedBindings,
+  };
+});
 
 // Sort books by value (highest first) for insurance report
 const sortedBooks = computed(() => {
-  return [...onHandBooks.value].sort((a, b) => (b.value_mid || 0) - (a.value_mid || 0))
-})
+  return [...onHandBooks.value].sort((a, b) => (b.value_mid || 0) - (a.value_mid || 0));
+});
 
 // Format currency
 const formatCurrency = (value: number | null | undefined): string => {
-  if (value === null || value === undefined) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  if (value === null || value === undefined) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value)
-}
+    maximumFractionDigits: 0,
+  }).format(value);
+};
 
 // Format date for display
 const formatDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '-'
+  if (!dateStr) return "-";
   // Handle year-only dates
-  if (/^\d{4}$/.test(dateStr)) return dateStr
+  if (/^\d{4}$/.test(dateStr)) return dateStr;
   // Handle date ranges like "1867-1880"
-  if (/^\d{4}-\d{4}$/.test(dateStr)) return dateStr
+  if (/^\d{4}-\d{4}$/.test(dateStr)) return dateStr;
   // Handle full dates
   try {
-    const date = new Date(dateStr)
-    return date.getFullYear().toString()
+    const date = new Date(dateStr);
+    return date.getFullYear().toString();
   } catch {
-    return dateStr
+    return dateStr;
   }
-}
+};
 
 // Get today's date for report header
-const reportDate = new Date().toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric'
-})
+const reportDate = new Date().toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
 
 // Print function
 const printReport = () => {
-  window.print()
-}
+  window.print();
+};
 
 // CSV Export function - comprehensive for insurance documentation
 const exportCSV = () => {
   const headers = [
-    'Title',
-    'Author',
-    'Publisher',
-    'Publisher Tier',
-    'Publication Date',
-    'Edition',
-    'Volumes',
-    'Category',
-    'Binder',
-    'Binding Authenticated',
-    'Binding Type',
-    'Binding Description',
-    'Condition Grade',
-    'Condition Notes',
-    'Value Low',
-    'Value Mid',
-    'Value High',
-    'Purchase Price',
-    'Purchase Date',
-    'Purchase Source',
-    'Discount %',
-    'ROI %',
-    'Status',
-    'Notes',
-    'Provenance'
-  ]
+    "Title",
+    "Author",
+    "Publisher",
+    "Publisher Tier",
+    "Publication Date",
+    "Edition",
+    "Volumes",
+    "Category",
+    "Binder",
+    "Binding Authenticated",
+    "Binding Type",
+    "Binding Description",
+    "Condition Grade",
+    "Condition Notes",
+    "Value Low",
+    "Value Mid",
+    "Value High",
+    "Purchase Price",
+    "Purchase Date",
+    "Purchase Source",
+    "Discount %",
+    "ROI %",
+    "Status",
+    "Notes",
+    "Provenance",
+  ];
 
   const escapeCSV = (val: string | null | undefined): string => {
-    if (val === null || val === undefined) return ''
-    return `"${String(val).replace(/"/g, '""')}"`
-  }
+    if (val === null || val === undefined) return "";
+    return `"${String(val).replace(/"/g, '""')}"`;
+  };
 
-  const rows = sortedBooks.value.map(book => [
+  const rows = sortedBooks.value.map((book) => [
     escapeCSV(book.title),
     escapeCSV(book.author?.name),
     escapeCSV(book.publisher?.name),
@@ -143,52 +143,48 @@ const exportCSV = () => {
     book.volumes || 1,
     escapeCSV(book.category),
     escapeCSV(book.binder?.name),
-    book.binding_authenticated ? 'Yes' : 'No',
+    book.binding_authenticated ? "Yes" : "No",
     escapeCSV(book.binding_type),
     escapeCSV(book.binding_description),
     escapeCSV(book.condition_grade),
     escapeCSV(book.condition_notes),
-    book.value_low || '',
-    book.value_mid || '',
-    book.value_high || '',
-    book.purchase_price || '',
+    book.value_low || "",
+    book.value_mid || "",
+    book.value_high || "",
+    book.purchase_price || "",
     escapeCSV(book.purchase_date),
     escapeCSV(book.purchase_source),
-    book.discount_pct || '',
-    book.roi_pct || '',
+    book.discount_pct || "",
+    book.roi_pct || "",
     escapeCSV(book.status),
     escapeCSV(book.notes),
-    escapeCSV(book.provenance)
-  ])
+    escapeCSV(book.provenance),
+  ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n')
+  const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
-  link.setAttribute('href', url)
-  link.setAttribute('download', `book_collection_insurance_${new Date().toISOString().split('T')[0]}.csv`)
-  link.style.visibility = 'hidden'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute(
+    "download",
+    `book_collection_insurance_${new Date().toISOString().split("T")[0]}.csv`
+  );
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 </script>
 
 <template>
   <div class="insurance-report">
     <!-- Action buttons (hidden when printing) -->
     <div class="actions no-print">
-      <router-link to="/books" class="btn btn-secondary">
-        ← Back to Collection
-      </router-link>
+      <router-link to="/books" class="btn btn-secondary"> ← Back to Collection </router-link>
       <div class="action-buttons">
-        <button @click="exportCSV" class="btn btn-secondary" :disabled="loading">
-          Export CSV
-        </button>
+        <button @click="exportCSV" class="btn btn-secondary" :disabled="loading">Export CSV</button>
         <button @click="printReport" class="btn btn-primary" :disabled="loading">
           Print Report
         </button>
@@ -196,9 +192,7 @@ const exportCSV = () => {
     </div>
 
     <!-- Loading state -->
-    <div v-if="loading" class="loading">
-      Loading collection data...
-    </div>
+    <div v-if="loading" class="loading">Loading collection data...</div>
 
     <!-- Error state -->
     <div v-else-if="error" class="error">
@@ -248,7 +242,8 @@ const exportCSV = () => {
           </div>
         </div>
         <p class="recommendation">
-          <strong>Recommended Insurance Coverage:</strong> {{ formatCurrency(stats.totalValueHigh * 1.1) }}
+          <strong>Recommended Insurance Coverage:</strong>
+          {{ formatCurrency(stats.totalValueHigh * 1.1) }}
           <span class="note">(High estimate + 10% buffer)</span>
         </p>
       </section>
@@ -273,30 +268,36 @@ const exportCSV = () => {
             <tr
               v-for="book in sortedBooks"
               :key="book.id"
-              :class="{ 'authenticated': book.binding_authenticated }"
+              :class="{ authenticated: book.binding_authenticated }"
             >
               <td class="col-title">{{ book.title }}</td>
-              <td class="col-author">{{ book.author?.name || '-' }}</td>
+              <td class="col-author">{{ book.author?.name || "-" }}</td>
               <td class="col-publisher">
-                {{ book.publisher?.name || '-' }}
-                <span v-if="book.publisher?.tier" class="tier-badge">{{ book.publisher.tier }}</span>
+                {{ book.publisher?.name || "-" }}
+                <span v-if="book.publisher?.tier" class="tier-badge">{{
+                  book.publisher.tier
+                }}</span>
               </td>
               <td class="col-year">{{ formatDate(book.publication_date) }}</td>
               <td class="col-vols">{{ book.volumes || 1 }}</td>
               <td class="col-binder">
                 <span v-if="book.binding_authenticated" class="auth-badge">★</span>
-                {{ book.binder?.name || '-' }}
+                {{ book.binder?.name || "-" }}
               </td>
-              <td class="col-condition">{{ book.condition_grade || '-' }}</td>
+              <td class="col-condition">{{ book.condition_grade || "-" }}</td>
               <td class="col-value">{{ formatCurrency(book.value_mid) }}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="total-row">
               <td colspan="4"><strong>TOTAL</strong></td>
-              <td><strong>{{ stats.totalVolumes }}</strong></td>
+              <td>
+                <strong>{{ stats.totalVolumes }}</strong>
+              </td>
               <td colspan="2"></td>
-              <td><strong>{{ formatCurrency(stats.totalValueMid) }}</strong></td>
+              <td>
+                <strong>{{ formatCurrency(stats.totalValueMid) }}</strong>
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -304,9 +305,16 @@ const exportCSV = () => {
 
       <!-- Footer -->
       <footer class="report-footer">
-        <p>This report is for insurance valuation purposes. Values are estimates based on current market conditions.</p>
-        <p class="note">★ = Authenticated premium binding (Rivière, Zaehnsdorf, Sangorski & Sutcliffe, Bayntun)</p>
-        <p class="note">Tier 1 publishers: Smith Elder, Moxon, Macmillan, John Murray, Chapman & Hall</p>
+        <p>
+          This report is for insurance valuation purposes. Values are estimates based on current
+          market conditions.
+        </p>
+        <p class="note">
+          ★ = Authenticated premium binding (Rivière, Zaehnsdorf, Sangorski & Sutcliffe, Bayntun)
+        </p>
+        <p class="note">
+          Tier 1 publishers: Smith Elder, Moxon, Macmillan, John Murray, Chapman & Hall
+        </p>
       </footer>
     </template>
   </div>
@@ -317,11 +325,12 @@ const exportCSV = () => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: 'Georgia', serif;
+  font-family: "Georgia", serif;
 }
 
 /* Loading/Error states */
-.loading, .error {
+.loading,
+.error {
   text-align: center;
   padding: 3rem;
   font-size: 1.1rem;
@@ -490,7 +499,8 @@ table {
   font-size: 0.85rem;
 }
 
-th, td {
+th,
+td {
   padding: 0.5rem;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
@@ -538,17 +548,43 @@ tr.authenticated td {
 }
 
 /* Column widths */
-.col-title { width: 25%; }
-.col-author { width: 12%; }
-.col-publisher { width: 15%; }
-.col-year { width: 8%; text-align: center; }
-.col-vols { width: 5%; text-align: center; }
-.col-binder { width: 14%; }
-.col-condition { width: 8%; text-align: center; }
-.col-value { width: 13%; text-align: right; }
+.col-title {
+  width: 25%;
+}
+.col-author {
+  width: 12%;
+}
+.col-publisher {
+  width: 15%;
+}
+.col-year {
+  width: 8%;
+  text-align: center;
+}
+.col-vols {
+  width: 5%;
+  text-align: center;
+}
+.col-binder {
+  width: 14%;
+}
+.col-condition {
+  width: 8%;
+  text-align: center;
+}
+.col-value {
+  width: 13%;
+  text-align: right;
+}
 
-td.col-year, td.col-vols, td.col-condition { text-align: center; }
-td.col-value { text-align: right; }
+td.col-year,
+td.col-vols,
+td.col-condition {
+  text-align: center;
+}
+td.col-value {
+  text-align: right;
+}
 
 /* Footer */
 .report-footer {
@@ -602,7 +638,8 @@ td.col-value { text-align: right; }
     font-size: 0.7rem;
   }
 
-  th, td {
+  th,
+  td {
     padding: 0.25rem 0.4rem;
   }
 
@@ -670,7 +707,8 @@ td.col-value { text-align: right; }
     font-size: 0.75rem;
   }
 
-  .col-author, .col-publisher {
+  .col-author,
+  .col-publisher {
     display: none;
   }
 }
