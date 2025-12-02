@@ -85,9 +85,7 @@ def import_from_s3(bucket: str, key: str) -> dict:
 
         # Also execute regular SQL statements (UPDATE, INSERT, DELETE)
         # Split by semicolon and execute each statement
-        sql_pattern = re.compile(
-            r"^\s*(UPDATE|INSERT|DELETE)\s+", re.IGNORECASE | re.MULTILINE
-        )
+        sql_pattern = re.compile(r"^\s*(UPDATE|INSERT|DELETE)\s+", re.IGNORECASE | re.MULTILINE)
         statements = [s.strip() for s in sql_content.split(";") if s.strip()]
 
         for stmt in statements:
