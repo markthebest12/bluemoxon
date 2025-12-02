@@ -460,6 +460,51 @@ def delete_image(
     db.commit()
 
 
+# Bulk register images from S3 keys (for CLI/automation)
+@router.post("/register", status_code=201)
+def register_images(
+    book_id: int,
+    images: list[dict] = Body(...),
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Register images already uploaded to S3. Requires editor role.
+
+    Body should be a list of objects with:
+    - s3_key: str (required)
+    - image_type: str (optional, default "detail")
+    - display_order: int (optional, auto-incremented)
+    - is_primary: bool (optional, default False)
+    - caption: str (optional)
+    """
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get current max display order
+    current_max = db.query(BookImage).filter(BookImage.book_id == book_id).count()
+
+    created = []
+    for i, img_data in enumerate(images):
+        s3_key = img_data.get("s3_key")
+        if not s3_key:
+            raise HTTPException(status_code=400, detail=f"Image {i} missing s3_key")
+
+        image = BookImage(
+            book_id=book_id,
+            s3_key=s3_key,
+            image_type=img_data.get("image_type", "detail"),
+            display_order=img_data.get("display_order", current_max + i),
+            is_primary=img_data.get("is_primary", False),
+            caption=img_data.get("caption"),
+        )
+        db.add(image)
+        created.append(s3_key)
+
+    db.commit()
+    return {"message": f"Registered {len(created)} images", "s3_keys": created}
+
+
 # Standalone placeholder endpoint (not book-specific)
 @router.get("/placeholder", include_in_schema=False)
 def get_placeholder_image():
