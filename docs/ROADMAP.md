@@ -38,7 +38,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Priority | Effort | Status |
 |---------|-------------|----------|--------|--------|
-| **Role-Based Authorization** | Architecture defines admin/editor/viewer roles; `users.role` field exists but not enforced in API | Low | Medium | |
+| ~~**Role-Based Authorization**~~ | ~~Admin/editor/viewer roles enforced via `require_admin`, `require_editor`, `require_viewer` dependencies~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Book Status Management**~~ | ~~Color-coded dropdown selector on book detail page (ON_HAND, IN_TRANSIT, SOLD, REMOVED)~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
 | ~~**Provenance Tracking**~~ | ~~View/edit modes for ownership history, inscriptions, bookplates~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 | ~~**Analysis Management UI**~~ | ~~Split-pane markdown editor with live preview, delete functionality~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
@@ -346,7 +346,7 @@ on:
 
 | Item | Category | Effort | Impact | Status |
 |------|----------|--------|--------|--------|
-| Role-Based Authorization | Features | Medium | Low (single admin) | |
+| ~~Role-Based Authorization~~ | ~~Features~~ | ~~Medium~~ | ~~Low (single admin)~~ | ✅ DONE |
 | Audit Logging | Features | Medium | Low (internal use) | |
 | ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
 | ~~Insurance/Export Reports~~ | Features | ~~High~~ | ~~Low (occasional need)~~ | ✅ DONE |
