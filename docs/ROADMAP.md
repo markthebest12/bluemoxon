@@ -62,6 +62,11 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Deep Health Check Endpoints** | Kubernetes-style probes: `/health/live`, `/ready`, `/deep`, `/info` with DB/S3/Cognito validation | ✅ DONE |
+| **CloudWatch Monitoring Dashboard** | 10-panel dashboard: API latency (p50/p90/p99), request counts, errors, Lambda metrics, CloudFront stats | ✅ DONE |
+| **CloudWatch Alarms** | Automated alerting: high latency (p99>3s), 5xx errors, Lambda errors | ✅ DONE |
+| **CloudFront Access Logging** | Request logs to S3 (`bluemoxon-logs/cloudfront/`) for troubleshooting | ✅ DONE |
+| **CI/CD Health Check Validation** | Smoke tests use `/health/deep` endpoint, fail deploy if DB unhealthy | ✅ DONE |
 | **Analysis Management UI** | Split-pane markdown editor with live GFM preview, delete functionality, keyboard shortcuts | ✅ DONE |
 | **Collection Statistics Dashboard** | Interactive charts: value growth, bindery distribution, era breakdown, top publishers | ✅ DONE |
 | **Image Upload/Delete** | Upload new images and delete existing from book detail page | ✅ DONE |
@@ -160,6 +165,18 @@ CDK doesn't have built-in rollback, but:
 | Route 53 Health Checks | Manual monitoring sufficient | +$1-2/month |
 | AWS Backup Service | Aurora snapshots sufficient | +$5-10/month |
 
+### Monitoring & Observability
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **CloudWatch Dashboard** | `BlueMoxon-API` - API latency, errors, Lambda metrics, CloudFront stats | ✅ DONE |
+| **CloudWatch Alarms** | High latency (p99>3s), 5xx errors (>5), Lambda errors (>=1) | ✅ DONE |
+| **CloudFront Access Logs** | Request logs to `bluemoxon-logs/cloudfront/` | ✅ DONE |
+| **Health Check Endpoints** | `/health/live`, `/ready`, `/deep`, `/info` | ✅ DONE |
+| **SNS Notifications** | Alert notifications via email/SMS | Planned |
+
+**Dashboard URL:** https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API
+
 ---
 
 ## Frontend Performance
@@ -222,7 +239,10 @@ aws s3 cp dist/index.html s3://bluemoxon-frontend/ \
 ### Current State
 - GitHub Actions CI with SAST, dependency scanning, secret detection
 - Deploy workflow pushes to Lambda + S3
-- ~3-5 minute total pipeline time
+- ~4 minute total pipeline time
+- **Deep health check validation** after deployment (DB, S3, Cognito, config)
+- **Smoke tests** validate API endpoints, frontend, and image CDN
+- Release tagging on successful deploy (`v{date}-{sha}`)
 
 ### Speed Improvements (Free)
 
@@ -271,10 +291,12 @@ on:
 
 | Feature | Description | Effort | Cost | Status |
 |---------|-------------|--------|------|--------|
+| ~~**Release Tags**~~ | ~~Auto-tag releases on main deploy~~ | ~~Low~~ | ~~$0~~ | ✅ DONE |
+| ~~**Deep Health Check Smoke Tests**~~ | ~~Validate DB/S3/Cognito after deploy, fail on unhealthy~~ | ~~Medium~~ | ~~$0~~ | ✅ DONE |
+| ~~**Image CDN Validation**~~ | ~~Verify CloudFront returns actual images, not error pages~~ | ~~Low~~ | ~~$0~~ | ✅ DONE |
 | **Deployment Notifications** | Slack/email on deploy success/failure | Low | $0 | Planned |
 | **Preview Environments** | PR previews (expensive, skip for internal) | High | +$10-20/month | Not planned |
 | **Automated Dependency Updates** | Dependabot already configured | Done | $0 | DONE |
-| **Release Tags** | Auto-tag releases on main deploy | Low | $0 | DONE |
 
 #### Release Tagging
 ```yaml
@@ -335,25 +357,29 @@ on:
 
 ## Cost Summary
 
-### Current Monthly Cost: ~$27-49
+### Current Monthly Cost: ~$28-52
 
 | Service | Current Cost |
 |---------|--------------|
 | Aurora Serverless v2 | $15-25 |
 | Lambda + API Gateway | $1-3 |
-| S3 (frontend + images) | $2-3 |
+| S3 (frontend + images + logs) | $2-4 |
 | CloudFront | $2-5 |
+| CloudWatch (dashboard + alarms) | $1-3 |
 | Route 53 + domain | $1-2 |
 | Secrets Manager | $1 |
 | NAT Gateway | $5-10 |
 
-### Recommended Additions: +$0.50-1
+### Recently Added (Included Above)
 
 | Addition | Cost |
 |----------|------|
 | S3 Versioning | +$0.50-1/month |
 | Lambda Versioning | $0 (free tier) |
-| **New Total** | **~$28-50/month** |
+| CloudWatch Dashboard | ~$3/month |
+| CloudWatch Alarms (3) | ~$0.30/month |
+| CloudFront Access Logs | ~$0.50/month |
+| **Current Total** | **~$28-52/month** |
 
 ### Staying Under $50/month
 
