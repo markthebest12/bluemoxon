@@ -118,10 +118,35 @@ This script:
 
 **Claude should NOT manually run these steps - the script handles them.**
 
+## Temporary Files
+
+**Use `.tmp/` for all temporary files** instead of `/tmp`:
+```bash
+.tmp/                  # Project-local temp directory (gitignored)
+```
+
+Benefits:
+- No permission prompts (covered by project permissions)
+- Stays with project context
+- Auto-cleaned on project deletion
+
+Examples:
+```bash
+# Download files
+curl -o .tmp/response.json https://api.example.com/data
+
+# Script outputs
+python script.py > .tmp/output.txt
+
+# Temporary processing
+aws lambda invoke --payload '{}' .tmp/result.json
+```
+
 ## Project Structure
 
 ```
 bluemoxon/
+├── .tmp/             # Temporary files (gitignored)
 ├── backend/           # FastAPI + SQLAlchemy
 │   ├── app/          # Application code
 │   └── tests/        # pytest tests
