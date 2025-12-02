@@ -209,6 +209,44 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.put("/reorder")
+def reorder_images(
+    book_id: int,
+    image_ids: list[int] = Body(..., embed=False),
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Reorder images by providing ordered list of image IDs. Requires editor role."""
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Verify all image_ids belong to this book
+    existing_images = (
+        db.query(BookImage).filter(BookImage.book_id == book_id, BookImage.id.in_(image_ids)).all()
+    )
+
+    if len(existing_images) != len(image_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Some image IDs do not belong to this book",
+        )
+
+    # Update display_order based on position in the array
+    # Also update is_primary: first image becomes primary, others become non-primary
+    for order, image_id in enumerate(image_ids):
+        db.query(BookImage).filter(BookImage.id == image_id).update(
+            {
+                BookImage.display_order: order,
+                BookImage.is_primary: (order == 0),  # First image is primary
+            }
+        )
+
+    db.commit()
+
+    return {"message": "Images reordered successfully", "order": image_ids}
+
+
 @router.get("/{image_id}/file")
 def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
     """Serve the actual image file or redirect to CloudFront/S3."""
@@ -420,44 +458,6 @@ def delete_image(
     # Delete record
     db.delete(image)
     db.commit()
-
-
-@router.put("/reorder")
-def reorder_images(
-    book_id: int,
-    image_ids: list[int] = Body(..., embed=False),
-    db: Session = Depends(get_db),
-    _user=Depends(require_editor),
-):
-    """Reorder images by providing ordered list of image IDs. Requires editor role."""
-    book = db.query(Book).filter(Book.id == book_id).first()
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-
-    # Verify all image_ids belong to this book
-    existing_images = (
-        db.query(BookImage).filter(BookImage.book_id == book_id, BookImage.id.in_(image_ids)).all()
-    )
-
-    if len(existing_images) != len(image_ids):
-        raise HTTPException(
-            status_code=400,
-            detail="Some image IDs do not belong to this book",
-        )
-
-    # Update display_order based on position in the array
-    # Also update is_primary: first image becomes primary, others become non-primary
-    for order, image_id in enumerate(image_ids):
-        db.query(BookImage).filter(BookImage.id == image_id).update(
-            {
-                BookImage.display_order: order,
-                BookImage.is_primary: (order == 0),  # First image is primary
-            }
-        )
-
-    db.commit()
-
-    return {"message": "Images reordered successfully", "order": image_ids}
 
 
 # Standalone placeholder endpoint (not book-specific)
