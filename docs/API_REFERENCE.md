@@ -12,14 +12,22 @@ GET /books
 Query Parameters:
 - `page` (int, default: 1) - Page number
 - `per_page` (int, default: 20, max: 100) - Items per page
+- `q` (string) - **Search query** for title, author, notes, binding description
 - `inventory_type` (string) - Filter: PRIMARY, EXTENDED, FLAGGED
 - `category` (string) - Filter by category
 - `status` (string) - Filter: ON_HAND, IN_TRANSIT, SOLD, REMOVED
 - `publisher_id` (int) - Filter by publisher
+- `publisher_tier` (string) - Filter: "Tier 1", "Tier 2", "Tier 3"
 - `author_id` (int) - Filter by author
 - `binder_id` (int) - Filter by binder
 - `binding_authenticated` (bool) - Filter authenticated bindings
+- `binding_type` (string) - Filter: Full leather, Half leather, etc.
+- `condition_grade` (string) - Filter: Fine, Very Good, Good, Fair, Poor
 - `min_value` / `max_value` (float) - Value range filter
+- `year_start` / `year_end` (int) - Publication year range filter
+- `has_images` (bool) - Filter books with/without images
+- `has_analysis` (bool) - Filter books with/without analysis
+- `has_provenance` (bool) - Filter books with/without provenance
 - `sort_by` (string, default: "title") - Sort field
 - `sort_order` (string, default: "asc") - asc or desc
 
@@ -447,6 +455,44 @@ Query Parameters:
 
 ---
 
+### Reorder Images
+```
+PUT /books/{book_id}/images/reorder
+```
+
+**Authentication Required:** Editor or Admin role
+
+Reorders images by providing an ordered list of image IDs. The first image in the list automatically becomes the primary image.
+
+Request Body: Array of image IDs in desired order
+```json
+[5, 3, 1, 4, 2]
+```
+
+Example:
+```bash
+curl -X PUT "http://localhost:8000/api/v1/books/407/images/reorder" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '[5, 3, 1, 4, 2]'
+```
+
+Response:
+```json
+{
+  "message": "Images reordered successfully",
+  "order": [5, 3, 1, 4, 2]
+}
+```
+
+Error Responses:
+- 400 Bad Request - Some image IDs do not belong to this book
+- 401 Unauthorized - Not authenticated
+- 403 Forbidden - User does not have editor role
+- 404 Not Found - Book not found
+
+---
+
 ### Delete Image
 ```
 DELETE /books/{book_id}/images/{image_id}
@@ -667,6 +713,256 @@ Returns full JSON export with all book details.
 - `POST /binders` - Create binder
 - `PUT /binders/{id}` - Update binder
 - `DELETE /binders/{id}` - Delete binder
+
+---
+
+## User Management API (Admin Only)
+
+All endpoints in this section require **admin** role.
+
+### Get Current User
+```
+GET /users/me
+```
+
+Returns the currently authenticated user's information.
+
+Response:
+```json
+{
+  "cognito_sub": "abc123-...",
+  "email": "user@example.com",
+  "role": "editor",
+  "id": 5
+}
+```
+
+---
+
+### List All Users
+```
+GET /users
+```
+
+Response:
+```json
+[
+  {"id": 1, "cognito_sub": "...", "email": "admin@example.com", "role": "admin"},
+  {"id": 2, "cognito_sub": "...", "email": "editor@example.com", "role": "editor"}
+]
+```
+
+---
+
+### Invite User
+```
+POST /users/invite
+```
+
+Sends an email invitation with a temporary password via AWS Cognito.
+
+Request Body:
+```json
+{
+  "email": "newuser@example.com",
+  "role": "viewer"
+}
+```
+
+Valid roles: `viewer`, `editor`, `admin`
+
+Response:
+```json
+{
+  "message": "Invitation sent to newuser@example.com",
+  "user_id": 5,
+  "cognito_sub": "abc123-..."
+}
+```
+
+---
+
+### Update User Role
+```
+PUT /users/{user_id}/role?role={role}
+```
+
+Valid roles: `viewer`, `editor`, `admin`
+
+Response:
+```json
+{"message": "User 5 role updated to editor"}
+```
+
+---
+
+### Delete User
+```
+DELETE /users/{user_id}
+```
+
+Cannot delete yourself. Also deletes associated API keys.
+
+Response:
+```json
+{"message": "User 5 deleted"}
+```
+
+---
+
+### Get User MFA Status
+```
+GET /users/{user_id}/mfa
+```
+
+Response:
+```json
+{
+  "user_id": 5,
+  "email": "user@example.com",
+  "mfa_enabled": true,
+  "mfa_methods": ["SOFTWARE_TOKEN_MFA"]
+}
+```
+
+---
+
+### Enable User MFA
+```
+POST /users/{user_id}/mfa/enable
+```
+
+User will be prompted to set up TOTP MFA on next login.
+
+Response:
+```json
+{"message": "MFA enabled for user@example.com"}
+```
+
+---
+
+### Disable User MFA
+```
+POST /users/{user_id}/mfa/disable
+```
+
+Response:
+```json
+{"message": "MFA disabled for user@example.com"}
+```
+
+---
+
+### Impersonate User
+```
+POST /users/{user_id}/impersonate
+```
+
+Generates temporary credentials for testing as another user. Resets user's password.
+
+Response:
+```json
+{
+  "message": "Temporary credentials generated for user@example.com",
+  "email": "user@example.com",
+  "temp_password": "RandomSecurePass123!",
+  "note": "Log out and use these credentials. User should reset password after."
+}
+```
+
+---
+
+## API Keys (Admin Only)
+
+### List API Keys
+```
+GET /users/api-keys
+```
+
+Response:
+```json
+[
+  {
+    "id": 1,
+    "name": "Data Import",
+    "key_prefix": "abc12345",
+    "created_by_email": "admin@example.com",
+    "is_active": true,
+    "last_used_at": "2025-12-01T12:00:00",
+    "created_at": "2025-11-15T10:30:00"
+  }
+]
+```
+
+---
+
+### Create API Key
+```
+POST /users/api-keys
+```
+
+Request Body:
+```json
+{"name": "Data Import Script"}
+```
+
+Response (**key only shown once!**):
+```json
+{
+  "id": 2,
+  "name": "Data Import Script",
+  "key": "abc12345defghijk...",
+  "key_prefix": "abc12345",
+  "message": "Save this key now - it won't be shown again"
+}
+```
+
+---
+
+### Revoke API Key
+```
+DELETE /users/api-keys/{key_id}
+```
+
+Response:
+```json
+{"message": "API key 2 revoked"}
+```
+
+---
+
+## Authentication & Authorization
+
+### Roles
+
+| Role | Read | Create/Edit | Delete | Admin |
+|------|------|-------------|--------|-------|
+| viewer | ✓ | ✗ | ✗ | ✗ |
+| editor | ✓ | ✓ | ✓ | ✗ |
+| admin | ✓ | ✓ | ✓ | ✓ |
+
+### Protected Endpoints
+
+Most write operations require **editor** or **admin** role:
+- `POST /books` - Create book
+- `PUT /books/{id}` - Update book
+- `DELETE /books/{id}` - Delete book
+- `POST /books/{id}/images` - Upload image
+- `PUT /books/{id}/images/reorder` - Reorder images
+- `PUT /books/{id}/analysis` - Update analysis
+
+Admin-only operations:
+- All `/users/*` endpoints
+- All `/users/api-keys/*` endpoints
+
+### API Key Authentication
+
+For programmatic access (scripts, integrations), use API key in header:
+
+```bash
+curl -H "X-API-Key: your-api-key-here" \
+  "https://api.bluemoxon.com/api/v1/books"
+```
 
 ---
 
