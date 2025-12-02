@@ -1,21 +1,35 @@
 """User management API endpoints (admin only)."""
 
+import logging
+
+import boto3
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.auth import CurrentUser, get_current_user, require_admin
+from app.config import get_settings
 from app.db import get_db
 from app.models.api_key import APIKey
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+settings = get_settings()
 
 
 class CreateAPIKeyRequest(BaseModel):
     """Request body for creating an API key."""
 
     name: str
+
+
+class InviteUserRequest(BaseModel):
+    """Request body for inviting a new user."""
+
+    email: EmailStr
+    role: str = "viewer"
 
 
 # ============================================
@@ -34,6 +48,74 @@ async def get_current_user_info(
         "role": current_user.role,
         "id": current_user.db_user.id if current_user.db_user else None,
     }
+
+
+@router.post("/invite")
+def invite_user(
+    request: InviteUserRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Invite a new user via Cognito. Sends email with temporary password."""
+    if request.role not in ("viewer", "editor", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    if not settings.cognito_user_pool_id:
+        raise HTTPException(status_code=500, detail="Cognito not configured on server")
+
+    existing = db.query(User).filter(User.email == request.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
+    try:
+        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        response = cognito.admin_create_user(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=request.email,
+            UserAttributes=[
+                {"Name": "email", "Value": request.email},
+                {"Name": "email_verified", "Value": "true"},
+            ],
+            DesiredDeliveryMediums=["EMAIL"],
+        )
+
+        cognito_sub = None
+        for attr in response["User"]["Attributes"]:
+            if attr["Name"] == "sub":
+                cognito_sub = attr["Value"]
+                break
+
+        if cognito_sub:
+            new_user = User(cognito_sub=cognito_sub, email=request.email, role=request.role)
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            return {
+                "message": f"Invitation sent to {request.email}",
+                "user_id": new_user.id,
+                "cognito_sub": cognito_sub,
+            }
+        else:
+            return {
+                "message": f"Invitation sent to {request.email}",
+                "note": "User will be created in database on first login",
+            }
+
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        error_msg = e.response["Error"]["Message"]
+        logger.error(f"Cognito error: {error_code} - {error_msg}")
+        if error_code == "UsernameExistsException":
+            raise HTTPException(
+                status_code=400,
+                detail="A user with this email already exists in Cognito",
+            ) from None
+        elif error_code == "InvalidParameterException":
+            raise HTTPException(status_code=400, detail=error_msg) from None
+        else:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to create user: {error_msg}"
+            ) from None
 
 
 @router.get("/api-keys")

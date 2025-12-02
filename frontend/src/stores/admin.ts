@@ -127,6 +127,19 @@ export const useAdminStore = defineStore("admin", () => {
     }
   }
 
+  async function inviteUser(email: string, role: string) {
+    error.value = null;
+    try {
+      const response = await api.post("/users/invite", { email, role });
+      // Refresh users list to show the new user
+      await fetchUsers();
+      return response.data;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to invite user";
+      throw e;
+    }
+  }
+
   function clearNewKey() {
     newlyCreatedKey.value = null;
   }
@@ -143,6 +156,7 @@ export const useAdminStore = defineStore("admin", () => {
     fetchAPIKeys,
     createAPIKey,
     revokeAPIKey,
+    inviteUser,
     clearNewKey,
   };
 });

@@ -13,6 +13,12 @@ const newKeyName = ref("");
 const showNewKeyModal = ref(false);
 const confirmDeleteUser = ref<number | null>(null);
 
+// Invite user state
+const inviteEmail = ref("");
+const inviteRole = ref("viewer");
+const inviteLoading = ref(false);
+const inviteSuccess = ref<string | null>(null);
+
 onMounted(async () => {
   // Redirect if not admin
   if (!authStore.isAdmin) {
@@ -37,6 +43,24 @@ async function deleteUser(userId: number) {
     confirmDeleteUser.value = null;
   } catch {
     // Error is set in store
+  }
+}
+
+async function inviteUser() {
+  if (!inviteEmail.value.trim()) return;
+
+  inviteLoading.value = true;
+  inviteSuccess.value = null;
+
+  try {
+    await adminStore.inviteUser(inviteEmail.value.trim(), inviteRole.value);
+    inviteSuccess.value = `Invitation sent to ${inviteEmail.value}`;
+    inviteEmail.value = "";
+    inviteRole.value = "viewer";
+  } catch {
+    // Error is set in store
+  } finally {
+    inviteLoading.value = false;
   }
 }
 
@@ -120,6 +144,41 @@ function formatDate(dateStr: string | null): string {
 
     <!-- Users Tab -->
     <div v-if="activeTab === 'users'">
+      <!-- Invite user form -->
+      <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+        <h3 class="text-lg font-medium text-gray-800 mb-3">Invite New User</h3>
+        <div
+          v-if="inviteSuccess"
+          class="mb-3 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm"
+        >
+          {{ inviteSuccess }}
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <input
+            v-model="inviteEmail"
+            type="email"
+            placeholder="Email address"
+            class="flex-1 min-w-[200px] input"
+            @keyup.enter="inviteUser"
+          />
+          <select v-model="inviteRole" class="input w-auto">
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            @click="inviteUser"
+            class="btn-primary"
+            :disabled="!inviteEmail.trim() || inviteLoading"
+          >
+            {{ inviteLoading ? "Sending..." : "Send Invite" }}
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">
+          User will receive an email with a temporary password to set up their account.
+        </p>
+      </div>
+
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
       <div v-else class="bg-white rounded-lg shadow overflow-hidden">
