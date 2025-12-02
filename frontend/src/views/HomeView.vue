@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { api } from "@/services/api";
+import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
 
 interface Stats {
   primary: {
@@ -105,5 +106,8 @@ function formatCurrency(value: number): string {
         <p class="text-gray-500 mt-2">View authenticated Zaehnsdorf, Riviere, and more</p>
       </RouterLink>
     </div>
+
+    <!-- Statistics Dashboard -->
+    <StatisticsDashboard />
   </div>
 </template>

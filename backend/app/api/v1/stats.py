@@ -329,3 +329,89 @@ def get_pending_deliveries(db: Session = Depends(get_db)):
             for b in books
         ],
     }
+
+
+@router.get("/acquisitions-by-month")
+def get_acquisitions_by_month(db: Session = Depends(get_db)):
+    """Get acquisition counts and values by month for trend analysis."""
+    from sqlalchemy import extract
+
+    # Get all primary books with purchase dates
+    results = (
+        db.query(
+            extract("year", Book.purchase_date).label("year"),
+            extract("month", Book.purchase_date).label("month"),
+            func.count(Book.id).label("count"),
+            func.sum(Book.value_mid).label("value"),
+            func.sum(Book.purchase_price).label("cost"),
+        )
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.purchase_date.isnot(None),
+        )
+        .group_by(
+            extract("year", Book.purchase_date),
+            extract("month", Book.purchase_date),
+        )
+        .order_by(
+            extract("year", Book.purchase_date),
+            extract("month", Book.purchase_date),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "year": int(row.year),
+            "month": int(row.month),
+            "label": f"{int(row.year)}-{int(row.month):02d}",
+            "count": row.count,
+            "value": float(row.value or 0),
+            "cost": float(row.cost or 0),
+        }
+        for row in results
+    ]
+
+
+@router.get("/value-by-category")
+def get_value_by_category(db: Session = Depends(get_db)):
+    """Get value distribution by major categories for pie chart."""
+    # Get premium binding value
+    premium_value = (
+        db.query(func.sum(Book.value_mid))
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.binding_authenticated.is_(True),
+        )
+        .scalar()
+        or 0
+    )
+
+    # Get Tier 1 publisher value (excluding premium bindings to avoid double counting)
+    tier1_value = (
+        db.query(func.sum(Book.value_mid))
+        .join(Publisher)
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Publisher.tier == "TIER_1",
+            Book.binding_authenticated.is_not(True),
+        )
+        .scalar()
+        or 0
+    )
+
+    # Get remaining value
+    total_value = (
+        db.query(func.sum(Book.value_mid))
+        .filter(Book.inventory_type == "PRIMARY")
+        .scalar()
+        or 0
+    )
+
+    other_value = float(total_value) - float(premium_value) - float(tier1_value)
+
+    return [
+        {"category": "Premium Bindings", "value": float(premium_value)},
+        {"category": "Tier 1 Publishers", "value": float(tier1_value)},
+        {"category": "Other", "value": max(0, other_value)},
+    ]
