@@ -55,7 +55,6 @@ This document tracks planned features, improvements, and technical debt for the 
 | ~~**Insurance/Export Reports**~~ | ~~Insurance valuation report with CSV export, report type selector (Primary/Extended/Full)~~ | ~~Low~~ | ~~High~~ | ✅ DONE |
 | **PDF Catalog Generation** | Printable PDF catalog with images | Low | High | |
 | **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
-| **Backup/Restore UI** | Database backup scheduling, export/import functionality | Low | Medium | |
 | ~~**Mobile Responsive Improvements**~~ | ~~Tailwind responsive classes across all views, touch support for modals~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
 
 ### Recently Completed (Not Previously Tracked)
