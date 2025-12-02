@@ -171,7 +171,7 @@ const barChartOptions = {
       ticks: {
         font: { size: 10 },
         stepSize: 1,
-        callback: (value: string | number) => Number.isInteger(Number(value)) ? value : "",
+        callback: (value: string | number) => (Number.isInteger(Number(value)) ? value : ""),
       },
     },
     y: {
@@ -327,11 +327,7 @@ onMounted(async () => {
       <div class="card !p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-3">Top Authors</h3>
         <div class="h-48 md:h-56">
-          <Bar
-            v-if="authorData.length > 0"
-            :data="authorChartData"
-            :options="barChartOptions"
-          />
+          <Bar v-if="authorData.length > 0" :data="authorChartData" :options="barChartOptions" />
           <p v-else class="text-gray-400 text-sm text-center py-8">No author data available</p>
         </div>
       </div>
@@ -340,12 +336,10 @@ onMounted(async () => {
       <div class="card !p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-3">Top Tier 1 Publishers</h3>
         <div class="h-48 md:h-56">
-          <Bar
-            v-if="hasTier1Publishers"
-            :data="publisherChartData"
-            :options="barChartOptions"
-          />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No Tier 1 publisher data available</p>
+          <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
+          <p v-else class="text-gray-400 text-sm text-center py-8">
+            No Tier 1 publisher data available
+          </p>
         </div>
       </div>
 
