@@ -406,6 +406,24 @@ def enable_user_mfa(
         raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
 
 
+@router.post("/admin/execute-sql")
+def execute_sql(
+    sql: str,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Execute raw SQL (admin only). TEMPORARY - for DB fixes."""
+    from sqlalchemy import text
+
+    try:
+        result = db.execute(text(sql))
+        db.commit()
+        return {"message": "SQL executed", "rowcount": result.rowcount}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e)) from None
+
+
 @router.post("/{user_id}/impersonate")
 def impersonate_user(
     user_id: int,
