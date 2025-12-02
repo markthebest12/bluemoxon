@@ -89,7 +89,7 @@ def import_from_s3(bucket: str, key: str) -> dict:
         statements = [s.strip() for s in sql_content.split(";") if s.strip()]
 
         for stmt in statements:
-            if sql_pattern.match(stmt):
+            if sql_pattern.search(stmt):
                 logger.info(f"Executing SQL: {stmt[:60]}...")
                 try:
                     cursor.execute(stmt)
