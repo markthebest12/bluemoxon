@@ -75,15 +75,20 @@ function syncFiltersFromUrl() {
   }
 }
 
-// Track if we've initialized
+// Track if we've initialized and if we're updating URL ourselves
 const initialized = ref(false);
+const isUpdatingUrl = ref(false);
 
 // Watch for route changes (handles back button navigation)
 watch(
   () => route.fullPath,
   (newPath) => {
-    // Only sync if we're on the books list route and already initialized
-    if (initialized.value && (newPath.startsWith("/books?") || newPath === "/books")) {
+    // Skip if we're the ones updating the URL, or not initialized yet
+    if (isUpdatingUrl.value || !initialized.value) {
+      return;
+    }
+    // Only sync if we're on the books list route
+    if (newPath.startsWith("/books?") || newPath === "/books") {
       syncFiltersFromUrl();
       booksStore.fetchBooks();
     }
@@ -117,8 +122,14 @@ function updateUrlWithFilters() {
     query.binding_authenticated = String(booksStore.filters.binding_authenticated);
   }
 
-  // Replace current URL to preserve back button behavior
-  router.replace({ query });
+  // Set flag to prevent watch from firing
+  isUpdatingUrl.value = true;
+  router.replace({ query }).finally(() => {
+    // Reset flag after URL update completes
+    setTimeout(() => {
+      isUpdatingUrl.value = false;
+    }, 100);
+  });
 }
 
 function applyFilters() {
