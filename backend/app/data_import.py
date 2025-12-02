@@ -26,7 +26,7 @@ def get_db_credentials() -> dict:
 
 
 def import_from_s3(bucket: str, key: str) -> dict:
-    """Import SQL from S3 file into database using COPY format."""
+    """Import SQL from S3 file into database using COPY format or regular SQL."""
     logger.info(f"Importing data from s3://{bucket}/{key}")
 
     # Download SQL from S3
@@ -53,7 +53,7 @@ def import_from_s3(bucket: str, key: str) -> dict:
     try:
         cursor = conn.cursor()
 
-        # Parse COPY blocks and execute them
+        # First, try to find and execute COPY blocks
         # COPY format: COPY tablename (cols) FROM stdin; data... \.
         copy_pattern = re.compile(
             r"COPY\s+([\w.]+)\s*\(([^)]+)\)\s+FROM\s+stdin;(.*?)\\\.", re.DOTALL | re.IGNORECASE
@@ -83,8 +83,31 @@ def import_from_s3(bucket: str, key: str) -> dict:
                 conn.rollback()
                 continue
 
+        # Also execute regular SQL statements (UPDATE, INSERT, DELETE)
+        # Split by semicolon and execute each statement
+        sql_pattern = re.compile(
+            r"^\s*(UPDATE|INSERT|DELETE)\s+", re.IGNORECASE | re.MULTILINE
+        )
+        statements = [s.strip() for s in sql_content.split(";") if s.strip()]
+
+        for stmt in statements:
+            if sql_pattern.match(stmt):
+                logger.info(f"Executing SQL: {stmt[:60]}...")
+                try:
+                    cursor.execute(stmt)
+                    rows = cursor.rowcount
+                    logger.info(f"  Affected {rows} row(s)")
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+                    error_msg = f"SQL error: {str(e)[:200]}"
+                    errors.append(error_msg)
+                    logger.warning(error_msg)
+                    conn.rollback()
+                    continue
+
         conn.commit()
-        logger.info(f"Import completed: {success_count} tables imported, {error_count} errors")
+        logger.info(f"Import completed: {success_count} operations, {error_count} errors")
 
     except Exception as e:
         conn.rollback()
