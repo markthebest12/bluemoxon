@@ -20,34 +20,32 @@ This document tracks planned features, improvements, and technical debt for the 
 
 ### In-Code TODOs
 
-| Feature | Location | Priority | Effort |
-|---------|----------|----------|--------|
-| ~~**Thumbnail Generation**~~ | `backend/app/api/v1/images.py` | ~~Medium~~ | ~~Medium~~ |
-| ✅ DONE - Pillow-based thumbnail generation (300x300 JPEG) implemented in images.py and import_assets.py. Thumbnails generated on upload and import. | | | |
+| Feature | Location | Priority | Effort | Status |
+|---------|----------|----------|--------|--------|
+| ~~**Thumbnail Generation**~~ | `backend/app/api/v1/images.py` | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
+
+*Thumbnail generation: Pillow-based 300x300 JPEG thumbnails on upload and import.*
 
 ### Testing Gaps
 
-| Feature | Status | Priority | Effort |
-|---------|--------|----------|--------|
-| ~~**Playwright E2E Tests**~~ | ✅ Configured | ~~Low~~ | ~~High~~ |
-| ~~**Vitest Frontend Unit Tests**~~ | ✅ 21 tests passing | ~~Medium~~ | ~~Medium~~ |
-| ~~**Prettier Configuration**~~ | ✅ Configured | ~~Low~~ | ~~Low~~ |
+| Feature | Description | Priority | Effort | Status |
+|---------|-------------|----------|--------|--------|
+| ~~**Playwright E2E Tests**~~ | ~~End-to-end browser testing~~ | ~~Low~~ | ~~High~~ | ✅ Configured |
+| ~~**Vitest Frontend Unit Tests**~~ | ~~21 tests passing~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
+| ~~**Prettier Configuration**~~ | ~~Code formatting~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 
 ### Missing UI Features
 
 | Feature | Description | Priority | Effort | Status |
 |---------|-------------|----------|--------|--------|
 | **Role-Based Authorization** | Architecture defines admin/editor/viewer roles; `users.role` field exists but not enforced in API | Low | Medium | |
-| ~~**Book Status Management**~~ | ~~Schema has ON_HAND, IN_TRANSIT, SOLD, DONATED statuses but no UI to track changes~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
-| ✅ DONE - Color-coded dropdown selector on book detail page for status management (ON_HAND, IN_TRANSIT, SOLD, REMOVED) | | | | |
-| ~~**Provenance Tracking**~~ | ~~Database has `provenance` field for ownership history; add display/editing in book detail~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
-| ✅ DONE - View/edit modes for ownership history, inscriptions, bookplates on book detail page | | | | |
+| ~~**Book Status Management**~~ | ~~Color-coded dropdown selector on book detail page (ON_HAND, IN_TRANSIT, SOLD, REMOVED)~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
+| ~~**Provenance Tracking**~~ | ~~View/edit modes for ownership history, inscriptions, bookplates~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 | **Analysis Management UI** | `book_analyses` table exists but no frontend UI to create/edit (only read from import) | Medium | Medium | |
-| **Image Gallery Lightbox** | Book detail shows images but no full-screen viewer | Medium | Low | ✅ DONE |
-| ~~**Image Drag-and-Drop Reordering**~~ | ~~`display_order` exists in database but no UI to reorder~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
-| ✅ DONE - Drag-and-drop interface for reordering book images with display_order persistence | | | | |
-| ~~**Advanced Filtering**~~ | ~~Filter by: binder, publisher tier, binding type, condition grade, date range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
-| ✅ DONE - Expanded filter panel with: bindery, publisher, publisher tier, binding type, premium binding, condition grade, status, images, analysis, year range, value range | | | | |
+| ~~**Image Gallery Lightbox**~~ | ~~Full-screen image viewer on book detail~~ | ~~Medium~~ | ~~Low~~ | ✅ DONE |
+| ~~**Image Drag-and-Drop Reordering**~~ | ~~Drag-and-drop interface for reordering images with display_order persistence~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
+| ~~**Advanced Filtering**~~ | ~~Filter panel: bindery, publisher, tier, binding type, condition, status, year/value range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
+| ~~**Filter State Persistence**~~ | ~~Filter state preserved on back navigation and "Back to Collection" link~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 
 ### New Feature Ideas
 
@@ -301,23 +299,25 @@ on:
 
 ### Medium Priority (Do When Time Permits)
 
-| Item | Category | Effort | Impact |
-|------|----------|--------|--------|
-| Thumbnail Generation | Features | Medium | Medium (faster list views) | DONE |
-| Book Status Management UI | Features | Low | Medium (workflow improvement) |
-| Advanced Filtering | Features | Medium | Medium (usability) |
-| Image Gallery Lightbox | Features | Low | Medium (UX improvement) |
-| Vitest Frontend Tests | Testing | Medium | Medium (code quality) |
+| Item | Category | Effort | Impact | Status |
+|------|----------|--------|--------|--------|
+| ~~Thumbnail Generation~~ | Features | ~~Medium~~ | ~~Medium (faster list views)~~ | ✅ DONE |
+| ~~Book Status Management UI~~ | Features | ~~Low~~ | ~~Medium (workflow improvement)~~ | ✅ DONE |
+| ~~Advanced Filtering~~ | Features | ~~Medium~~ | ~~Medium (usability)~~ | ✅ DONE |
+| ~~Image Gallery Lightbox~~ | Features | ~~Low~~ | ~~Medium (UX improvement)~~ | ✅ DONE |
+| ~~Vitest Frontend Tests~~ | Testing | ~~Medium~~ | ~~Medium (code quality)~~ | ✅ DONE |
+| Analysis Management UI | Features | Medium | Medium (content editing) | |
+| Collection Statistics Dashboard | Features | Medium | Medium (insights) | |
 
 ### Low Priority (Nice to Have)
 
-| Item | Category | Effort | Impact |
-|------|----------|--------|--------|
-| Role-Based Authorization | Features | Medium | Low (single admin) |
-| Audit Logging | Features | Medium | Low (internal use) |
-| Playwright E2E Tests | Testing | High | Low (manual testing OK) |
-| Print/Export Views | Features | High | Low (occasional need) |
-| Mobile Responsive | Features | Medium | Low (desktop primary) |
+| Item | Category | Effort | Impact | Status |
+|------|----------|--------|--------|--------|
+| Role-Based Authorization | Features | Medium | Low (single admin) | |
+| Audit Logging | Features | Medium | Low (internal use) | |
+| ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
+| Print/Export Views | Features | High | Low (occasional need) | |
+| Mobile Responsive | Features | Medium | Low (desktop primary) | |
 
 ---
 
@@ -353,4 +353,4 @@ To stay within budget:
 
 ---
 
-**Last Updated:** 2025-11-30
+**Last Updated:** 2025-12-02
