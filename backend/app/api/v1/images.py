@@ -342,6 +342,33 @@ async def upload_image(
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
     generate_thumbnail(file_path, thumbnail_path)
 
+    # Upload to S3 in production
+    if is_production():
+        s3 = get_s3_client()
+        s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
+        s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
+
+        # Upload main image
+        s3.upload_file(
+            str(file_path),
+            settings.images_bucket,
+            s3_key,
+            ExtraArgs={"ContentType": "image/jpeg"},
+        )
+
+        # Upload thumbnail
+        if thumbnail_path.exists():
+            s3.upload_file(
+                str(thumbnail_path),
+                settings.images_bucket,
+                s3_thumbnail_key,
+                ExtraArgs={"ContentType": "image/jpeg"},
+            )
+
+        # Clean up local files (Lambda has limited /tmp space)
+        file_path.unlink(missing_ok=True)
+        thumbnail_path.unlink(missing_ok=True)
+
     # If this is primary, unset any existing primary
     if is_primary:
         db.query(BookImage).filter(
