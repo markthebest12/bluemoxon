@@ -142,7 +142,8 @@ const formattedAnalysis = computed(() => {
 
 // Computed property for live preview (edit mode)
 const previewHtml = computed(() => {
-  if (!editedAnalysis.value) return '<p class="text-gray-400 italic">Start typing to see preview...</p>';
+  if (!editedAnalysis.value)
+    return '<p class="text-gray-400 italic">Start typing to see preview...</p>';
   return renderMarkdown(editedAnalysis.value);
 });
 
@@ -360,7 +361,10 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
 
             <!-- Error (not in edit mode) -->
-            <div v-else-if="error && !editMode" class="h-full flex flex-col items-center justify-center p-6">
+            <div
+              v-else-if="error && !editMode"
+              class="h-full flex flex-col items-center justify-center p-6"
+            >
               <p class="text-gray-500">{{ error }}</p>
               <button
                 v-if="canEdit && !analysis"
@@ -417,7 +421,10 @@ Detailed condition notes...
                 </div>
               </div>
               <div class="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500 flex justify-between">
-                <span>Supports GitHub Flavored Markdown: # headers, **bold**, *italic*, - lists, | tables |</span>
+                <span
+                  >Supports GitHub Flavored Markdown: # headers, **bold**, *italic*, - lists, |
+                  tables |</span
+                >
                 <span class="text-gray-400">⌘S to save • Esc to cancel</span>
               </div>
             </div>
