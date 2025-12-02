@@ -1,15 +1,43 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
 const authStore = useAuthStore();
 
+// Profile editing
+const firstName = ref("");
+const lastName = ref("");
+const profileLoading = ref(false);
+const profileError = ref("");
+const profileSuccess = ref("");
+
+// Password change
 const currentPassword = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
 const loading = ref(false);
 const error = ref("");
 const success = ref("");
+
+onMounted(() => {
+  firstName.value = authStore.user?.first_name || "";
+  lastName.value = authStore.user?.last_name || "";
+});
+
+async function handleUpdateProfile() {
+  profileError.value = "";
+  profileSuccess.value = "";
+  profileLoading.value = true;
+
+  try {
+    await authStore.updateProfile(firstName.value, lastName.value);
+    profileSuccess.value = "Profile updated successfully";
+  } catch (e: any) {
+    profileError.value = e.message || "Failed to update profile";
+  } finally {
+    profileLoading.value = false;
+  }
+}
 
 async function handleChangePassword() {
   error.value = "";
@@ -54,21 +82,63 @@ async function handleChangePassword() {
   <div class="max-w-2xl mx-auto">
     <h1 class="text-2xl font-bold text-moxon-800 mb-8">Profile Settings</h1>
 
-    <!-- Account Info -->
+    <!-- Profile Information -->
     <div class="card mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">Account Information</h2>
-      <dl class="space-y-3">
-        <div>
-          <dt class="text-sm text-gray-500">Email</dt>
-          <dd class="text-gray-800">{{ authStore.user?.email }}</dd>
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">Profile Information</h2>
+
+      <div v-if="profileError" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4">
+        {{ profileError }}
+      </div>
+
+      <div v-if="profileSuccess" class="bg-green-50 text-green-700 p-4 rounded-lg text-sm mb-4">
+        {{ profileSuccess }}
+      </div>
+
+      <form @submit.prevent="handleUpdateProfile" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">
+              First Name
+            </label>
+            <input
+              id="firstName"
+              v-model="firstName"
+              type="text"
+              class="input"
+              placeholder="Enter your first name"
+            />
+          </div>
+          <div>
+            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">
+              Last Name
+            </label>
+            <input
+              id="lastName"
+              v-model="lastName"
+              type="text"
+              class="input"
+              placeholder="Enter your last name"
+            />
+          </div>
         </div>
-        <div>
-          <dt class="text-sm text-gray-500">Role</dt>
-          <dd class="text-gray-800 capitalize">
-            {{ authStore.user?.role || "viewer" }}
-          </dd>
-        </div>
-      </dl>
+
+        <dl class="space-y-3 pt-4 border-t">
+          <div>
+            <dt class="text-sm text-gray-500">Email</dt>
+            <dd class="text-gray-800">{{ authStore.user?.email }}</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">Role</dt>
+            <dd class="text-gray-800 capitalize">
+              {{ authStore.user?.role || "viewer" }}
+            </dd>
+          </div>
+        </dl>
+
+        <button type="submit" class="btn-primary" :disabled="profileLoading">
+          {{ profileLoading ? "Saving..." : "Save Profile" }}
+        </button>
+      </form>
     </div>
 
     <!-- Change Password -->

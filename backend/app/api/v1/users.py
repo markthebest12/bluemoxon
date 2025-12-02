@@ -32,6 +32,13 @@ class InviteUserRequest(BaseModel):
     role: str = "viewer"
 
 
+class UpdateProfileRequest(BaseModel):
+    """Request body for updating user profile."""
+
+    first_name: str | None = None
+    last_name: str | None = None
+
+
 # ============================================
 # Static routes MUST come before parameterized routes
 # ============================================
@@ -42,11 +49,45 @@ async def get_current_user_info(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """Get current user info including database role."""
+    db_user = current_user.db_user
     return {
         "cognito_sub": current_user.cognito_sub,
         "email": current_user.email,
         "role": current_user.role,
-        "id": current_user.db_user.id if current_user.db_user else None,
+        "id": db_user.id if db_user else None,
+        "first_name": db_user.first_name if db_user else None,
+        "last_name": db_user.last_name if db_user else None,
+    }
+
+
+@router.put("/me")
+async def update_current_user_profile(
+    request: UpdateProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Update current user's profile (first_name, last_name)."""
+    if not current_user.db_user:
+        raise HTTPException(status_code=404, detail="User not found in database")
+
+    db_user = db.query(User).filter(User.id == current_user.db_user.id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if request.first_name is not None:
+        db_user.first_name = request.first_name
+    if request.last_name is not None:
+        db_user.last_name = request.last_name
+
+    db.commit()
+    db.refresh(db_user)
+
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "role": db_user.role,
+        "first_name": db_user.first_name,
+        "last_name": db_user.last_name,
     }
 
 

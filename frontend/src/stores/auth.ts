@@ -6,6 +6,8 @@ interface User {
   username: string;
   email: string;
   role: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 type MfaStep = "none" | "totp_required" | "totp_setup" | "new_password_required";
@@ -36,14 +38,20 @@ export const useAuthStore = defineStore("auth", () => {
       };
       mfaStep.value = "none";
 
-      // Fetch actual role from our backend database
+      // Fetch actual role and profile from our backend database
       try {
         const response = await api.get("/users/me");
         if (response.data.role) {
           user.value.role = response.data.role;
         }
+        if (response.data.first_name) {
+          user.value.first_name = response.data.first_name;
+        }
+        if (response.data.last_name) {
+          user.value.last_name = response.data.last_name;
+        }
       } catch (e) {
-        console.warn("Could not fetch user role from API:", e);
+        console.warn("Could not fetch user profile from API:", e);
       }
     } catch {
       user.value = null;
@@ -175,6 +183,18 @@ export const useAuthStore = defineStore("auth", () => {
     totpSetupUri.value = null;
   }
 
+  async function updateProfile(firstName: string, lastName: string) {
+    if (!user.value) return;
+
+    const response = await api.put("/users/me", {
+      first_name: firstName,
+      last_name: lastName,
+    });
+
+    user.value.first_name = response.data.first_name;
+    user.value.last_name = response.data.last_name;
+  }
+
   return {
     user,
     loading,
@@ -191,5 +211,6 @@ export const useAuthStore = defineStore("auth", () => {
     confirmNewPassword,
     verifyTotpSetup,
     logout,
+    updateProfile,
   };
 });

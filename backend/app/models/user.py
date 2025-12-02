@@ -14,6 +14,8 @@ class User(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     cognito_sub: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String(255))
-    display_name: Mapped[str | None] = mapped_column(String(100))
+    first_name: Mapped[str | None] = mapped_column(String(100))
+    last_name: Mapped[str | None] = mapped_column(String(100))
+    display_name: Mapped[str | None] = mapped_column(String(100))  # Deprecated, use first_name
     role: Mapped[str] = mapped_column(String(20), default="viewer")  # admin, editor, viewer
     preferences: Mapped[dict | None] = mapped_column(JSON, default=dict)  # JSON for cross-DB

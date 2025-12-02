@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
 const authStore = useAuthStore();
 const showDropdown = ref(false);
+
+// Show first name if available, otherwise fall back to email
+const displayName = computed(() => {
+  if (authStore.user?.first_name) {
+    return authStore.user.first_name;
+  }
+  return authStore.user?.email || "";
+});
 
 async function handleSignOut() {
   showDropdown.value = false;
@@ -59,8 +67,9 @@ function closeDropdown() {
               <button
                 @click="showDropdown = !showDropdown"
                 class="text-sm text-moxon-200 hover:text-white transition-colors flex items-center gap-1"
+                :title="authStore.user?.email"
               >
-                {{ authStore.user?.email }}
+                {{ displayName }}
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"
@@ -76,6 +85,12 @@ function closeDropdown() {
                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
                 @click="closeDropdown"
               >
+                <RouterLink
+                  to="/profile"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Profile
+                </RouterLink>
                 <RouterLink
                   v-if="authStore.isAdmin"
                   to="/admin"
