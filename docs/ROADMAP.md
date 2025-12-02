@@ -56,12 +56,13 @@ This document tracks planned features, improvements, and technical debt for the 
 | **PDF Catalog Generation** | Printable PDF catalog with images | Low | High | |
 | **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
 | **Backup/Restore UI** | Database backup scheduling, export/import functionality | Low | Medium | |
-| **Mobile Responsive Improvements** | Current UI is desktop-focused | Low | Medium | |
+| ~~**Mobile Responsive Improvements**~~ | ~~Tailwind responsive classes across all views, touch support for modals~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
 
 ### Recently Completed (Not Previously Tracked)
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Mobile Responsive UI** | Tailwind breakpoints across all views, touch support for modals, mobile-optimized layouts | ✅ DONE |
 | **Deep Health Check Endpoints** | Kubernetes-style probes: `/health/live`, `/ready`, `/deep`, `/info` with DB/S3/Cognito validation | ✅ DONE |
 | **CloudWatch Monitoring Dashboard** | 10-panel dashboard: API latency (p50/p90/p99), request counts, errors, Lambda metrics, CloudFront stats | ✅ DONE |
 | **CloudWatch Alarms** | Automated alerting: high latency (p99>3s), 5xx errors, Lambda errors | ✅ DONE |
@@ -351,7 +352,7 @@ on:
 | ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
 | ~~Insurance/Export Reports~~ | Features | ~~High~~ | ~~Low (occasional need)~~ | ✅ DONE |
 | PDF Catalog Generation | Features | High | Low (occasional need) | |
-| Mobile Responsive | Features | Medium | Low (desktop primary) | |
+| ~~Mobile Responsive~~ | ~~Features~~ | ~~Medium~~ | ~~Low (desktop primary)~~ | ✅ DONE |
 
 ---
 
