@@ -10,6 +10,8 @@ const authStore = useAuthStore();
 const email = ref("");
 const password = ref("");
 const totpCode = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
 const localError = ref("");
 
 const error = computed(() => localError.value || authStore.error);
@@ -53,11 +55,38 @@ async function handleTotpSubmit() {
   }
 }
 
+async function handleNewPasswordSubmit() {
+  localError.value = "";
+
+  if (newPassword.value !== confirmPassword.value) {
+    localError.value = "Passwords do not match";
+    return;
+  }
+
+  if (newPassword.value.length < 8) {
+    localError.value = "Password must be at least 8 characters";
+    return;
+  }
+
+  try {
+    await authStore.confirmNewPassword(newPassword.value);
+
+    if (authStore.isAuthenticated) {
+      const redirect = (route.query.redirect as string) || "/";
+      router.push(redirect);
+    }
+  } catch (e: any) {
+    localError.value = e.message || "Failed to set new password";
+  }
+}
+
 function resetLogin() {
   authStore.logout();
   email.value = "";
   password.value = "";
   totpCode.value = "";
+  newPassword.value = "";
+  confirmPassword.value = "";
   localError.value = "";
 }
 </script>
@@ -73,7 +102,9 @@ function resetLogin() {
               ? "Set up authenticator"
               : authStore.mfaStep === "totp_required"
                 ? "Enter verification code"
-                : "Sign in to your account"
+                : authStore.mfaStep === "new_password_required"
+                  ? "Create a new password"
+                  : "Sign in to your account"
           }}
         </p>
       </div>
@@ -115,6 +146,60 @@ function resetLogin() {
           {{ authStore.loading ? "Signing in..." : "Sign In" }}
         </button>
       </form>
+
+      <!-- New Password Required -->
+      <div v-else-if="authStore.mfaStep === 'new_password_required'" class="space-y-6">
+        <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+          <p class="font-medium mb-2">Welcome to BlueMoxon!</p>
+          <p>Please create a new password to secure your account.</p>
+        </div>
+
+        <form @submit.prevent="handleNewPasswordSubmit" class="space-y-4">
+          <div>
+            <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <input
+              id="newPassword"
+              v-model="newPassword"
+              type="password"
+              required
+              minlength="8"
+              class="input"
+              placeholder="Enter new password"
+            />
+          </div>
+
+          <div>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              v-model="confirmPassword"
+              type="password"
+              required
+              minlength="8"
+              class="input"
+              placeholder="Confirm new password"
+            />
+          </div>
+
+          <p class="text-xs text-gray-500">Password must be at least 8 characters</p>
+
+          <button
+            type="submit"
+            class="btn-primary w-full"
+            :disabled="authStore.loading || newPassword.length < 8 || confirmPassword.length < 8"
+          >
+            {{ authStore.loading ? "Setting password..." : "Set Password" }}
+          </button>
+        </form>
+
+        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+          Use a different account
+        </button>
+      </div>
 
       <!-- TOTP Setup (first time) -->
       <div v-else-if="authStore.mfaStep === 'totp_setup'" class="space-y-6">

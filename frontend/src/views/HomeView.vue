@@ -63,7 +63,9 @@ function formatCurrency(value: number): string {
         <p class="text-2xl md:text-3xl font-bold text-moxon-600 mt-1 md:mt-2">
           {{ stats.primary.volumes }}
         </p>
-        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">Including multi-volume sets</p>
+        <p class="text-xs md:text-sm text-gray-500 mt-1 hidden md:block">
+          Including multi-volume sets
+        </p>
       </div>
 
       <!-- Collection Value -->

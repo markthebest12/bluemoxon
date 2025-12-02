@@ -8,7 +8,7 @@ interface User {
   role: string;
 }
 
-type MfaStep = "none" | "totp_required" | "totp_setup";
+type MfaStep = "none" | "totp_required" | "totp_setup" | "new_password_required";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
@@ -77,6 +77,12 @@ export const useAuthStore = defineStore("auth", () => {
         return; // Wait for user to set up and verify TOTP
       }
 
+      if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+        // User has temporary password and needs to set a new one
+        mfaStep.value = "new_password_required";
+        return; // Wait for user to set new password
+      }
+
       if (result.isSignedIn) {
         await checkAuth();
       }
@@ -103,6 +109,36 @@ export const useAuthStore = defineStore("auth", () => {
       }
     } catch (e: any) {
       error.value = e.message || "Invalid code";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function confirmNewPassword(newPassword: string) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const { confirmSignIn } = await import("aws-amplify/auth");
+      const result = await confirmSignIn({ challengeResponse: newPassword });
+
+      if (result.nextStep.signInStep === "CONTINUE_SIGN_IN_WITH_TOTP_SETUP") {
+        // After setting password, user needs to set up TOTP
+        const totpSetupDetails = result.nextStep.totpSetupDetails;
+        if (totpSetupDetails) {
+          totpSetupUri.value = totpSetupDetails.getSetupUri("BlueMoxon").toString();
+        }
+        mfaStep.value = "totp_setup";
+        return;
+      }
+
+      if (result.isSignedIn) {
+        mfaStep.value = "none";
+        await checkAuth();
+      }
+    } catch (e: any) {
+      error.value = e.message || "Failed to set new password";
       throw e;
     } finally {
       loading.value = false;
@@ -152,6 +188,7 @@ export const useAuthStore = defineStore("auth", () => {
     checkAuth,
     login,
     confirmTotpCode,
+    confirmNewPassword,
     verifyTotpSetup,
     logout,
   };
