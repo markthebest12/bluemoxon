@@ -57,6 +57,7 @@ async def get_current_user_info(
         "id": db_user.id if db_user else None,
         "first_name": db_user.first_name if db_user else None,
         "last_name": db_user.last_name if db_user else None,
+        "mfa_exempt": db_user.mfa_exempt if db_user else False,
     }
 
 
@@ -251,6 +252,7 @@ def list_users(
             "role": u.role,
             "first_name": u.first_name,
             "last_name": u.last_name,
+            "mfa_exempt": u.mfa_exempt,
         }
         for u in users
     ]
@@ -372,6 +374,10 @@ def disable_user_mfa(
             SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
         )
 
+        # Mark user as MFA-exempt in database
+        user.mfa_exempt = True
+        db.commit()
+
         return {"message": f"MFA disabled for {user.email}"}
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
@@ -401,6 +407,10 @@ def enable_user_mfa(
             Username=user.email,
             SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
         )
+
+        # Remove MFA exemption from database
+        user.mfa_exempt = False
+        db.commit()
 
         return {"message": f"MFA enabled for {user.email}"}
     except ClientError as e:
