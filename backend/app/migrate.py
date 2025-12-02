@@ -9,9 +9,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import boto3  # noqa: E402
-from alembic.config import Config  # noqa: E402
-
 from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
