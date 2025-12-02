@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
+import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const route = useRoute();
@@ -17,6 +18,13 @@ const images = ref<any[]>([]);
 const carouselVisible = ref(false);
 const carouselInitialIndex = ref(0);
 const reorderModalVisible = ref(false);
+const uploadModalVisible = ref(false);
+
+// Image delete state
+const deleteImageModalVisible = ref(false);
+const imageToDelete = ref<any>(null);
+const deletingImage = ref(false);
+const deleteImageError = ref<string | null>(null);
 
 // Analysis state
 const analysisVisible = ref(false);
@@ -82,6 +90,55 @@ function closeReorderModal() {
 
 function handleImagesReordered(newImages: typeof images.value) {
   images.value = newImages;
+}
+
+function openUploadModal() {
+  uploadModalVisible.value = true;
+}
+
+function closeUploadModal() {
+  uploadModalVisible.value = false;
+}
+
+async function handleImagesUploaded() {
+  // Refresh images list
+  if (booksStore.currentBook) {
+    try {
+      const response = await api.get(`/books/${booksStore.currentBook.id}/images`);
+      images.value = response.data;
+    } catch {
+      // Keep existing images
+    }
+  }
+}
+
+function openDeleteImageModal(img: any) {
+  imageToDelete.value = img;
+  deleteImageError.value = null;
+  deleteImageModalVisible.value = true;
+}
+
+function closeDeleteImageModal() {
+  deleteImageModalVisible.value = false;
+  imageToDelete.value = null;
+}
+
+async function confirmDeleteImage() {
+  if (!booksStore.currentBook || !imageToDelete.value) return;
+
+  deletingImage.value = true;
+  deleteImageError.value = null;
+
+  try {
+    await api.delete(`/books/${booksStore.currentBook.id}/images/${imageToDelete.value.id}`);
+    // Remove from local array
+    images.value = images.value.filter((img) => img.id !== imageToDelete.value.id);
+    closeDeleteImageModal();
+  } catch (e: any) {
+    deleteImageError.value = e.response?.data?.detail || e.message || "Failed to delete image";
+  } finally {
+    deletingImage.value = false;
+  }
 }
 
 function openAnalysis() {
@@ -213,37 +270,72 @@ function getStatusColor(status: string): string {
         <div class="card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800">Images</h2>
-            <button
-              v-if="images.length > 1"
-              @click="openReorderModal"
-              class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                />
-              </svg>
-              Reorder
-            </button>
+            <div class="flex items-center gap-3">
+              <button
+                @click="openUploadModal"
+                class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add Images
+              </button>
+              <button
+                v-if="images.length > 1"
+                @click="openReorderModal"
+                class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                  />
+                </svg>
+                Reorder
+              </button>
+            </div>
           </div>
           <div v-if="images.length > 0" class="grid grid-cols-4 gap-3">
-            <button
+            <div
               v-for="(img, idx) in images"
               :key="img.id"
-              @click="openCarousel(idx)"
-              class="aspect-square rounded overflow-hidden hover:ring-2 hover:ring-moxon-500 transition-all"
+              class="relative group aspect-square rounded overflow-hidden"
             >
-              <img
-                :src="img.thumbnail_url"
-                :alt="img.caption || `Image ${idx + 1}`"
-                loading="lazy"
-                decoding="async"
-                class="w-full h-full object-cover"
-              />
-            </button>
+              <button
+                @click="openCarousel(idx)"
+                class="w-full h-full hover:ring-2 hover:ring-moxon-500 transition-all"
+              >
+                <img
+                  :src="img.thumbnail_url"
+                  :alt="img.caption || `Image ${idx + 1}`"
+                  loading="lazy"
+                  decoding="async"
+                  class="w-full h-full object-cover"
+                />
+              </button>
+              <!-- Delete button (visible on hover) -->
+              <button
+                @click.stop="openDeleteImageModal(img)"
+                class="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                title="Delete image"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div v-else class="flex items-center justify-center py-8">
             <div class="text-center">
@@ -505,6 +597,58 @@ function getStatusColor(status: string): string {
       @close="closeReorderModal"
       @reordered="handleImagesReordered"
     />
+
+    <!-- Image Upload Modal -->
+    <ImageUploadModal
+      :book-id="booksStore.currentBook.id"
+      :visible="uploadModalVisible"
+      @close="closeUploadModal"
+      @uploaded="handleImagesUploaded"
+    />
+
+    <!-- Delete Image Confirmation Modal -->
+    <Teleport to="body">
+      <div
+        v-if="deleteImageModalVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50" @click="closeDeleteImageModal"></div>
+
+        <!-- Modal -->
+        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">Delete Image</h3>
+
+          <div class="mb-6">
+            <p class="text-gray-600 mb-3">Are you sure you want to delete this image?</p>
+            <div v-if="imageToDelete" class="flex justify-center">
+              <img
+                :src="imageToDelete.thumbnail_url"
+                :alt="imageToDelete.caption || 'Image'"
+                class="w-32 h-32 object-cover rounded"
+              />
+            </div>
+            <p class="text-sm text-red-600 mt-3 text-center">This action cannot be undone.</p>
+          </div>
+
+          <div
+            v-if="deleteImageError"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+          >
+            {{ deleteImageError }}
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button @click="closeDeleteImageModal" :disabled="deletingImage" class="btn-secondary">
+              Cancel
+            </button>
+            <button @click="confirmDeleteImage" :disabled="deletingImage" class="btn-danger">
+              {{ deletingImage ? "Deleting..." : "Delete Image" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Analysis Viewer Modal -->
     <AnalysisViewer
