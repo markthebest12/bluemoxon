@@ -48,10 +48,11 @@ const stats = computed(() => {
   const items = onHandBooks.value;
   const totalItems = items.length;
   const totalVolumes = items.reduce((sum, b) => sum + (b.volumes || 1), 0);
-  const totalValueLow = items.reduce((sum, b) => sum + (b.value_low || 0), 0);
-  const totalValueMid = items.reduce((sum, b) => sum + (b.value_mid || 0), 0);
-  const totalValueHigh = items.reduce((sum, b) => sum + (b.value_high || 0), 0);
-  const totalPurchaseCost = items.reduce((sum, b) => sum + (b.purchase_price || 0), 0);
+  // Use Number() to convert potential string values from API (Decimal fields)
+  const totalValueLow = items.reduce((sum, b) => sum + Number(b.value_low || 0), 0);
+  const totalValueMid = items.reduce((sum, b) => sum + Number(b.value_mid || 0), 0);
+  const totalValueHigh = items.reduce((sum, b) => sum + Number(b.value_high || 0), 0);
+  const totalPurchaseCost = items.reduce((sum, b) => sum + Number(b.purchase_price || 0), 0);
   const authenticatedBindings = items.filter((b) => b.binding_authenticated).length;
 
   return {
@@ -67,18 +68,22 @@ const stats = computed(() => {
 
 // Sort books by value (highest first) for insurance report
 const sortedBooks = computed(() => {
-  return [...onHandBooks.value].sort((a, b) => (b.value_mid || 0) - (a.value_mid || 0));
+  return [...onHandBooks.value].sort(
+    (a, b) => Number(b.value_mid || 0) - Number(a.value_mid || 0)
+  );
 });
 
-// Format currency
-const formatCurrency = (value: number | null | undefined): string => {
+// Format currency (handles string values from API Decimal fields)
+const formatCurrency = (value: number | string | null | undefined): string => {
   if (value === null || value === undefined) return "-";
+  const numValue = Number(value);
+  if (isNaN(numValue)) return "-";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(numValue);
 };
 
 // Format date for display
