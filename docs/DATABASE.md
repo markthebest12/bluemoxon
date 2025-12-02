@@ -109,16 +109,30 @@ Image metadata (actual images stored in S3).
 | caption | TEXT | Image caption |
 
 ### users
-User preferences (auth handled by Cognito).
+User accounts (auth handled by Cognito).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | SERIAL | Primary key |
 | cognito_sub | VARCHAR(100) | Cognito user ID (unique) |
 | email | VARCHAR(255) | User email |
-| display_name | VARCHAR(100) | Display name |
+| first_name | VARCHAR(100) | User's first name (optional) |
+| last_name | VARCHAR(100) | User's last name (optional) |
 | role | VARCHAR(20) | admin, editor, viewer |
-| preferences | JSONB | User preferences |
+| created_at | TIMESTAMP | Record creation |
+
+### api_keys
+API keys for programmatic access (admin-created).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| name | VARCHAR(100) | Key name/description |
+| key_hash | VARCHAR(64) | SHA-256 hash of key |
+| key_prefix | VARCHAR(8) | First 8 chars for identification |
+| created_by_id | INTEGER | FK to users |
+| is_active | BOOLEAN | Key active/revoked |
+| last_used_at | TIMESTAMP | Last API request |
 | created_at | TIMESTAMP | Record creation |
 
 ## Indexes

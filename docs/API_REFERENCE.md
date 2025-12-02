@@ -863,16 +863,14 @@ Returns full JSON export with all book details.
 
 ---
 
-## User Management API (Admin Only)
-
-All endpoints in this section require **admin** role.
+## User Management API
 
 ### Get Current User
 ```
 GET /users/me
 ```
 
-Returns the currently authenticated user's information.
+Returns the currently authenticated user's information including profile data.
 
 Response:
 ```json
@@ -880,9 +878,45 @@ Response:
   "cognito_sub": "abc123-...",
   "email": "user@example.com",
   "role": "editor",
-  "id": 5
+  "id": 5,
+  "first_name": "John",
+  "last_name": "Smith"
 }
 ```
+
+---
+
+### Update User Profile
+```
+PUT /users/me
+```
+
+Update your own profile (first name, last name). Any authenticated user can update their own profile.
+
+Request Body:
+```json
+{
+  "first_name": "John",
+  "last_name": "Smith"
+}
+```
+
+Response:
+```json
+{
+  "id": 5,
+  "email": "user@example.com",
+  "role": "editor",
+  "first_name": "John",
+  "last_name": "Smith"
+}
+```
+
+---
+
+## Admin User Management (Admin Only)
+
+All endpoints in this section require **admin** role.
 
 ---
 
@@ -894,8 +928,22 @@ GET /users
 Response:
 ```json
 [
-  {"id": 1, "cognito_sub": "...", "email": "admin@example.com", "role": "admin"},
-  {"id": 2, "cognito_sub": "...", "email": "editor@example.com", "role": "editor"}
+  {
+    "id": 1,
+    "cognito_sub": "...",
+    "email": "admin@example.com",
+    "role": "admin",
+    "first_name": "Mark",
+    "last_name": "Smith"
+  },
+  {
+    "id": 2,
+    "cognito_sub": "...",
+    "email": "editor@example.com",
+    "role": "editor",
+    "first_name": null,
+    "last_name": null
+  }
 ]
 ```
 
@@ -1019,6 +1067,40 @@ Response:
 
 ---
 
+### Reset User Password
+```
+POST /users/{user_id}/reset-password
+```
+
+Reset another user's password. Cannot reset your own password this way.
+
+Request Body:
+```json
+{
+  "new_password": "NewSecurePass123"
+}
+```
+
+Response:
+```json
+{
+  "message": "Password reset successfully for user@example.com"
+}
+```
+
+Error Responses:
+- 400 Bad Request - Cannot reset your own password / Password doesn't meet requirements
+- 404 Not Found - User not found
+- 500 Internal Server Error - Cognito error
+
+**Password Requirements:**
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+
+---
+
 ## API Keys (Admin Only)
 
 ### List API Keys
@@ -1139,3 +1221,163 @@ Book
 ```
 
 When a Book is deleted, all associated BookAnalysis and BookImage records are automatically deleted via CASCADE.
+
+---
+
+## Admin Panel Flow Diagrams
+
+### User Invitation Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant API
+    participant Cognito
+    participant Email
+
+    Admin->>Frontend: Enter email + role
+    Frontend->>API: POST /users/invite
+    API->>Cognito: admin_create_user()
+    Cognito->>Email: Send temp password
+    Cognito-->>API: Return cognito_sub
+    API->>API: Create user in DB
+    API-->>Frontend: Success response
+    Frontend-->>Admin: "Invitation sent"
+
+    Note over Email: User receives email with temp password
+```
+
+### New User First Login Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Cognito
+
+    User->>Frontend: Enter email + temp password
+    Frontend->>Cognito: initiateAuth()
+    Cognito-->>Frontend: NEW_PASSWORD_REQUIRED challenge
+    Frontend-->>User: Show "Create new password" form
+    User->>Frontend: Enter new password
+    Frontend->>Cognito: respondToAuthChallenge()
+    Cognito-->>Frontend: MFA_SETUP challenge
+    Frontend-->>User: Show QR code for TOTP
+    User->>Frontend: Scan QR, enter 6-digit code
+    Frontend->>Cognito: verifySoftwareToken()
+    Cognito-->>Frontend: Authentication tokens
+    Frontend-->>User: Redirect to app
+```
+
+### Admin Password Reset Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant API
+    participant Cognito
+
+    Admin->>Frontend: Click "Reset PW" on user
+    Frontend-->>Admin: Show password modal
+    Admin->>Frontend: Enter new password
+    Frontend->>API: POST /users/{id}/reset-password
+    API->>API: Validate not self-reset
+    API->>Cognito: admin_set_user_password()
+    Cognito-->>API: Success
+    API-->>Frontend: "Password reset successfully"
+    Frontend-->>Admin: Show success message
+```
+
+### MFA Toggle Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant API
+    participant Cognito
+
+    Admin->>Frontend: Click "Disable MFA"
+    Frontend->>API: POST /users/{id}/mfa/disable
+    API->>Cognito: admin_set_user_mfa_preference()
+    Cognito-->>API: Success
+    API-->>Frontend: "MFA disabled"
+    Frontend-->>Admin: Update UI (MFA Off)
+
+    Note over Cognito: User can still use app
+    Note over Cognito: On next login, MFA will be required to set up again
+```
+
+### API Key Creation Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant API
+    participant DB
+
+    Admin->>Frontend: Click "Create API Key"
+    Frontend-->>Admin: Show name input modal
+    Admin->>Frontend: Enter key name
+    Frontend->>API: POST /users/api-keys
+    API->>API: Generate secure random key
+    API->>API: Hash key for storage
+    API->>DB: Store hash + prefix
+    API-->>Frontend: Return full key (once only!)
+    Frontend-->>Admin: Display key with copy button
+
+    Note over Frontend: Key shown only once
+    Note over Admin: Must copy immediately
+```
+
+### User Authentication with API Key
+
+```mermaid
+sequenceDiagram
+    participant Script
+    participant API
+    participant DB
+
+    Script->>API: Request with X-API-Key header
+    API->>API: Extract key from header
+    API->>API: Hash the provided key
+    API->>DB: Find key by hash
+
+    alt Key found and active
+        DB-->>API: Return API key record
+        API->>DB: Update last_used_at
+        API->>DB: Get associated user
+        API-->>Script: Return requested data
+    else Key not found or inactive
+        API-->>Script: 401 Unauthorized
+    end
+```
+
+### Role-Based Access Control
+
+```mermaid
+flowchart TD
+    A[Request] --> B{Has Auth?}
+    B -->|No| C[401 Unauthorized]
+    B -->|Yes| D{Check Role}
+
+    D --> E{Viewer?}
+    D --> F{Editor?}
+    D --> G{Admin?}
+
+    E -->|Read endpoints| H[Allow]
+    E -->|Write endpoints| I[403 Forbidden]
+
+    F -->|Read endpoints| H
+    F -->|Write endpoints| H
+    F -->|Admin endpoints| I
+
+    G -->|All endpoints| H
+
+    style H fill:#90EE90
+    style I fill:#FFB6C1
+    style C fill:#FFB6C1
+```

@@ -65,3 +65,47 @@ Additional Services:
 - **Network:** Aurora in isolated subnets, Lambda in private subnets
 - **Transit:** HTTPS enforced via CloudFront
 - **API:** JWT validation, Pydantic input validation, rate limiting
+
+## Admin Panel
+
+The Admin Settings page (accessible via profile dropdown for admin users) provides:
+
+### User Management
+- **Invite Users:** Send email invitations via Cognito with temporary passwords
+- **Role Management:** Assign viewer/editor/admin roles
+- **MFA Control:** Enable/disable MFA for users (pool-level MFA required)
+- **Password Reset:** Admin can reset any user's password
+- **User Impersonation:** Generate temp credentials to test as another user
+- **Delete Users:** Remove users from both Cognito and database
+
+### API Key Management
+- **Create Keys:** Generate API keys for programmatic access
+- **Key Security:** Keys are hashed (SHA-256) before storage; shown only once
+- **Revoke Keys:** Deactivate keys without deleting records
+- **Audit Trail:** Track last_used_at for each key
+
+### Authentication Flows
+
+```
+User Invitation Flow:
+Admin invites → Cognito sends email → User logs in with temp password
+→ NEW_PASSWORD_REQUIRED challenge → User sets new password
+→ MFA_SETUP challenge → User scans QR code → Access granted
+
+Password Requirements (as of Dec 2024):
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- No special character requirement
+```
+
+### Role-Based Access
+
+| Feature | Viewer | Editor | Admin |
+|---------|--------|--------|-------|
+| View books/images | ✓ | ✓ | ✓ |
+| Edit books/analyses | ✗ | ✓ | ✓ |
+| Upload/reorder images | ✗ | ✓ | ✓ |
+| User management | ✗ | ✗ | ✓ |
+| API key management | ✗ | ✗ | ✓ |
