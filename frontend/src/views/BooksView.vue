@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
@@ -58,22 +58,42 @@ const activeFilterCount = computed(() => {
   return count;
 });
 
+// Sync filters from URL query params - URL is source of truth
+function syncFiltersFromUrl() {
+  // URL is the source of truth - always read from it
+  // Default to PRIMARY only if URL has no inventory_type param
+  booksStore.filters.inventory_type = (route.query.inventory_type as string) || "PRIMARY";
+
+  // Read search query from URL
+  booksStore.filters.q = (route.query.q as string) || undefined;
+
+  // Read binding_authenticated
+  if (route.query.binding_authenticated) {
+    booksStore.filters.binding_authenticated = route.query.binding_authenticated === "true";
+  } else {
+    booksStore.filters.binding_authenticated = undefined;
+  }
+}
+
+// Watch for route query changes (handles back button navigation)
+watch(
+  () => route.query,
+  () => {
+    // Only sync if we're on the books list route (not a book detail page)
+    if (route.path === "/books" || route.path === "/") {
+      syncFiltersFromUrl();
+      booksStore.fetchBooks();
+    }
+  },
+  { deep: true }
+);
+
 onMounted(async () => {
   // Load reference data for filters
   await referencesStore.fetchAll();
 
-  // Apply URL query params as filters, defaulting to PRIMARY collection
-  if (route.query.inventory_type) {
-    booksStore.filters.inventory_type = route.query.inventory_type as string;
-  } else {
-    booksStore.filters.inventory_type = "PRIMARY";
-  }
-  if (route.query.q) {
-    booksStore.filters.q = route.query.q as string;
-  }
-  if (route.query.binding_authenticated) {
-    booksStore.filters.binding_authenticated = route.query.binding_authenticated === "true";
-  }
+  // Apply URL query params as filters
+  syncFiltersFromUrl();
   booksStore.fetchBooks();
 });
 
@@ -81,7 +101,7 @@ onMounted(async () => {
 function updateUrlWithFilters() {
   const query: Record<string, string> = {};
 
-  // Only add non-default values to URL
+  // Always include inventory_type in URL (except for PRIMARY which is default)
   if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
     query.inventory_type = booksStore.filters.inventory_type;
   }
