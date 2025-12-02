@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { api } from "@/services/api";
+import type { TooltipItem } from "chart.js";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -90,7 +91,7 @@ const lineChartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipItem<"line">) => {
           const dataIndex = context.dataIndex;
           const month = acquisitionData.value[dataIndex];
           return [`Items: ${month.count}`, `Value: $${month.value.toLocaleString()}`];
@@ -112,7 +113,7 @@ const lineChartOptions = {
       grid: { color: "rgba(0,0,0,0.05)" },
       ticks: {
         font: { size: 10 },
-        callback: (value: number) => `$${(value / 1000).toFixed(0)}k`,
+        callback: (value: string | number) => `$${(Number(value) / 1000).toFixed(0)}k`,
       },
     },
   },
@@ -132,9 +133,9 @@ const doughnutOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
-          const value = context.raw;
-          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+        label: (context: TooltipItem<"doughnut">) => {
+          const value = context.raw as number;
+          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
           const pct = ((value / total) * 100).toFixed(1);
           return `$${value.toLocaleString()} (${pct}%)`;
         },
@@ -151,7 +152,7 @@ const barChartOptions = {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: (context: any) => `${context.raw} items`,
+        label: (context: TooltipItem<"bar">) => `${context.raw} items`,
       },
     },
   },

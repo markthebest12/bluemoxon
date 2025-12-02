@@ -23,7 +23,7 @@ def get_overview(db: Session = Depends(get_db)):
     flagged_count = flagged.count()
 
     # Value sums for primary collection
-    primary_value = (
+    primary_value_row = (
         db.query(
             func.sum(Book.value_low),
             func.sum(Book.value_mid),
@@ -32,6 +32,11 @@ def get_overview(db: Session = Depends(get_db)):
         .filter(Book.inventory_type == "PRIMARY")
         .first()
     )
+
+    # Extract values with None handling
+    value_low = float(primary_value_row[0] or 0) if primary_value_row else 0.0
+    value_mid = float(primary_value_row[1] or 0) if primary_value_row else 0.0
+    value_high = float(primary_value_row[2] or 0) if primary_value_row else 0.0
 
     # Volume count
     total_volumes = (
@@ -62,9 +67,9 @@ def get_overview(db: Session = Depends(get_db)):
         "primary": {
             "count": primary_count,
             "volumes": total_volumes,
-            "value_low": float(primary_value[0] or 0),
-            "value_mid": float(primary_value[1] or 0),
-            "value_high": float(primary_value[2] or 0),
+            "value_low": value_low,
+            "value_mid": value_mid,
+            "value_high": value_high,
         },
         "extended": {
             "count": extended_count,
@@ -402,10 +407,7 @@ def get_value_by_category(db: Session = Depends(get_db)):
 
     # Get remaining value
     total_value = (
-        db.query(func.sum(Book.value_mid))
-        .filter(Book.inventory_type == "PRIMARY")
-        .scalar()
-        or 0
+        db.query(func.sum(Book.value_mid)).filter(Book.inventory_type == "PRIMARY").scalar() or 0
     )
 
     other_value = float(total_value) - float(premium_value) - float(tier1_value)
