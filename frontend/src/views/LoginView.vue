@@ -41,17 +41,33 @@ async function handleTotpSubmit() {
   localError.value = "";
   try {
     if (authStore.mfaStep === "totp_setup") {
-      await authStore.verifyTotpSetup(totpCode.value);
+      // Check if this is post-login MFA setup or during sign-in
+      if (authStore.isAuthenticated) {
+        // Post-login setup - use completeMfaSetup
+        await authStore.completeMfaSetup(totpCode.value);
+      } else {
+        // During sign-in - use verifyTotpSetup
+        await authStore.verifyTotpSetup(totpCode.value);
+      }
     } else {
       await authStore.confirmTotpCode(totpCode.value);
     }
 
-    if (authStore.isAuthenticated) {
+    if (authStore.isAuthenticated && authStore.mfaStep === "none") {
       const redirect = (route.query.redirect as string) || "/";
       router.push(redirect);
     }
   } catch (e: any) {
     localError.value = e.message || "Invalid code";
+  }
+}
+
+async function handleInitiateMfaSetup() {
+  localError.value = "";
+  try {
+    await authStore.initiateMfaSetup();
+  } catch (e: any) {
+    localError.value = e.message || "Failed to start MFA setup";
   }
 }
 
@@ -118,7 +134,9 @@ function resetLogin() {
                 ? "Enter verification code"
                 : authStore.mfaStep === "new_password_required"
                   ? "Create a new password"
-                  : "Sign in to your account"
+                  : authStore.mfaStep === "mfa_setup_required"
+                    ? "Security setup required"
+                    : "Sign in to your account"
           }}
         </p>
       </div>
@@ -216,6 +234,29 @@ function resetLogin() {
             {{ authStore.loading ? "Setting password..." : "Set Password" }}
           </button>
         </form>
+
+        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+          Use a different account
+        </button>
+      </div>
+
+      <!-- MFA Setup Required (post-login enforcement) -->
+      <div v-else-if="authStore.mfaStep === 'mfa_setup_required'" class="space-y-6">
+        <div class="bg-amber-50 text-amber-800 p-4 rounded-lg text-sm">
+          <p class="font-medium mb-2">Two-factor authentication required</p>
+          <p>
+            For security, you need to set up two-factor authentication before you can access
+            BlueMoxon.
+          </p>
+        </div>
+
+        <button
+          @click="handleInitiateMfaSetup"
+          class="btn-primary w-full"
+          :disabled="authStore.loading"
+        >
+          {{ authStore.loading ? "Setting up..." : "Set Up Authenticator App" }}
+        </button>
 
         <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
           Use a different account

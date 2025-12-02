@@ -104,11 +104,14 @@ router.beforeEach(async (to, _from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: "login", query: { redirect: to.fullPath } });
+  } else if (to.meta.requiresAuth && authStore.needsMfa) {
+    // User is authenticated but needs to complete MFA setup - redirect to login
+    next({ name: "login", query: { redirect: to.fullPath } });
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     // Admin-only routes redirect to home if not admin
     next({ name: "home" });
-  } else if (to.name === "login" && authStore.isAuthenticated) {
-    // Redirect to home if already logged in
+  } else if (to.name === "login" && authStore.isAuthenticated && !authStore.needsMfa) {
+    // Redirect to home if already logged in and MFA is complete
     next({ name: "home" });
   } else {
     next();

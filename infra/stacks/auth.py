@@ -40,7 +40,7 @@ class AuthStack(Stack):
                     mutable=True,
                 ),
             },
-            mfa=cognito.Mfa.REQUIRED,
+            mfa=cognito.Mfa.OPTIONAL,  # App enforces MFA setup on first login
             mfa_second_factor=cognito.MfaSecondFactor(
                 sms=False,
                 otp=True,  # TOTP only

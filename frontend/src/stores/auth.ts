@@ -10,7 +10,12 @@ interface User {
   last_name?: string;
 }
 
-type MfaStep = "none" | "totp_required" | "totp_setup" | "new_password_required";
+type MfaStep =
+  | "none"
+  | "totp_required"
+  | "totp_setup"
+  | "new_password_required"
+  | "mfa_setup_required";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
@@ -27,7 +32,7 @@ export const useAuthStore = defineStore("auth", () => {
   async function checkAuth() {
     loading.value = true;
     try {
-      const { getCurrentUser } = await import("aws-amplify/auth");
+      const { getCurrentUser, fetchMFAPreference } = await import("aws-amplify/auth");
       const currentUser = await getCurrentUser();
 
       // Basic user info from Cognito
@@ -36,7 +41,21 @@ export const useAuthStore = defineStore("auth", () => {
         email: currentUser.signInDetails?.loginId || "",
         role: "viewer", // Default, will be updated from API
       };
-      mfaStep.value = "none";
+
+      // Check if user has MFA set up
+      try {
+        const mfaPreference = await fetchMFAPreference();
+        const hasMfa = mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
+        if (!hasMfa) {
+          // User needs to set up MFA
+          mfaStep.value = "mfa_setup_required";
+        } else {
+          mfaStep.value = "none";
+        }
+      } catch (e) {
+        console.warn("Could not fetch MFA preference:", e);
+        mfaStep.value = "none";
+      }
 
       // Fetch actual role and profile from our backend database
       try {
@@ -175,6 +194,43 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function initiateMfaSetup() {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const { setUpTOTP } = await import("aws-amplify/auth");
+      const totpSetupDetails = await setUpTOTP();
+      const username = user.value?.email || user.value?.username || "BlueMoxon";
+      totpSetupUri.value = totpSetupDetails.getSetupUri("BlueMoxon", username).toString();
+      mfaStep.value = "totp_setup";
+    } catch (e: any) {
+      error.value = e.message || "Failed to initiate MFA setup";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function completeMfaSetup(code: string) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const { verifyTOTPSetup, updateMFAPreference } = await import("aws-amplify/auth");
+      await verifyTOTPSetup({ code });
+      // Set TOTP as preferred MFA method
+      await updateMFAPreference({ totp: "PREFERRED" });
+      mfaStep.value = "none";
+      totpSetupUri.value = null;
+    } catch (e: any) {
+      error.value = e.message || "Invalid code";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function logout() {
     const { signOut } = await import("aws-amplify/auth");
     await signOut();
@@ -210,6 +266,8 @@ export const useAuthStore = defineStore("auth", () => {
     confirmTotpCode,
     confirmNewPassword,
     verifyTotpSetup,
+    initiateMfaSetup,
+    completeMfaSetup,
     logout,
     updateProfile,
   };
