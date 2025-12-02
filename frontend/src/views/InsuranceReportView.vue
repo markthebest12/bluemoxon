@@ -1,54 +1,88 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
 
+// Report type options
+type ReportType = "insurance" | "primary" | "extended" | "all";
+
+const reportType = ref<ReportType>("insurance");
 const books = ref<Book[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
-onMounted(async () => {
+const reportTypeOptions = [
+  {
+    value: "insurance",
+    label: "Insurance Valuation",
+    description: "Primary collection, On-Hand only",
+  },
+  { value: "primary", label: "Primary Inventory", description: "All Primary collection items" },
+  { value: "extended", label: "Extended Inventory", description: "Extended collection only" },
+  { value: "all", label: "Full Inventory", description: "All items (Primary + Extended)" },
+];
+
+// Fetch books based on report type
+async function fetchBooks() {
   loading.value = true;
+  error.value = null;
+
   try {
-    // Fetch all PRIMARY books (paginated, max 100 per request)
     const allBooks: Book[] = [];
     let page = 1;
     let hasMore = true;
 
+    // Determine inventory_type filter based on report type
+    const inventoryType =
+      reportType.value === "extended"
+        ? "EXTENDED"
+        : reportType.value === "all"
+          ? undefined // No filter = all types
+          : "PRIMARY"; // insurance and primary both use PRIMARY
+
     while (hasMore) {
-      const response = await api.get("/books", {
-        params: {
-          page,
-          per_page: 100,
-          inventory_type: "PRIMARY",
-          sort_by: "value_mid",
-          sort_order: "desc",
-        },
-      });
+      const params: Record<string, unknown> = {
+        page,
+        per_page: 100,
+        sort_by: "value_mid",
+        sort_order: "desc",
+      };
+      if (inventoryType) {
+        params.inventory_type = inventoryType;
+      }
+
+      const response = await api.get("/books", { params });
       allBooks.push(...response.data.items);
       hasMore = page < response.data.pages;
       page++;
     }
 
     books.value = allBooks;
-  } catch (e: any) {
-    error.value = e.message || "Failed to fetch books";
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : "Failed to fetch books";
   } finally {
     loading.value = false;
   }
-});
+}
 
-// Filter to ON_HAND items only for insurance purposes
-const onHandBooks = computed(() => {
-  return books.value.filter((book) => book.status === "ON_HAND");
+// Fetch on mount and when report type changes
+watch(reportType, () => fetchBooks(), { immediate: true });
+
+// Filter books based on report type
+const filteredBooks = computed(() => {
+  if (reportType.value === "insurance") {
+    // Insurance report: only ON_HAND items
+    return books.value.filter((book) => book.status === "ON_HAND");
+  }
+  // All other reports: show all fetched items
+  return books.value;
 });
 
 // Collection statistics
 const stats = computed(() => {
-  const items = onHandBooks.value;
+  const items = filteredBooks.value;
   const totalItems = items.length;
   const totalVolumes = items.reduce((sum, b) => sum + (b.volumes || 1), 0);
-  // Use Number() to convert potential string values from API (Decimal fields)
   const totalValueLow = items.reduce((sum, b) => sum + Number(b.value_low || 0), 0);
   const totalValueMid = items.reduce((sum, b) => sum + Number(b.value_mid || 0), 0);
   const totalValueHigh = items.reduce((sum, b) => sum + Number(b.value_high || 0), 0);
@@ -66,10 +100,47 @@ const stats = computed(() => {
   };
 });
 
-// Sort books by value (highest first) for insurance report
+// Sort books by value (highest first)
 const sortedBooks = computed(() => {
-  return [...onHandBooks.value].sort((a, b) => Number(b.value_mid || 0) - Number(a.value_mid || 0));
+  return [...filteredBooks.value].sort(
+    (a, b) => Number(b.value_mid || 0) - Number(a.value_mid || 0)
+  );
 });
+
+// Report title based on type
+const reportTitle = computed(() => {
+  switch (reportType.value) {
+    case "insurance":
+      return "Insurance Valuation Report";
+    case "primary":
+      return "Primary Collection Inventory";
+    case "extended":
+      return "Extended Collection Inventory";
+    case "all":
+      return "Complete Collection Inventory";
+    default:
+      return "Collection Report";
+  }
+});
+
+// Summary label based on type
+const summaryLabel = computed(() => {
+  switch (reportType.value) {
+    case "insurance":
+      return "On Hand Only";
+    case "primary":
+      return "Primary Collection";
+    case "extended":
+      return "Extended Collection";
+    case "all":
+      return "All Items";
+    default:
+      return "";
+  }
+});
+
+// Show insurance-specific elements
+const isInsuranceReport = computed(() => reportType.value === "insurance");
 
 // Format currency (handles string values from API Decimal fields)
 const formatCurrency = (value: number | string | null | undefined): string => {
@@ -87,11 +158,8 @@ const formatCurrency = (value: number | string | null | undefined): string => {
 // Format date for display
 const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "-";
-  // Handle year-only dates
   if (/^\d{4}$/.test(dateStr)) return dateStr;
-  // Handle date ranges like "1867-1880"
   if (/^\d{4}-\d{4}$/.test(dateStr)) return dateStr;
-  // Handle full dates
   try {
     const date = new Date(dateStr);
     return date.getFullYear().toString();
@@ -112,7 +180,7 @@ const printReport = () => {
   window.print();
 };
 
-// CSV Export function - comprehensive for insurance documentation
+// CSV Export function
 const exportCSV = () => {
   const headers = [
     "Title",
@@ -123,6 +191,7 @@ const exportCSV = () => {
     "Edition",
     "Volumes",
     "Category",
+    "Inventory Type",
     "Binder",
     "Binding Authenticated",
     "Binding Type",
@@ -156,6 +225,7 @@ const exportCSV = () => {
     escapeCSV(book.edition),
     book.volumes || 1,
     escapeCSV(book.category),
+    escapeCSV(book.inventory_type),
     escapeCSV(book.binder?.name),
     book.binding_authenticated ? "Yes" : "No",
     escapeCSV(book.binding_type),
@@ -177,14 +247,15 @@ const exportCSV = () => {
 
   const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
 
+  // Filename based on report type
+  const typeSlug = reportType.value === "insurance" ? "insurance" : `inventory_${reportType.value}`;
+  const filename = `book_collection_${typeSlug}_${new Date().toISOString().split("T")[0]}.csv`;
+
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute(
-    "download",
-    `book_collection_insurance_${new Date().toISOString().split("T")[0]}.csv`
-  );
+  link.setAttribute("download", filename);
   link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
@@ -197,6 +268,20 @@ const exportCSV = () => {
     <!-- Action buttons (hidden when printing) -->
     <div class="actions no-print">
       <router-link to="/books" class="btn btn-secondary"> ← Back to Collection </router-link>
+
+      <!-- Report Type Selector -->
+      <div class="report-type-selector">
+        <label for="reportType">Report Type:</label>
+        <select id="reportType" v-model="reportType" :disabled="loading">
+          <option v-for="opt in reportTypeOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <span class="report-type-desc">{{
+          reportTypeOptions.find((o) => o.value === reportType)?.description
+        }}</span>
+      </div>
+
       <div class="action-buttons">
         <button @click="exportCSV" class="btn btn-secondary" :disabled="loading">Export CSV</button>
         <button @click="printReport" class="btn btn-primary" :disabled="loading">
@@ -209,22 +294,20 @@ const exportCSV = () => {
     <div v-if="loading" class="loading">Loading collection data...</div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="error">
-      {{ error }}
-    </div>
+    <div v-else-if="error" class="error">{{ error }}</div>
 
     <!-- Report content -->
     <template v-else>
       <!-- Report Header -->
       <header class="report-header">
         <h1>Victorian Book Collection</h1>
-        <h2>Insurance Valuation Report</h2>
+        <h2>{{ reportTitle }}</h2>
         <p class="report-date">Generated: {{ reportDate }}</p>
       </header>
 
       <!-- Collection Summary -->
       <section class="summary">
-        <h3>Collection Summary (On Hand Only)</h3>
+        <h3>Collection Summary ({{ summaryLabel }})</h3>
         <div class="summary-grid">
           <div class="summary-item">
             <span class="label">Items</span>
@@ -255,7 +338,8 @@ const exportCSV = () => {
             <span class="value">{{ formatCurrency(stats.totalValueHigh) }}</span>
           </div>
         </div>
-        <p class="recommendation">
+        <!-- Insurance recommendation only for insurance report -->
+        <p v-if="isInsuranceReport" class="recommendation">
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
           <span class="note">(High estimate + 10% buffer)</span>
@@ -319,10 +403,11 @@ const exportCSV = () => {
 
       <!-- Footer -->
       <footer class="report-footer">
-        <p>
+        <p v-if="isInsuranceReport">
           This report is for insurance valuation purposes. Values are estimates based on current
           market conditions.
         </p>
+        <p v-else>Inventory export generated from BlueMoxon collection database.</p>
         <p class="note">
           ★ = Authenticated premium binding (Rivière, Zaehnsdorf, Sangorski & Sutcliffe, Bayntun)
         </p>
@@ -359,9 +444,44 @@ const exportCSV = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #ddd;
+}
+
+/* Report type selector */
+.report-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.report-type-selector label {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.report-type-selector select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.report-type-selector select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-type-desc {
+  font-size: 0.8rem;
+  color: #718096;
+  font-style: italic;
 }
 
 .action-buttons {
@@ -657,12 +777,10 @@ td.col-value {
     padding: 0.25rem 0.4rem;
   }
 
-  /* Avoid breaking rows across pages */
   tr {
     break-inside: avoid;
   }
 
-  /* Ensure header repeats on each page */
   thead {
     display: table-header-group;
   }
@@ -676,7 +794,6 @@ td.col-value {
     font-size: 0.7rem;
   }
 
-  /* Print-friendly colors */
   .summary-item.highlight,
   .summary-item.primary {
     background: white !important;
@@ -714,7 +831,15 @@ td.col-value {
 
   .actions {
     flex-direction: column;
-    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .report-type-selector {
+    justify-content: center;
+  }
+
+  .action-buttons {
+    justify-content: center;
   }
 
   table {
