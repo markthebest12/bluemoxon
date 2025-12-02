@@ -453,7 +453,9 @@ def reset_user_password(
             raise HTTPException(
                 status_code=400, detail="Password does not meet requirements"
             ) from None
-        raise HTTPException(status_code=500, detail=f"Failed to reset password: {error_msg}") from None
+        raise HTTPException(
+            status_code=500, detail=f"Failed to reset password: {error_msg}"
+        ) from None
 
 
 @router.post("/{user_id}/impersonate")
