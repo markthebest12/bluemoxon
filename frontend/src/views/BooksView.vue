@@ -118,26 +118,60 @@ function closeCarousel() {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-      <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Book Collection</h1>
-      <div class="flex items-center gap-2 sm:gap-4">
+    <!-- Header with Search -->
+    <div class="flex flex-col gap-4 mb-6">
+      <!-- Title row -->
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Book Collection</h1>
+        <RouterLink
+          to="/books/new"
+          class="btn-primary whitespace-nowrap text-sm sm:text-base px-3 sm:px-4 self-start sm:self-auto"
+        >
+          + Add Book
+        </RouterLink>
+      </div>
+
+      <!-- Search bar -->
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <svg
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            v-model="booksStore.filters.q"
+            type="text"
+            placeholder="Search books, authors, notes..."
+            class="input pl-10 w-full"
+            @keyup.enter="booksStore.setFilters(booksStore.filters)"
+          />
+        </div>
+        <button
+          @click="booksStore.setFilters(booksStore.filters)"
+          class="btn-primary px-4"
+          :disabled="booksStore.loading"
+        >
+          Search
+        </button>
         <select
           v-model="booksStore.filters.inventory_type"
           @change="booksStore.setFilters(booksStore.filters)"
-          class="input text-sm sm:text-base flex-1 sm:flex-none sm:w-48 min-w-0"
+          class="input w-32 sm:w-40"
         >
           <option value="">All</option>
           <option value="PRIMARY">Primary</option>
           <option value="EXTENDED">Extended</option>
           <option value="FLAGGED">Flagged</option>
         </select>
-        <RouterLink
-          to="/books/new"
-          class="btn-primary whitespace-nowrap text-sm sm:text-base px-3 sm:px-4"
-        >
-          + Add Book
-        </RouterLink>
       </div>
     </div>
 

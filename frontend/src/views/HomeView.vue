@@ -91,15 +91,10 @@ function formatCurrency(value: number): string {
     </div>
 
     <!-- Quick Links -->
-    <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <RouterLink to="/books" class="card hover:shadow-lg transition-shadow">
         <h3 class="text-lg font-semibold text-gray-800">Browse Collection</h3>
-        <p class="text-gray-500 mt-2">View and filter your complete book inventory</p>
-      </RouterLink>
-
-      <RouterLink to="/search" class="card hover:shadow-lg transition-shadow">
-        <h3 class="text-lg font-semibold text-gray-800">Search</h3>
-        <p class="text-gray-500 mt-2">Search across books and analysis documents</p>
+        <p class="text-gray-500 mt-2">Search and filter your complete book inventory</p>
       </RouterLink>
 
       <RouterLink

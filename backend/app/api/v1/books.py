@@ -30,6 +30,7 @@ def get_api_base_url() -> str:
 def list_books(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
+    q: str | None = Query(default=None, description="Search query for title, author, notes"),
     inventory_type: str | None = None,
     category: str | None = None,
     status: str | None = None,
@@ -57,6 +58,18 @@ def list_books(
     from app.models import BookAnalysis, BookImage
 
     query = db.query(Book)
+
+    # Apply search query
+    if q:
+        from app.models import Author
+
+        search_term = f"%{q}%"
+        query = query.outerjoin(Author, Book.author_id == Author.id).filter(
+            (Book.title.ilike(search_term))
+            | (Author.name.ilike(search_term))
+            | (Book.notes.ilike(search_term))
+            | (Book.binding_description.ilike(search_term))
+        )
 
     # Apply filters
     if inventory_type:

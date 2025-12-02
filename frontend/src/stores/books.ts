@@ -35,6 +35,7 @@ export interface Book {
 }
 
 interface Filters {
+  q?: string;
   inventory_type?: string;
   category?: string;
   status?: string;
