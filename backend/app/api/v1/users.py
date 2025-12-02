@@ -12,6 +12,17 @@ from app.models.user import User
 router = APIRouter()
 
 
+class CreateAPIKeyRequest(BaseModel):
+    """Request body for creating an API key."""
+
+    name: str
+
+
+# ============================================
+# Static routes MUST come before parameterized routes
+# ============================================
+
+
 @router.get("/me")
 async def get_current_user_info(
     current_user: CurrentUser = Depends(get_current_user),
@@ -23,75 +34,6 @@ async def get_current_user_info(
         "role": current_user.role,
         "id": current_user.db_user.id if current_user.db_user else None,
     }
-
-
-class CreateAPIKeyRequest(BaseModel):
-    """Request body for creating an API key."""
-
-    name: str
-
-
-@router.get("")
-def list_users(
-    db: Session = Depends(get_db),
-    _user=Depends(require_admin),
-):
-    """List all users. Requires admin role."""
-    users = db.query(User).all()
-    return [
-        {
-            "id": u.id,
-            "cognito_sub": u.cognito_sub,
-            "email": u.email,
-            "role": u.role,
-        }
-        for u in users
-    ]
-
-
-@router.put("/{user_id}/role")
-def update_user_role(
-    user_id: int,
-    role: str,
-    db: Session = Depends(get_db),
-    _user=Depends(require_admin),
-):
-    """Update a user's role. Requires admin role."""
-    if role not in ("viewer", "editor", "admin"):
-        raise HTTPException(status_code=400, detail="Invalid role")
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.role = role
-    db.commit()
-    return {"message": f"User {user_id} role updated to {role}"}
-
-
-@router.delete("/{user_id}")
-def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_admin),
-):
-    """Delete a user. Requires admin role."""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Don't allow deleting yourself
-    if current_user.db_user and current_user.db_user.id == user_id:
-        raise HTTPException(status_code=400, detail="Cannot delete yourself")
-
-    # Delete associated API keys first
-    db.query(APIKey).filter(APIKey.created_by_id == user_id).delete()
-    db.delete(user)
-    db.commit()
-    return {"message": f"User {user_id} deleted"}
-
-
-# API Key Management Endpoints
 
 
 @router.get("/api-keys")
@@ -164,3 +106,68 @@ def revoke_api_key(
     api_key.is_active = False
     db.commit()
     return {"message": f"API key {key_id} revoked"}
+
+
+# ============================================
+# User list and parameterized routes
+# ============================================
+
+
+@router.get("")
+def list_users(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """List all users. Requires admin role."""
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "cognito_sub": u.cognito_sub,
+            "email": u.email,
+            "role": u.role,
+        }
+        for u in users
+    ]
+
+
+@router.put("/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    role: str,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Update a user's role. Requires admin role."""
+    if role not in ("viewer", "editor", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.role = role
+    db.commit()
+    return {"message": f"User {user_id} role updated to {role}"}
+
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Delete a user. Requires admin role."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow deleting yourself
+    if current_user.db_user and current_user.db_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+
+    # Delete associated API keys first
+    db.query(APIKey).filter(APIKey.created_by_id == user_id).delete()
+    db.delete(user)
+    db.commit()
+    return {"message": f"User {user_id} deleted"}
