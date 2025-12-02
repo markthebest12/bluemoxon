@@ -1,6 +1,8 @@
 """Statistics API endpoints."""
 
-from fastapi import APIRouter, Depends
+from datetime import date, datetime, timedelta
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,17 @@ from app.db import get_db
 from app.models import Binder, Book, Publisher
 
 router = APIRouter()
+
+# Tier 1 Victorian publishers - these are the premium publishers
+TIER_1_PUBLISHERS = [
+    "Smith Elder",
+    "Smith, Elder",
+    "Macmillan",
+    "John Murray",
+    "Edward Moxon",
+    "Chapman and Hall",
+    "Chapman & Hall",
+]
 
 
 @router.get("/overview")
@@ -376,6 +389,98 @@ def get_acquisitions_by_month(db: Session = Depends(get_db)):
         }
         for row in results
     ]
+
+
+@router.get("/acquisitions-daily")
+def get_acquisitions_daily(
+    db: Session = Depends(get_db),
+    reference_date: str = Query(
+        default=None,
+        description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
+    ),
+    days: int = Query(default=30, ge=7, le=90, description="Number of days to look back"),
+):
+    """Get daily acquisition data for the last N days.
+
+    Returns cumulative value growth day by day, useful for trend charts.
+    The reference_date should be the current date in the user's timezone.
+    """
+    # Parse reference date or use today
+    if reference_date:
+        try:
+            ref_date = datetime.strptime(reference_date, "%Y-%m-%d").date()
+        except ValueError:
+            ref_date = date.today()
+    else:
+        ref_date = date.today()
+
+    # Calculate date range
+    start_date = ref_date - timedelta(days=days - 1)
+
+    # Get all primary books with purchase dates in range
+    books = (
+        db.query(Book.purchase_date, Book.value_mid, Book.purchase_price)
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.purchase_date.isnot(None),
+            Book.purchase_date >= start_date,
+            Book.purchase_date <= ref_date,
+        )
+        .all()
+    )
+
+    # Group by date
+    daily_data: dict[date, dict] = {}
+    for book in books:
+        d = book.purchase_date
+        if d not in daily_data:
+            daily_data[d] = {"count": 0, "value": 0.0, "cost": 0.0}
+        daily_data[d]["count"] += 1
+        daily_data[d]["value"] += float(book.value_mid or 0)
+        daily_data[d]["cost"] += float(book.purchase_price or 0)
+
+    # Build daily series with cumulative values
+    result = []
+    cumulative_value = 0.0
+    cumulative_cost = 0.0
+    cumulative_count = 0
+
+    current_date = start_date
+    while current_date <= ref_date:
+        day_data = daily_data.get(current_date, {"count": 0, "value": 0.0, "cost": 0.0})
+        cumulative_count += day_data["count"]
+        cumulative_value += day_data["value"]
+        cumulative_cost += day_data["cost"]
+
+        result.append(
+            {
+                "date": current_date.isoformat(),
+                "label": current_date.strftime("%b %d"),
+                "count": day_data["count"],
+                "value": round(day_data["value"], 2),
+                "cost": round(day_data["cost"], 2),
+                "cumulative_count": cumulative_count,
+                "cumulative_value": round(cumulative_value, 2),
+                "cumulative_cost": round(cumulative_cost, 2),
+            }
+        )
+        current_date += timedelta(days=1)
+
+    return result
+
+
+@router.post("/fix-publisher-tiers")
+def fix_publisher_tiers(db: Session = Depends(get_db)):
+    """One-time fix to set Tier 1 publisher tiers in the database."""
+    updated = []
+    for pub_name in TIER_1_PUBLISHERS:
+        publisher = db.query(Publisher).filter(Publisher.name == pub_name).first()
+        if publisher and publisher.tier != "TIER_1":
+            publisher.tier = "TIER_1"
+            updated.append(pub_name)
+
+    db.commit()
+    return {"updated": updated, "count": len(updated)}
 
 
 @router.get("/value-by-category")

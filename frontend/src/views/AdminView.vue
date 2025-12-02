@@ -576,11 +576,17 @@ function formatDate(dateStr: string | null): string {
           Set a new password for <span class="font-medium">{{ resetPasswordEmail }}</span>
         </p>
 
-        <div v-if="adminStore.error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+        <div
+          v-if="adminStore.error"
+          class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm"
+        >
           {{ adminStore.error }}
         </div>
 
-        <div v-if="resetPasswordSuccess" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+        <div
+          v-if="resetPasswordSuccess"
+          class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm"
+        >
           Password reset successfully! The user can now log in with the new password.
         </div>
 
@@ -623,12 +629,7 @@ function formatDate(dateStr: string | null): string {
         </form>
 
         <div v-else class="flex justify-end">
-          <button
-            @click="closeResetPasswordModal"
-            class="btn-primary"
-          >
-            Done
-          </button>
+          <button @click="closeResetPasswordModal" class="btn-primary">Done</button>
         </div>
       </div>
     </div>

@@ -49,7 +49,7 @@ test.describe("Statistics Dashboard", () => {
     await expect(page.locator("text=Books by Era")).toBeVisible();
     await expect(page.locator("text=Top Authors")).toBeVisible();
     await expect(page.locator("text=Top Tier 1 Publishers")).toBeVisible();
-    await expect(page.locator("text=Cumulative Collection Value")).toBeVisible();
+    await expect(page.locator("text=Est. Value Growth")).toBeVisible();
   });
 
   test("dashboard stat cards display values", async ({ page }) => {

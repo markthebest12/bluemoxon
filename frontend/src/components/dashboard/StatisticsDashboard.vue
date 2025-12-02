@@ -32,13 +32,15 @@ ChartJS.register(
 );
 
 // Types
-interface AcquisitionMonth {
-  year: number;
-  month: number;
+interface AcquisitionDay {
+  date: string;
   label: string;
   count: number;
   value: number;
   cost: number;
+  cumulative_count: number;
+  cumulative_value: number;
+  cumulative_cost: number;
 }
 
 interface BinderData {
@@ -71,11 +73,17 @@ interface AuthorData {
 
 // State
 const loading = ref(true);
-const acquisitionData = ref<AcquisitionMonth[]>([]);
+const acquisitionData = ref<AcquisitionDay[]>([]);
 const binderData = ref<BinderData[]>([]);
 const eraData = ref<EraData[]>([]);
 const publisherData = ref<PublisherData[]>([]);
 const authorData = ref<AuthorData[]>([]);
+
+// Get today's date in browser timezone (YYYY-MM-DD format)
+function getTodayLocal(): string {
+  const now = new Date();
+  return now.toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD format
+}
 
 // Colors
 const chartColors = {
@@ -101,8 +109,12 @@ const lineChartOptions = {
       callbacks: {
         label: (context: TooltipItem<"line">) => {
           const dataIndex = context.dataIndex;
-          const month = acquisitionData.value[dataIndex];
-          return [`Items: ${month.count}`, `Value: $${month.value.toLocaleString()}`];
+          const day = acquisitionData.value[dataIndex];
+          if (!day) return "";
+          return [
+            `Total: $${day.cumulative_value.toLocaleString()}`,
+            `Added today: ${day.count} items ($${day.value.toLocaleString()})`,
+          ];
         },
       },
     },
@@ -114,6 +126,8 @@ const lineChartOptions = {
         maxRotation: 45,
         minRotation: 45,
         font: { size: 10 },
+        autoSkip: true,
+        maxTicksLimit: 8,
       },
     },
     y: {
@@ -181,29 +195,20 @@ const barChartOptions = {
   },
 };
 
-// Computed chart data - cumulative value growth
+// Computed chart data - cumulative value growth (daily, last 30 days)
 const acquisitionChartData = computed(() => {
-  // Calculate cumulative values
-  let cumulative = 0;
-  const cumulativeData = acquisitionData.value.map((d) => {
-    cumulative += d.value;
-    return cumulative;
-  });
-
+  // Data already has cumulative values from backend
   return {
-    labels: acquisitionData.value.map((d) => {
-      const date = new Date(d.year, d.month - 1);
-      return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-    }),
+    labels: acquisitionData.value.map((d) => d.label),
     datasets: [
       {
         label: "Cumulative Value",
-        data: cumulativeData,
+        data: acquisitionData.value.map((d) => d.cumulative_value),
         borderColor: chartColors.primary,
         backgroundColor: chartColors.primaryLight,
         fill: true,
         tension: 0.3,
-        pointRadius: 3,
+        pointRadius: 2,
         pointHoverRadius: 5,
       },
     ],
@@ -271,8 +276,11 @@ const authorChartData = computed(() => ({
 // Fetch all data
 onMounted(async () => {
   try {
+    // Get today's date in browser timezone for the daily chart
+    const today = getTodayLocal();
+
     const [acqRes, binderRes, eraRes, pubRes, authorRes] = await Promise.all([
-      api.get("/stats/acquisitions-by-month"),
+      api.get(`/stats/acquisitions-daily?reference_date=${today}&days=30`),
       api.get("/stats/bindings"),
       api.get("/stats/by-era"),
       api.get("/stats/by-publisher"),
@@ -345,7 +353,7 @@ onMounted(async () => {
 
       <!-- Cumulative Value Growth - full width at bottom -->
       <div class="card !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Cumulative Est. Value</h3>
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Est. Value Growth (Last 30 Days)</h3>
         <div class="h-48 md:h-64">
           <Line
             v-if="acquisitionData.length > 0"
