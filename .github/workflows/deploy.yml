@@ -71,8 +71,10 @@ jobs:
       - name: Create deployment zip
         run: |
           cd /tmp/lambda-deploy
+          # Note: Keep .dist-info directories - required for importlib.metadata
+          # (pydantic uses this to check if email-validator is installed)
           zip -q -r ${{ github.workspace }}/lambda-package.zip . \
-            -x "*.pyc" -x "*__pycache__*" -x "*.dist-info/*"
+            -x "*.pyc" -x "*__pycache__*"
 
           # Report package size
           ls -lh ${{ github.workspace }}/lambda-package.zip
