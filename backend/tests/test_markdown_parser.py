@@ -279,3 +279,42 @@ History here.
         result = parse_analysis_markdown(markdown)
         assert result.executive_summary == "Summary here."
         assert result.historical_significance == "History here."
+
+    def test_handles_single_hash_headers(self):
+        # Test with # instead of ## (alternate format)
+        markdown = """# Some Title
+
+# EXECUTIVE SUMMARY
+
+Summary content here.
+
+# I. HISTORICAL & CULTURAL SIGNIFICANCE
+
+History content here.
+
+# II. PHYSICAL DESCRIPTION
+
+- **Type:** Full leather
+- **Grade:** Fine
+
+# III. MARKET ANALYSIS
+
+| Metric | Value |
+|--------|-------|
+| Low | $100 |
+| Mid | $150 |
+| High | $200 |
+
+# VII. RECOMMENDATIONS
+
+Should acquire.
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.executive_summary == "Summary content here."
+        assert "History content here" in result.historical_significance
+        assert result.condition_assessment is not None
+        assert result.condition_assessment.get("binding_type") == "Full leather"
+        assert result.market_analysis is not None
+        assert result.market_analysis.get("valuation", {}).get("mid") == 150
+        assert result.recommendations is not None
+        assert "acquire" in result.recommendations

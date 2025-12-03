@@ -16,12 +16,14 @@ class ParsedAnalysis:
 
 
 # Section header patterns to database field mappings
+# Supports both # and ## header levels for flexibility
 SECTION_MAPPINGS = {
-    r"^##\s*Executive\s+Summary\s*$": "executive_summary",
-    r"^##\s*I\.?\s*HISTORICAL\s*[&]\s*CULTURAL\s+SIGNIFICANCE\s*$": "historical_significance",
-    r"^##\s*II\.?\s*PHYSICAL\s+DESCRIPTION\s*$": "condition_assessment",
-    r"^##\s*III\.?\s*MARKET\s+ANALYSIS\s*$": "market_analysis",
-    r"^##\s*V\.?\s*RECOMMENDATIONS\s*$": "recommendations",
+    r"^#{1,2}\s*Executive\s+Summary\s*$": "executive_summary",
+    r"^#{1,2}\s*I\.?\s*HISTORICAL\s*[&]\s*CULTURAL\s+SIGNIFICANCE\s*$": "historical_significance",
+    r"^#{1,2}\s*II\.?\s*PHYSICAL\s+DESCRIPTION\s*$": "condition_assessment",
+    r"^#{1,2}\s*III\.?\s*MARKET\s+ANALYSIS\s*$": "market_analysis",
+    r"^#{1,2}\s*V\.?\s*RECOMMENDATIONS\s*$": "recommendations",
+    r"^#{1,2}\s*VII\.?\s*RECOMMENDATIONS\s*$": "recommendations",
 }
 
 
@@ -46,8 +48,12 @@ def _extract_sections(markdown: str) -> dict[str, str]:
                 is_header = True
                 break
 
-        # Check for any other ## header (starts a new unmapped section)
-        if not is_header and line.strip().startswith("## "):
+        # Check for any other # or ## header (starts a new unmapped section)
+        stripped = line.strip()
+        if not is_header and (
+            stripped.startswith("## ")
+            or (stripped.startswith("# ") and not stripped.startswith("##"))
+        ):
             if current_section:
                 sections[current_section] = "\n".join(current_content).strip()
             current_section = None
