@@ -15,15 +15,29 @@ class ParsedAnalysis:
     recommendations: str | None = None
 
 
+# Optional prefix pattern: handles emojis, numbers like "1.", roman numerals like "I."
+# Examples: "🎯 ", "1. ", "I. ", "II. ", etc.
+_OPT_PREFIX = r"(?:[^\w\s]*\s*)?(?:\d+\.\s*)?(?:[IVX]+\.?\s*)?"
+
 # Section header patterns to database field mappings
 # Supports both # and ## header levels for flexibility
 SECTION_MAPPINGS = {
-    r"^#{1,2}\s*Executive\s+Summary\s*$": "executive_summary",
-    r"^#{1,2}\s*I\.?\s*HISTORICAL\s*[&]\s*CULTURAL\s+SIGNIFICANCE\s*$": "historical_significance",
-    r"^#{1,2}\s*II\.?\s*PHYSICAL\s+DESCRIPTION\s*$": "condition_assessment",
-    r"^#{1,2}\s*III\.?\s*MARKET\s+ANALYSIS\s*$": "market_analysis",
-    r"^#{1,2}\s*V\.?\s*RECOMMENDATIONS\s*$": "recommendations",
-    r"^#{1,2}\s*VII\.?\s*RECOMMENDATIONS\s*$": "recommendations",
+    # Executive Summary variations
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Executive\s+Summary\s*$": "executive_summary",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}ACQUISITION\s+SUMMARY\s*$": "executive_summary",
+    # Historical Significance
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}HISTORICAL\s*[&]\s*CULTURAL\s+SIGNIFICANCE\s*$": "historical_significance",
+    # Condition Assessment / Physical Description / Binding
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}PHYSICAL\s+DESCRIPTION\s*$": "condition_assessment",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}BINDING\s*[&]\s*CONDITION\s*$": "condition_assessment",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Condition\s+Assessment\s*$": "condition_assessment",
+    # Market Analysis
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}MARKET\s+ANALYSIS\s*$": "market_analysis",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}COMPARATIVE\s+MARKET\s+ANALYSIS\s*$": "market_analysis",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Market\s+Analysis\s*$": "market_analysis",
+    # Recommendations
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}RECOMMENDATIONS?\s*$": "recommendations",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Recommendations?\s*$": "recommendations",
 }
 
 
