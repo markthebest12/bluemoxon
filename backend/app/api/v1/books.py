@@ -482,19 +482,34 @@ def update_book_analysis(
     """Update or create analysis for a book.
 
     Accepts raw markdown text in the request body.
+    Automatically parses markdown to extract structured fields.
     """
     from app.models import BookAnalysis
+    from app.utils.markdown_parser import parse_analysis_markdown
 
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
+    # Parse markdown to extract structured fields
+    parsed = parse_analysis_markdown(full_markdown)
+
     if book.analysis:
         book.analysis.full_markdown = full_markdown
+        book.analysis.executive_summary = parsed.executive_summary
+        book.analysis.historical_significance = parsed.historical_significance
+        book.analysis.condition_assessment = parsed.condition_assessment
+        book.analysis.market_analysis = parsed.market_analysis
+        book.analysis.recommendations = parsed.recommendations
     else:
         analysis = BookAnalysis(
             book_id=book_id,
             full_markdown=full_markdown,
+            executive_summary=parsed.executive_summary,
+            historical_significance=parsed.historical_significance,
+            condition_assessment=parsed.condition_assessment,
+            market_analysis=parsed.market_analysis,
+            recommendations=parsed.recommendations,
         )
         db.add(analysis)
 
@@ -519,3 +534,81 @@ def delete_book_analysis(
     db.delete(book.analysis)
     db.commit()
     return {"message": "Analysis deleted"}
+
+
+@router.post("/{book_id}/analysis/reparse")
+def reparse_book_analysis(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Re-parse existing analysis markdown to populate structured fields.
+
+    Use this to backfill parsed fields for analyses uploaded before
+    automatic parsing was implemented.
+    """
+    from app.utils.markdown_parser import parse_analysis_markdown
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.analysis or not book.analysis.full_markdown:
+        raise HTTPException(status_code=404, detail="No analysis markdown to parse")
+
+    # Re-parse the existing markdown
+    parsed = parse_analysis_markdown(book.analysis.full_markdown)
+
+    # Update structured fields
+    book.analysis.executive_summary = parsed.executive_summary
+    book.analysis.historical_significance = parsed.historical_significance
+    book.analysis.condition_assessment = parsed.condition_assessment
+    book.analysis.market_analysis = parsed.market_analysis
+    book.analysis.recommendations = parsed.recommendations
+
+    db.commit()
+    return {
+        "message": "Analysis re-parsed",
+        "fields_populated": {
+            "executive_summary": parsed.executive_summary is not None,
+            "historical_significance": parsed.historical_significance is not None,
+            "condition_assessment": parsed.condition_assessment is not None,
+            "market_analysis": parsed.market_analysis is not None,
+            "recommendations": parsed.recommendations is not None,
+        },
+    }
+
+
+@router.post("/analysis/reparse-all")
+def reparse_all_analyses(
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Re-parse all existing analyses to populate structured fields.
+
+    Batch operation to backfill parsed fields for all analyses.
+    """
+    from app.models import BookAnalysis
+    from app.utils.markdown_parser import parse_analysis_markdown
+
+    analyses = db.query(BookAnalysis).filter(BookAnalysis.full_markdown.isnot(None)).all()
+
+    results = []
+    for analysis in analyses:
+        parsed = parse_analysis_markdown(analysis.full_markdown)
+
+        analysis.executive_summary = parsed.executive_summary
+        analysis.historical_significance = parsed.historical_significance
+        analysis.condition_assessment = parsed.condition_assessment
+        analysis.market_analysis = parsed.market_analysis
+        analysis.recommendations = parsed.recommendations
+
+        results.append(
+            {
+                "book_id": analysis.book_id,
+                "executive_summary_populated": parsed.executive_summary is not None,
+            }
+        )
+
+    db.commit()
+    return {"message": f"Re-parsed {len(results)} analyses", "results": results}
