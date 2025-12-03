@@ -374,7 +374,7 @@ def disable_user_mfa(
             SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
         )
 
-        # Mark user as MFA-exempt in database
+        # Mark user as MFA-exempt so frontend won't force MFA setup
         user.mfa_exempt = True
         db.commit()
 
@@ -408,7 +408,7 @@ def enable_user_mfa(
             SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
         )
 
-        # Remove MFA exemption from database
+        # Remove MFA exemption so user will be prompted to set up MFA
         user.mfa_exempt = False
         db.commit()
 
