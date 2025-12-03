@@ -61,6 +61,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Duplicate Image Detection** | SHA256 content hash prevents uploading identical images; returns existing image info on duplicate | ✅ DONE |
 | **Per-User MFA Control** | Admin toggle to exempt specific users from MFA requirement; app-enforced default with per-user override | ✅ DONE |
 | **Dashboard Week-over-Week Trends** | Value change indicators (+$X, +X%) comparing to previous week on statistics dashboard | ✅ DONE |
 | **Mobile Responsive UI** | Tailwind breakpoints across all views, touch support for modals, mobile-optimized layouts | ✅ DONE |
