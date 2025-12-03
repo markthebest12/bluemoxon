@@ -28,37 +28,59 @@ SECTION_MAPPINGS = {
 
 
 def _extract_sections(markdown: str) -> dict[str, str]:
-    """Extract sections from markdown based on ## headers."""
+    """Extract sections from markdown based on # or ## headers.
+
+    Tracks header level so that ## subsections are included within # sections.
+    A # header ends any current section. A ## header only ends a ## section.
+    """
     sections: dict[str, str] = {}
     lines = markdown.split("\n")
     current_section: str | None = None
+    current_header_level: int = 0  # 1 for #, 2 for ##
     current_content: list[str] = []
 
     for line in lines:
-        # Check if this line is a section header
-        is_header = False
+        stripped = line.strip()
+
+        # Determine if this is a header and its level
+        is_single_hash = stripped.startswith("# ") and not stripped.startswith("## ")
+        is_double_hash = stripped.startswith("## ")
+
+        # Check if this line is a mapped section header
+        is_mapped_header = False
         for pattern, field_name in SECTION_MAPPINGS.items():
-            if re.match(pattern, line.strip(), re.IGNORECASE):
+            if re.match(pattern, stripped, re.IGNORECASE):
                 # Save previous section
                 if current_section:
                     sections[current_section] = "\n".join(current_content).strip()
 
                 current_section = field_name
+                # Track header level: 1 for single #, 2 for ##
+                current_header_level = 1 if is_single_hash else 2
                 current_content = []
-                is_header = True
+                is_mapped_header = True
                 break
 
-        # Check for any other # or ## header (starts a new unmapped section)
-        stripped = line.strip()
-        if not is_header and (
-            stripped.startswith("## ")
-            or (stripped.startswith("# ") and not stripped.startswith("##"))
-        ):
+        if is_mapped_header:
+            continue
+
+        # Check for unmapped headers that should end the current section
+        # A # header always ends the current section
+        # A ## header only ends a ## section (not a # section)
+        if is_single_hash:
+            # Single # always ends any section
             if current_section:
                 sections[current_section] = "\n".join(current_content).strip()
             current_section = None
             current_content = []
-        elif not is_header and current_section:
+        elif is_double_hash and current_header_level == 2:
+            # Double ## ends a ## section but NOT a # section
+            if current_section:
+                sections[current_section] = "\n".join(current_content).strip()
+            current_section = None
+            current_content = []
+        elif current_section:
+            # Include this line as content (including ## headers within # sections)
             current_content.append(line)
 
     # Save final section
