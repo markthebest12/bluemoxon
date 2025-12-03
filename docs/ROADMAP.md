@@ -61,6 +61,8 @@ This document tracks planned features, improvements, and technical debt for the 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Per-User MFA Control** | Admin toggle to exempt specific users from MFA requirement; app-enforced default with per-user override | ✅ DONE |
+| **Dashboard Week-over-Week Trends** | Value change indicators (+$X, +X%) comparing to previous week on statistics dashboard | ✅ DONE |
 | **Mobile Responsive UI** | Tailwind breakpoints across all views, touch support for modals, mobile-optimized layouts | ✅ DONE |
 | **Deep Health Check Endpoints** | Kubernetes-style probes: `/health/live`, `/ready`, `/deep`, `/info` with DB/S3/Cognito validation | ✅ DONE |
 | **CloudWatch Monitoring Dashboard** | 10-panel dashboard: API latency (p50/p90/p99), request counts, errors, Lambda metrics, CloudFront stats | ✅ DONE |
