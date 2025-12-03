@@ -18,6 +18,8 @@ class BookImage(Base):
 
     s3_key: Mapped[str] = mapped_column(String(500), nullable=False)
     cloudfront_url: Mapped[str | None] = mapped_column(String(500))
+    original_filename: Mapped[str | None] = mapped_column(String(255))  # Original upload filename
+    content_hash: Mapped[str | None] = mapped_column(String(64))  # SHA256 hash for deduplication
     image_type: Mapped[str | None] = mapped_column(String(50))  # cover, spine, interior, etc.
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)

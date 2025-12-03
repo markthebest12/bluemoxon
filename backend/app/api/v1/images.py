@@ -1,7 +1,7 @@
 """Book Images API endpoints."""
 
+import hashlib
 import os
-import shutil
 import uuid
 from pathlib import Path
 
@@ -143,6 +143,7 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
             {
                 "id": img.id,
                 "s3_key": img.s3_key,
+                "original_filename": img.original_filename,
                 "url": url,
                 "thumbnail_url": thumbnail_url,
                 "image_type": img.image_type,
@@ -328,14 +329,38 @@ async def upload_image(
 
     ensure_images_dir()
 
+    # Read file content and calculate hash for deduplication
+    content = await file.read()
+    content_hash = hashlib.sha256(content).hexdigest()
+
+    # Check for duplicate (same hash already exists for this book)
+    existing = (
+        db.query(BookImage)
+        .filter(BookImage.book_id == book_id, BookImage.content_hash == content_hash)
+        .first()
+    )
+    if existing:
+        # Return existing image info instead of uploading duplicate
+        base_url = get_api_base_url()
+        if is_production():
+            url = get_cloudfront_url(existing.s3_key)
+        else:
+            url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/file"
+        return {
+            "id": existing.id,
+            "url": url,
+            "duplicate": True,
+            "message": "Image already exists (identical content)",
+        }
+
     # Generate unique filename
     ext = Path(file.filename).suffix or ".jpg"
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
     file_path = LOCAL_IMAGES_PATH / unique_name
 
-    # Save file
+    # Save file (write content we already read)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(content)
 
     # Generate thumbnail
     thumbnail_name = get_thumbnail_key(unique_name)
@@ -382,6 +407,8 @@ async def upload_image(
     image = BookImage(
         book_id=book_id,
         s3_key=unique_name,
+        original_filename=file.filename,
+        content_hash=content_hash,
         image_type=image_type,
         display_order=max_order,
         is_primary=is_primary,
