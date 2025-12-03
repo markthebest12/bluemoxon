@@ -447,16 +447,54 @@ jobs:
             --exclude '**/tests/**' \
             -f txt
 
-      # Semgrep - Multi-language SAST
+      # Semgrep - Multi-language SAST (BLOCKING on high/critical findings)
+      - name: Install Semgrep
+        run: pip install semgrep
+
       - name: Run Semgrep SAST
-        uses: returntocorp/semgrep-action@v1
+        run: |
+          echo "=== Running Semgrep Security Scan ==="
+          semgrep scan \
+            --config p/python \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --error \
+            --severity ERROR \
+            --severity WARNING \
+            --exclude '**/node_modules/**' \
+            --exclude '**/.venv/**' \
+            --exclude '**/dist/**' \
+            --json --output semgrep-results.json \
+            . || SEMGREP_EXIT=$?
+
+          # Display human-readable results
+          semgrep scan \
+            --config p/python \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --exclude '**/node_modules/**' \
+            --exclude '**/.venv/**' \
+            --exclude '**/dist/**' \
+            . || true
+
+          # Fail if Semgrep found issues
+          if [ "${SEMGREP_EXIT:-0}" -ne 0 ]; then
+            echo "::error::Semgrep found security issues - blocking deployment"
+            exit 1
+          fi
+          echo "Semgrep scan passed!"
+
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@v5
+        if: always()
         with:
-          config: >-
-            p/python
-            p/javascript
-            p/typescript
-            p/security-audit
-            p/owasp-top-ten
+          name: semgrep-report
+          path: semgrep-results.json
+          retention-days: 30
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v5
