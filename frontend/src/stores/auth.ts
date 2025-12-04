@@ -34,12 +34,7 @@ export const useAuthStore = defineStore("auth", () => {
     loading.value = true;
     try {
       const { getCurrentUser, fetchMFAPreference } = await import("aws-amplify/auth");
-
-      // Add timeout to prevent hanging when no session exists
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Auth check timeout")), 3000)
-      );
-      const currentUser = await Promise.race([getCurrentUser(), timeoutPromise]) as Awaited<ReturnType<typeof getCurrentUser>>;
+      const currentUser = await getCurrentUser();
 
       // Basic user info from Cognito
       user.value = {
@@ -102,15 +97,7 @@ export const useAuthStore = defineStore("auth", () => {
     totpSetupUri.value = null;
 
     try {
-      const { signIn, signOut } = await import("aws-amplify/auth");
-
-      // Clear any stale session before signing in
-      try {
-        await signOut();
-      } catch {
-        // Ignore - no session to clear
-      }
-
+      const { signIn } = await import("aws-amplify/auth");
       const result = await signIn({ username, password });
 
       if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_TOTP_CODE") {

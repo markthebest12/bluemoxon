@@ -107,6 +107,7 @@ router.beforeEach(async (to, _from, next) => {
     try {
       await authStore.checkAuth();
     } catch (e) {
+      // Auth check failed - user not authenticated
       console.warn("[Router] Auth check failed:", e);
     }
     authInitialized = true;
