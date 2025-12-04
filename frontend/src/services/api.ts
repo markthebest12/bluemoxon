@@ -32,7 +32,8 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login if not already on login page
+    if (error.response?.status === 401 && !window.location.pathname.includes("/login")) {
       window.location.href = "/login";
     }
     return Promise.reject(error);

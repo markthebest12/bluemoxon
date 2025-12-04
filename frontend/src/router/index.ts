@@ -96,9 +96,19 @@ router.afterEach((to) => {
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
 
-  // Initialize auth on first navigation
+  // Skip auth check for login page - let it load immediately
+  if (to.name === "login") {
+    next();
+    return;
+  }
+
+  // Initialize auth on first navigation (only for protected routes)
   if (!authInitialized) {
-    await authStore.checkAuth();
+    try {
+      await authStore.checkAuth();
+    } catch (e) {
+      console.warn("[Router] Auth check failed:", e);
+    }
     authInitialized = true;
   }
 
