@@ -79,15 +79,15 @@ def get_overview(db: Session = Depends(get_db)):
     )
 
     # Calculate week-over-week changes
-    # Books that arrived this week = ON_HAND books updated in last 7 days
-    one_week_ago = datetime.now() - timedelta(days=7)
+    # Use purchase_date to find books acquired in the last 7 days
+    one_week_ago = date.today() - timedelta(days=7)
 
-    # This week's arrivals (approximation using updated_at)
+    # This week's acquisitions (books purchased in last 7 days)
     week_arrivals = (
         db.query(Book)
         .filter(
             on_hand_filter,
-            Book.updated_at >= one_week_ago,
+            Book.purchase_date >= one_week_ago,
         )
         .all()
     )
@@ -246,11 +246,12 @@ def get_by_publisher(db: Session = Depends(get_db)):
 
 @router.get("/by-author")
 def get_by_author(db: Session = Depends(get_db)):
-    """Get counts by author."""
+    """Get counts by author with sample book titles."""
     from app.models import Author
 
     results = (
         db.query(
+            Author.id,
             Author.name,
             func.count(Book.id),
             func.sum(Book.value_mid),
@@ -263,15 +264,32 @@ def get_by_author(db: Session = Depends(get_db)):
         .all()
     )
 
-    return [
-        {
-            "author": row[0],
-            "count": row[1],
-            "value": float(row[2] or 0),
-            "volumes": row[3] or 0,
-        }
-        for row in results
-    ]
+    # For each author, get sample book titles (up to 5)
+    author_data = []
+    for row in results:
+        author_id, author_name, count, value, volumes = row
+
+        # Get sample book titles for this author
+        sample_books = (
+            db.query(Book.title)
+            .filter(Book.author_id == author_id, Book.inventory_type == "PRIMARY")
+            .limit(5)
+            .all()
+        )
+        sample_titles = [b.title for b in sample_books]
+
+        author_data.append(
+            {
+                "author": author_name,
+                "count": count,
+                "value": float(value or 0),
+                "volumes": volumes or 0,
+                "sample_titles": sample_titles,
+                "has_more": count > 5,
+            }
+        )
+
+    return author_data
 
 
 @router.get("/bindings")

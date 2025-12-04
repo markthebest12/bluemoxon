@@ -69,6 +69,8 @@ interface AuthorData {
   count: number;
   value: number;
   volumes: number;
+  sample_titles: string[];
+  has_more: boolean;
 }
 
 // State
@@ -159,7 +161,7 @@ const doughnutOptions = {
           const value = context.raw as number;
           const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
           const pct = ((value / total) * 100).toFixed(1);
-          return `$${value.toLocaleString()} (${pct}%)`;
+          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
         },
       },
     },
@@ -174,7 +176,10 @@ const barChartOptions = {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: (context: TooltipItem<"bar">) => `${context.raw} items`,
+        label: (context: TooltipItem<"bar">) => {
+          const value = context.raw as number;
+          return `${value} ${value === 1 ? "book" : "books"}`;
+        },
       },
     },
   },
@@ -273,6 +278,54 @@ const authorChartData = computed(() => ({
   ],
 }));
 
+// Custom options for author chart with enhanced tooltips showing book titles
+const authorChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: "y" as const,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (context: TooltipItem<"bar">) => {
+          const value = context.raw as number;
+          const authorIndex = context.dataIndex;
+          const author = authorData.value[authorIndex];
+
+          if (author && author.sample_titles && author.sample_titles.length > 0) {
+            const lines = [`${value} ${value === 1 ? "book" : "books"}:`];
+            author.sample_titles.forEach((title: string) => {
+              // Truncate long titles
+              const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+              lines.push(`  • ${truncated}`);
+            });
+            if (author.has_more) {
+              lines.push(`  ...and ${value - author.sample_titles.length} more`);
+            }
+            return lines;
+          }
+          return `${value} ${value === 1 ? "book" : "books"}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: "rgba(0,0,0,0.05)" },
+      ticks: {
+        font: { size: 10 },
+        stepSize: 1,
+        callback: (value: string | number) => (Number.isInteger(Number(value)) ? value : ""),
+      },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { size: 10 } },
+    },
+  },
+}));
+
 // Fetch all data
 onMounted(async () => {
   try {
@@ -335,7 +388,7 @@ onMounted(async () => {
       <div class="card !p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-3">Top Authors</h3>
         <div class="h-48 md:h-56">
-          <Bar v-if="authorData.length > 0" :data="authorChartData" :options="barChartOptions" />
+          <Bar v-if="authorData.length > 0" :data="authorChartData" :options="authorChartOptions" />
           <p v-else class="text-gray-400 text-sm text-center py-8">No author data available</p>
         </div>
       </div>
