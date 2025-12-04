@@ -2,6 +2,7 @@
 import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
+import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
@@ -12,6 +13,7 @@ import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 const route = useRoute();
 const router = useRouter();
 const booksStore = useBooksStore();
+const authStore = useAuthStore();
 
 // Image gallery state
 const images = ref<any[]>([]);
@@ -261,7 +263,7 @@ function getStatusColor(status: string): string {
         >
           &larr; Back to Collection
         </RouterLink>
-        <div class="flex gap-2">
+        <div v-if="authStore.isEditor" class="flex gap-2">
           <RouterLink
             :to="`/books/${booksStore.currentBook.id}/edit`"
             class="btn-secondary text-sm sm:text-base px-3 sm:px-4"
@@ -288,7 +290,7 @@ function getStatusColor(status: string): string {
         <div class="card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800">Images</h2>
-            <div class="flex items-center gap-3">
+            <div v-if="authStore.isEditor" class="flex items-center gap-3">
               <button
                 @click="openUploadModal"
                 class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
@@ -338,8 +340,9 @@ function getStatusColor(status: string): string {
                   class="w-full h-full object-cover"
                 />
               </button>
-              <!-- Delete button (visible on hover) -->
+              <!-- Delete button (visible on hover, editors only) -->
               <button
+                v-if="authStore.isEditor"
                 @click.stop="openDeleteImageModal(img)"
                 class="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
                 title="Delete image"
@@ -401,7 +404,9 @@ function getStatusColor(status: string): string {
             <div>
               <dt class="text-sm text-gray-500">Status</dt>
               <dd>
+                <!-- Editors can change status -->
                 <select
+                  v-if="authStore.isEditor"
                   :value="booksStore.currentBook.status"
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                   :disabled="updatingStatus"
@@ -415,6 +420,16 @@ function getStatusColor(status: string): string {
                     {{ status.replace("_", " ") }}
                   </option>
                 </select>
+                <!-- Viewers see read-only badge -->
+                <span
+                  v-else
+                  :class="[
+                    'px-2 py-1 rounded text-sm font-medium',
+                    getStatusColor(booksStore.currentBook.status),
+                  ]"
+                >
+                  {{ booksStore.currentBook.status.replace("_", " ") }}
+                </span>
               </dd>
             </div>
           </dl>
@@ -458,7 +473,7 @@ function getStatusColor(status: string): string {
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800">Provenance</h2>
             <button
-              v-if="!provenanceEditing"
+              v-if="authStore.isEditor && !provenanceEditing"
               @click="startProvenanceEdit"
               class="text-sm text-moxon-600 hover:text-moxon-800"
             >
