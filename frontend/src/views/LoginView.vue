@@ -101,7 +101,8 @@ async function handleNewPasswordSubmit() {
   try {
     await authStore.confirmNewPassword(newPassword.value);
 
-    if (authStore.isAuthenticated) {
+    // Only redirect if authenticated AND MFA is complete
+    if (authStore.isAuthenticated && authStore.mfaStep === "none") {
       const redirect = (route.query.redirect as string) || "/";
       router.push(redirect);
     }

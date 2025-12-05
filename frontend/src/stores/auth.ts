@@ -97,7 +97,14 @@ export const useAuthStore = defineStore("auth", () => {
     totpSetupUri.value = null;
 
     try {
-      const { signIn } = await import("aws-amplify/auth");
+      const { signIn, signOut } = await import("aws-amplify/auth");
+
+      // Clear any existing session to avoid "already signed in" errors
+      try {
+        await signOut();
+      } catch {
+        // Ignore errors - no session to clear
+      }
       const result = await signIn({ username, password });
 
       if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_TOTP_CODE") {
@@ -211,12 +218,25 @@ export const useAuthStore = defineStore("auth", () => {
 
     try {
       const { setUpTOTP } = await import("aws-amplify/auth");
+      console.log("[Auth] Initiating TOTP setup...");
       const totpSetupDetails = await setUpTOTP();
       const username = user.value?.email || user.value?.username || "BlueMoxon";
       totpSetupUri.value = totpSetupDetails.getSetupUri("BlueMoxon", username).toString();
+      console.log("[Auth] TOTP setup URI generated successfully");
       mfaStep.value = "totp_setup";
     } catch (e: any) {
-      error.value = e.message || "Failed to initiate MFA setup";
+      console.error("[Auth] Failed to initiate MFA setup:", e);
+      // Provide more specific error messages
+      if (e.name === "InvalidParameterException") {
+        error.value = "MFA setup failed - please contact administrator";
+      } else if (e.message?.includes("not signed in")) {
+        error.value = "Session expired. Please sign in again.";
+        // Reset auth state
+        user.value = null;
+        mfaStep.value = "none";
+      } else {
+        error.value = e.message || "Failed to initiate MFA setup";
+      }
       throw e;
     } finally {
       loading.value = false;
@@ -243,11 +263,17 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function logout() {
-    const { signOut } = await import("aws-amplify/auth");
-    await signOut();
+    try {
+      const { signOut } = await import("aws-amplify/auth");
+      await signOut({ global: true });
+    } catch (e) {
+      console.warn("Error during sign out:", e);
+    }
+    // Always clear local state
     user.value = null;
     mfaStep.value = "none";
     totpSetupUri.value = null;
+    error.value = null;
   }
 
   async function updateProfile(firstName: string, lastName: string) {
