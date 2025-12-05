@@ -39,7 +39,7 @@ def get_database_url() -> str:
 
     # Fall back to config/env var
     return url or os.environ.get(
-        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/bluemoxon"
+        "DATABASE_URL", "postgresql://bluemoxon:bluemoxon_dev@localhost:5432/bluemoxon"
     )
 
 
