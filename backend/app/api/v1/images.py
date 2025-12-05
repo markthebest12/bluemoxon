@@ -34,8 +34,10 @@ PLACEHOLDER_PATH = LOCAL_IMAGES_PATH / "placeholder.jpg"
 # S3 prefix for book images
 S3_IMAGES_PREFIX = "books/"
 
-# CloudFront CDN URL for images (production only)
-CLOUDFRONT_CDN_URL = "https://bluemoxon.com/book-images"
+
+def get_cloudfront_cdn_url() -> str:
+    """Get CloudFront CDN URL from settings or use default."""
+    return settings.images_cdn_url or "https://app.bluemoxon.com/book-images"
 
 
 def is_production() -> bool:
@@ -55,7 +57,8 @@ def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
     """
     if is_thumbnail:
         s3_key = get_thumbnail_key(s3_key)
-    return f"{CLOUDFRONT_CDN_URL}/{S3_IMAGES_PREFIX}{s3_key}"
+    cdn_url = get_cloudfront_cdn_url()
+    return f"{cdn_url}/{S3_IMAGES_PREFIX}{s3_key}"
 
 
 def get_s3_client():
