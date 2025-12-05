@@ -137,10 +137,10 @@ export const useAdminStore = defineStore("admin", () => {
     }
   }
 
-  async function inviteUser(email: string, role: string) {
+  async function inviteUser(email: string, role: string, mfaExempt: boolean = false) {
     error.value = null;
     try {
-      const response = await api.post("/users/invite", { email, role });
+      const response = await api.post("/users/invite", { email, role, mfa_exempt: mfaExempt });
       // Refresh users list to show the new user
       await fetchUsers();
       return response.data;
