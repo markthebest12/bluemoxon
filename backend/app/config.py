@@ -52,9 +52,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     # Debug: log env var directly
-    logger.info(
-        "CORS_ORIGINS env: %s", os.environ.get("CORS_ORIGINS", "NOT SET")
-    )
+    logger.info("CORS_ORIGINS env: %s", os.environ.get("CORS_ORIGINS", "NOT SET"))
     settings = Settings()
     logger.info("cors_origins setting: %s", settings.cors_origins)
     return settings
