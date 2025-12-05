@@ -1,12 +1,19 @@
 """Application configuration."""
 
+import os
 from functools import lru_cache
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     # Database
     database_url: str = "postgresql://postgres:postgres@localhost:5432/bluemoxon"
@@ -37,12 +44,12 @@ class Settings(BaseSettings):
     # API Key for CLI/automation access (optional)
     api_key: str | None = None
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    # Debug: print env var directly
+    print(f"[Config] CORS_ORIGINS env: {os.environ.get('CORS_ORIGINS', 'NOT SET')}")
+    settings = Settings()
+    print(f"[Config] cors_origins setting: {settings.cors_origins}")
+    return settings
