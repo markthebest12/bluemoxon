@@ -44,7 +44,10 @@ const updatingStatus = ref(false);
 // Computed property for back link that preserves filter state
 const backToCollectionLink = computed(() => {
   const query: Record<string, string> = {};
-  if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
+  // Empty string (All Collections) is stored as "ALL" in URL
+  if (booksStore.filters.inventory_type === "") {
+    query.inventory_type = "ALL";
+  } else if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
     query.inventory_type = booksStore.filters.inventory_type;
   }
   if (booksStore.filters.q) {

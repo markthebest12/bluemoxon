@@ -61,8 +61,14 @@ const activeFilterCount = computed(() => {
 // Sync filters from URL query params - URL is source of truth
 function syncFiltersFromUrl() {
   // URL is the source of truth - always read from it
-  // Default to PRIMARY only if URL has no inventory_type param
-  booksStore.filters.inventory_type = (route.query.inventory_type as string) || "PRIMARY";
+  // "ALL" in URL means all collections (empty string in store)
+  // No param defaults to PRIMARY
+  const urlInventoryType = route.query.inventory_type as string;
+  if (urlInventoryType === "ALL") {
+    booksStore.filters.inventory_type = "";
+  } else {
+    booksStore.filters.inventory_type = urlInventoryType || "PRIMARY";
+  }
 
   // Read search query from URL
   booksStore.filters.q = (route.query.q as string) || undefined;
@@ -111,8 +117,11 @@ onMounted(async () => {
 function updateUrlWithFilters() {
   const query: Record<string, string> = {};
 
-  // Always include inventory_type in URL (except for PRIMARY which is default)
-  if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
+  // Include inventory_type in URL (except PRIMARY which is default)
+  // Empty string (All Collections) is stored as "ALL" in URL
+  if (booksStore.filters.inventory_type === "") {
+    query.inventory_type = "ALL";
+  } else if (booksStore.filters.inventory_type && booksStore.filters.inventory_type !== "PRIMARY") {
     query.inventory_type = booksStore.filters.inventory_type;
   }
   if (booksStore.filters.q) {
