@@ -284,7 +284,7 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_admin),
 ):
-    """Delete a user. Requires admin role."""
+    """Delete a user from both database and Cognito. Requires admin role."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -293,11 +293,32 @@ def delete_user(
     if current_user.db_user and current_user.db_user.id == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
-    # Delete associated API keys first
+    # Delete from Cognito first
+    if settings.cognito_user_pool_id and user.email:
+        try:
+            cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+            cognito.admin_delete_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=user.email,
+            )
+            logger.info(f"Deleted user {user.email} from Cognito")
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "UserNotFoundException":
+                # User doesn't exist in Cognito, continue with DB deletion
+                logger.warning(f"User {user.email} not found in Cognito, deleting from DB only")
+            else:
+                error_msg = e.response["Error"]["Message"]
+                logger.error(f"Failed to delete user from Cognito: {error_code} - {error_msg}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to delete from Cognito: {error_msg}"
+                ) from None
+
+    # Delete associated API keys
     db.query(APIKey).filter(APIKey.created_by_id == user_id).delete()
     db.delete(user)
     db.commit()
-    return {"message": f"User {user_id} deleted"}
+    return {"message": f"User {user_id} deleted from database and Cognito"}
 
 
 @router.get("/{user_id}/mfa")
