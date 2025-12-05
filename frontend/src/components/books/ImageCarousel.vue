@@ -26,6 +26,13 @@ const images = ref<BookImage[]>([]);
 const currentIndex = ref(0);
 const loading = ref(true);
 
+// Touch/swipe handling
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const touchEndX = ref(0);
+const touchEndY = ref(0);
+const minSwipeDistance = 50;
+
 onMounted(async () => {
   await loadImages();
   document.addEventListener("keydown", handleKeydown);
@@ -102,6 +109,35 @@ function handleBackdropClick(e: MouseEvent) {
     emit("close");
   }
 }
+
+function handleTouchStart(e: TouchEvent) {
+  touchStartX.value = e.touches[0].clientX;
+  touchStartY.value = e.touches[0].clientY;
+}
+
+function handleTouchEnd(e: TouchEvent) {
+  touchEndX.value = e.changedTouches[0].clientX;
+  touchEndY.value = e.changedTouches[0].clientY;
+  handleSwipe();
+}
+
+function handleSwipe() {
+  const deltaX = touchEndX.value - touchStartX.value;
+  const deltaY = touchEndY.value - touchStartY.value;
+
+  // Only handle horizontal swipes (ignore if vertical movement is greater)
+  if (Math.abs(deltaX) < minSwipeDistance || Math.abs(deltaY) > Math.abs(deltaX)) {
+    return;
+  }
+
+  if (deltaX > 0) {
+    // Swipe right -> previous image
+    prev();
+  } else {
+    // Swipe left -> next image
+    next();
+  }
+}
 </script>
 
 <template>
@@ -140,13 +176,18 @@ function handleBackdropClick(e: MouseEvent) {
         <!-- Carousel -->
         <div v-else class="relative w-full max-w-5xl mx-4 flex flex-col items-center">
           <!-- Main image -->
-          <div class="relative bg-black rounded-lg overflow-hidden">
+          <div
+            class="relative bg-black rounded-lg overflow-hidden"
+            @touchstart="handleTouchStart"
+            @touchend="handleTouchEnd"
+          >
             <img
               :src="images[currentIndex].url"
               :alt="images[currentIndex].caption || `Image ${currentIndex + 1}`"
               decoding="async"
               fetchpriority="high"
-              class="max-h-[70vh] max-w-full object-contain"
+              class="max-h-[70vh] max-w-full object-contain select-none"
+              draggable="false"
             />
 
             <!-- Caption -->
