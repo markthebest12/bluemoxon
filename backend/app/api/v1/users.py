@@ -312,7 +312,7 @@ def delete_user(
                 logger.error(f"Failed to delete user from Cognito: {error_code} - {error_msg}")
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Failed to delete from Cognito: {error_msg}",  # noqa: S608
+                    detail=f"Failed to delete from Cognito: {error_msg}",  # nosec B608
                 ) from None
 
     # Delete associated API keys
