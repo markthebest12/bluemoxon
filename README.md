@@ -1,5 +1,9 @@
 # BlueMoxon (bmx)
 
+[![CI](https://github.com/markthebest12/bluemoxon/actions/workflows/ci.yml/badge.svg)](https://github.com/markthebest12/bluemoxon/actions/workflows/ci.yml)
+[![Deploy](https://github.com/markthebest12/bluemoxon/actions/workflows/deploy.yml/badge.svg)](https://github.com/markthebest12/bluemoxon/actions/workflows/deploy.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Victorian Book Collection Management Web Application
 
 **Name Origin:** Blue (dependability) + Edward Moxon (1801-1858, Victorian publisher of Tennyson)
@@ -40,7 +44,7 @@ bluemoxon/
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+
+- Node.js 20+
 - Poetry (`curl -sSL https://install.python-poetry.org | python3 -`)
 - Docker (optional - only for local database debugging)
 
@@ -100,13 +104,7 @@ cdk deploy --all
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a PR.
 
 ## License
 
