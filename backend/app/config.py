@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     cognito_user_pool_id: str = ""
     cognito_app_client_id: str = ""
 
-    # S3
+    # S3 / CDN
     images_bucket: str = "bluemoxon-images"
+    images_cdn_url: str | None = None  # CloudFront CDN URL for images
     backup_bucket: str = "bluemoxon-backups"
 
     # Local images path (for development)
