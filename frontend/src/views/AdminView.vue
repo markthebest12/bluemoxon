@@ -16,6 +16,7 @@ const confirmDeleteUser = ref<number | null>(null);
 // Invite user state
 const inviteEmail = ref("");
 const inviteRole = ref("viewer");
+const inviteMfaExempt = ref(false);
 const inviteLoading = ref(false);
 const inviteSuccess = ref<string | null>(null);
 
@@ -70,10 +71,12 @@ async function inviteUser() {
   inviteSuccess.value = null;
 
   try {
-    await adminStore.inviteUser(inviteEmail.value.trim(), inviteRole.value);
-    inviteSuccess.value = `Invitation sent to ${inviteEmail.value}`;
+    await adminStore.inviteUser(inviteEmail.value.trim(), inviteRole.value, inviteMfaExempt.value);
+    const exemptNote = inviteMfaExempt.value ? " (MFA exempt)" : "";
+    inviteSuccess.value = `Invitation sent to ${inviteEmail.value}${exemptNote}`;
     inviteEmail.value = "";
     inviteRole.value = "viewer";
+    inviteMfaExempt.value = false;
   } catch {
     // Error is set in store
   } finally {
@@ -254,6 +257,14 @@ function formatDate(dateStr: string | null): string {
             {{ inviteLoading ? "Sending..." : "Send Invite" }}
           </button>
         </div>
+        <label class="flex items-center gap-2 mt-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            v-model="inviteMfaExempt"
+            type="checkbox"
+            class="rounded border-gray-300 text-moxon-600 focus:ring-moxon-500"
+          />
+          <span>MFA Exempt (user won't be required to set up two-factor authentication)</span>
+        </label>
         <p class="text-xs text-gray-500 mt-2">
           User will receive an email with a temporary password to set up their account.
         </p>

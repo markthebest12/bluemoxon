@@ -30,6 +30,7 @@ class InviteUserRequest(BaseModel):
 
     email: EmailStr
     role: str = "viewer"
+    mfa_exempt: bool = False
 
 
 class UpdateProfileRequest(BaseModel):
@@ -128,7 +129,12 @@ def invite_user(
                 break
 
         if cognito_sub:
-            new_user = User(cognito_sub=cognito_sub, email=request.email, role=request.role)
+            new_user = User(
+                cognito_sub=cognito_sub,
+                email=request.email,
+                role=request.role,
+                mfa_exempt=request.mfa_exempt,
+            )
             db.add(new_user)
             db.commit()
             db.refresh(new_user)
@@ -136,6 +142,7 @@ def invite_user(
                 "message": f"Invitation sent to {request.email}",
                 "user_id": new_user.id,
                 "cognito_sub": cognito_sub,
+                "mfa_exempt": request.mfa_exempt,
             }
         else:
             return {
