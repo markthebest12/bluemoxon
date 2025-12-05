@@ -431,18 +431,26 @@ def enable_user_mfa(
     try:
         cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
 
-        # Enable TOTP MFA
-        cognito.admin_set_user_mfa_preference(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=user.email,
-            SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
-        )
+        # Try to enable TOTP MFA in Cognito (only works if user has set up MFA)
+        try:
+            cognito.admin_set_user_mfa_preference(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=user.email,
+                SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
+            )
+        except ClientError as e:
+            # If user hasn't set up MFA yet, that's fine - they'll be prompted on next login
+            error_code = e.response["Error"]["Code"]
+            if error_code == "InvalidParameterException":
+                logger.info(f"User {user.email} has no MFA configured, will be prompted on next login")
+            else:
+                raise
 
         # Remove MFA exemption so user will be prompted to set up MFA
         user.mfa_exempt = False
         db.commit()
 
-        return {"message": f"MFA enabled for {user.email}"}
+        return {"message": f"MFA requirement enabled for {user.email}"}
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
         raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
