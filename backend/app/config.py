@@ -1,9 +1,12 @@
 """Application configuration."""
 
+import logging
 import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -48,8 +51,10 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    # Debug: print env var directly
-    print(f"[Config] CORS_ORIGINS env: {os.environ.get('CORS_ORIGINS', 'NOT SET')}")
+    # Debug: log env var directly
+    logger.info(
+        "CORS_ORIGINS env: %s", os.environ.get("CORS_ORIGINS", "NOT SET")
+    )
     settings = Settings()
-    print(f"[Config] cors_origins setting: {settings.cors_origins}")
+    logger.info("cors_origins setting: %s", settings.cors_origins)
     return settings
