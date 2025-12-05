@@ -389,12 +389,20 @@ def disable_user_mfa(
     try:
         cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
 
-        # Disable TOTP MFA
-        cognito.admin_set_user_mfa_preference(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=user.email,
-            SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
-        )
+        # Try to disable TOTP MFA in Cognito
+        try:
+            cognito.admin_set_user_mfa_preference(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=user.email,
+                SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
+            )
+        except ClientError as e:
+            # If user hasn't set up MFA yet, that's fine - just mark as exempt
+            error_code = e.response["Error"]["Code"]
+            if error_code == "InvalidParameterException":
+                logger.info(f"User {user.email} has no MFA configured, marking as exempt only")
+            else:
+                raise
 
         # Mark user as MFA-exempt so frontend won't force MFA setup
         user.mfa_exempt = True
