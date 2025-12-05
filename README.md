@@ -19,6 +19,23 @@ BlueMoxon is a web application for managing a Victorian book collection with:
 - CSV and PDF export capabilities
 - Role-based access control with 2FA (admin/editor/viewer)
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="800">
+  <br><em>Dashboard with collection analytics and quick stats</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/collection.png" alt="Collection" width="800">
+  <br><em>Browse and search the book collection</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/book-detail.png" alt="Book Detail" width="800">
+  <br><em>Detailed book view with images, valuation, and metadata</em>
+</p>
+
 ## Tech Stack
 
 - **Frontend:** Vue 3 + Vite + TypeScript + TailwindCSS
