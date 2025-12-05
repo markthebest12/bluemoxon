@@ -311,7 +311,8 @@ def delete_user(
                 error_msg = e.response["Error"]["Message"]
                 logger.error(f"Failed to delete user from Cognito: {error_code} - {error_msg}")
                 raise HTTPException(
-                    status_code=500, detail=f"Failed to delete from Cognito: {error_msg}"
+                    status_code=500,
+                    detail=f"Failed to delete from Cognito: {error_msg}",  # noqa: S608
                 ) from None
 
     # Delete associated API keys
