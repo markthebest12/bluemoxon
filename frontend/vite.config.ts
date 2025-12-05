@@ -1,8 +1,21 @@
 import { fileURLToPath, URL } from "node:url";
+import { readFileSync } from "node:fs";
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { visualizer } from "rollup-plugin-visualizer";
+
+// Read version from VERSION file at build time
+const getVersion = (): string => {
+  try {
+    return readFileSync("../VERSION", "utf-8").trim();
+  } catch {
+    return "0.0.0-dev";
+  }
+};
+
+const appVersion = getVersion();
+const buildTime = new Date().toISOString();
 
 export default defineConfig({
   plugins: [
@@ -16,6 +29,11 @@ export default defineConfig({
       brotliSize: true,
     }),
   ],
+  // Inject version info at build time
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

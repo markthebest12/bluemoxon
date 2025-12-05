@@ -13,9 +13,11 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
+from app.version import get_version, get_version_info
 
 router = APIRouter()
 settings = get_settings()
+app_version = get_version()
 
 
 def check_database(db: Session) -> dict[str, Any]:
@@ -232,7 +234,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
     return {
         "status": overall,
         "timestamp": datetime.now(UTC).isoformat(),
-        "version": "0.1.0",
+        "version": app_version,
         "environment": settings.environment,
         "total_latency_ms": total_latency,
         "checks": checks,
@@ -248,10 +250,10 @@ async def deep_health_check(db: Session = Depends(get_db)):
 )
 async def service_info():
     """Service information endpoint."""
+    version_info = get_version_info()
     return {
         "service": "bluemoxon-api",
-        "version": "0.1.0",
-        "environment": settings.environment,
+        **version_info,
         "region": settings.aws_region,
         "features": {
             "cognito_auth": bool(settings.cognito_user_pool_id),
@@ -265,3 +267,15 @@ async def service_info():
             "api": "/api/v1",
         },
     }
+
+
+@router.get(
+    "/version",
+    summary="Application version",
+    description="Returns detailed version information including git SHA and deployment timestamp.",
+    response_description="Version details",
+    tags=["health"],
+)
+async def version():
+    """Get application version details."""
+    return get_version_info()
