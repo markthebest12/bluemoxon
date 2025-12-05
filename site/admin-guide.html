@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Guide | BlueMoxon Documentation</title>
+    <meta name="description" content="Complete administrator guide for BlueMoxon - managing books, images, users, and the collection">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-code: #0d1117;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-blue-light: #60a5fa;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --border-color: #1e293b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 1rem 2rem;
+        }
+
+        nav .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        nav .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav .nav-links a:hover {
+            color: var(--accent-blue-light);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 280px;
+            height: calc(100vh - 60px);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            margin-top: 2rem;
+        }
+
+        .sidebar h3:first-child {
+            margin-top: 0;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar li {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .sidebar a:hover {
+            background: var(--bg-card);
+            color: var(--accent-blue-light);
+        }
+
+        .sidebar a.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue-light);
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        /* Main Content */
+        main {
+            margin-left: 280px;
+            padding: 5rem 3rem 4rem;
+            max-width: 900px;
+        }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .breadcrumb {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-blue-light);
+            text-decoration: none;
+        }
+
+        .breadcrumb span {
+            color: var(--text-muted);
+        }
+
+        /* Section Styling */
+        section {
+            margin-bottom: 4rem;
+        }
+
+        section h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        section h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            color: var(--text-primary);
+        }
+
+        section p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Screenshots */
+        .screenshot {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin: 1.5rem 0;
+        }
+
+        .screenshot img {
+            width: 100%;
+            display: block;
+        }
+
+        .screenshot .caption {
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Feature Cards */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .feature-card h4 {
+            color: var(--accent-blue-light);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        /* Lists */
+        ul, ol {
+            color: var(--text-secondary);
+            margin: 1rem 0 1.5rem 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        li strong {
+            color: var(--text-primary);
+        }
+
+        /* Code Blocks */
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-code);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--accent-amber);
+        }
+
+        pre {
+            background: var(--bg-code);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            margin: 1rem 0;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue-light); }
+        .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .badge-amber { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+
+        /* Alerts */
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent-blue);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--accent-amber);
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--accent-green);
+        }
+
+        .alert strong {
+            color: var(--text-primary);
+        }
+
+        /* Step Lists */
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .steps li {
+            position: relative;
+            padding-left: 3rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                display: none;
+            }
+
+            main {
+                margin-left: 0;
+                padding: 5rem 1.5rem 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-content">
+            <a href="index.html" class="logo">BlueMoxon</a>
+            <ul class="nav-links">
+                <li><a href="index.html#about">About</a></li>
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="index.html#admin">Workflow</a></li>
+                <li><a href="index.html#architecture">Architecture</a></li>
+                <li><a href="index.html#pipeline">Pipeline</a></li>
+                <li><a href="index.html#api">API</a></li>
+                <li><a href="admin-guide.html" style="color: var(--accent-blue-light);">Admin Guide</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>Getting Started</h3>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#authentication">Authentication</a></li>
+            </ul>
+
+            <h3>Book Management</h3>
+            <ul>
+                <li><a href="#adding-books">Adding Books</a></li>
+                <li><a href="#editing-books">Editing Books</a></li>
+                <li><a href="#deleting-books">Deleting Books</a></li>
+                <li><a href="#status-tracking">Status Tracking</a></li>
+            </ul>
+
+            <h3>Images & Media</h3>
+            <ul>
+                <li><a href="#uploading-images">Uploading Images</a></li>
+                <li><a href="#reordering-images">Reordering Images</a></li>
+                <li><a href="#image-gallery">Image Gallery</a></li>
+            </ul>
+
+            <h3>Analysis Documents</h3>
+            <ul>
+                <li><a href="#analysis-editor">Analysis Editor</a></li>
+                <li><a href="#markdown-formatting">Markdown Formatting</a></li>
+            </ul>
+
+            <h3>Reference Data</h3>
+            <ul>
+                <li><a href="#authors">Authors</a></li>
+                <li><a href="#publishers">Publishers</a></li>
+                <li><a href="#binders">Binders</a></li>
+            </ul>
+
+            <h3>Dashboard</h3>
+            <ul>
+                <li><a href="#dashboard-stats">Statistics</a></li>
+                <li><a href="#filtering">Filtering & Search</a></li>
+            </ul>
+
+            <h3>User Management</h3>
+            <ul>
+                <li><a href="#user-roles">User Roles</a></li>
+                <li><a href="#cognito-admin">Cognito Admin</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main>
+            <div class="breadcrumb">
+                <a href="index.html">Docs</a>
+                <span>/</span>
+                <span>Admin Guide</span>
+            </div>
+
+            <div class="page-header">
+                <h1>Administrator Guide</h1>
+                <p class="subtitle">Complete guide to managing your BlueMoxon collection</p>
+            </div>
+
+            <!-- Overview Section -->
+            <section id="overview">
+                <h2>Overview</h2>
+                <p>
+                    BlueMoxon provides a full-featured admin interface for managing your rare book collection.
+                    Authenticated users can add, edit, and delete books, upload images, write analysis documents,
+                    and manage reference data like authors and publishers.
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>Book Management</h4>
+                        <p>Full CRUD operations for books with comprehensive metadata fields.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Image Handling</h4>
+                        <p>Upload, reorder, and manage images with CDN delivery.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Analysis Documents</h4>
+                        <p>Rich markdown editor with live preview for detailed analyses.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Reference Data</h4>
+                        <p>Manage authors, publishers, and binders with autocomplete.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Authentication Section -->
+            <section id="authentication">
+                <h2>Authentication</h2>
+                <p>
+                    BlueMoxon uses <strong>AWS Cognito</strong> for authentication. Users must sign in to access
+                    admin features like adding or editing books.
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Public visitors can browse the collection and view book details,
+                    but cannot modify any data. Admin features are only visible to authenticated users.
+                </div>
+
+                <h3>Signing In</h3>
+                <ol class="steps">
+                    <li>Click the <strong>Sign In</strong> button in the navigation bar</li>
+                    <li>Enter your email address and password</li>
+                    <li>If you have MFA enabled, enter your verification code</li>
+                    <li>Upon successful login, you'll see admin controls appear throughout the interface</li>
+                </ol>
+
+                <h3>Session Management</h3>
+                <p>
+                    JWT tokens are stored securely and automatically refreshed. Sessions typically last 1 hour,
+                    with automatic refresh for up to 30 days of continuous use.
+                </p>
+            </section>
+
+            <!-- Adding Books Section -->
+            <section id="adding-books">
+                <h2>Adding Books</h2>
+                <p>
+                    New books can be added through the web interface or via the REST API. The web form provides
+                    guided input with dropdowns for reference data and validation for required fields.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-add-book.png" alt="Add Book Form">
+                    <div class="caption">The Add Book form with basic information fields</div>
+                </div>
+
+                <h3>Required Fields</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Description</th>
+                            <th>Example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Title</strong></td>
+                            <td>Book title (do not include author/publisher)</td>
+                            <td>Essays of Elia</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Author</strong></td>
+                            <td>Select from dropdown or create new</td>
+                            <td>Charles Lamb</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Publisher</strong></td>
+                            <td>Publisher and location</td>
+                            <td>Dent, London</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Publication Date</strong></td>
+                            <td>Year of publication</td>
+                            <td>1867</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Optional Fields</h3>
+                <ul>
+                    <li><strong>Volumes:</strong> Number of volumes (default: 1)</li>
+                    <li><strong>Binding Type:</strong> Morocco, calf, vellum, cloth, etc.</li>
+                    <li><strong>Binder:</strong> Known binder (Rivière, Zaehnsdorf, etc.)</li>
+                    <li><strong>Inventory Type:</strong> PRIMARY, EXTENDED, or FLAGGED</li>
+                    <li><strong>Value Range:</strong> Low, mid, and high estimates in USD</li>
+                    <li><strong>Purchase Price:</strong> Actual acquisition cost</li>
+                    <li><strong>Purchase Date:</strong> When acquired</li>
+                    <li><strong>Order Number:</strong> eBay/Etsy order reference</li>
+                    <li><strong>Place of Purchase:</strong> eBay, Etsy, AbeBooks, etc.</li>
+                    <li><strong>Notes:</strong> Free-form notes</li>
+                </ul>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-add-book-2.png" alt="Add Book Form - Binding Section">
+                    <div class="caption">Binding, condition, and valuation fields</div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Tip:</strong> Keep titles clean! Don't include author names, volume counts, or
+                    binding descriptions in the title field - use the dedicated fields instead.
+                </div>
+            </section>
+
+            <!-- Editing Books Section -->
+            <section id="editing-books">
+                <h2>Editing Books</h2>
+                <p>
+                    Existing books can be edited by clicking the <strong>Edit</strong> button on any book detail page.
+                    All fields are editable, and changes are saved immediately when you click Save.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-edit-book.png" alt="Edit Book Form">
+                    <div class="caption">The Edit Book form with pre-populated fields</div>
+                </div>
+
+                <h3>Edit Actions</h3>
+                <ul>
+                    <li><strong>Edit Metadata:</strong> Modify any book field</li>
+                    <li><strong>Update Status:</strong> Change delivery status (IN_TRANSIT, ON_HAND)</li>
+                    <li><strong>Edit Analysis:</strong> Open the markdown editor for analysis documents</li>
+                    <li><strong>Manage Images:</strong> Add, remove, or reorder images</li>
+                </ul>
+            </section>
+
+            <!-- Deleting Books Section -->
+            <section id="deleting-books">
+                <h2>Deleting Books</h2>
+                <p>
+                    Books can be permanently deleted from the book detail page. This action requires confirmation
+                    and cannot be undone.
+                </p>
+
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> Deleting a book also removes all associated images and analysis
+                    documents. Consider exporting a CSV backup before deleting.
+                </div>
+
+                <ol class="steps">
+                    <li>Navigate to the book detail page</li>
+                    <li>Click the <strong>Delete</strong> button (red, typically in the action bar)</li>
+                    <li>Confirm the deletion in the modal dialog</li>
+                    <li>The book and all associated data will be permanently removed</li>
+                </ol>
+            </section>
+
+            <!-- Status Tracking Section -->
+            <section id="status-tracking">
+                <h2>Status Tracking</h2>
+                <p>
+                    Books can have different delivery statuses to track acquisitions from purchase to arrival.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-amber">IN_TRANSIT</span></td>
+                            <td>Purchased but not yet received</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">ON_HAND</span></td>
+                            <td>Physically in the collection</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">SOLD</span></td>
+                            <td>Sold or transferred out of collection</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">REMOVED</span></td>
+                            <td>Removed from collection (damaged, lost, etc.)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Updating Status via API</h3>
+                <pre><code>curl -X PATCH "https://api.bluemoxon.com/api/v1/books/{id}/status?status=ON_HAND" \
+  -H "X-API-Key: $BMX_API_KEY"</code></pre>
+            </section>
+
+            <!-- Uploading Images Section -->
+            <section id="uploading-images">
+                <h2>Uploading Images</h2>
+                <p>
+                    Each book can have multiple images. The first image (or designated primary) appears as the
+                    thumbnail in collection views.
+                </p>
+
+                <ol class="steps">
+                    <li>Navigate to the book detail page</li>
+                    <li>Click <strong>Add Images</strong> in the image section</li>
+                    <li>Select one or more image files (JPG, PNG supported)</li>
+                    <li>Images are uploaded to S3 and served via CloudFront CDN</li>
+                    <li>The page refreshes to show newly uploaded images</li>
+                </ol>
+
+                <div class="alert alert-info">
+                    <strong>Tip:</strong> Images are automatically optimized for web delivery. Large originals
+                    are preserved while thumbnails are generated for fast loading.
+                </div>
+            </section>
+
+            <!-- Reordering Images Section -->
+            <section id="reordering-images">
+                <h2>Reordering Images</h2>
+                <p>
+                    Image order can be changed using drag-and-drop or the <strong>Reorder</strong> button.
+                    The first image becomes the primary thumbnail.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-book-detail.png" alt="Book Detail with Image Controls">
+                    <div class="caption">Book detail page showing Edit, Delete, Add Images, and Reorder buttons</div>
+                </div>
+
+                <h3>Image Actions</h3>
+                <ul>
+                    <li><strong>Reorder:</strong> Drag images to change their display order</li>
+                    <li><strong>Set Primary:</strong> Click to make an image the main thumbnail</li>
+                    <li><strong>Delete:</strong> Remove individual images</li>
+                    <li><strong>View Full Size:</strong> Click to open in lightbox gallery</li>
+                </ul>
+            </section>
+
+            <!-- Image Gallery Section -->
+            <section id="image-gallery">
+                <h2>Image Gallery</h2>
+                <p>
+                    Clicking any image opens a full-screen lightbox with navigation controls.
+                    Supports keyboard navigation (arrow keys) and swipe gestures on mobile.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/image-gallery.png" alt="Image Gallery Lightbox">
+                    <div class="caption">Full-screen image gallery with thumbnail navigation</div>
+                </div>
+            </section>
+
+            <!-- Analysis Editor Section -->
+            <section id="analysis-editor">
+                <h2>Analysis Editor</h2>
+                <p>
+                    Each book can have a detailed analysis document written in Markdown. The editor provides
+                    live preview and supports the full Napoleon Framework for rare book evaluation.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/analysis.png" alt="Analysis View">
+                    <div class="caption">Rendered analysis document with professional valuation report format</div>
+                </div>
+
+                <h3>Analysis Sections</h3>
+                <ul>
+                    <li><strong>Executive Summary:</strong> Brief overview and significance</li>
+                    <li><strong>Provenance:</strong> History and previous ownership</li>
+                    <li><strong>Physical Description:</strong> Binding, paper, condition details</li>
+                    <li><strong>Valuation:</strong> Market analysis and comparable sales</li>
+                    <li><strong>Recommendation:</strong> BUY / PASS / CONDITIONAL BUY</li>
+                </ul>
+            </section>
+
+            <!-- Markdown Formatting Section -->
+            <section id="markdown-formatting">
+                <h2>Markdown Formatting</h2>
+                <p>
+                    The analysis editor supports GitHub-flavored Markdown with tables, code blocks, and more.
+                </p>
+
+                <pre><code># Book Title
+
+## Executive Summary
+Brief overview of the book's significance...
+
+## Physical Description
+| Attribute | Value |
+|-----------|-------|
+| Binding | Full morocco |
+| Condition | Very good |
+
+## Valuation
+- **Low estimate:** $200
+- **Mid estimate:** $275
+- **High estimate:** $350</code></pre>
+            </section>
+
+            <!-- Authors Section -->
+            <section id="authors">
+                <h2>Authors</h2>
+                <p>
+                    Authors are managed as reference data and can be selected when adding or editing books.
+                    New authors are created automatically when entering a new name.
+                </p>
+
+                <h3>Author Fields</h3>
+                <ul>
+                    <li><strong>Name:</strong> Full name (e.g., "Charles Dickens")</li>
+                    <li><strong>Birth Year:</strong> Optional birth year</li>
+                    <li><strong>Death Year:</strong> Optional death year</li>
+                    <li><strong>Notes:</strong> Additional biographical information</li>
+                </ul>
+            </section>
+
+            <!-- Publishers Section -->
+            <section id="publishers">
+                <h2>Publishers</h2>
+                <p>
+                    Publishers include both the company name and location. Common formats include
+                    "Chapman and Hall, London" or "Scribner's, New York".
+                </p>
+            </section>
+
+            <!-- Binders Section -->
+            <section id="binders">
+                <h2>Binders</h2>
+                <p>
+                    For books with identified bindings by known binderies. Common examples include
+                    Rivière, Zaehnsdorf, Sangorski & Sutcliffe, and Root & Son.
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> A binder of "Unknown" is used for books with fine bindings
+                    where the binder cannot be identified. Leave blank for trade bindings.
+                </div>
+            </section>
+
+            <!-- Dashboard Stats Section -->
+            <section id="dashboard-stats">
+                <h2>Dashboard Statistics</h2>
+                <p>
+                    The dashboard provides real-time statistics about your collection.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-dashboard.png" alt="Admin Dashboard">
+                    <div class="caption">Dashboard with collection statistics and quick actions</div>
+                </div>
+
+                <h3>Available Statistics</h3>
+                <ul>
+                    <li><strong>Total Books:</strong> Count of all books in collection</li>
+                    <li><strong>Total Images:</strong> Number of uploaded images</li>
+                    <li><strong>Total Value:</strong> Sum of mid-range valuations</li>
+                    <li><strong>By Inventory Type:</strong> Primary, Extended, Flagged breakdown</li>
+                    <li><strong>By Status:</strong> On Hand vs. In Transit</li>
+                    <li><strong>Recent Additions:</strong> Latest books added</li>
+                </ul>
+            </section>
+
+            <!-- Filtering Section -->
+            <section id="filtering">
+                <h2>Filtering & Search</h2>
+                <p>
+                    The collection browser supports multiple filter criteria and full-text search.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/admin-collection.png" alt="Collection Browser">
+                    <div class="caption">Collection browser with filters, search, and sort controls</div>
+                </div>
+
+                <h3>Filter Options</h3>
+                <ul>
+                    <li><strong>Search:</strong> Full-text search across title, author, notes</li>
+                    <li><strong>Author:</strong> Filter by specific author</li>
+                    <li><strong>Publisher:</strong> Filter by publisher</li>
+                    <li><strong>Binding Type:</strong> Morocco, calf, vellum, cloth, etc.</li>
+                    <li><strong>Inventory Type:</strong> PRIMARY, EXTENDED, FLAGGED</li>
+                    <li><strong>Status:</strong> ON_HAND, IN_TRANSIT, SOLD</li>
+                    <li><strong>Date Range:</strong> Filter by publication date</li>
+                </ul>
+
+                <h3>Sort Options</h3>
+                <ul>
+                    <li>Title (A-Z, Z-A)</li>
+                    <li>Author (A-Z, Z-A)</li>
+                    <li>Publication Date (oldest first, newest first)</li>
+                    <li>Date Added (oldest first, newest first)</li>
+                    <li>Value (low to high, high to low)</li>
+                </ul>
+            </section>
+
+            <!-- User Roles Section -->
+            <section id="user-roles">
+                <h2>User Roles</h2>
+                <p>
+                    BlueMoxon supports different user roles through Cognito groups. Roles determine
+                    what actions users can perform.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Role</th>
+                            <th>Permissions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-green">Admin</span></td>
+                            <td>Full access: add, edit, delete books; manage users; all features</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">Editor</span></td>
+                            <td>Add and edit books, upload images, write analyses; cannot delete or manage users</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-amber">Viewer</span></td>
+                            <td>Read-only access to all book data; cannot make modifications</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">Public</span></td>
+                            <td>Unauthenticated access; browse-only with limited detail</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Cognito Admin Section -->
+            <section id="cognito-admin">
+                <h2>Cognito Administration</h2>
+                <p>
+                    User accounts are managed through AWS Cognito. Admin users can manage other users
+                    via the AWS Console or Cognito APIs.
+                </p>
+
+                <h3>Managing Users in AWS Console</h3>
+                <ol class="steps">
+                    <li>Navigate to the AWS Console and open Cognito</li>
+                    <li>Select the BlueMoxon User Pool</li>
+                    <li>Click on "Users and groups" in the left sidebar</li>
+                    <li>Create, edit, or disable user accounts as needed</li>
+                    <li>Assign users to groups (Admin, Editor, Viewer) to set permissions</li>
+                </ol>
+
+                <h3>Adding Users to Groups</h3>
+                <ol class="steps">
+                    <li>In Cognito User Pool, select the "Groups" tab</li>
+                    <li>Click on the desired group (e.g., "Admin")</li>
+                    <li>Click "Add users to group"</li>
+                    <li>Select the user(s) to add</li>
+                    <li>The user's role takes effect on their next sign-in</li>
+                </ol>
+
+                <h3>Common User Management Tasks</h3>
+                <ul>
+                    <li><strong>Reset Password:</strong> Use "Reset password" action to send reset email</li>
+                    <li><strong>Disable Account:</strong> Toggle user status to disable login</li>
+                    <li><strong>Enable MFA:</strong> Configure MFA settings in User Pool settings</li>
+                    <li><strong>View Sign-in History:</strong> Check user attributes and last login</li>
+                </ul>
+
+                <div class="alert alert-info">
+                    <strong>Tip:</strong> For programmatic user management, use the AWS CLI or SDK
+                    with the <code>cognito-idp</code> commands.
+                </div>
+
+                <pre><code># List users in the pool
+aws cognito-idp list-users --user-pool-id us-west-2_XXXXX
+
+# Add user to admin group
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id us-west-2_XXXXX \
+  --username user@example.com \
+  --group-name Admin</code></pre>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // Highlight current section in sidebar
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    const activeLink = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+                    if (activeLink) activeLink.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-100px 0px -80% 0px' });
+
+        document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
+    </script>
+</body>
+</html>
