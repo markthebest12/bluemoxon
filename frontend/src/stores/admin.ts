@@ -9,7 +9,8 @@ interface User {
   role: string;
   first_name?: string | null;
   last_name?: string | null;
-  mfa_enabled?: boolean;
+  mfa_configured?: boolean; // Has user completed MFA setup?
+  mfa_enabled?: boolean; // Is MFA currently active?
 }
 
 interface ImpersonationResult {
@@ -163,6 +164,7 @@ export const useAdminStore = defineStore("admin", () => {
       // Update local user state
       const user = users.value.find((u) => u.id === userId);
       if (user) {
+        user.mfa_configured = response.data.mfa_configured;
         user.mfa_enabled = response.data.mfa_enabled;
       }
       return response.data;
@@ -176,10 +178,11 @@ export const useAdminStore = defineStore("admin", () => {
     error.value = null;
     try {
       await api.post(`/users/${userId}/mfa/disable`);
-      // Update local state
+      // Update local state - MFA is disabled but still configured
       const user = users.value.find((u) => u.id === userId);
       if (user) {
         user.mfa_enabled = false;
+        // mfa_configured stays true - they still have MFA set up
       }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to disable MFA";

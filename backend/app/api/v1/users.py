@@ -345,27 +345,36 @@ def get_user_mfa_status(
             Username=user.email,
         )
 
-        # Check if TOTP MFA is in user's settings
+        # Check if TOTP MFA is in user's settings (currently active)
         mfa_options = user_response.get("UserMFASettingList", [])
         totp_in_settings = "SOFTWARE_TOKEN_MFA" in mfa_options
 
-        # Also check pool-level MFA config - if MFA is required and user is CONFIRMED,
-        # they have MFA set up (even if UserMFASettingList is empty)
+        # Check pool-level MFA config
         pool_mfa_config = cognito.get_user_pool_mfa_config(UserPoolId=settings.cognito_user_pool_id)
         mfa_required = pool_mfa_config.get("MfaConfiguration") == "ON"
-        user_confirmed = user_response.get("UserStatus") == "CONFIRMED"
 
-        # User has MFA if: it's in their settings OR (MFA is required AND they're confirmed)
+        # User status tells us if they've completed initial setup
+        user_status = user_response.get("UserStatus")
+        user_confirmed = user_status == "CONFIRMED"
+
+        # mfa_configured: Has the user ever completed MFA setup?
+        # A CONFIRMED user has completed the full sign-up flow including MFA setup
+        mfa_configured = user_confirmed
+
+        # mfa_enabled: Is MFA currently active for this user?
+        # It's active if it's in their settings OR (pool requires it AND they're confirmed)
         mfa_enabled = totp_in_settings or (mfa_required and user_confirmed)
 
         return {
             "user_id": user_id,
             "email": user.email,
-            "mfa_enabled": mfa_enabled,
+            "mfa_configured": mfa_configured,  # Has user set up MFA?
+            "mfa_enabled": mfa_enabled,  # Is MFA currently active?
             "mfa_methods": mfa_options
             if mfa_options
             else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
             "pool_mfa_required": mfa_required,
+            "user_status": user_status,
         }
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]

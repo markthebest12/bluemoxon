@@ -272,7 +272,8 @@ function formatDate(dateStr: string | null): string {
                 {{ user.first_name ? user.email : "" }} ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
                   <span v-if="user.mfa_enabled" class="text-green-600">MFA Active</span>
-                  <span v-else class="text-amber-600">MFA Pending</span>
+                  <span v-else-if="user.mfa_configured" class="text-amber-600">MFA Off</span>
+                  <span v-else class="text-gray-500">MFA Pending</span>
                 </span>
               </div>
             </div>
@@ -291,20 +292,24 @@ function formatDate(dateStr: string | null): string {
                 <option value="editor">Editor</option>
                 <option value="admin">Admin</option>
               </select>
-              <!-- MFA Toggle - exempts user from MFA requirement -->
+              <!-- MFA Toggle - enable/disable MFA for user -->
               <button
                 @click="toggleMfa(user.id, user.mfa_enabled)"
-                :disabled="mfaLoading === user.id || !user.mfa_enabled"
+                :disabled="mfaLoading === user.id || (!user.mfa_enabled && !user.mfa_configured)"
                 class="text-xs px-2 py-1 rounded border"
                 :class="
                   user.mfa_enabled
                     ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
-                    : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                    : user.mfa_configured
+                      ? 'border-green-300 text-green-700 hover:bg-green-50'
+                      : 'border-gray-300 text-gray-400 cursor-not-allowed'
                 "
                 :title="
                   user.mfa_enabled
-                    ? 'Exempt this user from MFA requirement'
-                    : 'User has not completed MFA setup yet'
+                    ? 'Disable MFA for this user'
+                    : user.mfa_configured
+                      ? 'Re-enable MFA for this user'
+                      : 'User has not completed MFA setup yet'
                 "
               >
                 {{
@@ -312,7 +317,9 @@ function formatDate(dateStr: string | null): string {
                     ? "..."
                     : user.mfa_enabled
                       ? "Make Exempt"
-                      : "Pending Setup"
+                      : user.mfa_configured
+                        ? "Enable MFA"
+                        : "Pending Setup"
                 }}
               </button>
               <!-- Reset Password (not for self) -->
