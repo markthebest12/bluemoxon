@@ -371,25 +371,25 @@ jobs:
 
           echo "Books API check passed!"
 
-      - name: Test frontend loads
+      - name: Test Vue app loads
         run: |
-          echo "Testing frontend..."
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://bluemoxon.com)
+          echo "Testing Vue app..."
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://app.bluemoxon.com)
 
           echo "HTTP Code: $http_code"
 
           if [[ "$http_code" != "200" ]]; then
-            echo "Frontend check failed!"
+            echo "Vue app check failed!"
             exit 1
           fi
 
-          # Check that HTML contains expected content
-          if ! curl -s https://bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
-            echo "Frontend doesn't contain expected content!"
+          # Check that HTML contains expected Vue app content
+          if ! curl -s https://app.bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
+            echo "Vue app doesn't contain expected content!"
             exit 1
           fi
 
-          echo "Frontend check passed!"
+          echo "Vue app check passed!"
 
       - name: Test image endpoint (CloudFront CDN)
         run: |
@@ -447,8 +447,9 @@ jobs:
           echo "========================================"
           echo ""
           echo "URLs:"
-          echo "  Frontend: https://bluemoxon.com"
-          echo "  API:      https://api.bluemoxon.com"
+          echo "  Collection App: https://app.bluemoxon.com"
+          echo "  Landing/Docs:   https://www.bluemoxon.com"
+          echo "  API:            https://api.bluemoxon.com"
           echo ""
           echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Commit: ${{ github.sha }}"
@@ -486,7 +487,8 @@ jobs:
           Commit: ${{ github.sha }}
 
           URLs:
-          - Frontend: https://bluemoxon.com
+          - Collection App: https://app.bluemoxon.com
+          - Landing/Docs: https://www.bluemoxon.com
           - API: https://api.bluemoxon.com"
 
           # Push tag

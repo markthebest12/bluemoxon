@@ -285,7 +285,7 @@ sequenceDiagram
 |----------|-------|
 | DATABASE_URL | `postgresql://bluemoxon_admin@{endpoint}:5432/bluemoxon` |
 | SECRET_ARN | `arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl` |
-| CORS_ORIGINS | `https://bluemoxon.com` |
+| CORS_ORIGINS | `https://app.bluemoxon.com` |
 | S3_IMAGES_BUCKET | `bluemoxon-images` |
 | DEBUG | `false` |
 
@@ -307,18 +307,38 @@ sequenceDiagram
 
 | Bucket | Purpose | Features |
 |--------|---------|----------|
-| `bluemoxon-frontend` | Vue SPA static files | Versioning, CloudFront OAC |
+| `bluemoxon-frontend` | Vue SPA static files | Versioning, CloudFront OAC, serves app.bluemoxon.com |
+| `bluemoxon-landing` | Landing/docs site | Versioning, CloudFront OAC, serves bluemoxon.com |
 | `bluemoxon-images` | Book images | Versioning, CORS enabled |
 
 ### CDN & DNS
 
+**App CloudFront (Vue SPA):**
+
 | Resource | Value |
 |----------|-------|
-| CloudFront Distribution | `E16BJX90QWQNQO` |
-| CloudFront Domain | `d2yd5bvqaomg54.cloudfront.net` |
+| Distribution ID | `E16BJX90QWQNQO` |
+| Domain | `d2yd5bvqaomg54.cloudfront.net` |
+| Aliases | `app.bluemoxon.com` |
+| Origin | `bluemoxon-frontend` S3 bucket |
 | Origin Access Control | `EZGSJYMZAFG0S` |
+
+**Landing/Docs CloudFront:**
+
+| Resource | Value |
+|----------|-------|
+| Distribution ID | `ES60BQB34DNYS` |
+| Domain | `dui69hltsg2ds.cloudfront.net` |
+| Aliases | `bluemoxon.com`, `www.bluemoxon.com` |
+| Origin | `bluemoxon-landing` S3 bucket |
+| Origin Access Control | `E1248OHBE9FC2Z` |
+
+**Shared:**
+
+| Resource | Value |
+|----------|-------|
 | ACM Certificate | `arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861` |
-| Hosted Zone ID | `Z09346283AE9VMIQQJ8VL` |
+| Route 53 Hosted Zone | `Z09346283AE9VMIQQJ8VL` |
 
 ### Secrets
 
@@ -396,12 +416,14 @@ aws cognito-idp admin-create-user \
 
 | Environment | URL |
 |-------------|-----|
-| Frontend | https://bluemoxon.com |
+| Collection App | https://app.bluemoxon.com |
+| Landing/Docs Site | https://www.bluemoxon.com |
 | API | https://api.bluemoxon.com |
 | API Health Check | https://api.bluemoxon.com/health |
 | Books API | https://api.bluemoxon.com/api/v1/books |
 | Cognito Login | https://bluemoxon.auth.us-west-2.amazoncognito.com |
-| CloudFront (raw) | https://d2yd5bvqaomg54.cloudfront.net |
+| CloudFront App (raw) | https://d2yd5bvqaomg54.cloudfront.net |
+| CloudFront Landing (raw) | https://dui69hltsg2ds.cloudfront.net |
 | API Gateway (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
 
 ## Monitoring & Observability

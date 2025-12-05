@@ -64,12 +64,24 @@
   },
   "s3": {
     "frontend_bucket": "bluemoxon-frontend",
+    "landing_bucket": "bluemoxon-landing",
     "images_bucket": "bluemoxon-images"
   },
   "cloudfront": {
-    "distribution_id": "E16BJX90QWQNQO",
-    "domain_name": "d2yd5bvqaomg54.cloudfront.net",
-    "oac_id": "EZGSJYMZAFG0S"
+    "app": {
+      "distribution_id": "E16BJX90QWQNQO",
+      "domain_name": "d2yd5bvqaomg54.cloudfront.net",
+      "aliases": ["app.bluemoxon.com"],
+      "origin_bucket": "bluemoxon-frontend",
+      "oac_id": "EZGSJYMZAFG0S"
+    },
+    "landing": {
+      "distribution_id": "ES60BQB34DNYS",
+      "domain_name": "dui69hltsg2ds.cloudfront.net",
+      "aliases": ["bluemoxon.com", "www.bluemoxon.com"],
+      "origin_bucket": "bluemoxon-landing",
+      "oac_id": "E1248OHBE9FC2Z"
+    }
   },
   "acm": {
     "certificate_arn": "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861"
