@@ -177,7 +177,7 @@ flowchart TB
 
     subgraph Compute["Compute"]
         APIGW["API Gateway<br/>HTTP API"]
-        Lambda["Lambda<br/>Python 3.12<br/>FastAPI"]
+        Lambda["Lambda<br/>Python 3.11<br/>FastAPI"]
     end
 
     subgraph Auth["Authentication"]

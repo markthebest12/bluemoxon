@@ -2,7 +2,7 @@
 
 Victorian Book Collection Management Web Application
 
-**Name Origin:** Papa Smurf (Blue) + Edward Moxon (Victorian publisher of Tennyson)
+**Name Origin:** Blue (dependability) + Edward Moxon (1801-1858, Victorian publisher of Tennyson)
 **Short Name:** bmx (used in shell aliases, scripts, and conversation)
 
 ## Overview
