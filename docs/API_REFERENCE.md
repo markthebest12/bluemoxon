@@ -973,7 +973,9 @@ Response:
     "email": "admin@example.com",
     "role": "admin",
     "first_name": "Mark",
-    "last_name": "Smith"
+    "last_name": "Smith",
+    "mfa_configured": true,
+    "mfa_enabled": true
   },
   {
     "id": 2,
@@ -981,10 +983,16 @@ Response:
     "email": "editor@example.com",
     "role": "editor",
     "first_name": null,
-    "last_name": null
+    "last_name": null,
+    "mfa_configured": false,
+    "mfa_enabled": false
   }
 ]
 ```
+
+**MFA Status Fields (included in user list):**
+- `mfa_configured` - Whether user has completed MFA setup
+- `mfa_enabled` - Whether MFA is currently active
 
 ---
 
@@ -993,17 +1001,21 @@ Response:
 POST /users/invite
 ```
 
-Sends an email invitation with a temporary password via AWS Cognito.
+Sends an email invitation with a temporary password via AWS Cognito. The invitation email is branded with BlueMoxon styling and includes a "Sign In" button.
 
 Request Body:
 ```json
 {
   "email": "newuser@example.com",
-  "role": "viewer"
+  "role": "viewer",
+  "mfa_exempt": false
 }
 ```
 
-Valid roles: `viewer`, `editor`, `admin`
+Fields:
+- `email` (required) - User's email address
+- `role` (optional, default: "viewer") - Valid roles: `viewer`, `editor`, `admin`
+- `mfa_exempt` (optional, default: false) - If true, user won't be required to set up two-factor authentication
 
 Response:
 ```json
@@ -1013,6 +1025,8 @@ Response:
   "cognito_sub": "abc123-..."
 }
 ```
+
+**Note:** MFA-exempt users can still set up MFA voluntarily, but won't be blocked from accessing the app without it.
 
 ---
 
@@ -1054,10 +1068,24 @@ Response:
 {
   "user_id": 5,
   "email": "user@example.com",
+  "mfa_configured": true,
   "mfa_enabled": true,
   "mfa_methods": ["SOFTWARE_TOKEN_MFA"]
 }
 ```
+
+MFA Status Fields:
+- `mfa_configured` - Whether user has ever set up MFA (TOTP registered in Cognito)
+- `mfa_enabled` - Whether MFA is currently active for this user
+- `mfa_methods` - List of active MFA methods (e.g., `SOFTWARE_TOKEN_MFA`)
+
+**Three MFA States:**
+
+| State | `mfa_configured` | `mfa_enabled` | UI Display | Description |
+|-------|------------------|---------------|------------|-------------|
+| MFA Active | true | true | Green "MFA Active" | User has MFA set up and it's enabled |
+| MFA Off | true | false | Amber "MFA Off" | User has MFA set up but admin disabled it |
+| MFA Pending | false | false | Gray "MFA Pending" | User hasn't completed MFA setup yet |
 
 ---
 
@@ -1066,7 +1094,11 @@ Response:
 POST /users/{user_id}/mfa/enable
 ```
 
-User will be prompted to set up TOTP MFA on next login.
+Re-enables MFA for a user who has previously configured it (i.e., `mfa_configured=true`). This is only applicable when a user's MFA was previously disabled by an admin.
+
+**Requirements:**
+- User must have already completed MFA setup (`mfa_configured=true`)
+- This endpoint does NOT work for users who never set up MFA
 
 Response:
 ```json
@@ -1079,6 +1111,10 @@ Response:
 ```
 POST /users/{user_id}/mfa/disable
 ```
+
+Disables MFA for a user without removing their TOTP configuration. The user's MFA state changes from "MFA Active" to "MFA Off". They can still log in without MFA until an admin re-enables it.
+
+**Note:** This does NOT delete the user's TOTP configuration. Use "Enable MFA" to re-enable it.
 
 Response:
 ```json
@@ -1276,19 +1312,26 @@ sequenceDiagram
     participant Cognito
     participant Email
 
-    Admin->>Frontend: Enter email + role
-    Frontend->>API: POST /users/invite
+    Admin->>Frontend: Enter email + role + MFA exempt option
+    Frontend->>API: POST /users/invite {email, role, mfa_exempt}
     API->>Cognito: admin_create_user()
-    Cognito->>Email: Send temp password
+    Cognito->>Email: Send branded invitation email
     Cognito-->>API: Return cognito_sub
-    API->>API: Create user in DB
+    API->>API: Create user in DB (with mfa_exempt flag)
     API-->>Frontend: Success response
     Frontend-->>Admin: "Invitation sent"
 
-    Note over Email: User receives email with temp password
+    Note over Email: User receives BlueMoxon branded email
+    Note over Email: with temp password + "Sign In" button
 ```
 
-### New User First Login Flow
+**Invitation Email Features:**
+- BlueMoxon branded header with blue gradient
+- Credentials displayed in clear monospace boxes
+- "Sign In to BlueMoxon" button linking to app.bluemoxon.com
+- 7-day expiration notice
+
+### New User First Login Flow (Standard)
 
 ```mermaid
 sequenceDiagram
@@ -1308,6 +1351,30 @@ sequenceDiagram
     Frontend->>Cognito: verifySoftwareToken()
     Cognito-->>Frontend: Authentication tokens
     Frontend-->>User: Redirect to app
+```
+
+### New User First Login Flow (MFA Exempt)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Cognito
+    participant API
+
+    User->>Frontend: Enter email + temp password
+    Frontend->>Cognito: initiateAuth()
+    Cognito-->>Frontend: NEW_PASSWORD_REQUIRED challenge
+    Frontend-->>User: Show "Create new password" form
+    User->>Frontend: Enter new password
+    Frontend->>Cognito: respondToAuthChallenge()
+    Cognito-->>Frontend: Authentication tokens (no MFA challenge)
+    Frontend->>API: Check user.mfa_exempt flag
+    API-->>Frontend: mfa_exempt=true
+    Frontend-->>User: Redirect directly to app
+
+    Note over User: MFA-exempt users skip TOTP setup
+    Note over User: Can optionally set up MFA later
 ```
 
 ### Admin Password Reset Flow
@@ -1339,15 +1406,45 @@ sequenceDiagram
     participant API
     participant Cognito
 
-    Admin->>Frontend: Click "Disable MFA"
+    Note over Admin: User shows "MFA Active" (green)
+    Admin->>Frontend: Click "Make Exempt"
     Frontend->>API: POST /users/{id}/mfa/disable
-    API->>Cognito: admin_set_user_mfa_preference()
+    API->>Cognito: admin_set_user_mfa_preference(enabled=false)
     Cognito-->>API: Success
     API-->>Frontend: "MFA disabled"
-    Frontend-->>Admin: Update UI (MFA Off)
+    Frontend-->>Admin: Update UI to "MFA Off" (amber)
 
-    Note over Cognito: User can still use app
-    Note over Cognito: On next login, MFA will be required to set up again
+    Note over Admin: User shows "MFA Off" (amber)
+    Admin->>Frontend: Click "Enable MFA"
+    Frontend->>API: POST /users/{id}/mfa/enable
+    API->>Cognito: admin_set_user_mfa_preference(enabled=true)
+    Cognito-->>API: Success
+    API-->>Frontend: "MFA enabled"
+    Frontend-->>Admin: Update UI to "MFA Active" (green)
+```
+
+### MFA State Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: User invited
+    Pending --> Active: User completes MFA setup
+    Active --> Off: Admin disables MFA
+    Off --> Active: Admin enables MFA
+
+    Pending: MFA Pending (gray)
+    Pending: mfa_configured=false
+    Pending: Button disabled
+
+    Active: MFA Active (green)
+    Active: mfa_configured=true
+    Active: mfa_enabled=true
+    Active: "Make Exempt" button
+
+    Off: MFA Off (amber)
+    Off: mfa_configured=true
+    Off: mfa_enabled=false
+    Off: "Enable MFA" button
 ```
 
 ### API Key Creation Flow
