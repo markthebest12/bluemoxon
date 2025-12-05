@@ -1,13 +1,15 @@
 """FastAPI application entry point."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.api.v1 import router as api_router
 from app.config import get_settings
+from app.version import get_version
 
 settings = get_settings()
+app_version = get_version()
 
 API_DESCRIPTION = """
 ## BlueMoxon API
@@ -42,7 +44,7 @@ a curated collection of Victorian-era books with premium bindings.
 app = FastAPI(
     title="BlueMoxon API",
     description=API_DESCRIPTION,
-    version="0.1.0",
+    version=app_version,
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_tags=[
@@ -78,10 +80,19 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_version_headers(request: Request, call_next):
+    """Add version and environment headers to all responses."""
+    response = await call_next(request)
+    response.headers["X-App-Version"] = app_version
+    response.headers["X-Environment"] = settings.environment
+    return response
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "version": "0.1.0"}
+    return {"status": "healthy", "version": app_version}
 
 
 # Include API router
