@@ -271,8 +271,8 @@ function formatDate(dateStr: string | null): string {
               <div class="text-xs text-gray-500 break-all sm:truncate">
                 {{ user.first_name ? user.email : "" }} ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
-                  <span v-if="user.mfa_enabled" class="text-green-600">MFA On</span>
-                  <span v-else class="text-amber-600">MFA Off</span>
+                  <span v-if="user.mfa_enabled" class="text-green-600">MFA Active</span>
+                  <span v-else class="text-amber-600">MFA Pending</span>
                 </span>
               </div>
             </div>
@@ -291,19 +291,28 @@ function formatDate(dateStr: string | null): string {
                 <option value="editor">Editor</option>
                 <option value="admin">Admin</option>
               </select>
-              <!-- MFA Toggle -->
+              <!-- MFA Toggle - exempts user from MFA requirement -->
               <button
                 @click="toggleMfa(user.id, user.mfa_enabled)"
-                :disabled="mfaLoading === user.id"
+                :disabled="mfaLoading === user.id || !user.mfa_enabled"
                 class="text-xs px-2 py-1 rounded border"
                 :class="
                   user.mfa_enabled
                     ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
-                    : 'border-green-300 text-green-700 hover:bg-green-50'
+                    : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                "
+                :title="
+                  user.mfa_enabled
+                    ? 'Exempt this user from MFA requirement'
+                    : 'User has not completed MFA setup yet'
                 "
               >
                 {{
-                  mfaLoading === user.id ? "..." : user.mfa_enabled ? "Disable MFA" : "Enable MFA"
+                  mfaLoading === user.id
+                    ? "..."
+                    : user.mfa_enabled
+                      ? "Make Exempt"
+                      : "Pending Setup"
                 }}
               </button>
               <!-- Reset Password (not for self) -->
