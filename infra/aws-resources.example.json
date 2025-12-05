@@ -1,0 +1,97 @@
+{
+  "region": "us-west-2",
+  "account_id": "YOUR_ACCOUNT_ID",
+  "domain": "your-domain.com",
+  "vpc": {
+    "vpc_id": "vpc-xxxxxxxxx",
+    "internet_gateway_id": "igw-xxxxxxxxx",
+    "nat_gateway_id": "nat-xxxxxxxxx",
+    "elastic_ip_allocation_id": "eipalloc-xxxxxxxxx"
+  },
+  "subnets": {
+    "public_a": "subnet-xxxxxxxxx",
+    "public_b": "subnet-xxxxxxxxx",
+    "private_a": "subnet-xxxxxxxxx",
+    "private_b": "subnet-xxxxxxxxx",
+    "isolated_a": "subnet-xxxxxxxxx",
+    "isolated_b": "subnet-xxxxxxxxx"
+  },
+  "route_tables": {
+    "public": "rtb-xxxxxxxxx",
+    "private": "rtb-xxxxxxxxx",
+    "isolated": "rtb-xxxxxxxxx"
+  },
+  "security_groups": {
+    "aurora": "sg-xxxxxxxxx",
+    "lambda": "sg-xxxxxxxxx"
+  },
+  "aurora": {
+    "cluster_identifier": "your-cluster",
+    "instance_identifier": "your-instance-1",
+    "endpoint": "your-cluster.cluster-xxxxxxxxx.us-west-2.rds.amazonaws.com",
+    "reader_endpoint": "your-cluster.cluster-ro-xxxxxxxxx.us-west-2.rds.amazonaws.com",
+    "port": 5432,
+    "database_name": "your_database",
+    "subnet_group": "your-db-subnet-group"
+  },
+  "secrets": {
+    "db_credentials": "arn:aws:secretsmanager:us-west-2:YOUR_ACCOUNT_ID:secret:your-app/db-credentials-xxxxx"
+  },
+  "cognito": {
+    "user_pool_id": "us-west-2_XXXXXXXXX",
+    "client_id": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "domain": "your-app.auth.us-west-2.amazoncognito.com",
+    "mfa": "OPTIONAL"
+  },
+  "lambda": {
+    "api": {
+      "function_name": "your-api",
+      "function_arn": "arn:aws:lambda:us-west-2:YOUR_ACCOUNT_ID:function:your-api"
+    },
+    "migrate": {
+      "function_name": "your-migrate",
+      "function_arn": "arn:aws:lambda:us-west-2:YOUR_ACCOUNT_ID:function:your-migrate"
+    },
+    "role_arn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/your-lambda-role"
+  },
+  "api_gateway": {
+    "api_id": "xxxxxxxxxx",
+    "custom_domain": "api.your-domain.com",
+    "regional_endpoint": "d-xxxxxxxxxx.execute-api.us-west-2.amazonaws.com",
+    "raw_endpoint": "https://xxxxxxxxxx.execute-api.us-west-2.amazonaws.com",
+    "api_mapping_id": "xxxxxx",
+    "certificate_arn": "arn:aws:acm:us-west-2:YOUR_ACCOUNT_ID:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  },
+  "s3": {
+    "frontend_bucket": "your-frontend",
+    "landing_bucket": "your-landing",
+    "images_bucket": "your-images"
+  },
+  "cloudfront": {
+    "app": {
+      "distribution_id": "XXXXXXXXXXXXXX",
+      "domain_name": "xxxxxxxxxx.cloudfront.net",
+      "aliases": ["app.your-domain.com"],
+      "origin_bucket": "your-frontend",
+      "oac_id": "XXXXXXXXXXXXX"
+    },
+    "landing": {
+      "distribution_id": "XXXXXXXXXXXXXX",
+      "domain_name": "xxxxxxxxxx.cloudfront.net",
+      "aliases": ["your-domain.com", "www.your-domain.com"],
+      "origin_bucket": "your-landing",
+      "oac_id": "XXXXXXXXXXXXX"
+    }
+  },
+  "acm": {
+    "certificate_arn": "arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  },
+  "route53": {
+    "hosted_zone_id": "XXXXXXXXXXXXXXXXXXXXXX"
+  },
+  "github_actions": {
+    "oidc_provider_arn": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com",
+    "deploy_role_arn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-deploy",
+    "deploy_role_name": "github-actions-deploy"
+  }
+}
