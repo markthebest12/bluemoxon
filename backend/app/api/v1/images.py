@@ -134,9 +134,8 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
     for img in images:
         if is_production():
             # Use CloudFront CDN URLs for caching
-            # Note: thumbnails not yet in S3, use full image as fallback
             url = get_cloudfront_url(img.s3_key)
-            thumbnail_url = url  # Full image until thumbnails are generated
+            thumbnail_url = get_cloudfront_url(img.s3_key, is_thumbnail=True)
         else:
             # Use API endpoints for local development
             url = f"{base_url}/api/v1/books/{book_id}/images/{img.id}/file"
@@ -187,9 +186,8 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     if image:
         if is_production():
             # Use CloudFront CDN URLs for caching
-            # Note: thumbnails not yet in S3, use full image as fallback
             url = get_cloudfront_url(image.s3_key)
-            thumbnail_url = url  # Full image until thumbnails are generated
+            thumbnail_url = get_cloudfront_url(image.s3_key, is_thumbnail=True)
         else:
             # Use API endpoints for local development
             url = f"{base_url}/api/v1/books/{book_id}/images/{image.id}/file"
