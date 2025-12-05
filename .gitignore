@@ -53,3 +53,6 @@ Thumbs.db
 secrets.json
 credentials.json
 .tmp/
+
+# AWS infrastructure config (contains account IDs, endpoints)
+infra/aws-resources.json
