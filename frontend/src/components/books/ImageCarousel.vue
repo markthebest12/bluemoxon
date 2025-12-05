@@ -138,15 +138,15 @@ function handleBackdropClick(e: MouseEvent) {
         </div>
 
         <!-- Carousel -->
-        <div v-else class="relative w-full max-w-5xl mx-4 flex flex-col max-h-[90vh]">
+        <div v-else class="relative w-full max-w-5xl mx-4 flex flex-col items-center">
           <!-- Main image -->
-          <div class="relative flex-1 min-h-0 bg-black rounded-lg overflow-hidden">
+          <div class="relative bg-black rounded-lg overflow-hidden">
             <img
               :src="images[currentIndex].url"
               :alt="images[currentIndex].caption || `Image ${currentIndex + 1}`"
               decoding="async"
               fetchpriority="high"
-              class="w-full h-full object-contain"
+              class="max-h-[70vh] max-w-full object-contain"
             />
 
             <!-- Caption -->
