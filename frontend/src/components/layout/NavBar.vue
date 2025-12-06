@@ -42,11 +42,7 @@ function closeMobileMenu() {
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
-          <img
-            src="/bluemoxon-logo.png"
-            alt="BlueMoxon"
-            class="h-12 w-auto rounded"
-          />
+          <img src="/bluemoxon-logo.png" alt="BlueMoxon" class="h-12 w-auto rounded" />
         </RouterLink>
 
         <!-- Desktop Navigation Links -->
@@ -126,7 +122,10 @@ function closeMobileMenu() {
               <div v-if="showDropdown" class="fixed inset-0 z-40" @click="closeDropdown"></div>
             </template>
             <template v-else>
-              <RouterLink to="/login" class="text-sm text-slate-300 hover:text-white transition-colors">
+              <RouterLink
+                to="/login"
+                class="text-sm text-slate-300 hover:text-white transition-colors"
+              >
                 Sign In
               </RouterLink>
             </template>
@@ -156,10 +155,7 @@ function closeMobileMenu() {
     </div>
 
     <!-- Mobile Menu -->
-    <div
-      v-if="mobileMenuOpen"
-      class="md:hidden bg-navy-900/98 border-t border-navy-600"
-    >
+    <div v-if="mobileMenuOpen" class="md:hidden bg-navy-900/98 border-t border-navy-600">
       <div class="px-4 py-3 space-y-1">
         <!-- Navigation Links -->
         <RouterLink
