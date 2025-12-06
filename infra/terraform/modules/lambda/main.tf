@@ -72,6 +72,15 @@ resource "aws_lambda_function" "this" {
   tags = var.tags
 
   depends_on = [aws_cloudwatch_log_group.lambda]
+
+  # Code deployment is handled by the deploy workflow (CI/CD)
+  # Terraform manages infrastructure; workflow updates code via AWS CLI
+  lifecycle {
+    ignore_changes = [
+      filename,
+      source_code_hash,
+    ]
+  }
 }
 
 # -----------------------------------------------------------------------------
