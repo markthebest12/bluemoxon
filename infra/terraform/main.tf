@@ -18,6 +18,20 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
+# Default VPC and subnets (for RDS and Lambda VPC access)
+data "aws_vpc" "default" {
+  count   = var.enable_database ? 1 : 0
+  default = true
+}
+
+data "aws_subnets" "default" {
+  count = var.enable_database ? 1 : 0
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default[0].id]
+  }
+}
+
 # =============================================================================
 # S3 Buckets
 # =============================================================================
@@ -113,34 +127,103 @@ module "cognito" {
 }
 
 # =============================================================================
+# Database (RDS PostgreSQL)
+# =============================================================================
+
+module "database_secret" {
+  count  = var.enable_database ? 1 : 0
+  source = "./modules/secrets"
+
+  secret_name = "${local.name_prefix}/database"
+  description = "Database credentials for ${local.name_prefix}"
+
+  secret_value = {
+    username = var.db_username
+    password = var.db_password
+    host     = module.database[0].address
+    port     = tostring(module.database[0].port)
+    database = var.db_name
+  }
+
+  tags = local.common_tags
+
+  depends_on = [module.database]
+}
+
+module "database" {
+  count  = var.enable_database ? 1 : 0
+  source = "./modules/rds"
+
+  identifier    = "${local.name_prefix}-db"
+  database_name = var.db_name
+
+  master_username = var.db_username
+  master_password = var.db_password
+
+  instance_class    = var.db_instance_class
+  allocated_storage = var.db_allocated_storage
+
+  vpc_id     = data.aws_vpc.default[0].id
+  subnet_ids = data.aws_subnets.default[0].ids
+
+  # Allow Lambda security group to access RDS
+  allowed_security_group_id = module.lambda.security_group_id
+
+  # Staging-specific settings
+  deletion_protection     = local.is_prod
+  skip_final_snapshot     = !local.is_prod
+  backup_retention_period = local.is_prod ? 7 : 1
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Lambda Function
 # =============================================================================
 
-module "api_lambda" {
+module "lambda" {
   source = "./modules/lambda"
 
-  environment   = var.environment
-  function_name = local.lambda_function_name
-  handler       = "app.main.handler"
-  runtime       = var.lambda_runtime
-  memory_size   = var.lambda_memory_size
-  timeout       = var.lambda_timeout
+  function_name    = local.lambda_function_name
+  environment      = var.environment
+  package_path     = var.lambda_package_path
+  source_code_hash = var.lambda_source_code_hash
 
-  # Use placeholder for initial creation - CI/CD updates the code
-  package_path     = "${path.module}/placeholder/placeholder.zip"
-  source_code_hash = filebase64sha256("${path.module}/placeholder/placeholder.zip")
+  runtime     = var.lambda_runtime
+  memory_size = var.lambda_memory_size
+  timeout     = var.lambda_timeout
 
   provisioned_concurrency = var.lambda_provisioned_concurrency
 
-  environment_variables = {
-    DATABASE_URL         = "" # Set via SSM or Secrets Manager in production
-    COGNITO_USER_POOL_ID = module.cognito.user_pool_id
-    COGNITO_CLIENT_ID    = module.cognito.client_id
-    IMAGES_BUCKET        = module.images_bucket.bucket_name
-    IMAGES_CDN_DOMAIN    = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
-    FRONTEND_URL         = "https://${local.app_domain}"
-    CORS_ORIGINS         = "https://${local.app_domain}"
-  }
+  # VPC configuration (when database is enabled)
+  create_security_group = var.enable_database
+  vpc_id                = var.enable_database ? data.aws_vpc.default[0].id : null
+  subnet_ids            = var.enable_database ? data.aws_subnets.default[0].ids : []
+
+  # Secrets Manager access (use ARN pattern to avoid circular dependency)
+  secrets_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+  ] : []
+
+  # S3 bucket access
+  s3_bucket_arns = [module.images_bucket.bucket_arn]
+
+  # Environment variables (secret ARN set after database_secret is created)
+  environment_variables = merge(
+    {
+      CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
+      IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      COGNITO_USER_POOL_ID  = module.cognito.user_pool_id
+      COGNITO_CLIENT_ID     = module.cognito.client_id
+      S3_IMAGES_BUCKET      = module.images_bucket.bucket_name
+      API_KEY_HASH          = var.api_key_hash
+      ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
+      MAINTENANCE_MODE      = var.maintenance_mode
+    },
+    var.enable_database ? {
+      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+    } : {}
+  )
 
   tags = local.common_tags
 }
@@ -153,16 +236,13 @@ module "api_gateway" {
   source = "./modules/api-gateway"
 
   api_name             = local.api_gateway_name
-  lambda_invoke_arn    = module.api_lambda.invoke_arn
-  lambda_function_name = module.api_lambda.function_name
+  lambda_function_name = module.lambda.function_name
+  lambda_invoke_arn    = module.lambda.invoke_arn
 
   cors_allowed_origins = [
     "https://${local.app_domain}",
     "http://localhost:5173"
   ]
-  cors_allowed_headers = ["*"]
-  cors_allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-  cors_expose_headers  = ["x-app-version", "x-environment"]
 
   tags = local.common_tags
 }

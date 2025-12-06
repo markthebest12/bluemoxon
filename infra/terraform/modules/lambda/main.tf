@@ -1,6 +1,38 @@
 # =============================================================================
 # Lambda Function Module
 # =============================================================================
+# Creates a Lambda function with IAM role, CloudWatch logs, and optional VPC.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Security Group (optional - for VPC-enabled Lambda)
+# -----------------------------------------------------------------------------
+
+resource "aws_security_group" "lambda" {
+  count = var.create_security_group && var.vpc_id != null ? 1 : 0
+
+  name        = "${var.function_name}-sg"
+  description = "Security group for Lambda function ${var.function_name}"
+  vpc_id      = var.vpc_id
+
+  tags = merge(var.tags, {
+    Name = "${var.function_name}-sg"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "lambda_all" {
+  count = var.create_security_group && var.vpc_id != null ? 1 : 0
+
+  security_group_id = aws_security_group.lambda[0].id
+  description       = "Allow all outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+# -----------------------------------------------------------------------------
+# Lambda Function
+# -----------------------------------------------------------------------------
 
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
@@ -10,11 +42,8 @@ resource "aws_lambda_function" "this" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
-  # Support both local file and S3-based deployment
   filename         = var.package_path
   source_code_hash = var.source_code_hash
-  s3_bucket        = var.s3_bucket
-  s3_key           = var.s3_key
 
   environment {
     variables = merge(
@@ -28,8 +57,11 @@ resource "aws_lambda_function" "this" {
   dynamic "vpc_config" {
     for_each = length(var.subnet_ids) > 0 ? [1] : []
     content {
-      subnet_ids         = var.subnet_ids
-      security_group_ids = var.security_group_ids
+      subnet_ids = var.subnet_ids
+      security_group_ids = concat(
+        var.create_security_group && var.vpc_id != null ? [aws_security_group.lambda[0].id] : [],
+        var.security_group_ids
+      )
     }
   }
 
@@ -39,20 +71,12 @@ resource "aws_lambda_function" "this" {
 
   tags = var.tags
 
-  # Ignore code changes - CI/CD pipeline manages code updates
-  lifecycle {
-    ignore_changes = [
-      filename,
-      source_code_hash,
-      s3_bucket,
-      s3_key,
-    ]
-  }
+  depends_on = [aws_cloudwatch_log_group.lambda]
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # IAM Role for Lambda Execution
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lambda_exec" {
   name = "${var.function_name}-exec-role"
@@ -73,25 +97,74 @@ resource "aws_iam_role" "lambda_exec" {
   tags = var.tags
 }
 
+# Basic Lambda execution (CloudWatch Logs)
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# VPC access (ENI management)
 resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   count      = length(var.subnet_ids) > 0 ? 1 : 0
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# X-Ray tracing
 resource "aws_iam_role_policy_attachment" "lambda_xray" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
 
-# =============================================================================
+# Secrets Manager access
+resource "aws_iam_role_policy" "secrets_access" {
+  count = length(var.secrets_arns) > 0 ? 1 : 0
+  name  = "secrets-access"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = var.secrets_arns
+      }
+    ]
+  })
+}
+
+# S3 access for images bucket
+resource "aws_iam_role_policy" "s3_access" {
+  count = length(var.s3_bucket_arns) > 0 ? 1 : 0
+  name  = "s3-access"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = concat(
+          var.s3_bucket_arns,
+          [for arn in var.s3_bucket_arns : "${arn}/*"]
+        )
+      }
+    ]
+  })
+}
+
+# -----------------------------------------------------------------------------
 # CloudWatch Log Group
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${var.function_name}"
@@ -100,9 +173,9 @@ resource "aws_cloudwatch_log_group" "lambda" {
   tags = var.tags
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Provisioned Concurrency (optional - for warm starts in production)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_lambda_alias" "live" {
   count            = var.provisioned_concurrency > 0 ? 1 : 0

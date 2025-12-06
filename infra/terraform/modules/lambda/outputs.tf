@@ -1,3 +1,7 @@
+# =============================================================================
+# Outputs
+# =============================================================================
+
 output "alias_arn" {
   description = "ARN of the Lambda alias (if provisioned concurrency is enabled)"
   value       = var.provisioned_concurrency > 0 ? aws_lambda_alias.live[0].arn : null
@@ -36,4 +40,9 @@ output "role_arn" {
 output "role_name" {
   description = "Name of the Lambda execution role"
   value       = aws_iam_role.lambda_exec.name
+}
+
+output "security_group_id" {
+  description = "Security group ID for the Lambda function (if created)"
+  value       = var.create_security_group && var.vpc_id != null ? aws_security_group.lambda[0].id : null
 }

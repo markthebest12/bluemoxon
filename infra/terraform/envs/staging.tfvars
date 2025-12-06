@@ -17,8 +17,10 @@ lambda_timeout                 = 30
 lambda_provisioned_concurrency = 0 # No provisioned concurrency = scale to zero
 
 # Database - minimal for staging
+enable_database      = true
 db_instance_class    = "db.t3.micro"
 db_allocated_storage = 20
+# Note: db_password should be passed via TF_VAR_db_password or -var flag, not stored in file
 
 # Feature flags
 enable_cloudfront = true
