@@ -113,6 +113,61 @@ module "cognito" {
 }
 
 # =============================================================================
+# Lambda Function
+# =============================================================================
+
+module "api_lambda" {
+  source = "./modules/lambda"
+
+  environment   = var.environment
+  function_name = local.lambda_function_name
+  handler       = "app.main.handler"
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size
+  timeout       = var.lambda_timeout
+
+  # Use placeholder for initial creation - CI/CD updates the code
+  package_path     = "${path.module}/placeholder/placeholder.zip"
+  source_code_hash = filebase64sha256("${path.module}/placeholder/placeholder.zip")
+
+  provisioned_concurrency = var.lambda_provisioned_concurrency
+
+  environment_variables = {
+    DATABASE_URL         = "" # Set via SSM or Secrets Manager in production
+    COGNITO_USER_POOL_ID = module.cognito.user_pool_id
+    COGNITO_CLIENT_ID    = module.cognito.client_id
+    IMAGES_BUCKET        = module.images_bucket.bucket_name
+    IMAGES_CDN_DOMAIN    = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+    FRONTEND_URL         = "https://${local.app_domain}"
+    CORS_ORIGINS         = "https://${local.app_domain}"
+  }
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# API Gateway
+# =============================================================================
+
+module "api_gateway" {
+  source = "./modules/api-gateway"
+
+  api_name             = local.api_gateway_name
+  lambda_invoke_arn    = module.api_lambda.invoke_arn
+  lambda_function_name = module.api_lambda.function_name
+
+  cors_allowed_origins = [
+    "https://${local.app_domain}",
+    "http://localhost:5173"
+  ]
+  cors_allowed_headers = ["*"]
+  cors_allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  cors_expose_headers  = ["x-app-version", "x-environment"]
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Outputs Reference
 # =============================================================================
 # See outputs.tf for all exported values

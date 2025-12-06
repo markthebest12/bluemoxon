@@ -34,7 +34,20 @@ variable "memory_size" {
 
 variable "package_path" {
   type        = string
-  description = "Path to the Lambda deployment package"
+  description = "Path to the Lambda deployment package (optional if using s3_bucket/s3_key)"
+  default     = null
+}
+
+variable "s3_bucket" {
+  type        = string
+  description = "S3 bucket containing the Lambda deployment package"
+  default     = null
+}
+
+variable "s3_key" {
+  type        = string
+  description = "S3 key for the Lambda deployment package"
+  default     = null
 }
 
 variable "provisioned_concurrency" {
@@ -58,6 +71,7 @@ variable "security_group_ids" {
 variable "source_code_hash" {
   type        = string
   description = "Base64-encoded SHA256 hash of the package file"
+  default     = null
 }
 
 variable "subnet_ids" {
