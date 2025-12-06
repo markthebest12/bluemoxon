@@ -83,3 +83,25 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   tags = var.tags
 }
+
+# =============================================================================
+# Provisioned Concurrency (optional - for warm starts in production)
+# =============================================================================
+
+resource "aws_lambda_alias" "live" {
+  count            = var.provisioned_concurrency > 0 ? 1 : 0
+  name             = var.environment
+  function_name    = aws_lambda_function.this.function_name
+  function_version = aws_lambda_function.this.version
+
+  lifecycle {
+    ignore_changes = [function_version]
+  }
+}
+
+resource "aws_lambda_provisioned_concurrency_config" "this" {
+  count                             = var.provisioned_concurrency > 0 ? 1 : 0
+  function_name                     = aws_lambda_function.this.function_name
+  qualifier                         = aws_lambda_alias.live[0].name
+  provisioned_concurrent_executions = var.provisioned_concurrency
+}

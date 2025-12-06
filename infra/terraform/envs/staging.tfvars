@@ -11,9 +11,10 @@ domain_name   = "bluemoxon.com"
 api_subdomain = "staging-api"
 app_subdomain = "staging"
 
-# Lambda - smaller for staging
-lambda_memory_size = 256
-lambda_timeout     = 30
+# Lambda - smaller for staging, scales to zero when idle
+lambda_memory_size             = 256
+lambda_timeout                 = 30
+lambda_provisioned_concurrency = 0 # No provisioned concurrency = scale to zero
 
 # Database - minimal for staging
 db_instance_class    = "db.t3.micro"

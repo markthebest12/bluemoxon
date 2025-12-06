@@ -74,6 +74,12 @@ variable "log_retention_days" {
   default     = 14
 }
 
+variable "provisioned_concurrency" {
+  description = "Provisioned concurrency for warm starts (0 = scale to zero when idle)"
+  type        = number
+  default     = 0
+}
+
 variable "tags" {
   description = "Resource tags"
   type        = map(string)

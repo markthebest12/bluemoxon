@@ -70,6 +70,12 @@ variable "lambda_runtime" {
   default     = "python3.12"
 }
 
+variable "lambda_provisioned_concurrency" {
+  description = "Provisioned concurrency for Lambda (0 = scale to zero when idle)"
+  type        = number
+  default     = 0
+}
+
 # =============================================================================
 # Database Configuration
 # =============================================================================
