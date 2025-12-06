@@ -626,20 +626,21 @@ echo "URL: https://staging.app.bluemoxon.com"
 - [ ] Add GitHub secrets
 
 ### Phase 3: Terraform Infrastructure
-- [ ] Create `infra/terraform/` structure
-- [ ] Write VPC module (no NAT, VPC endpoints)
-- [ ] Write Aurora module (serverless v2, min 0.5 ACU)
-- [ ] Write Lambda module
-- [ ] Write API Gateway module
-- [ ] Write S3 + CloudFront modules
-- [ ] Create staging environment config
-- [ ] Set up Terraform state backend (S3 + DynamoDB)
+- [x] Create `infra/terraform/` structure
+- [x] Write VPC module (no NAT, VPC endpoints)
+- [x] Write RDS module (PostgreSQL with CloudWatch logs)
+- [x] Write Lambda module (with X-Ray tracing)
+- [x] Write API Gateway module
+- [x] Write S3 + CloudFront modules
+- [x] Write Cognito module
+- [x] Create staging environment config (staging.tfvars)
+- [ ] Set up Terraform state backend (S3 + DynamoDB) - pending staging account bootstrap
 
 ### Phase 4: CI/CD
-- [ ] Create `deploy-staging.yml` workflow
-- [ ] Add Terraform plan on PR
-- [ ] Add Terraform apply on merge to staging
-- [ ] Update smoke tests for staging
+- [x] Create `deploy-staging.yml` workflow
+- [x] Add Terraform plan on PR (via terraform.yml)
+- [ ] Add Terraform apply on merge to staging (pending infra deployment)
+- [x] Update smoke tests for staging
 
 ### Phase 5: Data Migration
 - [ ] Run initial database sync
