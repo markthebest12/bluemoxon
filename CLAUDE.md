@@ -69,6 +69,59 @@ git tag -a v1.0.0 -m "Release description"
 git push origin v1.0.0
 ```
 
+## Branching Strategy (GitFlow)
+
+```
+main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
+           \     \     \
+staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com] (planned)
+             \   / \   /
+feature ──────●     ●────────→  [Feature branches]
+```
+
+### Branch Purposes
+| Branch | Purpose | Protection | Deploy Target |
+|--------|---------|------------|---------------|
+| `main` | Production code | Requires PR + CI + 1 approval | app.bluemoxon.com |
+| `staging` | Staging environment | Requires CI only | staging.app.bluemoxon.com |
+| `feat/*` | Feature development | None | None |
+
+### Workflow Examples
+```bash
+# Standard feature → main (production)
+git checkout -b feat/my-feature
+# ... make changes ...
+gh pr create --base main
+
+# Feature → staging for testing
+git checkout -b feat/experimental
+# ... make changes ...
+gh pr create --base staging   # PRs to staging, not main
+
+# Promote staging to production
+gh pr create --base main --head staging --title "chore: Promote staging to production"
+```
+
+## Version System
+
+Application version is tracked in `/VERSION` file at the project root.
+
+### Version Visibility
+| Location | How to Check |
+|----------|--------------|
+| API Response Header | `X-App-Version` header on ALL responses |
+| API Endpoint | `GET /api/v1/health/version` |
+| Frontend Config | `import { APP_VERSION } from '@/config'` |
+| Deploy Info | `GET /api/v1/health/info` (includes git SHA, deploy time) |
+
+### Updating Version
+```bash
+# Edit VERSION file (e.g., 1.0.0 → 1.1.0)
+echo "1.1.0" > VERSION
+git add VERSION
+git commit -m "chore: Bump version to 1.1.0"
+```
+
 ## Token-Saving Guidelines
 
 ### CRITICAL: Use Scripts Instead of Claude for These Tasks
@@ -177,6 +230,7 @@ poetry run uvicorn app.main:app --reload
 
 ```
 bluemoxon/
+├── VERSION           # App version (single source of truth)
 ├── .tmp/             # Temporary files (gitignored)
 ├── backend/           # FastAPI + SQLAlchemy
 │   ├── app/          # Application code
@@ -184,6 +238,8 @@ bluemoxon/
 ├── frontend/         # Vue 3 + TypeScript
 │   └── src/          # Source code
 ├── infra/            # AWS infrastructure docs
+├── docs/             # Project documentation
+│   └── STAGING_ENVIRONMENT_PLAN.md  # Staging setup guide
 └── .github/workflows/
     ├── ci.yml        # Runs on PRs to main
     └── deploy.yml    # Runs on push to main
