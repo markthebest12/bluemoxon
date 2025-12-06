@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -29,6 +29,9 @@ def generate_thumbnail(source_path: Path, thumbnail_path: Path) -> bool:
     """
     try:
         with Image.open(source_path) as img:
+            # Apply EXIF orientation to fix sideways images
+            img = ImageOps.exif_transpose(img)
+
             # Convert RGBA/P mode to RGB for JPEG output
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")

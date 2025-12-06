@@ -240,7 +240,6 @@ function cancel() {
           <select v-model="form.inventory_type" class="input w-full">
             <option value="PRIMARY">Primary Collection</option>
             <option value="EXTENDED">Extended Inventory</option>
-            <option value="FLAGGED">Flagged for Removal</option>
           </select>
         </div>
 

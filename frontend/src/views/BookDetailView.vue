@@ -342,6 +342,24 @@ function getStatusColor(status: string): string {
                   decoding="async"
                   class="w-full h-full object-cover"
                 />
+                <!-- Zoom hint overlay -->
+                <div
+                  class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center"
+                >
+                  <svg
+                    class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                    />
+                  </svg>
+                </div>
               </button>
               <!-- Delete button (visible on hover, editors only) -->
               <button
