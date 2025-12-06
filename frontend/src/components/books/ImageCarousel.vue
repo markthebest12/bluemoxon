@@ -207,7 +207,12 @@ function handleSwipe() {
             @click="prev"
             class="absolute left-2 md:left-0 top-1/2 -translate-y-1/2 md:-translate-x-12 text-white hover:text-gray-300 bg-black/40 md:bg-transparent rounded-full p-1 md:p-0"
           >
-            <svg class="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-8 h-8 md:w-10 md:h-10"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -222,7 +227,12 @@ function handleSwipe() {
             @click="next"
             class="absolute right-2 md:right-0 top-1/2 -translate-y-1/2 md:translate-x-12 text-white hover:text-gray-300 bg-black/40 md:bg-transparent rounded-full p-1 md:p-0"
           >
-            <svg class="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-8 h-8 md:w-10 md:h-10"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -233,19 +243,14 @@ function handleSwipe() {
           </button>
 
           <!-- Dot indicators for mobile -->
-          <div
-            v-if="images.length > 1"
-            class="flex justify-center gap-2 mt-3 md:hidden"
-          >
+          <div v-if="images.length > 1" class="flex justify-center gap-2 mt-3 md:hidden">
             <button
               v-for="(_, idx) in images"
               :key="idx"
               @click="goTo(idx)"
               :class="[
                 'w-2.5 h-2.5 rounded-full transition-all',
-                idx === currentIndex
-                  ? 'bg-white scale-110'
-                  : 'bg-white/40 hover:bg-white/60',
+                idx === currentIndex ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/60',
               ]"
               :aria-label="`Go to image ${idx + 1}`"
             />
