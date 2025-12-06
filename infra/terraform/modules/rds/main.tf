@@ -53,6 +53,9 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 # RDS Instance
 # -----------------------------------------------------------------------------
 
+# CloudWatch logging is enabled via var.enabled_cloudwatch_logs_exports
+# (default: ["postgresql", "upgrade"]) - Semgrep can't trace through variables
+# nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
 resource "aws_db_instance" "this" {
   identifier = var.identifier
 
