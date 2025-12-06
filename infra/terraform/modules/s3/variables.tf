@@ -1,82 +1,70 @@
-# =============================================================================
-# Required Variables
-# =============================================================================
-
-variable "bucket_name" {
-  description = "Name of the S3 bucket"
-  type        = string
-}
-
-# =============================================================================
-# Optional Variables
-# =============================================================================
-
-variable "enable_versioning" {
-  description = "Enable bucket versioning"
-  type        = bool
-  default     = false
-}
-
 variable "block_public_access" {
-  description = "Block all public access to the bucket"
   type        = bool
+  description = "Block all public access to the bucket"
   default     = true
 }
 
-variable "enable_website" {
-  description = "Enable static website hosting"
-  type        = bool
-  default     = false
+variable "bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket"
 }
 
 variable "cloudfront_oai_arn" {
-  description = "CloudFront Origin Access Identity ARN for bucket policy"
   type        = string
+  description = "CloudFront Origin Access Identity ARN for bucket policy"
   default     = null
 }
 
-variable "enable_cloudfront_policy" {
-  description = "Enable CloudFront bucket policy (use this instead of checking oai_arn for count)"
-  type        = bool
-  default     = false
-}
-
-# =============================================================================
-# CORS Configuration
-# =============================================================================
-
-variable "cors_allowed_origins" {
-  description = "Allowed origins for CORS"
-  type        = list(string)
-  default     = []
-}
-
-variable "cors_allowed_methods" {
-  description = "Allowed methods for CORS"
-  type        = list(string)
-  default     = ["GET", "HEAD"]
-}
-
 variable "cors_allowed_headers" {
-  description = "Allowed headers for CORS"
   type        = list(string)
+  description = "Allowed headers for CORS"
   default     = ["*"]
 }
 
-variable "cors_expose_headers" {
-  description = "Headers to expose in CORS response"
+variable "cors_allowed_methods" {
   type        = list(string)
+  description = "Allowed methods for CORS"
+  default     = ["GET", "HEAD"]
+}
+
+variable "cors_allowed_origins" {
+  type        = list(string)
+  description = "Allowed origins for CORS"
+  default     = []
+}
+
+variable "cors_expose_headers" {
+  type        = list(string)
+  description = "Headers to expose in CORS response"
   default     = []
 }
 
 variable "cors_max_age_seconds" {
-  description = "Max age for CORS preflight cache"
   type        = number
+  description = "Max age for CORS preflight cache"
   default     = 3600
 }
 
+variable "enable_cloudfront_policy" {
+  type        = bool
+  description = "Enable CloudFront bucket policy (use this instead of checking oai_arn for count)"
+  default     = false
+}
+
+variable "enable_versioning" {
+  type        = bool
+  description = "Enable bucket versioning"
+  default     = false
+}
+
+variable "enable_website" {
+  type        = bool
+  description = "Enable static website hosting"
+  default     = false
+}
+
 variable "tags" {
-  description = "Resource tags"
   type        = map(string)
+  description = "Resource tags"
   default     = {}
 }

@@ -1,20 +1,11 @@
-# =============================================================================
-# API Gateway Module Outputs
-# =============================================================================
-
-output "api_id" {
-  description = "ID of the API Gateway"
-  value       = aws_apigatewayv2_api.this.id
-}
-
 output "api_endpoint" {
   description = "Default endpoint URL of the API"
   value       = aws_apigatewayv2_api.this.api_endpoint
 }
 
-output "execution_arn" {
-  description = "Execution ARN for Lambda permissions"
-  value       = aws_apigatewayv2_api.this.execution_arn
+output "api_id" {
+  description = "ID of the API Gateway"
+  value       = aws_apigatewayv2_api.this.id
 }
 
 output "custom_domain_name" {
@@ -25,6 +16,11 @@ output "custom_domain_name" {
 output "custom_domain_target" {
   description = "Target domain for DNS CNAME record"
   value       = try(aws_apigatewayv2_domain_name.this[0].domain_name_configuration[0].target_domain_name, null)
+}
+
+output "execution_arn" {
+  description = "Execution ARN for Lambda permissions"
+  value       = aws_apigatewayv2_api.this.execution_arn
 }
 
 output "log_group_name" {
