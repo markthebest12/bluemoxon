@@ -37,12 +37,12 @@ function closeMobileMenu() {
 </script>
 
 <template>
-  <nav class="bg-navy-900/95 backdrop-blur-sm text-white shadow-lg border-b border-navy-600">
+  <nav class="bg-[rgb(30,39,78)] text-white shadow-lg">
     <div class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
-          <img src="/bluemoxon-logo.png" alt="BlueMoxon" class="h-12 w-auto rounded" />
+          <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-14 w-auto" />
         </RouterLink>
 
         <!-- Desktop Navigation Links -->
