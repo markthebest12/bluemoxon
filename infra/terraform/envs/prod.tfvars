@@ -14,7 +14,7 @@ app_subdomain = "app"
 # Lambda - production sizing with warm starts
 lambda_memory_size             = 512
 lambda_timeout                 = 30
-lambda_provisioned_concurrency = 1  # Keep 1 instance warm to avoid cold starts
+lambda_provisioned_concurrency = 1 # Keep 1 instance warm to avoid cold starts
 
 # Database - production sizing
 db_instance_class    = "db.t3.small"

@@ -14,7 +14,7 @@ app_subdomain = "staging"
 # Lambda - smaller for staging, scales to zero when idle
 lambda_memory_size             = 256
 lambda_timeout                 = 30
-lambda_provisioned_concurrency = 0  # No provisioned concurrency = scale to zero
+lambda_provisioned_concurrency = 0 # No provisioned concurrency = scale to zero
 
 # Database - minimal for staging
 db_instance_class    = "db.t3.micro"
