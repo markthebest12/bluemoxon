@@ -1,71 +1,63 @@
-# =============================================================================
-# Required Variables
-# =============================================================================
-
-variable "s3_bucket_name" {
-  description = "Name of the S3 bucket origin"
-  type        = string
-}
-
-variable "s3_bucket_domain_name" {
-  description = "Regional domain name of the S3 bucket"
-  type        = string
-}
-
-# =============================================================================
-# Optional Variables
-# =============================================================================
-
-variable "domain_aliases" {
-  description = "Domain aliases for the distribution"
-  type        = list(string)
-  default     = []
-}
-
 variable "acm_certificate_arn" {
-  description = "ACM certificate ARN for HTTPS"
   type        = string
+  description = "ACM certificate ARN for HTTPS"
   default     = null
 }
 
-variable "default_root_object" {
-  description = "Default root object"
+variable "comment" {
   type        = string
+  description = "Comment for the CloudFront distribution"
+  default     = ""
+}
+
+variable "default_root_object" {
+  type        = string
+  description = "Default root object"
   default     = "index.html"
 }
 
-variable "price_class" {
-  description = "CloudFront price class"
-  type        = string
-  default     = "PriceClass_100"
-}
-
 variable "default_ttl" {
-  description = "Default TTL in seconds"
   type        = number
+  description = "Default TTL in seconds"
   default     = 86400
 }
 
+variable "domain_aliases" {
+  type        = list(string)
+  description = "Domain aliases for the distribution"
+  default     = []
+}
+
 variable "max_ttl" {
-  description = "Maximum TTL in seconds"
   type        = number
+  description = "Maximum TTL in seconds"
   default     = 31536000
 }
 
 variable "oai_comment" {
-  description = "Comment for the Origin Access Identity"
   type        = string
+  description = "Comment for the Origin Access Identity"
   default     = "OAI for S3 bucket access"
 }
 
-variable "comment" {
-  description = "Comment for the CloudFront distribution"
+variable "price_class" {
   type        = string
-  default     = ""
+  description = "CloudFront price class"
+  default     = "PriceClass_100"
+}
+
+variable "s3_bucket_domain_name" {
+  type        = string
+  description = "Regional domain name of the S3 bucket"
+}
+
+variable "s3_bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket origin"
 }
 
 variable "tags" {
-  description = "Resource tags"
   type        = map(string)
+  description = "Resource tags"
   default     = {}
 }

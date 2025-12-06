@@ -1,20 +1,11 @@
-# =============================================================================
-# RDS Module Outputs
-# =============================================================================
-
-output "endpoint" {
-  description = "RDS instance endpoint"
-  value       = aws_db_instance.this.endpoint
-}
-
 output "address" {
   description = "RDS instance address (hostname)"
   value       = aws_db_instance.this.address
 }
 
-output "port" {
-  description = "RDS instance port"
-  value       = aws_db_instance.this.port
+output "arn" {
+  description = "RDS instance ARN"
+  value       = aws_db_instance.this.arn
 }
 
 output "database_name" {
@@ -22,14 +13,19 @@ output "database_name" {
   value       = aws_db_instance.this.db_name
 }
 
+output "endpoint" {
+  description = "RDS instance endpoint"
+  value       = aws_db_instance.this.endpoint
+}
+
 output "instance_id" {
   description = "RDS instance ID"
   value       = aws_db_instance.this.id
 }
 
-output "arn" {
-  description = "RDS instance ARN"
-  value       = aws_db_instance.this.arn
+output "port" {
+  description = "RDS instance port"
+  value       = aws_db_instance.this.port
 }
 
 output "security_group_id" {
