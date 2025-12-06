@@ -104,6 +104,12 @@ variable "performance_insights_enabled" {
   default     = false
 }
 
+variable "enabled_cloudwatch_logs_exports" {
+  description = "List of log types to export to CloudWatch (postgresql, upgrade)"
+  type        = list(string)
+  default     = ["postgresql"]
+}
+
 variable "tags" {
   description = "Resource tags"
   type        = map(string)

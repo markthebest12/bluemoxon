@@ -28,7 +28,7 @@ resource "aws_lambda_function" "this" {
   }
 
   tracing_config {
-    mode = var.enable_xray_tracing ? "Active" : "PassThrough"
+    mode = "Active"
   }
 
   tags = var.tags
@@ -69,7 +69,6 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_xray" {
-  count      = var.enable_xray_tracing ? 1 : 0
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
