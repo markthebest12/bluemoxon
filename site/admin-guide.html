@@ -6,6 +6,13 @@
     <title>Admin Guide | BlueMoxon Documentation</title>
     <meta name="description" content="Complete administrator guide for BlueMoxon - managing books, images, users, and the collection">
 
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,13 +75,15 @@
         }
 
         nav .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            display: flex;
+            align-items: center;
             text-decoration: none;
+        }
+
+        nav .logo img {
+            height: 40px;
+            width: auto;
+            border-radius: 4px;
         }
 
         nav .nav-links {
@@ -427,7 +436,9 @@
     <!-- Navigation -->
     <nav>
         <div class="nav-content">
-            <a href="index.html" class="logo">BlueMoxon</a>
+            <a href="index.html" class="logo">
+                <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
+            </a>
             <ul class="nav-links">
                 <li><a href="index.html#about">About</a></li>
                 <li><a href="index.html#features">Features</a></li>
