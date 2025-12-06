@@ -28,6 +28,8 @@ env:
   S3_FRONTEND_BUCKET: bluemoxon-frontend
   S3_IMAGES_BUCKET: bluemoxon-images
   CLOUDFRONT_DISTRIBUTION_ID: E16BJX90QWQNQO
+  # Auto-generated version: YYYY.MM.DD-<short-sha>
+  APP_VERSION: ""  # Set dynamically in generate-version job
 
 # Required for AWS OIDC authentication and release tagging
 permissions:
@@ -44,16 +46,44 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # ============================================
+  # Generate Version (auto-generated, no manual maintenance)
+  # ============================================
+
+  generate-version:
+    name: Generate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+    steps:
+      - name: Generate version string
+        id: version
+        run: |
+          # Format: YYYY.MM.DD-<short-sha>
+          DATE=$(date -u +%Y.%m.%d)
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION="${DATE}-${SHORT_SHA}"
+
+          echo "Generated version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+  # ============================================
   # Build Lambda Package
   # ============================================
 
   build-backend:
     name: Build Lambda Package
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [ci, generate-version]
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Create VERSION file
+        run: |
+          echo "${{ needs.generate-version.outputs.version }}" > VERSION
+          echo "VERSION file contents: $(cat VERSION)"
 
       - name: Build Lambda package with Docker
         run: |
@@ -95,10 +125,15 @@ jobs:
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
-    needs: ci
+    needs: [ci, generate-version]
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Create VERSION file
+        run: |
+          echo "${{ needs.generate-version.outputs.version }}" > VERSION
+          echo "VERSION file contents: $(cat VERSION)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -286,7 +321,7 @@ jobs:
   smoke-test:
     name: Smoke Tests
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: [deploy, generate-version]
 
     steps:
       - name: Wait for deployment to propagate
@@ -307,6 +342,59 @@ jobs:
             exit 1
           fi
           echo "API liveness check passed!"
+
+      - name: Validate version and environment
+        run: |
+          echo "Validating deployed version and environment..."
+
+          # Get expected version from generate-version job output
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+          EXPECTED_ENV="production"
+
+          # Get actual version info from API
+          response=$(curl -s https://api.bluemoxon.com/api/v1/health/version)
+          ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
+          ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
+
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version:   $ACTUAL_VERSION"
+          echo "Expected env:     $EXPECTED_ENV"
+          echo "Actual env:       $ACTUAL_ENV"
+
+          # Validate version
+          if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: Version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $ACTUAL_VERSION"
+            exit 1
+          fi
+
+          # Validate environment
+          if [[ "$ACTUAL_ENV" != "$EXPECTED_ENV" ]]; then
+            echo "ERROR: Environment mismatch!"
+            echo "  Expected: $EXPECTED_ENV"
+            echo "  Got: $ACTUAL_ENV"
+            exit 1
+          fi
+
+          # Also check response headers
+          HEADER_VERSION=$(curl -sI https://api.bluemoxon.com/health | grep -i "x-app-version" | cut -d: -f2 | tr -d ' \r')
+          HEADER_ENV=$(curl -sI https://api.bluemoxon.com/health | grep -i "x-environment" | cut -d: -f2 | tr -d ' \r')
+
+          echo "Header X-App-Version: $HEADER_VERSION"
+          echo "Header X-Environment: $HEADER_ENV"
+
+          if [[ "$HEADER_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: X-App-Version header mismatch!"
+            exit 1
+          fi
+
+          if [[ "$HEADER_ENV" != "$EXPECTED_ENV" ]]; then
+            echo "ERROR: X-Environment header mismatch!"
+            exit 1
+          fi
+
+          echo "✅ Version and environment validation passed!"
 
       - name: Test API deep health check
         run: |
