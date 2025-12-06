@@ -46,7 +46,7 @@ variable "provisioned_concurrency" {
 variable "runtime" {
   type        = string
   description = "Lambda runtime"
-  default     = "python3.12"
+  default     = "python3.11"
 }
 
 variable "security_group_ids" {

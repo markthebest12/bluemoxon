@@ -98,7 +98,7 @@ variable "lambda_provisioned_concurrency" {
 variable "lambda_runtime" {
   type        = string
   description = "Lambda runtime version"
-  default     = "python3.12"
+  default     = "python3.11"
 }
 
 variable "lambda_timeout" {
