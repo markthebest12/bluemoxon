@@ -560,6 +560,78 @@ def register_images(
     return {"message": f"Registered {len(created)} images", "s3_keys": created}
 
 
+@router.post("/regenerate-thumbnails")
+def regenerate_thumbnails(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Regenerate thumbnails for all images of a book. Requires editor role.
+
+    Downloads each original image from S3, generates a thumbnail, and uploads it.
+    """
+    if not is_production():
+        raise HTTPException(
+            status_code=400, detail="Thumbnail regeneration only available in production"
+        )
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+    if not images:
+        return {"message": "No images to process", "regenerated": 0}
+
+    s3 = get_s3_client()
+    regenerated = []
+    errors = []
+
+    for img in images:
+        try:
+            # Download original from S3
+            s3_key = f"{S3_IMAGES_PREFIX}{img.s3_key}"
+            local_path = LOCAL_IMAGES_PATH / img.s3_key
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+
+            s3.download_file(settings.images_bucket, s3_key, str(local_path))
+
+            # Generate thumbnail
+            thumbnail_name = get_thumbnail_key(img.s3_key)
+            thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
+
+            if generate_thumbnail(local_path, thumbnail_path):
+                # Upload thumbnail to S3
+                s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
+                s3.upload_file(
+                    str(thumbnail_path),
+                    settings.images_bucket,
+                    s3_thumbnail_key,
+                    ExtraArgs={"ContentType": "image/jpeg"},
+                )
+                regenerated.append(img.s3_key)
+
+                # Clean up local files
+                if local_path.exists():
+                    local_path.unlink()
+                if thumbnail_path.exists():
+                    thumbnail_path.unlink()
+            else:
+                errors.append(f"{img.s3_key}: thumbnail generation failed")
+        except Exception as e:
+            errors.append(f"{img.s3_key}: {e!s}")
+
+    result = {
+        "message": f"Regenerated {len(regenerated)} thumbnails",
+        "regenerated": len(regenerated),
+        "s3_keys": regenerated,
+    }
+    if errors:
+        result["errors"] = errors
+
+    return result
+
+
 # Standalone placeholder endpoint (not book-specific)
 @router.get("/placeholder", include_in_schema=False)
 def get_placeholder_image():
