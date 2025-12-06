@@ -35,6 +35,12 @@ variable "cloudfront_oai_arn" {
   default     = null
 }
 
+variable "enable_cloudfront_policy" {
+  description = "Enable CloudFront bucket policy (use this instead of checking oai_arn for count)"
+  type        = bool
+  default     = false
+}
+
 # =============================================================================
 # CORS Configuration
 # =============================================================================

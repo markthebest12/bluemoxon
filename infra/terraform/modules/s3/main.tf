@@ -74,7 +74,7 @@ resource "aws_s3_bucket_cors_configuration" "this" {
 # =============================================================================
 
 resource "aws_s3_bucket_policy" "cloudfront" {
-  count  = var.cloudfront_oai_arn != null ? 1 : 0
+  count  = var.enable_cloudfront_policy ? 1 : 0
   bucket = aws_s3_bucket.this.id
 
   policy = jsonencode({
