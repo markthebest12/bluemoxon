@@ -8,7 +8,7 @@ from pathlib import Path
 import boto3
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from PIL import Image
+from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
@@ -85,6 +85,9 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> bool:
     """
     try:
         with Image.open(image_path) as img:
+            # Apply EXIF orientation to fix sideways images
+            img = ImageOps.exif_transpose(img)
+
             # Convert to RGB if necessary (for PNG with transparency)
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")

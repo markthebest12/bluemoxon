@@ -246,7 +246,6 @@ function closeCarousel() {
           <option value="">All Collections</option>
           <option value="PRIMARY">Primary</option>
           <option value="EXTENDED">Extended</option>
-          <option value="FLAGGED">Flagged</option>
         </select>
       </div>
     </div>
