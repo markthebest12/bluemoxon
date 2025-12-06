@@ -541,6 +541,88 @@ Deletes image file and database record.
 
 ---
 
+### Regenerate Thumbnails
+```
+POST /books/{book_id}/images/regenerate-thumbnails
+```
+
+**Authentication Required:** Editor or Admin role
+
+Regenerates thumbnails for all images of a book. Useful when:
+- Images were uploaded without thumbnails (e.g., via direct S3 upload)
+- Thumbnails are corrupted or missing
+- Thumbnail quality needs to be updated
+
+Example:
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/books/56/images/regenerate-thumbnails" \
+  -H "X-API-Key: $BMX_API_KEY"
+```
+
+Response:
+```json
+{
+  "message": "Regenerated 14 thumbnails",
+  "regenerated": 14,
+  "s3_keys": ["56_abc123.jpeg", "56_def456.jpeg"],
+  "errors": []
+}
+```
+
+**Error Response (partial failure):**
+```json
+{
+  "message": "Regenerated 1 thumbnails",
+  "regenerated": 1,
+  "s3_keys": ["56_abc123.jpeg"],
+  "errors": [
+    "56_def456.jpg: cannot identify image file '/tmp/bluemoxon-images/56_def456.jpg'"
+  ]
+}
+```
+
+**Common Error:** `cannot identify image file` means the S3 object is not a valid image (often HTML error pages from failed downloads).
+
+---
+
+### Image Troubleshooting
+
+**Symptom: Images return `Content-Type: text/html` instead of `image/jpeg`**
+
+This means the S3 objects contain HTML error pages, not actual images. Common causes:
+1. eBay hotlink protection served error pages during download
+2. Source images expired or were deleted
+3. Upload script saved HTTP error responses as files
+
+**Diagnosis:**
+```bash
+# Check image content-type via CloudFront
+curl -sI "https://app.bluemoxon.com/book-images/books/{s3_key}" | grep content-type
+
+# Expected: content-type: image/jpeg
+# Problem:  content-type: text/html
+```
+
+**Fix:**
+1. Delete corrupted images from the book
+2. Re-fetch from source using Playwright (bypasses hotlink protection)
+3. Upload valid images
+
+```bash
+# Delete corrupted images
+curl -X DELETE "https://api.bluemoxon.com/api/v1/books/{book_id}/images/{image_id}" \
+  -H "X-API-Key: $BMX_API_KEY"
+
+# Upload valid images
+curl -X POST "https://api.bluemoxon.com/api/v1/books/{book_id}/images" \
+  -H "X-API-Key: $BMX_API_KEY" \
+  -F "file=@valid_image.jpeg"
+```
+
+See `book-collection/documentation/Screenshot_Processing_Protocol.md` for the full image validation workflow.
+
+---
+
 ## Search API
 
 ### Full-Text Search

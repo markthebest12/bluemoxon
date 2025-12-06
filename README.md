@@ -6,8 +6,24 @@
 
 Victorian Book Collection Management Web Application
 
-**Name Origin:** Blue (dependability) + Edward Moxon (1801-1858, Victorian publisher of Tennyson)
 **Short Name:** bmx (used in shell aliases, scripts, and conversation)
+
+### Why "BlueMoxon"?
+
+**Moxon** honors [Edward Moxon](https://en.wikipedia.org/wiki/Edward_Moxon) (1801-1858), the distinguished Victorian publisher who brought Tennyson, Wordsworth, Shelley, and Keats to the reading public. His Dover Street publishing house produced the very editions this platform now catalogs—a fitting tribute to the heritage of Victorian literature.
+
+**Blue** represents dependability and quiet excellence—the steady hand that preserves, catalogs, and protects. In rare book circles, "blue chip" denotes items of enduring value. BlueMoxon aspires to be that reliable foundation: always available, carefully organized, built to last.
+
+### The Problem It Solves
+
+Managing a collection of 100+ rare Victorian books across spreadsheets, folders, and paper notes created:
+- **No single source of truth** for collection value and inventory
+- **Scattered images** across devices with no connection to metadata
+- **Lost provenance**—acquisition history, pricing, and seller information fragmented
+- **Manual delivery tracking** leading to missed or forgotten shipments
+- **Analysis documents** disconnected from the books they describe
+
+BlueMoxon unifies everything: books, images, valuations, analyses, and acquisition workflow in one searchable, exportable platform.
 
 ## Overview
 
