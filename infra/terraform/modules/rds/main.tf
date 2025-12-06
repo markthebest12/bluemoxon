@@ -60,7 +60,7 @@ resource "aws_db_instance" "this" {
 
   performance_insights_enabled = var.performance_insights_enabled
 
-  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   tags = var.tags
 }
