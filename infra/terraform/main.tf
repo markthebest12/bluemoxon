@@ -25,11 +25,12 @@ data "aws_region" "current" {}
 module "frontend_bucket" {
   source = "./modules/s3"
 
-  bucket_name         = local.frontend_bucket_name
-  enable_versioning   = false
-  block_public_access = true
-  enable_website      = false
-  cloudfront_oai_arn  = var.enable_cloudfront ? module.frontend_cdn[0].oai_arn : null
+  bucket_name              = local.frontend_bucket_name
+  enable_versioning        = false
+  block_public_access      = true
+  enable_website           = false
+  enable_cloudfront_policy = var.enable_cloudfront
+  cloudfront_oai_arn       = var.enable_cloudfront ? module.frontend_cdn[0].oai_arn : null
 
   tags = local.common_tags
 }
@@ -37,10 +38,11 @@ module "frontend_bucket" {
 module "images_bucket" {
   source = "./modules/s3"
 
-  bucket_name         = local.images_bucket_name
-  enable_versioning   = true
-  block_public_access = true
-  cloudfront_oai_arn  = var.enable_cloudfront ? module.images_cdn[0].oai_arn : null
+  bucket_name              = local.images_bucket_name
+  enable_versioning        = true
+  block_public_access      = true
+  enable_cloudfront_policy = var.enable_cloudfront
+  cloudfront_oai_arn       = var.enable_cloudfront ? module.images_cdn[0].oai_arn : null
 
   cors_allowed_origins = [
     "https://${local.app_domain}",
