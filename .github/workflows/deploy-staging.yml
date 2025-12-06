@@ -1,0 +1,531 @@
+# Deploy Pipeline - Deploys to staging on push to staging branch
+# Uses AWS OIDC for secure, keyless authentication
+
+name: Deploy Staging
+
+on:
+  push:
+    branches: [staging]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/dependabot.yml'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:  # Allow manual trigger
+
+# Only one staging deployment at a time
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-west-2
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  # Staging AWS Resource IDs (different from production)
+  LAMBDA_FUNCTION_NAME: bluemoxon-staging-api
+  S3_FRONTEND_BUCKET: bluemoxon-staging-frontend
+  S3_IMAGES_BUCKET: bluemoxon-staging-images
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}
+  # Auto-generated version: YYYY.MM.DD-<short-sha>
+  APP_VERSION: ""  # Set dynamically in generate-version job
+
+# Required for AWS OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ============================================
+  # CI Checks (must pass before deploy)
+  # ============================================
+
+  ci:
+    name: CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  # ============================================
+  # Generate Version
+  # ============================================
+
+  generate-version:
+    name: Generate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+    steps:
+      - name: Generate version string
+        id: version
+        run: |
+          # Format: YYYY.MM.DD-<short-sha>-staging
+          DATE=$(date -u +%Y.%m.%d)
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION="${DATE}-${SHORT_SHA}-staging"
+
+          echo "Generated version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+  # ============================================
+  # Build Lambda Package
+  # ============================================
+
+  build-backend:
+    name: Build Lambda Package
+    runs-on: ubuntu-latest
+    needs: [ci, generate-version]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create VERSION file
+        run: |
+          echo "${{ needs.generate-version.outputs.version }}" > VERSION
+          echo "VERSION file contents: $(cat VERSION)"
+
+      - name: Build Lambda package with Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/backend:/app:ro \
+            -v ${{ github.workspace }}/VERSION:/VERSION:ro \
+            -v /tmp/lambda-deploy:/output \
+            --platform linux/amd64 \
+            amazonlinux:2023 \
+            /bin/bash -c "
+              dnf install -y python3.11 python3.11-pip zip > /dev/null 2>&1
+              python3.11 -m pip install -q -t /output -r /app/requirements.txt
+              cp -r /app/app /output/
+              cp /VERSION /output/
+            "
+
+      - name: Create deployment zip
+        run: |
+          cd /tmp/lambda-deploy
+          zip -q -r ${{ github.workspace }}/lambda-package.zip . \
+            -x "*.pyc" -x "*__pycache__*"
+
+          ls -lh ${{ github.workspace }}/lambda-package.zip
+
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: lambda-package-staging
+          path: lambda-package.zip
+          retention-days: 1
+
+  # ============================================
+  # Build Frontend
+  # ============================================
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: [ci, generate-version]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create VERSION file
+        run: |
+          echo "${{ needs.generate-version.outputs.version }}" > VERSION
+          echo "VERSION file contents: $(cat VERSION)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build for staging
+        working-directory: frontend
+        env:
+          # Staging-specific configuration
+          VITE_API_URL: https://staging.api.bluemoxon.com/api/v1
+          # Shared Cognito (uses prod Cognito pool)
+          VITE_COGNITO_USER_POOL_ID: us-west-2_PvdIpXVKF
+          VITE_COGNITO_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
+          VITE_COGNITO_DOMAIN: bluemoxon.auth.us-west-2.amazoncognito.com
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: frontend-dist-staging
+          path: frontend/dist
+          retention-days: 1
+
+  # ============================================
+  # Deploy to AWS Staging
+  # ============================================
+
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    environment: staging  # GitHub Environment for staging
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: lambda-package-staging
+          path: .
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: frontend-dist-staging
+          path: frontend-dist
+
+      # ---- Deploy Lambda ----
+      - name: Upload Lambda to S3
+        run: |
+          aws s3 cp lambda-package.zip \
+            s3://${{ env.S3_FRONTEND_BUCKET }}/lambda/bluemoxon-staging-api.zip
+
+      - name: Update Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --s3-bucket ${{ env.S3_FRONTEND_BUCKET }} \
+            --s3-key lambda/bluemoxon-staging-api.zip
+
+      - name: Wait for Lambda update
+        run: |
+          echo "Waiting for Lambda function to be ready..."
+          aws lambda wait function-updated \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
+          echo "Lambda function updated successfully"
+
+      - name: Publish Lambda version
+        id: lambda-version
+        run: |
+          echo "Publishing new Lambda version..."
+          VERSION=$(aws lambda publish-version \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --description "Staging deploy from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Lambda alias
+        run: |
+          ALIAS_NAME="staging"
+          FUNCTION_NAME="${{ env.LAMBDA_FUNCTION_NAME }}"
+          VERSION="${{ steps.lambda-version.outputs.version }}"
+
+          # Check if alias exists
+          if aws lambda get-alias --function-name "$FUNCTION_NAME" --name "$ALIAS_NAME" 2>/dev/null; then
+            echo "Updating existing alias '$ALIAS_NAME' to version $VERSION"
+            aws lambda update-alias \
+              --function-name "$FUNCTION_NAME" \
+              --name "$ALIAS_NAME" \
+              --function-version "$VERSION"
+          else
+            echo "Creating alias '$ALIAS_NAME' pointing to version $VERSION"
+            aws lambda create-alias \
+              --function-name "$FUNCTION_NAME" \
+              --name "$ALIAS_NAME" \
+              --function-version "$VERSION"
+          fi
+
+      - name: Cleanup old Lambda versions
+        run: |
+          FUNCTION_NAME="${{ env.LAMBDA_FUNCTION_NAME }}"
+          KEEP_VERSIONS=3
+
+          echo "Cleaning up old Lambda versions (keeping last $KEEP_VERSIONS)..."
+
+          # Get all versions except $LATEST, sorted numerically descending
+          VERSIONS=$(aws lambda list-versions-by-function \
+            --function-name "$FUNCTION_NAME" \
+            --query 'Versions[?Version!=`$LATEST`].Version' \
+            --output text | tr '\t' '\n' | sort -rn)
+
+          # Skip the first N versions (the ones we want to keep)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function \
+                --function-name "$FUNCTION_NAME" \
+                --qualifier "$VERSION" || true
+            done
+          fi
+
+      # ---- Deploy Frontend ----
+      - name: Sync frontend to S3
+        run: |
+          aws s3 sync frontend-dist/ s3://${{ env.S3_FRONTEND_BUCKET }}/ \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html" \
+            --exclude "*.json"
+
+          # Upload index.html and JSON with no-cache
+          aws s3 cp frontend-dist/index.html \
+            s3://${{ env.S3_FRONTEND_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+          # Upload any JSON config files with no-cache
+          if ls frontend-dist/*.json 1> /dev/null 2>&1; then
+            for f in frontend-dist/*.json; do
+              aws s3 cp "$f" "s3://${{ env.S3_FRONTEND_BUCKET }}/$(basename $f)" \
+                --cache-control "no-cache,no-store,must-revalidate"
+            done
+          fi
+
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          echo "CloudFront invalidation started: $INVALIDATION_ID"
+
+          # Wait for invalidation to complete
+          echo "Waiting for invalidation to complete..."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --id $INVALIDATION_ID
+          echo "CloudFront invalidation completed"
+
+  # ============================================
+  # Smoke Tests
+  # ============================================
+
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy, generate-version]
+
+    steps:
+      - name: Wait for deployment to propagate
+        run: sleep 30
+
+      - name: Test API liveness
+        run: |
+          echo "Testing staging API liveness probe..."
+          response=$(curl -s -w "\n%{http_code}" https://staging.api.bluemoxon.com/health)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Liveness check failed!"
+            exit 1
+          fi
+          echo "Staging API liveness check passed!"
+
+      - name: Validate version and environment
+        run: |
+          echo "Validating deployed version and environment..."
+
+          # Get expected version from generate-version job output
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+          EXPECTED_ENV="staging"
+
+          # Get actual version info from API
+          response=$(curl -s https://staging.api.bluemoxon.com/api/v1/health/version)
+          ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
+          ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
+
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version:   $ACTUAL_VERSION"
+          echo "Expected env:     $EXPECTED_ENV"
+          echo "Actual env:       $ACTUAL_ENV"
+
+          # Validate version
+          if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: Version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $ACTUAL_VERSION"
+            exit 1
+          fi
+
+          # Validate environment
+          if [[ "$ACTUAL_ENV" != "$EXPECTED_ENV" ]]; then
+            echo "ERROR: Environment mismatch!"
+            echo "  Expected: $EXPECTED_ENV"
+            echo "  Got: $ACTUAL_ENV"
+            exit 1
+          fi
+
+          # Also check response headers
+          HEADER_VERSION=$(curl -sI https://staging.api.bluemoxon.com/health | grep -i "x-app-version" | cut -d: -f2 | tr -d ' \r')
+          HEADER_ENV=$(curl -sI https://staging.api.bluemoxon.com/health | grep -i "x-environment" | cut -d: -f2 | tr -d ' \r')
+
+          echo "Header X-App-Version: $HEADER_VERSION"
+          echo "Header X-Environment: $HEADER_ENV"
+
+          if [[ "$HEADER_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: X-App-Version header mismatch!"
+            exit 1
+          fi
+
+          if [[ "$HEADER_ENV" != "$EXPECTED_ENV" ]]; then
+            echo "ERROR: X-Environment header mismatch!"
+            exit 1
+          fi
+
+          echo "Version and environment validation passed!"
+
+      - name: Test API deep health check
+        run: |
+          echo "Running deep health check..."
+          response=$(curl -s -w "\n%{http_code}" https://staging.api.bluemoxon.com/api/v1/health/deep)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+          echo "Response:"
+          echo "$body" | jq '.' 2>/dev/null || echo "$body"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Deep health check endpoint failed!"
+            exit 1
+          fi
+
+          # Check overall status
+          status=$(echo "$body" | jq -r '.status' 2>/dev/null)
+          if [[ "$status" == "unhealthy" ]]; then
+            echo "CRITICAL: Staging system is unhealthy!"
+            echo "$body" | jq '.checks' 2>/dev/null
+            exit 1
+          elif [[ "$status" == "degraded" ]]; then
+            echo "WARNING: Staging system is degraded but operational"
+            echo "$body" | jq '.checks' 2>/dev/null
+          fi
+
+          # Verify database is healthy (critical)
+          db_status=$(echo "$body" | jq -r '.checks.database.status' 2>/dev/null)
+          if [[ "$db_status" != "healthy" ]]; then
+            echo "CRITICAL: Staging database is not healthy!"
+            echo "$body" | jq '.checks.database' 2>/dev/null
+            exit 1
+          fi
+
+          echo "Deep health check passed!"
+
+      - name: Test API books endpoint
+        run: |
+          echo "Testing staging books API..."
+          response=$(curl -s -w "\n%{http_code}" "https://staging.api.bluemoxon.com/api/v1/books?per_page=1")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Books API check failed!"
+            exit 1
+          fi
+
+          # Verify pagination response
+          if ! echo "$body" | grep -q '"total"'; then
+            echo "Books response missing pagination!"
+            exit 1
+          fi
+
+          echo "Books API check passed!"
+
+      - name: Test Vue app loads
+        run: |
+          echo "Testing staging Vue app..."
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://staging.app.bluemoxon.com)
+
+          echo "HTTP Code: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "Vue app check failed!"
+            exit 1
+          fi
+
+          # Check that HTML contains expected Vue app content
+          if ! curl -s https://staging.app.bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
+            echo "Vue app doesn't contain expected content!"
+            exit 1
+          fi
+
+          echo "Vue app check passed!"
+
+      - name: Test image endpoint (CloudFront CDN)
+        run: |
+          echo "Testing staging image CloudFront CDN..."
+          # Get first book with images via API
+          book_response=$(curl -s "https://staging.api.bluemoxon.com/api/v1/books?has_images=true&per_page=1")
+
+          if echo "$book_response" | grep -q '"primary_image_url"'; then
+            image_url=$(echo "$book_response" | grep -o '"primary_image_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+            if [[ -n "$image_url" ]]; then
+              echo "Testing image URL: $image_url"
+
+              # Get headers and body info
+              response=$(curl -sI -L "$image_url")
+              http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
+              content_type=$(echo "$response" | grep -i "^content-type:" | tail -1 | awk '{print $2}' | tr -d '\r')
+              content_length=$(echo "$response" | grep -i "^content-length:" | tail -1 | awk '{print $2}' | tr -d '\r')
+
+              echo "HTTP Code: $http_code"
+              echo "Content-Type: $content_type"
+              echo "Content-Length: $content_length"
+
+              # Verify HTTP 200
+              if [[ "$http_code" != "200" ]]; then
+                echo "ERROR: Image returned HTTP $http_code, expected 200"
+                exit 1
+              fi
+
+              # Verify content-type is an image (not text/html error page)
+              if [[ ! "$content_type" =~ ^image/ ]]; then
+                echo "ERROR: Image returned content-type '$content_type', expected image/*"
+                echo "This usually means CloudFront is returning an error page!"
+                exit 1
+              fi
+
+              echo "Image endpoint working!"
+            else
+              echo "WARNING: No image URL found in response"
+            fi
+          else
+            echo "WARNING: No books with images found in staging, skipping image test"
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "========================================"
+          echo "Staging deployment completed successfully!"
+          echo "========================================"
+          echo ""
+          echo "URLs:"
+          echo "  Staging App: https://staging.app.bluemoxon.com"
+          echo "  Staging API: https://staging.api.bluemoxon.com"
+          echo ""
+          echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Commit: ${{ github.sha }}"
+          echo "========================================"
