@@ -33,14 +33,46 @@ if ! aws sts get-caller-identity &>/dev/null; then
     exit 1
 fi
 
-# Sync HTML files
+# Sync HTML files (exclude images, screenshots, and non-HTML files)
 echo -e "\n${GREEN}Syncing HTML files...${NC}"
 aws s3 sync "$PROJECT_ROOT/site/" "s3://$BUCKET/" \
-    --exclude "screenshots" \
-    --exclude "screenshots/*" \
+    --exclude "*" \
+    --include "*.html" \
+    --content-type "text/html"
+
+# Sync favicon.ico
+echo -e "\n${GREEN}Syncing favicon.ico...${NC}"
+aws s3 cp "$PROJECT_ROOT/site/favicon.ico" "s3://$BUCKET/favicon.ico" \
+    --content-type "image/x-icon"
+
+# Sync favicon SVG
+echo -e "\n${GREEN}Syncing favicon.svg...${NC}"
+aws s3 cp "$PROJECT_ROOT/site/favicon.svg" "s3://$BUCKET/favicon.svg" \
+    --content-type "image/svg+xml"
+
+# Sync PNG favicons and apple-touch-icon
+echo -e "\n${GREEN}Syncing PNG icons...${NC}"
+for png in "$PROJECT_ROOT/site/"*.png; do
+    if [ -f "$png" ]; then
+        aws s3 cp "$png" "s3://$BUCKET/$(basename "$png")" \
+            --content-type "image/png"
+    fi
+done
+
+# Sync images folder (logo files)
+echo -e "\n${GREEN}Syncing logo images...${NC}"
+aws s3 sync "$PROJECT_ROOT/site/images/" "s3://$BUCKET/images/" \
     --exclude ".DS_Store" \
-    --content-type "text/html" \
-    --delete
+    --exclude "*.svg" \
+    --content-type "image/png"
+
+# Sync SVG logos separately with correct content type
+for svg in "$PROJECT_ROOT/site/images/"*.svg; do
+    if [ -f "$svg" ]; then
+        aws s3 cp "$svg" "s3://$BUCKET/images/$(basename "$svg")" \
+            --content-type "image/svg+xml"
+    fi
+done
 
 # Sync screenshots
 echo -e "\n${GREEN}Syncing screenshots...${NC}"

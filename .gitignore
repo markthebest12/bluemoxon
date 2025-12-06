@@ -56,3 +56,4 @@ credentials.json
 
 # AWS infrastructure config (contains account IDs, endpoints)
 infra/aws-resources.json
+.playwright-mcp/
