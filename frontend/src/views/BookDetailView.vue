@@ -343,7 +343,9 @@ function getStatusColor(status: string): string {
                   class="w-full h-full object-cover"
                 />
                 <!-- Zoom hint overlay -->
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                <div
+                  class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center"
+                >
                   <svg
                     class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"
                     fill="none"
