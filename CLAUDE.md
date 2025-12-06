@@ -104,7 +104,9 @@ gh pr create --base main --head staging --title "chore: Promote staging to produ
 
 ## Version System
 
-Application version is tracked in `/VERSION` file at the project root.
+Version is **auto-generated at deploy time** - no manual maintenance required.
+
+**Format:** `YYYY.MM.DD-<short-sha>` (e.g., `2025.12.06-9b22b0a`)
 
 ### Version Visibility
 | Location | How to Check |
@@ -114,13 +116,11 @@ Application version is tracked in `/VERSION` file at the project root.
 | Frontend Config | `import { APP_VERSION } from '@/config'` |
 | Deploy Info | `GET /api/v1/health/info` (includes git SHA, deploy time) |
 
-### Updating Version
-```bash
-# Edit VERSION file (e.g., 1.0.0 → 1.1.0)
-echo "1.1.0" > VERSION
-git add VERSION
-git commit -m "chore: Bump version to 1.1.0"
-```
+### How It Works
+- `VERSION` file in repo is `0.0.0-dev` (placeholder for local dev)
+- Deploy workflow generates version: `YYYY.MM.DD-<short-sha>`
+- Version is injected into Lambda package and frontend build
+- Smoke tests validate deployed version matches expected
 
 ## Token-Saving Guidelines
 
