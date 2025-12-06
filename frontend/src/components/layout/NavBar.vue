@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth";
 const router = useRouter();
 const authStore = useAuthStore();
 const showDropdown = ref(false);
+const mobileMenuOpen = ref(false);
 
 // Show first name if available, otherwise fall back to email
 const displayName = computed(() => {
@@ -17,6 +18,7 @@ const displayName = computed(() => {
 
 async function handleSignOut() {
   showDropdown.value = false;
+  mobileMenuOpen.value = false;
   await authStore.logout();
   router.push("/login");
 }
@@ -24,98 +26,208 @@ async function handleSignOut() {
 function closeDropdown() {
   showDropdown.value = false;
 }
+
+function toggleMobileMenu() {
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+}
+
+function closeMobileMenu() {
+  mobileMenuOpen.value = false;
+}
 </script>
 
 <template>
-  <nav class="bg-moxon-800 text-white shadow-lg">
+  <nav class="bg-navy-900/95 backdrop-blur-sm text-white shadow-lg border-b border-navy-600">
     <div class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
-        <RouterLink to="/" class="flex items-center space-x-2">
-          <span class="text-2xl font-bold">BlueMoxon</span>
+        <RouterLink to="/" class="flex items-center">
+          <img
+            src="/bluemoxon-logo.png"
+            alt="BlueMoxon"
+            class="h-12 w-auto rounded"
+          />
         </RouterLink>
 
-        <!-- Navigation Links -->
+        <!-- Desktop Navigation Links -->
         <div class="hidden md:flex items-center space-x-6">
           <RouterLink
             to="/"
-            class="hover:text-moxon-200 transition-colors"
-            active-class="text-moxon-200"
+            class="text-slate-300 hover:text-blue-400 transition-colors"
+            active-class="text-blue-400"
           >
             Dashboard
           </RouterLink>
           <RouterLink
             to="/books"
-            class="hover:text-moxon-200 transition-colors"
-            active-class="text-moxon-200"
+            class="text-slate-300 hover:text-blue-400 transition-colors"
+            active-class="text-blue-400"
           >
             Collection
           </RouterLink>
           <RouterLink
             to="/reports/insurance"
-            class="hover:text-moxon-200 transition-colors"
-            active-class="text-moxon-200"
+            class="text-slate-300 hover:text-blue-400 transition-colors"
+            active-class="text-blue-400"
           >
             Reports
           </RouterLink>
         </div>
 
-        <!-- User Menu -->
+        <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
         <div class="flex items-center space-x-4">
-          <template v-if="authStore.isAuthenticated">
-            <div class="relative">
-              <button
-                @click="showDropdown = !showDropdown"
-                class="text-sm text-moxon-200 hover:text-white transition-colors flex items-center gap-1"
-                :title="authStore.user?.email"
-              >
-                {{ displayName }}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              <!-- Dropdown Menu -->
-              <div
-                v-if="showDropdown"
-                class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
-                @click="closeDropdown"
-              >
-                <RouterLink
-                  to="/profile"
-                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Profile
-                </RouterLink>
-                <RouterLink
-                  v-if="authStore.isAdmin"
-                  to="/admin"
-                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Admin Settings
-                </RouterLink>
+          <!-- User Menu - Desktop -->
+          <div class="hidden md:flex items-center">
+            <template v-if="authStore.isAuthenticated">
+              <div class="relative">
                 <button
-                  @click="handleSignOut"
-                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  @click="showDropdown = !showDropdown"
+                  class="text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-1"
+                  :title="authStore.user?.email"
                 >
-                  Sign Out
+                  {{ displayName }}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </button>
+                <!-- Dropdown Menu -->
+                <div
+                  v-if="showDropdown"
+                  class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                  @click="closeDropdown"
+                >
+                  <RouterLink
+                    to="/profile"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Profile
+                  </RouterLink>
+                  <RouterLink
+                    v-if="authStore.isAdmin"
+                    to="/admin"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Admin Settings
+                  </RouterLink>
+                  <button
+                    @click="handleSignOut"
+                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </div>
-            </div>
-            <!-- Click outside to close -->
-            <div v-if="showDropdown" class="fixed inset-0 z-40" @click="closeDropdown"></div>
-          </template>
-          <template v-else>
-            <RouterLink to="/login" class="text-sm hover:text-moxon-200 transition-colors">
-              Sign In
-            </RouterLink>
-          </template>
+              <!-- Click outside to close -->
+              <div v-if="showDropdown" class="fixed inset-0 z-40" @click="closeDropdown"></div>
+            </template>
+            <template v-else>
+              <RouterLink to="/login" class="text-sm text-slate-300 hover:text-white transition-colors">
+                Sign In
+              </RouterLink>
+            </template>
+          </div>
+
+          <!-- Hamburger Menu Button - Mobile -->
+          <button
+            @click="toggleMobileMenu"
+            class="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 focus:outline-none"
+            aria-label="Toggle menu"
+          >
+            <span
+              class="block w-6 h-0.5 bg-slate-200 transition-all duration-300"
+              :class="{ 'rotate-45 translate-y-2': mobileMenuOpen }"
+            ></span>
+            <span
+              class="block w-6 h-0.5 bg-slate-200 transition-all duration-300"
+              :class="{ 'opacity-0': mobileMenuOpen }"
+            ></span>
+            <span
+              class="block w-6 h-0.5 bg-slate-200 transition-all duration-300"
+              :class="{ '-rotate-45 -translate-y-2': mobileMenuOpen }"
+            ></span>
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- Mobile Menu -->
+    <div
+      v-if="mobileMenuOpen"
+      class="md:hidden bg-navy-900/98 border-t border-navy-600"
+    >
+      <div class="px-4 py-3 space-y-1">
+        <!-- Navigation Links -->
+        <RouterLink
+          to="/"
+          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+          active-class="text-blue-400"
+          @click="closeMobileMenu"
+        >
+          Dashboard
+        </RouterLink>
+        <RouterLink
+          to="/books"
+          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+          active-class="text-blue-400"
+          @click="closeMobileMenu"
+        >
+          Collection
+        </RouterLink>
+        <RouterLink
+          to="/reports/insurance"
+          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+          active-class="text-blue-400"
+          @click="closeMobileMenu"
+        >
+          Reports
+        </RouterLink>
+
+        <!-- User Section -->
+        <template v-if="authStore.isAuthenticated">
+          <RouterLink
+            to="/profile"
+            class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+            @click="closeMobileMenu"
+          >
+            Profile
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            to="/admin"
+            class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+            @click="closeMobileMenu"
+          >
+            Admin Settings
+          </RouterLink>
+          <button
+            @click="handleSignOut"
+            class="block w-full text-left py-3 text-slate-300 hover:text-red-400"
+          >
+            Sign Out
+          </button>
+        </template>
+        <template v-else>
+          <RouterLink
+            to="/login"
+            class="block py-3 text-blue-400 hover:text-blue-300"
+            @click="closeMobileMenu"
+          >
+            Sign In
+          </RouterLink>
+        </template>
+      </div>
+    </div>
+
+    <!-- Click outside to close mobile menu -->
+    <div
+      v-if="mobileMenuOpen"
+      class="fixed inset-0 z-[-1] md:hidden"
+      @click="closeMobileMenu"
+    ></div>
   </nav>
 </template>
