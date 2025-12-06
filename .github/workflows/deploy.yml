@@ -53,7 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.config.outputs.environment }}
-      aws_role_arn: ${{ steps.config.outputs.aws_role_arn }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
@@ -69,7 +68,6 @@ jobs:
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "Configuring for PRODUCTION deployment"
             echo "environment=production" >> $GITHUB_OUTPUT
-            echo "aws_role_arn=${{ secrets.AWS_DEPLOY_ROLE_ARN }}" >> $GITHUB_OUTPUT
             echo "lambda_function_name=bluemoxon-api" >> $GITHUB_OUTPUT
             echo "s3_frontend_bucket=bluemoxon-frontend" >> $GITHUB_OUTPUT
             echo "cloudfront_distribution_id=E16BJX90QWQNQO" >> $GITHUB_OUTPUT
@@ -81,7 +79,6 @@ jobs:
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
             echo "Configuring for STAGING deployment"
             echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "aws_role_arn=${{ secrets.AWS_STAGING_ROLE_ARN }}" >> $GITHUB_OUTPUT
             echo "lambda_function_name=bluemoxon-staging-api" >> $GITHUB_OUTPUT
             echo "s3_frontend_bucket=bluemoxon-frontend-staging" >> $GITHUB_OUTPUT
             echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
@@ -229,7 +226,8 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ needs.configure.outputs.aws_role_arn }}
+          # Select role ARN based on environment (secrets can't be passed via job outputs)
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Lambda artifact
