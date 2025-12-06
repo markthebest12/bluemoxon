@@ -67,6 +67,12 @@ variable "enable_cloudfront" {
   default     = true
 }
 
+variable "enable_database" {
+  type        = bool
+  description = "Enable RDS PostgreSQL database"
+  default     = false
+}
+
 variable "enable_waf" {
   type        = bool
   description = "Enable WAF for API Gateway"
@@ -101,8 +107,39 @@ variable "lambda_runtime" {
   default     = "python3.12"
 }
 
+variable "lambda_package_path" {
+  type        = string
+  description = "Path to the Lambda deployment package"
+  default     = "lambda.zip"
+}
+
+variable "lambda_source_code_hash" {
+  type        = string
+  description = "Base64-encoded SHA256 hash of the Lambda package"
+  default     = ""
+}
+
 variable "lambda_timeout" {
   type        = number
   description = "Lambda function timeout (seconds)"
   default     = 30
+}
+
+variable "maintenance_mode" {
+  type        = string
+  description = "Maintenance mode flag (true/false as string)"
+  default     = "false"
+}
+
+variable "allowed_editor_emails" {
+  type        = string
+  description = "Comma-separated list of allowed editor email addresses"
+  default     = ""
+}
+
+variable "api_key_hash" {
+  type        = string
+  description = "SHA256 hash of the API key for authentication bypass"
+  default     = ""
+  sensitive   = true
 }

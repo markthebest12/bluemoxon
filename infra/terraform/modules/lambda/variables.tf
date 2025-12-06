@@ -1,17 +1,45 @@
+# =============================================================================
+# Input Variables
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required Variables
+# -----------------------------------------------------------------------------
+
 variable "environment" {
   type        = string
   description = "Environment name (staging, prod)"
+}
+
+variable "function_name" {
+  type        = string
+  description = "Name of the Lambda function"
+}
+
+variable "package_path" {
+  type        = string
+  description = "Path to the Lambda deployment package"
+}
+
+variable "source_code_hash" {
+  type        = string
+  description = "Base64-encoded SHA256 hash of the package file"
+}
+
+# -----------------------------------------------------------------------------
+# Optional Variables
+# -----------------------------------------------------------------------------
+
+variable "create_security_group" {
+  type        = bool
+  description = "Create a security group for the Lambda function (requires vpc_id)"
+  default     = false
 }
 
 variable "environment_variables" {
   type        = map(string)
   description = "Environment variables for the Lambda function"
   default     = {}
-}
-
-variable "function_name" {
-  type        = string
-  description = "Name of the Lambda function"
 }
 
 variable "handler" {
@@ -32,24 +60,6 @@ variable "memory_size" {
   default     = 512
 }
 
-variable "package_path" {
-  type        = string
-  description = "Path to the Lambda deployment package (optional if using s3_bucket/s3_key)"
-  default     = null
-}
-
-variable "s3_bucket" {
-  type        = string
-  description = "S3 bucket containing the Lambda deployment package"
-  default     = null
-}
-
-variable "s3_key" {
-  type        = string
-  description = "S3 key for the Lambda deployment package"
-  default     = null
-}
-
 variable "provisioned_concurrency" {
   type        = number
   description = "Provisioned concurrency for warm starts (0 = scale to zero when idle)"
@@ -59,19 +69,25 @@ variable "provisioned_concurrency" {
 variable "runtime" {
   type        = string
   description = "Lambda runtime"
-  default     = "python3.12"
+  default     = "python3.11"
+}
+
+variable "s3_bucket_arns" {
+  type        = list(string)
+  description = "S3 bucket ARNs the Lambda function can access"
+  default     = []
+}
+
+variable "secrets_arns" {
+  type        = list(string)
+  description = "Secrets Manager secret ARNs the Lambda function can access"
+  default     = []
 }
 
 variable "security_group_ids" {
   type        = list(string)
-  description = "Security group IDs for Lambda"
+  description = "Additional security group IDs for Lambda VPC configuration"
   default     = []
-}
-
-variable "source_code_hash" {
-  type        = string
-  description = "Base64-encoded SHA256 hash of the package file"
-  default     = null
 }
 
 variable "subnet_ids" {
@@ -90,4 +106,10 @@ variable "timeout" {
   type        = number
   description = "Function timeout in seconds"
   default     = 30
+}
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC ID for the Lambda security group (required if create_security_group is true)"
+  default     = null
 }

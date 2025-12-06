@@ -3,7 +3,8 @@
 # =============================================================================
 
 locals {
-  # Resource naming convention: {app}-{resource}-{environment}
+  # Resource naming convention: {app}-{environment}-{resource}
+  # Aligns with existing staging resources: bluemoxon-staging-api, bluemoxon-staging-frontend
   name_prefix = "${var.app_name}-${var.environment}"
 
   # Common tags applied to all resources
@@ -13,11 +14,11 @@ locals {
     ManagedBy   = "terraform"
   }
 
-  # S3 bucket names
-  frontend_bucket_name = "${var.app_name}-frontend-${var.environment}"
-  images_bucket_name   = "${var.app_name}-images-${var.environment}"
+  # S3 bucket names - match existing workflow naming convention
+  frontend_bucket_name = "${var.app_name}-${var.environment}-frontend"
+  images_bucket_name   = "${var.app_name}-${var.environment}-images"
 
-  # Lambda function name (format: {app}-{environment}-{resource} to match deploy workflow)
+  # Lambda function name - match existing workflow naming convention
   lambda_function_name = "${var.app_name}-${var.environment}-api"
 
   # API Gateway name

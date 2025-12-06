@@ -68,15 +68,28 @@ output "images_cdn_domain" {
   value       = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : null
 }
 
-output "lambda_function_arn" {
-  description = "Lambda function ARN"
-  value       = module.api_lambda.function_arn
-}
+# =============================================================================
+# Lambda Outputs
+# =============================================================================
 
 output "lambda_function_name" {
   description = "Lambda function name"
-  value       = module.api_lambda.function_name
+  value       = module.lambda.function_name
 }
+
+output "lambda_function_arn" {
+  description = "Lambda function ARN"
+  value       = module.lambda.function_arn
+}
+
+output "lambda_invoke_arn" {
+  description = "Lambda invoke ARN"
+  value       = module.lambda.invoke_arn
+}
+
+# =============================================================================
+# API Gateway Outputs
+# =============================================================================
 
 output "api_gateway_endpoint" {
   description = "API Gateway endpoint URL"
@@ -86,4 +99,18 @@ output "api_gateway_endpoint" {
 output "api_gateway_id" {
   description = "API Gateway ID"
   value       = module.api_gateway.api_id
+}
+
+# =============================================================================
+# Database Outputs (when enabled)
+# =============================================================================
+
+output "database_endpoint" {
+  description = "RDS database endpoint"
+  value       = var.enable_database ? module.database[0].endpoint : null
+}
+
+output "database_secret_arn" {
+  description = "Database credentials secret ARN"
+  value       = var.enable_database ? module.database_secret[0].arn : null
 }
