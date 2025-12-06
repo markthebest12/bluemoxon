@@ -17,11 +17,11 @@ locals {
   frontend_bucket_name = "${var.app_name}-frontend-${var.environment}"
   images_bucket_name   = "${var.app_name}-images-${var.environment}"
 
-  # Lambda function name
-  lambda_function_name = "${var.app_name}-api-${var.environment}"
+  # Lambda function name (format: {app}-{environment}-{resource} to match deploy workflow)
+  lambda_function_name = "${var.app_name}-${var.environment}-api"
 
   # API Gateway name
-  api_gateway_name = "${var.app_name}-api-${var.environment}"
+  api_gateway_name = "${var.app_name}-${var.environment}-api"
 
   # Domain configuration
   api_domain = "${var.api_subdomain}.${var.domain_name}"

@@ -10,8 +10,11 @@ resource "aws_lambda_function" "this" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
+  # Support both local file and S3-based deployment
   filename         = var.package_path
   source_code_hash = var.source_code_hash
+  s3_bucket        = var.s3_bucket
+  s3_key           = var.s3_key
 
   environment {
     variables = merge(
@@ -22,9 +25,12 @@ resource "aws_lambda_function" "this" {
     )
   }
 
-  vpc_config {
-    subnet_ids         = var.subnet_ids
-    security_group_ids = var.security_group_ids
+  dynamic "vpc_config" {
+    for_each = length(var.subnet_ids) > 0 ? [1] : []
+    content {
+      subnet_ids         = var.subnet_ids
+      security_group_ids = var.security_group_ids
+    }
   }
 
   tracing_config {
@@ -32,6 +38,16 @@ resource "aws_lambda_function" "this" {
   }
 
   tags = var.tags
+
+  # Ignore code changes - CI/CD pipeline manages code updates
+  lifecycle {
+    ignore_changes = [
+      filename,
+      source_code_hash,
+      s3_bucket,
+      s3_key,
+    ]
+  }
 }
 
 # =============================================================================

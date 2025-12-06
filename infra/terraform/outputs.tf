@@ -67,3 +67,23 @@ output "images_cdn_domain" {
   description = "Images CloudFront domain"
   value       = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : null
 }
+
+output "lambda_function_arn" {
+  description = "Lambda function ARN"
+  value       = module.api_lambda.function_arn
+}
+
+output "lambda_function_name" {
+  description = "Lambda function name"
+  value       = module.api_lambda.function_name
+}
+
+output "api_gateway_endpoint" {
+  description = "API Gateway endpoint URL"
+  value       = module.api_gateway.api_endpoint
+}
+
+output "api_gateway_id" {
+  description = "API Gateway ID"
+  value       = module.api_gateway.api_id
+}
