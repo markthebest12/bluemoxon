@@ -6,9 +6,9 @@ resource "aws_cloudfront_origin_access_identity" "this" {
   comment = var.oai_comment
 }
 
-# nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
 # When using CloudFront default certificate (no ACM), AWS doesn't allow setting minimum_protocol_version.
 # Production deployments should always use ACM certificates (set in tfvars).
+# nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true

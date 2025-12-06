@@ -74,6 +74,12 @@ variable "log_retention_days" {
   default     = 14
 }
 
+variable "enable_xray_tracing" {
+  description = "Enable AWS X-Ray active tracing"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Resource tags"
   type        = map(string)

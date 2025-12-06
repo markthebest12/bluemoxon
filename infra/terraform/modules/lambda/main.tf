@@ -27,6 +27,10 @@ resource "aws_lambda_function" "this" {
     security_group_ids = var.security_group_ids
   }
 
+  tracing_config {
+    mode = var.enable_xray_tracing ? "Active" : "PassThrough"
+  }
+
   tags = var.tags
 }
 
@@ -62,6 +66,12 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   count      = length(var.subnet_ids) > 0 ? 1 : 0
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_xray" {
+  count      = var.enable_xray_tracing ? 1 : 0
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
 
 # =============================================================================
