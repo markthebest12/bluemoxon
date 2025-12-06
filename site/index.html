@@ -295,6 +295,147 @@
             height: 220px;
             object-fit: cover;
             border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .screenshot-card .img-wrapper {
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .screenshot-card .zoom-hint {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+            pointer-events: none;
+        }
+
+        .screenshot-card .img-wrapper:hover .zoom-hint {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .screenshot-card .zoom-hint svg {
+            width: 48px;
+            height: 48px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .screenshot-card .img-wrapper:hover .zoom-hint svg {
+            opacity: 1;
+        }
+
+        /* Lightbox styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 95%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .lightbox-close svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .lightbox-caption {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+            max-width: 80%;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+        }
+
+        .lightbox-hint {
+            position: absolute;
+            bottom: 5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        /* Mobile lightbox - full screen experience */
+        @media (max-width: 768px) {
+            .lightbox {
+                padding: 0;
+                background: rgba(0, 0, 0, 0.98);
+            }
+
+            .lightbox img {
+                max-width: 100vw;
+                max-height: 75vh;
+                border-radius: 0;
+                width: 100vw;
+                height: auto;
+            }
+
+            .lightbox-close {
+                top: 0.5rem;
+                right: 0.5rem;
+                background: rgba(0, 0, 0, 0.5);
+            }
+
+            .lightbox-caption {
+                bottom: 1rem;
+                font-size: 0.9rem;
+                padding: 0.5rem 1rem;
+                max-width: 95%;
+            }
+
+            .lightbox-hint {
+                display: none;
+            }
         }
 
         .screenshot-card .placeholder {
@@ -923,56 +1064,112 @@
 
         <div class="screenshots-grid">
             <div class="screenshot-card">
-                <img src="screenshots/dashboard.png" alt="Dashboard">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/dashboard.png" alt="Dashboard">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Dashboard</h4>
                     <p>Collection statistics, analytics charts, and quick access to all features at a glance.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/collection.png" alt="Collection Browser">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/collection.png" alt="Collection Browser">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Collection Browser</h4>
                     <p>Filterable grid view with search, sort, and advanced filtering by author, publisher, and binding type.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/book-detail.png" alt="Book Detail">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/book-detail.png" alt="Book Detail">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Book Detail</h4>
                     <p>Complete metadata, valuation tracking, provenance history, and image gallery with lightbox.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/analysis.png" alt="Analysis View">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/analysis.png" alt="Analysis View">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Analysis Documents</h4>
                     <p>Rich markdown analysis with full formatting, rendered beautifully alongside book details.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/editor.png" alt="Analysis Editor">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/editor.png" alt="Analysis Editor">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Analysis Editor</h4>
                     <p>Markdown editor with live preview for creating and updating book valuations and assessments.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/reports.png" alt="Reports">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/reports.png" alt="Reports">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Insurance Reports</h4>
                     <p>Generate insurance valuation reports with collection summaries, volume counts, and estimate ranges.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/swagger-endpoints.png" alt="Swagger UI">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/swagger-endpoints.png" alt="Swagger UI">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>API Documentation</h4>
                     <p>Interactive Swagger UI with try-it-now functionality for all 57 REST endpoints.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/image-gallery.png" alt="Image Gallery">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/image-gallery.png" alt="Image Gallery">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Image Gallery</h4>
                     <p>CDN-delivered images with swipe gestures, thumbnails, and full-screen lightbox viewing.</p>
@@ -1019,7 +1216,14 @@
 
         <div class="screenshots-grid" style="grid-template-columns: 1fr 1fr;">
             <div class="screenshot-card">
-                <img src="screenshots/claude-evaluation.png" alt="Claude Code Evaluation" style="height: 320px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/claude-evaluation.png" alt="Claude Code Evaluation" style="height: 320px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Live Listing Evaluation</h4>
                     <p>Claude parses eBay listings, extracts key metadata (title, publisher, binding, price),
@@ -1027,7 +1231,14 @@
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/pipeline-detail.png" alt="Pipeline Detail" style="height: 320px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/pipeline-detail.png" alt="Pipeline Detail" style="height: 320px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Automated Deployment Pipeline</h4>
                     <p>18 parallel CI jobs including security scans, type checking, tests, and production deployment -
@@ -1109,28 +1320,56 @@
 
         <div class="screenshots-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="screenshot-card">
-                <img src="screenshots/admin-dashboard.png" alt="Admin Dashboard" style="height: 200px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/admin-dashboard.png" alt="Admin Dashboard" style="height: 200px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Dashboard</h4>
                     <p>Collection stats, recent additions, and quick actions for authenticated users.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/admin-add-book.png" alt="Add Book Form" style="height: 200px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/admin-add-book.png" alt="Add Book Form" style="height: 200px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Add New Book</h4>
                     <p>Comprehensive form with author/publisher dropdowns, binding types, and valuation fields.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/admin-edit-book.png" alt="Edit Book" style="height: 200px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/admin-edit-book.png" alt="Edit Book" style="height: 200px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>Edit Book</h4>
                     <p>Inline editing of all metadata, status updates, and analysis document editing.</p>
                 </div>
             </div>
             <div class="screenshot-card">
-                <img src="screenshots/admin.png" alt="User Management" style="height: 200px;">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/admin.png" alt="User Management" style="height: 200px;">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
                 <div class="content">
                     <h4>User Management</h4>
                     <p>Role-based access control with admin/editor/viewer roles and MFA status tracking.</p>
@@ -1447,6 +1686,18 @@ flowchart LR
         </div>
     </section>
 
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+        <button class="lightbox-close" onclick="closeLightbox(event)" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <img id="lightbox-img" src="" alt="">
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+        <div class="lightbox-hint">Press Escape or click anywhere to close</div>
+    </div>
+
     <!-- Footer -->
     <footer>
         <p>
@@ -1491,6 +1742,42 @@ flowchart LR
                 hamburger.classList.remove('active');
                 navLinks.classList.remove('active');
             });
+        });
+    </script>
+
+    <!-- Lightbox functionality -->
+    <script>
+        function openLightbox(wrapper) {
+            const img = wrapper.querySelector('img');
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lightboxCaption = document.getElementById('lightbox-caption');
+
+            lightboxImg.src = img.src;
+            lightboxImg.alt = img.alt;
+            lightboxCaption.textContent = img.alt;
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox(event) {
+            // Don't close if clicking on the image itself
+            if (event.target.id === 'lightbox-img') return;
+
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close lightbox on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const lightbox = document.getElementById('lightbox');
+                if (lightbox.classList.contains('active')) {
+                    lightbox.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            }
         });
     </script>
 </body>
