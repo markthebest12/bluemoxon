@@ -187,10 +187,30 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    response = BookResponse.model_validate(book)
-    response.has_analysis = book.analysis is not None
-    response.image_count = len(book.images) if book.images else 0
-    return response
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
 
 
 @router.post("", response_model=BookResponse, status_code=201)
