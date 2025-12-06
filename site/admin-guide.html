@@ -507,6 +507,96 @@
             nav .nav-links a {
                 font-size: 1rem;
             }
+
+            /* Main content */
+            main {
+                padding: 4rem 1rem 2rem;
+            }
+
+            .page-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .page-header .subtitle {
+                font-size: 1rem;
+            }
+
+            section h2 {
+                font-size: 1.4rem;
+            }
+
+            section h3 {
+                font-size: 1.1rem;
+            }
+
+            /* Feature grid - single column */
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Tables - horizontal scroll */
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            th, td {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+
+            /* Code blocks */
+            pre {
+                padding: 1rem;
+                font-size: 0.75rem;
+            }
+
+            code {
+                font-size: 0.8em;
+            }
+
+            /* Screenshots */
+            .screenshot .caption {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            /* Alerts */
+            .alert {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            /* Steps */
+            .steps li {
+                padding-left: 2.5rem;
+            }
+
+            .steps li::before {
+                width: 1.75rem;
+                height: 1.75rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            main {
+                padding: 3.5rem 0.75rem 1.5rem;
+            }
+
+            .page-header h1 {
+                font-size: 1.5rem;
+            }
+
+            section h2 {
+                font-size: 1.25rem;
+            }
+
+            pre {
+                font-size: 0.65rem;
+            }
         }
     </style>
 </head>

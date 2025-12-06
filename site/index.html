@@ -653,16 +653,172 @@
                 font-size: 1rem;
             }
 
+            .hero {
+                padding: 5rem 1rem 3rem;
+                min-height: auto;
+            }
+
             .hero h1 {
-                font-size: 2.5rem;
+                font-size: 2rem;
+            }
+
+            .hero .tagline {
+                font-size: 1.1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            section {
+                padding: 3rem 1rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.75rem;
+            }
+
+            .section-header p {
+                font-size: 1rem;
+            }
+
+            .name-origin {
+                padding: 1.5rem;
             }
 
             .name-grid {
                 grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .name-card {
+                padding: 1.25rem;
+            }
+
+            .name-card h3 {
+                font-size: 1.5rem;
             }
 
             .stats-bar {
                 grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+                padding: 1.5rem;
+            }
+
+            .stat-item .value {
+                font-size: 1.75rem;
+            }
+
+            .stat-item .label {
+                font-size: 0.8rem;
+            }
+
+            /* Screenshots grid - single column on mobile */
+            .screenshots-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1.5rem;
+            }
+
+            .screenshot-card img {
+                height: 180px;
+            }
+
+            .screenshot-card .content {
+                padding: 1rem;
+            }
+
+            .screenshot-card h4 {
+                font-size: 1rem;
+            }
+
+            .screenshot-card p {
+                font-size: 0.85rem;
+            }
+
+            /* Tech grid */
+            .tech-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Terminal blocks */
+            .terminal-body {
+                padding: 1rem;
+                font-size: 0.75rem;
+                overflow-x: auto;
+            }
+
+            .terminal-header .title {
+                font-size: 0.7rem;
+            }
+
+            /* Diagrams */
+            .diagram-container {
+                padding: 1rem;
+                overflow-x: auto;
+            }
+
+            .diagram-container h4 {
+                font-size: 0.9rem;
+            }
+
+            /* API Table - horizontal scroll */
+            .api-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .api-table th,
+            .api-table td {
+                padding: 0.75rem;
+                font-size: 0.8rem;
+            }
+
+            /* Footer */
+            footer {
+                padding: 2rem 1rem;
+            }
+
+            footer p {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero .tagline {
+                font-size: 1rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .name-card h3 {
+                font-size: 1.25rem;
+            }
+
+            .stats-bar {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-item .value {
+                font-size: 1.5rem;
+            }
+
+            .terminal-body {
+                font-size: 0.65rem;
             }
         }
     </style>
