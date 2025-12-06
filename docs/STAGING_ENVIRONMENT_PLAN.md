@@ -1,5 +1,25 @@
 # Staging Environment Plan
 
+## Current Status (Updated 2025-12-06)
+
+### Completed
+- ✅ Staging AWS account created (652617421195)
+- ✅ GitHub OIDC provider configured in staging
+- ✅ IAM role `github-actions-deploy` created
+- ✅ `AWS_STAGING_ROLE_ARN` secret added to GitHub
+- ✅ Deploy workflow updated for multi-environment support
+- ✅ Staging branch configured with protection rules
+- ✅ Terraform modules created (Lambda, API Gateway, S3, CloudFront, Cognito)
+- ✅ Staging infrastructure deployed via Terraform
+- ✅ CI/CD pipeline deploys to staging on push
+
+### Outstanding
+- ⏳ Staging database (RDS) - needed for full functionality
+- ⏳ DATABASE_URL configuration for Lambda
+- ⏳ Data sync scripts for prod → staging
+
+---
+
 ## Overview
 
 Create `staging.app.bluemoxon.com` as an isolated replica of production in a separate AWS account, with:
@@ -7,684 +27,304 @@ Create `staging.app.bluemoxon.com` as an isolated replica of production in a sep
 - Shared Cognito authentication (prod users work in staging)
 - Version tracking across environments
 - Cost-optimized (scales to near-zero when idle)
-- Future Terraform migration path
+- Terraform-managed infrastructure
 
 ---
 
 ## Table of Contents
 
-1. [Version Number System](#1-version-number-system)
-2. [AWS Account Setup](#2-aws-account-setup)
-3. [Infrastructure Architecture](#3-infrastructure-architecture)
-4. [Deploy Workflow Options](#4-deploy-workflow-options)
-5. [Data Sync Strategy](#5-data-sync-strategy)
-6. [Implementation Phases](#6-implementation-phases)
+1. [Current Infrastructure](#1-current-infrastructure)
+2. [Version Number System](#2-version-number-system)
+3. [AWS Account Setup](#3-aws-account-setup)
+4. [Infrastructure Architecture](#4-infrastructure-architecture)
+5. [Deploy Workflow](#5-deploy-workflow)
+6. [Data Sync Strategy](#6-data-sync-strategy)
+7. [Implementation Phases](#7-implementation-phases)
 
 ---
 
-## 1. Version Number System
+## 1. Current Infrastructure
+
+### Staging Environment Resources
+
+| Resource | Name/ID | Status |
+|----------|---------|--------|
+| AWS Account | 652617421195 | ✅ Active |
+| Lambda Function | `bluemoxon-staging-api` | ✅ Deployed |
+| API Gateway | `ikxdby8a89.execute-api.us-west-2.amazonaws.com` | ✅ Active |
+| Frontend S3 | `bluemoxon-frontend-staging` | ✅ Active |
+| Images S3 | `bluemoxon-images-staging` | ✅ Active |
+| Frontend CloudFront | `d3rkfi55tpd382.cloudfront.net` | ✅ Active |
+| Images CloudFront | `d2zwmzka4w6cws.cloudfront.net` | ✅ Active |
+| Cognito User Pool | `us-west-2_5pOhFH6LN` | ✅ Active |
+| Cognito Client | `30cjt0d9rt1bf1baukbsvm3o` | ✅ Active |
+| Cognito Domain | `bluemoxon-staging.auth.us-west-2.amazoncognito.com` | ✅ Active |
+| RDS Database | N/A | ❌ Not deployed |
+
+### Production Environment Resources (For Reference)
+
+| Resource | Name/ID | Status |
+|----------|---------|--------|
+| AWS Account | 058264531112 | ✅ Active |
+| Lambda Function | `bluemoxon-api` | ✅ Active |
+| API Gateway | `api.bluemoxon.com` | ✅ Active |
+| Frontend S3 | `bluemoxon-frontend` | ✅ Active |
+| Frontend CloudFront | `E16BJX90QWQNQO` | ✅ Active |
+| Cognito User Pool | `us-west-2_PvdIpXVKF` | ✅ Active |
+| Cognito Client | `3ndaok3psd2ncqfjrdb57825he` | ✅ Active |
+| RDS Database | Active | ✅ Active |
+
+---
+
+## 2. Version Number System
 
 ### Version Format
 
 ```
-v{YYYY.MM.DD}.{build-number}
-Example: v2025.12.05.42
+v{YYYY.MM.DD}-{short-sha}
+Example: v2025.12.06-9b22b0a
 ```
 
-Or semantic versioning if preferred:
-```
-v{major}.{minor}.{patch}
-Example: v1.2.3
-```
+### Implementation (Completed)
 
-### Implementation
-
-#### VERSION file (source of truth)
-```bash
-# /VERSION
-1.0.0
-```
-
-#### Backend: Response Header + Endpoint
-
-```python
-# app/core/version.py
-from pathlib import Path
-
-def get_version() -> str:
-    version_file = Path(__file__).parent.parent.parent / "VERSION"
-    if version_file.exists():
-        return version_file.read_text().strip()
-    return "0.0.0-dev"
-
-# app/main.py - Add middleware
-@app.middleware("http")
-async def add_version_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-App-Version"] = get_version()
-    response.headers["X-Environment"] = settings.environment
-    return response
-
-# app/api/v1/health.py - Add to health endpoint
-@router.get("/version")
-async def get_app_version():
-    return {
-        "version": get_version(),
-        "environment": settings.environment,
-        "git_sha": os.getenv("GIT_SHA", "unknown"),
-        "deployed_at": os.getenv("DEPLOYED_AT", "unknown")
-    }
-```
-
-#### Frontend: Build-time injection
-
-```typescript
-// vite.config.ts
-import { readFileSync } from 'fs'
-
-const version = readFileSync('../VERSION', 'utf-8').trim()
-
-export default defineConfig({
-  define: {
-    __APP_VERSION__: JSON.stringify(version),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-  }
-})
-
-// src/config.ts
-export const APP_VERSION = __APP_VERSION__
-export const BUILD_TIME = __BUILD_TIME__
-
-// Displayed in footer or settings page
-```
-
-#### CI/CD: Inject at build time
-
-```yaml
-# In deploy workflow
-- name: Set version info
-  run: |
-    echo "GIT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-    echo "DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
-    VERSION=$(cat VERSION)
-    echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
-```
+- **VERSION file**: `0.0.0-dev` (placeholder, auto-generated at deploy)
+- **Deploy workflow**: Generates version as `YYYY.MM.DD-<short-sha>`
+- **Backend**: Returns version in `X-App-Version` header and `/health/version` endpoint
+- **Frontend**: Version injected at build time via Vite config
 
 ---
 
-## 2. AWS Account Setup
+## 3. AWS Account Setup
 
-### Step 1: Create AWS Organization (if not exists)
+### AWS Organizations Structure
 
-```bash
-# In prod account (becomes management account)
-aws organizations create-organization --feature-set ALL
+```
+Management Account (Production)
+├── bluemoxon (058264531112) - Production
+└── bluemoxon-staging (652617421195) - Staging
 ```
 
-### Step 2: Create Staging Account
+### Step-by-Step Setup (For New Account)
+
+See [AWS_GITHUB_ACTIONS_SETUP.md](./AWS_GITHUB_ACTIONS_SETUP.md) for detailed instructions.
+
+**Quick Reference:**
 
 ```bash
-# Create linked account
-aws organizations create-account \
-  --email "staging@bluemoxon.com" \
-  --account-name "bluemoxon-staging" \
-  --iam-user-access-to-billing ALLOW
-
-# Get account ID (takes a few minutes)
-aws organizations list-accounts \
-  --query "Accounts[?Name=='bluemoxon-staging'].Id" \
-  --output text
-```
-
-**Alternative: Standalone account**
-- Go to https://aws.amazon.com and create new account
-- Use email alias: `mark+staging@yourdomain.com`
-
-### Step 3: Initial Staging Account Setup
-
-```bash
-# Assume role into staging account (after account creation)
-# Or log in directly to staging account console
-
-# Create GitHub OIDC provider
+# 1. Create OIDC provider
 aws iam create-open-id-connect-provider \
-  --url https://token.actions.githubusercontent.com \
-  --client-id-list sts.amazonaws.com \
-  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+  --url "https://token.actions.githubusercontent.com" \
+  --client-id-list "sts.amazonaws.com" \
+  --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1" "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
 
-# Create deploy role (see IAM policy below)
+# 2. Create IAM role with trust policy (see AWS_GITHUB_ACTIONS_SETUP.md)
+
+# 3. Create and attach deploy policy (see AWS_GITHUB_ACTIONS_SETUP.md)
+
+# 4. Add GitHub secret
+gh secret set AWS_STAGING_ROLE_ARN --body "arn:aws:iam::<account-id>:role/github-actions-deploy"
 ```
 
-### Step 4: IAM Role for GitHub Actions
+### GitHub Secrets
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::STAGING_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:markthebest12/bluemoxon:ref:refs/heads/staging"
-        }
-      }
-    }
-  ]
-}
-```
-
-### Step 5: GitHub Secrets for Staging
-
-Add to repository secrets:
-- `AWS_STAGING_ACCOUNT_ID` - Staging account ID
-- `AWS_STAGING_ROLE_ARN` - Role ARN for staging deploys
+| Secret | Value | Description |
+|--------|-------|-------------|
+| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::058264531112:role/github-actions-deploy` | Production deploy role |
+| `AWS_STAGING_ROLE_ARN` | `arn:aws:iam::652617421195:role/github-actions-deploy` | Staging deploy role |
 
 ---
 
-## 3. Infrastructure Architecture
+## 4. Infrastructure Architecture
 
 ### Staging vs Prod Comparison
 
-| Component | Production | Staging | Cost Impact |
-|-----------|------------|---------|-------------|
-| Aurora Serverless v2 | 0.5-4 ACU | 0.5-1 ACU | ~$43/mo min |
-| Lambda | On-demand | On-demand | Pay per use |
-| NAT Gateway | Yes ($32/mo) | **No** (VPC endpoints) | -$32/mo |
-| CloudFront | Standard | Standard | Minimal |
-| S3 | Standard | Standard | Pay per use |
-| Cognito | Prod pool | **Shared (prod)** | $0 |
-| Route53 | bluemoxon.com | staging subdomain | ~$0.50/mo |
-| ACM | *.bluemoxon.com | Same cert (SANs) | $0 |
+| Component | Production | Staging | Notes |
+|-----------|------------|---------|-------|
+| Lambda Runtime | python3.11 | python3.11 | Must match CI/CD |
+| Lambda Memory | 512 MB | 256 MB | Cost savings |
+| RDS | PostgreSQL | **Pending** | Needed for full function |
+| CloudFront | Standard | Standard | Same config |
+| S3 | Standard | Standard | Same config |
+| Cognito | Dedicated pool | Dedicated pool | Separate user management |
 
-### Cross-Account Cognito Setup
-
-Staging will validate JWTs against prod Cognito:
-
-```python
-# staging config
-COGNITO_USER_POOL_ID = "us-west-2_PvdIpXVKF"  # PROD pool
-COGNITO_CLIENT_ID = "prod-client-id"           # PROD client
-COGNITO_REGION = "us-west-2"                   # PROD region
-```
-
-No IAM cross-account needed - JWT validation is stateless using JWKS.
-
-### Network Architecture (Cost Optimized)
+### Terraform Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Staging VPC (10.1.0.0/16)                │
-├─────────────────────────────────────────────────────────────┤
-│  Public Subnets (10.1.0.0/24, 10.1.1.0/24)                 │
-│  └── Internet Gateway (for Lambda responses)                │
-│                                                             │
-│  Private Subnets (10.1.10.0/24, 10.1.11.0/24)              │
-│  └── Lambda functions                                       │
-│  └── VPC Endpoints (instead of NAT):                        │
-│      - com.amazonaws.us-west-2.secretsmanager               │
-│      - com.amazonaws.us-west-2.s3 (gateway)                 │
-│      - com.amazonaws.us-west-2.rds                          │
-│                                                             │
-│  Isolated Subnets (10.1.20.0/24, 10.1.21.0/24)             │
-│  └── Aurora Serverless v2                                   │
-└─────────────────────────────────────────────────────────────┘
+infra/terraform/
+├── main.tf                 # Main infrastructure
+├── variables.tf            # Variable definitions
+├── outputs.tf              # Output values
+├── locals.tf               # Local values
+├── providers.tf            # AWS provider config
+├── backend.tf              # State backend config
+├── envs/
+│   ├── staging.tfvars      # Staging-specific values
+│   └── prod.tfvars         # Production-specific values
+├── modules/
+│   ├── api-gateway/        # API Gateway v2 (HTTP)
+│   ├── cloudfront/         # CloudFront distributions
+│   ├── cognito/            # Cognito user pool
+│   ├── lambda/             # Lambda function
+│   ├── rds/                # RDS PostgreSQL (not yet deployed)
+│   └── s3/                 # S3 buckets
+└── placeholder/
+    └── placeholder.zip     # Initial Lambda placeholder
 ```
 
----
-
-## 4. Deploy Workflow Options
-
-### Option A: GitHub Actions + CDK (Current Pattern Extended)
-
-**Pros:**
-- Minimal change from current setup
-- CDK already written
-- Fast to implement
-
-**Cons:**
-- CDK state in CloudFormation (harder to inspect)
-- Less portable
-- Drift detection is weak
-
-```yaml
-# .github/workflows/deploy-staging.yml
-name: Deploy Staging
-
-on:
-  push:
-    branches: [staging]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment: staging
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: CDK Deploy
-        run: |
-          cd infra
-          npm ci
-          npx cdk deploy --all --require-approval never \
-            -c environment=staging \
-            -c account=${{ secrets.AWS_STAGING_ACCOUNT_ID }}
-```
-
-### Option B: GitHub Actions + Terraform (Recommended Path)
-
-**Pros:**
-- State is inspectable (S3 + DynamoDB)
-- Plan before apply (safe changes)
-- Portable across clouds
-- Better drift detection
-- Industry standard
-
-**Cons:**
-- Need to rewrite infrastructure
-- Learning curve if new to Terraform
-- Two tools during migration (CDK for prod, TF for staging)
-
-**Directory Structure:**
-```
-infra/
-├── cdk/                    # Existing CDK (keep for prod initially)
-│   └── ...
-└── terraform/
-    ├── modules/
-    │   ├── vpc/
-    │   ├── aurora/
-    │   ├── lambda/
-    │   ├── api-gateway/
-    │   ├── cloudfront/
-    │   └── s3/
-    ├── environments/
-    │   ├── staging/
-    │   │   ├── main.tf
-    │   │   ├── variables.tf
-    │   │   ├── terraform.tfvars
-    │   │   └── backend.tf
-    │   └── prod/           # Future
-    │       └── ...
-    └── shared/
-        └── cognito.tf      # Reference to prod Cognito
-```
-
-**Terraform Workflow:**
-```yaml
-# .github/workflows/deploy-staging-terraform.yml
-name: Deploy Staging (Terraform)
-
-on:
-  push:
-    branches: [staging]
-  pull_request:
-    branches: [staging]
-
-jobs:
-  terraform:
-    runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'push' && 'staging' || 'staging-plan' }}
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
-      - name: Terraform Init
-        working-directory: infra/terraform/environments/staging
-        run: terraform init
-
-      - name: Terraform Plan
-        working-directory: infra/terraform/environments/staging
-        run: terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        if: github.event_name == 'push'
-        working-directory: infra/terraform/environments/staging
-        run: terraform apply -auto-approve tfplan
-```
-
-### Option C: Terraform + Atlantis
-
-**Pros:**
-- PR-based workflow with plan comments
-- Locking prevents concurrent applies
-- Audit trail
-
-**Cons:**
-- Need to run Atlantis server
-- Additional complexity
-- Overkill for single developer
-
-### Recommendation: Option B (Terraform + GitHub Actions)
-
-1. **Phase 1**: Build staging with Terraform
-2. **Phase 2**: Validate Terraform modules work
-3. **Phase 3**: Migrate prod from CDK to Terraform
-4. **Phase 4**: Decommission CDK
-
----
-
-## 5. Data Sync Strategy
-
-### Database Sync Script
+### Terraform Commands
 
 ```bash
-#!/bin/bash
-# scripts/sync-prod-to-staging.sh
-# Syncs production database to staging via snapshot
+# Initialize for staging
+cd infra/terraform
+terraform init -backend-config="key=bluemoxon/staging/terraform.tfstate"
 
-set -euo pipefail
+# Plan changes
+terraform plan -var-file=envs/staging.tfvars
 
-PROD_PROFILE="bluemoxon"
-STAGING_PROFILE="bluemoxon-staging"
-PROD_CLUSTER="bluemoxon-aurora-cluster"
-STAGING_CLUSTER="bluemoxon-staging-aurora"
-REGION="us-west-2"
+# Apply changes
+terraform apply -var-file=envs/staging.tfvars
 
-echo "=== BlueMoxon Prod → Staging Sync ==="
-echo "Started: $(date)"
-
-# 1. Create snapshot of prod
-SNAPSHOT_ID="bluemoxon-sync-$(date +%Y%m%d-%H%M%S)"
-echo "Creating snapshot: $SNAPSHOT_ID"
-
-aws rds create-db-cluster-snapshot \
-  --profile "$PROD_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-identifier "$PROD_CLUSTER" \
-  --db-cluster-snapshot-identifier "$SNAPSHOT_ID"
-
-echo "Waiting for snapshot to complete..."
-aws rds wait db-cluster-snapshot-available \
-  --profile "$PROD_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-snapshot-identifier "$SNAPSHOT_ID"
-
-# 2. Share snapshot with staging account
-STAGING_ACCOUNT=$(aws sts get-caller-identity \
-  --profile "$STAGING_PROFILE" \
-  --query 'Account' --output text)
-
-echo "Sharing snapshot with staging account: $STAGING_ACCOUNT"
-aws rds modify-db-cluster-snapshot-attribute \
-  --profile "$PROD_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-snapshot-identifier "$SNAPSHOT_ID" \
-  --attribute-name restore \
-  --values-to-add "$STAGING_ACCOUNT"
-
-# 3. Copy snapshot to staging account
-echo "Copying snapshot to staging account..."
-STAGING_SNAPSHOT="arn:aws:rds:$REGION:$STAGING_ACCOUNT:cluster-snapshot:$SNAPSHOT_ID-copy"
-
-aws rds copy-db-cluster-snapshot \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --source-db-cluster-snapshot-identifier "arn:aws:rds:$REGION:$(aws sts get-caller-identity --profile $PROD_PROFILE --query Account --output text):cluster-snapshot:$SNAPSHOT_ID" \
-  --target-db-cluster-snapshot-identifier "$SNAPSHOT_ID-copy" \
-  --kms-key-id alias/aws/rds
-
-aws rds wait db-cluster-snapshot-available \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-snapshot-identifier "$SNAPSHOT_ID-copy"
-
-# 4. Delete existing staging cluster (if exists)
-echo "Checking for existing staging cluster..."
-if aws rds describe-db-clusters \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-identifier "$STAGING_CLUSTER" &>/dev/null; then
-
-  echo "Deleting existing staging cluster..."
-  # Delete instances first
-  INSTANCES=$(aws rds describe-db-clusters \
-    --profile "$STAGING_PROFILE" \
-    --region "$REGION" \
-    --db-cluster-identifier "$STAGING_CLUSTER" \
-    --query 'DBClusters[0].DBClusterMembers[*].DBInstanceIdentifier' \
-    --output text)
-
-  for instance in $INSTANCES; do
-    aws rds delete-db-instance \
-      --profile "$STAGING_PROFILE" \
-      --region "$REGION" \
-      --db-instance-identifier "$instance" \
-      --skip-final-snapshot
-  done
-
-  # Wait for instances to be deleted
-  for instance in $INSTANCES; do
-    aws rds wait db-instance-deleted \
-      --profile "$STAGING_PROFILE" \
-      --region "$REGION" \
-      --db-instance-identifier "$instance" || true
-  done
-
-  # Delete cluster
-  aws rds delete-db-cluster \
-    --profile "$STAGING_PROFILE" \
-    --region "$REGION" \
-    --db-cluster-identifier "$STAGING_CLUSTER" \
-    --skip-final-snapshot
-
-  aws rds wait db-cluster-deleted \
-    --profile "$STAGING_PROFILE" \
-    --region "$REGION" \
-    --db-cluster-identifier "$STAGING_CLUSTER" || true
-fi
-
-# 5. Restore staging cluster from snapshot
-echo "Restoring staging cluster from snapshot..."
-aws rds restore-db-cluster-from-snapshot \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-identifier "$STAGING_CLUSTER" \
-  --snapshot-identifier "$SNAPSHOT_ID-copy" \
-  --engine aurora-postgresql \
-  --engine-version 15.4 \
-  --db-subnet-group-name bluemoxon-staging-db-subnet \
-  --vpc-security-group-ids sg-staging-aurora \
-  --serverless-v2-scaling-configuration MinCapacity=0.5,MaxCapacity=1
-
-aws rds wait db-cluster-available \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-cluster-identifier "$STAGING_CLUSTER"
-
-# 6. Create instance
-echo "Creating staging instance..."
-aws rds create-db-instance \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-instance-identifier "$STAGING_CLUSTER-instance-1" \
-  --db-cluster-identifier "$STAGING_CLUSTER" \
-  --db-instance-class db.serverless \
-  --engine aurora-postgresql
-
-aws rds wait db-instance-available \
-  --profile "$STAGING_PROFILE" \
-  --region "$REGION" \
-  --db-instance-identifier "$STAGING_CLUSTER-instance-1"
-
-echo "=== Database sync complete ==="
-echo "Finished: $(date)"
+# For production
+terraform init -backend-config="key=bluemoxon/prod/terraform.tfstate"
+terraform plan -var-file=envs/prod.tfvars
 ```
 
-### S3 Image Sync Script
+---
+
+## 5. Deploy Workflow
+
+### GitFlow Branching
+
+```
+main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
+           \     \     \
+staging ────●─────●─────●────→  [Staging: d3rkfi55tpd382.cloudfront.net]
+             \   / \   /
+feature/* ────●     ●────────→  [Feature branches]
+```
+
+### Workflow Triggers
+
+| Branch | Workflow | Deploys To |
+|--------|----------|------------|
+| `main` | Deploy | Production (058264531112) |
+| `staging` | Deploy | Staging (652617421195) |
+| PR to main | CI | N/A (just tests) |
+
+### Environment Configuration (deploy.yml)
+
+The deploy workflow uses a `configure` job to set environment-specific values:
+
+```yaml
+configure:
+  runs-on: ubuntu-latest
+  outputs:
+    environment: ${{ steps.config.outputs.environment }}
+    lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
+    s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
+    # ... more outputs
+  steps:
+    - name: Set environment configuration
+      id: config
+      run: |
+        if [[ "${{ github.ref_name }}" == "main" ]]; then
+          echo "environment=production" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=bluemoxon-api" >> $GITHUB_OUTPUT
+          # ... production values
+        elif [[ "${{ github.ref_name }}" == "staging" ]]; then
+          echo "environment=staging" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=bluemoxon-staging-api" >> $GITHUB_OUTPUT
+          # ... staging values
+        fi
+```
+
+### AWS Role Selection
+
+Secrets cannot be passed through job outputs. The deploy job uses conditional expression:
+
+```yaml
+role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+```
+
+---
+
+## 6. Data Sync Strategy
+
+### Database Sync (Future)
+
+When staging RDS is deployed, use snapshot-based sync:
+
+```bash
+# scripts/sync-prod-to-staging.sh
+# 1. Create snapshot of prod
+# 2. Share snapshot with staging account
+# 3. Copy snapshot to staging
+# 4. Restore staging cluster from snapshot
+```
+
+### S3 Image Sync
 
 ```bash
 #!/bin/bash
 # scripts/sync-s3-prod-to-staging.sh
-# Syncs production S3 images to staging
 
-set -euo pipefail
-
-PROD_PROFILE="bluemoxon"
-STAGING_PROFILE="bluemoxon-staging"
 PROD_BUCKET="bluemoxon-images"
-STAGING_BUCKET="bluemoxon-staging-images"
+STAGING_BUCKET="bluemoxon-images-staging"
 
-echo "=== BlueMoxon S3 Sync: Prod → Staging ==="
-echo "Started: $(date)"
-
-# Sync with delete (mirror exactly)
-aws s3 sync \
-  "s3://$PROD_BUCKET" \
-  "s3://$STAGING_BUCKET" \
-  --profile "$STAGING_PROFILE" \
-  --source-profile "$PROD_PROFILE" \
-  --delete
-
-echo "=== S3 sync complete ==="
-echo "Finished: $(date)"
-```
-
-### Combined Sync Script
-
-```bash
-#!/bin/bash
-# scripts/sync-all-prod-to-staging.sh
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-echo "============================================"
-echo "  BlueMoxon Full Prod → Staging Sync"
-echo "============================================"
-echo ""
-echo "This will:"
-echo "  1. Create a snapshot of prod database"
-echo "  2. Restore it to staging (DESTRUCTIVE)"
-echo "  3. Sync all S3 images"
-echo ""
-read -p "Continue? [y/N] " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-  echo "Aborted."
-  exit 1
-fi
-
-echo ""
-echo "=== Phase 1: Database Sync ==="
-"$SCRIPT_DIR/sync-prod-to-staging.sh"
-
-echo ""
-echo "=== Phase 2: S3 Sync ==="
-"$SCRIPT_DIR/sync-s3-prod-to-staging.sh"
-
-echo ""
-echo "============================================"
-echo "  Sync Complete!"
-echo "============================================"
-echo ""
-echo "Staging is now a replica of production."
-echo "URL: https://staging.app.bluemoxon.com"
+# Sync requires cross-account access or intermediate step
+aws s3 sync "s3://$PROD_BUCKET" "s3://$STAGING_BUCKET" --delete
 ```
 
 ---
 
-## 6. Implementation Phases
+## 7. Implementation Phases
 
-### Phase 1: Foundation (This PR)
-- [ ] Add VERSION file and version system to backend/frontend
-- [ ] Create staging branch
-- [ ] Document AWS account creation steps
-- [ ] Create branch protection rules
+### Phase 1: Foundation ✅ Complete
+- [x] VERSION file and version system
+- [x] Staging branch created
+- [x] Branch protection rules configured
+- [x] AWS account created
 
-### Phase 2: AWS Staging Account
-- [ ] Create AWS account "bluemoxon-staging"
-- [ ] Set up IAM OIDC provider
-- [ ] Create GitHub Actions deploy role
-- [ ] Add GitHub secrets
+### Phase 2: AWS Staging Account ✅ Complete
+- [x] AWS account "bluemoxon-staging" created
+- [x] IAM OIDC provider configured
+- [x] GitHub Actions deploy role created
+- [x] GitHub secrets added
 
-### Phase 3: Terraform Infrastructure
-- [x] Create `infra/terraform/` structure
-- [x] Write VPC module (no NAT, VPC endpoints)
-- [x] Write RDS module (PostgreSQL with CloudWatch logs)
-- [x] Write Lambda module (with X-Ray tracing)
-- [x] Write API Gateway module
-- [x] Write S3 + CloudFront modules
-- [x] Write Cognito module
-- [x] Create staging environment config (staging.tfvars)
-- [ ] Set up Terraform state backend (S3 + DynamoDB) - pending staging account bootstrap
+### Phase 3: Terraform Infrastructure ✅ Complete
+- [x] `infra/terraform/` structure created
+- [x] Lambda module
+- [x] API Gateway module
+- [x] S3 + CloudFront modules
+- [x] Cognito module
+- [x] Staging environment deployed
 
-### Phase 4: CI/CD
-- [x] Create `deploy-staging.yml` workflow
-- [x] Add Terraform plan on PR (via terraform.yml)
-- [ ] Add Terraform apply on merge to staging (pending infra deployment)
-- [x] Update smoke tests for staging
+### Phase 4: CI/CD ✅ Complete
+- [x] Deploy workflow supports staging
+- [x] Environment-specific configuration
+- [x] Smoke tests for staging
 
-### Phase 5: Data Migration
+### Phase 5: Database ⏳ Pending
+- [ ] Deploy RDS module to staging
+- [ ] Configure DATABASE_URL environment variable
+- [ ] Run initial database migration
+- [ ] Test full application flow
+
+### Phase 6: Data Migration ⏳ Pending
+- [ ] Create database sync script
 - [ ] Run initial database sync
-- [ ] Run S3 image sync
-- [ ] Verify staging works end-to-end
+- [ ] Create S3 image sync script
+- [ ] Run S3 sync
 
-### Phase 6: Documentation
-- [ ] Update CLAUDE.md with staging workflow
-- [ ] Document sync procedures
-- [ ] Create staging environment guide
+### Phase 7: DNS & SSL (Optional)
+- [ ] Configure `staging.app.bluemoxon.com` DNS
+- [ ] Add SSL certificate for custom domain
+- [ ] Update CloudFront alternate domain
 
 ### Future: Production Migration
-- [ ] Port Terraform modules to prod
-- [ ] Test with `terraform plan` (no changes expected)
-- [ ] Migrate prod to Terraform
+- [ ] Port Terraform to manage production
+- [ ] Import existing prod resources
 - [ ] Decommission CDK
-
----
-
-## Git Workflow
-
-```
-                    ┌─────────────┐
-                    │   feature/* │
-                    └──────┬──────┘
-                           │ PR
-                           ▼
-┌──────────┐         ┌─────────────┐
-│   prod   │ ◄────── │   staging   │
-│  (main)  │   PR    │  (staging)  │
-└──────────┘         └─────────────┘
-     │                     │
-     ▼                     ▼
-┌──────────┐         ┌─────────────┐
-│ Deploy   │         │ Deploy      │
-│ Prod AWS │         │ Staging AWS │
-└──────────┘         └─────────────┘
-```
-
-**Workflow:**
-1. Create feature branch from `staging`
-2. PR to `staging` → CI runs → merge → auto-deploy staging
-3. Test in staging
-4. PR from `staging` to `main` → CI runs → merge → auto-deploy prod
 
 ---
 
@@ -692,16 +332,39 @@ echo "URL: https://staging.app.bluemoxon.com"
 
 | Resource | Monthly Cost |
 |----------|--------------|
-| Aurora Serverless v2 (0.5 ACU min) | ~$43 |
-| VPC Endpoints (3 endpoints) | ~$22 |
+| Lambda (minimal use) | ~$0 |
+| API Gateway | ~$1 |
 | S3 Storage (~1GB) | ~$0.02 |
 | CloudFront | ~$1 |
-| Route53 | ~$0.50 |
-| Lambda (minimal use) | ~$0 |
-| **Total** | **~$67/month** |
-
-*Note: No NAT Gateway saves $32/month*
+| RDS (when deployed) | ~$15-43 |
+| **Current Total** | **~$2/month** |
+| **With RDS** | **~$20-45/month** |
 
 ---
 
-**Next Steps:** Approve this plan, then I'll start with Phase 1 (version system + staging branch setup).
+## Quick Reference
+
+### URLs
+
+| Environment | URL |
+|-------------|-----|
+| Production App | https://app.bluemoxon.com |
+| Production API | https://api.bluemoxon.com/api/v1 |
+| Staging App | https://d3rkfi55tpd382.cloudfront.net |
+| Staging API | https://ikxdby8a89.execute-api.us-west-2.amazonaws.com |
+
+### Common Commands
+
+```bash
+# Merge main to staging and deploy
+git checkout staging
+git merge origin/main
+git push origin staging
+gh run watch $(gh run list --workflow Deploy --limit 1 --json databaseId -q '.[0].databaseId') --exit-status
+
+# Check staging Lambda logs
+aws logs tail /aws/lambda/bluemoxon-staging-api --follow --profile staging
+
+# Test staging API
+curl https://ikxdby8a89.execute-api.us-west-2.amazonaws.com/health
+```
