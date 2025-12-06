@@ -10,14 +10,20 @@ def get_version() -> str:
     """Get application version from VERSION file.
 
     Looks for VERSION file in:
-    1. Parent of backend directory (repo root)
-    2. Current working directory
-    3. Falls back to "0.0.0-dev"
+    1. Lambda package root (/var/task in Lambda, backend/ locally)
+    2. Repo root (for local dev when running from backend/)
+    3. Current working directory
+    4. Falls back to "0.0.0-dev"
     """
-    # Try repo root (parent of backend/)
-    version_file = Path(__file__).parent.parent.parent / "VERSION"
-    if version_file.exists():
-        return version_file.read_text().strip()
+    # Try Lambda/package root: app/version.py -> app -> /var/task (or backend/)
+    lambda_version = Path(__file__).parent.parent / "VERSION"
+    if lambda_version.exists():
+        return lambda_version.read_text().strip()
+
+    # Try repo root (parent of backend/ for local dev)
+    repo_version = Path(__file__).parent.parent.parent / "VERSION"
+    if repo_version.exists():
+        return repo_version.read_text().strip()
 
     # Try current working directory
     cwd_version = Path.cwd() / "VERSION"

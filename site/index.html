@@ -575,22 +575,250 @@
             text-decoration: none;
         }
 
+        /* Hamburger button */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 28px;
+            height: 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1001;
+        }
+
+        .hamburger span {
+            width: 100%;
+            height: 3px;
+            background: var(--text-primary);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
+            nav {
+                padding: 0.5rem 1rem;
             }
 
-            .name-grid {
-                grid-template-columns: 1fr;
+            nav .logo img {
+                height: 44px;
             }
 
-            .stats-bar {
-                grid-template-columns: repeat(2, 1fr);
+            .hamburger {
+                display: flex;
             }
 
             nav .nav-links {
                 display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(10, 15, 26, 0.98);
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links.active {
+                display: flex;
+            }
+
+            nav .nav-links li {
+                padding: 0.75rem 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links li:last-child {
+                border-bottom: none;
+            }
+
+            nav .nav-links a {
+                font-size: 1rem;
+            }
+
+            .hero {
+                padding: 5rem 1rem 3rem;
+                min-height: auto;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero .tagline {
+                font-size: 1.1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            section {
+                padding: 3rem 1rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.75rem;
+            }
+
+            .section-header p {
+                font-size: 1rem;
+            }
+
+            .name-origin {
+                padding: 1.5rem;
+            }
+
+            .name-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .name-card {
+                padding: 1.25rem;
+            }
+
+            .name-card h3 {
+                font-size: 1.5rem;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+                padding: 1.5rem;
+            }
+
+            .stat-item .value {
+                font-size: 1.75rem;
+            }
+
+            .stat-item .label {
+                font-size: 0.8rem;
+            }
+
+            /* Screenshots grid - single column on mobile */
+            .screenshots-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1.5rem;
+            }
+
+            .screenshot-card img {
+                height: 180px;
+            }
+
+            .screenshot-card .content {
+                padding: 1rem;
+            }
+
+            .screenshot-card h4 {
+                font-size: 1rem;
+            }
+
+            .screenshot-card p {
+                font-size: 0.85rem;
+            }
+
+            /* Tech grid */
+            .tech-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Terminal blocks */
+            .terminal-body {
+                padding: 1rem;
+                font-size: 0.75rem;
+                overflow-x: auto;
+            }
+
+            .terminal-header .title {
+                font-size: 0.7rem;
+            }
+
+            /* Diagrams */
+            .diagram-container {
+                padding: 1rem;
+                overflow-x: auto;
+            }
+
+            .diagram-container h4 {
+                font-size: 0.9rem;
+            }
+
+            /* API Table - horizontal scroll */
+            .api-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .api-table th,
+            .api-table td {
+                padding: 0.75rem;
+                font-size: 0.8rem;
+            }
+
+            /* Footer */
+            footer {
+                padding: 2rem 1rem;
+            }
+
+            footer p {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero .tagline {
+                font-size: 1rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .name-card h3 {
+                font-size: 1.25rem;
+            }
+
+            .stats-bar {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-item .value {
+                font-size: 1.5rem;
+            }
+
+            .terminal-body {
+                font-size: 0.65rem;
             }
         }
     </style>
@@ -602,6 +830,11 @@
             <div class="logo">
                 <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
             </div>
+            <button class="hamburger" aria-label="Toggle menu" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <ul class="nav-links">
                 <li><a href="#about">About</a></li>
                 <li><a href="#features">Features</a></li>
@@ -1238,6 +1471,26 @@ flowchart LR
                 secondaryColor: '#1e293b',
                 tertiaryColor: '#111827'
             }
+        });
+    </script>
+
+    <!-- Hamburger menu toggle -->
+    <script>
+        function toggleMenu() {
+            const hamburger = document.querySelector('.hamburger');
+            const navLinks = document.querySelector('.nav-links');
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        }
+
+        // Close menu when clicking a link
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const hamburger = document.querySelector('.hamburger');
+                const navLinks = document.querySelector('.nav-links');
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
         });
     </script>
 </body>

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.models.api_key import APIKey
 from app.models.user import User
 
 security = HTTPBearer(auto_error=False)
@@ -130,6 +131,28 @@ class CurrentUser:
         return self.role in ("admin", "editor", "viewer")
 
 
+def verify_database_api_key(api_key: str, db: Session) -> APIKey | None:
+    """Verify API key against database-stored keys (SHA-256 hashed)."""
+    if not api_key:
+        return None
+    key_hash = APIKey.hash_key(api_key)
+    db_key = (
+        db.query(APIKey)
+        .filter(
+            APIKey.key_hash == key_hash,
+            APIKey.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if db_key:
+        # Update last_used_at timestamp
+        from datetime import UTC, datetime
+
+        db_key.last_used_at = datetime.now(UTC)
+        db.commit()
+    return db_key
+
+
 async def get_current_user_optional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     x_api_key: Annotated[str | None, Header()] = None,
@@ -140,15 +163,31 @@ async def get_current_user_optional(
 
     logger = logging.getLogger(__name__)
 
-    # Check API key first (for CLI/automation access)
+    # Check static API key first (for backward compatibility)
     if verify_api_key(x_api_key):
-        logger.info("Auth: API key authentication successful")
+        logger.info("Auth: Static API key authentication successful")
         return CurrentUser(
             cognito_sub="api-key-user",
             email="api@localhost",
             role="admin",
             db_user=None,
         )
+
+    # Check database API keys (production keys with hashing)
+    if x_api_key:
+        db_api_key = verify_database_api_key(x_api_key, db)
+        if db_api_key:
+            logger.info(
+                f"Auth: Database API key authentication successful (key: {db_api_key.key_prefix}...)"
+            )
+            # Get the user who created this key to inherit their role
+            creator = db_api_key.created_by
+            return CurrentUser(
+                cognito_sub=f"api-key-{db_api_key.id}",
+                email=creator.email if creator else "api@localhost",
+                role=creator.role if creator else "admin",
+                db_user=creator,
+            )
 
     if credentials is None:
         logger.warning("Auth: No credentials provided")

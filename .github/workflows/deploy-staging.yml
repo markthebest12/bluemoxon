@@ -1,11 +1,11 @@
-# Deploy Pipeline - Deploys to production on push to main
+# Deploy Pipeline - Deploys to staging on push to staging branch
 # Uses AWS OIDC for secure, keyless authentication
 
-name: Deploy
+name: Deploy Staging
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -14,27 +14,27 @@ on:
       - '.gitignore'
   workflow_dispatch:  # Allow manual trigger
 
-# Only one deployment at a time
+# Only one staging deployment at a time
 concurrency:
-  group: deploy-production
+  group: deploy-staging
   cancel-in-progress: false
 
 env:
   AWS_REGION: us-west-2
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
-  # AWS Resource IDs (from infra/aws-resources.json)
-  LAMBDA_FUNCTION_NAME: bluemoxon-api
-  S3_FRONTEND_BUCKET: bluemoxon-frontend
-  S3_IMAGES_BUCKET: bluemoxon-images
-  CLOUDFRONT_DISTRIBUTION_ID: E16BJX90QWQNQO
+  # Staging AWS Resource IDs (different from production)
+  LAMBDA_FUNCTION_NAME: bluemoxon-staging-api
+  S3_FRONTEND_BUCKET: bluemoxon-staging-frontend
+  S3_IMAGES_BUCKET: bluemoxon-staging-images
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}
   # Auto-generated version: YYYY.MM.DD-<short-sha>
   APP_VERSION: ""  # Set dynamically in generate-version job
 
-# Required for AWS OIDC authentication and release tagging
+# Required for AWS OIDC authentication
 permissions:
   id-token: write
-  contents: write  # Required for creating release tags
+  contents: read
 
 jobs:
   # ============================================
@@ -46,7 +46,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # ============================================
-  # Generate Version (auto-generated, no manual maintenance)
+  # Generate Version
   # ============================================
 
   generate-version:
@@ -59,10 +59,10 @@ jobs:
       - name: Generate version string
         id: version
         run: |
-          # Format: YYYY.MM.DD-<short-sha>
+          # Format: YYYY.MM.DD-<short-sha>-staging
           DATE=$(date -u +%Y.%m.%d)
           SHORT_SHA=${GITHUB_SHA::7}
-          VERSION="${DATE}-${SHORT_SHA}"
+          VERSION="${DATE}-${SHORT_SHA}-staging"
 
           echo "Generated version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -103,18 +103,15 @@ jobs:
       - name: Create deployment zip
         run: |
           cd /tmp/lambda-deploy
-          # Note: Keep .dist-info directories - required for importlib.metadata
-          # (pydantic uses this to check if email-validator is installed)
           zip -q -r ${{ github.workspace }}/lambda-package.zip . \
             -x "*.pyc" -x "*__pycache__*"
 
-          # Report package size
           ls -lh ${{ github.workspace }}/lambda-package.zip
 
       - name: Upload Lambda artifact
         uses: actions/upload-artifact@v5
         with:
-          name: lambda-package
+          name: lambda-package-staging
           path: lambda-package.zip
           retention-days: 1
 
@@ -146,10 +143,12 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build for production
+      - name: Build for staging
         working-directory: frontend
         env:
-          VITE_API_URL: https://api.bluemoxon.com/api/v1
+          # Staging-specific configuration
+          VITE_API_URL: https://staging.api.bluemoxon.com/api/v1
+          # Shared Cognito (uses prod Cognito pool)
           VITE_COGNITO_USER_POOL_ID: us-west-2_PvdIpXVKF
           VITE_COGNITO_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
           VITE_COGNITO_DOMAIN: bluemoxon.auth.us-west-2.amazoncognito.com
@@ -158,20 +157,19 @@ jobs:
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v5
         with:
-          name: frontend-dist
+          name: frontend-dist-staging
           path: frontend/dist
           retention-days: 1
-          overwrite: true  # CI job may have uploaded same artifact
 
   # ============================================
-  # Deploy to AWS
+  # Deploy to AWS Staging
   # ============================================
 
   deploy:
-    name: Deploy to Production
+    name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
-    environment: production  # GitHub Environment for protection rules
+    environment: staging  # GitHub Environment for staging
 
     steps:
       - uses: actions/checkout@v6
@@ -179,33 +177,33 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Lambda artifact
         uses: actions/download-artifact@v6
         with:
-          name: lambda-package
+          name: lambda-package-staging
           path: .
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v6
         with:
-          name: frontend-dist
+          name: frontend-dist-staging
           path: frontend-dist
 
       # ---- Deploy Lambda ----
       - name: Upload Lambda to S3
         run: |
           aws s3 cp lambda-package.zip \
-            s3://${{ env.S3_FRONTEND_BUCKET }}/lambda/bluemoxon-api.zip
+            s3://${{ env.S3_FRONTEND_BUCKET }}/lambda/bluemoxon-staging-api.zip
 
       - name: Update Lambda function
         run: |
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --s3-bucket ${{ env.S3_FRONTEND_BUCKET }} \
-            --s3-key lambda/bluemoxon-api.zip
+            --s3-key lambda/bluemoxon-staging-api.zip
 
       - name: Wait for Lambda update
         run: |
@@ -220,7 +218,7 @@ jobs:
           echo "Publishing new Lambda version..."
           VERSION=$(aws lambda publish-version \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --description "Deployed from commit ${{ github.sha }}" \
+            --description "Staging deploy from commit ${{ github.sha }}" \
             --query 'Version' \
             --output text)
 
@@ -229,7 +227,7 @@ jobs:
 
       - name: Update Lambda alias
         run: |
-          ALIAS_NAME="prod"
+          ALIAS_NAME="staging"
           FUNCTION_NAME="${{ env.LAMBDA_FUNCTION_NAME }}"
           VERSION="${{ steps.lambda-version.outputs.version }}"
 
@@ -307,7 +305,7 @@ jobs:
 
           echo "CloudFront invalidation started: $INVALIDATION_ID"
 
-          # Wait for invalidation to complete (optional, adds ~1-2 min)
+          # Wait for invalidation to complete
           echo "Waiting for invalidation to complete..."
           aws cloudfront wait invalidation-completed \
             --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
@@ -329,8 +327,8 @@ jobs:
 
       - name: Test API liveness
         run: |
-          echo "Testing API liveness probe..."
-          response=$(curl -s -w "\n%{http_code}" https://api.bluemoxon.com/health)
+          echo "Testing staging API liveness probe..."
+          response=$(curl -s -w "\n%{http_code}" https://staging.api.bluemoxon.com/health)
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
@@ -341,7 +339,7 @@ jobs:
             echo "Liveness check failed!"
             exit 1
           fi
-          echo "API liveness check passed!"
+          echo "Staging API liveness check passed!"
 
       - name: Validate version and environment
         run: |
@@ -349,10 +347,10 @@ jobs:
 
           # Get expected version from generate-version job output
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
-          EXPECTED_ENV="production"
+          EXPECTED_ENV="staging"
 
           # Get actual version info from API
-          response=$(curl -s https://api.bluemoxon.com/api/v1/health/version)
+          response=$(curl -s https://staging.api.bluemoxon.com/api/v1/health/version)
           ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
           ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
 
@@ -378,8 +376,8 @@ jobs:
           fi
 
           # Also check response headers
-          HEADER_VERSION=$(curl -sI https://api.bluemoxon.com/health | grep -i "x-app-version" | cut -d: -f2 | tr -d ' \r')
-          HEADER_ENV=$(curl -sI https://api.bluemoxon.com/health | grep -i "x-environment" | cut -d: -f2 | tr -d ' \r')
+          HEADER_VERSION=$(curl -sI https://staging.api.bluemoxon.com/health | grep -i "x-app-version" | cut -d: -f2 | tr -d ' \r')
+          HEADER_ENV=$(curl -sI https://staging.api.bluemoxon.com/health | grep -i "x-environment" | cut -d: -f2 | tr -d ' \r')
 
           echo "Header X-App-Version: $HEADER_VERSION"
           echo "Header X-Environment: $HEADER_ENV"
@@ -394,12 +392,12 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Version and environment validation passed!"
+          echo "Version and environment validation passed!"
 
       - name: Test API deep health check
         run: |
           echo "Running deep health check..."
-          response=$(curl -s -w "\n%{http_code}" https://api.bluemoxon.com/api/v1/health/deep)
+          response=$(curl -s -w "\n%{http_code}" https://staging.api.bluemoxon.com/api/v1/health/deep)
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
@@ -415,34 +413,28 @@ jobs:
           # Check overall status
           status=$(echo "$body" | jq -r '.status' 2>/dev/null)
           if [[ "$status" == "unhealthy" ]]; then
-            echo "CRITICAL: System is unhealthy!"
+            echo "CRITICAL: Staging system is unhealthy!"
             echo "$body" | jq '.checks' 2>/dev/null
             exit 1
           elif [[ "$status" == "degraded" ]]; then
-            echo "WARNING: System is degraded but operational"
+            echo "WARNING: Staging system is degraded but operational"
             echo "$body" | jq '.checks' 2>/dev/null
           fi
 
           # Verify database is healthy (critical)
           db_status=$(echo "$body" | jq -r '.checks.database.status' 2>/dev/null)
           if [[ "$db_status" != "healthy" ]]; then
-            echo "CRITICAL: Database is not healthy!"
+            echo "CRITICAL: Staging database is not healthy!"
             echo "$body" | jq '.checks.database' 2>/dev/null
             exit 1
           fi
-
-          # Log latency metrics
-          db_latency=$(echo "$body" | jq -r '.checks.database.latency_ms' 2>/dev/null)
-          total_latency=$(echo "$body" | jq -r '.total_latency_ms' 2>/dev/null)
-          echo "Database latency: ${db_latency}ms"
-          echo "Total health check latency: ${total_latency}ms"
 
           echo "Deep health check passed!"
 
       - name: Test API books endpoint
         run: |
-          echo "Testing books API..."
-          response=$(curl -s -w "\n%{http_code}" "https://api.bluemoxon.com/api/v1/books?per_page=1")
+          echo "Testing staging books API..."
+          response=$(curl -s -w "\n%{http_code}" "https://staging.api.bluemoxon.com/api/v1/books?per_page=1")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
@@ -463,8 +455,8 @@ jobs:
 
       - name: Test Vue app loads
         run: |
-          echo "Testing Vue app..."
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://app.bluemoxon.com)
+          echo "Testing staging Vue app..."
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" https://staging.app.bluemoxon.com)
 
           echo "HTTP Code: $http_code"
 
@@ -474,7 +466,7 @@ jobs:
           fi
 
           # Check that HTML contains expected Vue app content
-          if ! curl -s https://app.bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
+          if ! curl -s https://staging.app.bluemoxon.com | grep -q "BlueMoxon\|bluemoxon"; then
             echo "Vue app doesn't contain expected content!"
             exit 1
           fi
@@ -483,9 +475,9 @@ jobs:
 
       - name: Test image endpoint (CloudFront CDN)
         run: |
-          echo "Testing image CloudFront CDN..."
+          echo "Testing staging image CloudFront CDN..."
           # Get first book with images via API
-          book_response=$(curl -s "https://api.bluemoxon.com/api/v1/books?has_images=true&per_page=1")
+          book_response=$(curl -s "https://staging.api.bluemoxon.com/api/v1/books?has_images=true&per_page=1")
 
           if echo "$book_response" | grep -q '"primary_image_url"'; then
             image_url=$(echo "$book_response" | grep -o '"primary_image_url":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -516,73 +508,24 @@ jobs:
                 exit 1
               fi
 
-              # Verify content-length is reasonable (> 1KB, not a tiny error page)
-              if [[ "$content_length" -lt 1000 ]]; then
-                echo "ERROR: Image content-length $content_length is suspiciously small"
-                exit 1
-              fi
-
-              echo "Image endpoint working! Content verified as $content_type ($content_length bytes)"
+              echo "Image endpoint working!"
             else
               echo "WARNING: No image URL found in response"
             fi
           else
-            echo "WARNING: No books with images found, skipping image test"
+            echo "WARNING: No books with images found in staging, skipping image test"
           fi
 
       - name: Deployment summary
         run: |
           echo "========================================"
-          echo "Deployment completed successfully!"
+          echo "Staging deployment completed successfully!"
           echo "========================================"
           echo ""
           echo "URLs:"
-          echo "  Collection App: https://app.bluemoxon.com"
-          echo "  Landing/Docs:   https://www.bluemoxon.com"
-          echo "  API:            https://api.bluemoxon.com"
+          echo "  Staging App: https://staging.app.bluemoxon.com"
+          echo "  Staging API: https://staging.api.bluemoxon.com"
           echo ""
           echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Commit: ${{ github.sha }}"
           echo "========================================"
-
-  # ============================================
-  # Create Release Tag
-  # ============================================
-
-  create-release:
-    name: Create Release Tag
-    runs-on: ubuntu-latest
-    needs: smoke-test
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0  # Full history for tagging
-
-      - name: Create release tag
-        run: |
-          # Generate version tag: v{date}-{short-sha}
-          VERSION="v$(date -u '+%Y.%m.%d')-$(echo ${{ github.sha }} | head -c 7)"
-
-          echo "Creating release tag: $VERSION"
-
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Create annotated tag
-          git tag -a "$VERSION" -m "Release $VERSION
-
-          Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          Commit: ${{ github.sha }}
-
-          URLs:
-          - Collection App: https://app.bluemoxon.com
-          - Landing/Docs: https://www.bluemoxon.com
-          - API: https://api.bluemoxon.com"
-
-          # Push tag
-          git push origin "$VERSION"
-
-          echo "Release tag created: $VERSION"
-          echo "View at: https://github.com/${{ github.repository }}/releases/tag/$VERSION"

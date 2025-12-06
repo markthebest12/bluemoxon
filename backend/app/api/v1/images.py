@@ -73,7 +73,7 @@ def ensure_images_dir():
     LOCAL_IMAGES_PATH.mkdir(parents=True, exist_ok=True)
 
 
-def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> bool:
+def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> tuple[bool, str]:
     """Generate a thumbnail from an image file.
 
     Args:
@@ -81,10 +81,19 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> bool:
         thumbnail_path: Path where thumbnail should be saved
 
     Returns:
-        True if thumbnail was created successfully, False otherwise
+        Tuple of (success, error_message). error_message is empty on success.
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     try:
+        if not image_path.exists():
+            return False, f"Source not found: {image_path}"
+
         with Image.open(image_path) as img:
+            logger.info(f"Thumbnail: {image_path} mode={img.mode} size={img.size}")
+
             # Apply EXIF orientation to fix sideways images
             img = ImageOps.exif_transpose(img)
 
@@ -95,11 +104,15 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> bool:
             # Create thumbnail maintaining aspect ratio
             img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
 
+            # Ensure parent directory exists
+            thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
+
             # Save as JPEG for consistent format and smaller size
             img.save(thumbnail_path, "JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
-            return True
-    except Exception:
-        return False
+            return True, ""
+    except Exception as e:
+        logger.error(f"Thumbnail failed for {image_path}: {e}")
+        return False, str(e)
 
 
 def get_thumbnail_key(s3_key: str) -> str:
@@ -304,7 +317,7 @@ def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_d
         if not thumbnail_path.exists():
             original_path = LOCAL_IMAGES_PATH / image.s3_key
             if original_path.exists():
-                generate_thumbnail(original_path, thumbnail_path)
+                generate_thumbnail(original_path, thumbnail_path)  # Ignore result
 
         # If thumbnail still doesn't exist, fall back to original
         if not thumbnail_path.exists():
@@ -369,7 +382,7 @@ async def upload_image(
     # Generate thumbnail
     thumbnail_name = get_thumbnail_key(unique_name)
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
-    generate_thumbnail(file_path, thumbnail_path)
+    generate_thumbnail(file_path, thumbnail_path)  # Best effort, ignore errors
 
     # Upload to S3 in production
     if is_production():
@@ -561,6 +574,79 @@ def register_images(
 
     db.commit()
     return {"message": f"Registered {len(created)} images", "s3_keys": created}
+
+
+@router.post("/regenerate-thumbnails")
+def regenerate_thumbnails(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Regenerate thumbnails for all images of a book. Requires editor role.
+
+    Downloads each original image from S3, generates a thumbnail, and uploads it.
+    """
+    if not is_production():
+        raise HTTPException(
+            status_code=400, detail="Thumbnail regeneration only available in production"
+        )
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+    if not images:
+        return {"message": "No images to process", "regenerated": 0}
+
+    s3 = get_s3_client()
+    regenerated = []
+    errors = []
+
+    for img in images:
+        try:
+            # Download original from S3
+            s3_key = f"{S3_IMAGES_PREFIX}{img.s3_key}"
+            local_path = LOCAL_IMAGES_PATH / img.s3_key
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+
+            s3.download_file(settings.images_bucket, s3_key, str(local_path))
+
+            # Generate thumbnail
+            thumbnail_name = get_thumbnail_key(img.s3_key)
+            thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
+
+            success, error_msg = generate_thumbnail(local_path, thumbnail_path)
+            if success:
+                # Upload thumbnail to S3
+                s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
+                s3.upload_file(
+                    str(thumbnail_path),
+                    settings.images_bucket,
+                    s3_thumbnail_key,
+                    ExtraArgs={"ContentType": "image/jpeg"},
+                )
+                regenerated.append(img.s3_key)
+
+                # Clean up local files
+                if local_path.exists():
+                    local_path.unlink()
+                if thumbnail_path.exists():
+                    thumbnail_path.unlink()
+            else:
+                errors.append(f"{img.s3_key}: {error_msg}")
+        except Exception as e:
+            errors.append(f"{img.s3_key}: {e!s}")
+
+    result = {
+        "message": f"Regenerated {len(regenerated)} thumbnails",
+        "regenerated": len(regenerated),
+        "s3_keys": regenerated,
+    }
+    if errors:
+        result["errors"] = errors
+
+    return result
 
 
 # Standalone placeholder endpoint (not book-specific)
