@@ -350,6 +350,35 @@ bluemoxon/
 - **Database**: RDS PostgreSQL
 - **Auth**: Cognito User Pool (separate pools per environment)
 
+## CRITICAL: Lambda Python Version Requirements
+
+**Lambda runtime and build image MUST use the same Python version.**
+
+### Why This Matters
+Packages like `pydantic` contain compiled binary extensions (`pydantic_core._pydantic_core`) that are:
+- Python-version-specific (e.g., compiled for Python 3.12 won't work on 3.11)
+- Platform-specific (must be built on Linux x86_64 for Lambda)
+
+### Current Configuration
+| Component | Python Version | Source |
+|-----------|---------------|--------|
+| Lambda Runtime | Python 3.12 | Terraform `lambda` module |
+| Deploy Build Image | `public.ecr.aws/lambda/python:3.12` | `deploy.yml`, `deploy-staging.yml` |
+| CI Tests | Python 3.11 | `ci.yml` (doesn't need to match) |
+
+### When Changing Python Versions
+1. Update Lambda runtime in Terraform: `infra/terraform/modules/lambda/main.tf`
+2. Update deploy build image in **BOTH** workflows:
+   - `.github/workflows/deploy.yml`
+   - `.github/workflows/deploy-staging.yml`
+3. Deploy staging first to validate
+4. Update CI Python version if needed (optional, for consistency)
+
+### Symptoms of Version Mismatch
+```
+[ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'pydantic_core._pydantic_core'
+```
+
 ## CRITICAL: Infrastructure as Code (Terraform)
 
 **ALL infrastructure MUST be managed via Terraform.** No manual AWS console changes.
