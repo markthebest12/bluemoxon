@@ -24,6 +24,7 @@ from typing import Any
 import boto3
 import psycopg2
 from psycopg2 import sql
+from psycopg2.extras import Json
 
 # Configure logging
 logger = logging.getLogger()
@@ -76,6 +77,21 @@ def get_table_columns(conn, table: str) -> list[str]:
         return [row[0] for row in cur.fetchall()]
 
 
+def adapt_row_for_insert(row: tuple) -> tuple:
+    """Convert Python dicts/lists in row to Json for psycopg2 insertion."""
+    adapted = []
+    for value in row:
+        if isinstance(value, dict):
+            # JSONB columns come back as dict, wrap for reinsertion
+            adapted.append(Json(value))
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            # Array of JSON objects
+            adapted.append(Json(value))
+        else:
+            adapted.append(value)
+    return tuple(adapted)
+
+
 def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> int:
     """Copy data from production table to staging table."""
     # Get data from production
@@ -88,6 +104,9 @@ def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> 
     if not rows:
         return 0
 
+    # Adapt rows to handle JSONB columns (dicts need to be wrapped in Json())
+    adapted_rows = [adapt_row_for_insert(row) for row in rows]
+
     # Insert into staging
     with staging_conn.cursor() as staging_cur:
         placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in columns)
@@ -96,27 +115,30 @@ def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> 
             sql.Identifier(table), column_list, placeholders
         )
 
-        staging_cur.executemany(insert_query, rows)
+        staging_cur.executemany(insert_query, adapted_rows)
         staging_conn.commit()
 
     return len(rows)
 
 
 def get_table_ddl(conn, table: str) -> str:
-    """Get CREATE TABLE DDL for a table from information_schema."""
+    """Get CREATE TABLE DDL for a table using pg_catalog for accurate types."""
     with conn.cursor() as cur:
-        # Get columns with their types
+        # Use pg_catalog with format_type() for accurate type names
+        # This properly handles ARRAY, JSONB, TSVECTOR, etc.
         cur.execute(
             """
             SELECT
-                column_name,
-                data_type,
-                character_maximum_length,
-                is_nullable,
-                column_default
-            FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = %s
-            ORDER BY ordinal_position
+                a.attname as column_name,
+                format_type(a.atttypid, a.atttypmod) as data_type,
+                a.attnotnull as not_null,
+                pg_get_expr(d.adbin, d.adrelid) as column_default
+            FROM pg_attribute a
+            LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+            WHERE a.attrelid = %s::regclass
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            ORDER BY a.attnum
         """,
             (table,),
         )
@@ -127,11 +149,9 @@ def get_table_ddl(conn, table: str) -> str:
 
         # Build column definitions
         col_defs = []
-        for col_name, data_type, max_len, nullable, default in columns:
+        for col_name, data_type, not_null, default in columns:
             col_def = f'"{col_name}" {data_type}'
-            if max_len:
-                col_def += f"({max_len})"
-            if nullable == "NO":
+            if not_null:
                 col_def += " NOT NULL"
             if default and "nextval" not in str(default):  # Skip sequence defaults
                 col_def += f" DEFAULT {default}"
@@ -194,6 +214,39 @@ def ensure_table_exists(prod_conn, staging_conn, table: str) -> bool:
         return False
 
 
+def validate_sync(prod_conn, staging_conn, results: dict) -> dict:
+    """Validate that staging matches production after sync."""
+    validation = {"passed": True, "issues": []}
+
+    prod_tables = set(get_tables(prod_conn))
+    staging_tables = set(get_tables(staging_conn))
+
+    # Check for missing tables
+    missing = prod_tables - staging_tables
+    if missing:
+        validation["passed"] = False
+        validation["issues"].append(f"Missing tables in staging: {sorted(missing)}")
+
+    # Verify row counts for synced tables
+    synced_table_names = {t["table"] for t in results["tables_synced"]}
+    for table in synced_table_names:
+        with prod_conn.cursor() as cur:
+            cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
+            prod_count = cur.fetchone()[0]
+
+        with staging_conn.cursor() as cur:
+            cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
+            staging_count = cur.fetchone()[0]
+
+        if prod_count != staging_count:
+            validation["passed"] = False
+            validation["issues"].append(
+                f"Row count mismatch for {table}: prod={prod_count}, staging={staging_count}"
+            )
+
+    return validation
+
+
 def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool = True) -> dict:
     """
     Sync all tables from production to staging.
@@ -205,13 +258,15 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
        - Create table in staging if it doesn't exist (when create_tables=True)
        - Truncate staging table
        - Copy all data from prod to staging
-    4. Report results
+    4. Validate sync results
+    5. Report results
     """
     results = {
         "tables_synced": [],
         "tables_failed": [],
         "tables_created": [],
         "total_rows": 0,
+        "validation": None,
     }
 
     prod_conn = None
@@ -281,6 +336,14 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
             cur.execute("SET session_replication_role = 'origin';")
             staging_conn.commit()
 
+        # Validate sync results
+        logger.info("Validating sync results...")
+        results["validation"] = validate_sync(prod_conn, staging_conn, results)
+        if results["validation"]["passed"]:
+            logger.info("Validation passed!")
+        else:
+            logger.warning(f"Validation issues: {results['validation']['issues']}")
+
     finally:
         if prod_conn:
             prod_conn.close()
@@ -348,11 +411,26 @@ def handler(event: dict, context: Any) -> dict:
 
         logger.info(f"Sync complete: {json.dumps(results)}")
 
+        # Determine status based on failures and validation
+        has_failures = len(results["tables_failed"]) > 0
+        validation_failed = results.get("validation", {}).get("passed") is False
+
+        if has_failures or validation_failed:
+            return {
+                "statusCode": 500,
+                "body": json.dumps(
+                    {
+                        "error": "Database sync completed with failures",
+                        "results": results,
+                    }
+                ),
+            }
+
         return {
             "statusCode": 200,
             "body": json.dumps(
                 {
-                    "message": "Database sync completed",
+                    "message": "Database sync completed successfully",
                     "results": results,
                 }
             ),

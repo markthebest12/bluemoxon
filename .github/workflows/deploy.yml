@@ -82,11 +82,12 @@ jobs:
             echo "lambda_function_name=bluemoxon-staging-api" >> $GITHUB_OUTPUT
             echo "s3_frontend_bucket=bluemoxon-frontend-staging" >> $GITHUB_OUTPUT
             echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
-            echo "api_url=https://ikxdby8a89.execute-api.us-west-2.amazonaws.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://d3rkfi55tpd382.cloudfront.net" >> $GITHUB_OUTPUT
-            echo "cognito_user_pool_id=us-west-2_5pOhFH6LN" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=30cjt0d9rt1bf1baukbsvm3o" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon-staging.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            echo "api_url=https://staging.api.bluemoxon.com/api/v1" >> $GITHUB_OUTPUT
+            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
+            # Staging shares prod Cognito for user authentication
+            echo "cognito_user_pool_id=us-west-2_PvdIpXVKF" >> $GITHUB_OUTPUT
+            echo "cognito_client_id=3ndaok3psd2ncqfjrdb57825he" >> $GITHUB_OUTPUT
+            echo "cognito_domain=bluemoxon.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
