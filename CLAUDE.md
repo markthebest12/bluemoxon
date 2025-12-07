@@ -362,6 +362,69 @@ If you MUST make a manual change (emergency fix):
 2. Create a follow-up task to add it to Terraform
 3. Add a comment in the relevant Terraform file noting the drift
 
+## CRITICAL: Terraform Style Requirements
+
+**STRICTLY follow HashiCorp's official guidelines:**
+- Style Guide: https://developer.hashicorp.com/terraform/language/style
+- Module Pattern: https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation
+
+### File Organization (REQUIRED)
+```
+modules/<module-name>/
+├── main.tf          # Resources and data sources
+├── variables.tf     # Input variables (ALPHABETICAL order)
+├── outputs.tf       # Output values (ALPHABETICAL order)
+├── versions.tf      # Provider version constraints (if needed)
+└── README.md        # Module documentation
+```
+
+### Variable Definitions (REQUIRED for ALL variables)
+```hcl
+variable "example_name" {
+  type        = string
+  description = "Human-readable description of what this variable controls"
+  default     = "sensible-default"  # Optional variables MUST have defaults
+
+  validation {  # Add validation where appropriate
+    condition     = length(var.example_name) > 0
+    error_message = "Example name cannot be empty."
+  }
+}
+```
+
+### Naming Conventions
+- **Resources**: Use descriptive nouns, underscore-separated: `aws_lambda_function`, NOT `aws-lambda-function`
+- **Variables**: Underscore-separated, descriptive: `db_instance_class`, NOT `dbInstanceClass`
+- **Do NOT include resource type in name**: `name = "api"`, NOT `name = "lambda-api"`
+
+### Resource Organization Order
+1. `count` or `for_each` meta-arguments
+2. Resource-specific non-block parameters
+3. Resource-specific block parameters
+4. `lifecycle` blocks (if needed)
+5. `depends_on` (if required)
+
+### Module Design Principles
+1. **Single Purpose**: Each module does ONE thing well
+2. **80% Use Case**: Design for common cases, avoid edge case complexity
+3. **Expose Common Args**: Only expose frequently-modified arguments
+4. **Output Everything**: Export all useful values even if not immediately needed
+5. **Sensible Defaults**: Required inputs have no default; optional inputs have good defaults
+
+### Before Committing ANY Terraform Changes
+```bash
+cd infra/terraform
+terraform fmt -recursive      # Format all files
+terraform validate            # Validate syntax
+terraform plan -var-file=envs/staging.tfvars  # Review changes
+```
+
+### Environment Separation (CRITICAL for Prod/Staging)
+- Use `envs/staging.tfvars` and `envs/prod.tfvars` for environment-specific values
+- NEVER hardcode environment-specific values in modules
+- Use variables with environment passed from tfvars
+- State files are separate: `bluemoxon/staging/terraform.tfstate` vs `bluemoxon/prod/terraform.tfstate`
+
 ## Troubleshooting: Deep Health Check Failures
 
 **ALWAYS check `/api/v1/health/deep` first when debugging API issues.** This endpoint validates all dependencies.
