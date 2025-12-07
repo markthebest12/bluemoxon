@@ -14,15 +14,19 @@ settings = get_settings()
 
 def get_database_url() -> str:
     """Get database URL, fetching from Secrets Manager if in AWS."""
-    if settings.database_secret_arn:
+    secret_id = settings.database_secret_arn or settings.database_secret_name
+    if secret_id:
         # Fetch credentials from Secrets Manager
         client = boto3.client("secretsmanager", region_name=settings.aws_region)
-        response = client.get_secret_value(SecretId=settings.database_secret_arn)
+        response = client.get_secret_value(SecretId=secret_id)
         secret = json.loads(response["SecretString"])
+
+        # Support both 'dbname' and 'database' key names
+        db_name = secret.get("dbname") or secret.get("database", "bluemoxon")
 
         return (
             f"postgresql://{secret['username']}:{secret['password']}"
-            f"@{secret['host']}:{secret['port']}/{secret['dbname']}"
+            f"@{secret['host']}:{secret['port']}/{db_name}"
         )
 
     return settings.database_url

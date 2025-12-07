@@ -8,8 +8,14 @@ aws_region     = "us-west-2"
 
 # Domain configuration
 domain_name   = "bluemoxon.com"
-api_subdomain = "staging-api"
-app_subdomain = "staging"
+api_subdomain = "staging.api"
+app_subdomain = "staging.app"
+
+# Custom domain ACM certificates (created manually, to be imported)
+# CloudFront requires us-east-1 certificate
+frontend_acm_cert_arn = "arn:aws:acm:us-east-1:652617421195:certificate/cc72c0b6-da3d-4ffa-8a9d-faffeb52283f"
+# API Gateway uses regional certificate (us-west-2)
+api_acm_cert_arn = "arn:aws:acm:us-west-2:652617421195:certificate/2de326a8-d05e-4a54-8115-acb4e8eacc85"
 
 # Lambda - smaller for staging, scales to zero when idle
 lambda_memory_size             = 256

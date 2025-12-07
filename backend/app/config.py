@@ -20,7 +20,8 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql://postgres:postgres@localhost:5432/bluemoxon"
-    database_secret_arn: str | None = None
+    database_secret_arn: str | None = None  # Legacy name
+    database_secret_name: str | None = None  # Also accept NAME variant
 
     # AWS
     aws_region: str = "us-east-1"
