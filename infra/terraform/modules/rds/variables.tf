@@ -80,7 +80,7 @@ variable "enabled_cloudwatch_logs_exports" {
 variable "engine_version" {
   type        = string
   description = "PostgreSQL engine version"
-  default     = "16.3"
+  default     = "16.6"
 }
 
 variable "instance_class" {
