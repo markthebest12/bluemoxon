@@ -313,7 +313,54 @@ bluemoxon/
 - **Frontend**: S3 `bluemoxon-frontend` + CloudFront
 - **Images**: S3 `bluemoxon-images` + CloudFront CDN
 - **Database**: RDS PostgreSQL
-- **Auth**: Cognito User Pool
+- **Auth**: Cognito User Pool (separate pools per environment)
+
+## CRITICAL: Infrastructure as Code (Terraform)
+
+**ALL infrastructure MUST be managed via Terraform.** No manual AWS console changes.
+
+### Why This Matters
+- Manual changes create drift that's impossible to track
+- Manual changes get lost when resources are recreated
+- Other team members don't know about manual changes
+- Rollbacks become impossible
+- Staging/prod parity breaks
+
+### The Rule
+1. **NEVER** create/modify AWS resources manually (console or CLI)
+2. **ALWAYS** add infrastructure changes to `infra/terraform/`
+3. **DOCUMENT** any temporary manual fixes immediately in docs and create a ticket to terraformize
+
+### Workflow for Infrastructure Changes
+```bash
+cd infra/terraform
+
+# 1. Make changes to .tf files
+# 2. Plan (always review!)
+terraform plan -var-file=envs/staging.tfvars
+
+# 3. Apply
+terraform apply -var-file=envs/staging.tfvars
+
+# 4. Commit the .tf changes
+git add . && git commit -m "infra: Add/change X resource"
+```
+
+### Import Existing Resources
+If a resource was created manually, import it before making changes:
+```bash
+terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
+```
+
+### Current State
+- **Staging:** Terraform state in `s3://bluemoxon-terraform-state-staging`
+- **Prod:** Migration in progress (see `docs/PROD_MIGRATION_CHECKLIST.md`)
+
+### Exception Process
+If you MUST make a manual change (emergency fix):
+1. Document it immediately in the PR/commit
+2. Create a follow-up task to add it to Terraform
+3. Add a comment in the relevant Terraform file noting the drift
 
 ## Troubleshooting: Deep Health Check Failures
 
