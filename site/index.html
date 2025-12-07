@@ -1403,7 +1403,7 @@ graph TB
     end
     subgraph App["Application Layer"]
         APIGW[API Gateway]
-        Lambda[Lambda<br/>Python 3.11]
+        Lambda[Lambda<br/>Python 3.x]
     end
     subgraph Data["Data Layer"]
         Aurora[(Aurora PostgreSQL<br/>Serverless v2)]
@@ -1447,7 +1447,7 @@ graph TB
                 <h4>Backend</h4>
                 <ul>
                     <li><strong>FastAPI</strong> - Async REST API</li>
-                    <li><strong>Python 3.11</strong> - Runtime</li>
+                    <li><strong>Python 3.x</strong> - Runtime</li>
                     <li><strong>SQLAlchemy 2.0</strong> - Async ORM</li>
                     <li><strong>Pydantic v2</strong> - Validation</li>
                     <li><strong>Alembic</strong> - Migrations</li>
@@ -1460,7 +1460,7 @@ graph TB
                     <li><strong>Aurora Serverless v2</strong> - Auto-scaling DB</li>
                     <li><strong>CloudFront</strong> - Global CDN</li>
                     <li><strong>Cognito</strong> - Authentication</li>
-                    <li><strong>AWS CDK</strong> - Infrastructure as code</li>
+                    <li><strong>Terraform</strong> - Infrastructure as code</li>
                 </ul>
             </div>
             <div class="tech-card">
@@ -1701,7 +1701,7 @@ flowchart LR
     <!-- Footer -->
     <footer>
         <p>
-            Built with Vue 3, FastAPI, Aurora PostgreSQL, and AWS CDK<br>
+            Built with Vue 3, FastAPI, Aurora PostgreSQL, and Terraform<br>
             <a href="https://www.bluemoxon.com">www.bluemoxon.com</a>
         </p>
         <p style="margin-top: 1rem;">
