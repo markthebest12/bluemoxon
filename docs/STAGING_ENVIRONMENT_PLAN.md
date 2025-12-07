@@ -197,7 +197,7 @@ Add to repository secrets:
 |-----------|------------|---------|-------------|
 | Aurora Serverless v2 | 0.5-4 ACU | 0.5-1 ACU | ~$43/mo min |
 | Lambda | On-demand | On-demand | Pay per use |
-| NAT Gateway | Yes ($32/mo) | **No** (VPC endpoints) | -$32/mo |
+| NAT Gateway | Yes ($32/mo) | **Yes** (required for Cognito) | $0 |
 | CloudFront | Standard | Standard | Minimal |
 | S3 | Standard | Standard | Pay per use |
 | Cognito | Prod pool | **Separate pool** | $0 (free tier) |
@@ -278,26 +278,38 @@ terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_5p
 terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon-staging
 ```
 
-### Network Architecture (Cost Optimized)
+### Network Architecture
+
+> **IMPORTANT LESSON LEARNED:** Do NOT create a Cognito VPC endpoint when using Managed Login.
+> Cognito PrivateLink is incompatible with Managed Login domains - causes "PrivateLink access disabled" errors.
+> Lambda must use NAT Gateway for outbound internet access to reach Cognito APIs.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Staging VPC (10.1.0.0/16)                │
+│                    Staging VPC (Default VPC)                │
 ├─────────────────────────────────────────────────────────────┤
-│  Public Subnets (10.1.0.0/24, 10.1.1.0/24)                 │
-│  └── Internet Gateway (for Lambda responses)                │
+│  Public Subnet (e.g., us-west-2a)                          │
+│  └── Internet Gateway                                       │
+│  └── NAT Gateway (REQUIRED for Cognito access)              │
 │                                                             │
-│  Private Subnets (10.1.10.0/24, 10.1.11.0/24)              │
+│  Private Subnets (us-west-2b, 2c, 2d)                       │
 │  └── Lambda functions                                       │
-│  └── VPC Endpoints (instead of NAT):                        │
+│  └── Route: 0.0.0.0/0 → NAT Gateway                        │
+│  └── VPC Endpoints (for AWS services):                      │
 │      - com.amazonaws.us-west-2.secretsmanager               │
 │      - com.amazonaws.us-west-2.s3 (gateway)                 │
-│      - com.amazonaws.us-west-2.rds                          │
+│      - ⚠️ NO Cognito endpoint (incompatible with Managed Login) │
 │                                                             │
-│  Isolated Subnets (10.1.20.0/24, 10.1.21.0/24)             │
+│  Database Subnets                                           │
 │  └── Aurora Serverless v2                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Key Networking Rules:**
+1. NAT Gateway must be in a **public subnet** (one with IGW route)
+2. Lambda must be in **private subnets only** (not the NAT Gateway's subnet)
+3. Private route table routes `0.0.0.0/0` → NAT Gateway
+4. Do NOT put NAT Gateway's subnet in the private route table (creates routing loop)
 
 ---
 
@@ -705,14 +717,15 @@ echo "URL: https://staging.app.bluemoxon.com"
 - [x] Update smoke tests for staging
 
 ### Phase 5: Data Migration
-- [ ] Run initial database sync
-- [ ] Run S3 image sync
-- [ ] Verify staging works end-to-end
+- [x] Run initial database sync
+- [x] Run S3 image sync
+- [x] Verify staging works end-to-end
 
 ### Phase 6: Documentation
-- [ ] Update CLAUDE.md with staging workflow
-- [ ] Document sync procedures
-- [ ] Create staging environment guide
+- [ ] Update CLAUDE.md with staging workflow (see issue #83)
+- [x] Document sync procedures
+- [x] Create staging environment guide
+- [x] Document manual infrastructure fixes (see `STAGING_INFRASTRUCTURE_CHANGES.md`)
 
 ### Future: Production Migration
 - [ ] Port Terraform modules to prod
@@ -755,14 +768,14 @@ echo "URL: https://staging.app.bluemoxon.com"
 | Resource | Monthly Cost |
 |----------|--------------|
 | Aurora Serverless v2 (0.5 ACU min) | ~$43 |
-| VPC Endpoints (3 endpoints) | ~$22 |
+| NAT Gateway (required for Cognito) | ~$32 |
 | S3 Storage (~1GB) | ~$0.02 |
 | CloudFront | ~$1 |
 | Route53 | ~$0.50 |
 | Lambda (minimal use) | ~$0 |
-| **Total** | **~$67/month** |
+| **Total** | **~$77/month** |
 
-*Note: No NAT Gateway saves $32/month*
+*Note: NAT Gateway required - Cognito VPC endpoint incompatible with Managed Login*
 
 ---
 
