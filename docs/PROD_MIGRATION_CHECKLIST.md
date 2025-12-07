@@ -8,6 +8,25 @@ This checklist documents the steps needed to migrate production infrastructure t
 - [ ] GitHub OIDC configured for prod deploys (#102)
 - [ ] Backup of current production state documented
 
+### Resource Backups
+
+Before importing any resource, back it up:
+
+```bash
+mkdir -p .tmp/prod-backup
+
+# Cognito
+aws cognito-idp describe-user-pool --user-pool-id us-west-2_PvdIpXVKF > .tmp/prod-backup/cognito-user-pool.json
+aws cognito-idp describe-user-pool-client --user-pool-id us-west-2_PvdIpXVKF --client-id 3ndaok3psd2ncqfjrdb57825he > .tmp/prod-backup/cognito-client.json
+aws cognito-idp list-users --user-pool-id us-west-2_PvdIpXVKF > .tmp/prod-backup/cognito-users.json
+
+# Lambda
+aws lambda get-function --function-name bluemoxon-api > .tmp/prod-backup/lambda-api.json
+
+# API Gateway
+aws apigatewayv2 get-api --api-id <API_ID> > .tmp/prod-backup/api-gateway.json
+```
+
 ## Phase 1: State Backend (#106)
 
 ```bash
@@ -57,13 +76,47 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 
 ### 2.3 Cognito (#110)
 
+**Current State:**
+| Environment | Account | User Pool ID | Client ID | Users |
+|-------------|---------|--------------|-----------|-------|
+| **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | 7 users |
+| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | 0 users |
+
+**Goal:** Staging uses prod Cognito for authentication (shared users), managed by Terraform.
+
 ```bash
 # Import user pool
 terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_PvdIpXVKF
 
 # Import app client
-terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_PvdIpXVKF/<CLIENT_ID>
+terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_PvdIpXVKF/3ndaok3psd2ncqfjrdb57825he
+
+# Import domain
+terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ```
+
+**Staging configuration (already done in `.github/workflows/deploy.yml`):**
+- Staging deploys use prod Cognito IDs (shared authentication)
+- Frontend builds with prod Cognito config baked in
+- Staging Lambda env vars updated via deploy workflow
+
+**Callback URLs (managed manually until Terraform import):**
+
+Already configured in prod Cognito client:
+- `http://localhost:5173/callback`
+- `https://bluemoxon.com/callback`
+- `https://www.bluemoxon.com/callback`
+- `https://staging.app.bluemoxon.com/callback`
+
+Logout URLs:
+- `http://localhost:5173`
+- `https://bluemoxon.com`
+- `https://www.bluemoxon.com`
+- `https://staging.app.bluemoxon.com`
+
+**Post-import:** Update Terraform variables to include all callback/logout URLs.
+
+**Cleanup:** After staging verified, remove staging Cognito pool (`us-west-2_5pOhFH6LN` in account 652617421195).
 
 ### 2.4 Lambda & API Gateway (#107)
 

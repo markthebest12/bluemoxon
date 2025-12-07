@@ -1,5 +1,66 @@
 # BlueMoxon (bmx) Project Instructions
 
+## Bash Command Formatting
+
+**Avoid complex shell syntax in bash commands.** The permission system has issues matching patterns with:
+- `#` comment lines
+- `\` backslash continuations
+- `$(...)` command substitution
+- `|` pipes combined with `||` or complex expressions
+
+```bash
+# BAD - comment line:
+# Check API health
+curl -s https://api.example.com/health
+
+# BAD - multi-line with backslash:
+aws lambda get-function-configuration \
+  --function-name my-function
+
+# BAD - complex with subshell + pipes + ||:
+AWS_PROFILE=staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events' || echo "none"
+
+# GOOD - simple single commands:
+curl -s https://api.example.com/health
+aws lambda get-function-configuration --function-name my-function --query 'Environment'
+AWS_PROFILE=staging aws sts get-caller-identity
+```
+
+Use the command description field instead of inline comments. For complex pipelines, consider breaking into separate commands or accept manual approval.
+
+## Permission Pattern Guidelines
+
+When adding patterns to `~/.claude/settings.json`:
+
+1. **Use absolute paths, not `~`** - Pattern matching doesn't expand tilde
+   - BAD: `Bash(cat ~/.aws/config:*)`
+   - GOOD: `Bash(cat /Users/mark/.aws/config:*)`
+
+2. **`VAR=:*` patterns don't work** - Must include part of the value
+   - BAD: `Bash(AWS_PROFILE=:*)`
+   - GOOD: `Bash(AWS_PROFILE=staging:*)`, `Bash(AWS_PROFILE=prod:*)`
+
+3. **Patterns with `#` don't work reliably** - Avoid comment prefixes in commands
+
+4. **Sessions must restart to pick up permission changes** - Use `Ctrl-D` then `claude -r`
+
+5. **Permission hierarchy** (later overrides earlier):
+   - `~/.claude/settings.json` (global)
+   - `<project>/.claude/settings.json` (project/team)
+   - `<project>/.claude/settings.local.json` (project/personal)
+
+6. **MCP tools support wildcards**: `mcp__playwright__*` covers all playwright tools
+
+7. **Deny rules take precedence** over allow rules
+
+8. **"Don't ask again" writes to local project file**, not global - clean up local files periodically and consolidate to global
+
+9. **Pattern format**: `Bash(command:*)` - the `:*` suffix means "starts with this prefix"
+
+10. **For new commands**, add to global `~/.claude/settings.json` not project-local files
+
+---
+
 ## CRITICAL: CI/CD Workflow Requirements
 
 **NEVER push directly to main.** All changes MUST go through the CI/CD pipeline:
