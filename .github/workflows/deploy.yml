@@ -200,7 +200,7 @@ jobs:
         env:
           VITE_API_URL: ${{ needs.configure.outputs.api_url }}
           VITE_COGNITO_USER_POOL_ID: ${{ needs.configure.outputs.cognito_user_pool_id }}
-          VITE_COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
+          VITE_COGNITO_APP_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
           VITE_COGNITO_DOMAIN: ${{ needs.configure.outputs.cognito_domain }}
         run: npm run build
 

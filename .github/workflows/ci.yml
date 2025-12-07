@@ -380,7 +380,7 @@ jobs:
         env:
           VITE_API_URL: https://api.bluemoxon.com/api/v1
           VITE_COGNITO_USER_POOL_ID: us-west-2_PvdIpXVKF
-          VITE_COGNITO_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
+          VITE_COGNITO_APP_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
           VITE_COGNITO_DOMAIN: bluemoxon.auth.us-west-2.amazoncognito.com
         run: npm run build
 
