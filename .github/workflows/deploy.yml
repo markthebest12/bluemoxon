@@ -620,25 +620,34 @@ jobs:
           book_response=$(curl -s "${API_BASE}/api/v1/books?has_images=true&per_page=1")
           total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
 
-          echo "Books with images: $total_with_images"
+          echo "Books with images in database: $total_with_images"
 
           if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
-            if [[ "$ENV" == "staging" ]]; then
-              echo "INFO: No books with images in staging - this is expected"
-              echo "Staging uses a separate images bucket that may be empty"
-              echo "Image test skipped for staging"
-              exit 0
-            else
-              echo "WARNING: No books with images found in production"
-              # Don't fail production, but log warning
-            fi
+            echo "INFO: No books with images found"
+            exit 0
           fi
 
           if echo "$book_response" | grep -q '"primary_image_url"'; then
-            image_url=$(echo "$book_response" | grep -o '"primary_image_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+            image_url=$(echo "$book_response" | jq -r '.items[0].primary_image_url' 2>/dev/null)
+
+            echo "Primary image URL: $image_url"
+
+            # Check if URL is relative (starts with /) - means no CDN configured or images not synced
+            if [[ "$image_url" == /* ]]; then
+              if [[ "$ENV" == "staging" ]]; then
+                echo "INFO: Staging returns relative image URLs (no CDN images synced yet)"
+                echo "This is expected - staging uses prod database but separate S3 bucket"
+                echo "Image CDN test skipped for staging"
+                exit 0
+              else
+                echo "WARNING: Production returning relative image URLs instead of CDN URLs"
+                # Continue to test via API path
+                image_url="${API_BASE}${image_url}"
+              fi
+            fi
 
             if [[ -n "$image_url" && "$image_url" != "null" ]]; then
-              echo "Testing image URL: $image_url"
+              echo "Testing full image URL: $image_url"
 
               # Get headers and body info
               response=$(curl -sI -L "$image_url")
