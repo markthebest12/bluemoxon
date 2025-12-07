@@ -390,9 +390,8 @@ jobs:
             echo "api_base=https://api.bluemoxon.com" >> $GITHUB_OUTPUT
             echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
           else
-            # Staging uses API Gateway URL directly (no custom domain yet)
-            echo "api_base=${{ needs.configure.outputs.api_url }}" >> $GITHUB_OUTPUT
-            echo "app_url=${{ needs.configure.outputs.app_url }}" >> $GITHUB_OUTPUT
+            echo "api_base=https://staging.api.bluemoxon.com" >> $GITHUB_OUTPUT
+            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
           fi
 
       - name: Test API liveness
