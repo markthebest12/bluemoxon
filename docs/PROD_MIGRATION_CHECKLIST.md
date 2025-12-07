@@ -312,3 +312,62 @@ If anything goes wrong:
 - [ ] Verify CI/CD deploys work
 - [ ] Update documentation
 - [ ] Train team on Terraform workflow
+
+## Centralized Configuration (infra/config/*.json)
+
+Environment-specific configuration is centralized in JSON files at `infra/config/`:
+
+| File | Purpose |
+|------|---------|
+| `staging.json` | All staging environment values |
+| `production.json` | All production environment values |
+
+### Configuration Structure
+
+```json
+{
+  "environment": "staging",
+  "aws_account_id": "652617421195",
+  "aws_region": "us-west-2",
+  "domain": { "base": "...", "app": "...", "api": "..." },
+  "urls": { "app": "...", "api": "..." },
+  "cognito": { "user_pool_id": "...", "app_client_id": "...", "domain": "..." },
+  "lambda": { "function_name": "...", ... },
+  "s3": { "frontend_bucket": "...", "images_bucket": "..." },
+  "cloudfront": { "frontend_distribution_id": "...", ... },
+  "database": { ... },
+  "features": { ... },
+  "acm_certificates": { ... }
+}
+```
+
+### Usage
+
+**GitHub Actions workflows** read from these files via `jq`:
+```bash
+CONFIG_FILE="infra/config/staging.json"
+COGNITO_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)
+```
+
+**Terraform** can read via `jsondecode(file(...))`:
+```hcl
+locals {
+  config = jsondecode(file("${path.module}/../../config/${var.environment}.json"))
+  cognito_user_pool_id = local.config.cognito.user_pool_id
+}
+```
+
+### Benefits
+
+1. **Single source of truth** - No more scattered hardcoded values
+2. **Easy auditing** - All config in one place per environment
+3. **Workflow consistency** - CI and deploy use same source
+4. **Terraform integration** - Can be consumed by Terraform modules
+5. **Validation** - JSON schema can enforce structure
+
+### Adding New Configuration
+
+When adding new config values:
+1. Add to both `staging.json` and `production.json`
+2. Update workflow to read new value via `jq`
+3. Add to smoke tests if validation needed
