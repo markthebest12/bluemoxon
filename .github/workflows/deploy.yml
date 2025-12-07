@@ -84,10 +84,10 @@ jobs:
             echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
             echo "api_url=https://staging.api.bluemoxon.com/api/v1" >> $GITHUB_OUTPUT
             echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
-            # Staging shares prod Cognito for user authentication
-            echo "cognito_user_pool_id=us-west-2_PvdIpXVKF" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=3ndaok3psd2ncqfjrdb57825he" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            # Staging uses its own Cognito pool (isolated from prod)
+            echo "cognito_user_pool_id=us-west-2_5pOhFH6LN" >> $GITHUB_OUTPUT
+            echo "cognito_client_id=48ik81mrpc6anouk234sq31fbt" >> $GITHUB_OUTPUT
+            echo "cognito_domain=bluemoxon-staging.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1

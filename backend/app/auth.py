@@ -212,12 +212,24 @@ async def get_current_user_optional(
     if db_user:
         role = db_user.role
     else:
-        # New user - create with default viewer role
-        db_user = User(cognito_sub=cognito_sub, email=email, role="viewer")
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-        role = "viewer"
+        # Check if user exists by email (handles Cognito pool migration)
+        db_user = db.query(User).filter(User.email == email).first()
+        if db_user:
+            # Migrate user to new Cognito sub (e.g., when switching Cognito pools)
+            logger.info(
+                f"Auth: Migrating user {email} from sub {db_user.cognito_sub} to {cognito_sub}"
+            )
+            db_user.cognito_sub = cognito_sub
+            db.commit()
+            db.refresh(db_user)
+            role = db_user.role
+        else:
+            # New user - create with default viewer role
+            db_user = User(cognito_sub=cognito_sub, email=email, role="viewer")
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            role = "viewer"
 
     return CurrentUser(
         cognito_sub=cognito_sub,
