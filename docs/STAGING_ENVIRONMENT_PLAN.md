@@ -722,7 +722,7 @@ echo "URL: https://staging.app.bluemoxon.com"
 - [x] Verify staging works end-to-end
 
 ### Phase 6: Documentation
-- [ ] Update CLAUDE.md with staging workflow (see issue #83)
+- [x] Update CLAUDE.md with staging workflow (see issue #83)
 - [x] Document sync procedures
 - [x] Create staging environment guide
 - [x] Document manual infrastructure fixes (see `STAGING_INFRASTRUCTURE_CHANGES.md`)

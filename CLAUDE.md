@@ -136,7 +136,7 @@ git push origin v1.0.0
 ```
 main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
            \     \     \
-staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com] (planned)
+staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com]
              \   / \   /
 feature ──────●     ●────────→  [Feature branches]
 ```
@@ -163,6 +163,41 @@ gh pr create --base staging   # PRs to staging, not main
 # Promote staging to production
 gh pr create --base main --head staging --title "chore: Promote staging to production"
 ```
+
+## Staging Environment
+
+### URLs
+| Service | URL |
+|---------|-----|
+| Frontend | https://staging.app.bluemoxon.com |
+| API | https://staging.api.bluemoxon.com |
+| Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
+
+### AWS Profile
+Use `AWS_PROFILE=staging` for all staging AWS commands:
+```bash
+AWS_PROFILE=staging aws lambda list-functions
+AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m
+```
+
+### Database Sync (Prod → Staging)
+Sync production data to staging via Lambda:
+```bash
+aws lambda invoke --function-name bluemoxon-staging-db-sync --profile staging --payload '{}' .tmp/sync-response.json
+cat .tmp/sync-response.json | jq
+```
+
+Watch sync progress:
+```bash
+AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
+```
+
+See [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) for full details.
+
+### Related Documentation
+- [docs/STAGING_ENVIRONMENT_PLAN.md](docs/STAGING_ENVIRONMENT_PLAN.md) - Architecture and setup
+- [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) - Data sync procedures
+- [docs/STAGING_INFRASTRUCTURE_CHANGES.md](docs/STAGING_INFRASTRUCTURE_CHANGES.md) - Manual changes to terraformize
 
 ## Version System
 
