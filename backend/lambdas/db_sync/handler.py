@@ -81,9 +81,7 @@ def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> 
     # Get data from production
     with prod_conn.cursor() as prod_cur:
         column_list = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
-        query = sql.SQL("SELECT {} FROM {}").format(
-            column_list, sql.Identifier(table)
-        )
+        query = sql.SQL("SELECT {} FROM {}").format(column_list, sql.Identifier(table))
         prod_cur.execute(query)
         rows = prod_cur.fetchall()
 
@@ -108,7 +106,8 @@ def get_table_ddl(conn, table: str) -> str:
     """Get CREATE TABLE DDL for a table from information_schema."""
     with conn.cursor() as cur:
         # Get columns with their types
-        cur.execute("""
+        cur.execute(
+            """
             SELECT
                 column_name,
                 data_type,
@@ -118,7 +117,9 @@ def get_table_ddl(conn, table: str) -> str:
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = %s
             ORDER BY ordinal_position
-        """, (table,))
+        """,
+            (table,),
+        )
         columns = cur.fetchall()
 
         if not columns:
@@ -137,18 +138,21 @@ def get_table_ddl(conn, table: str) -> str:
             col_defs.append(col_def)
 
         # Get primary key
-        cur.execute("""
+        cur.execute(
+            """
             SELECT a.attname
             FROM pg_index i
             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
             WHERE i.indrelid = %s::regclass AND i.indisprimary
-        """, (table,))
+        """,
+            (table,),
+        )
         pk_cols = [row[0] for row in cur.fetchall()]
 
         ddl = f'CREATE TABLE IF NOT EXISTS "{table}" (\n  '
         ddl += ",\n  ".join(col_defs)
         if pk_cols:
-            ddl += f',\n  PRIMARY KEY ({", ".join(pk_cols)})'
+            ddl += f",\n  PRIMARY KEY ({', '.join(pk_cols)})"
         ddl += "\n)"
 
         return ddl
@@ -158,12 +162,15 @@ def ensure_table_exists(prod_conn, staging_conn, table: str) -> bool:
     """Create table in staging if it doesn't exist."""
     # Check if table exists in staging
     with staging_conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_name = %s
             )
-        """, (table,))
+        """,
+            (table,),
+        )
         exists = cur.fetchone()[0]
 
     if exists:
@@ -238,10 +245,13 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
                     if ensure_table_exists(prod_conn, staging_conn, table):
                         # Check if we just created it
                         with staging_conn.cursor() as cur:
-                            cur.execute("""
+                            cur.execute(
+                                """
                                 SELECT COUNT(*) FROM information_schema.tables
                                 WHERE table_schema = 'public' AND table_name = %s
-                            """, (table,))
+                            """,
+                                (table,),
+                            )
                         results["tables_created"].append(table)
 
                 columns = get_table_columns(prod_conn, table)
@@ -252,11 +262,7 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
 
                 # Truncate staging table
                 with staging_conn.cursor() as cur:
-                    cur.execute(
-                        sql.SQL("TRUNCATE TABLE {} CASCADE").format(
-                            sql.Identifier(table)
-                        )
-                    )
+                    cur.execute(sql.SQL("TRUNCATE TABLE {} CASCADE").format(sql.Identifier(table)))
                     staging_conn.commit()
 
                 # Copy data
@@ -304,9 +310,7 @@ def handler(event: dict, context: Any) -> dict:
     if not staging_secret_arn:
         return {
             "statusCode": 500,
-            "body": json.dumps({
-                "error": "Missing STAGING_SECRET_ARN environment variable"
-            }),
+            "body": json.dumps({"error": "Missing STAGING_SECRET_ARN environment variable"}),
         }
 
     try:
@@ -329,9 +333,11 @@ def handler(event: dict, context: Any) -> dict:
         else:
             return {
                 "statusCode": 500,
-                "body": json.dumps({
-                    "error": "Missing production database credentials. Set PROD_DB_HOST/USER/PASSWORD or PROD_SECRET_ARN"
-                }),
+                "body": json.dumps(
+                    {
+                        "error": "Missing production database credentials. Set PROD_DB_HOST/USER/PASSWORD or PROD_SECRET_ARN"
+                    }
+                ),
             }
 
         # Get staging credentials from secret
@@ -344,10 +350,12 @@ def handler(event: dict, context: Any) -> dict:
 
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "message": "Database sync completed",
-                "results": results,
-            }),
+            "body": json.dumps(
+                {
+                    "message": "Database sync completed",
+                    "results": results,
+                }
+            ),
         }
 
     except Exception as e:
