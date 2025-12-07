@@ -87,15 +87,15 @@ jobs:
 
       - name: Build Lambda package with Docker
         run: |
+          # Use Lambda Python 3.12 image for binary compatibility
           docker run --rm \
             -v ${{ github.workspace }}/backend:/app:ro \
             -v ${{ github.workspace }}/VERSION:/VERSION:ro \
             -v /tmp/lambda-deploy:/output \
             --platform linux/amd64 \
-            amazonlinux:2023 \
+            public.ecr.aws/lambda/python:3.12 \
             /bin/bash -c "
-              dnf install -y python3.11 python3.11-pip zip > /dev/null 2>&1
-              python3.11 -m pip install -q -t /output -r /app/requirements.txt
+              pip install -q -t /output -r /app/requirements.txt
               cp -r /app/app /output/
               cp /VERSION /output/
             "
