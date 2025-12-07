@@ -229,6 +229,38 @@ module "lambda" {
 }
 
 # =============================================================================
+# Database Sync Lambda (staging only)
+# =============================================================================
+
+module "db_sync_lambda" {
+  count  = var.enable_database && !local.is_prod ? 1 : 0
+  source = "./modules/db-sync-lambda"
+
+  function_name = "${local.name_prefix}-db-sync"
+
+  subnet_ids         = data.aws_subnets.default[0].ids
+  security_group_ids = [module.lambda.security_group_id]
+
+  # Access to both prod and staging secrets
+  secret_arns = [
+    # Staging secret
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*",
+    # Production secret (cross-account, requires resource policy on prod secret)
+    var.prod_database_secret_arn
+  ]
+
+  environment_variables = {
+    PROD_SECRET_ARN    = var.prod_database_secret_arn
+    STAGING_SECRET_ARN = module.database_secret[0].arn
+    PROD_SECRET_REGION = "us-west-2"
+  }
+
+  tags = local.common_tags
+
+  depends_on = [module.database_secret]
+}
+
+# =============================================================================
 # API Gateway
 # =============================================================================
 

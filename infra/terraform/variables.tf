@@ -143,3 +143,9 @@ variable "api_key_hash" {
   default     = ""
   sensitive   = true
 }
+
+variable "prod_database_secret_arn" {
+  type        = string
+  description = "ARN of the production database secret (for staging sync Lambda)"
+  default     = ""
+}
