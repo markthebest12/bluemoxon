@@ -1,3 +1,9 @@
+variable "cognito_user_pool_arns" {
+  type        = list(string)
+  description = "Cognito user pool ARNs the Lambda function can access for admin operations"
+  default     = []
+}
+
 variable "create_security_group" {
   type        = bool
   description = "Create a security group for the Lambda function (requires vpc_id)"

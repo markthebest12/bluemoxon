@@ -32,5 +32,9 @@ db_allocated_storage = 20
 enable_cloudfront = true
 enable_waf        = false
 
+# Cognito MFA - OPTIONAL with TOTP enabled (matches prod)
+cognito_mfa_configuration = "OPTIONAL"
+cognito_mfa_totp_enabled  = true
+
 # Database sync - production secret ARN for cross-account sync
 prod_database_secret_arn = "arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl"

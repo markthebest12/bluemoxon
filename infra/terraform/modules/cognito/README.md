@@ -44,6 +44,8 @@ module "auth" {
 | enable_oauth | Enable OAuth flows | `bool` | `false` | no |
 | id_token_validity | ID token validity in hours | `number` | `1` | no |
 | logout_urls | Logout URLs for OAuth | `list(string)` | `[]` | no |
+| mfa_configuration | MFA configuration: OFF, ON, or OPTIONAL | `string` | `"OFF"` | no |
+| mfa_totp_enabled | Enable TOTP (software token) MFA | `bool` | `false` | no |
 | password_minimum_length | Minimum password length | `number` | `8` | no |
 | password_require_symbols | Require symbols in password | `bool` | `true` | no |
 | refresh_token_validity | Refresh token validity in days | `number` | `30` | no |

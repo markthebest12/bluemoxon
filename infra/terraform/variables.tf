@@ -25,6 +25,18 @@ variable "aws_region" {
   default     = "us-west-2"
 }
 
+variable "cognito_mfa_configuration" {
+  type        = string
+  description = "Cognito MFA configuration: OFF, ON, or OPTIONAL"
+  default     = "OFF"
+}
+
+variable "cognito_mfa_totp_enabled" {
+  type        = bool
+  description = "Enable TOTP (software token) MFA for Cognito"
+  default     = false
+}
+
 variable "db_allocated_storage" {
   type        = number
   description = "RDS allocated storage (GB)"

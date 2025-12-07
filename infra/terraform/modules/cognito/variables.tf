@@ -34,6 +34,23 @@ variable "logout_urls" {
   default     = []
 }
 
+variable "mfa_configuration" {
+  type        = string
+  description = "MFA configuration: OFF, ON, or OPTIONAL"
+  default     = "OFF"
+
+  validation {
+    condition     = contains(["OFF", "ON", "OPTIONAL"], var.mfa_configuration)
+    error_message = "MFA configuration must be OFF, ON, or OPTIONAL."
+  }
+}
+
+variable "mfa_totp_enabled" {
+  type        = bool
+  description = "Enable TOTP (software token) MFA"
+  default     = false
+}
+
 variable "password_minimum_length" {
   type        = number
   description = "Minimum password length"

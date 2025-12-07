@@ -123,6 +123,10 @@ module "cognito" {
 
   enable_oauth = true
 
+  # MFA configuration
+  mfa_configuration = var.cognito_mfa_configuration
+  mfa_totp_enabled  = var.cognito_mfa_totp_enabled
+
   tags = local.common_tags
 }
 
@@ -207,6 +211,9 @@ module "lambda" {
 
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
+
+  # Cognito access for user management
+  cognito_user_pool_arns = [module.cognito.user_pool_arn]
 
   # Environment variables (secret ARN set after database_secret is created)
   environment_variables = merge(
