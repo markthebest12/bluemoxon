@@ -387,7 +387,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v5
         with:
-          name: frontend-dist
+          name: frontend-dist-ci-validation
           path: frontend/dist
           retention-days: 1
 
