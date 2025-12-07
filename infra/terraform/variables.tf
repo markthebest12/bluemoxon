@@ -149,3 +149,15 @@ variable "prod_database_secret_arn" {
   description = "ARN of the production database secret (for staging sync Lambda)"
   default     = ""
 }
+
+variable "frontend_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for CloudFront (must be in us-east-1)"
+  default     = null
+}
+
+variable "api_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for API Gateway custom domain (regional)"
+  default     = null
+}

@@ -77,8 +77,8 @@ module "frontend_cdn" {
 
   s3_bucket_name        = module.frontend_bucket.bucket_name
   s3_bucket_domain_name = module.frontend_bucket.bucket_regional_domain_name
-  domain_aliases        = [] # Add custom domain when ACM cert is ready
-  acm_certificate_arn   = null
+  domain_aliases        = var.frontend_acm_cert_arn != null ? [local.app_domain] : []
+  acm_certificate_arn   = var.frontend_acm_cert_arn
   oai_comment           = "OAI for ${local.frontend_bucket_name}"
   comment               = "BlueMoxon Frontend - ${var.environment}"
 
@@ -275,6 +275,10 @@ module "api_gateway" {
     "https://${local.app_domain}",
     "http://localhost:5173"
   ]
+
+  # Custom domain (optional)
+  domain_name     = var.api_acm_cert_arn != null ? local.api_domain : null
+  certificate_arn = var.api_acm_cert_arn
 
   tags = local.common_tags
 }
