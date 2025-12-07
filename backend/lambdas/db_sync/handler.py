@@ -24,7 +24,7 @@ from typing import Any
 import boto3
 import psycopg2
 from psycopg2 import sql
-from psycopg2.extras import Json, register_default_json, register_default_jsonb
+from psycopg2.extras import Json
 
 # Configure logging
 logger = logging.getLogger()
