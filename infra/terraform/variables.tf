@@ -1,3 +1,22 @@
+variable "allowed_editor_emails" {
+  type        = string
+  description = "Comma-separated list of allowed editor email addresses"
+  default     = ""
+}
+
+variable "api_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for API Gateway custom domain (regional)"
+  default     = null
+}
+
+variable "api_key_hash" {
+  type        = string
+  description = "SHA256 hash of the API key for authentication bypass"
+  default     = ""
+  sensitive   = true
+}
+
 variable "api_subdomain" {
   type        = string
   description = "Subdomain for the API (e.g., 'api' or 'staging-api')"
@@ -101,10 +120,22 @@ variable "environment" {
   }
 }
 
+variable "frontend_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for CloudFront (must be in us-east-1)"
+  default     = null
+}
+
 variable "lambda_memory_size" {
   type        = number
   description = "Memory allocation for Lambda function (MB)"
   default     = 512
+}
+
+variable "lambda_package_path" {
+  type        = string
+  description = "Path to the Lambda deployment package"
+  default     = "lambda.zip"
 }
 
 variable "lambda_provisioned_concurrency" {
@@ -117,12 +148,6 @@ variable "lambda_runtime" {
   type        = string
   description = "Lambda runtime version"
   default     = "python3.12"
-}
-
-variable "lambda_package_path" {
-  type        = string
-  description = "Path to the Lambda deployment package"
-  default     = "lambda.zip"
 }
 
 variable "lambda_source_code_hash" {
@@ -143,33 +168,8 @@ variable "maintenance_mode" {
   default     = "false"
 }
 
-variable "allowed_editor_emails" {
-  type        = string
-  description = "Comma-separated list of allowed editor email addresses"
-  default     = ""
-}
-
-variable "api_key_hash" {
-  type        = string
-  description = "SHA256 hash of the API key for authentication bypass"
-  default     = ""
-  sensitive   = true
-}
-
 variable "prod_database_secret_arn" {
   type        = string
   description = "ARN of the production database secret (for staging sync Lambda)"
   default     = ""
-}
-
-variable "frontend_acm_cert_arn" {
-  type        = string
-  description = "ACM certificate ARN for CloudFront (must be in us-east-1)"
-  default     = null
-}
-
-variable "api_acm_cert_arn" {
-  type        = string
-  description = "ACM certificate ARN for API Gateway custom domain (regional)"
-  default     = null
 }

@@ -3,6 +3,16 @@ output "api_domain" {
   value       = local.api_domain
 }
 
+output "api_gateway_endpoint" {
+  description = "API Gateway endpoint URL"
+  value       = module.api_gateway.api_endpoint
+}
+
+output "api_gateway_id" {
+  description = "API Gateway ID"
+  value       = module.api_gateway.api_id
+}
+
 output "app_domain" {
   description = "App domain name"
   value       = local.app_domain
@@ -31,6 +41,21 @@ output "cognito_domain" {
 output "cognito_user_pool_id" {
   description = "Cognito user pool ID"
   value       = module.cognito.user_pool_id
+}
+
+output "database_endpoint" {
+  description = "RDS database endpoint"
+  value       = var.enable_database ? module.database[0].endpoint : null
+}
+
+output "database_secret_arn" {
+  description = "Database credentials secret ARN"
+  value       = var.enable_database ? module.database_secret[0].arn : null
+}
+
+output "db_sync_lambda_name" {
+  description = "Database sync Lambda function name"
+  value       = var.enable_database && var.environment == "staging" ? module.db_sync_lambda[0].function_name : null
 }
 
 output "environment" {
@@ -68,54 +93,17 @@ output "images_cdn_domain" {
   value       = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : null
 }
 
-# =============================================================================
-# Lambda Outputs
-# =============================================================================
+output "lambda_function_arn" {
+  description = "Lambda function ARN"
+  value       = module.lambda.function_arn
+}
 
 output "lambda_function_name" {
   description = "Lambda function name"
   value       = module.lambda.function_name
 }
 
-output "lambda_function_arn" {
-  description = "Lambda function ARN"
-  value       = module.lambda.function_arn
-}
-
 output "lambda_invoke_arn" {
   description = "Lambda invoke ARN"
   value       = module.lambda.invoke_arn
-}
-
-# =============================================================================
-# API Gateway Outputs
-# =============================================================================
-
-output "api_gateway_endpoint" {
-  description = "API Gateway endpoint URL"
-  value       = module.api_gateway.api_endpoint
-}
-
-output "api_gateway_id" {
-  description = "API Gateway ID"
-  value       = module.api_gateway.api_id
-}
-
-# =============================================================================
-# Database Outputs (when enabled)
-# =============================================================================
-
-output "database_endpoint" {
-  description = "RDS database endpoint"
-  value       = var.enable_database ? module.database[0].endpoint : null
-}
-
-output "database_secret_arn" {
-  description = "Database credentials secret ARN"
-  value       = var.enable_database ? module.database_secret[0].arn : null
-}
-
-output "db_sync_lambda_name" {
-  description = "Database sync Lambda function name"
-  value       = var.enable_database && var.environment == "staging" ? module.db_sync_lambda[0].function_name : null
 }
