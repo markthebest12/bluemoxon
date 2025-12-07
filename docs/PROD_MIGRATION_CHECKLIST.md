@@ -116,6 +116,14 @@ Prod Cognito client (`3ndaok3psd2ncqfjrdb57825he`):
 
 **Warning:** `update-user-pool-client` is a full replacement, not a patch. Always include ALL settings (auth flows, callback URLs, OAuth config) or they will be removed.
 
+**Required Auth Flows (ExplicitAuthFlows):**
+The Cognito client MUST have these auth flows enabled for Amplify SDK `signIn` to work:
+- `ALLOW_USER_PASSWORD_AUTH` - Required for direct username/password authentication
+- `ALLOW_USER_SRP_AUTH` - Secure Remote Password protocol (recommended)
+- `ALLOW_REFRESH_TOKEN_AUTH` - Required for token refresh
+
+Without `ALLOW_USER_PASSWORD_AUTH`, login will fail with "Invalid email or password" even with correct credentials.
+
 ### 2.4 Lambda & API Gateway (#107)
 
 ```bash
