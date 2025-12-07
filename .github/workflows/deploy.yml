@@ -628,7 +628,7 @@ jobs:
 
           # Download frontend HTML to find JS bundle name
           html=$(curl -s "$APP_URL")
-          js_file=$(echo "$html" | grep -oE 'assets/index-[a-zA-Z0-9]+\.js' | head -1)
+          js_file=$(echo "$html" | grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' | head -1)
 
           if [[ -z "$js_file" ]]; then
             echo "ERROR: Could not find main JS bundle in HTML!"
@@ -638,7 +638,8 @@ jobs:
           echo "Found JS bundle: $js_file"
 
           # Download JS bundle and check for expected version
-          js_content=$(curl -s "${APP_URL}/${js_file}")
+          # js_file includes leading slash, so no need to add another
+          js_content=$(curl -s "${APP_URL}${js_file}")
 
           # Check version in JS bundle
           if echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
