@@ -610,6 +610,74 @@ jobs:
 
           echo "Vue app check passed!"
 
+      - name: Validate frontend version and config
+        run: |
+          echo "Validating frontend version and Cognito config..."
+          APP_URL="${{ steps.urls.outputs.app_url }}"
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+          ENV="${{ needs.configure.outputs.environment }}"
+
+          # Determine expected Cognito client ID based on environment
+          if [[ "$ENV" == "production" ]]; then
+            EXPECTED_CLIENT_ID="3ndaok3psd2ncqfjrdb57825he"
+            EXPECTED_POOL_ID="us-west-2_PvdIpXVKF"
+          else
+            EXPECTED_CLIENT_ID="48ik81mrpc6anouk234sq31fbt"
+            EXPECTED_POOL_ID="us-west-2_5pOhFH6LN"
+          fi
+
+          # Download frontend HTML to find JS bundle name
+          html=$(curl -s "$APP_URL")
+          js_file=$(echo "$html" | grep -oE 'assets/index-[a-zA-Z0-9]+\.js' | head -1)
+
+          if [[ -z "$js_file" ]]; then
+            echo "ERROR: Could not find main JS bundle in HTML!"
+            exit 1
+          fi
+
+          echo "Found JS bundle: $js_file"
+
+          # Download JS bundle and check for expected version
+          js_content=$(curl -s "${APP_URL}/${js_file}")
+
+          # Check version in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
+            echo "✅ Frontend version matches: $EXPECTED_VERSION"
+          else
+            # Try to find what version is actually there
+            ACTUAL_VERSION=$(echo "$js_content" | grep -oE '20[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[a-f0-9]{7}' | head -1)
+            echo "ERROR: Frontend version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Found: ${ACTUAL_VERSION:-not found}"
+            exit 1
+          fi
+
+          # Check Cognito client ID in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_CLIENT_ID"; then
+            echo "✅ Cognito client ID matches: $EXPECTED_CLIENT_ID"
+          else
+            # Try to find what client ID is actually there
+            ACTUAL_CLIENT=$(echo "$js_content" | grep -oE '[0-9a-z]{26}' | head -1)
+            echo "ERROR: Cognito client ID mismatch!"
+            echo "  Expected: $EXPECTED_CLIENT_ID"
+            echo "  Found: ${ACTUAL_CLIENT:-not found}"
+            echo "  This usually means CI and deploy workflows have artifact name collision."
+            exit 1
+          fi
+
+          # Check Cognito pool ID in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_POOL_ID"; then
+            echo "✅ Cognito pool ID matches: $EXPECTED_POOL_ID"
+          else
+            ACTUAL_POOL=$(echo "$js_content" | grep -oE 'us-west-2_[A-Za-z0-9]+' | head -1)
+            echo "ERROR: Cognito pool ID mismatch!"
+            echo "  Expected: $EXPECTED_POOL_ID"
+            echo "  Found: ${ACTUAL_POOL:-not found}"
+            exit 1
+          fi
+
+          echo "Frontend configuration validation passed!"
+
       - name: Test image endpoint (CloudFront CDN)
         run: |
           echo "Testing image CloudFront CDN..."
