@@ -1,0 +1,55 @@
+{
+  "environment": "production",
+  "aws_account_id": "266672885920",
+  "aws_region": "us-west-2",
+
+  "domain": {
+    "base": "bluemoxon.com",
+    "app": "app.bluemoxon.com",
+    "api": "api.bluemoxon.com"
+  },
+
+  "urls": {
+    "app": "https://app.bluemoxon.com",
+    "api": "https://api.bluemoxon.com/api/v1"
+  },
+
+  "cognito": {
+    "user_pool_id": "us-west-2_PvdIpXVKF",
+    "app_client_id": "3ndaok3psd2ncqfjrdb57825he",
+    "domain": "bluemoxon.auth.us-west-2.amazoncognito.com"
+  },
+
+  "lambda": {
+    "function_name": "bluemoxon-api",
+    "memory_size": 512,
+    "timeout": 30,
+    "provisioned_concurrency": 1
+  },
+
+  "s3": {
+    "frontend_bucket": "bluemoxon-frontend",
+    "images_bucket": "bluemoxon-images"
+  },
+
+  "cloudfront": {
+    "frontend_distribution_id": "E16BJX90QWQNQO",
+    "images_distribution_id": "E2IUCDBKX8CLOH"
+  },
+
+  "database": {
+    "enabled": true,
+    "instance_class": "db.t3.small",
+    "allocated_storage": 50
+  },
+
+  "features": {
+    "cloudfront": true,
+    "waf": true
+  },
+
+  "acm_certificates": {
+    "frontend": "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861",
+    "api": "arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a"
+  }
+}

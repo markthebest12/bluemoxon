@@ -62,35 +62,45 @@ jobs:
       cognito_client_id: ${{ steps.config.outputs.cognito_client_id }}
       cognito_domain: ${{ steps.config.outputs.cognito_domain }}
     steps:
-      - name: Set environment configuration
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            infra/config
+          sparse-checkout-cone-mode: false
+
+      - name: Load environment configuration
         id: config
         run: |
+          # Determine config file based on branch
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            echo "Configuring for PRODUCTION deployment"
-            echo "environment=production" >> $GITHUB_OUTPUT
-            echo "lambda_function_name=bluemoxon-api" >> $GITHUB_OUTPUT
-            echo "s3_frontend_bucket=bluemoxon-frontend" >> $GITHUB_OUTPUT
-            echo "cloudfront_distribution_id=E16BJX90QWQNQO" >> $GITHUB_OUTPUT
-            echo "api_url=https://api.bluemoxon.com/api/v1" >> $GITHUB_OUTPUT
-            echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "cognito_user_pool_id=us-west-2_PvdIpXVKF" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=3ndaok3psd2ncqfjrdb57825he" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            CONFIG_FILE="infra/config/production.json"
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
-            echo "Configuring for STAGING deployment"
-            echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "lambda_function_name=bluemoxon-staging-api" >> $GITHUB_OUTPUT
-            echo "s3_frontend_bucket=bluemoxon-frontend-staging" >> $GITHUB_OUTPUT
-            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
-            echo "api_url=https://staging.api.bluemoxon.com/api/v1" >> $GITHUB_OUTPUT
-            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
-            # Staging uses its own Cognito pool (isolated from prod)
-            echo "cognito_user_pool_id=us-west-2_5pOhFH6LN" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=48ik81mrpc6anouk234sq31fbt" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon-staging.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            CONFIG_FILE="infra/config/staging.json"
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
+          fi
+
+          echo "Loading configuration from: $CONFIG_FILE"
+          cat "$CONFIG_FILE"
+
+          # Read all values from config file (single source of truth)
+          echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_user_pool_id=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_client_id=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_domain=$(jq -r '.cognito.domain' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+
+          # CloudFront distribution ID: use config file value, fall back to GitHub variable for staging
+          CF_DIST_ID=$(jq -r '.cloudfront.frontend_distribution_id' $CONFIG_FILE)
+          if [[ "$CF_DIST_ID" == *'${'* ]]; then
+            # Config has placeholder, use GitHub variable
+            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
+          else
+            echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
           fi
 
   # ============================================
@@ -615,16 +625,10 @@ jobs:
           echo "Validating frontend version and Cognito config..."
           APP_URL="${{ steps.urls.outputs.app_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
-          ENV="${{ needs.configure.outputs.environment }}"
 
-          # Determine expected Cognito client ID based on environment
-          if [[ "$ENV" == "production" ]]; then
-            EXPECTED_CLIENT_ID="3ndaok3psd2ncqfjrdb57825he"
-            EXPECTED_POOL_ID="us-west-2_PvdIpXVKF"
-          else
-            EXPECTED_CLIENT_ID="48ik81mrpc6anouk234sq31fbt"
-            EXPECTED_POOL_ID="us-west-2_5pOhFH6LN"
-          fi
+          # Get expected values from configure job (which reads from config files)
+          EXPECTED_CLIENT_ID="${{ needs.configure.outputs.cognito_client_id }}"
+          EXPECTED_POOL_ID="${{ needs.configure.outputs.cognito_user_pool_id }}"
 
           # Download frontend HTML to find JS bundle name
           html=$(curl -s "$APP_URL")

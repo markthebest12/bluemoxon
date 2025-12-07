@@ -376,13 +376,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for production
-        env:
-          VITE_API_URL: https://api.bluemoxon.com/api/v1
-          VITE_COGNITO_USER_POOL_ID: us-west-2_PvdIpXVKF
-          VITE_COGNITO_APP_CLIENT_ID: 3ndaok3psd2ncqfjrdb57825he
-          VITE_COGNITO_DOMAIN: bluemoxon.auth.us-west-2.amazoncognito.com
-        run: npm run build
+      - name: Build for production (validation only)
+        run: |
+          # Read config from single source of truth
+          CONFIG_FILE="../infra/config/production.json"
+          echo "Loading config from: $CONFIG_FILE"
+
+          export VITE_API_URL=$(jq -r '.urls.api' $CONFIG_FILE)
+          export VITE_COGNITO_USER_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)
+          export VITE_COGNITO_APP_CLIENT_ID=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)
+          export VITE_COGNITO_DOMAIN=$(jq -r '.cognito.domain' $CONFIG_FILE)
+
+          echo "Building with:"
+          echo "  API URL: $VITE_API_URL"
+          echo "  Cognito Pool: $VITE_COGNITO_USER_POOL_ID"
+          echo "  Cognito Client: $VITE_COGNITO_APP_CLIENT_ID"
+
+          npm run build
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v5
