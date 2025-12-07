@@ -118,6 +118,8 @@ Logout URLs:
 
 **Cleanup:** After staging verified, remove staging Cognito pool (`us-west-2_5pOhFH6LN` in account 652617421195).
 
+**Warning:** `update-user-pool-client` is a full replacement, not a patch. Always include ALL settings (auth flows, callback URLs, OAuth config) or they will be removed.
+
 ### 2.4 Lambda & API Gateway (#107)
 
 ```bash
