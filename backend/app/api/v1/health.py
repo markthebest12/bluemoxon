@@ -116,6 +116,15 @@ def check_cognito() -> dict[str, Any]:
                 "reason": "IAM permissions not configured for Cognito describe",
                 "latency_ms": round((time.time() - start) * 1000, 2),
             }
+        # InvalidParameterException happens when using cross-account Cognito
+        # (staging Lambda using prod Cognito via VPC endpoint routes to wrong account)
+        # JWT validation still works via public JWKS endpoint, so auth functions
+        if error_code == "InvalidParameterException":
+            return {
+                "status": "skipped",
+                "reason": "Cross-account Cognito (expected in staging)",
+                "latency_ms": round((time.time() - start) * 1000, 2),
+            }
         return {
             "status": "unhealthy",
             "error": error_code,

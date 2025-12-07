@@ -50,7 +50,7 @@ When adding patterns to `~/.claude/settings.json`:
    - `<project>/.claude/settings.json` (project/team)
    - `<project>/.claude/settings.local.json` (project/personal)
 
-6. **MCP tools support wildcards**: `mcp__playwright__*` covers all playwright tools
+6. **MCP tool wildcards may not work**: `mcp__playwright__*` should work but often doesn't. List each tool explicitly instead (e.g., `mcp__playwright__browser_navigate`, `mcp__playwright__browser_click`, etc.)
 
 7. **Deny rules take precedence** over allow rules
 
@@ -314,6 +314,53 @@ bluemoxon/
 - **Images**: S3 `bluemoxon-images` + CloudFront CDN
 - **Database**: RDS PostgreSQL
 - **Auth**: Cognito User Pool
+
+## Troubleshooting: Deep Health Check Failures
+
+**ALWAYS check `/api/v1/health/deep` first when debugging API issues.** This endpoint validates all dependencies.
+
+### Common Failure: "Service Unavailable" (503) with Lambda Timeout
+
+**Symptom:** Deep health times out at 30 seconds, returns `{"message": "Service Unavailable"}`
+
+**Root Cause:** Lambda in VPC cannot reach AWS services (S3, Cognito, Secrets Manager)
+
+**Diagnosis:**
+```bash
+curl -s "https://staging.api.bluemoxon.com/api/v1/health/deep"
+curl -s "https://staging.api.bluemoxon.com/api/v1/books?limit=1"
+```
+If books works but deep health times out → VPC endpoint issue
+
+**Fix:** Ensure VPC has required endpoints:
+- `com.amazonaws.us-west-2.secretsmanager` (Interface) - for DB credentials
+- `com.amazonaws.us-west-2.s3` (Gateway) - for images bucket
+- `com.amazonaws.us-west-2.cognito-idp` (Interface) - for Cognito API
+
+See `docs/PROD_MIGRATION_CHECKLIST.md` → "VPC Networking Requirements" section.
+
+### Common Failure: S3 Bucket Deleted
+
+**Symptom:** Deep health check hangs on S3 check
+
+**Diagnosis:**
+```bash
+AWS_PROFILE=staging aws s3 ls s3://bluemoxon-staging-images
+```
+If "NoSuchBucket" → bucket was deleted
+
+**Fix:**
+```bash
+AWS_PROFILE=staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
+```
+
+### Debugging Steps
+
+1. Check simple health: `curl https://staging.api.bluemoxon.com/health`
+2. Check Lambda logs: `AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m`
+3. Look for "timeout" in logs → VPC networking issue
+4. Check VPC endpoints exist for S3/Cognito/Secrets Manager
+5. Check S3 bucket exists
 
 ## Quick Commands
 

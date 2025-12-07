@@ -213,9 +213,9 @@ module "lambda" {
     {
       CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
       IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
-      COGNITO_USER_POOL_ID  = module.cognito.user_pool_id
-      COGNITO_CLIENT_ID     = module.cognito.client_id
-      S3_IMAGES_BUCKET      = module.images_bucket.bucket_name
+      COGNITO_USER_POOL_ID   = module.cognito.user_pool_id
+      COGNITO_APP_CLIENT_ID  = module.cognito.client_id
+      IMAGES_BUCKET          = module.images_bucket.bucket_name
       API_KEY_HASH          = var.api_key_hash
       ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       MAINTENANCE_MODE      = var.maintenance_mode

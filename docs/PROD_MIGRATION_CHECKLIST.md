@@ -238,6 +238,61 @@ Update Lambda environment variable:
 CORS_ORIGINS=https://app.bluemoxon.com,http://localhost:5173
 ```
 
+## VPC Networking Requirements (Lambda in VPC)
+
+When Lambda is deployed in a VPC (for RDS access), it **cannot reach AWS services** without:
+
+### Required VPC Endpoints
+
+| Service | Endpoint Type | Required For |
+|---------|--------------|--------------|
+| `com.amazonaws.us-west-2.secretsmanager` | Interface | Database credentials retrieval |
+| `com.amazonaws.us-west-2.s3` | Gateway | S3 bucket access (images) |
+| `com.amazonaws.us-west-2.cognito-idp` | Interface | Cognito API calls (health checks) |
+
+### Current State (Staging Account 652617421195)
+
+Created manually 2024-12-07:
+- S3 Gateway Endpoint: `vpce-0fa311c71ef94ad87`
+- Secrets Manager Interface Endpoint: (existed)
+- Cognito Interface Endpoint: `vpce-0256de046ef7a09f4`
+
+### Terraform Import Commands
+
+```bash
+# S3 Gateway Endpoint
+terraform import 'aws_vpc_endpoint.s3' vpce-0fa311c71ef94ad87
+
+# Cognito Interface Endpoint
+terraform import 'aws_vpc_endpoint.cognito' vpce-0256de046ef7a09f4
+
+# Secrets Manager (if not already in state)
+terraform import 'aws_vpc_endpoint.secretsmanager' <endpoint-id>
+```
+
+### Deep Health Check Dependencies
+
+The `/api/v1/health/deep` endpoint requires network access to:
+1. **RDS** (PostgreSQL) - via VPC internal routing
+2. **S3** - for images bucket check - needs VPC endpoint
+3. **Cognito** - for user pool describe - needs VPC endpoint
+4. **Secrets Manager** - for DB credentials - needs VPC endpoint
+
+**Symptom of missing VPC endpoint:** Lambda times out (30s) with "Service Unavailable"
+
+**Cross-Account Cognito Note:** When staging uses prod Cognito (shared users), the Cognito VPC endpoint in staging account cannot call `describe_user_pool` for prod account's pool. This causes "InvalidParameterException" in deep health check. However, JWT validation works because it uses the public JWKS endpoint (fetched via httpx, not boto3). This is expected behavior for cross-account Cognito sharing.
+
+### Interface Endpoint Security Groups
+
+Interface endpoints require security groups that allow HTTPS (443) from Lambda security group:
+- Lambda SG → Endpoint SG on port 443
+
+### S3 Bucket Requirements
+
+Staging images bucket: `bluemoxon-staging-images` (created 2024-12-07 after accidental deletion)
+
+If bucket is deleted, deep health check will fail (S3 check hangs/times out).
+
 ## Rollback Plan
 
 If anything goes wrong:
