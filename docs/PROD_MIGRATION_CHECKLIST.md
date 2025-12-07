@@ -246,6 +246,7 @@ If anything goes wrong:
 
 ## Post-Migration
 
+- [ ] Merge staging branch to main (includes deploy.yml updates for staging custom domains)
 - [ ] Test all endpoints
 - [ ] Verify CI/CD deploys work
 - [ ] Update documentation
