@@ -36,13 +36,22 @@ S3_IMAGES_PREFIX = "books/"
 
 
 def get_cloudfront_cdn_url() -> str:
-    """Get CloudFront CDN URL from settings or use default."""
-    return settings.images_cdn_url or "https://app.bluemoxon.com/book-images"
+    """Get CloudFront CDN URL from settings or use default.
+
+    Supports two config formats:
+    - images_cdn_url: Full URL (e.g., "https://app.bluemoxon.com/book-images")
+    - images_cdn_domain: Just the domain (e.g., "d2zwmzka4w6cws.cloudfront.net")
+    """
+    if settings.images_cdn_url:
+        return settings.images_cdn_url
+    if settings.images_cdn_domain:
+        return f"https://{settings.images_cdn_domain}"
+    return "https://app.bluemoxon.com/book-images"
 
 
 def is_production() -> bool:
-    """Check if we're running in production (AWS Lambda)."""
-    return settings.database_secret_arn is not None
+    """Check if we're running in AWS (Lambda) - includes both prod and staging."""
+    return settings.database_secret_arn is not None or settings.database_secret_name is not None
 
 
 def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
