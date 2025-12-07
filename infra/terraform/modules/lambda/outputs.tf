@@ -1,7 +1,3 @@
-# =============================================================================
-# Outputs
-# =============================================================================
-
 output "alias_arn" {
   description = "ARN of the Lambda alias (if provisioned concurrency is enabled)"
   value       = var.provisioned_concurrency > 0 ? aws_lambda_alias.live[0].arn : null

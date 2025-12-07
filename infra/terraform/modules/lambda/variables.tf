@@ -1,45 +1,23 @@
-# =============================================================================
-# Input Variables
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Required Variables
-# -----------------------------------------------------------------------------
-
-variable "environment" {
-  type        = string
-  description = "Environment name (staging, prod)"
-}
-
-variable "function_name" {
-  type        = string
-  description = "Name of the Lambda function"
-}
-
-variable "package_path" {
-  type        = string
-  description = "Path to the Lambda deployment package"
-}
-
-variable "source_code_hash" {
-  type        = string
-  description = "Base64-encoded SHA256 hash of the package file"
-}
-
-# -----------------------------------------------------------------------------
-# Optional Variables
-# -----------------------------------------------------------------------------
-
 variable "create_security_group" {
   type        = bool
   description = "Create a security group for the Lambda function (requires vpc_id)"
   default     = false
 }
 
+variable "environment" {
+  type        = string
+  description = "Environment name (staging, prod)"
+}
+
 variable "environment_variables" {
   type        = map(string)
   description = "Environment variables for the Lambda function"
   default     = {}
+}
+
+variable "function_name" {
+  type        = string
+  description = "Name of the Lambda function"
 }
 
 variable "handler" {
@@ -58,6 +36,11 @@ variable "memory_size" {
   type        = number
   description = "Memory allocation in MB"
   default     = 512
+}
+
+variable "package_path" {
+  type        = string
+  description = "Path to the Lambda deployment package"
 }
 
 variable "provisioned_concurrency" {
@@ -88,6 +71,11 @@ variable "security_group_ids" {
   type        = list(string)
   description = "Additional security group IDs for Lambda VPC configuration"
   default     = []
+}
+
+variable "source_code_hash" {
+  type        = string
+  description = "Base64-encoded SHA256 hash of the package file"
 }
 
 variable "subnet_ids" {
