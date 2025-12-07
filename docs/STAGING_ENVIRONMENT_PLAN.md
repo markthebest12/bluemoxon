@@ -4,7 +4,8 @@
 
 Create `staging.app.bluemoxon.com` as an isolated replica of production in a separate AWS account, with:
 - Independent infrastructure (can be modified without affecting prod)
-- Shared Cognito authentication (prod users work in staging)
+- **Separate Cognito pools per environment** (isolated user management)
+- Automatic cognito_sub migration when users move between pools
 - Version tracking across environments
 - Cost-optimized (scales to near-zero when idle)
 - Future Terraform migration path
@@ -199,22 +200,83 @@ Add to repository secrets:
 | NAT Gateway | Yes ($32/mo) | **No** (VPC endpoints) | -$32/mo |
 | CloudFront | Standard | Standard | Minimal |
 | S3 | Standard | Standard | Pay per use |
-| Cognito | Prod pool | **Shared (prod)** | $0 |
+| Cognito | Prod pool | **Separate pool** | $0 (free tier) |
 | Route53 | bluemoxon.com | staging subdomain | ~$0.50/mo |
 | ACM | *.bluemoxon.com | Same cert (SANs) | $0 |
 
-### Cross-Account Cognito Setup
+### Cognito Architecture (Separate Pools)
 
-Staging will validate JWTs against prod Cognito:
+Each environment has its own Cognito user pool for complete isolation:
+
+| Environment | User Pool ID | Client ID | Domain |
+|-------------|-------------|-----------|--------|
+| **Production** | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | `bluemoxon.auth.us-west-2.amazoncognito.com` |
+| **Staging** | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | `bluemoxon-staging.auth.us-west-2.amazoncognito.com` |
+
+**Why separate pools?**
+- Isolated user management per environment
+- No risk of accidental cross-environment access
+- Independent MFA/password policies
+- Cleaner audit trails
+
+**Cognito Sub Migration:**
+When users are created in different Cognito pools, they get different `cognito_sub` values. The auth code handles this automatically:
 
 ```python
-# staging config
-COGNITO_USER_POOL_ID = "us-west-2_PvdIpXVKF"  # PROD pool
-COGNITO_CLIENT_ID = "prod-client-id"           # PROD client
-COGNITO_REGION = "us-west-2"                   # PROD region
+# backend/app/auth.py - cognito_sub migration logic
+db_user = db.query(User).filter(User.cognito_sub == cognito_sub).first()
+if not db_user:
+    # Check if user exists by email (handles Cognito pool migration)
+    db_user = db.query(User).filter(User.email == email).first()
+    if db_user:
+        # Migrate user to new Cognito sub (preserves role)
+        db_user.cognito_sub = cognito_sub
+        db.commit()
 ```
 
-No IAM cross-account needed - JWT validation is stateless using JWKS.
+**Authentication Flow with Separate Pools:**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Cognito
+    participant API
+    participant DB
+
+    User->>Frontend: Login request
+    Frontend->>Cognito: Redirect to Hosted UI
+    Note over Cognito: Environment-specific pool<br/>(staging vs prod)
+    Cognito->>Frontend: JWT token (with cognito_sub)
+    Frontend->>API: Request + JWT
+    API->>API: Validate JWT signature
+    API->>DB: Lookup user by cognito_sub
+    alt User found
+        DB-->>API: Return user (with role)
+    else Not found, check email
+        API->>DB: Lookup user by email
+        alt Email match (migration)
+            API->>DB: Update cognito_sub
+            DB-->>API: Return user (preserves role)
+        else No match
+            API->>DB: Create new user (viewer)
+            DB-->>API: Return new user
+        end
+    end
+    API-->>Frontend: Response with user context
+```
+
+**Terraform Import Commands (Staging Cognito):**
+```bash
+cd infra/terraform
+terraform init -backend-config="bucket=bluemoxon-terraform-state-staging" \
+               -backend-config="key=bluemoxon/staging/terraform.tfstate"
+
+# Import existing staging Cognito pool
+terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_5pOhFH6LN
+terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_5pOhFH6LN/48ik81mrpc6anouk234sq31fbt
+terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon-staging
+```
 
 ### Network Architecture (Cost Optimized)
 

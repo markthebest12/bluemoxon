@@ -76,13 +76,13 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 
 ### 2.3 Cognito (#110)
 
-**Current State:**
-| Environment | Account | User Pool ID | Client ID | Users |
+**Current State (Updated 2024-12-07):**
+| Environment | Account | User Pool ID | Client ID | Notes |
 |-------------|---------|--------------|-----------|-------|
-| **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | 7 users |
-| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | 0 users |
+| **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | Production users |
+| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | Separate pool (isolated) |
 
-**Goal:** Staging uses prod Cognito for authentication (shared users), managed by Terraform.
+**Architecture:** Separate Cognito pools per environment with automatic `cognito_sub` migration in auth code.
 
 ```bash
 # Import user pool
@@ -95,28 +95,24 @@ terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_Pv
 terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ```
 
-**Staging configuration (already done in `.github/workflows/deploy.yml`):**
-- Staging deploys use prod Cognito IDs (shared authentication)
-- Frontend builds with prod Cognito config baked in
-- Staging Lambda env vars updated via deploy workflow
+**Configuration (updated in `.github/workflows/deploy.yml`):**
+- Each environment uses its own Cognito pool (separate authentication)
+- Frontend builds with environment-specific Cognito config
+- Auth code handles `cognito_sub` migration when users switch environments
 
-**Callback URLs (managed manually until Terraform import):**
+**Callback URLs:**
 
-Already configured in prod Cognito client:
+Staging Cognito client (`48ik81mrpc6anouk234sq31fbt`):
+- `http://localhost:5173/auth/callback`
+- `https://staging.app.bluemoxon.com/auth/callback`
+
+Prod Cognito client (`3ndaok3psd2ncqfjrdb57825he`):
 - `http://localhost:5173/callback`
 - `https://bluemoxon.com/callback`
 - `https://www.bluemoxon.com/callback`
-- `https://staging.app.bluemoxon.com/callback`
+- `https://app.bluemoxon.com/auth/callback`
 
-Logout URLs:
-- `http://localhost:5173`
-- `https://bluemoxon.com`
-- `https://www.bluemoxon.com`
-- `https://staging.app.bluemoxon.com`
-
-**Post-import:** Update Terraform variables to include all callback/logout URLs.
-
-**Cleanup:** After staging verified, remove staging Cognito pool (`us-west-2_5pOhFH6LN` in account 652617421195).
+**Post-import:** Verify Terraform variables match the callback/logout URLs configured above.
 
 **Warning:** `update-user-pool-client` is a full replacement, not a patch. Always include ALL settings (auth flows, callback URLs, OAuth config) or they will be removed.
 
