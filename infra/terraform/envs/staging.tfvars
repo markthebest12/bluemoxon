@@ -25,3 +25,6 @@ db_allocated_storage = 20
 # Feature flags
 enable_cloudfront = true
 enable_waf        = false
+
+# Database sync - production secret ARN for cross-account sync
+prod_database_secret_arn = "arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl"

@@ -114,3 +114,8 @@ output "database_secret_arn" {
   description = "Database credentials secret ARN"
   value       = var.enable_database ? module.database_secret[0].arn : null
 }
+
+output "db_sync_lambda_name" {
+  description = "Database sync Lambda function name"
+  value       = var.enable_database && var.environment == "staging" ? module.db_sync_lambda[0].function_name : null
+}
