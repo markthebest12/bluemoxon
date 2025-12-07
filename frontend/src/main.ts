@@ -6,9 +6,9 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import App from "./App.vue";
 import router from "./router";
 import "./assets/main.css";
+import { APP_VERSION } from "./config";
 
-// Version for debugging - update this when making changes
-const APP_VERSION = "2025-12-01-v5";
+// Version from VERSION file at build time
 console.log(`[BlueMoxon] App version: ${APP_VERSION}`);
 
 // Disable browser's native scroll restoration - let Vue Router handle it
