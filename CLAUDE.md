@@ -2,31 +2,32 @@
 
 ## Bash Command Formatting
 
-**Avoid complex shell syntax in bash commands.** The permission system has issues matching patterns with:
-- `#` comment lines
-- `\` backslash continuations
-- `$(...)` command substitution
-- `|` pipes combined with `||` or complex expressions
+**CRITICAL: NEVER use complex shell syntax in bash commands.** These cause permission prompts that cannot be auto-approved:
+
+**NEVER use:**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` or `$((...))` command/arithmetic substitution
+- `||` or `&&` chaining with complex expressions
 
 ```bash
-# BAD - comment line:
+# BAD - will ALWAYS prompt:
 # Check API health
 curl -s https://api.example.com/health
 
-# BAD - multi-line with backslash:
 aws lambda get-function-configuration \
   --function-name my-function
 
-# BAD - complex with subshell + pipes + ||:
-AWS_PROFILE=staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events' || echo "none"
+AWS_PROFILE=staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events'
 
-# GOOD - simple single commands:
+# GOOD - simple single-line commands only:
 curl -s https://api.example.com/health
 aws lambda get-function-configuration --function-name my-function --query 'Environment'
 AWS_PROFILE=staging aws sts get-caller-identity
+AWS_PROFILE=staging aws logs filter-log-events --log-group-name /aws/lambda/my-func --limit 10
 ```
 
-Use the command description field instead of inline comments. For complex pipelines, consider breaking into separate commands or accept manual approval.
+Use the command description field instead of inline comments.
 
 ## Permission Pattern Guidelines
 
