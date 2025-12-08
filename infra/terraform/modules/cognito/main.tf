@@ -19,6 +19,16 @@ resource "aws_cognito_user_pool" "this" {
     temporary_password_validity_days = 7
   }
 
+  # MFA configuration
+  mfa_configuration = var.mfa_configuration
+
+  dynamic "software_token_mfa_configuration" {
+    for_each = var.mfa_totp_enabled ? [1] : []
+    content {
+      enabled = true
+    }
+  }
+
   # Account recovery
   account_recovery_setting {
     recovery_mechanism {
@@ -30,16 +40,6 @@ resource "aws_cognito_user_pool" "this" {
   # Email configuration
   email_configuration {
     email_sending_account = "COGNITO_DEFAULT"
-  }
-
-  # MFA configuration
-  mfa_configuration = var.mfa_configuration
-
-  dynamic "software_token_mfa_configuration" {
-    for_each = var.mfa_totp_enabled ? [1] : []
-    content {
-      enabled = true
-    }
   }
 
   # Schema attributes
