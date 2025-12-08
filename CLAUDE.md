@@ -448,11 +448,87 @@ terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
 - **Staging:** Terraform state in `s3://bluemoxon-terraform-state-staging`
 - **Prod:** Migration in progress (see `docs/PROD_MIGRATION_CHECKLIST.md`)
 
-### Exception Process
+### Exception Process (Emergency Fixes ONLY)
+
 If you MUST make a manual change (emergency fix):
-1. Document it immediately in the PR/commit
-2. Create a follow-up task to add it to Terraform
-3. Add a comment in the relevant Terraform file noting the drift
+
+1. **Document BEFORE making the change:**
+   - Create entry in `docs/STAGING_INFRASTRUCTURE_CHANGES.md` or `docs/PROD_INFRASTRUCTURE_CHANGES.md`
+   - Include: resource type, ID, what changed, why
+
+2. **Make the change** with AWS CLI (auditable) not console:
+   ```bash
+   # Good: auditable command
+   aws lambda update-function-configuration --function-name X --environment ...
+
+   # Bad: console clicks (no record)
+   ```
+
+3. **Immediately create follow-up issue:**
+   - Create GitHub issue: "infra: Terraformize [resource]"
+   - Link to the documentation entry
+
+4. **Notify team** in PR or Slack
+
+**Manual change without documentation = grounds for revert.**
+
+### Terraform Quick Reference
+
+| Task | Command |
+|------|---------|
+| Format | `terraform fmt -recursive` |
+| Validate | `terraform validate` |
+| Plan (staging) | `AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Apply (staging) | `AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Check drift | `AWS_PROFILE=staging terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
+| Import resource | `terraform import 'module.name.resource.name' <aws-id>` |
+| Show state | `terraform state list` |
+| Remove from state | `terraform state rm <resource>` |
+
+**Exit codes for drift detection:**
+- `0` = No changes (infrastructure matches config)
+- `1` = Error
+- `2` = Changes detected (drift!)
+
+### Terraform Validation Testing (Destroy/Apply)
+
+**For significant infrastructure changes, validate with destroy/apply cycle in staging:**
+
+```bash
+cd infra/terraform
+
+# 1. Create RDS snapshot (data protection)
+AWS_PROFILE=staging aws rds create-db-snapshot \
+  --db-instance-identifier bluemoxon-staging-db \
+  --db-snapshot-identifier pre-terraform-test-$(date +%Y%m%d)
+
+# 2. Destroy staging infrastructure
+AWS_PROFILE=staging terraform destroy \
+  -var-file=envs/staging.tfvars \
+  -var="db_password=$STAGING_DB_PASSWORD"
+
+# 3. Apply from scratch
+AWS_PROFILE=staging terraform apply \
+  -var-file=envs/staging.tfvars \
+  -var="db_password=$STAGING_DB_PASSWORD"
+
+# 4. Validate services
+curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
+curl -s https://staging.app.bluemoxon.com | head -20
+```
+
+**When to use destroy/apply testing:**
+- Adding new Terraform modules
+- Changing VPC networking (endpoints, NAT gateway)
+- Major IAM policy changes
+- Before migrating configuration to production
+- After significant module refactoring
+
+**What survives destroy/apply (external to Terraform):**
+- ACM certificates (passed as ARNs)
+- Route53 records (in prod account)
+- RDS snapshots (manual backup)
+- S3 bucket data (if buckets not destroyed)
 
 ## CRITICAL: Terraform Style Requirements
 

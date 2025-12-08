@@ -33,6 +33,12 @@ variable "create_lambda_sg_rule" {
   default     = false
 }
 
+variable "enable_cognito_endpoint" {
+  type        = bool
+  description = "Enable Cognito IDP Interface VPC endpoint (for Lambda to call Cognito APIs)"
+  default     = true
+}
+
 variable "lambda_security_group_id" {
   type        = string
   description = "Lambda security group ID (for VPC endpoint ingress rules)"

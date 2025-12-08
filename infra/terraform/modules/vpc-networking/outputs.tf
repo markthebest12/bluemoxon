@@ -27,3 +27,8 @@ output "vpc_endpoints_security_group_id" {
   description = "ID of the VPC endpoints security group"
   value       = var.enable_vpc_endpoints ? aws_security_group.vpc_endpoints[0].id : null
 }
+
+output "cognito_idp_endpoint_id" {
+  description = "ID of the Cognito IDP Interface VPC endpoint"
+  value       = var.enable_vpc_endpoints && var.enable_cognito_endpoint ? aws_vpc_endpoint.cognito_idp[0].id : null
+}
