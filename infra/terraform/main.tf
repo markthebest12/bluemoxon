@@ -144,6 +144,11 @@ module "vpc_networking" {
   public_subnet_id   = var.public_subnet_id
   private_subnet_ids = var.private_subnet_ids
 
+  # VPC Endpoints for Lambda to access AWS services
+  enable_vpc_endpoints     = var.enable_database
+  create_lambda_sg_rule    = false # Will be enabled after initial import
+  lambda_security_group_id = var.enable_database ? module.lambda.security_group_id : null
+
   tags = local.common_tags
 }
 

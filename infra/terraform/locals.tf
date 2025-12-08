@@ -14,9 +14,10 @@ locals {
     ManagedBy   = "terraform"
   }
 
-  # S3 bucket names - match existing workflow naming convention
-  frontend_bucket_name = "${var.app_name}-${var.environment}-frontend"
-  images_bucket_name   = "${var.app_name}-${var.environment}-images"
+  # S3 bucket names - match existing bucket naming convention
+  # Existing buckets: bluemoxon-frontend-staging, bluemoxon-images-staging
+  frontend_bucket_name = "${var.app_name}-frontend-${var.environment}"
+  images_bucket_name   = "${var.app_name}-images-${var.environment}"
 
   # Lambda function name - match existing workflow naming convention
   lambda_function_name = "${var.app_name}-${var.environment}-api"
