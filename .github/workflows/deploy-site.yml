@@ -1,0 +1,52 @@
+name: Deploy Marketing Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/screenshots/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to S3
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Resolve symlinks and sync to S3
+        run: |
+          # Copy site/ to a temp dir, resolving symlinks
+          mkdir -p /tmp/site-deploy
+          cp -rL site/* /tmp/site-deploy/
+
+          # Sync to S3
+          aws s3 sync /tmp/site-deploy/ s3://bluemoxon-landing/ \
+            --delete \
+            --exclude ".DS_Store"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ES60BQB34DNYS \
+            --paths "/*"
+
+      - name: Verify deployment
+        run: |
+          sleep 5
+          curl -sI https://bluemoxon.com | head -5
+          echo "Marketing site deployed successfully"
