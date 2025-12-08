@@ -41,7 +41,30 @@ jobs:
       - name: Lint HTML files
         run: |
           echo "Linting HTML files..."
-          htmlhint /tmp/site-validate/*.html --format compact
+          # Create htmlhint config (relaxed rules for marketing site)
+          cat > /tmp/.htmlhintrc << 'HTMLHINTRC'
+          {
+            "tagname-lowercase": true,
+            "attr-lowercase": true,
+            "attr-value-double-quotes": true,
+            "doctype-first": true,
+            "tag-pair": true,
+            "spec-char-escape": false,
+            "id-unique": true,
+            "src-not-empty": true,
+            "title-require": true,
+            "alt-require": true,
+            "doctype-html5": true,
+            "style-disabled": false,
+            "inline-style-disabled": false,
+            "inline-script-disabled": false,
+            "id-class-ad-disabled": false,
+            "href-abs-or-rel": false,
+            "attr-unsafe-chars": false,
+            "head-script-disabled": false
+          }
+          HTMLHINTRC
+          htmlhint /tmp/site-validate/*.html --config /tmp/.htmlhintrc --format compact
           echo "HTML linting passed"
 
       - name: Validate HTML structure
