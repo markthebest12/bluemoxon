@@ -29,7 +29,7 @@
 
   "s3": {
     "frontend_bucket": "bluemoxon-frontend-staging",
-    "images_bucket": "bluemoxon-staging-images"
+    "images_bucket": "bluemoxon-images-staging"
   },
 
   "cloudfront": {
