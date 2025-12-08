@@ -85,6 +85,12 @@ variable "enable_database" {
   default     = false
 }
 
+variable "enable_nat_gateway" {
+  type        = bool
+  description = "Enable NAT Gateway for Lambda outbound internet access"
+  default     = false
+}
+
 variable "enable_waf" {
   type        = bool
   description = "Enable WAF for API Gateway"
@@ -156,10 +162,22 @@ variable "api_key_hash" {
   sensitive   = true
 }
 
+variable "private_subnet_ids" {
+  type        = list(string)
+  description = "Private subnet IDs for Lambda VPC configuration (subnets with NAT Gateway route)"
+  default     = []
+}
+
 variable "prod_database_secret_arn" {
   type        = string
   description = "ARN of the production database secret (for staging sync Lambda)"
   default     = ""
+}
+
+variable "public_subnet_id" {
+  type        = string
+  description = "Public subnet ID where NAT Gateway will be placed (must have IGW route)"
+  default     = null
 }
 
 variable "frontend_acm_cert_arn" {

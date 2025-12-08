@@ -131,6 +131,23 @@ module "cognito" {
 }
 
 # =============================================================================
+# VPC Networking (NAT Gateway for Lambda outbound access)
+# =============================================================================
+
+module "vpc_networking" {
+  count  = var.enable_nat_gateway ? 1 : 0
+  source = "./modules/vpc-networking"
+
+  vpc_id             = data.aws_vpc.default[0].id
+  name_prefix        = local.name_prefix
+  enable_nat_gateway = true
+  public_subnet_id   = var.public_subnet_id
+  private_subnet_ids = var.private_subnet_ids
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Database (RDS PostgreSQL)
 # =============================================================================
 
@@ -200,9 +217,10 @@ module "lambda" {
   provisioned_concurrency = var.lambda_provisioned_concurrency
 
   # VPC configuration (when database is enabled)
+  # Use private_subnet_ids if NAT gateway is enabled, otherwise use all default subnets
   create_security_group = var.enable_database
   vpc_id                = var.enable_database ? data.aws_vpc.default[0].id : null
-  subnet_ids            = var.enable_database ? data.aws_subnets.default[0].ids : []
+  subnet_ids            = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
 
   # Secrets Manager access (use ARN pattern to avoid circular dependency)
   secrets_arns = var.enable_database ? [

@@ -38,3 +38,12 @@ cognito_mfa_totp_enabled  = true
 
 # Database sync - production secret ARN for cross-account sync
 prod_database_secret_arn = "arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl"
+
+# VPC Networking - NAT Gateway for Lambda outbound access (Cognito API)
+enable_nat_gateway = true
+public_subnet_id   = "subnet-0c5f84e98ba25334d"
+private_subnet_ids = [
+  "subnet-0ceb0276fa36428f2",
+  "subnet-09eeb023cb49a83d5",
+  "subnet-0bfb299044084bad3"
+]
