@@ -6,6 +6,10 @@ on:
     paths:
       - 'site/**'
       - 'docs/screenshots/**'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/screenshots/**'
   workflow_dispatch:
 
 permissions:
@@ -13,9 +17,86 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install linters
+        run: npm install -g htmlhint
+
+      - name: Resolve symlinks for validation
+        run: |
+          mkdir -p /tmp/site-validate
+          cp -rL site/* /tmp/site-validate/
+
+      - name: Lint HTML files
+        run: |
+          echo "Linting HTML files..."
+          htmlhint /tmp/site-validate/*.html --format compact
+          echo "HTML linting passed"
+
+      - name: Validate HTML structure
+        run: |
+          echo "Validating HTML structure..."
+          for file in /tmp/site-validate/*.html; do
+            echo "Checking $file..."
+            # Check for required elements
+            grep -q '<title>' "$file" || (echo "Missing <title> in $file" && exit 1)
+            grep -q '<meta.*charset' "$file" || (echo "Missing charset meta in $file" && exit 1)
+            grep -q '<meta.*viewport' "$file" || (echo "Missing viewport meta in $file" && exit 1)
+          done
+          echo "HTML structure validation passed"
+
+      - name: Check for broken internal links
+        run: |
+          echo "Checking for broken internal links..."
+          cd /tmp/site-validate
+          for file in *.html; do
+            # Extract href values and check if local files exist
+            grep -oP 'href="(?!http|mailto|#)\K[^"]+' "$file" 2>/dev/null | while read -r link; do
+              if [[ ! -f "$link" && ! -d "$link" ]]; then
+                echo "Warning: Potentially broken link '$link' in $file"
+              fi
+            done
+          done
+          echo "Link check complete"
+
+      - name: Validate screenshots exist
+        run: |
+          echo "Validating screenshots..."
+          required_screenshots=(
+            "login.png"
+            "dashboard.png"
+            "collection.png"
+            "book-detail.png"
+            "reports.png"
+            "analysis.png"
+          )
+          for screenshot in "${required_screenshots[@]}"; do
+            if [[ -f "/tmp/site-validate/screenshots/$screenshot" ]]; then
+              size=$(stat -f%z "/tmp/site-validate/screenshots/$screenshot" 2>/dev/null || stat -c%s "/tmp/site-validate/screenshots/$screenshot")
+              echo "✓ $screenshot ($size bytes)"
+            else
+              echo "✗ Missing required screenshot: $screenshot"
+              exit 1
+            fi
+          done
+          echo "All required screenshots present"
+
   deploy:
     name: Deploy to S3
     runs-on: ubuntu-latest
+    needs: lint
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     environment: production
 
     steps:
@@ -45,8 +126,99 @@ jobs:
             --distribution-id ES60BQB34DNYS \
             --paths "/*"
 
-      - name: Verify deployment
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Wait for CloudFront propagation
+        run: sleep 30
+
+      - name: Test homepage loads
         run: |
-          sleep 5
-          curl -sI https://bluemoxon.com | head -5
-          echo "Marketing site deployed successfully"
+          echo "Testing homepage..."
+          status=$(curl -sI https://bluemoxon.com | head -1 | awk '{print $2}')
+          if [[ "$status" != "200" ]]; then
+            echo "Homepage returned status $status"
+            exit 1
+          fi
+          echo "✓ Homepage returns 200"
+
+      - name: Validate homepage content
+        run: |
+          echo "Validating homepage content..."
+          content=$(curl -s https://bluemoxon.com)
+
+          # Check for expected content
+          echo "$content" | grep -qi "bluemoxon" || (echo "✗ Missing 'BlueMoxon' branding" && exit 1)
+          echo "✓ BlueMoxon branding present"
+
+          echo "$content" | grep -qi "victorian" || (echo "✗ Missing 'Victorian' keyword" && exit 1)
+          echo "✓ Victorian keyword present"
+
+          echo "$content" | grep -qi "collection" || (echo "✗ Missing 'collection' keyword" && exit 1)
+          echo "✓ Collection keyword present"
+
+      - name: Test screenshots are accessible
+        run: |
+          echo "Testing screenshot accessibility..."
+          screenshots=(
+            "login.png"
+            "dashboard.png"
+            "collection.png"
+            "book-detail.png"
+            "reports.png"
+            "analysis.png"
+          )
+
+          for screenshot in "${screenshots[@]}"; do
+            url="https://bluemoxon.com/screenshots/$screenshot"
+            content_type=$(curl -sI "$url" | grep -i "content-type" | head -1)
+
+            if echo "$content_type" | grep -qi "image"; then
+              echo "✓ $screenshot returns image content-type"
+            else
+              echo "✗ $screenshot failed - got: $content_type"
+              exit 1
+            fi
+          done
+          echo "All screenshots accessible"
+
+      - name: Test admin guide loads
+        run: |
+          echo "Testing admin guide..."
+          status=$(curl -sI https://bluemoxon.com/admin-guide.html | head -1 | awk '{print $2}')
+          if [[ "$status" != "200" ]]; then
+            echo "Admin guide returned status $status"
+            exit 1
+          fi
+          echo "✓ Admin guide returns 200"
+
+      - name: Verify deployment timestamp
+        run: |
+          echo "Checking deployment freshness..."
+          last_modified=$(curl -sI https://bluemoxon.com | grep -i "last-modified" | cut -d: -f2-)
+          echo "Last-Modified: $last_modified"
+
+          # Convert to epoch and check it's recent (within last hour)
+          modified_epoch=$(date -d "$last_modified" +%s 2>/dev/null || date -j -f "%a, %d %b %Y %H:%M:%S %Z" "$last_modified" +%s 2>/dev/null || echo "0")
+          now_epoch=$(date +%s)
+          age=$((now_epoch - modified_epoch))
+
+          if [[ $age -lt 3600 ]]; then
+            echo "✓ Site was updated within the last hour ($age seconds ago)"
+          else
+            echo "⚠ Site was updated $age seconds ago (may be cached)"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "========================================="
+          echo "  Marketing Site Smoke Tests Passed"
+          echo "========================================="
+          echo "  URL: https://bluemoxon.com"
+          echo "  Status: Deployed Successfully"
+          echo "========================================="
