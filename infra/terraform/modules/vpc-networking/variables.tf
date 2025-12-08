@@ -21,6 +21,30 @@ variable "public_subnet_id" {
   default     = null
 }
 
+variable "enable_vpc_endpoints" {
+  type        = bool
+  description = "Enable VPC endpoints for S3 and Secrets Manager"
+  default     = false
+}
+
+variable "create_lambda_sg_rule" {
+  type        = bool
+  description = "Whether to create the Lambda security group ingress rule"
+  default     = false
+}
+
+variable "lambda_security_group_id" {
+  type        = string
+  description = "Lambda security group ID (for VPC endpoint ingress rules)"
+  default     = null
+}
+
+variable "route_table_ids" {
+  type        = list(string)
+  description = "Route table IDs for S3 Gateway endpoint association"
+  default     = []
+}
+
 variable "tags" {
   type        = map(string)
   description = "Resource tags"
