@@ -62,34 +62,45 @@ jobs:
       cognito_client_id: ${{ steps.config.outputs.cognito_client_id }}
       cognito_domain: ${{ steps.config.outputs.cognito_domain }}
     steps:
-      - name: Set environment configuration
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            infra/config
+          sparse-checkout-cone-mode: false
+
+      - name: Load environment configuration
         id: config
         run: |
+          # Determine config file based on branch
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            echo "Configuring for PRODUCTION deployment"
-            echo "environment=production" >> $GITHUB_OUTPUT
-            echo "lambda_function_name=bluemoxon-api" >> $GITHUB_OUTPUT
-            echo "s3_frontend_bucket=bluemoxon-frontend" >> $GITHUB_OUTPUT
-            echo "cloudfront_distribution_id=E16BJX90QWQNQO" >> $GITHUB_OUTPUT
-            echo "api_url=https://api.bluemoxon.com/api/v1" >> $GITHUB_OUTPUT
-            echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "cognito_user_pool_id=us-west-2_PvdIpXVKF" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=3ndaok3psd2ncqfjrdb57825he" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            CONFIG_FILE="infra/config/production.json"
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
-            echo "Configuring for STAGING deployment"
-            echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "lambda_function_name=bluemoxon-staging-api" >> $GITHUB_OUTPUT
-            echo "s3_frontend_bucket=bluemoxon-frontend-staging" >> $GITHUB_OUTPUT
-            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
-            echo "api_url=https://ikxdby8a89.execute-api.us-west-2.amazonaws.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://d3rkfi55tpd382.cloudfront.net" >> $GITHUB_OUTPUT
-            echo "cognito_user_pool_id=us-west-2_5pOhFH6LN" >> $GITHUB_OUTPUT
-            echo "cognito_client_id=30cjt0d9rt1bf1baukbsvm3o" >> $GITHUB_OUTPUT
-            echo "cognito_domain=bluemoxon-staging.auth.us-west-2.amazoncognito.com" >> $GITHUB_OUTPUT
+            CONFIG_FILE="infra/config/staging.json"
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
+          fi
+
+          echo "Loading configuration from: $CONFIG_FILE"
+          cat "$CONFIG_FILE"
+
+          # Read all values from config file (single source of truth)
+          echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_user_pool_id=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_client_id=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_domain=$(jq -r '.cognito.domain' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+
+          # CloudFront distribution ID: use config file value, fall back to GitHub variable for staging
+          CF_DIST_ID=$(jq -r '.cloudfront.frontend_distribution_id' $CONFIG_FILE)
+          if [[ "$CF_DIST_ID" == *'${'* ]]; then
+            # Config has placeholder, use GitHub variable
+            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
+          else
+            echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
           fi
 
   # ============================================
@@ -199,7 +210,7 @@ jobs:
         env:
           VITE_API_URL: ${{ needs.configure.outputs.api_url }}
           VITE_COGNITO_USER_POOL_ID: ${{ needs.configure.outputs.cognito_user_pool_id }}
-          VITE_COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
+          VITE_COGNITO_APP_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
           VITE_COGNITO_DOMAIN: ${{ needs.configure.outputs.cognito_domain }}
         run: npm run build
 
@@ -389,9 +400,8 @@ jobs:
             echo "api_base=https://api.bluemoxon.com" >> $GITHUB_OUTPUT
             echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
           else
-            # Staging uses API Gateway URL directly (no custom domain yet)
-            echo "api_base=${{ needs.configure.outputs.api_url }}" >> $GITHUB_OUTPUT
-            echo "app_url=${{ needs.configure.outputs.app_url }}" >> $GITHUB_OUTPUT
+            echo "api_base=https://staging.api.bluemoxon.com" >> $GITHUB_OUTPUT
+            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
           fi
 
       - name: Test API liveness
@@ -514,7 +524,6 @@ jobs:
           echo "Deep health check passed!"
 
       - name: Test API books endpoint
-        if: needs.configure.outputs.environment == 'production'
         run: |
           echo "Testing books API..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
@@ -535,7 +544,60 @@ jobs:
             exit 1
           fi
 
-          echo "Books API check passed!"
+          total=$(echo "$body" | jq -r '.total' 2>/dev/null)
+          echo "Books API check passed! Found $total books."
+
+      - name: Test API authentication
+        run: |
+          echo "Testing API authentication (should reject unauthenticated requests)..."
+          API_BASE="${{ steps.urls.outputs.api_base }}"
+
+          # Test that POST to books requires auth (should return 401/403)
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${API_BASE}/api/v1/books" \
+            -H "Content-Type: application/json" \
+            -d '{"title":"test"}')
+
+          echo "HTTP Code for unauthenticated POST: $http_code"
+
+          if [[ "$http_code" != "401" && "$http_code" != "403" ]]; then
+            echo "ERROR: Expected 401 or 403 for unauthenticated request, got $http_code"
+            exit 1
+          fi
+
+          echo "Authentication check passed! Unauthenticated requests correctly rejected."
+
+      - name: Test CORS headers
+        run: |
+          echo "Testing CORS headers..."
+          API_BASE="${{ steps.urls.outputs.api_base }}"
+          APP_URL="${{ steps.urls.outputs.app_url }}"
+
+          # Make preflight OPTIONS request
+          response=$(curl -s -I -X OPTIONS "${API_BASE}/api/v1/books" \
+            -H "Origin: ${APP_URL}" \
+            -H "Access-Control-Request-Method: GET")
+
+          # Check for CORS headers
+          if echo "$response" | grep -qi "access-control-allow-origin"; then
+            origin_header=$(echo "$response" | grep -i "access-control-allow-origin" | head -1)
+            echo "CORS Origin header: $origin_header"
+            echo "CORS headers present!"
+          else
+            echo "WARNING: CORS headers not found in preflight response"
+            echo "This may indicate CORS misconfiguration"
+            # Don't fail - CORS might be handled differently
+          fi
+
+          # Also test actual request includes CORS headers
+          response=$(curl -s -I "${API_BASE}/api/v1/books" \
+            -H "Origin: ${APP_URL}")
+
+          if echo "$response" | grep -qi "access-control-allow-origin"; then
+            echo "CORS headers present in actual request response"
+          fi
+
+          echo "CORS check completed!"
 
       - name: Test Vue app loads
         run: |
@@ -558,19 +620,107 @@ jobs:
 
           echo "Vue app check passed!"
 
+      - name: Validate frontend version and config
+        run: |
+          echo "Validating frontend version and Cognito config..."
+          APP_URL="${{ steps.urls.outputs.app_url }}"
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+
+          # Get expected values from configure job (which reads from config files)
+          EXPECTED_CLIENT_ID="${{ needs.configure.outputs.cognito_client_id }}"
+          EXPECTED_POOL_ID="${{ needs.configure.outputs.cognito_user_pool_id }}"
+
+          # Download frontend HTML to find JS bundle name
+          html=$(curl -s "$APP_URL")
+          js_file=$(echo "$html" | grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' | head -1)
+
+          if [[ -z "$js_file" ]]; then
+            echo "ERROR: Could not find main JS bundle in HTML!"
+            exit 1
+          fi
+
+          echo "Found JS bundle: $js_file"
+
+          # Download JS bundle and check for expected version
+          # js_file includes leading slash, so no need to add another
+          js_content=$(curl -s "${APP_URL}${js_file}")
+
+          # Check version in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
+            echo "✅ Frontend version matches: $EXPECTED_VERSION"
+          else
+            # Try to find what version is actually there
+            ACTUAL_VERSION=$(echo "$js_content" | grep -oE '20[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[a-f0-9]{7}' | head -1)
+            echo "ERROR: Frontend version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Found: ${ACTUAL_VERSION:-not found}"
+            exit 1
+          fi
+
+          # Check Cognito client ID in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_CLIENT_ID"; then
+            echo "✅ Cognito client ID matches: $EXPECTED_CLIENT_ID"
+          else
+            # Try to find what client ID is actually there
+            ACTUAL_CLIENT=$(echo "$js_content" | grep -oE '[0-9a-z]{26}' | head -1)
+            echo "ERROR: Cognito client ID mismatch!"
+            echo "  Expected: $EXPECTED_CLIENT_ID"
+            echo "  Found: ${ACTUAL_CLIENT:-not found}"
+            echo "  This usually means CI and deploy workflows have artifact name collision."
+            exit 1
+          fi
+
+          # Check Cognito pool ID in JS bundle
+          if echo "$js_content" | grep -q "$EXPECTED_POOL_ID"; then
+            echo "✅ Cognito pool ID matches: $EXPECTED_POOL_ID"
+          else
+            ACTUAL_POOL=$(echo "$js_content" | grep -oE 'us-west-2_[A-Za-z0-9]+' | head -1)
+            echo "ERROR: Cognito pool ID mismatch!"
+            echo "  Expected: $EXPECTED_POOL_ID"
+            echo "  Found: ${ACTUAL_POOL:-not found}"
+            exit 1
+          fi
+
+          echo "Frontend configuration validation passed!"
+
       - name: Test image endpoint (CloudFront CDN)
-        if: needs.configure.outputs.environment == 'production'
         run: |
           echo "Testing image CloudFront CDN..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
+          ENV="${{ needs.configure.outputs.environment }}"
+
           # Get first book with images via API
           book_response=$(curl -s "${API_BASE}/api/v1/books?has_images=true&per_page=1")
+          total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
+
+          echo "Books with images in database: $total_with_images"
+
+          if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
+            echo "INFO: No books with images found"
+            exit 0
+          fi
 
           if echo "$book_response" | grep -q '"primary_image_url"'; then
-            image_url=$(echo "$book_response" | grep -o '"primary_image_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+            image_url=$(echo "$book_response" | jq -r '.items[0].primary_image_url' 2>/dev/null)
 
-            if [[ -n "$image_url" ]]; then
-              echo "Testing image URL: $image_url"
+            echo "Primary image URL: $image_url"
+
+            # Check if URL is relative (starts with /) - means no CDN configured or images not synced
+            if [[ "$image_url" == /* ]]; then
+              if [[ "$ENV" == "staging" ]]; then
+                echo "INFO: Staging returns relative image URLs (no CDN images synced yet)"
+                echo "This is expected - staging uses prod database but separate S3 bucket"
+                echo "Image CDN test skipped for staging"
+                exit 0
+              else
+                echo "WARNING: Production returning relative image URLs instead of CDN URLs"
+                # Continue to test via API path
+                image_url="${API_BASE}${image_url}"
+              fi
+            fi
+
+            if [[ -n "$image_url" && "$image_url" != "null" ]]; then
+              echo "Testing full image URL: $image_url"
 
               # Get headers and body info
               response=$(curl -sI -L "$image_url")
@@ -603,10 +753,10 @@ jobs:
 
               echo "Image endpoint working! Content verified as $content_type ($content_length bytes)"
             else
-              echo "WARNING: No image URL found in response"
+              echo "INFO: No image URL found in response (book may not have primary image)"
             fi
           else
-            echo "WARNING: No books with images found, skipping image test"
+            echo "INFO: No primary_image_url field in response"
           fi
 
       - name: Deployment summary

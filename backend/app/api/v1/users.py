@@ -347,10 +347,28 @@ def get_user_mfa_status(
         cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
 
         # Get user info
-        user_response = cognito.admin_get_user(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=user.email,
-        )
+        try:
+            user_response = cognito.admin_get_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=user.email,
+            )
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "UserNotFoundException":
+                # User exists in DB but not in this Cognito pool
+                # This is expected in staging where users are synced from prod DB
+                # but haven't logged in to staging Cognito yet
+                return {
+                    "user_id": user_id,
+                    "email": user.email,
+                    "mfa_configured": False,
+                    "mfa_enabled": False,
+                    "mfa_methods": [],
+                    "pool_mfa_required": False,
+                    "user_status": "NOT_IN_COGNITO",
+                    "note": "User has not logged in to this environment yet",
+                }
+            raise
 
         # Check if TOTP MFA is in user's settings (currently active)
         mfa_options = user_response.get("UserMFASettingList", [])

@@ -25,7 +25,7 @@ env:
   NODE_VERSION: "20"
   # Staging AWS Resource IDs (different from production)
   LAMBDA_FUNCTION_NAME: bluemoxon-staging-api
-  S3_FRONTEND_BUCKET: bluemoxon-staging-frontend
+  S3_FRONTEND_BUCKET: bluemoxon-frontend-staging
   S3_IMAGES_BUCKET: bluemoxon-staging-images
   CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}
   # Auto-generated version: YYYY.MM.DD-<short-sha>
@@ -87,15 +87,16 @@ jobs:
 
       - name: Build Lambda package with Docker
         run: |
+          # Use Lambda Python 3.12 image for binary compatibility
           docker run --rm \
+            --entrypoint /bin/bash \
             -v ${{ github.workspace }}/backend:/app:ro \
             -v ${{ github.workspace }}/VERSION:/VERSION:ro \
             -v /tmp/lambda-deploy:/output \
             --platform linux/amd64 \
-            amazonlinux:2023 \
-            /bin/bash -c "
-              dnf install -y python3.11 python3.11-pip zip > /dev/null 2>&1
-              python3.11 -m pip install -q -t /output -r /app/requirements.txt
+            public.ecr.aws/lambda/python:3.12 \
+            -c "
+              pip install -q -t /output -r /app/requirements.txt
               cp -r /app/app /output/
               cp /VERSION /output/
             "

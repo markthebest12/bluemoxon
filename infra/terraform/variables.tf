@@ -25,6 +25,18 @@ variable "aws_region" {
   default     = "us-west-2"
 }
 
+variable "cognito_mfa_configuration" {
+  type        = string
+  description = "Cognito MFA configuration: OFF, ON, or OPTIONAL"
+  default     = "OFF"
+}
+
+variable "cognito_mfa_totp_enabled" {
+  type        = bool
+  description = "Enable TOTP (software token) MFA for Cognito"
+  default     = false
+}
+
 variable "db_allocated_storage" {
   type        = number
   description = "RDS allocated storage (GB)"
@@ -70,6 +82,12 @@ variable "enable_cloudfront" {
 variable "enable_database" {
   type        = bool
   description = "Enable RDS PostgreSQL database"
+  default     = false
+}
+
+variable "enable_nat_gateway" {
+  type        = bool
+  description = "Enable NAT Gateway for Lambda outbound internet access"
   default     = false
 }
 
@@ -144,10 +162,22 @@ variable "api_key_hash" {
   sensitive   = true
 }
 
+variable "private_subnet_ids" {
+  type        = list(string)
+  description = "Private subnet IDs for Lambda VPC configuration (subnets with NAT Gateway route)"
+  default     = []
+}
+
 variable "prod_database_secret_arn" {
   type        = string
   description = "ARN of the production database secret (for staging sync Lambda)"
   default     = ""
+}
+
+variable "public_subnet_id" {
+  type        = string
+  description = "Public subnet ID where NAT Gateway will be placed (must have IGW route)"
+  default     = null
 }
 
 variable "frontend_acm_cert_arn" {

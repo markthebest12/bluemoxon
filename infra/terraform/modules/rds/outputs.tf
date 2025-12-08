@@ -1,7 +1,3 @@
-# =============================================================================
-# Outputs
-# =============================================================================
-
 output "address" {
   description = "RDS instance address (hostname)"
   value       = aws_db_instance.this.address

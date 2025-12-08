@@ -8,6 +8,25 @@ This checklist documents the steps needed to migrate production infrastructure t
 - [ ] GitHub OIDC configured for prod deploys (#102)
 - [ ] Backup of current production state documented
 
+### Resource Backups
+
+Before importing any resource, back it up:
+
+```bash
+mkdir -p .tmp/prod-backup
+
+# Cognito
+aws cognito-idp describe-user-pool --user-pool-id us-west-2_PvdIpXVKF > .tmp/prod-backup/cognito-user-pool.json
+aws cognito-idp describe-user-pool-client --user-pool-id us-west-2_PvdIpXVKF --client-id 3ndaok3psd2ncqfjrdb57825he > .tmp/prod-backup/cognito-client.json
+aws cognito-idp list-users --user-pool-id us-west-2_PvdIpXVKF > .tmp/prod-backup/cognito-users.json
+
+# Lambda
+aws lambda get-function --function-name bluemoxon-api > .tmp/prod-backup/lambda-api.json
+
+# API Gateway
+aws apigatewayv2 get-api --api-id <API_ID> > .tmp/prod-backup/api-gateway.json
+```
+
 ## Phase 1: State Backend (#106)
 
 ```bash
@@ -57,13 +76,53 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 
 ### 2.3 Cognito (#110)
 
+**Current State (Updated 2024-12-07):**
+| Environment | Account | User Pool ID | Client ID | Notes |
+|-------------|---------|--------------|-----------|-------|
+| **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | Production users |
+| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | Separate pool (isolated) |
+
+**Architecture:** Separate Cognito pools per environment with automatic `cognito_sub` migration in auth code.
+
 ```bash
 # Import user pool
 terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_PvdIpXVKF
 
 # Import app client
-terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_PvdIpXVKF/<CLIENT_ID>
+terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_PvdIpXVKF/3ndaok3psd2ncqfjrdb57825he
+
+# Import domain
+terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ```
+
+**Configuration (updated in `.github/workflows/deploy.yml`):**
+- Each environment uses its own Cognito pool (separate authentication)
+- Frontend builds with environment-specific Cognito config
+- Auth code handles `cognito_sub` migration when users switch environments
+
+**Callback URLs:**
+
+Staging Cognito client (`48ik81mrpc6anouk234sq31fbt`):
+- `http://localhost:5173/auth/callback`
+- `https://staging.app.bluemoxon.com/auth/callback`
+
+Prod Cognito client (`3ndaok3psd2ncqfjrdb57825he`):
+- `http://localhost:5173/callback`
+- `https://bluemoxon.com/callback`
+- `https://www.bluemoxon.com/callback`
+- `https://app.bluemoxon.com/auth/callback`
+
+**Post-import:** Verify Terraform variables match the callback/logout URLs configured above.
+
+**Warning:** `update-user-pool-client` is a full replacement, not a patch. Always include ALL settings (auth flows, callback URLs, OAuth config) or they will be removed.
+
+**Required Auth Flows (ExplicitAuthFlows):**
+The Cognito client MUST have these auth flows enabled for Amplify SDK `signIn` to work:
+- `ALLOW_USER_PASSWORD_AUTH` - Required for direct username/password authentication
+- `ALLOW_USER_SRP_AUTH` - Secure Remote Password protocol (recommended)
+- `ALLOW_REFRESH_TOKEN_AUTH` - Required for token refresh
+
+Without `ALLOW_USER_PASSWORD_AUTH`, login will fail with "Invalid email or password" even with correct credentials.
 
 ### 2.4 Lambda & API Gateway (#107)
 
@@ -183,6 +242,61 @@ Update Lambda environment variable:
 CORS_ORIGINS=https://app.bluemoxon.com,http://localhost:5173
 ```
 
+## VPC Networking Requirements (Lambda in VPC)
+
+When Lambda is deployed in a VPC (for RDS access), it **cannot reach AWS services** without:
+
+### Required VPC Endpoints
+
+| Service | Endpoint Type | Required For |
+|---------|--------------|--------------|
+| `com.amazonaws.us-west-2.secretsmanager` | Interface | Database credentials retrieval |
+| `com.amazonaws.us-west-2.s3` | Gateway | S3 bucket access (images) |
+| `com.amazonaws.us-west-2.cognito-idp` | Interface | Cognito API calls (health checks) |
+
+### Current State (Staging Account 652617421195)
+
+Created manually 2024-12-07:
+- S3 Gateway Endpoint: `vpce-0fa311c71ef94ad87`
+- Secrets Manager Interface Endpoint: (existed)
+- Cognito Interface Endpoint: `vpce-0256de046ef7a09f4`
+
+### Terraform Import Commands
+
+```bash
+# S3 Gateway Endpoint
+terraform import 'aws_vpc_endpoint.s3' vpce-0fa311c71ef94ad87
+
+# Cognito Interface Endpoint
+terraform import 'aws_vpc_endpoint.cognito' vpce-0256de046ef7a09f4
+
+# Secrets Manager (if not already in state)
+terraform import 'aws_vpc_endpoint.secretsmanager' <endpoint-id>
+```
+
+### Deep Health Check Dependencies
+
+The `/api/v1/health/deep` endpoint requires network access to:
+1. **RDS** (PostgreSQL) - via VPC internal routing
+2. **S3** - for images bucket check - needs VPC endpoint
+3. **Cognito** - for user pool describe - needs VPC endpoint
+4. **Secrets Manager** - for DB credentials - needs VPC endpoint
+
+**Symptom of missing VPC endpoint:** Lambda times out (30s) with "Service Unavailable"
+
+**Cross-Account Cognito Note:** When staging uses prod Cognito (shared users), the Cognito VPC endpoint in staging account cannot call `describe_user_pool` for prod account's pool. This causes "InvalidParameterException" in deep health check. However, JWT validation works because it uses the public JWKS endpoint (fetched via httpx, not boto3). This is expected behavior for cross-account Cognito sharing.
+
+### Interface Endpoint Security Groups
+
+Interface endpoints require security groups that allow HTTPS (443) from Lambda security group:
+- Lambda SG → Endpoint SG on port 443
+
+### S3 Bucket Requirements
+
+Staging images bucket: `bluemoxon-staging-images` (created 2024-12-07 after accidental deletion)
+
+If bucket is deleted, deep health check will fail (S3 check hangs/times out).
+
 ## Rollback Plan
 
 If anything goes wrong:
@@ -193,7 +307,67 @@ If anything goes wrong:
 
 ## Post-Migration
 
+- [ ] Merge staging branch to main (includes deploy.yml updates for staging custom domains)
 - [ ] Test all endpoints
 - [ ] Verify CI/CD deploys work
 - [ ] Update documentation
 - [ ] Train team on Terraform workflow
+
+## Centralized Configuration (infra/config/*.json)
+
+Environment-specific configuration is centralized in JSON files at `infra/config/`:
+
+| File | Purpose |
+|------|---------|
+| `staging.json` | All staging environment values |
+| `production.json` | All production environment values |
+
+### Configuration Structure
+
+```json
+{
+  "environment": "staging",
+  "aws_account_id": "652617421195",
+  "aws_region": "us-west-2",
+  "domain": { "base": "...", "app": "...", "api": "..." },
+  "urls": { "app": "...", "api": "..." },
+  "cognito": { "user_pool_id": "...", "app_client_id": "...", "domain": "..." },
+  "lambda": { "function_name": "...", ... },
+  "s3": { "frontend_bucket": "...", "images_bucket": "..." },
+  "cloudfront": { "frontend_distribution_id": "...", ... },
+  "database": { ... },
+  "features": { ... },
+  "acm_certificates": { ... }
+}
+```
+
+### Usage
+
+**GitHub Actions workflows** read from these files via `jq`:
+```bash
+CONFIG_FILE="infra/config/staging.json"
+COGNITO_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)
+```
+
+**Terraform** can read via `jsondecode(file(...))`:
+```hcl
+locals {
+  config = jsondecode(file("${path.module}/../../config/${var.environment}.json"))
+  cognito_user_pool_id = local.config.cognito.user_pool_id
+}
+```
+
+### Benefits
+
+1. **Single source of truth** - No more scattered hardcoded values
+2. **Easy auditing** - All config in one place per environment
+3. **Workflow consistency** - CI and deploy use same source
+4. **Terraform integration** - Can be consumed by Terraform modules
+5. **Validation** - JSON schema can enforce structure
+
+### Adding New Configuration
+
+When adding new config values:
+1. Add to both `staging.json` and `production.json`
+2. Update workflow to read new value via `jq`
+3. Add to smoke tests if validation needed

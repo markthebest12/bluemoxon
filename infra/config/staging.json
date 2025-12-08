@@ -1,0 +1,55 @@
+{
+  "environment": "staging",
+  "aws_account_id": "652617421195",
+  "aws_region": "us-west-2",
+
+  "domain": {
+    "base": "bluemoxon.com",
+    "app": "staging.app.bluemoxon.com",
+    "api": "staging.api.bluemoxon.com"
+  },
+
+  "urls": {
+    "app": "https://staging.app.bluemoxon.com",
+    "api": "https://staging.api.bluemoxon.com/api/v1"
+  },
+
+  "cognito": {
+    "user_pool_id": "us-west-2_5pOhFH6LN",
+    "app_client_id": "48ik81mrpc6anouk234sq31fbt",
+    "domain": "bluemoxon-staging.auth.us-west-2.amazoncognito.com"
+  },
+
+  "lambda": {
+    "function_name": "bluemoxon-staging-api",
+    "memory_size": 256,
+    "timeout": 30,
+    "provisioned_concurrency": 0
+  },
+
+  "s3": {
+    "frontend_bucket": "bluemoxon-frontend-staging",
+    "images_bucket": "bluemoxon-staging-images"
+  },
+
+  "cloudfront": {
+    "frontend_distribution_id": "${STAGING_CLOUDFRONT_DISTRIBUTION_ID}",
+    "images_distribution_id": null
+  },
+
+  "database": {
+    "enabled": true,
+    "instance_class": "db.t3.micro",
+    "allocated_storage": 20
+  },
+
+  "features": {
+    "cloudfront": true,
+    "waf": false
+  },
+
+  "acm_certificates": {
+    "frontend": "arn:aws:acm:us-east-1:652617421195:certificate/cc72c0b6-da3d-4ffa-8a9d-faffeb52283f",
+    "api": "arn:aws:acm:us-west-2:652617421195:certificate/2de326a8-d05e-4a54-8115-acb4e8eacc85"
+  }
+}

@@ -1,5 +1,67 @@
 # BlueMoxon (bmx) Project Instructions
 
+## Bash Command Formatting
+
+**CRITICAL: NEVER use complex shell syntax in bash commands.** These cause permission prompts that cannot be auto-approved:
+
+**NEVER use:**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` or `$((...))` command/arithmetic substitution
+- `||` or `&&` chaining with complex expressions
+
+```bash
+# BAD - will ALWAYS prompt:
+# Check API health
+curl -s https://api.example.com/health
+
+aws lambda get-function-configuration \
+  --function-name my-function
+
+AWS_PROFILE=staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events'
+
+# GOOD - simple single-line commands only:
+curl -s https://api.example.com/health
+aws lambda get-function-configuration --function-name my-function --query 'Environment'
+AWS_PROFILE=staging aws sts get-caller-identity
+AWS_PROFILE=staging aws logs filter-log-events --log-group-name /aws/lambda/my-func --limit 10
+```
+
+Use the command description field instead of inline comments.
+
+## Permission Pattern Guidelines
+
+When adding patterns to `~/.claude/settings.json`:
+
+1. **Use absolute paths, not `~`** - Pattern matching doesn't expand tilde
+   - BAD: `Bash(cat ~/.aws/config:*)`
+   - GOOD: `Bash(cat /Users/mark/.aws/config:*)`
+
+2. **`VAR=:*` patterns don't work** - Must include part of the value
+   - BAD: `Bash(AWS_PROFILE=:*)`
+   - GOOD: `Bash(AWS_PROFILE=staging:*)`, `Bash(AWS_PROFILE=prod:*)`
+
+3. **Patterns with `#` don't work reliably** - Avoid comment prefixes in commands
+
+4. **Sessions must restart to pick up permission changes** - Use `Ctrl-D` then `claude -r`
+
+5. **Permission hierarchy** (later overrides earlier):
+   - `~/.claude/settings.json` (global)
+   - `<project>/.claude/settings.json` (project/team)
+   - `<project>/.claude/settings.local.json` (project/personal)
+
+6. **MCP tool wildcards may not work**: `mcp__playwright__*` should work but often doesn't. List each tool explicitly instead (e.g., `mcp__playwright__browser_navigate`, `mcp__playwright__browser_click`, etc.)
+
+7. **Deny rules take precedence** over allow rules
+
+8. **"Don't ask again" writes to local project file**, not global - clean up local files periodically and consolidate to global
+
+9. **Pattern format**: `Bash(command:*)` - the `:*` suffix means "starts with this prefix"
+
+10. **For new commands**, add to global `~/.claude/settings.json` not project-local files
+
+---
+
 ## CRITICAL: CI/CD Workflow Requirements
 
 **NEVER push directly to main.** All changes MUST go through the CI/CD pipeline:
@@ -74,7 +136,7 @@ git push origin v1.0.0
 ```
 main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
            \     \     \
-staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com] (planned)
+staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com]
              \   / \   /
 feature ──────●     ●────────→  [Feature branches]
 ```
@@ -101,6 +163,41 @@ gh pr create --base staging   # PRs to staging, not main
 # Promote staging to production
 gh pr create --base main --head staging --title "chore: Promote staging to production"
 ```
+
+## Staging Environment
+
+### URLs
+| Service | URL |
+|---------|-----|
+| Frontend | https://staging.app.bluemoxon.com |
+| API | https://staging.api.bluemoxon.com |
+| Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
+
+### AWS Profile
+Use `AWS_PROFILE=staging` for all staging AWS commands:
+```bash
+AWS_PROFILE=staging aws lambda list-functions
+AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m
+```
+
+### Database Sync (Prod → Staging)
+Sync production data to staging via Lambda:
+```bash
+aws lambda invoke --function-name bluemoxon-staging-db-sync --profile staging --payload '{}' .tmp/sync-response.json
+cat .tmp/sync-response.json | jq
+```
+
+Watch sync progress:
+```bash
+AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
+```
+
+See [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) for full details.
+
+### Related Documentation
+- [docs/STAGING_ENVIRONMENT_PLAN.md](docs/STAGING_ENVIRONMENT_PLAN.md) - Architecture and setup
+- [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) - Data sync procedures
+- [docs/STAGING_INFRASTRUCTURE_CHANGES.md](docs/STAGING_INFRASTRUCTURE_CHANGES.md) - Manual changes to terraformize
 
 ## Version System
 
@@ -251,7 +348,193 @@ bluemoxon/
 - **Frontend**: S3 `bluemoxon-frontend` + CloudFront
 - **Images**: S3 `bluemoxon-images` + CloudFront CDN
 - **Database**: RDS PostgreSQL
-- **Auth**: Cognito User Pool
+- **Auth**: Cognito User Pool (separate pools per environment)
+
+## CRITICAL: Lambda Python Version Requirements
+
+**Lambda runtime and build image MUST use the same Python version.**
+
+### Why This Matters
+Packages like `pydantic` contain compiled binary extensions (`pydantic_core._pydantic_core`) that are:
+- Python-version-specific (e.g., compiled for Python 3.12 won't work on 3.11)
+- Platform-specific (must be built on Linux x86_64 for Lambda)
+
+### Current Configuration
+| Component | Python Version | Source |
+|-----------|---------------|--------|
+| Lambda Runtime | Python 3.12 | Terraform `lambda` module |
+| Deploy Build Image | `public.ecr.aws/lambda/python:3.12` | `deploy.yml`, `deploy-staging.yml` |
+| CI Tests | Python 3.11 | `ci.yml` (doesn't need to match) |
+
+### When Changing Python Versions
+1. Update Lambda runtime in Terraform: `infra/terraform/modules/lambda/main.tf`
+2. Update deploy build image in **BOTH** workflows:
+   - `.github/workflows/deploy.yml`
+   - `.github/workflows/deploy-staging.yml`
+3. Deploy staging first to validate
+4. Update CI Python version if needed (optional, for consistency)
+
+### Symptoms of Version Mismatch
+```
+[ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'pydantic_core._pydantic_core'
+```
+
+## CRITICAL: Infrastructure as Code (Terraform)
+
+**ALL infrastructure MUST be managed via Terraform.** No manual AWS console changes.
+
+### Why This Matters
+- Manual changes create drift that's impossible to track
+- Manual changes get lost when resources are recreated
+- Other team members don't know about manual changes
+- Rollbacks become impossible
+- Staging/prod parity breaks
+
+### The Rule
+1. **NEVER** create/modify AWS resources manually (console or CLI)
+2. **ALWAYS** add infrastructure changes to `infra/terraform/`
+3. **DOCUMENT** any temporary manual fixes immediately in docs and create a ticket to terraformize
+
+### Workflow for Infrastructure Changes
+```bash
+cd infra/terraform
+
+# 1. Make changes to .tf files
+# 2. Plan (always review!)
+terraform plan -var-file=envs/staging.tfvars
+
+# 3. Apply
+terraform apply -var-file=envs/staging.tfvars
+
+# 4. Commit the .tf changes
+git add . && git commit -m "infra: Add/change X resource"
+```
+
+### Import Existing Resources
+If a resource was created manually, import it before making changes:
+```bash
+terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
+```
+
+### Current State
+- **Staging:** Terraform state in `s3://bluemoxon-terraform-state-staging`
+- **Prod:** Migration in progress (see `docs/PROD_MIGRATION_CHECKLIST.md`)
+
+### Exception Process
+If you MUST make a manual change (emergency fix):
+1. Document it immediately in the PR/commit
+2. Create a follow-up task to add it to Terraform
+3. Add a comment in the relevant Terraform file noting the drift
+
+## CRITICAL: Terraform Style Requirements
+
+**STRICTLY follow HashiCorp's official guidelines:**
+- Style Guide: https://developer.hashicorp.com/terraform/language/style
+- Module Pattern: https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation
+
+### File Organization (REQUIRED)
+```
+modules/<module-name>/
+├── main.tf          # Resources and data sources
+├── variables.tf     # Input variables (ALPHABETICAL order)
+├── outputs.tf       # Output values (ALPHABETICAL order)
+├── versions.tf      # Provider version constraints (if needed)
+└── README.md        # Module documentation
+```
+
+### Variable Definitions (REQUIRED for ALL variables)
+```hcl
+variable "example_name" {
+  type        = string
+  description = "Human-readable description of what this variable controls"
+  default     = "sensible-default"  # Optional variables MUST have defaults
+
+  validation {  # Add validation where appropriate
+    condition     = length(var.example_name) > 0
+    error_message = "Example name cannot be empty."
+  }
+}
+```
+
+### Naming Conventions
+- **Resources**: Use descriptive nouns, underscore-separated: `aws_lambda_function`, NOT `aws-lambda-function`
+- **Variables**: Underscore-separated, descriptive: `db_instance_class`, NOT `dbInstanceClass`
+- **Do NOT include resource type in name**: `name = "api"`, NOT `name = "lambda-api"`
+
+### Resource Organization Order
+1. `count` or `for_each` meta-arguments
+2. Resource-specific non-block parameters
+3. Resource-specific block parameters
+4. `lifecycle` blocks (if needed)
+5. `depends_on` (if required)
+
+### Module Design Principles
+1. **Single Purpose**: Each module does ONE thing well
+2. **80% Use Case**: Design for common cases, avoid edge case complexity
+3. **Expose Common Args**: Only expose frequently-modified arguments
+4. **Output Everything**: Export all useful values even if not immediately needed
+5. **Sensible Defaults**: Required inputs have no default; optional inputs have good defaults
+
+### Before Committing ANY Terraform Changes
+```bash
+cd infra/terraform
+terraform fmt -recursive      # Format all files
+terraform validate            # Validate syntax
+terraform plan -var-file=envs/staging.tfvars  # Review changes
+```
+
+### Environment Separation (CRITICAL for Prod/Staging)
+- Use `envs/staging.tfvars` and `envs/prod.tfvars` for environment-specific values
+- NEVER hardcode environment-specific values in modules
+- Use variables with environment passed from tfvars
+- State files are separate: `bluemoxon/staging/terraform.tfstate` vs `bluemoxon/prod/terraform.tfstate`
+
+## Troubleshooting: Deep Health Check Failures
+
+**ALWAYS check `/api/v1/health/deep` first when debugging API issues.** This endpoint validates all dependencies.
+
+### Common Failure: "Service Unavailable" (503) with Lambda Timeout
+
+**Symptom:** Deep health times out at 30 seconds, returns `{"message": "Service Unavailable"}`
+
+**Root Cause:** Lambda in VPC cannot reach AWS services (S3, Cognito, Secrets Manager)
+
+**Diagnosis:**
+```bash
+curl -s "https://staging.api.bluemoxon.com/api/v1/health/deep"
+curl -s "https://staging.api.bluemoxon.com/api/v1/books?limit=1"
+```
+If books works but deep health times out → VPC endpoint issue
+
+**Fix:** Ensure VPC has required endpoints:
+- `com.amazonaws.us-west-2.secretsmanager` (Interface) - for DB credentials
+- `com.amazonaws.us-west-2.s3` (Gateway) - for images bucket
+- `com.amazonaws.us-west-2.cognito-idp` (Interface) - for Cognito API
+
+See `docs/PROD_MIGRATION_CHECKLIST.md` → "VPC Networking Requirements" section.
+
+### Common Failure: S3 Bucket Deleted
+
+**Symptom:** Deep health check hangs on S3 check
+
+**Diagnosis:**
+```bash
+AWS_PROFILE=staging aws s3 ls s3://bluemoxon-staging-images
+```
+If "NoSuchBucket" → bucket was deleted
+
+**Fix:**
+```bash
+AWS_PROFILE=staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
+```
+
+### Debugging Steps
+
+1. Check simple health: `curl https://staging.api.bluemoxon.com/health`
+2. Check Lambda logs: `AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m`
+3. Look for "timeout" in logs → VPC networking issue
+4. Check VPC endpoints exist for S3/Cognito/Secrets Manager
+5. Check S3 bucket exists
 
 ## Quick Commands
 

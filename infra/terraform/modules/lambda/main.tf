@@ -171,6 +171,40 @@ resource "aws_iam_role_policy" "s3_access" {
   })
 }
 
+# Cognito access for user management
+resource "aws_iam_role_policy" "cognito_access" {
+  count = length(var.cognito_user_pool_arns) > 0 ? 1 : 0
+  name  = "cognito-access"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminDeleteUser",
+          "cognito-idp:AdminDisableUser",
+          "cognito-idp:AdminEnableUser",
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:AdminInitiateAuth",
+          "cognito-idp:AdminListGroupsForUser",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminResetUserPassword",
+          "cognito-idp:AdminSetUserMFAPreference",
+          "cognito-idp:AdminSetUserPassword",
+          "cognito-idp:AdminUpdateUserAttributes",
+          "cognito-idp:DescribeUserPool",
+          "cognito-idp:GetUser",
+          "cognito-idp:ListUsers"
+        ]
+        Resource = var.cognito_user_pool_arns
+      }
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # CloudWatch Log Group
 # -----------------------------------------------------------------------------

@@ -4,7 +4,8 @@
 
 Create `staging.app.bluemoxon.com` as an isolated replica of production in a separate AWS account, with:
 - Independent infrastructure (can be modified without affecting prod)
-- Shared Cognito authentication (prod users work in staging)
+- **Separate Cognito pools per environment** (isolated user management)
+- Automatic cognito_sub migration when users move between pools
 - Version tracking across environments
 - Cost-optimized (scales to near-zero when idle)
 - Future Terraform migration path
@@ -196,46 +197,119 @@ Add to repository secrets:
 |-----------|------------|---------|-------------|
 | Aurora Serverless v2 | 0.5-4 ACU | 0.5-1 ACU | ~$43/mo min |
 | Lambda | On-demand | On-demand | Pay per use |
-| NAT Gateway | Yes ($32/mo) | **No** (VPC endpoints) | -$32/mo |
+| NAT Gateway | Yes ($32/mo) | **Yes** (required for Cognito) | $0 |
 | CloudFront | Standard | Standard | Minimal |
 | S3 | Standard | Standard | Pay per use |
-| Cognito | Prod pool | **Shared (prod)** | $0 |
+| Cognito | Prod pool | **Separate pool** | $0 (free tier) |
 | Route53 | bluemoxon.com | staging subdomain | ~$0.50/mo |
 | ACM | *.bluemoxon.com | Same cert (SANs) | $0 |
 
-### Cross-Account Cognito Setup
+### Cognito Architecture (Separate Pools)
 
-Staging will validate JWTs against prod Cognito:
+Each environment has its own Cognito user pool for complete isolation:
+
+| Environment | User Pool ID | Client ID | Domain |
+|-------------|-------------|-----------|--------|
+| **Production** | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | `bluemoxon.auth.us-west-2.amazoncognito.com` |
+| **Staging** | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | `bluemoxon-staging.auth.us-west-2.amazoncognito.com` |
+
+**Why separate pools?**
+- Isolated user management per environment
+- No risk of accidental cross-environment access
+- Independent MFA/password policies
+- Cleaner audit trails
+
+**Cognito Sub Migration:**
+When users are created in different Cognito pools, they get different `cognito_sub` values. The auth code handles this automatically:
 
 ```python
-# staging config
-COGNITO_USER_POOL_ID = "us-west-2_PvdIpXVKF"  # PROD pool
-COGNITO_CLIENT_ID = "prod-client-id"           # PROD client
-COGNITO_REGION = "us-west-2"                   # PROD region
+# backend/app/auth.py - cognito_sub migration logic
+db_user = db.query(User).filter(User.cognito_sub == cognito_sub).first()
+if not db_user:
+    # Check if user exists by email (handles Cognito pool migration)
+    db_user = db.query(User).filter(User.email == email).first()
+    if db_user:
+        # Migrate user to new Cognito sub (preserves role)
+        db_user.cognito_sub = cognito_sub
+        db.commit()
 ```
 
-No IAM cross-account needed - JWT validation is stateless using JWKS.
+**Authentication Flow with Separate Pools:**
 
-### Network Architecture (Cost Optimized)
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Cognito
+    participant API
+    participant DB
+
+    User->>Frontend: Login request
+    Frontend->>Cognito: Redirect to Hosted UI
+    Note over Cognito: Environment-specific pool<br/>(staging vs prod)
+    Cognito->>Frontend: JWT token (with cognito_sub)
+    Frontend->>API: Request + JWT
+    API->>API: Validate JWT signature
+    API->>DB: Lookup user by cognito_sub
+    alt User found
+        DB-->>API: Return user (with role)
+    else Not found, check email
+        API->>DB: Lookup user by email
+        alt Email match (migration)
+            API->>DB: Update cognito_sub
+            DB-->>API: Return user (preserves role)
+        else No match
+            API->>DB: Create new user (viewer)
+            DB-->>API: Return new user
+        end
+    end
+    API-->>Frontend: Response with user context
+```
+
+**Terraform Import Commands (Staging Cognito):**
+```bash
+cd infra/terraform
+terraform init -backend-config="bucket=bluemoxon-terraform-state-staging" \
+               -backend-config="key=bluemoxon/staging/terraform.tfstate"
+
+# Import existing staging Cognito pool
+terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_5pOhFH6LN
+terraform import 'module.cognito.aws_cognito_user_pool_client.this' us-west-2_5pOhFH6LN/48ik81mrpc6anouk234sq31fbt
+terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon-staging
+```
+
+### Network Architecture
+
+> **IMPORTANT LESSON LEARNED:** Do NOT create a Cognito VPC endpoint when using Managed Login.
+> Cognito PrivateLink is incompatible with Managed Login domains - causes "PrivateLink access disabled" errors.
+> Lambda must use NAT Gateway for outbound internet access to reach Cognito APIs.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Staging VPC (10.1.0.0/16)                │
+│                    Staging VPC (Default VPC)                │
 ├─────────────────────────────────────────────────────────────┤
-│  Public Subnets (10.1.0.0/24, 10.1.1.0/24)                 │
-│  └── Internet Gateway (for Lambda responses)                │
+│  Public Subnet (e.g., us-west-2a)                          │
+│  └── Internet Gateway                                       │
+│  └── NAT Gateway (REQUIRED for Cognito access)              │
 │                                                             │
-│  Private Subnets (10.1.10.0/24, 10.1.11.0/24)              │
+│  Private Subnets (us-west-2b, 2c, 2d)                       │
 │  └── Lambda functions                                       │
-│  └── VPC Endpoints (instead of NAT):                        │
+│  └── Route: 0.0.0.0/0 → NAT Gateway                        │
+│  └── VPC Endpoints (for AWS services):                      │
 │      - com.amazonaws.us-west-2.secretsmanager               │
 │      - com.amazonaws.us-west-2.s3 (gateway)                 │
-│      - com.amazonaws.us-west-2.rds                          │
+│      - ⚠️ NO Cognito endpoint (incompatible with Managed Login) │
 │                                                             │
-│  Isolated Subnets (10.1.20.0/24, 10.1.21.0/24)             │
+│  Database Subnets                                           │
 │  └── Aurora Serverless v2                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Key Networking Rules:**
+1. NAT Gateway must be in a **public subnet** (one with IGW route)
+2. Lambda must be in **private subnets only** (not the NAT Gateway's subnet)
+3. Private route table routes `0.0.0.0/0` → NAT Gateway
+4. Do NOT put NAT Gateway's subnet in the private route table (creates routing loop)
 
 ---
 
@@ -643,14 +717,15 @@ echo "URL: https://staging.app.bluemoxon.com"
 - [x] Update smoke tests for staging
 
 ### Phase 5: Data Migration
-- [ ] Run initial database sync
-- [ ] Run S3 image sync
-- [ ] Verify staging works end-to-end
+- [x] Run initial database sync
+- [x] Run S3 image sync
+- [x] Verify staging works end-to-end
 
 ### Phase 6: Documentation
-- [ ] Update CLAUDE.md with staging workflow
-- [ ] Document sync procedures
-- [ ] Create staging environment guide
+- [x] Update CLAUDE.md with staging workflow (see issue #83)
+- [x] Document sync procedures
+- [x] Create staging environment guide
+- [x] Document manual infrastructure fixes (see `STAGING_INFRASTRUCTURE_CHANGES.md`)
 
 ### Future: Production Migration
 - [ ] Port Terraform modules to prod
@@ -693,14 +768,14 @@ echo "URL: https://staging.app.bluemoxon.com"
 | Resource | Monthly Cost |
 |----------|--------------|
 | Aurora Serverless v2 (0.5 ACU min) | ~$43 |
-| VPC Endpoints (3 endpoints) | ~$22 |
+| NAT Gateway (required for Cognito) | ~$32 |
 | S3 Storage (~1GB) | ~$0.02 |
 | CloudFront | ~$1 |
 | Route53 | ~$0.50 |
 | Lambda (minimal use) | ~$0 |
-| **Total** | **~$67/month** |
+| **Total** | **~$77/month** |
 
-*Note: No NAT Gateway saves $32/month*
+*Note: NAT Gateway required - Cognito VPC endpoint incompatible with Managed Login*
 
 ---
 

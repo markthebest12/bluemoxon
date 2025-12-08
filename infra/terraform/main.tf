@@ -123,6 +123,27 @@ module "cognito" {
 
   enable_oauth = true
 
+  # MFA configuration
+  mfa_configuration = var.cognito_mfa_configuration
+  mfa_totp_enabled  = var.cognito_mfa_totp_enabled
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# VPC Networking (NAT Gateway for Lambda outbound access)
+# =============================================================================
+
+module "vpc_networking" {
+  count  = var.enable_nat_gateway ? 1 : 0
+  source = "./modules/vpc-networking"
+
+  vpc_id             = data.aws_vpc.default[0].id
+  name_prefix        = local.name_prefix
+  enable_nat_gateway = true
+  public_subnet_id   = var.public_subnet_id
+  private_subnet_ids = var.private_subnet_ids
+
   tags = local.common_tags
 }
 
@@ -196,9 +217,10 @@ module "lambda" {
   provisioned_concurrency = var.lambda_provisioned_concurrency
 
   # VPC configuration (when database is enabled)
+  # Use private_subnet_ids if NAT gateway is enabled, otherwise use all default subnets
   create_security_group = var.enable_database
   vpc_id                = var.enable_database ? data.aws_vpc.default[0].id : null
-  subnet_ids            = var.enable_database ? data.aws_subnets.default[0].ids : []
+  subnet_ids            = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
 
   # Secrets Manager access (use ARN pattern to avoid circular dependency)
   secrets_arns = var.enable_database ? [
@@ -208,14 +230,17 @@ module "lambda" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
+  # Cognito access for user management
+  cognito_user_pool_arns = [module.cognito.user_pool_arn]
+
   # Environment variables (secret ARN set after database_secret is created)
   environment_variables = merge(
     {
       CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
       IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
       COGNITO_USER_POOL_ID  = module.cognito.user_pool_id
-      COGNITO_CLIENT_ID     = module.cognito.client_id
-      S3_IMAGES_BUCKET      = module.images_bucket.bucket_name
+      COGNITO_APP_CLIENT_ID = module.cognito.client_id
+      IMAGES_BUCKET         = module.images_bucket.bucket_name
       API_KEY_HASH          = var.api_key_hash
       ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       MAINTENANCE_MODE      = var.maintenance_mode

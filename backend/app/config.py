@@ -32,7 +32,8 @@ class Settings(BaseSettings):
 
     # S3 / CDN
     images_bucket: str = "bluemoxon-images"
-    images_cdn_url: str | None = None  # CloudFront CDN URL for images
+    images_cdn_url: str | None = None  # CloudFront CDN URL for images (full URL)
+    images_cdn_domain: str | None = None  # CloudFront domain (without protocol/path)
     backup_bucket: str = "bluemoxon-backups"
 
     # Local images path (for development)

@@ -39,6 +39,8 @@ module "api" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| cognito_user_pool_arns | Cognito user pool ARNs for admin operations | `list(string)` | `[]` | no |
+| create_security_group | Create a security group for the Lambda | `bool` | `false` | no |
 | environment | Environment name (staging, prod) | `string` | n/a | yes |
 | environment_variables | Environment variables for the Lambda function | `map(string)` | `{}` | no |
 | function_name | Name of the Lambda function | `string` | n/a | yes |
