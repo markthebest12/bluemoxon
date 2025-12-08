@@ -191,3 +191,37 @@ variable "api_acm_cert_arn" {
   description = "ACM certificate ARN for API Gateway custom domain (regional)"
   default     = null
 }
+
+# =============================================================================
+# GitHub OIDC Variables
+# =============================================================================
+
+variable "enable_github_oidc" {
+  type        = bool
+  description = "Enable GitHub Actions OIDC provider and IAM role"
+  default     = true
+}
+
+variable "github_oidc_cloudfront_distribution_arns" {
+  type        = list(string)
+  description = "CloudFront distribution ARNs for GitHub Actions deployment (override for legacy resources)"
+  default     = []
+}
+
+variable "github_oidc_frontend_bucket_arns" {
+  type        = list(string)
+  description = "Frontend S3 bucket ARNs for GitHub Actions deployment (override for legacy resources)"
+  default     = []
+}
+
+variable "github_oidc_images_bucket_arns" {
+  type        = list(string)
+  description = "Images S3 bucket ARNs for GitHub Actions deployment (override for legacy resources)"
+  default     = []
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository in format 'owner/repo'"
+  default     = "markthebest12/bluemoxon"
+}
