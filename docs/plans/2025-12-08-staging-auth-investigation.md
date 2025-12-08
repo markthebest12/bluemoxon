@@ -1,7 +1,7 @@
 # Staging Authentication Investigation
 
 **Date:** 2025-12-08
-**Status:** In Progress
+**Status:** RESOLVED
 **Issue:** User cannot login to staging.app.bluemoxon.com
 
 ## Problem Statement
@@ -207,12 +207,59 @@ aws lambda invoke --function-name bluemoxon-staging-db-sync \
 - Full DB sync fails due to cross-account secret access (pre-existing, documented in DATABASE_SYNC.md)
 - Lambda needs PROD_DB_* env vars for full sync, not PROD_SECRET_ARN
 
-## Next Steps
+## Resolution (2025-12-08)
+
+### Root Causes Identified and Fixed
+
+1. **Frontend config had stale Cognito client ID** - Fixed by updating `infra/config/staging.json`
+2. **Staging user needed password reset** - Set via `admin-set-user-password --permanent`
+3. **Browser had stale localStorage tokens** - Cleared via browser devtools
+
+### Final Working Configuration
+
+```
+Staging Cognito Pool: us-west-2_5pOhFH6LN
+Staging Cognito Client: 7h1b144ggk7j4dl9vr94ipe6k5
+Staging User: mjramos76@gmail.com (CONFIRMED)
+Password: Set via admin-set-user-password (ask owner)
+Login Status: ✅ WORKING
+```
+
+### User Management for Staging
+
+To add/reset a staging user:
+```bash
+# Create user
+AWS_PROFILE=staging aws cognito-idp admin-create-user \
+    --user-pool-id us-west-2_5pOhFH6LN \
+    --username user@example.com \
+    --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
+
+# Set permanent password
+AWS_PROFILE=staging aws cognito-idp admin-set-user-password \
+    --user-pool-id us-west-2_5pOhFH6LN \
+    --username user@example.com \
+    --password 'YourPassword123!' \
+    --permanent
+
+# Run cognito_only sync to map user in DB
+AWS_PROFILE=staging aws lambda invoke --function-name bluemoxon-staging-db-sync \
+    --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
+```
+
+### Key Learnings
+
+1. **Case sensitivity matters**: Staging Cognito is case-sensitive (default), production is case-insensitive
+2. **Password encoding**: Use `admin-set-user-password` with `--permanent` flag for reliable password setting
+3. **Browser caching**: Clear localStorage when Cognito config changes to avoid stale token issues
+4. **cognito_only mode**: Use this Lambda mode to map Cognito subs to DB without full DB sync
+
+## Completed Tasks
 
 1. [x] **Decide** staging auth architecture (A, B, or C) → **Chose B**
-2. [ ] **Redeploy** Lambda to pick up cognito_only fix
-3. [ ] **Test** `cognito_only` mode to map existing users
-4. [ ] **Test** end-to-end login
+2. [x] **Deploy** db_sync Lambda with cognito_only mode
+3. [x] **Test** `cognito_only` mode to map existing users
+4. [x] **Test** end-to-end login - **WORKING**
 5. [ ] **Update** `docs/DATABASE_SYNC.md` with new flags
 6. [ ] **Update** `CLAUDE.md` with staging auth guidance
 7. [ ] **Consider** Terraform → config file automation (#140)

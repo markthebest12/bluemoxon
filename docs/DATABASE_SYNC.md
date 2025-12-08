@@ -59,7 +59,7 @@ This document describes how to sync the production database to the staging envir
 
 The sync Lambda runs entirely within AWS, no local access required.
 
-**Invoke the sync:**
+**Full database sync (requires prod DB credentials):**
 ```bash
 aws lambda invoke \
     --function-name bluemoxon-staging-db-sync \
@@ -70,6 +70,21 @@ aws lambda invoke \
 # Check results
 cat .tmp/sync-response.json | jq
 ```
+
+**Cognito mapping only (no DB sync, no prod credentials needed):**
+```bash
+# Maps staging Cognito user subs to database users by email
+aws lambda invoke \
+    --function-name bluemoxon-staging-db-sync \
+    --profile staging \
+    --payload '{"cognito_only": true}' \
+    --cli-binary-format raw-in-base64-out \
+    .tmp/cognito-sync.json
+
+cat .tmp/cognito-sync.json | jq
+```
+
+This is useful after creating new users in staging Cognito to update the `cognito_sub` column in the users table.
 
 **Monitor progress:**
 ```bash
