@@ -309,6 +309,38 @@ module "api_gateway" {
 }
 
 # =============================================================================
+# GitHub Actions OIDC (for CI/CD deployments)
+# =============================================================================
+
+module "github_oidc" {
+  count  = var.enable_github_oidc ? 1 : 0
+  source = "./modules/github-oidc"
+
+  github_repo = var.github_repo
+
+  # Lambda deployment permissions - use wildcard pattern for all app functions
+  lambda_function_arns = [
+    "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${var.app_name}-*"
+  ]
+
+  # S3 bucket permissions - use overrides if provided, otherwise use terraform module outputs
+  frontend_bucket_arns = length(var.github_oidc_frontend_bucket_arns) > 0 ? var.github_oidc_frontend_bucket_arns : [
+    module.frontend_bucket.bucket_arn
+  ]
+
+  images_bucket_arns = length(var.github_oidc_images_bucket_arns) > 0 ? var.github_oidc_images_bucket_arns : [
+    module.images_bucket.bucket_arn
+  ]
+
+  # CloudFront permissions - use overrides if provided, otherwise use terraform module outputs
+  cloudfront_distribution_arns = length(var.github_oidc_cloudfront_distribution_arns) > 0 ? var.github_oidc_cloudfront_distribution_arns : (
+    var.enable_cloudfront ? [module.frontend_cdn[0].distribution_arn] : []
+  )
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Outputs Reference
 # =============================================================================
 # See outputs.tf for all exported values

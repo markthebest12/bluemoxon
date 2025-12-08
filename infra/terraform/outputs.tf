@@ -119,3 +119,17 @@ output "db_sync_lambda_name" {
   description = "Database sync Lambda function name"
   value       = var.enable_database && var.environment == "staging" ? module.db_sync_lambda[0].function_name : null
 }
+
+# =============================================================================
+# GitHub OIDC Outputs
+# =============================================================================
+
+output "github_oidc_role_arn" {
+  description = "GitHub Actions IAM role ARN"
+  value       = var.enable_github_oidc ? module.github_oidc[0].role_arn : null
+}
+
+output "github_oidc_provider_arn" {
+  description = "GitHub OIDC provider ARN"
+  value       = var.enable_github_oidc ? module.github_oidc[0].oidc_provider_arn : null
+}
