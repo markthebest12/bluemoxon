@@ -26,7 +26,7 @@ env:
   # Staging AWS Resource IDs (different from production)
   LAMBDA_FUNCTION_NAME: bluemoxon-staging-api
   S3_FRONTEND_BUCKET: bluemoxon-frontend-staging
-  S3_IMAGES_BUCKET: bluemoxon-staging-images
+  S3_IMAGES_BUCKET: bluemoxon-images-staging
   CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}
   # Auto-generated version: YYYY.MM.DD-<short-sha>
   APP_VERSION: ""  # Set dynamically in generate-version job
