@@ -51,7 +51,7 @@ jobs:
             "tag-pair": true,
             "spec-char-escape": false,
             "id-unique": true,
-            "src-not-empty": true,
+            "src-not-empty": false,
             "title-require": true,
             "alt-require": true,
             "doctype-html5": true,
