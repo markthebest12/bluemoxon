@@ -146,6 +146,29 @@ terraform import 'aws_acm_certificate.frontend' arn:aws:acm:us-east-1:2666728859
 terraform import 'aws_acm_certificate.api' arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a
 ```
 
+### 2.6 GitHub Actions OIDC (#102)
+
+Import the GitHub Actions OIDC provider and IAM role:
+
+```bash
+# Import OIDC provider
+terraform import -var-file=envs/prod.tfvars \
+  'module.github_oidc[0].aws_iam_openid_connect_provider.github' \
+  "arn:aws:iam::266672885920:oidc-provider/token.actions.githubusercontent.com"
+
+# Import IAM role
+terraform import -var-file=envs/prod.tfvars \
+  'module.github_oidc[0].aws_iam_role.github_actions' \
+  "github-actions-deploy"
+
+# Import IAM policy
+terraform import -var-file=envs/prod.tfvars \
+  'module.github_oidc[0].aws_iam_role_policy.deploy' \
+  "github-actions-deploy:github-actions-deploy-policy"
+```
+
+**Note:** Prod uses legacy bucket names (`bluemoxon-frontend`, `bluemoxon-images`) which are configured as overrides in `prod.tfvars`.
+
 ## Phase 3: Verify & Document
 
 ### 3.1 Verify No Changes
