@@ -23,3 +23,11 @@ db_allocated_storage = 50
 # Feature flags
 enable_cloudfront = true
 enable_waf        = true
+
+# GitHub OIDC - Override bucket ARNs for legacy naming convention
+# Prod uses bluemoxon-frontend/bluemoxon-images instead of bluemoxon-prod-frontend
+github_oidc_frontend_bucket_arns = ["arn:aws:s3:::bluemoxon-frontend"]
+github_oidc_images_bucket_arns   = ["arn:aws:s3:::bluemoxon-images"]
+github_oidc_cloudfront_distribution_arns = [
+  "arn:aws:cloudfront::266672885920:distribution/E16BJX90QWQNQO"
+]
