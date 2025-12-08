@@ -279,10 +279,14 @@ module "db_sync_lambda" {
     var.prod_database_secret_arn
   ]
 
+  # Cognito pool for user mapping after DB sync
+  cognito_user_pool_id = module.cognito.user_pool_id
+
   environment_variables = {
-    PROD_SECRET_ARN    = var.prod_database_secret_arn
-    STAGING_SECRET_ARN = module.database_secret[0].arn
-    PROD_SECRET_REGION = "us-west-2"
+    PROD_SECRET_ARN      = var.prod_database_secret_arn
+    STAGING_SECRET_ARN   = module.database_secret[0].arn
+    PROD_SECRET_REGION   = "us-west-2"
+    COGNITO_USER_POOL_ID = module.cognito.user_pool_id
   }
 
   tags = local.common_tags

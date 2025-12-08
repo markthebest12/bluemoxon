@@ -247,6 +247,100 @@ def validate_sync(prod_conn, staging_conn, results: dict) -> dict:
     return validation
 
 
+def sync_cognito_users(staging_conn, user_pool_id: str) -> dict:
+    """
+    Update users.cognito_sub to match staging Cognito subs by email.
+
+    After DB sync, the users table has cognito_sub values from production.
+    This function updates them to match the staging Cognito user pool.
+    """
+    results = {
+        "updated": 0,
+        "skipped_no_cognito_user": 0,
+        "skipped_no_db_user": 0,
+        "details": [],
+    }
+
+    # 1. List all users from staging Cognito
+    cognito = boto3.client("cognito-idp")
+    cognito_users = {}  # email -> sub
+
+    try:
+        paginator = cognito.get_paginator("list_users")
+        for page in paginator.paginate(UserPoolId=user_pool_id):
+            for user in page["Users"]:
+                # Get email from attributes
+                email = next(
+                    (a["Value"] for a in user["Attributes"] if a["Name"] == "email"),
+                    None,
+                )
+                if email:
+                    # Username is the sub (UUID)
+                    cognito_users[email.lower()] = user["Username"]
+    except Exception as e:
+        logger.error(f"Failed to list Cognito users: {e}")
+        return {"error": str(e), **results}
+
+    logger.info(f"Found {len(cognito_users)} users in Cognito pool {user_pool_id}")
+
+    # 2. Get all users from staging DB
+    with staging_conn.cursor() as cur:
+        cur.execute("SELECT id, email, cognito_sub FROM users WHERE email IS NOT NULL")
+        db_users = cur.fetchall()
+
+    logger.info(f"Found {len(db_users)} users with email in staging DB")
+
+    # 3. Update cognito_sub for matching users
+    for user_id, email, old_sub in db_users:
+        if not email:
+            continue
+        email_lower = email.lower()
+        if email_lower in cognito_users:
+            new_sub = cognito_users[email_lower]
+            if old_sub != new_sub:
+                with staging_conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET cognito_sub = %s WHERE id = %s",
+                        (new_sub, user_id),
+                    )
+                staging_conn.commit()
+                results["updated"] += 1
+                results["details"].append(
+                    {
+                        "email": email,
+                        "status": "updated",
+                        "old_sub": old_sub,
+                        "new_sub": new_sub,
+                    }
+                )
+                logger.info(f"Updated cognito_sub for {email}: {old_sub} -> {new_sub}")
+            else:
+                # Already matches, no update needed
+                pass
+        else:
+            results["skipped_no_cognito_user"] += 1
+            results["details"].append(
+                {"email": email, "status": "skipped", "reason": "no_cognito_user"}
+            )
+
+    # 4. Log Cognito users without DB entries (informational)
+    db_emails = {row[1].lower() for row in db_users if row[1]}
+    for cognito_email in cognito_users:
+        if cognito_email not in db_emails:
+            results["skipped_no_db_user"] += 1
+            results["details"].append(
+                {"email": cognito_email, "status": "skipped", "reason": "no_db_user"}
+            )
+
+    logger.info(
+        f"Cognito sync complete: {results['updated']} updated, "
+        f"{results['skipped_no_cognito_user']} skipped (no Cognito user), "
+        f"{results['skipped_no_db_user']} skipped (no DB user)"
+    )
+
+    return results
+
+
 def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool = True) -> dict:
     """
     Sync all tables from production to staging.
@@ -360,6 +454,11 @@ def handler(event: dict, context: Any) -> dict:
 
     # Get configuration from environment
     staging_secret_arn = os.environ.get("STAGING_SECRET_ARN")
+    cognito_user_pool_id = os.environ.get("COGNITO_USER_POOL_ID", "")
+
+    # Check if Cognito sync is requested
+    sync_cognito = event.get("sync_cognito", False)
+    cognito_only = event.get("cognito_only", False)  # Skip DB sync, just map Cognito users
 
     # Prod credentials can come from:
     # 1. Direct environment variables (PROD_DB_HOST, PROD_DB_USER, PROD_DB_PASSWORD, PROD_DB_NAME)
@@ -377,6 +476,39 @@ def handler(event: dict, context: Any) -> dict:
         }
 
     try:
+        # Handle cognito_only mode first (doesn't need prod credentials)
+        if cognito_only:
+            logger.info("Running in cognito_only mode - skipping DB sync")
+            if not cognito_user_pool_id:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps(
+                        {"error": "cognito_only=true but COGNITO_USER_POOL_ID not configured"}
+                    ),
+                }
+
+            staging_secret = get_secret(staging_secret_arn, "us-west-2")
+            staging_conn = get_connection(staging_secret)
+            try:
+                cognito_results = sync_cognito_users(staging_conn, cognito_user_pool_id)
+            finally:
+                staging_conn.close()
+
+            return {
+                "statusCode": 200,
+                "body": json.dumps(
+                    {
+                        "message": "Cognito mapping completed (cognito_only mode)",
+                        "results": {
+                            "tables_synced": [],
+                            "tables_failed": [],
+                            "total_rows": 0,
+                            "cognito_mapping": cognito_results,
+                        },
+                    }
+                ),
+            }
+
         # Get prod credentials - prefer direct env vars over secret ARN
         logger.info("Fetching database credentials...")
 
@@ -410,6 +542,23 @@ def handler(event: dict, context: Any) -> dict:
         results = sync_databases(prod_secret, staging_secret)
 
         logger.info(f"Sync complete: {json.dumps(results)}")
+
+        # Optionally sync Cognito users (update cognito_sub to match staging Cognito)
+        if sync_cognito:
+            if cognito_user_pool_id:
+                logger.info(f"Syncing Cognito users from pool {cognito_user_pool_id}...")
+                # Need a fresh connection for Cognito sync
+                staging_conn = get_connection(staging_secret)
+                try:
+                    cognito_results = sync_cognito_users(staging_conn, cognito_user_pool_id)
+                    results["cognito_mapping"] = cognito_results
+                finally:
+                    staging_conn.close()
+            else:
+                logger.warning("sync_cognito=true but COGNITO_USER_POOL_ID not configured")
+                results["cognito_mapping"] = {
+                    "error": "COGNITO_USER_POOL_ID not configured"
+                }
 
         # Determine status based on failures and validation
         has_failures = len(results["tables_failed"]) > 0

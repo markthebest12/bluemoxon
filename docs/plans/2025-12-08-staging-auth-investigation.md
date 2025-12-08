@@ -158,12 +158,61 @@ docs/STAGING_ENVIRONMENT_PLAN.md    # Needs Cognito strategy update
 CLAUDE.md                           # Needs staging auth documentation
 ```
 
+## Decision Made
+
+**Option B chosen** - Separate Cognito with on-demand user sync via db_sync Lambda.
+
+## Implementation Progress (2025-12-08)
+
+### Completed
+1. [x] Added `cognito_user_pool_id` variable to db-sync-lambda Terraform module
+2. [x] Added `COGNITO_USER_POOL_ID` env var to Lambda
+3. [x] Added IAM permission for `cognito-idp:ListUsers`
+4. [x] Updated main.tf to pass Cognito pool ID to module
+5. [x] Implemented `sync_cognito_users()` function in handler.py
+6. [x] Added `cognito_only` mode to bypass DB sync and just map users
+7. [x] Applied Terraform changes to staging
+8. [x] Deployed Lambda code (needs final redeploy after cognito_only fix)
+
+### Pending
+- [ ] Test `cognito_only` mode (redeploy Lambda first)
+- [ ] Test end-to-end login after Cognito mapping
+- [ ] Update DATABASE_SYNC.md with new flags
+- [ ] Update CLAUDE.md with staging auth guidance
+
+### Key Code Changes
+
+**Files modified:**
+- `infra/terraform/modules/db-sync-lambda/variables.tf` - Added cognito_user_pool_id
+- `infra/terraform/modules/db-sync-lambda/main.tf` - Added Cognito IAM policy
+- `infra/terraform/main.tf` - Pass Cognito pool ID to module
+- `backend/lambdas/db_sync/handler.py` - Added sync_cognito_users() and cognito_only mode
+
+**New Lambda invocation modes:**
+```bash
+# Full DB sync (existing behavior, requires prod credentials)
+aws lambda invoke --function-name bluemoxon-staging-db-sync \
+    --profile staging --payload '{}' .tmp/response.json
+
+# Full DB sync + Cognito mapping
+aws lambda invoke --function-name bluemoxon-staging-db-sync \
+    --profile staging --payload '{"sync_cognito": true}' .tmp/response.json
+
+# Cognito mapping ONLY (no DB sync, no prod credentials needed)
+aws lambda invoke --function-name bluemoxon-staging-db-sync \
+    --profile staging --payload '{"cognito_only": true}' .tmp/response.json
+```
+
+### Known Issues
+- Full DB sync fails due to cross-account secret access (pre-existing, documented in DATABASE_SYNC.md)
+- Lambda needs PROD_DB_* env vars for full sync, not PROD_SECRET_ARN
+
 ## Next Steps
 
-1. [ ] **Decide** staging auth architecture (A, B, or C)
-2. [ ] **Update** `docs/STAGING_ENVIRONMENT_PLAN.md` with decision
-3. [ ] **Update** `CLAUDE.md` with staging auth guidance
-4. [ ] **Implement** chosen approach
-5. [ ] **Add validation** to deploy workflow for Cognito consistency
-6. [ ] **Test** end-to-end login after fix
+1. [x] **Decide** staging auth architecture (A, B, or C) → **Chose B**
+2. [ ] **Redeploy** Lambda to pick up cognito_only fix
+3. [ ] **Test** `cognito_only` mode to map existing users
+4. [ ] **Test** end-to-end login
+5. [ ] **Update** `docs/DATABASE_SYNC.md` with new flags
+6. [ ] **Update** `CLAUDE.md` with staging auth guidance
 7. [ ] **Consider** Terraform → config file automation (#140)
