@@ -47,7 +47,7 @@ async def reset_sequences(
         # Get the sequence name and reset it
         # Safe: table_name and column_name come from information_schema, admin-only endpoint
         sql = f"SELECT setval(pg_get_serial_sequence(:table, :column), COALESCE((SELECT MAX({column_name}) FROM {table_name}), 0) + 1, false)"  # noqa: S608 # nosec B608
-        reset_query = text(sql)
+        reset_query = text(sql)  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
 
         result = db.execute(reset_query, {"table": table_name, "column": column_name}).fetchone()
 
