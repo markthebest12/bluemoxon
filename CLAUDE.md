@@ -131,6 +131,52 @@ git tag -a v1.0.0 -m "Release description"
 git push origin v1.0.0
 ```
 
+## CRITICAL: Staging-First Workflow
+
+**ALL changes MUST go through staging before production.** This is mandatory for:
+- Feature branches
+- Bug fixes
+- Dependency updates (Dependabot targets `staging` branch)
+- Infrastructure changes
+
+### Exception: Marketing Website Only
+The marketing site (`site/index.html`) has no staging environment and deploys directly to production. This is the ONLY exception to staging-first.
+
+### Required Flow for ALL Changes
+
+```
+Feature Branch → Staging → Production
+       ↓             ↓          ↓
+    PR to staging  Deploy   PR staging→main
+                   + Test      Deploy
+```
+
+1. **Create PR targeting `staging`** (NOT `main`)
+2. **Merge to staging** after CI passes
+3. **Validate in staging environment** (manual or automated)
+4. **Create PR from `staging` to `main`** to promote to production
+5. **Merge to main** after approval
+
+### Dependabot Configuration
+Dependabot is configured to target `staging` branch for all ecosystems:
+- Python backend (`pip`)
+- Frontend (`npm`)
+- GitHub Actions (`github-actions`)
+
+This ensures dependency updates are tested in staging before reaching production.
+
+### Why Staging-First Matters
+- Catches issues before they reach production
+- Provides validation environment with real AWS services
+- Allows testing with production-like data (via DB sync)
+- Prevents "works on my machine" deployments
+
+### Anti-Patterns (DO NOT DO)
+- ❌ PR directly to `main` (except marketing site)
+- ❌ Merging untested code to production
+- ❌ Skipping staging "because it's a small change"
+- ❌ Manual dependency updates bypassing staging
+
 ## Branching Strategy (GitFlow)
 
 ```
@@ -150,18 +196,22 @@ feature ──────●     ●────────→  [Feature branc
 
 ### Workflow Examples
 ```bash
-# Standard feature → main (production)
+# Standard feature → staging → production (CORRECT)
+git checkout staging
+git pull origin staging
 git checkout -b feat/my-feature
 # ... make changes ...
-gh pr create --base main
-
-# Feature → staging for testing
-git checkout -b feat/experimental
-# ... make changes ...
-gh pr create --base staging   # PRs to staging, not main
-
-# Promote staging to production
+gh pr create --base staging --title "feat: My feature"
+# After merge to staging and validation:
 gh pr create --base main --head staging --title "chore: Promote staging to production"
+
+# Marketing site ONLY (exception - no staging)
+git checkout -b fix/landing-page
+# ... changes to site/index.html only ...
+gh pr create --base main --title "fix: Update landing page"
+
+# WRONG - DO NOT DO THIS (except marketing site)
+gh pr create --base main  # ❌ Skips staging!
 ```
 
 ## Staging Environment
