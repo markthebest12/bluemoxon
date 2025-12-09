@@ -85,6 +85,25 @@ AWS_PROFILE=staging aws cognito-idp set-user-pool-mfa-config \
   --software-token-mfa-configuration Enabled=true
 ```
 
+### 8. Added Keep-Warm EventBridge Rule
+
+**Problem**: Lambda cold starts take ~4 seconds, causing 503 timeouts on first request after idle
+**Fix**: Created EventBridge rule to ping Lambda every 5 minutes
+
+| Resource | ID/ARN |
+|----------|--------|
+| Rule | `bluemoxon-staging-keep-warm` |
+| Rule ARN | `arn:aws:events:us-west-2:652617421195:rule/bluemoxon-staging-keep-warm` |
+
+**Commands**:
+```bash
+AWS_PROFILE=staging aws events put-rule --name bluemoxon-staging-keep-warm --schedule-expression "rate(5 minutes)" --state ENABLED
+
+AWS_PROFILE=staging aws lambda add-permission --function-name bluemoxon-staging-api --statement-id keep-warm-event --action lambda:InvokeFunction --principal events.amazonaws.com --source-arn arn:aws:events:us-west-2:652617421195:rule/bluemoxon-staging-keep-warm
+
+AWS_PROFILE=staging aws events put-targets --rule bluemoxon-staging-keep-warm --targets '[{"Id":"1","Arn":"arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-api"}]'
+```
+
 ### 7. Fixed API Gateway CORS (earlier session)
 
 **Fix**: Updated CORS to include correct origin
