@@ -467,7 +467,9 @@ def handler(event: dict, context: Any) -> dict:
             conn = get_connection(staging_secret)
             with conn.cursor() as cur:
                 # Intentional: raw_sql is admin-only feature, Lambda not exposed via API Gateway
-                cur.execute(raw_sql)  # nosemgrep: python.aws-lambda.security.psycopg-sqli.psycopg-sqli
+                cur.execute(
+                    raw_sql
+                )  # nosemgrep: python.aws-lambda.security.psycopg-sqli.psycopg-sqli
                 if raw_sql.strip().upper().startswith("SELECT"):
                     result = cur.fetchall()
                 else:
