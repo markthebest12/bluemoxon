@@ -247,6 +247,100 @@ def validate_sync(prod_conn, staging_conn, results: dict) -> dict:
     return validation
 
 
+def fix_sequences(conn) -> list[dict]:
+    """
+    Fix sequences for all tables with integer primary key columns.
+
+    Called after data sync to ensure INSERTs work properly.
+    Since get_table_ddl() skips nextval defaults (line 156), this function:
+    1. Creates sequences if they don't exist
+    2. Sets column defaults to use the sequences
+    3. Resets sequence values to MAX(id) + 1
+
+    Returns list of fixed sequences with their new values.
+    """
+    results = []
+
+    with conn.cursor() as cur:
+        # Find all integer primary key columns (these need sequences)
+        cur.execute("""
+            SELECT
+                c.table_name,
+                c.column_name,
+                c.column_default
+            FROM information_schema.columns c
+            JOIN information_schema.table_constraints tc
+                ON c.table_name = tc.table_name
+                AND c.table_schema = tc.table_schema
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND c.column_name = kcu.column_name
+                AND c.table_name = kcu.table_name
+            WHERE c.table_schema = 'public'
+              AND tc.constraint_type = 'PRIMARY KEY'
+              AND c.data_type IN ('integer', 'bigint')
+            ORDER BY c.table_name, c.column_name
+        """)
+        id_columns = cur.fetchall()
+
+        for table_name, column_name, current_default in id_columns:
+            seq_name = f"{table_name}_{column_name}_seq"
+            action = "reset"
+
+            # If no nextval default exists, create sequence and set default
+            if not current_default or "nextval" not in str(current_default):
+                action = "created"
+
+                # Create sequence if it doesn't exist
+                cur.execute(
+                    sql.SQL("CREATE SEQUENCE IF NOT EXISTS {}").format(sql.Identifier(seq_name))
+                )
+
+                # Set the column default to use the sequence
+                cur.execute(
+                    sql.SQL("ALTER TABLE {} ALTER COLUMN {} SET DEFAULT nextval({})").format(
+                        sql.Identifier(table_name),
+                        sql.Identifier(column_name),
+                        sql.Literal(seq_name),
+                    )
+                )
+
+                # Set sequence ownership so it's dropped with the table
+                cur.execute(
+                    sql.SQL("ALTER SEQUENCE {} OWNED BY {}.{}").format(
+                        sql.Identifier(seq_name),
+                        sql.Identifier(table_name),
+                        sql.Identifier(column_name),
+                    )
+                )
+
+            # Reset sequence to MAX(id) + 1
+            cur.execute(
+                sql.SQL(
+                    "SELECT setval({}, COALESCE((SELECT MAX({}) FROM {}), 0) + 1, false)"
+                ).format(
+                    sql.Literal(seq_name),
+                    sql.Identifier(column_name),
+                    sql.Identifier(table_name),
+                )
+            )
+            new_value = cur.fetchone()[0]
+
+            results.append(
+                {
+                    "table": table_name,
+                    "column": column_name,
+                    "sequence": seq_name,
+                    "new_value": new_value,
+                    "action": action,
+                }
+            )
+            logger.info(f"Fixed sequence {seq_name}: {action}, new_value={new_value}")
+
+    conn.commit()
+    return results
+
+
 def sync_cognito_users(staging_conn, user_pool_id: str) -> dict:
     """
     Update users.cognito_sub to match staging Cognito subs by email.
@@ -361,6 +455,7 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
         "tables_created": [],
         "total_rows": 0,
         "validation": None,
+        "sequences_fixed": [],
     }
 
     prod_conn = None
@@ -437,6 +532,11 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
             logger.info("Validation passed!")
         else:
             logger.warning(f"Validation issues: {results['validation']['issues']}")
+
+        # Fix sequences after sync (creates sequences and sets defaults for id columns)
+        logger.info("Fixing sequences...")
+        results["sequences_fixed"] = fix_sequences(staging_conn)
+        logger.info(f"Fixed {len(results['sequences_fixed'])} sequences")
 
     finally:
         if prod_conn:
