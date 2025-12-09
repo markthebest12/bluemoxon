@@ -197,6 +197,7 @@ resource "aws_iam_role_policy" "cognito_access" {
           "cognito-idp:AdminUpdateUserAttributes",
           "cognito-idp:DescribeUserPool",
           "cognito-idp:GetUser",
+          "cognito-idp:GetUserPoolMfaConfig",
           "cognito-idp:ListUsers"
         ]
         Resource = var.cognito_user_pool_arns
