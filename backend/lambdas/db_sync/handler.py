@@ -556,9 +556,7 @@ def handler(event: dict, context: Any) -> dict:
                     staging_conn.close()
             else:
                 logger.warning("sync_cognito=true but COGNITO_USER_POOL_ID not configured")
-                results["cognito_mapping"] = {
-                    "error": "COGNITO_USER_POOL_ID not configured"
-                }
+                results["cognito_mapping"] = {"error": "COGNITO_USER_POOL_ID not configured"}
 
         # Determine status based on failures and validation
         has_failures = len(results["tables_failed"]) > 0
