@@ -17,8 +17,8 @@ frontend_acm_cert_arn = "arn:aws:acm:us-east-1:652617421195:certificate/cc72c0b6
 # API Gateway uses regional certificate (us-west-2)
 api_acm_cert_arn = "arn:aws:acm:us-west-2:652617421195:certificate/2de326a8-d05e-4a54-8115-acb4e8eacc85"
 
-# Lambda - matches prod memory for acceptable cold starts (~2s vs ~4s with 256MB)
-lambda_memory_size             = 512
+# Lambda - lower memory for cost savings (staging doesn't need fast cold starts)
+lambda_memory_size             = 256
 lambda_timeout                 = 30
 lambda_provisioned_concurrency = 0 # No provisioned concurrency = scale to zero
 
