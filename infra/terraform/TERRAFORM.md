@@ -379,6 +379,43 @@ resource "aws_s3_bucket" "frontend" {
 8. Run `tflint`
 9. Run `terraform validate`
 
+### New Module Checklist
+
+When creating a new Terraform module:
+
+#### Required Files
+- [ ] `main.tf` - Resources and data sources
+- [ ] `variables.tf` - Input variables (alphabetically ordered)
+- [ ] `outputs.tf` - Output values (alphabetically ordered)
+- [ ] `versions.tf` - Provider version constraints (see template below)
+
+#### versions.tf Template
+```hcl
+terraform {
+  required_version = ">= 1.6.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+```
+
+#### Variable Requirements
+Every variable MUST include:
+- `type` - Explicit type constraint
+- `description` - Human-readable description
+- `default` - For optional variables only
+
+#### Module Design Principles
+1. **Single Purpose**: Each module does ONE thing well
+2. **80% Use Case**: Design for common cases, avoid edge case complexity
+3. **Expose Common Args**: Only expose frequently-modified arguments
+4. **Output Everything**: Export all useful values even if not immediately needed
+5. **Sensible Defaults**: Required inputs have no default; optional inputs have good defaults
+
 ### Pre-Commit Checklist
 
 Before committing Terraform changes:
