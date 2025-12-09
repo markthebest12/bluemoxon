@@ -33,6 +33,12 @@ variable "create_lambda_sg_rule" {
   default     = false
 }
 
+variable "cognito_endpoint_subnet_ids" {
+  type        = list(string)
+  description = "Subnet IDs for Cognito VPC endpoint (must be in AZs supported by Cognito: us-west-2a/b/c)"
+  default     = []
+}
+
 variable "enable_cognito_endpoint" {
   type        = bool
   description = "Enable Cognito IDP Interface VPC endpoint (for Lambda to call Cognito APIs)"

@@ -39,7 +39,7 @@ STAGING_PROFILE="staging"
 
 # S3 Buckets
 PROD_IMAGES_BUCKET="bluemoxon-images"
-STAGING_IMAGES_BUCKET="bluemoxon-staging-images"
+STAGING_IMAGES_BUCKET="bluemoxon-images-staging"
 
 # Database
 PROD_DB_SECRET="bluemoxon/db-credentials"

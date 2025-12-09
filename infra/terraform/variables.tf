@@ -37,6 +37,12 @@ variable "cognito_mfa_totp_enabled" {
   default     = false
 }
 
+variable "cognito_endpoint_subnet_ids" {
+  type        = list(string)
+  description = "Subnet IDs for Cognito VPC endpoint (must be in AZs supported by Cognito: us-west-2a/b/c). Falls back to private_subnet_ids if empty."
+  default     = []
+}
+
 variable "db_allocated_storage" {
   type        = number
   description = "RDS allocated storage (GB)"

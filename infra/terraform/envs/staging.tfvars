@@ -52,3 +52,8 @@ private_subnet_ids = [
   "subnet-09eeb023cb49a83d5",
   "subnet-0bfb299044084bad3"
 ]
+# Cognito VPC endpoint only supports us-west-2a/b/c (not 2d)
+cognito_endpoint_subnet_ids = [
+  "subnet-0ceb0276fa36428f2",
+  "subnet-09eeb023cb49a83d5"
+]

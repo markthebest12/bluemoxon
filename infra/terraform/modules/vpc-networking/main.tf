@@ -136,13 +136,14 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 
 # Cognito IDP Interface Endpoint
 # Required for Lambda to call Cognito APIs (describe_user_pool, etc.)
+# Note: Cognito endpoint only supports us-west-2a/b/c - use cognito_endpoint_subnet_ids for compatible subnets
 resource "aws_vpc_endpoint" "cognito_idp" {
   count = var.enable_vpc_endpoints && var.enable_cognito_endpoint ? 1 : 0
 
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.cognito-idp"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = var.private_subnet_ids
+  subnet_ids          = length(var.cognito_endpoint_subnet_ids) > 0 ? var.cognito_endpoint_subnet_ids : var.private_subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints[0].id]
   private_dns_enabled = true
 

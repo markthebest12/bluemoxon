@@ -15,8 +15,8 @@
   },
 
   "cognito": {
-    "user_pool_id": "us-west-2_5pOhFH6LN",
-    "app_client_id": "7h1b144ggk7j4dl9vr94ipe6k5",
+    "user_pool_id": "us-west-2_xhoIfvlHv",
+    "app_client_id": "2fru2pb5qc5o3o241hec24mj29",
     "domain": "bluemoxon-staging.auth.us-west-2.amazoncognito.com"
   },
 
