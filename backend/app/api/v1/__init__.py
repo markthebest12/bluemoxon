@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
-    admin,
     authors,
     binders,
     books,
@@ -30,4 +29,3 @@ router.include_router(authors.router, prefix="/authors", tags=["authors"])
 router.include_router(binders.router, prefix="/binders", tags=["binders"])
 router.include_router(export.router, prefix="/export", tags=["export"])
 router.include_router(users.router, prefix="/users", tags=["users"])
-router.include_router(admin.router, prefix="/admin", tags=["admin"])
