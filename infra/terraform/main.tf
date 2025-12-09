@@ -149,6 +149,9 @@ module "vpc_networking" {
   create_lambda_sg_rule       = false # Will be enabled after initial import
   lambda_security_group_id    = var.enable_database ? module.lambda.security_group_id : null
   cognito_endpoint_subnet_ids = var.cognito_endpoint_subnet_ids
+  # Disable Cognito VPC endpoint - ManagedLogin doesn't support PrivateLink
+  # Lambda uses NAT gateway to reach Cognito API instead
+  enable_cognito_endpoint = false
 
   tags = local.common_tags
 }
@@ -269,7 +272,8 @@ module "db_sync_lambda" {
 
   function_name = "${local.name_prefix}-db-sync"
 
-  subnet_ids         = data.aws_subnets.default[0].ids
+  # Use private subnets (with NAT gateway route) for outbound internet access
+  subnet_ids         = var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids
   security_group_ids = [module.lambda.security_group_id]
 
   # Access to both prod and staging secrets

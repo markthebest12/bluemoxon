@@ -456,6 +456,28 @@ def handler(event: dict, context: Any) -> dict:
     staging_secret_arn = os.environ.get("STAGING_SECRET_ARN")
     cognito_user_pool_id = os.environ.get("COGNITO_USER_POOL_ID", "")
 
+    # Handle raw_sql mode first (doesn't need Cognito, just runs SQL on staging DB)
+    raw_sql = event.get("raw_sql")
+    if raw_sql:
+        logger.info(f"Running raw SQL: {raw_sql}")
+        if not staging_secret_arn:
+            return {"statusCode": 500, "body": json.dumps({"error": "Missing STAGING_SECRET_ARN"})}
+        try:
+            staging_secret = get_secret(staging_secret_arn, "us-west-2")
+            conn = get_connection(staging_secret)
+            with conn.cursor() as cur:
+                cur.execute(raw_sql)
+                if raw_sql.strip().upper().startswith("SELECT"):
+                    result = cur.fetchall()
+                else:
+                    conn.commit()
+                    result = f"Rows affected: {cur.rowcount}"
+            conn.close()
+            return {"statusCode": 200, "body": json.dumps({"result": result})}
+        except Exception as e:
+            logger.error(f"SQL failed: {e}")
+            return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
     # Check if Cognito sync is requested
     sync_cognito = event.get("sync_cognito", False)
     cognito_only = event.get("cognito_only", False)  # Skip DB sync, just map Cognito users
