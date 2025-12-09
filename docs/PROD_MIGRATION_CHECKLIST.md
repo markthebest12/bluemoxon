@@ -76,11 +76,11 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 
 ### 2.3 Cognito (#110)
 
-**Current State (Updated 2024-12-07):**
+**Current State (Updated 2024-12-08):**
 | Environment | Account | User Pool ID | Client ID | Notes |
 |-------------|---------|--------------|-----------|-------|
 | **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | Production users |
-| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | Separate pool (isolated) |
+| **Staging** | 652617421195 | `us-west-2_xhoIfvlHv` | `2fru2pb5qc5o3o241hec24mj29` | Separate pool (isolated) |
 
 **Architecture:** Separate Cognito pools per environment with automatic `cognito_sub` migration in auth code.
 
@@ -327,6 +327,99 @@ If anything goes wrong:
 2. Can always remove from state: `terraform state rm <resource>`
 3. Can re-import: `terraform import <resource> <id>`
 4. Manual AWS console is always available as fallback
+
+## Lessons from Staging Destroy/Apply Test (2024-12-08)
+
+This section documents issues discovered during the staging Terraform conformance test (full destroy → apply from scratch).
+
+### Issue 1: Cognito VPC Endpoint AZ Compatibility
+
+**Problem:** Cognito VPC endpoint only supports certain AZs (us-west-2a, us-west-2b, us-west-2c), NOT us-west-2d.
+
+**Error:** `InvalidParameter: VPC vpce-xxx availability zone(s) [us-west-2d] must be a subset of the VPC endpoint service's availability zones`
+
+**Solution:** Added `cognito_endpoint_subnet_ids` variable to Terraform:
+- `infra/terraform/variables.tf` - Root variable with fallback
+- `infra/terraform/modules/vpc-networking/variables.tf` - Module variable
+- `infra/terraform/modules/vpc-networking/main.tf` - Uses variable with fallback to `private_subnet_ids`
+- `infra/terraform/main.tf` - Passes variable to module
+
+**Prod Action Required:**
+```hcl
+# In envs/prod.tfvars, if VPC has us-west-2d subnets:
+cognito_endpoint_subnet_ids = [
+  "subnet-xxx",  # us-west-2a
+  "subnet-yyy"   # us-west-2b
+]
+```
+
+### Issue 2: Cognito IDs Change After Terraform Recreate
+
+**Problem:** When Terraform destroys and recreates Cognito, the pool ID and client ID change.
+
+**Impact:** After destroy/apply cycle:
+- Old: `us-west-2_5pOhFH6LN` → New: `us-west-2_xhoIfvlHv`
+- Config files and workflows reference old IDs
+
+**Solution:** Updated `infra/config/staging.json` with new Cognito IDs:
+```json
+"cognito": {
+  "user_pool_id": "us-west-2_xhoIfvlHv",
+  "app_client_id": "2fru2pb5qc5o3o241hec24mj29",
+  "domain": "bluemoxon-staging.auth.us-west-2.amazoncognito.com"
+}
+```
+
+**Prod Action Required:**
+- CRITICAL: Avoid destroying Cognito in prod (users would lose access)
+- If must recreate: Update `infra/config/production.json` immediately after
+
+### Issue 3: Cross-Account Secret Access with Default KMS
+
+**Problem:** The db-sync Lambda cannot access prod secrets because they're encrypted with default KMS key (`aws/secretsmanager`).
+
+**Error:** `InvalidRequestException: You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key`
+
+**Options to Fix:**
+1. **Re-encrypt prod secret** with customer-managed KMS key (requires key policy update)
+2. **Use local sync script** with network access to both databases
+3. **Use AWS DMS** for cross-account replication
+
+**Current Workaround:** Use local `scripts/sync-prod-to-staging.sh` (requires VPC peering or bastion access)
+
+### Issue 4: S3 Bucket Naming Convention
+
+**Problem:** Sync script had wrong bucket name `bluemoxon-staging-images` instead of `bluemoxon-images-staging`.
+
+**Convention:** `bluemoxon-{resource}-{environment}` NOT `bluemoxon-{environment}-{resource}`
+- Correct: `bluemoxon-images-staging`, `bluemoxon-frontend-staging`
+- Wrong: `bluemoxon-staging-images`, `bluemoxon-staging-frontend`
+
+**Files Fixed:** `scripts/sync-prod-to-staging.sh`
+
+### Issue 5: Ruff Formatting in CI
+
+**Problem:** CI failed on Ruff format check for `backend/lambdas/db_sync/handler.py`.
+
+**Solution:** Run `poetry run ruff format .` before committing.
+
+**CI Requirement:** All Python code must pass:
+```bash
+poetry run ruff check .
+poetry run ruff format --check .
+```
+
+### Issue 6: Lambda Placeholder Code Causes Health Check Failure
+
+**Problem:** After Terraform applies, Lambda has placeholder code (not actual application). Health check fails until GitHub deploy workflow runs.
+
+**Sequence Required:**
+1. Terraform apply (creates Lambda with placeholder)
+2. GitHub deploy workflow (deploys actual code)
+3. Database sync (creates tables)
+4. Deep health check passes
+
+**Prod Consideration:** Plan deployment sequence carefully to minimize downtime.
 
 ## Post-Migration
 
