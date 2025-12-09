@@ -112,6 +112,10 @@ resource "aws_lambda_function" "this" {
     security_group_ids = var.security_group_ids
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   tags = var.tags
 
   depends_on = [aws_cloudwatch_log_group.this]
