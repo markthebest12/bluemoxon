@@ -2,33 +2,176 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Victorian Typography - Cormorant Garamond */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+
 /* Prevent horizontal scroll on mobile */
 @layer base {
   html,
   body {
     @apply overflow-x-hidden;
+    @apply bg-victorian-paper-aged;
+  }
+
+  /* Display typography for headings */
+  h1, h2, .font-display {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    @apply font-semibold tracking-wide;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl text-victorian-ink-black;
+  }
+
+  h2 {
+    @apply text-2xl md:text-2xl text-victorian-ink-black;
+  }
+
+  h3 {
+    @apply text-lg text-victorian-ink-dark;
   }
 }
 
-/* Custom styles for BlueMoxon */
+/* Custom styles for BlueMoxon - Victorian Design System */
 @layer components {
+  /* Primary button - Hunter green */
   .btn-primary {
-    @apply bg-moxon-600 hover:bg-moxon-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply bg-victorian-hunter-800
+           hover:bg-victorian-hunter-700
+           text-white
+           font-medium
+           py-2 px-4
+           rounded-sm
+           transition-colors
+           border border-victorian-hunter-700;
   }
 
+  /* Secondary button - Subtle */
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply bg-victorian-paper-cream
+           hover:bg-victorian-paper-aged
+           text-victorian-ink-dark
+           font-medium
+           py-2 px-4
+           rounded-sm
+           transition-colors
+           border border-victorian-paper-antique;
   }
 
+  /* Danger button */
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-victorian-burgundy
+           hover:bg-victorian-burgundy-dark
+           text-white
+           font-medium
+           py-2 px-4
+           rounded-sm
+           transition-colors
+           disabled:opacity-50
+           disabled:cursor-not-allowed;
   }
 
+  /* Accent button - Gold (for special actions) */
+  .btn-accent {
+    @apply bg-victorian-gold
+           hover:bg-victorian-gold-dark
+           text-victorian-ink-black
+           font-medium
+           py-2 px-4
+           rounded-sm
+           transition-colors;
+  }
+
+  /* Cards - Warm paper feel */
   .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+    @apply bg-victorian-paper-cream
+           rounded-sm
+           border border-victorian-paper-antique
+           shadow-sm
+           p-6
+           transition-shadow
+           hover:shadow-md;
   }
 
+  /* Card without hover effect */
+  .card-static {
+    @apply bg-victorian-paper-cream
+           rounded-sm
+           border border-victorian-paper-antique
+           shadow-sm
+           p-6;
+  }
+
+  /* Form inputs */
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-moxon-500 focus:border-transparent;
+    @apply w-full px-3 py-2
+           bg-victorian-paper-white
+           border border-victorian-paper-antique
+           rounded-sm
+           focus:outline-none
+           focus:ring-1
+           focus:ring-victorian-gold-muted
+           focus:border-victorian-gold-muted
+           placeholder-victorian-ink-muted
+           text-victorian-ink-black;
+  }
+
+  /* Select dropdowns */
+  .select {
+    @apply w-full px-3 py-2
+           bg-victorian-paper-white
+           border border-victorian-paper-antique
+           rounded-sm
+           focus:outline-none
+           focus:ring-1
+           focus:ring-victorian-gold-muted
+           focus:border-victorian-gold-muted
+           text-victorian-ink-black;
+  }
+
+  /* Premium binding badges */
+  .badge-binder {
+    @apply inline-flex items-center px-2 py-0.5
+           text-xs font-medium rounded-sm;
+  }
+
+  .badge-zaehnsdorf {
+    @apply bg-victorian-burgundy text-white;
+  }
+
+  .badge-riviere {
+    @apply bg-victorian-hunter-800 text-victorian-gold-light;
+  }
+
+  .badge-sangorski {
+    @apply bg-victorian-gold text-victorian-ink-black;
+  }
+
+  .badge-bayntun {
+    @apply bg-victorian-ink-dark text-victorian-paper-cream;
+  }
+
+  .badge-default {
+    @apply bg-victorian-hunter-700 text-white;
+  }
+
+  /* Section divider with flourish */
+  .divider-flourish {
+    @apply flex items-center justify-center my-8;
+  }
+
+  .divider-flourish::before,
+  .divider-flourish::after {
+    content: '';
+    @apply h-px w-16 bg-victorian-paper-antique;
+  }
+
+  .divider-flourish-symbol {
+    @apply mx-4 text-victorian-gold-muted;
+  }
+
+  /* Section header with border */
+  .section-header {
+    @apply border-b border-victorian-paper-antique pb-2 mb-6;
   }
 }
