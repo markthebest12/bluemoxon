@@ -40,7 +40,7 @@ module "frontend_bucket" {
   source = "./modules/s3"
 
   bucket_name              = local.frontend_bucket_name
-  enable_versioning        = false
+  enable_versioning        = true # DR: enables recovery of deleted/overwritten objects
   block_public_access      = true
   enable_website           = false
   enable_cloudfront_policy = var.enable_cloudfront
