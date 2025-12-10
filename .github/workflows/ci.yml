@@ -1,13 +1,13 @@
-# CI Pipeline - Runs on all PRs and pushes to main
+# CI Pipeline - Runs on all PRs to main and staging
 # Performs linting, testing, type checking, and security scanning
 
 name: CI
 
 on:
-  # Don't run CI directly on main push - Deploy workflow calls CI via workflow_call
+  # Don't run CI directly on main/staging push - Deploy workflows call CI via workflow_call
   # This prevents race condition where two CI runs cancel each other
   pull_request:
-    branches: [main]
+    branches: [main, staging]
     paths-ignore:
       - '**.md'
       - 'docs/**'
