@@ -125,6 +125,7 @@ class TestAcquireEndpoint:
         app.dependency_overrides[get_db] = override_get_db
         # Explicitly clear auth override to test unauthenticated access
         from app.auth import require_editor
+
         if require_editor in app.dependency_overrides:
             del app.dependency_overrides[require_editor]
 
