@@ -8,18 +8,18 @@ export default {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
-        // BlueMoxon brand colors (keep for backwards compatibility)
+        // BlueMoxon brand colors - updated to Victorian hunter green palette
         moxon: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
+          50: "#f0f5f3",
+          100: "#dae8e2",
+          200: "#b8d4c9",
+          300: "#8dbaa8",
+          400: "#5e9a82",
+          500: "#3a6b5c",
+          600: "#2f5a4b", // Primary brand green
+          700: "#254a3d",
+          800: "#1a3a2f",
+          900: "#0f2318",
         },
         // Victorian design system
         victorian: {
