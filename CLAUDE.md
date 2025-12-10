@@ -8,7 +8,9 @@
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
-- `||` or `&&` chaining with complex expressions
+- `||` or `&&` chaining (even simple chaining breaks auto-approve)
+
+**ENFORCEMENT**: If you catch yourself about to use `&&`, STOP. Make separate sequential Bash tool calls instead. The permission dialog toil from `&&` is enormous - one prompt per chained command.
 
 ```bash
 # BAD - will ALWAYS prompt:
@@ -76,8 +78,11 @@ git checkout -b <type>/<description>
 # 2. Make changes
 
 # 3. Run local validation BEFORE committing (REQUIRED)
-cd backend && poetry run ruff check . && poetry run ruff format --check .
-cd frontend && npm run lint && npm run type-check
+# Run these as separate commands (NOT chained with &&):
+poetry run ruff check backend/
+poetry run ruff format --check backend/
+npm run --prefix frontend lint
+npm run --prefix frontend type-check
 
 # 4. Commit with conventional commit message
 git commit -m "<type>: <description>"
@@ -348,10 +353,12 @@ This script:
 
 ## Temporary Files
 
-**Use `.tmp/` for all temporary files** instead of `/tmp`:
+**MUST use `.tmp/` for all temporary files** - NEVER use `/tmp`:
 ```bash
 .tmp/                  # Project-local temp directory (gitignored)
 ```
+
+**ENFORCEMENT**: Using `/tmp` triggers permission prompts. `.tmp/` is pre-approved. Always use `.tmp/`.
 
 Benefits:
 - No permission prompts (covered by project permissions)
@@ -484,8 +491,9 @@ terraform plan -var-file=envs/staging.tfvars
 # 3. Apply
 terraform apply -var-file=envs/staging.tfvars
 
-# 4. Commit the .tf changes
-git add . && git commit -m "infra: Add/change X resource"
+# 4. Commit the .tf changes (run as separate commands)
+git add .
+git commit -m "infra: Add/change X resource"
 ```
 
 ### Import Existing Resources
