@@ -29,13 +29,13 @@ function closeAcquireModal() {
   selectedBookId.value = null;
 }
 
-function formatPrice(price?: number): string {
-  if (!price) return "-";
+function formatPrice(price?: number | null): string {
+  if (price == null || typeof price !== "number") return "-";
   return `$${price.toFixed(2)}`;
 }
 
-function formatDiscount(discount?: number): string {
-  if (!discount) return "-";
+function formatDiscount(discount?: number | null): string {
+  if (discount == null || typeof discount !== "number") return "-";
   return `${discount.toFixed(0)}%`;
 }
 
