@@ -4,6 +4,24 @@ variable "access_token_validity" {
   default     = 1
 }
 
+variable "allow_admin_create_user_only" {
+  type        = bool
+  description = "Only allow admin to create users"
+  default     = false
+}
+
+variable "invite_email_message" {
+  type        = string
+  description = "Email message template for user invitation"
+  default     = null
+}
+
+variable "invite_email_subject" {
+  type        = string
+  description = "Email subject for user invitation"
+  default     = "Your temporary password"
+}
+
 variable "callback_urls" {
   type        = list(string)
   description = "Callback URLs for OAuth"
@@ -73,6 +91,12 @@ variable "tags" {
   type        = map(string)
   description = "Resource tags"
   default     = {}
+}
+
+variable "user_pool_client_name_override" {
+  type        = string
+  description = "Override the client name (defaults to user_pool_name-client)"
+  default     = null
 }
 
 variable "user_pool_name" {

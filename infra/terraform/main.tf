@@ -43,8 +43,8 @@ module "frontend_bucket" {
   enable_versioning        = true # DR: enables recovery of deleted/overwritten objects
   block_public_access      = true
   enable_website           = false
-  enable_cloudfront_policy = var.enable_cloudfront
-  cloudfront_oai_arn       = var.enable_cloudfront ? module.frontend_cdn[0].oai_arn : null
+  enable_cloudfront_policy = var.enable_cloudfront && !var.skip_s3_cloudfront_policy
+  cloudfront_oai_arn       = var.enable_cloudfront && !var.skip_s3_cloudfront_policy ? module.frontend_cdn[0].oai_arn : null
 
   tags = local.common_tags
 }
@@ -55,14 +55,25 @@ module "images_bucket" {
   bucket_name              = local.images_bucket_name
   enable_versioning        = true
   block_public_access      = true
-  enable_cloudfront_policy = var.enable_cloudfront
-  cloudfront_oai_arn       = var.enable_cloudfront ? module.images_cdn[0].oai_arn : null
+  enable_cloudfront_policy = var.enable_cloudfront && !var.skip_s3_cloudfront_policy
+  cloudfront_oai_arn       = var.enable_cloudfront && !var.skip_s3_cloudfront_policy ? module.images_cdn[0].oai_arn : null
 
   cors_allowed_origins = [
     "https://${local.app_domain}",
     "https://${local.api_domain}"
   ]
   cors_allowed_methods = ["GET", "HEAD"]
+
+  tags = local.common_tags
+}
+
+module "logs_bucket" {
+  count  = var.logs_bucket_name != null ? 1 : 0
+  source = "./modules/s3"
+
+  bucket_name         = var.logs_bucket_name
+  enable_versioning   = false
+  block_public_access = false # Required for CloudFront log delivery ACL grants
 
   tags = local.common_tags
 }
@@ -109,14 +120,15 @@ module "images_cdn" {
 module "cognito" {
   source = "./modules/cognito"
 
-  user_pool_name = local.cognito_user_pool_name
-  domain_prefix  = local.cognito_domain
+  user_pool_name                 = local.cognito_user_pool_name
+  user_pool_client_name_override = var.cognito_client_name_override
+  domain_prefix                  = local.cognito_domain
 
-  callback_urls = [
+  callback_urls = var.cognito_callback_urls_override != null ? var.cognito_callback_urls_override : [
     "https://${local.app_domain}/auth/callback",
     "http://localhost:5173/auth/callback"
   ]
-  logout_urls = [
+  logout_urls = var.cognito_logout_urls_override != null ? var.cognito_logout_urls_override : [
     "https://${local.app_domain}",
     "http://localhost:5173"
   ]
@@ -124,8 +136,14 @@ module "cognito" {
   enable_oauth = true
 
   # MFA configuration
-  mfa_configuration = var.cognito_mfa_configuration
-  mfa_totp_enabled  = var.cognito_mfa_totp_enabled
+  mfa_configuration        = var.cognito_mfa_configuration
+  mfa_totp_enabled         = var.cognito_mfa_totp_enabled
+  password_require_symbols = var.cognito_password_require_symbols
+
+  # Admin create user config
+  allow_admin_create_user_only = var.cognito_allow_admin_create_user_only
+  invite_email_message         = var.cognito_invite_email_message
+  invite_email_subject         = var.cognito_invite_email_subject
 
   tags = local.common_tags
 }
@@ -147,7 +165,7 @@ module "vpc_networking" {
   # VPC Endpoints for Lambda to access AWS services
   enable_vpc_endpoints        = var.enable_database
   create_lambda_sg_rule       = false # Will be enabled after initial import
-  lambda_security_group_id    = var.enable_database ? module.lambda.security_group_id : null
+  lambda_security_group_id    = var.enable_database && var.enable_lambda ? module.lambda[0].security_group_id : null
   cognito_endpoint_subnet_ids = var.cognito_endpoint_subnet_ids
   # Disable Cognito VPC endpoint - ManagedLogin doesn't support PrivateLink
   # Lambda uses NAT gateway to reach Cognito API instead
@@ -197,7 +215,7 @@ module "database" {
   subnet_ids = data.aws_subnets.default[0].ids
 
   # Allow Lambda security group to access RDS
-  allowed_security_group_id = module.lambda.security_group_id
+  allowed_security_group_id = var.enable_lambda ? module.lambda[0].security_group_id : null
 
   # Staging-specific settings
   deletion_protection     = local.is_prod
@@ -212,6 +230,7 @@ module "database" {
 # =============================================================================
 
 module "lambda" {
+  count  = var.enable_lambda ? 1 : 0
   source = "./modules/lambda"
 
   function_name    = local.lambda_function_name
@@ -267,14 +286,14 @@ module "lambda" {
 # =============================================================================
 
 module "db_sync_lambda" {
-  count  = var.enable_database && !local.is_prod ? 1 : 0
+  count  = var.enable_database && var.enable_lambda && !local.is_prod ? 1 : 0
   source = "./modules/db-sync-lambda"
 
   function_name = "${local.name_prefix}-db-sync"
 
   # Use private subnets (with NAT gateway route) for outbound internet access
   subnet_ids         = var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids
-  security_group_ids = [module.lambda.security_group_id]
+  security_group_ids = [module.lambda[0].security_group_id]
 
   # Access to both prod and staging secrets
   secret_arns = [
@@ -306,9 +325,11 @@ module "db_sync_lambda" {
 module "api_gateway" {
   source = "./modules/api-gateway"
 
-  api_name             = local.api_gateway_name
-  lambda_function_name = module.lambda.function_name
-  lambda_invoke_arn    = module.lambda.invoke_arn
+  api_name = local.api_gateway_name
+
+  # Use Lambda module outputs when enabled, otherwise use external values
+  lambda_function_name = var.enable_lambda ? module.lambda[0].function_name : var.lambda_function_name_external
+  lambda_invoke_arn    = var.enable_lambda ? module.lambda[0].invoke_arn : var.lambda_invoke_arn_external
 
   cors_allowed_origins = [
     "https://${local.app_domain}",

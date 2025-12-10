@@ -91,6 +91,24 @@ variable "enable_database" {
   default     = false
 }
 
+variable "enable_lambda" {
+  type        = bool
+  description = "Enable Lambda function management (set false for prod where Lambda is managed externally)"
+  default     = true
+}
+
+variable "lambda_function_name_external" {
+  type        = string
+  description = "External Lambda function name (used when enable_lambda=false)"
+  default     = null
+}
+
+variable "lambda_invoke_arn_external" {
+  type        = string
+  description = "External Lambda invoke ARN (used when enable_lambda=false)"
+  default     = null
+}
+
 variable "enable_nat_gateway" {
   type        = bool
   description = "Enable NAT Gateway for Lambda outbound internet access"
@@ -117,6 +135,12 @@ variable "lambda_memory_size" {
   type        = number
   description = "Memory allocation for Lambda function (MB)"
   default     = 512
+}
+
+variable "logs_bucket_name" {
+  type        = string
+  description = "Name of the logs bucket for CloudFront/S3 access logs (prod only)"
+  default     = null
 }
 
 variable "lambda_provisioned_concurrency" {
@@ -272,4 +296,52 @@ variable "cognito_domain_override" {
   type        = string
   description = "Override Cognito domain prefix (for legacy resources without env suffix)"
   default     = null
+}
+
+variable "cognito_client_name_override" {
+  type        = string
+  description = "Override Cognito client name (for legacy resources)"
+  default     = null
+}
+
+variable "cognito_callback_urls_override" {
+  type        = list(string)
+  description = "Override Cognito callback URLs (for legacy resources with different URL patterns)"
+  default     = null
+}
+
+variable "cognito_logout_urls_override" {
+  type        = list(string)
+  description = "Override Cognito logout URLs (for legacy resources with different URL patterns)"
+  default     = null
+}
+
+variable "cognito_password_require_symbols" {
+  type        = bool
+  description = "Require symbols in Cognito passwords"
+  default     = true
+}
+
+variable "cognito_allow_admin_create_user_only" {
+  type        = bool
+  description = "Only allow admin to create Cognito users"
+  default     = false
+}
+
+variable "cognito_invite_email_message" {
+  type        = string
+  description = "Cognito email invitation message template"
+  default     = null
+}
+
+variable "cognito_invite_email_subject" {
+  type        = string
+  description = "Cognito email invitation subject"
+  default     = "Your temporary password"
+}
+
+variable "skip_s3_cloudfront_policy" {
+  type        = bool
+  description = "Skip creating OAI-based S3 bucket policies (for prod which uses OAC instead)"
+  default     = false
 }
