@@ -31,6 +31,30 @@ AWS_PROFILE=staging aws logs filter-log-events --log-group-name /aws/lambda/my-f
 
 Use the command description field instead of inline comments.
 
+## BMX API Calls
+
+Use `bmx-api` for all BlueMoxon API calls (no permission prompts):
+
+```bash
+bmx-api GET /books                          # List books (staging)
+bmx-api GET /books/123                      # Get specific book
+bmx-api POST /books '{"title":"..."}'       # Create book
+bmx-api PUT /books/123 '{"title":"..."}'    # Full update
+bmx-api PATCH /books/123 '{"status":"..."}'  # Partial update
+bmx-api DELETE /books/123                   # Delete book
+bmx-api --prod GET /books                   # Production (explicit)
+bmx-api --text-file analysis.md PUT /books/123/analysis  # Upload text/plain content
+bmx-api --prod --text-file analysis.md PUT /books/123/analysis  # Production text upload
+```
+
+Default is staging. Use `--prod` flag for production.
+
+**Flags:**
+- `--prod` - Use production API instead of staging
+- `--text-file FILE` - Send file contents with `Content-Type: text/plain` (for analysis uploads)
+
+Keys stored in `~/.bmx/staging.key` and `~/.bmx/prod.key` (600 permissions).
+
 ## Permission Pattern Guidelines
 
 When adding patterns to `~/.claude/settings.json`:

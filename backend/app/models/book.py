@@ -3,19 +3,21 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 
-# Use TSVECTOR for PostgreSQL, Text for SQLite (testing)
+# Use TSVECTOR and JSONB for PostgreSQL, Text for SQLite (testing)
 # This allows tests to run with SQLite while production uses PostgreSQL
 try:
-    from sqlalchemy.dialects.postgresql import TSVECTOR
+    from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 
     SearchVectorType = TSVECTOR
+    # JSONB for PostgreSQL, will be used in migrations
+    # In model, we use Text as the column type since SQLAlchemy handles JSON automatically
 except ImportError:
-    SearchVectorType = Text  # type: ignore
+    pass  # If not PostgreSQL, types not needed
 
 
 class Book(Base, TimestampMixin):
@@ -63,8 +65,18 @@ class Book(Base, TimestampMixin):
     discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # Up to 9999.99%
     roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # Up to 99999.99%
 
-    # Status
+    # Status: EVALUATING, IN_TRANSIT, ON_HAND, SOLD, REMOVED, CANCELED
     status: Mapped[str] = mapped_column(String(20), default="ON_HAND")
+
+    # Source tracking
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    source_item_id: Mapped[str | None] = mapped_column(String(100))
+
+    # Delivery tracking
+    estimated_delivery: Mapped[date | None] = mapped_column(Date)
+
+    # Acquisition scoring (captured at purchase time)
+    scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)
@@ -99,4 +111,5 @@ class Book(Base, TimestampMixin):
         Index("books_inventory_type_idx", "inventory_type"),
         Index("books_category_idx", "category"),
         Index("books_status_idx", "status"),
+        Index("books_source_item_id_idx", "source_item_id"),
     )

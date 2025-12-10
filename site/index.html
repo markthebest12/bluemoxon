@@ -1363,7 +1363,7 @@
             </div>
             <div class="screenshot-card">
                 <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/admin.png" alt="User Management" style="height: 200px;">
+                    <img src="screenshots/admin-panel.png" alt="User Management" style="height: 200px;">
                     <div class="zoom-hint">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
@@ -1525,23 +1525,65 @@ graph TB
             </div>
         </div>
 
+        <!-- Staging-First Workflow Diagram -->
+        <div class="diagram-container">
+            <h4>Staging-First Deployment Strategy</h4>
+            <div class="mermaid">
+flowchart LR
+    subgraph Dev["Development"]
+        Feature[Feature Branch]
+    end
+    subgraph PR1["PR to Staging"]
+        CI1[CI Checks<br/>12 parallel jobs]
+    end
+    subgraph Staging["Staging Environment"]
+        Deploy1[Deploy to Staging]
+        Test1[Smoke Tests]
+        Validate[Manual Validation]
+    end
+    subgraph PR2["PR to Production"]
+        CI2[CI Checks]
+    end
+    subgraph Prod["Production"]
+        Deploy2[Deploy to Prod]
+        Test2[Smoke Tests]
+        Tag[Release Tag<br/>v2025.12.10-abc123]
+    end
+    Feature -->|PR| CI1
+    CI1 -->|Merge| Deploy1
+    Deploy1 --> Test1
+    Test1 --> Validate
+    Validate -->|PR main| CI2
+    CI2 -->|Merge| Deploy2
+    Deploy2 --> Test2
+    Test2 --> Tag
+    style Feature fill:#4CAF50,color:#fff
+    style CI1 fill:#3b82f6,color:#fff
+    style Staging fill:#f59e0b,color:#000
+    style Prod fill:#9C27B0,color:#fff
+    style Tag fill:#10b981,color:#fff
+            </div>
+        </div>
+
         <!-- Pipeline Diagram -->
         <div class="diagram-container">
-            <h4>Deployment Flow</h4>
+            <h4>CI/CD Pipeline Detail</h4>
             <div class="mermaid">
 flowchart LR
     subgraph Trigger
-        Push[Push to main]
+        Push[Push to branch]
     end
-    subgraph CI["CI Checks"]
+    subgraph CI["CI Checks (Parallel)"]
         Lint[Lint<br/>Ruff + ESLint]
         Test[Tests<br/>pytest + vitest]
         Type[Type Check<br/>mypy + vue-tsc]
         SAST[SAST<br/>Bandit + Semgrep]
+        Deps[Dependency Scan<br/>pip-audit + npm]
+        Secrets[Secret Scan<br/>Trivy + Gitleaks]
     end
     subgraph Build
-        Lambda[Lambda Package]
-        Vue[Frontend Dist]
+        Lambda[Lambda Package<br/>Python 3.12]
+        Vue[Frontend Dist<br/>Vite build]
     end
     subgraph Deploy
         S3[S3 Sync]
@@ -1556,10 +1598,14 @@ flowchart LR
     Push --> Test
     Push --> Type
     Push --> SAST
+    Push --> Deps
+    Push --> Secrets
     Lint --> Lambda
     Test --> Lambda
     Type --> Lambda
     SAST --> Lambda
+    Deps --> Lambda
+    Secrets --> Lambda
     Lint --> Vue
     Test --> Vue
     Type --> Vue
@@ -1571,6 +1617,7 @@ flowchart LR
     Smoke --> Tag
     style Push fill:#4CAF50,color:#fff
     style SAST fill:#f44336,color:#fff
+    style Secrets fill:#f44336,color:#fff
     style Tag fill:#9C27B0,color:#fff
             </div>
         </div>

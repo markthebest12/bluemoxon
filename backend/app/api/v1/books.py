@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Book
 from app.schemas.book import (
+    AcquireRequest,
     BookCreate,
     BookListResponse,
     BookResponse,
@@ -392,6 +393,120 @@ def update_book_inventory_type(
         "old_type": old_type,
         "new_type": inventory_type,
     }
+
+
+@router.patch("/{book_id}/acquire", response_model=BookResponse)
+def acquire_book(
+    book_id: int,
+    acquire_data: AcquireRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Acquire a book - transition from EVALUATING to IN_TRANSIT.
+
+    Calculates discount percentage and creates scoring snapshot.
+    """
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.status != "EVALUATING":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Book must be in EVALUATING status to acquire (current: {book.status})",
+        )
+
+    # Update acquisition fields
+    book.purchase_price = acquire_data.purchase_price
+    book.purchase_date = acquire_data.purchase_date
+    book.purchase_source = acquire_data.place_of_purchase
+    book.status = "IN_TRANSIT"
+
+    if acquire_data.estimated_delivery:
+        book.estimated_delivery = acquire_data.estimated_delivery
+
+    # Store order number in notes (or create order_number field later)
+    if book.notes:
+        book.notes = f"Order: {acquire_data.order_number}\n{book.notes}"
+    else:
+        book.notes = f"Order: {acquire_data.order_number}"
+
+    # Calculate discount percentage
+    if book.value_mid and acquire_data.purchase_price:
+        discount = (
+            (float(book.value_mid) - float(acquire_data.purchase_price))
+            / float(book.value_mid)
+            * 100
+        )
+        book.discount_pct = Decimal(str(round(discount, 2)))
+
+    # Get collection stats for scoring
+    from sqlalchemy import func
+
+    collection_stats = (
+        db.query(
+            func.count(Book.id).label("items"),
+            func.sum(Book.volumes).label("volumes"),
+        )
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.status == "ON_HAND",
+        )
+        .first()
+    )
+
+    # Create scoring snapshot
+    book.scoring_snapshot = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "purchase_price": float(acquire_data.purchase_price),
+        "fmv_at_purchase": {
+            "low": float(book.value_low) if book.value_low else None,
+            "mid": float(book.value_mid) if book.value_mid else None,
+            "high": float(book.value_high) if book.value_high else None,
+        },
+        "discount_pct": float(book.discount_pct) if book.discount_pct else 0,
+        "collection_position": {
+            "items_before": collection_stats.items if collection_stats else 0,
+            "volumes_before": (
+                int(collection_stats.volumes)
+                if collection_stats and collection_stats.volumes
+                else 0
+            ),
+        },
+    }
+
+    db.commit()
+    db.refresh(book)
+
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
 
 
 @router.post("/bulk/status")
