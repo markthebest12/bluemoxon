@@ -345,3 +345,25 @@ variable "skip_s3_cloudfront_policy" {
   description = "Skip creating OAI-based S3 bucket policies (for prod which uses OAC instead)"
   default     = false
 }
+
+# =============================================================================
+# Landing Site Variables (prod only)
+# =============================================================================
+
+variable "enable_landing_site" {
+  type        = bool
+  description = "Enable landing site S3 + CloudFront (bluemoxon.com marketing site)"
+  default     = false
+}
+
+variable "landing_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for landing site CloudFront (must be in us-east-1)"
+  default     = null
+}
+
+variable "landing_bucket_name" {
+  type        = string
+  description = "S3 bucket name for landing site"
+  default     = null
+}

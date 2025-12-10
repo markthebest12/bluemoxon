@@ -4,9 +4,25 @@ This checklist documents the steps needed to migrate production infrastructure t
 
 ## Prerequisites
 
-- [ ] Terraform state backend set up in prod account (#106)
-- [ ] GitHub OIDC configured for prod deploys (#102)
-- [ ] Backup of current production state documented
+- [x] Terraform state backend set up in prod account (#106) - COMPLETED
+- [x] GitHub OIDC configured for prod deploys (#102) - COMPLETED
+- [x] Backup of current production state documented
+
+## Migration Status (Updated 2024-12-09)
+
+| Resource | Status | Issue | Notes |
+|----------|--------|-------|-------|
+| S3 Buckets (frontend, images) | IMPORTED | #108 | Using legacy names |
+| S3 Logs Bucket | IMPORTED | #156 | bluemoxon-logs |
+| API Gateway | IMPORTED | #107 | Includes custom domain, log group, Lambda permission |
+| Cognito | IMPORTED | #110 | Using lifecycle ignore_changes for URL attributes |
+| GitHub OIDC | IMPORTED | #137 | Provider + role + policy |
+| CloudFront (frontend/images) | SKIPPED | #109 | Prod uses OAC, module uses OAI - managed externally |
+| Lambda | SKIPPED | N/A | Different architecture - managed externally |
+| Landing Site | IMPORTED | #154 | New landing-site module with OAC support (7 resources) |
+| Route53 + ACM | PENDING | #111, #157 | Next phase |
+
+**Terraform State:** 38 resources in `s3://bluemoxon-terraform-state-prod/bluemoxon/prod/terraform.tfstate`
 
 ### Resource Backups
 

@@ -109,6 +109,11 @@ cognito_domain_override         = "bluemoxon"
 # Logs bucket for CloudFront access logs (prod only)
 logs_bucket_name = "bluemoxon-logs"
 
+# Landing site (bluemoxon.com marketing site)
+enable_landing_site  = true
+landing_bucket_name  = "bluemoxon-landing"
+landing_acm_cert_arn = "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861"
+
 # GitHub OIDC - Override bucket ARNs for legacy naming convention
 # Prod uses bluemoxon-frontend/bluemoxon-images instead of bluemoxon-prod-frontend
 github_oidc_frontend_bucket_arns = ["arn:aws:s3:::bluemoxon-frontend"]

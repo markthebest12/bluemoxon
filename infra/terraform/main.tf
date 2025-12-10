@@ -344,6 +344,26 @@ module "api_gateway" {
 }
 
 # =============================================================================
+# Landing Site (marketing site at bluemoxon.com)
+# =============================================================================
+
+module "landing_site" {
+  count  = var.enable_landing_site ? 1 : 0
+  source = "./modules/landing-site"
+
+  bucket_name     = var.landing_bucket_name
+  oac_name        = "${var.landing_bucket_name}-oac"
+  oac_description = "OAC for BlueMoxon landing site"
+  origin_id       = "${var.landing_bucket_name}-s3"
+  comment         = "BlueMoxon Landing/Docs Site"
+  domain_aliases  = ["${var.domain_name}", "www.${var.domain_name}"]
+
+  acm_certificate_arn = var.landing_acm_cert_arn
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # GitHub Actions OIDC (for CI/CD deployments)
 # =============================================================================
 
