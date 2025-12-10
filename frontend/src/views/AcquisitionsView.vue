@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
+import AcquireModal from "@/components/AcquireModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const authStore = useAuthStore();
@@ -188,14 +189,14 @@ async function handleDelete(bookId: number) {
       </div>
     </div>
 
-    <!-- Acquire Modal Placeholder (will be created in Task 4.1) -->
-    <!-- <AcquireModal
+    <!-- Acquire Modal -->
+    <AcquireModal
       v-if="showAcquireModal && selectedBook"
       :book-id="selectedBook.id"
       :book-title="selectedBook.title"
       :value-mid="selectedBook.value_mid"
       @close="closeAcquireModal"
       @acquired="closeAcquireModal"
-    /> -->
+    />
   </div>
 </template>
