@@ -83,8 +83,14 @@ function getTrendArrow(value: number): string {
     <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Collections -->
       <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"></div>
-        <h3 class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider">On Hand</h3>
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
+        ></div>
+        <h3
+          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
+        >
+          On Hand
+        </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
             {{ stats.primary.count }}
@@ -107,8 +113,14 @@ function getTrendArrow(value: number): string {
 
       <!-- Total Volumes -->
       <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"></div>
-        <h3 class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider">Volumes</h3>
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
+        ></div>
+        <h3
+          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
+        >
+          Volumes
+        </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
             {{ stats.primary.volumes }}
@@ -128,8 +140,14 @@ function getTrendArrow(value: number): string {
 
       <!-- Collection Value -->
       <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-gold/10 to-transparent"></div>
-        <h3 class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider">Est. Value</h3>
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-gold/10 to-transparent"
+        ></div>
+        <h3
+          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
+        >
+          Est. Value
+        </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-xl md:text-3xl font-display text-victorian-gold-dark">
             {{ formatCurrency(stats.primary.value_mid) }}
@@ -157,8 +175,14 @@ function getTrendArrow(value: number): string {
 
       <!-- Authenticated Bindings -->
       <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-burgundy/10 to-transparent"></div>
-        <h3 class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider">Premium</h3>
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-burgundy/10 to-transparent"
+        ></div>
+        <h3
+          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
+        >
+          Premium
+        </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-burgundy">
             {{ stats.authenticated_bindings }}
@@ -174,23 +198,32 @@ function getTrendArrow(value: number): string {
             {{ formatDelta(stats.week_delta.authenticated_bindings) }}
           </span>
         </div>
-        <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">Authenticated bindings</p>
+        <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
+          Authenticated bindings
+        </p>
       </div>
     </div>
 
     <!-- Quick Links -->
     <div class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <RouterLink to="/books" class="card group">
-        <h3 class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700">Browse Collection</h3>
+        <h3
+          class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700"
+        >
+          Browse Collection
+        </h3>
         <p class="text-victorian-ink-muted mt-2">Search and filter your complete book inventory</p>
       </RouterLink>
 
-      <RouterLink
-        to="/books?inventory_type=PRIMARY&binding_authenticated=true"
-        class="card group"
-      >
-        <h3 class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700">Premium Bindings</h3>
-        <p class="text-victorian-ink-muted mt-2">View authenticated Zaehnsdorf, Riviere, and more</p>
+      <RouterLink to="/books?inventory_type=PRIMARY&binding_authenticated=true" class="card group">
+        <h3
+          class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700"
+        >
+          Premium Bindings
+        </h3>
+        <p class="text-victorian-ink-muted mt-2">
+          View authenticated Zaehnsdorf, Riviere, and more
+        </p>
       </RouterLink>
     </div>
 

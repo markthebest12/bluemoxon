@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Victorian Typography - Cormorant Garamond */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap");
 
 /* Prevent horizontal scroll on mobile */
 @layer base {
@@ -14,8 +14,10 @@
   }
 
   /* Display typography for headings */
-  h1, h2, .font-display {
-    font-family: 'Cormorant Garamond', Georgia, serif;
+  h1,
+  h2,
+  .font-display {
+    font-family: "Cormorant Garamond", Georgia, serif;
     @apply font-semibold tracking-wide;
   }
 
@@ -162,7 +164,7 @@
 
   .divider-flourish::before,
   .divider-flourish::after {
-    content: '';
+    content: "";
     @apply h-px w-16 bg-victorian-paper-antique;
   }
 

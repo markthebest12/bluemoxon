@@ -155,7 +155,10 @@ function closeMobileMenu() {
     </div>
 
     <!-- Mobile Menu -->
-    <div v-if="mobileMenuOpen" class="md:hidden bg-victorian-hunter-900/98 border-t border-victorian-hunter-700">
+    <div
+      v-if="mobileMenuOpen"
+      class="md:hidden bg-victorian-hunter-900/98 border-t border-victorian-hunter-700"
+    >
       <div class="px-4 py-3 space-y-1">
         <!-- Navigation Links -->
         <RouterLink

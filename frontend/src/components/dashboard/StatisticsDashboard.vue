@@ -372,38 +372,52 @@ onMounted(async () => {
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- Premium Bindings Distribution -->
       <div class="card-static !p-4">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">Premium Bindings</h3>
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Premium Bindings
+        </h3>
         <div class="h-48 md:h-56">
           <Doughnut
             v-if="binderData.length > 0"
             :data="binderChartData"
             :options="doughnutOptions"
           />
-          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">No binding data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No binding data available
+          </p>
         </div>
       </div>
 
       <!-- Era Distribution -->
       <div class="card-static !p-4">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">Books by Era</h3>
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Era
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="eraData.length > 0" :data="eraChartData" :options="barChartOptions" />
-          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">No era data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No era data available
+          </p>
         </div>
       </div>
 
       <!-- Top Authors -->
       <div class="card-static !p-4">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">Top Authors</h3>
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Top Authors
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="authorData.length > 0" :data="authorChartData" :options="authorChartOptions" />
-          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">No author data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No author data available
+          </p>
         </div>
       </div>
 
       <!-- Top Tier 1 Publishers -->
       <div class="card-static !p-4">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">Top Tier 1 Publishers</h3>
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Top Tier 1 Publishers
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
@@ -414,14 +428,18 @@ onMounted(async () => {
 
       <!-- Cumulative Value Growth - full width at bottom -->
       <div class="card-static !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">Est. Value Growth (Last 30 Days)</h3>
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Est. Value Growth (Last 30 Days)
+        </h3>
         <div class="h-48 md:h-64">
           <Line
             v-if="acquisitionData.length > 0"
             :data="acquisitionChartData"
             :options="lineChartOptions"
           />
-          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">No acquisition data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No acquisition data available
+          </p>
         </div>
       </div>
     </div>
