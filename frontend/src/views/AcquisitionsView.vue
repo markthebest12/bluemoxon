@@ -3,12 +3,14 @@ import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
+import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisitionsStore);
 
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
+const showWatchlistModal = ref(false);
 
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
@@ -27,6 +29,19 @@ function openAcquireModal(bookId: number) {
 function closeAcquireModal() {
   showAcquireModal.value = false;
   selectedBookId.value = null;
+}
+
+function openWatchlistModal() {
+  showWatchlistModal.value = true;
+}
+
+function closeWatchlistModal() {
+  showWatchlistModal.value = false;
+}
+
+function handleWatchlistAdded() {
+  showWatchlistModal.value = false;
+  acquisitionsStore.fetchAll();
 }
 
 function formatPrice(price?: number | null): string {
@@ -115,12 +130,13 @@ async function handleDelete(bookId: number) {
             </div>
 
             <!-- Add Item Button -->
-            <router-link
-              to="/books/new?status=EVALUATING"
+            <button
+              data-testid="add-to-watchlist"
+              @click="openWatchlistModal"
               class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
             >
               + Add to Watchlist
-            </router-link>
+            </button>
           </div>
         </div>
 
@@ -204,6 +220,13 @@ async function handleDelete(bookId: number) {
       :value-mid="selectedBook.value_mid"
       @close="closeAcquireModal"
       @acquired="closeAcquireModal"
+    />
+
+    <!-- Add to Watchlist Modal -->
+    <AddToWatchlistModal
+      v-if="showWatchlistModal"
+      @close="closeWatchlistModal"
+      @added="handleWatchlistAdded"
     />
   </div>
 </template>

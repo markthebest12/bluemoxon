@@ -242,4 +242,31 @@ describe("AcquisitionsView", () => {
       expect(html).toContain("In Transit");
     });
   });
+
+  describe("Add to Watchlist Modal", () => {
+    it("opens AddToWatchlistModal when add button clicked", async () => {
+      vi.mocked(api.get).mockImplementation((_url, config) => {
+        const status = config?.params?.status;
+        if (status === "EVALUATING") return Promise.resolve({ data: { items: [] } });
+        if (status === "IN_TRANSIT") return Promise.resolve({ data: { items: [] } });
+        return Promise.resolve({ data: { items: [] } });
+      });
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+          stubs: {
+            Teleport: true,
+          },
+        },
+      });
+
+      await flushPromises();
+
+      const addButton = wrapper.find('[data-testid="add-to-watchlist"]');
+      await addButton.trigger("click");
+
+      expect(wrapper.findComponent({ name: "AddToWatchlistModal" }).exists()).toBe(true);
+    });
+  });
 });
