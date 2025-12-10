@@ -138,3 +138,25 @@ class BookListResponse(PaginatedResponse):
     """Paginated list of books."""
 
     items: list[BookResponse]
+
+
+class AcquireRequest(BaseModel):
+    """Request body for acquiring a book (EVALUATING -> IN_TRANSIT)."""
+
+    purchase_price: Decimal
+    purchase_date: date
+    order_number: str
+    place_of_purchase: str
+    estimated_delivery: date | None = None
+
+
+class ScoringSnapshot(BaseModel):
+    """Scoring data captured at acquisition time."""
+
+    captured_at: datetime
+    purchase_price: Decimal
+    fmv_at_purchase: dict  # {"low": x, "mid": y, "high": z}
+    discount_pct: Decimal
+    investment_grade: Decimal
+    strategic_fit: dict  # {"score": x, "max": y, "criteria": [...]}
+    collection_position: dict  # {"items_before": x, "volumes_before": y}
