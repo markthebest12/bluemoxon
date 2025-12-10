@@ -116,10 +116,15 @@ landing_acm_cert_arn = "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-
 
 # GitHub OIDC - Override bucket ARNs for legacy naming convention
 # Prod uses bluemoxon-frontend/bluemoxon-images instead of bluemoxon-prod-frontend
-github_oidc_frontend_bucket_arns = ["arn:aws:s3:::bluemoxon-frontend"]
-github_oidc_images_bucket_arns   = ["arn:aws:s3:::bluemoxon-images"]
+# Also includes bluemoxon-landing for marketing site deployment
+github_oidc_frontend_bucket_arns = [
+  "arn:aws:s3:::bluemoxon-frontend",
+  "arn:aws:s3:::bluemoxon-landing"
+]
+github_oidc_images_bucket_arns = ["arn:aws:s3:::bluemoxon-images"]
 github_oidc_cloudfront_distribution_arns = [
-  "arn:aws:cloudfront::266672885920:distribution/E16BJX90QWQNQO"
+  "arn:aws:cloudfront::266672885920:distribution/E16BJX90QWQNQO",
+  "arn:aws:cloudfront::266672885920:distribution/ES60BQB34DNYS"
 ]
 
 # =============================================================================
