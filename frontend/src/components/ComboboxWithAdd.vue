@@ -20,7 +20,6 @@ const emit = defineEmits<{
 
 const searchText = ref("");
 const isOpen = ref(false);
-const inputRef = ref<HTMLInputElement | null>(null);
 
 // Find selected option to display
 const selectedOption = computed(() => {
@@ -53,14 +52,17 @@ watch(
   { immediate: true }
 );
 
+// Open dropdown when user types (if not already focused)
+watch(searchText, (newVal, oldVal) => {
+  // Only open on actual user input (not programmatic changes)
+  if (newVal !== oldVal && newVal !== selectedOption.value?.name) {
+    isOpen.value = true;
+  }
+});
+
 function handleFocus() {
   isOpen.value = true;
   searchText.value = "";
-}
-
-function handleInput() {
-  // Open dropdown when user types
-  isOpen.value = true;
 }
 
 function handleBlur() {
@@ -93,13 +95,11 @@ function handleAddNew() {
       {{ label }}
     </label>
     <input
-      ref="inputRef"
       v-model="searchText"
       type="text"
       :placeholder="placeholder || `Select or add ${label.toLowerCase()}`"
       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       @focus="handleFocus"
-      @input="handleInput"
       @blur="handleBlur"
     />
 
