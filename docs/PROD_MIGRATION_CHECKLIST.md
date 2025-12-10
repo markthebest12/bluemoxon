@@ -139,12 +139,50 @@ terraform import 'module.api_gateway.aws_apigatewayv2_api.this' <API_ID>
 
 ### 2.5 Route53 & ACM (#111)
 
-```bash
-# Import hosted zone (usually not needed, reference via data source)
-# Import ACM certificates
-terraform import 'aws_acm_certificate.frontend' arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861
-terraform import 'aws_acm_certificate.api' arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a
+**Route53 Hosted Zone** - Use data source (don't import, registrar-managed):
+```hcl
+data "aws_route53_zone" "main" {
+  name = "bluemoxon.com"
+}
+# Zone ID: Z09346283AE9VMIQQJ8VL
 ```
+
+**Route53 Records** to create/import:
+| Record | Type | Target |
+|--------|------|--------|
+| `bluemoxon.com` | A/AAAA | Landing CloudFront |
+| `www.bluemoxon.com` | A/AAAA | Landing CloudFront |
+| `app.bluemoxon.com` | A/AAAA | App CloudFront |
+| `api.bluemoxon.com` | A | API Gateway |
+| `staging.app.bluemoxon.com` | A/AAAA | Staging CloudFront |
+| `staging.api.bluemoxon.com` | A | Staging API Gateway |
+
+**ACM Certificates** - Keep external, pass ARNs to Terraform:
+| Domain | Region | ARN |
+|--------|--------|-----|
+| `*.bluemoxon.com` | us-east-1 | `arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861` |
+| `api.bluemoxon.com` | us-west-2 | `arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a` |
+| `staging.api.bluemoxon.com` | us-west-2 | `arn:aws:acm:us-west-2:266672885920:certificate/fdc9433a-89c2-4a7c-a4c1-f7794b8f7db9` |
+
+### 2.7 Landing Site (#154) - Prod Only
+
+Marketing website at bluemoxon.com / www.bluemoxon.com (no staging equivalent).
+
+**Resources:**
+- S3 bucket: `bluemoxon-landing`
+- CloudFront: `ES60BQB34DNYS` (dui69hltsg2ds.cloudfront.net)
+- Aliases: bluemoxon.com, www.bluemoxon.com
+- Uses same wildcard cert as app
+
+```bash
+# Import landing bucket
+terraform import 'module.landing_bucket.aws_s3_bucket.this' bluemoxon-landing
+
+# Import landing CloudFront
+terraform import 'module.landing_cdn[0].aws_cloudfront_distribution.this' ES60BQB34DNYS
+```
+
+**Note:** The `bluemoxon-logs` bucket (CloudFront access logs) is optional to terraform.
 
 ### 2.6 GitHub Actions OIDC (#102)
 

@@ -231,3 +231,45 @@ variable "github_repo" {
   description = "GitHub repository in format 'owner/repo'"
   default     = "markthebest12/bluemoxon"
 }
+
+# =============================================================================
+# Legacy Resource Name Overrides (for production)
+# =============================================================================
+# Production was created before environment-suffixed naming convention.
+# These overrides allow Terraform to manage existing resources without renaming.
+
+variable "frontend_bucket_name_override" {
+  type        = string
+  description = "Override S3 frontend bucket name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "images_bucket_name_override" {
+  type        = string
+  description = "Override S3 images bucket name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "lambda_function_name_override" {
+  type        = string
+  description = "Override Lambda function name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "api_gateway_name_override" {
+  type        = string
+  description = "Override API Gateway name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_user_pool_name_override" {
+  type        = string
+  description = "Override Cognito user pool name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_domain_override" {
+  type        = string
+  description = "Override Cognito domain prefix (for legacy resources without env suffix)"
+  default     = null
+}

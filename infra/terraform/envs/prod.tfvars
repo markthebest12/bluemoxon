@@ -24,6 +24,19 @@ db_allocated_storage = 50
 enable_cloudfront = true
 enable_waf        = true
 
+# =============================================================================
+# Legacy Resource Name Overrides
+# =============================================================================
+# Production uses original naming convention without environment suffix.
+# These overrides ensure Terraform manages existing resources without renaming.
+
+frontend_bucket_name_override   = "bluemoxon-frontend"
+images_bucket_name_override     = "bluemoxon-images"
+lambda_function_name_override   = "bluemoxon-api"
+api_gateway_name_override       = "bluemoxon-api"
+cognito_user_pool_name_override = "bluemoxon-users"
+cognito_domain_override         = "bluemoxon"
+
 # GitHub OIDC - Override bucket ARNs for legacy naming convention
 # Prod uses bluemoxon-frontend/bluemoxon-images instead of bluemoxon-prod-frontend
 github_oidc_frontend_bucket_arns = ["arn:aws:s3:::bluemoxon-frontend"]

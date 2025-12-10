@@ -109,8 +109,8 @@ module "images_cdn" {
 module "cognito" {
   source = "./modules/cognito"
 
-  user_pool_name = "${var.app_name}-users-${var.environment}"
-  domain_prefix  = "${var.app_name}-${var.environment}"
+  user_pool_name = local.cognito_user_pool_name
+  domain_prefix  = local.cognito_domain
 
   callback_urls = [
     "https://${local.app_domain}/auth/callback",
