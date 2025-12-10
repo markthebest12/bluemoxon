@@ -28,6 +28,17 @@ export interface AcquirePayload {
   estimated_delivery?: string;
 }
 
+export interface WatchlistPayload {
+  title: string;
+  author_id: number;
+  publisher_id?: number;
+  binder_id?: number;
+  publication_date?: string;
+  volumes?: number;
+  source_url?: string;
+  purchase_price?: number; // This is the asking price for watchlist items
+}
+
 export const useAcquisitionsStore = defineStore("acquisitions", () => {
   // State
   const evaluating = ref<AcquisitionBook[]>([]);
@@ -121,6 +132,17 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     evaluating.value = evaluating.value.filter((b) => b.id !== bookId);
   }
 
+  async function addToWatchlist(payload: WatchlistPayload) {
+    const fullPayload = {
+      ...payload,
+      status: "EVALUATING",
+      inventory_type: "PRIMARY",
+    };
+    const response = await api.post("/books", fullPayload);
+    evaluating.value.unshift(response.data);
+    return response.data;
+  }
+
   return {
     // State
     evaluating,
@@ -138,5 +160,6 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     markReceived,
     cancelOrder,
     deleteEvaluating,
+    addToWatchlist,
   };
 });

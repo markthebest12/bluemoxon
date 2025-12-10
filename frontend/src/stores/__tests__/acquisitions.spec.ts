@@ -6,6 +6,7 @@ import { useAcquisitionsStore } from "../acquisitions";
 vi.mock("@/services/api", () => ({
   api: {
     get: vi.fn(),
+    post: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -284,6 +285,33 @@ describe("Acquisitions Store", () => {
       ];
 
       expect(store.receivedCount).toBe(3);
+    });
+  });
+
+  describe("addToWatchlist", () => {
+    it("creates book with EVALUATING status and adds to evaluating list", async () => {
+      const store = useAcquisitionsStore();
+      const mockBook = {
+        id: 999,
+        title: "Test Book",
+        status: "EVALUATING",
+        author: { id: 1, name: "Test Author" },
+      };
+      vi.mocked(api.post).mockResolvedValueOnce({ data: mockBook });
+
+      const payload = {
+        title: "Test Book",
+        author_id: 1,
+      };
+      const result = await store.addToWatchlist(payload);
+
+      expect(api.post).toHaveBeenCalledWith("/books", {
+        ...payload,
+        status: "EVALUATING",
+        inventory_type: "PRIMARY",
+      });
+      expect(result).toEqual(mockBook);
+      expect(store.evaluating).toContainEqual(mockBook);
     });
   });
 });
