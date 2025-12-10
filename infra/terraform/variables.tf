@@ -367,3 +367,55 @@ variable "landing_bucket_name" {
   description = "S3 bucket name for landing site"
   default     = null
 }
+
+variable "landing_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for landing site (DNS alias target)"
+  default     = null
+}
+
+# =============================================================================
+# DNS Variables (prod only - manages Route53 for all environments)
+# =============================================================================
+
+variable "enable_dns" {
+  type        = bool
+  description = "Enable Route53 DNS management (prod only - DNS is centralized in prod account)"
+  default     = false
+}
+
+variable "api_gateway_domain_name" {
+  type        = string
+  description = "API Gateway custom domain name for api.{domain} (target for Route53 alias)"
+  default     = null
+}
+
+variable "api_gateway_domain_zone_id" {
+  type        = string
+  description = "API Gateway hosted zone ID for api.{domain}"
+  default     = null
+}
+
+variable "app_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for app.{domain} (DNS alias target)"
+  default     = null
+}
+
+variable "staging_api_gateway_domain_name" {
+  type        = string
+  description = "API Gateway custom domain name for staging.api.{domain}"
+  default     = null
+}
+
+variable "staging_api_gateway_domain_zone_id" {
+  type        = string
+  description = "API Gateway hosted zone ID for staging.api.{domain}"
+  default     = null
+}
+
+variable "staging_app_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for staging.app.{domain}"
+  default     = null
+}

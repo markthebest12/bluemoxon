@@ -121,3 +121,28 @@ github_oidc_images_bucket_arns   = ["arn:aws:s3:::bluemoxon-images"]
 github_oidc_cloudfront_distribution_arns = [
   "arn:aws:cloudfront::266672885920:distribution/E16BJX90QWQNQO"
 ]
+
+# =============================================================================
+# Route53 DNS (prod only - manages DNS for both prod and staging)
+# =============================================================================
+# The prod Route53 hosted zone contains records pointing to resources in both
+# prod and staging AWS accounts.
+
+enable_dns = true
+
+# Landing site CloudFront (bluemoxon.com, www.bluemoxon.com)
+landing_cloudfront_domain_name = "dui69hltsg2ds.cloudfront.net"
+
+# Frontend app CloudFront (app.bluemoxon.com)
+app_cloudfront_domain_name = "d2yd5bvqaomg54.cloudfront.net"
+
+# API Gateway custom domain (api.bluemoxon.com)
+api_gateway_domain_name    = "d-2bb05h3tf4.execute-api.us-west-2.amazonaws.com"
+api_gateway_domain_zone_id = "Z2OJLYMUO9EFXC"
+
+# Staging frontend CloudFront (staging.app.bluemoxon.com) - in staging account
+staging_app_cloudfront_domain_name = "d3rkfi55tpd382.cloudfront.net"
+
+# Staging API Gateway (staging.api.bluemoxon.com) - in staging account
+staging_api_gateway_domain_name    = "d-3h13fsi1vl.execute-api.us-west-2.amazonaws.com"
+staging_api_gateway_domain_zone_id = "Z2OJLYMUO9EFXC"

@@ -396,6 +396,37 @@ module "github_oidc" {
 }
 
 # =============================================================================
+# DNS (Route53 hosted zone and records - prod only)
+# =============================================================================
+
+module "dns" {
+  count  = var.enable_dns ? 1 : 0
+  source = "./modules/dns"
+
+  domain_name  = var.domain_name
+  zone_comment = "BlueMoxon domain - managed by Terraform"
+
+  # Landing site (bluemoxon.com, www.bluemoxon.com)
+  landing_cloudfront_domain_name = var.landing_cloudfront_domain_name
+
+  # Frontend app (app.bluemoxon.com)
+  app_cloudfront_domain_name = var.app_cloudfront_domain_name
+
+  # Staging frontend app (staging.app.bluemoxon.com)
+  staging_app_cloudfront_domain_name = var.staging_app_cloudfront_domain_name
+
+  # API Gateway (api.bluemoxon.com)
+  api_domain_name    = var.api_gateway_domain_name
+  api_domain_zone_id = var.api_gateway_domain_zone_id
+
+  # Staging API Gateway (staging.api.bluemoxon.com)
+  staging_api_domain_name    = var.staging_api_gateway_domain_name
+  staging_api_domain_zone_id = var.staging_api_gateway_domain_zone_id
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Outputs Reference
 # =============================================================================
 # See outputs.tf for all exported values

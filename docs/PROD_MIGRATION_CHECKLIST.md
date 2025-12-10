@@ -20,9 +20,10 @@ This checklist documents the steps needed to migrate production infrastructure t
 | CloudFront (frontend/images) | SKIPPED | #109 | Prod uses OAC, module uses OAI - managed externally |
 | Lambda | SKIPPED | N/A | Different architecture - managed externally |
 | Landing Site | IMPORTED | #154 | New landing-site module with OAC support (7 resources) |
-| Route53 + ACM | PENDING | #111, #157 | Next phase |
+| Route53 | IMPORTED | #111, #157 | Hosted zone + 10 alias records (11 resources) |
+| ACM | EXTERNAL | #111 | Certs managed externally, ARNs passed to Terraform |
 
-**Terraform State:** 38 resources in `s3://bluemoxon-terraform-state-prod/bluemoxon/prod/terraform.tfstate`
+**Terraform State:** 49 resources in `s3://bluemoxon-terraform-state-prod/bluemoxon/prod/terraform.tfstate`
 
 ### Resource Backups
 
