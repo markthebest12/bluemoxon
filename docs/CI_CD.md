@@ -1,40 +1,43 @@
 # CI/CD Pipeline
 
-BlueMoxon uses GitHub Actions for continuous integration and deployment. The pipeline ensures code quality, security, and reliable deployments.
+BlueMoxon uses GitHub Actions for continuous integration and deployment with a staging-first approach. The pipeline ensures code quality, security, and reliable deployments.
 
 ## Overview
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │           GitHub Repository              │
-                    └─────────────────────────────────────────┘
-                                       │
-                    ┌──────────────────┴──────────────────┐
-                    │                                      │
-            ┌───────▼───────┐                    ┌────────▼────────┐
-            │   Pull Request │                    │  Push to Main    │
-            └───────┬───────┘                    └────────┬────────┘
-                    │                                      │
-            ┌───────▼───────┐                    ┌────────▼────────┐
-            │   CI Workflow  │                    │ Deploy Workflow  │
-            │                │                    │                  │
-            │  • Lint        │                    │  • CI Checks     │
-            │  • Test        │                    │  • Build Lambda  │
-            │  • Type Check  │                    │  • Build Frontend│
-            │  • Security    │                    │  • Deploy to AWS │
-            │  • Build       │                    │  • Smoke Tests   │
-            └───────┬───────┘                    └────────┬────────┘
-                    │                                      │
-            ┌───────▼───────┐                    ┌────────▼────────┐
-            │ PR Review Ready│                    │   Production    │
-            └───────────────┘                    └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           GitHub Repository                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        │                           │                           │
+┌───────▼───────┐          ┌────────▼────────┐         ┌────────▼────────┐
+│ Pull Request  │          │ Push to staging │         │  Push to main   │
+└───────┬───────┘          └────────┬────────┘         └────────┬────────┘
+        │                           │                           │
+┌───────▼───────┐          ┌────────▼────────┐         ┌────────▼────────┐
+│  CI Workflow  │          │  CI Workflow    │         │  CI Workflow    │
+│               │          │       +         │         │       +         │
+│  • Lint       │          │  Deploy Staging │         │  Deploy Prod    │
+│  • Test       │          │                 │         │                 │
+│  • TypeCheck  │          │  • Build Lambda │         │  • Build Lambda │
+│  • Security   │          │  • Build Frontend│        │  • Build Frontend│
+│  • Build      │          │  • Upload to S3 │         │  • Upload to S3 │
+└───────┬───────┘          │  • Smoke Tests  │         │  • Smoke Tests  │
+        │                  └────────┬────────┘         │  • Create Tag   │
+┌───────▼───────┐                   │                  └────────┬────────┘
+│  PR Checks    │          ┌────────▼────────┐                  │
+│    Pass       │          │    Staging      │         ┌────────▼────────┐
+└───────────────┘          │   Environment   │         │   Production    │
+                           └─────────────────┘         │   Environment   │
+                                                       └─────────────────┘
 ```
 
 ## Workflows
 
 ### CI Workflow (`ci.yml`)
 
-Runs on all pull requests and pushes to main. Ensures code quality before merge.
+Runs on all pull requests to `staging` or `main`. Ensures code quality before merge.
 
 **Jobs:**
 
@@ -51,124 +54,104 @@ Runs on all pull requests and pushes to main. Ensures code quality before merge.
 | `dependency-scan` | pip-audit + npm audit | **Yes** |
 | `secret-scan` | Trivy + Gitleaks | **Yes** |
 
-### Deploy Workflow (`deploy.yml`)
+### Deploy Staging Workflow (`deploy-staging.yml`)
 
-Runs on push to main (after CI passes). Deploys to production.
+Runs on push to `staging` branch. Deploys to staging environment.
 
 **Jobs:**
 
 | Job | Description |
 |-----|-------------|
 | `ci` | Runs full CI workflow |
-| `build-backend` | Creates Lambda deployment package with Docker |
-| `build-frontend` | Builds Vue app for production |
+| `build-backend` | Creates Lambda deployment package |
+| `build-frontend` | Builds Vue app with staging config |
+| `deploy` | Uploads to S3, updates Lambda |
+| `smoke-test` | Verifies staging API and frontend |
+
+### Deploy Production Workflow (`deploy.yml`)
+
+Runs on push to `main` branch. Deploys to production environment.
+
+**Jobs:**
+
+| Job | Description |
+|-----|-------------|
+| `ci` | Runs full CI workflow |
+| `build-backend` | Creates Lambda deployment package |
+| `build-frontend` | Builds Vue app with production config |
 | `deploy` | Uploads to S3, updates Lambda, invalidates CloudFront |
-| `smoke-test` | Verifies API and frontend are working |
+| `smoke-test` | Verifies production API and frontend |
+| `tag-release` | Creates version tag (YYYY.MM.DD-sha) |
+
+### Deploy Site Workflow (`deploy-site.yml`)
+
+Runs on push to `main` when `site/*` files change. Deploys marketing site.
+
+| Job | Description |
+|-----|-------------|
+| `deploy-landing` | Uploads to S3, invalidates CloudFront |
+
+### Terraform Workflow (`terraform.yml`)
+
+Runs on PRs with `infra/terraform/**` changes. Plans infrastructure changes.
+
+| Job | Description |
+|-----|-------------|
+| `plan` | Runs `terraform plan` on staging |
+
+## Branch Strategy
+
+```
+main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
+           \     \     \
+staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com]
+             \   / \   /
+feature ──────●     ●────────→  [Feature branches]
+```
+
+| Branch | Purpose | Protection | Deploy Target |
+|--------|---------|------------|---------------|
+| `main` | Production code | Requires PR + CI | app.bluemoxon.com |
+| `staging` | Staging environment | Requires CI only | staging.app.bluemoxon.com |
+| `feat/*` | Feature development | None | None |
+
+### Workflow
+
+1. Create feature branch from `staging`
+2. Open PR targeting `staging`
+3. CI runs, merge when passing
+4. Deploy to staging automatically
+5. Validate in staging environment
+6. Open PR from `staging` to `main`
+7. Merge to deploy to production
 
 ## AWS Authentication
 
 We use AWS OIDC (OpenID Connect) for secure, keyless authentication. No long-lived AWS credentials are stored in GitHub.
 
-### Setup OIDC
+### OIDC Configuration
 
-Run the setup script to create the required AWS resources:
+GitHub Actions authenticates to AWS using:
+- **OIDC Identity Provider** - Allows GitHub to authenticate with AWS
+- **IAM Role** - `github-actions-deploy` with permissions for:
+  - Lambda code updates
+  - S3 bucket access (frontend, deploy, images)
+  - CloudFront invalidation
+  - Secrets Manager read access
 
-```bash
-./scripts/setup-github-oidc.sh
-```
+### GitHub Secrets
 
-This creates:
-1. **OIDC Identity Provider** - Allows GitHub to authenticate with AWS
-2. **IAM Role** - `github-actions-deploy` with permissions for:
-   - Lambda code updates
-   - S3 frontend bucket access
-   - CloudFront invalidation
+| Secret | Purpose | Environment |
+|--------|---------|-------------|
+| `AWS_DEPLOY_ROLE_ARN` | Production deploy role ARN | production |
+| `AWS_STAGING_DEPLOY_ROLE_ARN` | Staging deploy role ARN | staging |
 
-### Configure GitHub Secret
+### GitHub Environments
 
-After running the setup script, add the role ARN to GitHub:
-
-```bash
-# Using GitHub CLI
-gh secret set AWS_DEPLOY_ROLE_ARN --body 'arn:aws:iam::266672885920:role/github-actions-deploy'
-
-# Or via GitHub UI
-# Settings → Secrets and variables → Actions → New repository secret
-```
-
-### GitHub Environment
-
-Create a `production` environment in GitHub for deployment protection:
-
-1. Go to Settings → Environments → New environment
-2. Name: `production`
-3. Configure protection rules:
-   - Required reviewers (optional)
-   - Wait timer (optional)
-   - Restrict to specific branches: `main`
-
-## Local Development
-
-The CI/CD pipeline doesn't affect local development. Continue using:
-
-```bash
-# Backend
-cd backend
-poetry install
-poetry run uvicorn app.main:app --reload
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-```
-
-## Manual Deployment
-
-If needed, you can deploy manually:
-
-```bash
-# Backend Lambda
-docker run --rm \
-  -v $(pwd)/backend:/app:ro \
-  -v /tmp/lambda-deploy:/output \
-  --platform linux/amd64 \
-  amazonlinux:2023 \
-  /bin/bash -c "
-    dnf install -y python3.11 python3.11-pip zip > /dev/null 2>&1
-    python3.11 -m pip install -q -t /output -r /app/requirements.txt
-    cp -r /app/app /output/
-  "
-
-cd /tmp/lambda-deploy
-zip -r /tmp/bluemoxon-api.zip . -x "*.pyc" -x "*__pycache__*"
-
-aws s3 cp /tmp/bluemoxon-api.zip s3://bluemoxon-frontend/lambda/bluemoxon-api.zip --profile bluemoxon
-aws lambda update-function-code \
-  --function-name bluemoxon-api \
-  --s3-bucket bluemoxon-frontend \
-  --s3-key lambda/bluemoxon-api.zip \
-  --profile bluemoxon --region us-west-2
-
-# Frontend
-cd frontend
-npm run build
-aws s3 sync dist/ s3://bluemoxon-frontend/ --profile bluemoxon --region us-west-2
-aws cloudfront create-invalidation \
-  --distribution-id E16BJX90QWQNQO \
-  --paths "/*" \
-  --profile bluemoxon
-```
-
-## Dependency Updates
-
-Dependabot is configured to automatically create PRs for dependency updates:
-
-- **Python** (backend): Weekly on Mondays
-- **npm** (frontend): Weekly on Mondays
-- **GitHub Actions**: Weekly on Mondays
-
-Updates are grouped by type to reduce PR noise.
+| Environment | Branch Restriction | Purpose |
+|-------------|-------------------|---------|
+| `production` | `main` only | Production deploys |
+| `staging` | `staging` only | Staging deploys |
 
 ## Security Scanning
 
@@ -194,36 +177,7 @@ The CI pipeline includes comprehensive security scanning that **blocks deploymen
 - Covers Python, JavaScript/TypeScript, Vue templates
 - Checks for OWASP Top 10 vulnerabilities
 
-**Ruff Security Rules (S)** - Integrated in linting
-- Equivalent to flake8-bandit rules
-- Runs as part of backend-lint job
-
-### Dependency Scanning
-
-**pip-audit** (Python)
-- Scans `requirements.txt` for known vulnerabilities
-- Uses OSV vulnerability database
-- Blocks on ANY known vulnerability (`--strict`)
-
-**npm audit** (Node.js)
-- Scans `package-lock.json` for vulnerabilities
-- Blocks on HIGH or CRITICAL severity
-
-### Secret Detection
-
-**Trivy**
-- Scans filesystem for hardcoded secrets
-- Checks for API keys, tokens, passwords
-- Blocks on HIGH/CRITICAL findings
-
-**Gitleaks**
-- Scans git history for leaked secrets
-- Runs on full commit history
-- Warning only (license required for exit codes)
-
 ### Suppressing False Positives
-
-For intentional security exceptions (e.g., test data, local dev paths):
 
 ```python
 # Bandit
@@ -236,40 +190,68 @@ local_path = "/tmp/test"  # noqa: S108
 value = "/tmp/data"  # noqa: S108 # nosec B108
 ```
 
-### Security Reports
-
-Security scan artifacts are uploaded and retained for 30 days:
-- `bandit-report.json` - Detailed Bandit findings
-
 ## Smoke Tests
 
 After deployment, automated smoke tests verify:
 
-1. **API Health** - `GET /health` returns 200
+1. **API Health** - `GET /api/v1/health/deep` returns 200
 2. **Books API** - `GET /api/v1/books` returns valid pagination
-3. **Frontend** - `GET https://bluemoxon.com` returns HTML
-4. **Images** - Presigned URL redirects work
+3. **Frontend** - App loads with expected content
+4. **Images** - Image URLs return proper `Content-Type: image/*`
 
-If smoke tests fail, the deployment is marked as failed but changes are live. Manual rollback may be needed.
+If smoke tests fail:
+- The workflow is marked as failed
+- Changes are live (no automatic rollback)
+- Check `gh run view <id> --log-failed` for details
+- Manual rollback may be needed
 
-## Rollback
+## Version System
 
-To rollback a bad deployment:
+Version is **auto-generated at deploy time**:
+- Format: `YYYY.MM.DD-<short-sha>` (e.g., `2025.12.06-9b22b0a`)
+- Visible via `X-App-Version` response header
+- Visible at `/api/v1/health/version` endpoint
+- Git tag created on successful production deploy
+
+## Dependency Updates
+
+Dependabot creates PRs targeting `staging` branch:
+
+| Ecosystem | Schedule | Target Branch |
+|-----------|----------|---------------|
+| Python (pip) | Weekly (Monday) | staging |
+| npm | Weekly (Monday) | staging |
+| GitHub Actions | Weekly (Monday) | staging |
+
+Updates flow: Dependabot PR → staging → test → promote to main
+
+## Local Development
+
+The CI/CD pipeline doesn't affect local development:
 
 ```bash
-# Find previous Lambda version
-aws lambda list-versions-by-function \
-  --function-name bluemoxon-api \
-  --profile bluemoxon --region us-west-2
+# Backend
+cd backend
+poetry install
+poetry run uvicorn app.main:app --reload
 
-# Rollback Lambda (if versions are enabled)
-# Or redeploy from previous commit
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
 
-# Frontend rollback
-git checkout <previous-commit>
-cd frontend && npm run build
-aws s3 sync dist/ s3://bluemoxon-frontend/ --profile bluemoxon
-aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*" --profile bluemoxon
+## Files
+
+```
+.github/
+├── workflows/
+│   ├── ci.yml              # CI checks (PRs + pushes)
+│   ├── deploy.yml          # Production deploy
+│   ├── deploy-staging.yml  # Staging deploy (if exists separately)
+│   ├── deploy-site.yml     # Marketing site deploy
+│   └── terraform.yml       # Infrastructure plan
+├── dependabot.yml          # Dependency updates (targets staging)
 ```
 
 ## Troubleshooting
@@ -286,26 +268,17 @@ aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*"
 ### Deploy Failing
 
 1. Check OIDC role permissions in AWS IAM
-2. Verify `AWS_DEPLOY_ROLE_ARN` secret is set correctly
+2. Verify deploy role ARN secret is correct
 3. Check CloudWatch logs for Lambda errors
 4. Verify S3 bucket permissions
 
 ### Smoke Tests Failing
 
 1. Wait 30-60 seconds for CloudFront propagation
-2. Check API health: `curl https://api.bluemoxon.com/health`
+2. Check API health: `curl https://api.bluemoxon.com/api/v1/health/deep | jq`
 3. Check Lambda logs in CloudWatch
 4. Verify database connectivity
 
-## Files
+---
 
-```
-.github/
-├── workflows/
-│   ├── ci.yml              # CI pipeline
-│   └── deploy.yml          # Deploy pipeline
-└── dependabot.yml          # Dependency updates
-
-scripts/
-└── setup-github-oidc.sh    # AWS OIDC setup
-```
+*Last Updated: December 2025*

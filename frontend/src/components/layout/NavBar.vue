@@ -37,7 +37,7 @@ function closeMobileMenu() {
 </script>
 
 <template>
-  <nav class="bg-[rgb(30,39,78)] text-white shadow-lg">
+  <nav class="bg-victorian-hunter-900 text-white shadow-lg">
     <div class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
@@ -49,22 +49,22 @@ function closeMobileMenu() {
         <div class="hidden md:flex items-center space-x-6">
           <RouterLink
             to="/"
-            class="text-slate-300 hover:text-blue-400 transition-colors"
-            active-class="text-blue-400"
+            class="text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
+            active-class="text-victorian-gold-light"
           >
             Dashboard
           </RouterLink>
           <RouterLink
             to="/books"
-            class="text-slate-300 hover:text-blue-400 transition-colors"
-            active-class="text-blue-400"
+            class="text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
+            active-class="text-victorian-gold-light"
           >
             Collection
           </RouterLink>
           <RouterLink
             to="/reports/insurance"
-            class="text-slate-300 hover:text-blue-400 transition-colors"
-            active-class="text-blue-400"
+            class="text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
+            active-class="text-victorian-gold-light"
           >
             Reports
           </RouterLink>
@@ -78,7 +78,7 @@ function closeMobileMenu() {
               <div class="relative">
                 <button
                   @click="showDropdown = !showDropdown"
-                  class="text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-1"
+                  class="text-sm text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors flex items-center gap-1"
                   :title="authStore.user?.email"
                 >
                   {{ displayName }}
@@ -124,7 +124,7 @@ function closeMobileMenu() {
             <template v-else>
               <RouterLink
                 to="/login"
-                class="text-sm text-slate-300 hover:text-white transition-colors"
+                class="text-sm text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
               >
                 Sign In
               </RouterLink>
@@ -155,29 +155,32 @@ function closeMobileMenu() {
     </div>
 
     <!-- Mobile Menu -->
-    <div v-if="mobileMenuOpen" class="md:hidden bg-navy-900/98 border-t border-navy-600">
+    <div
+      v-if="mobileMenuOpen"
+      class="md:hidden bg-victorian-hunter-900/98 border-t border-victorian-hunter-700"
+    >
       <div class="px-4 py-3 space-y-1">
         <!-- Navigation Links -->
         <RouterLink
           to="/"
-          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
-          active-class="text-blue-400"
+          class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
+          active-class="text-victorian-gold-light"
           @click="closeMobileMenu"
         >
           Dashboard
         </RouterLink>
         <RouterLink
           to="/books"
-          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
-          active-class="text-blue-400"
+          class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
+          active-class="text-victorian-gold-light"
           @click="closeMobileMenu"
         >
           Collection
         </RouterLink>
         <RouterLink
           to="/reports/insurance"
-          class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
-          active-class="text-blue-400"
+          class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
+          active-class="text-victorian-gold-light"
           @click="closeMobileMenu"
         >
           Reports
@@ -187,7 +190,7 @@ function closeMobileMenu() {
         <template v-if="authStore.isAuthenticated">
           <RouterLink
             to="/profile"
-            class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+            class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
             @click="closeMobileMenu"
           >
             Profile
@@ -195,14 +198,14 @@ function closeMobileMenu() {
           <RouterLink
             v-if="authStore.isAdmin"
             to="/admin"
-            class="block py-3 text-slate-300 hover:text-blue-400 border-b border-navy-600"
+            class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
             @click="closeMobileMenu"
           >
             Admin Settings
           </RouterLink>
           <button
             @click="handleSignOut"
-            class="block w-full text-left py-3 text-slate-300 hover:text-red-400"
+            class="block w-full text-left py-3 text-victorian-paper-cream/80 hover:text-victorian-burgundy-light"
           >
             Sign Out
           </button>
@@ -210,7 +213,7 @@ function closeMobileMenu() {
         <template v-else>
           <RouterLink
             to="/login"
-            class="block py-3 text-blue-400 hover:text-blue-300"
+            class="block py-3 text-victorian-gold-light hover:text-victorian-gold"
             @click="closeMobileMenu"
           >
             Sign In

@@ -2,11 +2,63 @@
 
 ## Overview
 
-BlueMoxon is deployed on AWS using a serverless architecture optimized for low-traffic applications with cost efficiency. The infrastructure was provisioned using AWS CLI on November 30, 2025.
+BlueMoxon is deployed on AWS using a serverless architecture optimized for low-traffic applications with cost efficiency. The infrastructure is managed via **Terraform** with a dual-environment setup (staging + production).
 
-**Region:** us-west-2 (Oregon)
-**Account:** 266672885920
-**Domain:** bluemoxon.com
+**Environments:**
+
+| Environment | Account | Region | Purpose |
+|-------------|---------|--------|---------|
+| **Production** | 266672885920 | us-west-2 | Live users |
+| **Staging** | 637423662077 | us-west-2 | Testing before prod |
+
+**Domain:** bluemoxon.com (production), staging.*.bluemoxon.com (staging)
+
+## Infrastructure as Code
+
+All infrastructure is managed via Terraform in `infra/terraform/`:
+
+```
+infra/terraform/
+├── main.tf              # Root module, module composition
+├── variables.tf         # Input variables
+├── outputs.tf           # Output values
+├── envs/
+│   ├── staging.tfvars   # Staging environment values
+│   └── prod.tfvars      # Production environment values
+└── modules/             # 14 reusable modules
+    ├── api-gateway/     # HTTP API + custom domain
+    ├── cloudfront/      # CDN distributions
+    ├── cognito/         # User pools + clients
+    ├── db-sync-lambda/  # Prod→Staging data sync
+    ├── dns/             # Route 53 records
+    ├── github-oidc/     # GitHub Actions auth
+    ├── lambda/          # API function + IAM
+    ├── landing-site/    # Marketing site
+    ├── rds/             # Aurora Serverless v2
+    ├── s3/              # Buckets + policies
+    ├── secrets/         # DB credentials
+    └── vpc-networking/  # VPC endpoints, NAT
+```
+
+### Terraform Commands
+
+```bash
+cd infra/terraform
+
+# Plan changes (staging)
+AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars
+
+# Apply changes (staging)
+AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars
+
+# Plan changes (production)
+terraform plan -var-file=envs/prod.tfvars
+
+# Apply changes (production)
+terraform apply -var-file=envs/prod.tfvars
+```
+
+See [CLAUDE.md](../CLAUDE.md) for detailed Terraform style requirements and workflows.
 
 ## Architecture Diagram
 
@@ -414,17 +466,33 @@ aws cognito-idp admin-create-user \
 
 ## URLs
 
-| Environment | URL |
-|-------------|-----|
+### Production
+
+| Service | URL |
+|---------|-----|
 | Collection App | https://app.bluemoxon.com |
 | Landing/Docs Site | https://www.bluemoxon.com |
 | API | https://api.bluemoxon.com |
-| API Health Check | https://api.bluemoxon.com/health |
+| API Health Check | https://api.bluemoxon.com/api/v1/health/deep |
 | Books API | https://api.bluemoxon.com/api/v1/books |
 | Cognito Login | https://bluemoxon.auth.us-west-2.amazoncognito.com |
+
+### Staging
+
+| Service | URL |
+|---------|-----|
+| Collection App | https://staging.app.bluemoxon.com |
+| API | https://staging.api.bluemoxon.com |
+| API Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
+| Cognito Login | https://bluemoxon-staging.auth.us-west-2.amazoncognito.com |
+
+### Raw Endpoints (Debug)
+
+| Service | URL |
+|---------|-----|
 | CloudFront App (raw) | https://d2yd5bvqaomg54.cloudfront.net |
 | CloudFront Landing (raw) | https://dui69hltsg2ds.cloudfront.net |
-| API Gateway (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
+| API Gateway Prod (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
 
 ## Monitoring & Observability
 
@@ -497,4 +565,4 @@ All resource IDs are stored in: `infra/aws-resources.json`
 
 ---
 
-*Last Updated: December 2, 2025*
+*Last Updated: December 2025*

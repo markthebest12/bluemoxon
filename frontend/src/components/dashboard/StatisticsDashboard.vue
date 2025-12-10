@@ -87,16 +87,22 @@ function getTodayLocal(): string {
   return now.toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD format
 }
 
-// Colors
+// Colors - Victorian Design System
 const chartColors = {
-  primary: "rgb(51, 65, 85)", // slate-700 (moxon color)
-  primaryLight: "rgba(51, 65, 85, 0.1)",
-  gold: "rgb(180, 140, 60)",
-  burgundy: "rgb(128, 0, 32)",
-  accent1: "rgb(59, 130, 246)", // blue
-  accent2: "rgb(16, 185, 129)", // green
-  accent3: "rgb(245, 158, 11)", // amber
-  accent4: "rgb(139, 92, 246)", // purple
+  // Hunter greens
+  primary: "rgb(26, 58, 47)", // victorian-hunter-800 #1a3a2f
+  primaryLight: "rgba(26, 58, 47, 0.1)",
+  hunter700: "rgb(37, 74, 61)", // victorian-hunter-700 #254a3d
+  // Gold tones
+  gold: "rgb(201, 162, 39)", // victorian-gold #c9a227
+  goldMuted: "rgb(184, 149, 110)", // victorian-gold-muted #b8956e
+  // Burgundy
+  burgundy: "rgb(114, 47, 55)", // victorian-burgundy #722f37
+  burgundyLight: "rgb(139, 58, 66)", // victorian-burgundy-light #8b3a42
+  // Paper
+  paperAntique: "rgb(232, 225, 213)", // victorian-paper-antique #e8e1d5
+  // Ink
+  inkMuted: "rgb(92, 92, 88)", // victorian-ink-muted #5c5c58
 };
 
 // Chart options - mobile friendly
@@ -226,11 +232,11 @@ const binderChartData = computed(() => ({
     {
       data: binderData.value.map((d) => d.count),
       backgroundColor: [
-        chartColors.burgundy,
-        chartColors.gold,
-        chartColors.primary,
-        chartColors.accent1,
-        chartColors.accent2,
+        chartColors.burgundy, // Zaehnsdorf
+        chartColors.gold, // Rivière
+        chartColors.primary, // Sangorski
+        chartColors.hunter700, // Bayntun
+        chartColors.goldMuted, // Others
       ],
       borderWidth: 0,
     },
@@ -355,65 +361,85 @@ onMounted(async () => {
 
 <template>
   <div class="mt-8">
-    <h2 class="text-xl font-semibold text-gray-800 mb-4">Collection Analytics</h2>
+    <div class="section-header">
+      <h2>Collection Analytics</h2>
+    </div>
 
     <div v-if="loading" class="text-center py-8">
-      <p class="text-gray-500">Loading charts...</p>
+      <p class="text-victorian-ink-muted">Loading charts...</p>
     </div>
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- Premium Bindings Distribution -->
-      <div class="card !p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Premium Bindings</h3>
+      <div class="card-static !p-4">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Premium Bindings
+        </h3>
         <div class="h-48 md:h-56">
           <Doughnut
             v-if="binderData.length > 0"
             :data="binderChartData"
             :options="doughnutOptions"
           />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No binding data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No binding data available
+          </p>
         </div>
       </div>
 
       <!-- Era Distribution -->
-      <div class="card !p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Books by Era</h3>
+      <div class="card-static !p-4">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Era
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="eraData.length > 0" :data="eraChartData" :options="barChartOptions" />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No era data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No era data available
+          </p>
         </div>
       </div>
 
       <!-- Top Authors -->
-      <div class="card !p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Top Authors</h3>
+      <div class="card-static !p-4">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Top Authors
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="authorData.length > 0" :data="authorChartData" :options="authorChartOptions" />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No author data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No author data available
+          </p>
         </div>
       </div>
 
       <!-- Top Tier 1 Publishers -->
-      <div class="card !p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Top Tier 1 Publishers</h3>
+      <div class="card-static !p-4">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Top Tier 1 Publishers
+        </h3>
         <div class="h-48 md:h-56">
           <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
-          <p v-else class="text-gray-400 text-sm text-center py-8">
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No Tier 1 publisher data available
           </p>
         </div>
       </div>
 
       <!-- Cumulative Value Growth - full width at bottom -->
-      <div class="card !p-4 col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">Est. Value Growth (Last 30 Days)</h3>
+      <div class="card-static !p-4 col-span-1 lg:col-span-2">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Est. Value Growth (Last 30 Days)
+        </h3>
         <div class="h-48 md:h-64">
           <Line
             v-if="acquisitionData.length > 0"
             :data="acquisitionChartData"
             :options="lineChartOptions"
           />
-          <p v-else class="text-gray-400 text-sm text-center py-8">No acquisition data available</p>
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No acquisition data available
+          </p>
         </div>
       </div>
     </div>

@@ -1,187 +1,300 @@
 # Deployment Guide
 
+BlueMoxon uses **GitHub Actions** for CI/CD and **Terraform** for infrastructure management. This guide covers the deployment workflows and manual deployment procedures.
+
+## Deployment Workflow
+
+### Automated Deployment (Recommended)
+
+All deployments go through GitHub Actions:
+
+```
+Feature Branch → PR to staging → Merge → Deploy to Staging
+                                            ↓
+                              PR staging→main → Merge → Deploy to Production
+```
+
+| Workflow | Trigger | Target |
+|----------|---------|--------|
+| `ci.yml` | PR to staging/main | CI checks only |
+| `deploy.yml` | Push to main | Production |
+| `deploy-staging.yml` | Push to staging | Staging |
+| `deploy-site.yml` | Push to main (site/* changes) | Marketing site |
+| `terraform.yml` | PR with infra/* changes | Plan only |
+
+### Environment URLs
+
+| Environment | Frontend | API | Purpose |
+|-------------|----------|-----|---------|
+| Production | app.bluemoxon.com | api.bluemoxon.com | Live users |
+| Staging | staging.app.bluemoxon.com | staging.api.bluemoxon.com | Testing |
+
 ## Prerequisites
 
-- AWS CLI configured with appropriate credentials
-- AWS CDK CLI installed (`npm install -g aws-cdk`)
-- Python 3.11+ with Poetry
-- Domain name ready (bluemoxon.com or similar)
-
-## Initial AWS Setup
-
-### Bootstrap CDK
+### Local Tools
 
 ```bash
-cd infra
-poetry install
+# AWS CLI v2
+brew install awscli
 
-# Bootstrap CDK in your account/region
-cdk bootstrap aws://ACCOUNT_ID/us-east-1
+# Terraform
+brew install terraform
+
+# PostgreSQL client (for DB access)
+brew install libpq
+
+# GitHub CLI
+brew install gh
 ```
 
-### Deploy Infrastructure
+### AWS Profiles
 
-Deploy in order (dependencies):
+Configure AWS profiles in `~/.aws/credentials`:
+
+```ini
+[default]
+# Production account (266672885920)
+
+[staging]
+# Staging account (637423662077)
+```
+
+Verify access:
 
 ```bash
-# Deploy all stacks
-cdk deploy --all
-
-# Or deploy individually in order:
-cdk deploy BlueMoxonNetworkStack
-cdk deploy BlueMoxonDatabaseStack
-cdk deploy BlueMoxonAuthStack
-cdk deploy BlueMoxonStorageStack
-cdk deploy BlueMoxonApiStack
-cdk deploy BlueMoxonFrontendStack
-cdk deploy BlueMoxonDnsStack
-cdk deploy BlueMoxonPipelineStack
+aws sts get-caller-identity
+AWS_PROFILE=staging aws sts get-caller-identity
 ```
 
-## Stack Details
+## Manual Deployment
 
-### NetworkStack
-Creates VPC with:
-- 2 Availability Zones
-- Public subnets (NAT Gateway)
-- Private isolated subnets (for Aurora)
+### Deploy Backend (Lambda)
 
-### DatabaseStack
-Creates:
-- Aurora Serverless v2 PostgreSQL 15
-- Min 0.5 ACU, Max 2 ACU
-- Secrets Manager for credentials
-- Security group (Lambda access only)
+Build and deploy the Lambda function:
 
-### AuthStack
-Creates:
-- Cognito User Pool
-- MFA required (TOTP)
-- No self-signup
-- App client for frontend
+```bash
+# Build deployment package (requires Docker for Linux binaries)
+docker run --rm \
+  -v $(pwd)/backend:/app:ro \
+  -v .tmp/lambda-deploy:/output \
+  --platform linux/amd64 \
+  public.ecr.aws/lambda/python:3.12 \
+  /bin/bash -c "
+    pip install -q -t /output -r /app/requirements.txt
+    cp -r /app/app /output/
+  "
 
-### StorageStack
-Creates:
-- S3 bucket for frontend assets
-- S3 bucket for book images
-- Bucket policies and CORS
+# Create zip
+cd .tmp/lambda-deploy
+zip -q -r ../bluemoxon-api.zip . -x "*.pyc" -x "*__pycache__*"
+cd ../..
 
-### ApiStack
-Creates:
-- Lambda function (Python 3.11)
-- API Gateway HTTP API
-- VPC connectivity
-- Environment variables from Secrets Manager
+# Deploy to staging
+AWS_PROFILE=staging aws s3 cp .tmp/bluemoxon-api.zip s3://bluemoxon-staging-deploy/lambda/bluemoxon-api.zip
+AWS_PROFILE=staging aws lambda update-function-code \
+  --function-name bluemoxon-staging-api \
+  --s3-bucket bluemoxon-staging-deploy \
+  --s3-key lambda/bluemoxon-api.zip
 
-### FrontendStack
-Creates:
-- CloudFront distribution
-- S3 origin with OAI
-- Custom error responses (SPA routing)
+# Deploy to production
+aws s3 cp .tmp/bluemoxon-api.zip s3://bluemoxon-deploy/lambda/bluemoxon-api.zip
+aws lambda update-function-code \
+  --function-name bluemoxon-api \
+  --s3-bucket bluemoxon-deploy \
+  --s3-key lambda/bluemoxon-api.zip
+```
 
-### DnsStack
-Creates:
-- Route 53 hosted zone
-- ACM certificate (us-east-1)
-- A/AAAA records for CloudFront
+### Deploy Frontend
 
-### PipelineStack
-Creates:
-- CodePipeline
-- GitHub source connection
-- CodeBuild projects
-- Manual approval stage
+Build and deploy the Vue SPA:
 
-## Post-Deployment
+```bash
+cd frontend
+npm run build
+
+# Deploy to staging
+AWS_PROFILE=staging aws s3 sync dist/ s3://bluemoxon-staging-frontend/
+AWS_PROFILE=staging aws cloudfront create-invalidation \
+  --distribution-id <STAGING_DISTRIBUTION_ID> \
+  --paths "/*"
+
+# Deploy to production
+aws s3 sync dist/ s3://bluemoxon-frontend/
+aws cloudfront create-invalidation \
+  --distribution-id E16BJX90QWQNQO \
+  --paths "/*"
+```
+
+### Deploy Marketing Site
+
+```bash
+# Deploy site/index.html to production (no staging for marketing site)
+aws s3 cp site/index.html s3://bluemoxon-landing/index.html
+aws cloudfront create-invalidation \
+  --distribution-id ES60BQB34DNYS \
+  --paths "/*"
+```
+
+## Infrastructure Changes (Terraform)
+
+### Plan Changes
+
+```bash
+cd infra/terraform
+
+# Staging
+AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars
+
+# Production
+terraform plan -var-file=envs/prod.tfvars
+```
+
+### Apply Changes
+
+```bash
+# Apply to staging first
+AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars
+
+# Validate staging works
+curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
+
+# Then apply to production
+terraform apply -var-file=envs/prod.tfvars
+```
+
+### Import Existing Resources
+
+If a resource was created manually, import it before modifying:
+
+```bash
+terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
+```
+
+## Database Operations
 
 ### Run Migrations
 
 ```bash
-# Get database connection from Secrets Manager
-aws secretsmanager get-secret-value --secret-id bluemoxon/db
+# Get staging credentials
+AWS_PROFILE=staging aws secretsmanager get-secret-value \
+  --secret-id bluemoxon-staging/database \
+  --query SecretString --output text | jq
 
-# Connect and run migrations
+# Run migrations
 cd backend
-DATABASE_URL=<from-secret> alembic upgrade head
+DATABASE_URL="postgresql://user:pass@host:5432/bluemoxon" \
+  poetry run alembic upgrade head
 ```
 
-### Create Admin User
+### Sync Production to Staging
+
+Use the db-sync Lambda to copy production data to staging:
 
 ```bash
-# Using AWS CLI
-aws cognito-idp admin-create-user \
-  --user-pool-id <pool-id> \
-  --username admin@example.com \
-  --user-attributes Name=email,Value=admin@example.com \
-  --temporary-password TempPass123!
+AWS_PROFILE=staging aws lambda invoke \
+  --function-name bluemoxon-staging-db-sync \
+  --payload '{}' \
+  .tmp/sync-response.json
 
-# Or using invite script
-python scripts/invite_user.py --email admin@example.com --role admin
+cat .tmp/sync-response.json | jq
 ```
 
-### Seed Reference Data
+## Post-Deployment Verification
+
+### Health Checks
 
 ```bash
-python scripts/seed_data.py --env production
+# Production
+curl -s https://api.bluemoxon.com/api/v1/health/deep | jq
+
+# Staging
+curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
 ```
 
-### Initial Data Migration
+### Check Version
 
 ```bash
-python scripts/sync_from_legacy.py \
-  --source ~/projects/book-collection \
-  --apply \
-  --env production
+# API version header
+curl -sI https://api.bluemoxon.com/api/v1/books | grep X-App-Version
+
+# Full version info
+curl -s https://api.bluemoxon.com/api/v1/health/info | jq
 ```
 
-## CI/CD Pipeline
+### Smoke Tests
 
-### Trigger
-Push to `main` branch triggers the pipeline.
+The deploy workflows automatically run smoke tests:
+1. API health endpoint returns 200
+2. Books API returns paginated response
+3. Frontend loads with expected content
+4. Image URLs return proper Content-Type
 
-### Stages
-1. **Source:** GitHub webhook
-2. **Build:**
-   - Frontend: npm build
-   - Backend: Poetry install, pytest
-   - CDK: cdk synth
-3. **Manual Approval:** SNS notification
-4. **Deploy:**
-   - CDK deploy
-   - S3 sync
-   - CloudFront invalidation
+## Rollback
 
-### Manual Deployment
+### Lambda Rollback
 
 ```bash
-# Deploy backend
-cd backend
-./deploy.sh
+# List recent versions
+aws lambda list-versions-by-function --function-name bluemoxon-api
 
-# Deploy frontend
+# Rollback by redeploying previous commit
+git checkout <previous-sha>
+# Then follow manual deploy steps above
+```
+
+### Frontend Rollback
+
+```bash
+# Redeploy from previous commit
+git checkout <previous-sha>
 cd frontend
 npm run build
 aws s3 sync dist/ s3://bluemoxon-frontend/
-aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*"
 ```
 
-## Monitoring
+### Terraform Rollback
 
-### CloudWatch
-- Lambda logs: `/aws/lambda/bluemoxon-api`
-- API Gateway logs: Enabled on API
-- Aurora logs: PostgreSQL logs
+```bash
+# Revert to previous state (use with caution)
+git checkout <previous-sha> -- infra/terraform/
+terraform apply -var-file=envs/prod.tfvars
+```
 
-### Alarms (Recommended)
-- Lambda errors > 5 in 5 minutes
-- Aurora CPU > 80%
-- API Gateway 5xx > 10 in 5 minutes
+## Troubleshooting
 
-## Costs
+### Deploy Workflow Fails
 
-Monitor via AWS Cost Explorer. Expected: $27-49/month
+1. Check GitHub Actions logs: `gh run view <run-id> --log-failed`
+2. Verify OIDC role permissions in AWS IAM
+3. Check `AWS_DEPLOY_ROLE_ARN` secret is set correctly
 
-Major cost drivers:
-- Aurora Serverless v2: ~$15-25
-- NAT Gateway: ~$5-10
-- CloudFront: ~$2-5
+### Lambda Errors After Deploy
+
+```bash
+# Check CloudWatch logs
+aws logs tail /aws/lambda/bluemoxon-api --since 5m
+
+# Check function configuration
+aws lambda get-function-configuration --function-name bluemoxon-api
+```
+
+### Health Check Fails
+
+1. Check deep health: `curl -s https://api.bluemoxon.com/api/v1/health/deep | jq`
+2. Look for specific service failures (DB, S3, Cognito)
+3. Check VPC endpoints if services timeout
+
+### CloudFront Not Updating
+
+```bash
+# Check invalidation status
+aws cloudfront list-invalidations --distribution-id E16BJX90QWQNQO
+
+# Force new invalidation
+aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*"
+```
+
+---
+
+*Last Updated: December 2025*
