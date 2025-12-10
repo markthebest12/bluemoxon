@@ -47,7 +47,13 @@ describe("references store", () => {
   describe("createBinder", () => {
     it("creates binder and adds to list", async () => {
       const store = useReferencesStore();
-      const mockBinder = { id: 100, name: "New Binder", full_name: null, authentication_markers: null, book_count: 0 };
+      const mockBinder = {
+        id: 100,
+        name: "New Binder",
+        full_name: null,
+        authentication_markers: null,
+        book_count: 0,
+      };
       vi.mocked(api.post).mockResolvedValueOnce({ data: mockBinder });
 
       const result = await store.createBinder("New Binder");

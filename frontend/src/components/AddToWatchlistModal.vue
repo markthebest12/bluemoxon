@@ -207,9 +207,7 @@ function openSourceUrl() {
               @create="handleCreateBinder"
             />
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Publication Date
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
               <input
                 v-model="form.publication_date"
                 type="text"
@@ -222,9 +220,7 @@ function openSourceUrl() {
           <!-- Volumes & Asking Price Row -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Volumes
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
               <input
                 v-model.number="form.volumes"
                 type="number"
@@ -233,9 +229,7 @@ function openSourceUrl() {
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Asking Price
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
               <div class="relative">
                 <span class="absolute left-3 top-2 text-gray-500">$</span>
                 <input
@@ -252,9 +246,7 @@ function openSourceUrl() {
 
           <!-- Source URL -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Source URL
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
             <div class="flex gap-2">
               <input
                 v-model="form.source_url"

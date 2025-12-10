@@ -37,7 +37,9 @@ describe("AddToWatchlistModal", () => {
         },
       },
     });
-    const cancelButton = wrapper.findAll('button[type="button"]').find(btn => btn.text() === 'Cancel');
+    const cancelButton = wrapper
+      .findAll('button[type="button"]')
+      .find((btn) => btn.text() === "Cancel");
     await cancelButton!.trigger("click");
     expect(wrapper.emitted("close")).toBeTruthy();
   });
