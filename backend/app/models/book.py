@@ -8,14 +8,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 
-# Use TSVECTOR and JSONB for PostgreSQL, Text for SQLite (testing)
+# Use TSVECTOR for PostgreSQL, Text for SQLite (testing)
 # This allows tests to run with SQLite while production uses PostgreSQL
 try:
-    from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
+    from sqlalchemy.dialects.postgresql import TSVECTOR
 
     SearchVectorType = TSVECTOR
-    # JSONB for PostgreSQL, will be used in migrations
-    # In model, we use Text as the column type since SQLAlchemy handles JSON automatically
 except ImportError:
     pass  # If not PostgreSQL, types not needed
 
