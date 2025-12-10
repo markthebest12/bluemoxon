@@ -200,7 +200,7 @@ describe("AcquisitionsView", () => {
 
   describe("Kanban columns", () => {
     it("displays correct count badges", async () => {
-      vi.mocked(api.get).mockImplementation((url, config) => {
+      vi.mocked(api.get).mockImplementation((_url, config) => {
         const status = config?.params?.status;
         if (status === "EVALUATING") {
           return Promise.resolve({
