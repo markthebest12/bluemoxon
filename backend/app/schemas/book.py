@@ -34,6 +34,13 @@ class BookBase(BaseModel):
     notes: str | None = None
     provenance: str | None = None
 
+    # Source tracking
+    source_url: str | None = None
+    source_item_id: str | None = None
+
+    # Delivery tracking
+    estimated_delivery: date | None = None
+
 
 class BookCreate(BookBase):
     """Schema for creating a book."""
@@ -71,6 +78,9 @@ class BookUpdate(BaseModel):
     status: str | None = None
     notes: str | None = None
     provenance: str | None = None
+    source_url: str | None = None
+    source_item_id: str | None = None
+    estimated_delivery: date | None = None
 
 
 class AuthorSummary(BaseModel):
@@ -116,6 +126,7 @@ class BookResponse(BookBase):
     has_analysis: bool = False
     image_count: int = 0
     primary_image_url: str | None = None
+    scoring_snapshot: dict | None = None
     created_at: datetime
     updated_at: datetime
 
