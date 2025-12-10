@@ -63,7 +63,7 @@ class Book(Base, TimestampMixin):
     discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # Up to 9999.99%
     roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # Up to 99999.99%
 
-    # Status
+    # Status: EVALUATING, IN_TRANSIT, ON_HAND, SOLD, REMOVED, CANCELED
     status: Mapped[str] = mapped_column(String(20), default="ON_HAND")
 
     # Notes
