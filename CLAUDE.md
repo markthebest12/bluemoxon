@@ -43,9 +43,15 @@ bmx-api PUT /books/123 '{"title":"..."}'    # Full update
 bmx-api PATCH /books/123 '{"status":"..."}'  # Partial update
 bmx-api DELETE /books/123                   # Delete book
 bmx-api --prod GET /books                   # Production (explicit)
+bmx-api --text-file analysis.md PUT /books/123/analysis  # Upload text/plain content
+bmx-api --prod --text-file analysis.md PUT /books/123/analysis  # Production text upload
 ```
 
 Default is staging. Use `--prod` flag for production.
+
+**Flags:**
+- `--prod` - Use production API instead of staging
+- `--text-file FILE` - Send file contents with `Content-Type: text/plain` (for analysis uploads)
 
 Keys stored in `~/.bmx/staging.key` and `~/.bmx/prod.key` (600 permissions).
 
