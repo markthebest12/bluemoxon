@@ -79,12 +79,10 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
       // Only show last 30 days of received items
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      received.value = receivedRes.data.items.filter(
-        (b: AcquisitionBook) => {
-          if (!b.purchase_date) return false;
-          return new Date(b.purchase_date) >= thirtyDaysAgo;
-        }
-      );
+      received.value = receivedRes.data.items.filter((b: AcquisitionBook) => {
+        if (!b.purchase_date) return false;
+        return new Date(b.purchase_date) >= thirtyDaysAgo;
+      });
     } catch (e: any) {
       error.value = e.message || "Failed to load acquisitions";
     } finally {

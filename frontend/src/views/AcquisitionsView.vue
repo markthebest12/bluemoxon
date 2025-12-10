@@ -92,7 +92,9 @@ async function handleDelete(bookId: number) {
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
               <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
-              <p class="text-xs text-gray-600 truncate">{{ book.author?.name || "Unknown author" }}</p>
+              <p class="text-xs text-gray-600 truncate">
+                {{ book.author?.name || "Unknown author" }}
+              </p>
               <div class="mt-2 flex items-center justify-between text-xs">
                 <span class="text-gray-500">FMV: {{ formatPrice(book.value_mid) }}</span>
               </div>
@@ -138,10 +140,14 @@ async function handleDelete(bookId: number) {
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
               <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
-              <p class="text-xs text-gray-600 truncate">{{ book.author?.name || "Unknown author" }}</p>
+              <p class="text-xs text-gray-600 truncate">
+                {{ book.author?.name || "Unknown author" }}
+              </p>
               <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
                 <span class="text-gray-500">Paid: {{ formatPrice(book.purchase_price) }}</span>
-                <span class="text-green-600 font-medium">{{ formatDiscount(book.discount_pct) }} off</span>
+                <span class="text-green-600 font-medium"
+                  >{{ formatDiscount(book.discount_pct) }} off</span
+                >
               </div>
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
                 Due: {{ formatDate(book.estimated_delivery) }}
@@ -175,10 +181,14 @@ async function handleDelete(bookId: number) {
               class="block bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-green-300 transition-colors"
             >
               <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
-              <p class="text-xs text-gray-600 truncate">{{ book.author?.name || "Unknown author" }}</p>
+              <p class="text-xs text-gray-600 truncate">
+                {{ book.author?.name || "Unknown author" }}
+              </p>
               <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
                 <span class="text-gray-500">Paid: {{ formatPrice(book.purchase_price) }}</span>
-                <span class="text-green-600 font-medium">{{ formatDiscount(book.discount_pct) }} off</span>
+                <span class="text-green-600 font-medium"
+                  >{{ formatDiscount(book.discount_pct) }} off</span
+                >
               </div>
             </router-link>
           </div>

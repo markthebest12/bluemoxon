@@ -117,10 +117,7 @@ describe("Acquisitions Store", () => {
     it("sets loading state during fetch", async () => {
       const store = useAcquisitionsStore();
       vi.mocked(api.get).mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve({ data: { items: [] } }), 100)
-          )
+        () => new Promise((resolve) => setTimeout(() => resolve({ data: { items: [] } }), 100))
       );
 
       const promise = store.fetchAll();
@@ -266,10 +263,7 @@ describe("Acquisitions Store", () => {
   describe("computed properties", () => {
     it("evaluatingCount returns length of evaluating array", () => {
       const store = useAcquisitionsStore();
-      store.evaluating = [
-        { id: 1, title: "Book 1" } as any,
-        { id: 2, title: "Book 2" } as any,
-      ];
+      store.evaluating = [{ id: 1, title: "Book 1" } as any, { id: 2, title: "Book 2" } as any];
 
       expect(store.evaluatingCount).toBe(2);
     });
