@@ -3,7 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -76,7 +76,7 @@ class Book(Base, TimestampMixin):
     estimated_delivery: Mapped[date | None] = mapped_column(Date)
 
     # Acquisition scoring (captured at purchase time)
-    scoring_snapshot: Mapped[dict | None] = mapped_column(Text)
+    scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)
