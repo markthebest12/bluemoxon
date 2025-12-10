@@ -407,7 +407,7 @@ def acquire_book(
 
     Calculates discount percentage and creates scoring snapshot.
     """
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
     from decimal import Decimal
 
     book = db.query(Book).filter(Book.id == book_id).first()
@@ -461,7 +461,7 @@ def acquire_book(
 
     # Create scoring snapshot
     book.scoring_snapshot = {
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
         "purchase_price": float(acquire_data.purchase_price),
         "fmv_at_purchase": {
             "low": float(book.value_low) if book.value_low else None,

@@ -1,8 +1,8 @@
 """Tests for book acquisition endpoint."""
 
-import pytest
-from datetime import date
 from decimal import Decimal
+
+import pytest
 
 from app.models.book import Book
 
@@ -110,9 +110,10 @@ class TestAcquireEndpoint:
     def test_acquire_requires_editor_role(self, client, db, evaluating_book):
         """Acquire endpoint requires editor or admin role."""
         # Create a client WITHOUT the mocked auth to test unauthorized access
-        from app.main import app
         from fastapi.testclient import TestClient
+
         from app.db import get_db
+        from app.main import app
 
         # Create client with db override but NO auth override
         def override_get_db():

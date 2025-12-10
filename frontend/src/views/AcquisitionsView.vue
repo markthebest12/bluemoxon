@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
-import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
-const authStore = useAuthStore();
 const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisitionsStore);
-const { isAdmin, isEditor } = storeToRefs(authStore);
 
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
