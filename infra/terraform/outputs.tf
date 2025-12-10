@@ -74,17 +74,17 @@ output "images_cdn_domain" {
 
 output "lambda_function_name" {
   description = "Lambda function name"
-  value       = module.lambda.function_name
+  value       = var.enable_lambda ? module.lambda[0].function_name : var.lambda_function_name_external
 }
 
 output "lambda_function_arn" {
   description = "Lambda function ARN"
-  value       = module.lambda.function_arn
+  value       = var.enable_lambda ? module.lambda[0].function_arn : null
 }
 
 output "lambda_invoke_arn" {
   description = "Lambda invoke ARN"
-  value       = module.lambda.invoke_arn
+  value       = var.enable_lambda ? module.lambda[0].invoke_arn : var.lambda_invoke_arn_external
 }
 
 # =============================================================================

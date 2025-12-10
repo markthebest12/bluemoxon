@@ -37,6 +37,12 @@ variable "cognito_mfa_totp_enabled" {
   default     = false
 }
 
+variable "cognito_endpoint_subnet_ids" {
+  type        = list(string)
+  description = "Subnet IDs for Cognito VPC endpoint (must be in AZs supported by Cognito: us-west-2a/b/c). Falls back to private_subnet_ids if empty."
+  default     = []
+}
+
 variable "db_allocated_storage" {
   type        = number
   description = "RDS allocated storage (GB)"
@@ -85,6 +91,24 @@ variable "enable_database" {
   default     = false
 }
 
+variable "enable_lambda" {
+  type        = bool
+  description = "Enable Lambda function management (set false for prod where Lambda is managed externally)"
+  default     = true
+}
+
+variable "lambda_function_name_external" {
+  type        = string
+  description = "External Lambda function name (used when enable_lambda=false)"
+  default     = null
+}
+
+variable "lambda_invoke_arn_external" {
+  type        = string
+  description = "External Lambda invoke ARN (used when enable_lambda=false)"
+  default     = null
+}
+
 variable "enable_nat_gateway" {
   type        = bool
   description = "Enable NAT Gateway for Lambda outbound internet access"
@@ -111,6 +135,12 @@ variable "lambda_memory_size" {
   type        = number
   description = "Memory allocation for Lambda function (MB)"
   default     = 512
+}
+
+variable "logs_bucket_name" {
+  type        = string
+  description = "Name of the logs bucket for CloudFront/S3 access logs (prod only)"
+  default     = null
 }
 
 variable "lambda_provisioned_concurrency" {
@@ -224,4 +254,168 @@ variable "github_repo" {
   type        = string
   description = "GitHub repository in format 'owner/repo'"
   default     = "markthebest12/bluemoxon"
+}
+
+# =============================================================================
+# Legacy Resource Name Overrides (for production)
+# =============================================================================
+# Production was created before environment-suffixed naming convention.
+# These overrides allow Terraform to manage existing resources without renaming.
+
+variable "frontend_bucket_name_override" {
+  type        = string
+  description = "Override S3 frontend bucket name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "images_bucket_name_override" {
+  type        = string
+  description = "Override S3 images bucket name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "lambda_function_name_override" {
+  type        = string
+  description = "Override Lambda function name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "api_gateway_name_override" {
+  type        = string
+  description = "Override API Gateway name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_user_pool_name_override" {
+  type        = string
+  description = "Override Cognito user pool name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_domain_override" {
+  type        = string
+  description = "Override Cognito domain prefix (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_client_name_override" {
+  type        = string
+  description = "Override Cognito client name (for legacy resources)"
+  default     = null
+}
+
+variable "cognito_callback_urls_override" {
+  type        = list(string)
+  description = "Override Cognito callback URLs (for legacy resources with different URL patterns)"
+  default     = null
+}
+
+variable "cognito_logout_urls_override" {
+  type        = list(string)
+  description = "Override Cognito logout URLs (for legacy resources with different URL patterns)"
+  default     = null
+}
+
+variable "cognito_password_require_symbols" {
+  type        = bool
+  description = "Require symbols in Cognito passwords"
+  default     = true
+}
+
+variable "cognito_allow_admin_create_user_only" {
+  type        = bool
+  description = "Only allow admin to create Cognito users"
+  default     = false
+}
+
+variable "cognito_invite_email_message" {
+  type        = string
+  description = "Cognito email invitation message template"
+  default     = null
+}
+
+variable "cognito_invite_email_subject" {
+  type        = string
+  description = "Cognito email invitation subject"
+  default     = "Your temporary password"
+}
+
+variable "skip_s3_cloudfront_policy" {
+  type        = bool
+  description = "Skip creating OAI-based S3 bucket policies (for prod which uses OAC instead)"
+  default     = false
+}
+
+# =============================================================================
+# Landing Site Variables (prod only)
+# =============================================================================
+
+variable "enable_landing_site" {
+  type        = bool
+  description = "Enable landing site S3 + CloudFront (bluemoxon.com marketing site)"
+  default     = false
+}
+
+variable "landing_acm_cert_arn" {
+  type        = string
+  description = "ACM certificate ARN for landing site CloudFront (must be in us-east-1)"
+  default     = null
+}
+
+variable "landing_bucket_name" {
+  type        = string
+  description = "S3 bucket name for landing site"
+  default     = null
+}
+
+variable "landing_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for landing site (DNS alias target)"
+  default     = null
+}
+
+# =============================================================================
+# DNS Variables (prod only - manages Route53 for all environments)
+# =============================================================================
+
+variable "enable_dns" {
+  type        = bool
+  description = "Enable Route53 DNS management (prod only - DNS is centralized in prod account)"
+  default     = false
+}
+
+variable "api_gateway_domain_name" {
+  type        = string
+  description = "API Gateway custom domain name for api.{domain} (target for Route53 alias)"
+  default     = null
+}
+
+variable "api_gateway_domain_zone_id" {
+  type        = string
+  description = "API Gateway hosted zone ID for api.{domain}"
+  default     = null
+}
+
+variable "app_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for app.{domain} (DNS alias target)"
+  default     = null
+}
+
+variable "staging_api_gateway_domain_name" {
+  type        = string
+  description = "API Gateway custom domain name for staging.api.{domain}"
+  default     = null
+}
+
+variable "staging_api_gateway_domain_zone_id" {
+  type        = string
+  description = "API Gateway hosted zone ID for staging.api.{domain}"
+  default     = null
+}
+
+variable "staging_app_cloudfront_domain_name" {
+  type        = string
+  description = "CloudFront distribution domain name for staging.app.{domain}"
+  default     = null
 }

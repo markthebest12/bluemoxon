@@ -59,6 +59,24 @@ resource "aws_iam_role_policy" "secrets" {
   })
 }
 
+# Cognito access for user mapping (only if pool ID is provided)
+resource "aws_iam_role_policy" "cognito" {
+  count = var.cognito_user_pool_id != "" ? 1 : 0
+  name  = "cognito-access"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["cognito-idp:ListUsers"]
+        Resource = "arn:aws:cognito-idp:*:*:userpool/${var.cognito_user_pool_id}"
+      }
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # CloudWatch Log Group
 # -----------------------------------------------------------------------------
@@ -92,6 +110,10 @@ resource "aws_lambda_function" "this" {
   vpc_config {
     subnet_ids         = var.subnet_ids
     security_group_ids = var.security_group_ids
+  }
+
+  tracing_config {
+    mode = "Active"
   }
 
   tags = var.tags

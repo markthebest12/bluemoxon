@@ -4,9 +4,26 @@ This checklist documents the steps needed to migrate production infrastructure t
 
 ## Prerequisites
 
-- [ ] Terraform state backend set up in prod account (#106)
-- [ ] GitHub OIDC configured for prod deploys (#102)
-- [ ] Backup of current production state documented
+- [x] Terraform state backend set up in prod account (#106) - COMPLETED
+- [x] GitHub OIDC configured for prod deploys (#102) - COMPLETED
+- [x] Backup of current production state documented
+
+## Migration Status (Updated 2024-12-09)
+
+| Resource | Status | Issue | Notes |
+|----------|--------|-------|-------|
+| S3 Buckets (frontend, images) | IMPORTED | #108 | Using legacy names |
+| S3 Logs Bucket | IMPORTED | #156 | bluemoxon-logs |
+| API Gateway | IMPORTED | #107 | Includes custom domain, log group, Lambda permission |
+| Cognito | IMPORTED | #110 | Using lifecycle ignore_changes for URL attributes |
+| GitHub OIDC | IMPORTED | #137 | Provider + role + policy |
+| CloudFront (frontend/images) | SKIPPED | #109 | Prod uses OAC, module uses OAI - managed externally |
+| Lambda | SKIPPED | N/A | Different architecture - managed externally |
+| Landing Site | IMPORTED | #154 | New landing-site module with OAC support (7 resources) |
+| Route53 | IMPORTED | #111, #157 | Hosted zone + 10 alias records (11 resources) |
+| ACM | EXTERNAL | #111 | Certs managed externally, ARNs passed to Terraform |
+
+**Terraform State:** 49 resources in `s3://bluemoxon-terraform-state-prod/bluemoxon/prod/terraform.tfstate`
 
 ### Resource Backups
 
@@ -76,11 +93,11 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 
 ### 2.3 Cognito (#110)
 
-**Current State (Updated 2024-12-07):**
+**Current State (Updated 2024-12-08):**
 | Environment | Account | User Pool ID | Client ID | Notes |
 |-------------|---------|--------------|-----------|-------|
 | **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | Production users |
-| **Staging** | 652617421195 | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | Separate pool (isolated) |
+| **Staging** | 652617421195 | `us-west-2_xhoIfvlHv` | `2fru2pb5qc5o3o241hec24mj29` | Separate pool (isolated) |
 
 **Architecture:** Separate Cognito pools per environment with automatic `cognito_sub` migration in auth code.
 
@@ -139,12 +156,50 @@ terraform import 'module.api_gateway.aws_apigatewayv2_api.this' <API_ID>
 
 ### 2.5 Route53 & ACM (#111)
 
-```bash
-# Import hosted zone (usually not needed, reference via data source)
-# Import ACM certificates
-terraform import 'aws_acm_certificate.frontend' arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861
-terraform import 'aws_acm_certificate.api' arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a
+**Route53 Hosted Zone** - Use data source (don't import, registrar-managed):
+```hcl
+data "aws_route53_zone" "main" {
+  name = "bluemoxon.com"
+}
+# Zone ID: Z09346283AE9VMIQQJ8VL
 ```
+
+**Route53 Records** to create/import:
+| Record | Type | Target |
+|--------|------|--------|
+| `bluemoxon.com` | A/AAAA | Landing CloudFront |
+| `www.bluemoxon.com` | A/AAAA | Landing CloudFront |
+| `app.bluemoxon.com` | A/AAAA | App CloudFront |
+| `api.bluemoxon.com` | A | API Gateway |
+| `staging.app.bluemoxon.com` | A/AAAA | Staging CloudFront |
+| `staging.api.bluemoxon.com` | A | Staging API Gateway |
+
+**ACM Certificates** - Keep external, pass ARNs to Terraform:
+| Domain | Region | ARN |
+|--------|--------|-----|
+| `*.bluemoxon.com` | us-east-1 | `arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861` |
+| `api.bluemoxon.com` | us-west-2 | `arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a` |
+| `staging.api.bluemoxon.com` | us-west-2 | `arn:aws:acm:us-west-2:266672885920:certificate/fdc9433a-89c2-4a7c-a4c1-f7794b8f7db9` |
+
+### 2.7 Landing Site (#154) - Prod Only
+
+Marketing website at bluemoxon.com / www.bluemoxon.com (no staging equivalent).
+
+**Resources:**
+- S3 bucket: `bluemoxon-landing`
+- CloudFront: `ES60BQB34DNYS` (dui69hltsg2ds.cloudfront.net)
+- Aliases: bluemoxon.com, www.bluemoxon.com
+- Uses same wildcard cert as app
+
+```bash
+# Import landing bucket
+terraform import 'module.landing_bucket.aws_s3_bucket.this' bluemoxon-landing
+
+# Import landing CloudFront
+terraform import 'module.landing_cdn[0].aws_cloudfront_distribution.this' ES60BQB34DNYS
+```
+
+**Note:** The `bluemoxon-logs` bucket (CloudFront access logs) is optional to terraform.
 
 ### 2.6 GitHub Actions OIDC (#102)
 
@@ -327,6 +382,99 @@ If anything goes wrong:
 2. Can always remove from state: `terraform state rm <resource>`
 3. Can re-import: `terraform import <resource> <id>`
 4. Manual AWS console is always available as fallback
+
+## Lessons from Staging Destroy/Apply Test (2024-12-08)
+
+This section documents issues discovered during the staging Terraform conformance test (full destroy → apply from scratch).
+
+### Issue 1: Cognito VPC Endpoint AZ Compatibility
+
+**Problem:** Cognito VPC endpoint only supports certain AZs (us-west-2a, us-west-2b, us-west-2c), NOT us-west-2d.
+
+**Error:** `InvalidParameter: VPC vpce-xxx availability zone(s) [us-west-2d] must be a subset of the VPC endpoint service's availability zones`
+
+**Solution:** Added `cognito_endpoint_subnet_ids` variable to Terraform:
+- `infra/terraform/variables.tf` - Root variable with fallback
+- `infra/terraform/modules/vpc-networking/variables.tf` - Module variable
+- `infra/terraform/modules/vpc-networking/main.tf` - Uses variable with fallback to `private_subnet_ids`
+- `infra/terraform/main.tf` - Passes variable to module
+
+**Prod Action Required:**
+```hcl
+# In envs/prod.tfvars, if VPC has us-west-2d subnets:
+cognito_endpoint_subnet_ids = [
+  "subnet-xxx",  # us-west-2a
+  "subnet-yyy"   # us-west-2b
+]
+```
+
+### Issue 2: Cognito IDs Change After Terraform Recreate
+
+**Problem:** When Terraform destroys and recreates Cognito, the pool ID and client ID change.
+
+**Impact:** After destroy/apply cycle:
+- Old: `us-west-2_5pOhFH6LN` → New: `us-west-2_xhoIfvlHv`
+- Config files and workflows reference old IDs
+
+**Solution:** Updated `infra/config/staging.json` with new Cognito IDs:
+```json
+"cognito": {
+  "user_pool_id": "us-west-2_xhoIfvlHv",
+  "app_client_id": "2fru2pb5qc5o3o241hec24mj29",
+  "domain": "bluemoxon-staging.auth.us-west-2.amazoncognito.com"
+}
+```
+
+**Prod Action Required:**
+- CRITICAL: Avoid destroying Cognito in prod (users would lose access)
+- If must recreate: Update `infra/config/production.json` immediately after
+
+### Issue 3: Cross-Account Secret Access with Default KMS
+
+**Problem:** The db-sync Lambda cannot access prod secrets because they're encrypted with default KMS key (`aws/secretsmanager`).
+
+**Error:** `InvalidRequestException: You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key`
+
+**Options to Fix:**
+1. **Re-encrypt prod secret** with customer-managed KMS key (requires key policy update)
+2. **Use local sync script** with network access to both databases
+3. **Use AWS DMS** for cross-account replication
+
+**Current Workaround:** Use local `scripts/sync-prod-to-staging.sh` (requires VPC peering or bastion access)
+
+### Issue 4: S3 Bucket Naming Convention
+
+**Problem:** Sync script had wrong bucket name `bluemoxon-staging-images` instead of `bluemoxon-images-staging`.
+
+**Convention:** `bluemoxon-{resource}-{environment}` NOT `bluemoxon-{environment}-{resource}`
+- Correct: `bluemoxon-images-staging`, `bluemoxon-frontend-staging`
+- Wrong: `bluemoxon-staging-images`, `bluemoxon-staging-frontend`
+
+**Files Fixed:** `scripts/sync-prod-to-staging.sh`
+
+### Issue 5: Ruff Formatting in CI
+
+**Problem:** CI failed on Ruff format check for `backend/lambdas/db_sync/handler.py`.
+
+**Solution:** Run `poetry run ruff format .` before committing.
+
+**CI Requirement:** All Python code must pass:
+```bash
+poetry run ruff check .
+poetry run ruff format --check .
+```
+
+### Issue 6: Lambda Placeholder Code Causes Health Check Failure
+
+**Problem:** After Terraform applies, Lambda has placeholder code (not actual application). Health check fails until GitHub deploy workflow runs.
+
+**Sequence Required:**
+1. Terraform apply (creates Lambda with placeholder)
+2. GitHub deploy workflow (deploys actual code)
+3. Database sync (creates tables)
+4. Deep health check passes
+
+**Prod Consideration:** Plan deployment sequence carefully to minimize downtime.
 
 ## Post-Migration
 

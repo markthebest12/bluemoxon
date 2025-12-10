@@ -17,7 +17,7 @@ frontend_acm_cert_arn = "arn:aws:acm:us-east-1:652617421195:certificate/cc72c0b6
 # API Gateway uses regional certificate (us-west-2)
 api_acm_cert_arn = "arn:aws:acm:us-west-2:652617421195:certificate/2de326a8-d05e-4a54-8115-acb4e8eacc85"
 
-# Lambda - smaller for staging, scales to zero when idle
+# Lambda - lower memory for cost savings (staging doesn't need fast cold starts)
 lambda_memory_size             = 256
 lambda_timeout                 = 30
 lambda_provisioned_concurrency = 0 # No provisioned concurrency = scale to zero
@@ -31,6 +31,11 @@ db_allocated_storage = 20
 # Feature flags
 enable_cloudfront = true
 enable_waf        = false
+# GitHub OIDC disabled - exists in AWS but cannot be imported with current IAM permissions
+# Re-enable after importing with admin credentials using:
+#   terraform import 'module.github_oidc[0].aws_iam_openid_connect_provider.github' 'arn:aws:iam::652617421195:oidc-provider/token.actions.githubusercontent.com'
+#   terraform import 'module.github_oidc[0].aws_iam_role.github_actions' 'github-actions-deploy'
+enable_github_oidc = false
 
 # Cognito MFA - OPTIONAL with TOTP enabled (matches prod)
 cognito_mfa_configuration = "OPTIONAL"
@@ -46,4 +51,9 @@ private_subnet_ids = [
   "subnet-0ceb0276fa36428f2",
   "subnet-09eeb023cb49a83d5",
   "subnet-0bfb299044084bad3"
+]
+# Cognito VPC endpoint only supports us-west-2a/b/c (not 2d)
+cognito_endpoint_subnet_ids = [
+  "subnet-0ceb0276fa36428f2",
+  "subnet-09eeb023cb49a83d5"
 ]

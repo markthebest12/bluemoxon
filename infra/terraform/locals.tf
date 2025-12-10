@@ -14,15 +14,29 @@ locals {
     ManagedBy   = "terraform"
   }
 
-  # S3 bucket names - match existing workflow naming convention
-  frontend_bucket_name = "${var.app_name}-${var.environment}-frontend"
-  images_bucket_name   = "${var.app_name}-${var.environment}-images"
+  # S3 bucket names - use override if provided (for legacy prod naming)
+  # Default: bluemoxon-frontend-staging, bluemoxon-images-staging
+  # Prod override: bluemoxon-frontend, bluemoxon-images
+  frontend_bucket_name = coalesce(var.frontend_bucket_name_override, "${var.app_name}-frontend-${var.environment}")
+  images_bucket_name   = coalesce(var.images_bucket_name_override, "${var.app_name}-images-${var.environment}")
 
-  # Lambda function name - match existing workflow naming convention
-  lambda_function_name = "${var.app_name}-${var.environment}-api"
+  # Lambda function name - use override if provided (for legacy prod naming)
+  # Default: bluemoxon-staging-api
+  # Prod override: bluemoxon-api
+  lambda_function_name = coalesce(var.lambda_function_name_override, "${var.app_name}-${var.environment}-api")
 
-  # API Gateway name
-  api_gateway_name = "${var.app_name}-${var.environment}-api"
+  # API Gateway name - use override if provided
+  api_gateway_name = coalesce(var.api_gateway_name_override, "${var.app_name}-${var.environment}-api")
+
+  # Cognito user pool name - use override if provided (for legacy prod naming)
+  # Default: bluemoxon-users-staging
+  # Prod override: bluemoxon-users
+  cognito_user_pool_name = coalesce(var.cognito_user_pool_name_override, "${var.app_name}-users-${var.environment}")
+
+  # Cognito domain prefix - use override if provided
+  # Default: bluemoxon-staging
+  # Prod override: bluemoxon
+  cognito_domain = coalesce(var.cognito_domain_override, "${var.app_name}-${var.environment}")
 
   # Domain configuration
   api_domain = "${var.api_subdomain}.${var.domain_name}"

@@ -247,6 +247,194 @@ def validate_sync(prod_conn, staging_conn, results: dict) -> dict:
     return validation
 
 
+def fix_sequences(conn) -> list[dict]:
+    """
+    Fix sequences for all tables with integer primary key columns.
+
+    Called after data sync to ensure INSERTs work properly.
+    Since get_table_ddl() skips nextval defaults (line 156), this function:
+    1. Creates sequences if they don't exist
+    2. Sets column defaults to use the sequences
+    3. Resets sequence values to MAX(id) + 1
+
+    Returns list of fixed sequences with their new values.
+    """
+    results = []
+
+    with conn.cursor() as cur:
+        # Find all integer primary key columns (these need sequences)
+        cur.execute("""
+            SELECT
+                c.table_name,
+                c.column_name,
+                c.column_default
+            FROM information_schema.columns c
+            JOIN information_schema.table_constraints tc
+                ON c.table_name = tc.table_name
+                AND c.table_schema = tc.table_schema
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND c.column_name = kcu.column_name
+                AND c.table_name = kcu.table_name
+            WHERE c.table_schema = 'public'
+              AND tc.constraint_type = 'PRIMARY KEY'
+              AND c.data_type IN ('integer', 'bigint')
+            ORDER BY c.table_name, c.column_name
+        """)
+        id_columns = cur.fetchall()
+
+        for table_name, column_name, current_default in id_columns:
+            seq_name = f"{table_name}_{column_name}_seq"
+            action = "reset"
+
+            # If no nextval default exists, create sequence and set default
+            if not current_default or "nextval" not in str(current_default):
+                action = "created"
+
+                # Create sequence if it doesn't exist
+                cur.execute(
+                    sql.SQL("CREATE SEQUENCE IF NOT EXISTS {}").format(sql.Identifier(seq_name))
+                )
+
+                # Set the column default to use the sequence
+                cur.execute(
+                    sql.SQL("ALTER TABLE {} ALTER COLUMN {} SET DEFAULT nextval({})").format(
+                        sql.Identifier(table_name),
+                        sql.Identifier(column_name),
+                        sql.Literal(seq_name),
+                    )
+                )
+
+                # Set sequence ownership so it's dropped with the table
+                cur.execute(
+                    sql.SQL("ALTER SEQUENCE {} OWNED BY {}.{}").format(
+                        sql.Identifier(seq_name),
+                        sql.Identifier(table_name),
+                        sql.Identifier(column_name),
+                    )
+                )
+
+            # Reset sequence to MAX(id) + 1
+            cur.execute(
+                sql.SQL(
+                    "SELECT setval({}, COALESCE((SELECT MAX({}) FROM {}), 0) + 1, false)"
+                ).format(
+                    sql.Literal(seq_name),
+                    sql.Identifier(column_name),
+                    sql.Identifier(table_name),
+                )
+            )
+            new_value = cur.fetchone()[0]
+
+            results.append(
+                {
+                    "table": table_name,
+                    "column": column_name,
+                    "sequence": seq_name,
+                    "new_value": new_value,
+                    "action": action,
+                }
+            )
+            logger.info(f"Fixed sequence {seq_name}: {action}, new_value={new_value}")
+
+    conn.commit()
+    return results
+
+
+def sync_cognito_users(staging_conn, user_pool_id: str) -> dict:
+    """
+    Update users.cognito_sub to match staging Cognito subs by email.
+
+    After DB sync, the users table has cognito_sub values from production.
+    This function updates them to match the staging Cognito user pool.
+    """
+    results = {
+        "updated": 0,
+        "skipped_no_cognito_user": 0,
+        "skipped_no_db_user": 0,
+        "details": [],
+    }
+
+    # 1. List all users from staging Cognito
+    cognito = boto3.client("cognito-idp")
+    cognito_users = {}  # email -> sub
+
+    try:
+        paginator = cognito.get_paginator("list_users")
+        for page in paginator.paginate(UserPoolId=user_pool_id):
+            for user in page["Users"]:
+                # Get email from attributes
+                email = next(
+                    (a["Value"] for a in user["Attributes"] if a["Name"] == "email"),
+                    None,
+                )
+                if email:
+                    # Username is the sub (UUID)
+                    cognito_users[email.lower()] = user["Username"]
+    except Exception as e:
+        logger.error(f"Failed to list Cognito users: {e}")
+        return {"error": str(e), **results}
+
+    logger.info(f"Found {len(cognito_users)} users in Cognito pool {user_pool_id}")
+
+    # 2. Get all users from staging DB
+    with staging_conn.cursor() as cur:
+        cur.execute("SELECT id, email, cognito_sub FROM users WHERE email IS NOT NULL")
+        db_users = cur.fetchall()
+
+    logger.info(f"Found {len(db_users)} users with email in staging DB")
+
+    # 3. Update cognito_sub for matching users
+    for user_id, email, old_sub in db_users:
+        if not email:
+            continue
+        email_lower = email.lower()
+        if email_lower in cognito_users:
+            new_sub = cognito_users[email_lower]
+            if old_sub != new_sub:
+                with staging_conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET cognito_sub = %s WHERE id = %s",
+                        (new_sub, user_id),
+                    )
+                staging_conn.commit()
+                results["updated"] += 1
+                results["details"].append(
+                    {
+                        "email": email,
+                        "status": "updated",
+                        "old_sub": old_sub,
+                        "new_sub": new_sub,
+                    }
+                )
+                logger.info(f"Updated cognito_sub for {email}: {old_sub} -> {new_sub}")
+            else:
+                # Already matches, no update needed
+                pass
+        else:
+            results["skipped_no_cognito_user"] += 1
+            results["details"].append(
+                {"email": email, "status": "skipped", "reason": "no_cognito_user"}
+            )
+
+    # 4. Log Cognito users without DB entries (informational)
+    db_emails = {row[1].lower() for row in db_users if row[1]}
+    for cognito_email in cognito_users:
+        if cognito_email not in db_emails:
+            results["skipped_no_db_user"] += 1
+            results["details"].append(
+                {"email": cognito_email, "status": "skipped", "reason": "no_db_user"}
+            )
+
+    logger.info(
+        f"Cognito sync complete: {results['updated']} updated, "
+        f"{results['skipped_no_cognito_user']} skipped (no Cognito user), "
+        f"{results['skipped_no_db_user']} skipped (no DB user)"
+    )
+
+    return results
+
+
 def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool = True) -> dict:
     """
     Sync all tables from production to staging.
@@ -267,6 +455,7 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
         "tables_created": [],
         "total_rows": 0,
         "validation": None,
+        "sequences_fixed": [],
     }
 
     prod_conn = None
@@ -344,6 +533,11 @@ def sync_databases(prod_secret: dict, staging_secret: dict, create_tables: bool 
         else:
             logger.warning(f"Validation issues: {results['validation']['issues']}")
 
+        # Fix sequences after sync (creates sequences and sets defaults for id columns)
+        logger.info("Fixing sequences...")
+        results["sequences_fixed"] = fix_sequences(staging_conn)
+        logger.info(f"Fixed {len(results['sequences_fixed'])} sequences")
+
     finally:
         if prod_conn:
             prod_conn.close()
@@ -360,6 +554,34 @@ def handler(event: dict, context: Any) -> dict:
 
     # Get configuration from environment
     staging_secret_arn = os.environ.get("STAGING_SECRET_ARN")
+    cognito_user_pool_id = os.environ.get("COGNITO_USER_POOL_ID", "")
+
+    # Handle raw_sql mode first (doesn't need Cognito, just runs SQL on staging DB)
+    raw_sql = event.get("raw_sql")
+    if raw_sql:
+        logger.info(f"Running raw SQL: {raw_sql}")
+        if not staging_secret_arn:
+            return {"statusCode": 500, "body": json.dumps({"error": "Missing STAGING_SECRET_ARN"})}
+        try:
+            staging_secret = get_secret(staging_secret_arn, "us-west-2")
+            conn = get_connection(staging_secret)
+            with conn.cursor() as cur:
+                # Intentional: raw_sql is admin-only feature, Lambda not exposed via API Gateway
+                cur.execute(raw_sql)  # fmt: skip # nosemgrep: python.aws-lambda.security.psycopg-sqli.psycopg-sqli
+                if raw_sql.strip().upper().startswith("SELECT"):
+                    result = cur.fetchall()
+                else:
+                    conn.commit()
+                    result = f"Rows affected: {cur.rowcount}"
+            conn.close()
+            return {"statusCode": 200, "body": json.dumps({"result": result})}
+        except Exception as e:
+            logger.error(f"SQL failed: {e}")
+            return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
+    # Check if Cognito sync is requested
+    sync_cognito = event.get("sync_cognito", False)
+    cognito_only = event.get("cognito_only", False)  # Skip DB sync, just map Cognito users
 
     # Prod credentials can come from:
     # 1. Direct environment variables (PROD_DB_HOST, PROD_DB_USER, PROD_DB_PASSWORD, PROD_DB_NAME)
@@ -377,6 +599,39 @@ def handler(event: dict, context: Any) -> dict:
         }
 
     try:
+        # Handle cognito_only mode first (doesn't need prod credentials)
+        if cognito_only:
+            logger.info("Running in cognito_only mode - skipping DB sync")
+            if not cognito_user_pool_id:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps(
+                        {"error": "cognito_only=true but COGNITO_USER_POOL_ID not configured"}
+                    ),
+                }
+
+            staging_secret = get_secret(staging_secret_arn, "us-west-2")
+            staging_conn = get_connection(staging_secret)
+            try:
+                cognito_results = sync_cognito_users(staging_conn, cognito_user_pool_id)
+            finally:
+                staging_conn.close()
+
+            return {
+                "statusCode": 200,
+                "body": json.dumps(
+                    {
+                        "message": "Cognito mapping completed (cognito_only mode)",
+                        "results": {
+                            "tables_synced": [],
+                            "tables_failed": [],
+                            "total_rows": 0,
+                            "cognito_mapping": cognito_results,
+                        },
+                    }
+                ),
+            }
+
         # Get prod credentials - prefer direct env vars over secret ARN
         logger.info("Fetching database credentials...")
 
@@ -410,6 +665,21 @@ def handler(event: dict, context: Any) -> dict:
         results = sync_databases(prod_secret, staging_secret)
 
         logger.info(f"Sync complete: {json.dumps(results)}")
+
+        # Optionally sync Cognito users (update cognito_sub to match staging Cognito)
+        if sync_cognito:
+            if cognito_user_pool_id:
+                logger.info(f"Syncing Cognito users from pool {cognito_user_pool_id}...")
+                # Need a fresh connection for Cognito sync
+                staging_conn = get_connection(staging_secret)
+                try:
+                    cognito_results = sync_cognito_users(staging_conn, cognito_user_pool_id)
+                    results["cognito_mapping"] = cognito_results
+                finally:
+                    staging_conn.close()
+            else:
+                logger.warning("sync_cognito=true but COGNITO_USER_POOL_ID not configured")
+                results["cognito_mapping"] = {"error": "COGNITO_USER_POOL_ID not configured"}
 
         # Determine status based on failures and validation
         has_failures = len(results["tables_failed"]) > 0

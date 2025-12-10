@@ -65,3 +65,9 @@ variable "timeout" {
   description = "Timeout in seconds"
   default     = 900
 }
+
+variable "cognito_user_pool_id" {
+  description = "Cognito user pool ID for mapping users after DB sync (optional)"
+  type        = string
+  default     = ""
+}

@@ -42,6 +42,22 @@ resource "aws_cognito_user_pool" "this" {
     email_sending_account = "COGNITO_DEFAULT"
   }
 
+  # Admin create user config
+  dynamic "admin_create_user_config" {
+    for_each = var.allow_admin_create_user_only || var.invite_email_message != null ? [1] : []
+    content {
+      allow_admin_create_user_only = var.allow_admin_create_user_only
+
+      dynamic "invite_message_template" {
+        for_each = var.invite_email_message != null ? [1] : []
+        content {
+          email_message = var.invite_email_message
+          email_subject = var.invite_email_subject
+        }
+      }
+    }
+  }
+
   # Schema attributes
   schema {
     name                     = "email"
@@ -57,6 +73,14 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   tags = var.tags
+
+  # Lifecycle rule to prevent updates that would fail due to AWS validation quirks
+  # AWS UpdateUserPool API requires SMS message in invite_message_template even when
+  # SMS is not configured. This causes updates to fail when prod has custom invite templates.
+  # Ignore all changes to user pool once imported to avoid this issue.
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # =============================================================================
@@ -64,10 +88,11 @@ resource "aws_cognito_user_pool" "this" {
 # =============================================================================
 
 resource "aws_cognito_user_pool_client" "this" {
-  name         = "${var.user_pool_name}-client"
+  name         = coalesce(var.user_pool_client_name_override, "${var.user_pool_name}-client")
   user_pool_id = aws_cognito_user_pool.this.id
 
-  generate_secret = false
+  # Note: Do NOT set generate_secret for existing clients without secrets.
+  # Setting generate_secret = false forces replacement even when client has no secret.
 
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",

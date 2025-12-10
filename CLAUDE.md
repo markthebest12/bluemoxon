@@ -8,7 +8,9 @@
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
-- `||` or `&&` chaining with complex expressions
+- `||` or `&&` chaining (even simple chaining breaks auto-approve)
+
+**ENFORCEMENT**: If you catch yourself about to use `&&`, STOP. Make separate sequential Bash tool calls instead. The permission dialog toil from `&&` is enormous - one prompt per chained command.
 
 ```bash
 # BAD - will ALWAYS prompt:
@@ -76,8 +78,11 @@ git checkout -b <type>/<description>
 # 2. Make changes
 
 # 3. Run local validation BEFORE committing (REQUIRED)
-cd backend && poetry run ruff check . && poetry run ruff format --check .
-cd frontend && npm run lint && npm run type-check
+# Run these as separate commands (NOT chained with &&):
+poetry run ruff check backend/
+poetry run ruff format --check backend/
+npm run --prefix frontend lint
+npm run --prefix frontend type-check
 
 # 4. Commit with conventional commit message
 git commit -m "<type>: <description>"
@@ -131,6 +136,52 @@ git tag -a v1.0.0 -m "Release description"
 git push origin v1.0.0
 ```
 
+## CRITICAL: Staging-First Workflow
+
+**ALL changes MUST go through staging before production.** This is mandatory for:
+- Feature branches
+- Bug fixes
+- Dependency updates (Dependabot targets `staging` branch)
+- Infrastructure changes
+
+### Exception: Marketing Website Only
+The marketing site (`site/index.html`) has no staging environment and deploys directly to production. This is the ONLY exception to staging-first.
+
+### Required Flow for ALL Changes
+
+```
+Feature Branch → Staging → Production
+       ↓             ↓          ↓
+    PR to staging  Deploy   PR staging→main
+                   + Test      Deploy
+```
+
+1. **Create PR targeting `staging`** (NOT `main`)
+2. **Merge to staging** after CI passes
+3. **Validate in staging environment** (manual or automated)
+4. **Create PR from `staging` to `main`** to promote to production
+5. **Merge to main** after approval
+
+### Dependabot Configuration
+Dependabot is configured to target `staging` branch for all ecosystems:
+- Python backend (`pip`)
+- Frontend (`npm`)
+- GitHub Actions (`github-actions`)
+
+This ensures dependency updates are tested in staging before reaching production.
+
+### Why Staging-First Matters
+- Catches issues before they reach production
+- Provides validation environment with real AWS services
+- Allows testing with production-like data (via DB sync)
+- Prevents "works on my machine" deployments
+
+### Anti-Patterns (DO NOT DO)
+- ❌ PR directly to `main` (except marketing site)
+- ❌ Merging untested code to production
+- ❌ Skipping staging "because it's a small change"
+- ❌ Manual dependency updates bypassing staging
+
 ## Branching Strategy (GitFlow)
 
 ```
@@ -150,18 +201,22 @@ feature ──────●     ●────────→  [Feature branc
 
 ### Workflow Examples
 ```bash
-# Standard feature → main (production)
+# Standard feature → staging → production (CORRECT)
+git checkout staging
+git pull origin staging
 git checkout -b feat/my-feature
 # ... make changes ...
-gh pr create --base main
-
-# Feature → staging for testing
-git checkout -b feat/experimental
-# ... make changes ...
-gh pr create --base staging   # PRs to staging, not main
-
-# Promote staging to production
+gh pr create --base staging --title "feat: My feature"
+# After merge to staging and validation:
 gh pr create --base main --head staging --title "chore: Promote staging to production"
+
+# Marketing site ONLY (exception - no staging)
+git checkout -b fix/landing-page
+# ... changes to site/index.html only ...
+gh pr create --base main --title "fix: Update landing page"
+
+# WRONG - DO NOT DO THIS (except marketing site)
+gh pr create --base main  # ❌ Skips staging!
 ```
 
 ## Staging Environment
@@ -193,6 +248,34 @@ AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
 ```
 
 See [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) for full details.
+
+### Staging Authentication (Separate Cognito Pool)
+
+Staging uses its own Cognito user pool, separate from production. This provides full isolation but requires manual user management.
+
+**Staging Cognito Config:**
+```
+Pool ID: us-west-2_5pOhFH6LN
+Client ID: 7h1b144ggk7j4dl9vr94ipe6k5
+Domain: bluemoxon-staging.auth.us-west-2.amazoncognito.com
+```
+
+**Create/Reset a staging user:**
+```bash
+# Create user (or skip if exists)
+AWS_PROFILE=staging aws cognito-idp admin-create-user --user-pool-id us-west-2_5pOhFH6LN --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
+
+# Set permanent password
+AWS_PROFILE=staging aws cognito-idp admin-set-user-password --user-pool-id us-west-2_5pOhFH6LN --username user@example.com --password 'YourPassword123!' --permanent
+
+# Map Cognito sub to database (run after creating user)
+AWS_PROFILE=staging aws lambda invoke --function-name bluemoxon-staging-db-sync --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
+```
+
+**Troubleshooting login issues:**
+1. **"Invalid email or password"** - Clear browser localStorage, retry with fresh session
+2. **User not in API response** - Run `cognito_only` sync to map Cognito sub to DB
+3. **Case sensitivity** - Staging Cognito is case-sensitive; use exact email case
 
 ### Related Documentation
 - [docs/STAGING_ENVIRONMENT_PLAN.md](docs/STAGING_ENVIRONMENT_PLAN.md) - Architecture and setup
@@ -270,10 +353,12 @@ This script:
 
 ## Temporary Files
 
-**Use `.tmp/` for all temporary files** instead of `/tmp`:
+**MUST use `.tmp/` for all temporary files** - NEVER use `/tmp`:
 ```bash
 .tmp/                  # Project-local temp directory (gitignored)
 ```
+
+**ENFORCEMENT**: Using `/tmp` triggers permission prompts. `.tmp/` is pre-approved. Always use `.tmp/`.
 
 Benefits:
 - No permission prompts (covered by project permissions)
@@ -406,8 +491,9 @@ terraform plan -var-file=envs/staging.tfvars
 # 3. Apply
 terraform apply -var-file=envs/staging.tfvars
 
-# 4. Commit the .tf changes
-git add . && git commit -m "infra: Add/change X resource"
+# 4. Commit the .tf changes (run as separate commands)
+git add .
+git commit -m "infra: Add/change X resource"
 ```
 
 ### Import Existing Resources
@@ -420,11 +506,87 @@ terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
 - **Staging:** Terraform state in `s3://bluemoxon-terraform-state-staging`
 - **Prod:** Migration in progress (see `docs/PROD_MIGRATION_CHECKLIST.md`)
 
-### Exception Process
+### Exception Process (Emergency Fixes ONLY)
+
 If you MUST make a manual change (emergency fix):
-1. Document it immediately in the PR/commit
-2. Create a follow-up task to add it to Terraform
-3. Add a comment in the relevant Terraform file noting the drift
+
+1. **Document BEFORE making the change:**
+   - Create entry in `docs/STAGING_INFRASTRUCTURE_CHANGES.md` or `docs/PROD_INFRASTRUCTURE_CHANGES.md`
+   - Include: resource type, ID, what changed, why
+
+2. **Make the change** with AWS CLI (auditable) not console:
+   ```bash
+   # Good: auditable command
+   aws lambda update-function-configuration --function-name X --environment ...
+
+   # Bad: console clicks (no record)
+   ```
+
+3. **Immediately create follow-up issue:**
+   - Create GitHub issue: "infra: Terraformize [resource]"
+   - Link to the documentation entry
+
+4. **Notify team** in PR or Slack
+
+**Manual change without documentation = grounds for revert.**
+
+### Terraform Quick Reference
+
+| Task | Command |
+|------|---------|
+| Format | `terraform fmt -recursive` |
+| Validate | `terraform validate` |
+| Plan (staging) | `AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Apply (staging) | `AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Check drift | `AWS_PROFILE=staging terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
+| Import resource | `terraform import 'module.name.resource.name' <aws-id>` |
+| Show state | `terraform state list` |
+| Remove from state | `terraform state rm <resource>` |
+
+**Exit codes for drift detection:**
+- `0` = No changes (infrastructure matches config)
+- `1` = Error
+- `2` = Changes detected (drift!)
+
+### Terraform Validation Testing (Destroy/Apply)
+
+**For significant infrastructure changes, validate with destroy/apply cycle in staging:**
+
+```bash
+cd infra/terraform
+
+# 1. Create RDS snapshot (data protection)
+AWS_PROFILE=staging aws rds create-db-snapshot \
+  --db-instance-identifier bluemoxon-staging-db \
+  --db-snapshot-identifier pre-terraform-test-$(date +%Y%m%d)
+
+# 2. Destroy staging infrastructure
+AWS_PROFILE=staging terraform destroy \
+  -var-file=envs/staging.tfvars \
+  -var="db_password=$STAGING_DB_PASSWORD"
+
+# 3. Apply from scratch
+AWS_PROFILE=staging terraform apply \
+  -var-file=envs/staging.tfvars \
+  -var="db_password=$STAGING_DB_PASSWORD"
+
+# 4. Validate services
+curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
+curl -s https://staging.app.bluemoxon.com | head -20
+```
+
+**When to use destroy/apply testing:**
+- Adding new Terraform modules
+- Changing VPC networking (endpoints, NAT gateway)
+- Major IAM policy changes
+- Before migrating configuration to production
+- After significant module refactoring
+
+**What survives destroy/apply (external to Terraform):**
+- ACM certificates (passed as ARNs)
+- Route53 records (in prod account)
+- RDS snapshots (manual backup)
+- S3 bucket data (if buckets not destroyed)
 
 ## CRITICAL: Terraform Style Requirements
 
