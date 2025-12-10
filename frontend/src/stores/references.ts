@@ -61,6 +61,24 @@ export const useReferencesStore = defineStore("references", () => {
     loading.value = false;
   }
 
+  async function createAuthor(name: string): Promise<Author> {
+    const response = await api.post("/authors", { name: name.trim() });
+    authors.value.push(response.data);
+    return response.data;
+  }
+
+  async function createPublisher(name: string): Promise<Publisher> {
+    const response = await api.post("/publishers", { name: name.trim() });
+    publishers.value.push(response.data);
+    return response.data;
+  }
+
+  async function createBinder(name: string): Promise<Binder> {
+    const response = await api.post("/binders", { name: name.trim() });
+    binders.value.push(response.data);
+    return response.data;
+  }
+
   return {
     authors,
     publishers,
@@ -70,5 +88,8 @@ export const useReferencesStore = defineStore("references", () => {
     fetchPublishers,
     fetchBinders,
     fetchAll,
+    createAuthor,
+    createPublisher,
+    createBinder,
   };
 });
