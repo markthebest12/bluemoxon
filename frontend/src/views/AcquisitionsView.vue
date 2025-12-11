@@ -152,18 +152,13 @@ async function handleRecalculateScore(bookId: number) {
               <!-- Score Card -->
               <div class="mt-3">
                 <ScoreCard
+                  :book-id="book.id"
                   :investment-grade="book.investment_grade"
                   :strategic-fit="book.strategic_fit"
                   :collection-impact="book.collection_impact"
                   :overall-score="book.overall_score"
+                  @recalculate="handleRecalculateScore(book.id)"
                 />
-                <button
-                  @click="handleRecalculateScore(book.id)"
-                  :disabled="recalculatingScore === book.id"
-                  class="mt-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                >
-                  {{ recalculatingScore === book.id ? "Recalculating..." : "Recalculate" }}
-                </button>
               </div>
 
               <div class="mt-3 flex gap-2">

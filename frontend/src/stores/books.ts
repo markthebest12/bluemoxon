@@ -193,6 +193,11 @@ export const useBooksStore = defineStore("books", () => {
     return response.data;
   }
 
+  async function fetchScoreBreakdown(bookId: number) {
+    const response = await api.get(`/books/${bookId}/scores/breakdown`);
+    return response.data;
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -230,6 +235,7 @@ export const useBooksStore = defineStore("books", () => {
     updateAnalysis,
     generateAnalysis,
     calculateScores,
+    fetchScoreBreakdown,
     setFilters,
     setSort,
     setPage,

@@ -1,7 +1,31 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
+
+interface ScoreFactor {
+  name: string;
+  points: number;
+  reason: string;
+}
+
+interface ScoreBreakdownData {
+  score: number;
+  factors: ScoreFactor[];
+}
+
+interface BreakdownResponse {
+  investment_grade: number;
+  strategic_fit: number;
+  collection_impact: number;
+  overall_score: number;
+  breakdown: {
+    investment_grade: ScoreBreakdownData;
+    strategic_fit: ScoreBreakdownData;
+    collection_impact: ScoreBreakdownData;
+  };
+}
 
 interface Props {
+  bookId?: number;
   investmentGrade?: number | null;
   strategicFit?: number | null;
   collectionImpact?: number | null;
@@ -12,6 +36,14 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   compact: false,
 });
+
+const emit = defineEmits<{
+  recalculate: [];
+}>();
+
+const showBreakdown = ref(false);
+const breakdownData = ref<BreakdownResponse | null>(null);
+const loadingBreakdown = ref(false);
 
 const scoreLabel = computed(() => {
   const score = props.overallScore;
@@ -34,6 +66,46 @@ const scoreColor = computed(() => {
 function formatScore(score?: number | null): string {
   if (score === null || score === undefined) return "-";
   return score.toString();
+}
+
+function formatPoints(points: number): string {
+  if (points > 0) return `+${points}`;
+  return points.toString();
+}
+
+function pointsClass(points: number): string {
+  if (points > 0) return "text-green-600";
+  if (points < 0) return "text-red-600";
+  return "text-gray-500";
+}
+
+async function toggleBreakdown() {
+  if (!props.bookId) return;
+
+  if (showBreakdown.value) {
+    showBreakdown.value = false;
+    return;
+  }
+
+  if (!breakdownData.value) {
+    loadingBreakdown.value = true;
+    try {
+      const { useBooksStore } = await import("@/stores/books");
+      const store = useBooksStore();
+      breakdownData.value = await store.fetchScoreBreakdown(props.bookId);
+    } catch (e) {
+      console.error("Failed to fetch breakdown:", e);
+    } finally {
+      loadingBreakdown.value = false;
+    }
+  }
+  showBreakdown.value = true;
+}
+
+function handleRecalculate() {
+  breakdownData.value = null;
+  showBreakdown.value = false;
+  emit("recalculate");
 }
 </script>
 
@@ -91,6 +163,80 @@ function formatScore(score?: number | null): string {
             ></div>
           </div>
           <span class="w-8 text-right font-medium">{{ formatScore(collectionImpact) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recalculate Link -->
+    <div class="mt-3 pt-2 border-t flex items-center justify-between">
+      <button
+        v-if="bookId"
+        @click="toggleBreakdown"
+        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+        :disabled="loadingBreakdown"
+      >
+        <span v-if="loadingBreakdown">Loading...</span>
+        <span v-else-if="showBreakdown">Hide Details</span>
+        <span v-else>Show Details</span>
+      </button>
+      <button
+        @click="handleRecalculate"
+        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+      >
+        Recalculate
+      </button>
+    </div>
+
+    <!-- Detailed Breakdown -->
+    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-4">
+      <!-- Investment Grade Breakdown -->
+      <div>
+        <h4 class="text-xs font-semibold text-blue-600 uppercase mb-1">Investment Grade</h4>
+        <div class="space-y-1">
+          <div
+            v-for="factor in breakdownData.breakdown.investment_grade.factors"
+            :key="factor.name"
+            class="flex justify-between text-xs"
+          >
+            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
+            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+              {{ formatPoints(factor.points) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategic Fit Breakdown -->
+      <div>
+        <h4 class="text-xs font-semibold text-purple-600 uppercase mb-1">Strategic Fit</h4>
+        <div class="space-y-1">
+          <div
+            v-for="factor in breakdownData.breakdown.strategic_fit.factors"
+            :key="factor.name"
+            class="flex justify-between text-xs"
+          >
+            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
+            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+              {{ formatPoints(factor.points) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collection Impact Breakdown -->
+      <div>
+        <h4 class="text-xs font-semibold text-teal-600 uppercase mb-1">Collection Impact</h4>
+        <div class="space-y-1">
+          <div
+            v-for="factor in breakdownData.breakdown.collection_impact.factors"
+            :key="factor.name"
+            class="flex justify-between text-xs"
+          >
+            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
+            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+              {{ formatPoints(factor.points) }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
