@@ -6,6 +6,7 @@ import os
 import time
 
 import boto3
+import httpx
 from botocore.exceptions import ClientError
 
 from app.config import get_settings
@@ -106,3 +107,45 @@ def clear_prompt_cache():
     """Clear the prompt cache (useful for testing)."""
     global _prompt_cache
     _prompt_cache = {"prompt": None, "timestamp": 0}
+
+
+def fetch_source_url_content(url: str | None, timeout: int = 15) -> str | None:
+    """Fetch content from a source URL (eBay listing, AbeBooks, etc).
+
+    Args:
+        url: The URL to fetch
+        timeout: Request timeout in seconds
+
+    Returns:
+        Text content of the page, or None if fetch failed
+    """
+    if not url:
+        return None
+
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            response = client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"
+            })
+            response.raise_for_status()
+
+            # Return text content (HTML)
+            content = response.text
+
+            # Truncate if too long (Bedrock has token limits)
+            max_chars = 50000  # ~12k tokens
+            if len(content) > max_chars:
+                content = content[:max_chars] + "\n\n[Content truncated...]"
+
+            logger.info(f"Fetched {len(content)} chars from {url}")
+            return content
+
+    except httpx.TimeoutException:
+        logger.warning(f"Timeout fetching {url}")
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"HTTP error fetching {url}: {e.response.status_code}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching {url}: {e}")
+        return None

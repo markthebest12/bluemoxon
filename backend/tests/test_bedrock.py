@@ -52,3 +52,50 @@ class TestBedrockClient:
         assert get_model_id("sonnet") == "anthropic.claude-sonnet-4-5-20240929"
         assert get_model_id("opus") == "anthropic.claude-opus-4-5-20251101"
         assert get_model_id("invalid") == "anthropic.claude-sonnet-4-5-20240929"  # Default
+
+
+class TestSourceUrlFetcher:
+    """Tests for source URL content fetching."""
+
+    @patch("app.services.bedrock.httpx.Client")
+    def test_fetch_source_url_success(self, mock_client_class):
+        """Test fetching content from a source URL."""
+        from app.services.bedrock import fetch_source_url_content
+
+        # Mock the HTTP client
+        mock_response = MagicMock()
+        mock_response.text = "<html><body>Test content</body></html>"
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get = MagicMock(return_value=mock_response)
+        mock_client_class.return_value = mock_client
+
+        content = fetch_source_url_content("https://example.com/test")
+        assert content is not None
+        assert len(content) > 0
+        assert "Test content" in content
+
+    def test_fetch_source_url_invalid(self):
+        """Test handling invalid URL gracefully."""
+        from app.services.bedrock import fetch_source_url_content
+
+        content = fetch_source_url_content("https://invalid.nonexistent.url.test")
+        assert content is None
+
+    def test_fetch_source_url_none(self):
+        """Test handling None URL."""
+        from app.services.bedrock import fetch_source_url_content
+
+        content = fetch_source_url_content(None)
+        assert content is None
+
+    def test_fetch_source_url_timeout(self):
+        """Test timeout handling."""
+        from app.services.bedrock import fetch_source_url_content
+
+        # httpbin delay endpoint (but we have short timeout)
+        content = fetch_source_url_content("https://httpbin.org/delay/10", timeout=1)
+        assert content is None
