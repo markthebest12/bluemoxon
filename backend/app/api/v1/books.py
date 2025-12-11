@@ -1,5 +1,6 @@
 """Books API endpoints."""
 
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -25,6 +26,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.scoring import calculate_all_scores, is_duplicate_title
 
 router = APIRouter()
 settings = get_settings()
@@ -517,6 +519,71 @@ def acquire_book(
             )
 
     return BookResponse(**book_dict)
+
+
+@router.post("/{book_id}/scores/calculate")
+def calculate_book_scores(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Calculate and persist scores for a book."""
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get related data for scoring
+    author_priority = 0
+    publisher_tier = None
+    author_book_count = 0
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        # Count other books by this author (excluding current book)
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+
+    # Check for duplicate titles by same author
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                break
+
+    # Calculate scores
+    scores = calculate_all_scores(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        year_start=book.year_start,
+        is_complete=(book.volumes == 1 or book.volumes is None),
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+    )
+
+    # Persist scores
+    book.investment_grade = scores["investment_grade"]
+    book.strategic_fit = scores["strategic_fit"]
+    book.collection_impact = scores["collection_impact"]
+    book.overall_score = scores["overall_score"]
+    book.scores_calculated_at = datetime.now()
+
+    db.commit()
+    db.refresh(book)
+
+    return scores
 
 
 @router.post("/bulk/status")
