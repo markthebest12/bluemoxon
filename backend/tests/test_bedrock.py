@@ -19,7 +19,10 @@ class TestPromptLoader:
 
     def test_prompt_cache(self):
         """Test that prompt is cached for 5 minutes."""
-        from app.services.bedrock import load_napoleon_prompt, _prompt_cache
+        from app.services.bedrock import load_napoleon_prompt, clear_prompt_cache
+
+        # Clear any existing cache
+        clear_prompt_cache()
 
         # First call populates cache
         prompt1 = load_napoleon_prompt()
@@ -27,6 +30,9 @@ class TestPromptLoader:
         # Second call should return cached value
         prompt2 = load_napoleon_prompt()
         assert prompt1 == prompt2
+
+        # Clean up
+        clear_prompt_cache()
 
 
 class TestBedrockClient:

@@ -1,10 +1,9 @@
 """AWS Bedrock service for AI-powered analysis generation."""
 
-import json
+import json  # Used in invoke_bedrock() (Task 4)
 import logging
 import os
 import time
-from functools import lru_cache
 
 import boto3
 from botocore.exceptions import ClientError
