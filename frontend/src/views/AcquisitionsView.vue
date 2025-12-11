@@ -8,6 +8,7 @@ import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
+import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -19,6 +20,8 @@ const selectedBookId = ref<number | null>(null);
 const showWatchlistModal = ref(false);
 const showEditModal = ref(false);
 const editingBook = ref<AcquisitionBook | null>(null);
+const showAnalysisViewer = ref(false);
+const analysisBookId = ref<number | null>(null);
 
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
@@ -66,6 +69,16 @@ function handleEditUpdated() {
   showEditModal.value = false;
   editingBook.value = null;
   acquisitionsStore.fetchAll();
+}
+
+function openAnalysisViewer(bookId: number) {
+  analysisBookId.value = bookId;
+  showAnalysisViewer.value = true;
+}
+
+function closeAnalysisViewer() {
+  showAnalysisViewer.value = false;
+  analysisBookId.value = null;
 }
 
 function formatPrice(price?: number | null): string {
@@ -201,14 +214,27 @@ async function handleRecalculateScore(bookId: number) {
                   Delete
                 </button>
               </div>
-              <div v-if="authStore.isAdmin" class="mt-2">
+              <!-- Analysis Section -->
+              <div class="mt-2 flex items-center gap-2">
+                <!-- View Analysis link (visible to all when analysis exists) -->
                 <button
+                  v-if="book.has_analysis"
+                  @click="openAnalysisViewer(book.id)"
+                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  title="View analysis"
+                >
+                  📄 View Analysis
+                </button>
+                <!-- Generate/Regenerate button (admin only) -->
+                <button
+                  v-if="authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="generatingAnalysis === book.id"
-                  class="w-full text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  :title="book.has_analysis ? 'Regenerate analysis' : 'Generate analysis'"
                 >
-                  <span v-if="generatingAnalysis === book.id">Generating...</span>
-                  <span v-else>{{ book.has_analysis ? "🔄" : "⚡" }} Analysis</span>
+                  <span v-if="generatingAnalysis === book.id">⏳</span>
+                  <span v-else>{{ book.has_analysis ? "🔄" : "⚡" }}</span>
                 </button>
               </div>
             </div>
@@ -330,6 +356,14 @@ async function handleRecalculateScore(bookId: number) {
       :book="editingBook"
       @close="closeEditModal"
       @updated="handleEditUpdated"
+    />
+
+    <!-- Analysis Viewer -->
+    <AnalysisViewer
+      v-if="analysisBookId"
+      :book-id="analysisBookId"
+      :visible="showAnalysisViewer"
+      @close="closeAnalysisViewer"
     />
   </div>
 </template>
