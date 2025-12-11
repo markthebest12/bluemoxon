@@ -300,6 +300,18 @@ MIGRATION_F85B7F976C08_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS scores_calculated_at TIMESTAMP",
 ]
 
+# Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
+TABLES_WITH_SEQUENCES = [
+    "authors",
+    "api_keys",
+    "binders",
+    "book_analyses",
+    "book_images",
+    "books",
+    "publishers",
+    "users",
+]
+
 
 @router.post(
     "/migrate",
@@ -308,7 +320,9 @@ MIGRATION_F85B7F976C08_SQL = [
 Run pending database migrations. This endpoint allows running migrations
 from the Lambda which has VPC access to Aurora.
 
-**Security**: Only available in non-production environments or with API key auth.
+Migrations run in order:
+1. f85b7f976c08 - Add scoring fields
+2. g7890123def0 - Fix sequence sync (resets sequences to max(id) + 1)
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -326,42 +340,79 @@ async def run_migrations(db: Session = Depends(get_db)):
     except Exception:
         current_version = None
 
-    # Run scoring fields migration if not already applied
-    target_version = "f85b7f976c08"
+    # Define migration chain
+    migrations = [
+        ("f85b7f976c08", MIGRATION_F85B7F976C08_SQL),
+        ("g7890123def0", None),  # Sequence sync uses dynamic SQL
+    ]
 
-    if current_version == target_version:
+    final_version = "g7890123def0"
+
+    if current_version == final_version:
         return {
             "status": "already_current",
             "current_version": current_version,
-            "message": "Database is already at the target migration version",
+            "message": "Database is already at the latest migration version",
         }
 
-    # Run migration SQL
-    for sql in MIGRATION_F85B7F976C08_SQL:
-        try:
-            db.execute(text(sql))
-            results.append({"sql": sql, "status": "success"})
-        except Exception as e:
-            error_msg = str(e)
-            # Column already exists is OK (idempotent)
-            if "already exists" in error_msg.lower():
-                results.append({"sql": sql, "status": "skipped", "reason": "already exists"})
-            else:
-                errors.append({"sql": sql, "error": error_msg})
+    new_version = current_version
 
-    # Update alembic_version
+    # Run migrations in order
+    for version, sql_list in migrations:
+        # Skip already-applied migrations
+        if current_version == version:
+            continue
+        # Skip earlier migrations if we're past them
+        if current_version == "f85b7f976c08" and version == "f85b7f976c08":
+            continue
+
+        if sql_list:
+            # Run static SQL migrations
+            for sql in sql_list:
+                try:
+                    db.execute(text(sql))
+                    results.append({"sql": sql, "status": "success"})
+                except Exception as e:
+                    error_msg = str(e)
+                    if "already exists" in error_msg.lower():
+                        results.append(
+                            {"sql": sql, "status": "skipped", "reason": "already exists"}
+                        )
+                    else:
+                        errors.append({"sql": sql, "error": error_msg})
+        elif version == "g7890123def0":
+            # Run sequence sync migration
+            # Table names are from hardcoded constant TABLES_WITH_SEQUENCES, not user input
+            for table in TABLES_WITH_SEQUENCES:
+                sql = f"""
+                    SELECT setval(
+                        pg_get_serial_sequence('{table}', 'id'),
+                        COALESCE((SELECT MAX(id) FROM {table}), 0) + 1,
+                        false
+                    )
+                """  # noqa: S608  # nosec B608
+                try:
+                    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    db.execute(text(sql))
+                    results.append({"sql": f"setval({table}_id_seq)", "status": "success"})
+                except Exception as e:
+                    errors.append({"sql": f"setval({table}_id_seq)", "error": str(e)})
+
+        new_version = version
+
+    # Update alembic_version to final version
     try:
         if current_version:
             db.execute(
                 text("UPDATE alembic_version SET version_num = :version"),
-                {"version": target_version},
+                {"version": new_version},
             )
         else:
             db.execute(
                 text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
-                {"version": target_version},
+                {"version": new_version},
             )
-        results.append({"sql": "UPDATE alembic_version", "status": "success"})
+        results.append({"sql": f"UPDATE alembic_version to {new_version}", "status": "success"})
     except Exception as e:
         errors.append({"sql": "UPDATE alembic_version", "error": str(e)})
 
@@ -373,7 +424,7 @@ async def run_migrations(db: Session = Depends(get_db)):
         return {
             "status": "failed",
             "previous_version": current_version,
-            "target_version": target_version,
+            "target_version": new_version,
             "results": results,
             "errors": errors,
         }
@@ -381,7 +432,7 @@ async def run_migrations(db: Session = Depends(get_db)):
     return {
         "status": "success" if not errors else "partial",
         "previous_version": current_version,
-        "new_version": target_version,
+        "new_version": new_version,
         "results": results,
         "errors": errors if errors else None,
     }
