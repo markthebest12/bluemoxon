@@ -1,3 +1,9 @@
+variable "bedrock_model_ids" {
+  type        = list(string)
+  description = "Bedrock model IDs the Lambda function can invoke (e.g., anthropic.claude-sonnet-4-5-20240929)"
+  default     = []
+}
+
 variable "cognito_user_pool_arns" {
   type        = list(string)
   description = "Cognito user pool ARNs the Lambda function can access for admin operations"
