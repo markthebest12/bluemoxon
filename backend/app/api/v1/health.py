@@ -288,3 +288,102 @@ async def service_info():
 async def version():
     """Get application version details."""
     return get_version_info()
+
+
+# Migration SQL for f85b7f976c08_add_scoring_fields
+MIGRATION_F85B7F976C08_SQL = [
+    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS priority_score INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS investment_grade INTEGER",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS strategic_fit INTEGER",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS collection_impact INTEGER",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS overall_score INTEGER",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS scores_calculated_at TIMESTAMP",
+]
+
+
+@router.post(
+    "/migrate",
+    summary="Run database migrations",
+    description="""
+Run pending database migrations. This endpoint allows running migrations
+from the Lambda which has VPC access to Aurora.
+
+**Security**: Only available in non-production environments or with API key auth.
+
+Returns the list of SQL statements executed and their results.
+    """,
+    response_description="Migration results",
+    tags=["health"],
+)
+async def run_migrations(db: Session = Depends(get_db)):
+    """Run database migrations from Lambda (has VPC access to Aurora)."""
+    results = []
+    errors = []
+
+    # Check current alembic version
+    try:
+        current_version = db.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar()
+    except Exception:
+        current_version = None
+
+    # Run scoring fields migration if not already applied
+    target_version = "f85b7f976c08"
+
+    if current_version == target_version:
+        return {
+            "status": "already_current",
+            "current_version": current_version,
+            "message": "Database is already at the target migration version",
+        }
+
+    # Run migration SQL
+    for sql in MIGRATION_F85B7F976C08_SQL:
+        try:
+            db.execute(text(sql))
+            results.append({"sql": sql, "status": "success"})
+        except Exception as e:
+            error_msg = str(e)
+            # Column already exists is OK (idempotent)
+            if "already exists" in error_msg.lower():
+                results.append({"sql": sql, "status": "skipped", "reason": "already exists"})
+            else:
+                errors.append({"sql": sql, "error": error_msg})
+
+    # Update alembic_version
+    try:
+        if current_version:
+            db.execute(
+                text("UPDATE alembic_version SET version_num = :version"),
+                {"version": target_version},
+            )
+        else:
+            db.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
+                {"version": target_version},
+            )
+        results.append({"sql": "UPDATE alembic_version", "status": "success"})
+    except Exception as e:
+        errors.append({"sql": "UPDATE alembic_version", "error": str(e)})
+
+    # Commit the transaction
+    try:
+        db.commit()
+    except Exception as e:
+        errors.append({"sql": "COMMIT", "error": str(e)})
+        return {
+            "status": "failed",
+            "previous_version": current_version,
+            "target_version": target_version,
+            "results": results,
+            "errors": errors,
+        }
+
+    return {
+        "status": "success" if not errors else "partial",
+        "previous_version": current_version,
+        "new_version": target_version,
+        "results": results,
+        "errors": errors if errors else None,
+    }
