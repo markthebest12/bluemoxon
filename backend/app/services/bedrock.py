@@ -126,9 +126,9 @@ def fetch_source_url_content(url: str | None, timeout: int = 15) -> str | None:
 
     try:
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-            response = client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"
-            })
+            response = client.get(
+                url, headers={"User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"}
+            )
             response.raise_for_status()
 
             # Return text content (HTML)
@@ -304,12 +304,14 @@ def invoke_bedrock(
     model_id = get_model_id(model)
     system_prompt = load_napoleon_prompt()
 
-    body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
-        "system": system_prompt,
-        "messages": messages,
-    })
+    body = json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "system": system_prompt,
+            "messages": messages,
+        }
+    )
 
     logger.info(f"Invoking Bedrock model {model_id}")
 
