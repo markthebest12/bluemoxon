@@ -68,6 +68,14 @@ function closeMobileMenu() {
           >
             Reports
           </RouterLink>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            to="/admin/acquisitions"
+            class="text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
+            active-class="text-victorian-gold-light"
+          >
+            Acquisitions
+          </RouterLink>
         </div>
 
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
@@ -184,6 +192,15 @@ function closeMobileMenu() {
           @click="closeMobileMenu"
         >
           Reports
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.isAdmin"
+          to="/admin/acquisitions"
+          class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
+          active-class="text-victorian-gold-light"
+          @click="closeMobileMenu"
+        >
+          Acquisitions
         </RouterLink>
 
         <!-- User Section -->

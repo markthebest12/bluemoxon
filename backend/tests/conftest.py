@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.auth import CurrentUser, require_editor
+from app.auth import CurrentUser, require_admin, require_editor
 from app.db import get_db
 from app.main import app
 from app.models.base import Base
@@ -21,6 +21,17 @@ def get_mock_editor():
         cognito_sub="test-user-123",
         email="test@example.com",
         role="editor",
+        db_user=None,
+    )
+
+
+# Mock admin user for tests
+def get_mock_admin():
+    """Return a mock admin user for tests."""
+    return CurrentUser(
+        cognito_sub="test-admin-123",
+        email="admin@example.com",
+        role="admin",
         db_user=None,
     )
 
@@ -66,6 +77,7 @@ def client(db):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[require_editor] = get_mock_editor
+    app.dependency_overrides[require_admin] = get_mock_admin
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

@@ -261,6 +261,12 @@ module "lambda" {
   # Cognito access for user management
   cognito_user_pool_arns = [module.cognito.user_pool_arn]
 
+  # Bedrock model access for AI-powered analysis generation
+  bedrock_model_ids = [
+    "anthropic.claude-sonnet-4-5-20240929",
+    "anthropic.claude-opus-4-5-20251101"
+  ]
+
   # Environment variables (secret ARN set after database_secret is created)
   environment_variables = merge(
     {

@@ -32,6 +32,11 @@ export interface Book {
   has_analysis: boolean;
   image_count: number;
   primary_image_url: string | null;
+  investment_grade: number | null;
+  strategic_fit: number | null;
+  collection_impact: number | null;
+  overall_score: number | null;
+  scores_calculated_at: string | null;
 }
 
 interface Filters {
@@ -161,6 +166,38 @@ export const useBooksStore = defineStore("books", () => {
     }
   }
 
+  async function generateAnalysis(
+    bookId: number,
+    model: "sonnet" | "opus" = "sonnet"
+  ): Promise<{
+    id: number;
+    book_id: number;
+    model_used: string;
+    full_markdown: string;
+    generated_at: string;
+  }> {
+    const response = await api.post(`/books/${bookId}/analysis/generate`, {
+      model,
+    });
+
+    // Update currentBook if it matches
+    if (currentBook.value?.id === bookId) {
+      currentBook.value.has_analysis = true;
+    }
+
+    return response.data;
+  }
+
+  async function calculateScores(bookId: number) {
+    const response = await api.post(`/books/${bookId}/scores/calculate`);
+    return response.data;
+  }
+
+  async function fetchScoreBreakdown(bookId: number) {
+    const response = await api.get(`/books/${bookId}/scores/breakdown`);
+    return response.data;
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -196,6 +233,9 @@ export const useBooksStore = defineStore("books", () => {
     updateBook,
     deleteBook,
     updateAnalysis,
+    generateAnalysis,
+    calculateScores,
+    fetchScoreBreakdown,
     setFilters,
     setSort,
     setPage,

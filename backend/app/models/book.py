@@ -1,9 +1,20 @@
 """Book model - Main entity."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -15,7 +26,7 @@ try:
 
     SearchVectorType = TSVECTOR
 except ImportError:
-    SearchVectorType = Text  # type: ignore
+    pass  # If not PostgreSQL, types not needed
 
 
 class Book(Base, TimestampMixin):
@@ -63,8 +74,25 @@ class Book(Base, TimestampMixin):
     discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # Up to 9999.99%
     roi_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # Up to 99999.99%
 
-    # Status
+    # Status: EVALUATING, IN_TRANSIT, ON_HAND, SOLD, REMOVED, CANCELED
     status: Mapped[str] = mapped_column(String(20), default="ON_HAND")
+
+    # Source tracking
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    source_item_id: Mapped[str | None] = mapped_column(String(100))
+
+    # Delivery tracking
+    estimated_delivery: Mapped[date | None] = mapped_column(Date)
+
+    # Acquisition scoring (captured at purchase time)
+    scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)
+
+    # Calculated scores
+    investment_grade: Mapped[int | None] = mapped_column(Integer)
+    strategic_fit: Mapped[int | None] = mapped_column(Integer)
+    collection_impact: Mapped[int | None] = mapped_column(Integer)
+    overall_score: Mapped[int | None] = mapped_column(Integer)
+    scores_calculated_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)
@@ -99,4 +127,5 @@ class Book(Base, TimestampMixin):
         Index("books_inventory_type_idx", "inventory_type"),
         Index("books_category_idx", "category"),
         Index("books_status_idx", "status"),
+        Index("books_source_item_id_idx", "source_item_id"),
     )

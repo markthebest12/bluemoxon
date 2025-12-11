@@ -5,7 +5,7 @@ This fixes issues caused by data sync/import where sequences
 get out of sync with actual data.
 
 Revision ID: g7890123def0
-Revises: f6789012cdef
+Revises: f85b7f976c08
 Create Date: 2025-12-11 09:00:00.000000
 
 """
@@ -17,7 +17,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'g7890123def0'
-down_revision: str | None = 'f6789012cdef'
+down_revision: str | None = 'f85b7f976c08'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

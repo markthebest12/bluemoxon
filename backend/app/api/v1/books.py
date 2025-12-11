@@ -1,22 +1,85 @@
 """Books API endpoints."""
 
+from datetime import datetime
+from typing import Literal
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.v1.images import get_cloudfront_url, is_production
-from app.auth import require_editor
+from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
 from app.schemas.book import (
+    AcquireRequest,
     BookCreate,
     BookListResponse,
     BookResponse,
     BookUpdate,
 )
+from app.services.bedrock import (
+    build_bedrock_messages,
+    fetch_book_images_for_bedrock,
+    fetch_source_url_content,
+    get_model_id,
+    invoke_bedrock,
+)
+from app.services.scoring import (
+    calculate_all_scores,
+    calculate_all_scores_with_breakdown,
+    is_duplicate_title,
+)
 
 router = APIRouter()
 settings = get_settings()
+
+
+def _calculate_and_persist_scores(book: Book, db: Session) -> None:
+    """Calculate and persist scores for a book."""
+    author_priority = 0
+    publisher_tier = None
+    author_book_count = 0
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                break
+
+    scores = calculate_all_scores(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        year_start=book.year_start,
+        is_complete=(book.volumes == 1 or book.volumes is None),
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+    )
+
+    book.investment_grade = scores["investment_grade"]
+    book.strategic_fit = scores["strategic_fit"]
+    book.collection_impact = scores["collection_impact"]
+    book.overall_score = scores["overall_score"]
+    book.scores_calculated_at = datetime.now()
 
 
 def get_api_base_url() -> str:
@@ -234,6 +297,10 @@ def create_book(
 
     db.add(book)
     db.commit()
+
+    # Auto-calculate scores
+    _calculate_and_persist_scores(book, db)
+    db.commit()
     db.refresh(book)
 
     return BookResponse.model_validate(book)
@@ -392,6 +459,230 @@ def update_book_inventory_type(
         "old_type": old_type,
         "new_type": inventory_type,
     }
+
+
+@router.patch("/{book_id}/acquire", response_model=BookResponse)
+def acquire_book(
+    book_id: int,
+    acquire_data: AcquireRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Acquire a book - transition from EVALUATING to IN_TRANSIT.
+
+    Calculates discount percentage and creates scoring snapshot.
+    """
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.status != "EVALUATING":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Book must be in EVALUATING status to acquire (current: {book.status})",
+        )
+
+    # Update acquisition fields
+    book.purchase_price = acquire_data.purchase_price
+    book.purchase_date = acquire_data.purchase_date
+    book.purchase_source = acquire_data.place_of_purchase
+    book.status = "IN_TRANSIT"
+
+    if acquire_data.estimated_delivery:
+        book.estimated_delivery = acquire_data.estimated_delivery
+
+    # Store order number in notes (or create order_number field later)
+    if book.notes:
+        book.notes = f"Order: {acquire_data.order_number}\n{book.notes}"
+    else:
+        book.notes = f"Order: {acquire_data.order_number}"
+
+    # Calculate discount percentage
+    if book.value_mid and acquire_data.purchase_price:
+        discount = (
+            (float(book.value_mid) - float(acquire_data.purchase_price))
+            / float(book.value_mid)
+            * 100
+        )
+        book.discount_pct = Decimal(str(round(discount, 2)))
+
+    # Get collection stats for scoring
+    from sqlalchemy import func
+
+    collection_stats = (
+        db.query(
+            func.count(Book.id).label("items"),
+            func.sum(Book.volumes).label("volumes"),
+        )
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.status == "ON_HAND",
+        )
+        .first()
+    )
+
+    # Create scoring snapshot
+    book.scoring_snapshot = {
+        "captured_at": datetime.now(UTC).isoformat(),
+        "purchase_price": float(acquire_data.purchase_price),
+        "fmv_at_purchase": {
+            "low": float(book.value_low) if book.value_low else None,
+            "mid": float(book.value_mid) if book.value_mid else None,
+            "high": float(book.value_high) if book.value_high else None,
+        },
+        "discount_pct": float(book.discount_pct) if book.discount_pct else 0,
+        "collection_position": {
+            "items_before": collection_stats.items if collection_stats else 0,
+            "volumes_before": (
+                int(collection_stats.volumes)
+                if collection_stats and collection_stats.volumes
+                else 0
+            ),
+        },
+    }
+
+    db.commit()
+    db.refresh(book)
+
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
+
+
+@router.post("/{book_id}/scores/calculate")
+def calculate_book_scores(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Calculate and persist scores for a book."""
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Use shared helper function
+    _calculate_and_persist_scores(book, db)
+    db.commit()
+    db.refresh(book)
+
+    return {
+        "investment_grade": book.investment_grade,
+        "strategic_fit": book.strategic_fit,
+        "collection_impact": book.collection_impact,
+        "overall_score": book.overall_score,
+    }
+
+
+@router.get("/{book_id}/scores/breakdown")
+def get_book_score_breakdown(
+    book_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get detailed score breakdown explaining why each score was calculated.
+
+    Returns score values plus breakdown with factors and explanations.
+    """
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Gather all inputs for scoring
+    author_priority = 0
+    author_name = None
+    publisher_tier = None
+    publisher_name = None
+    author_book_count = 0
+    duplicate_title = None
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        author_name = book.author.name
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+        publisher_name = book.publisher.name
+
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                duplicate_title = other.title
+                break
+
+    result = calculate_all_scores_with_breakdown(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        year_start=book.year_start,
+        is_complete=(book.volumes == 1 or book.volumes is None),
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+        author_name=author_name,
+        publisher_name=publisher_name,
+        duplicate_title=duplicate_title,
+    )
+
+    return result
+
+
+@router.post("/scores/calculate-all")
+def calculate_all_book_scores(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Calculate scores for all books. Admin only."""
+    books = db.query(Book).all()
+    updated = 0
+    errors = []
+
+    for book in books:
+        try:
+            _calculate_and_persist_scores(book, db)
+            updated += 1
+        except Exception as e:
+            errors.append({"book_id": book.id, "error": str(e)})
+
+    db.commit()
+
+    return {"updated_count": updated, "errors": errors}
 
 
 @router.post("/bulk/status")
@@ -596,6 +887,108 @@ def reparse_book_analysis(
             "market_analysis": parsed.market_analysis is not None,
             "recommendations": parsed.recommendations is not None,
         },
+    }
+
+
+class GenerateAnalysisRequest(BaseModel):
+    """Request body for analysis generation."""
+
+    model: Literal["sonnet", "opus"] = "sonnet"
+
+
+@router.post("/{book_id}/analysis/generate")
+def generate_analysis(
+    book_id: int,
+    request: GenerateAnalysisRequest = Body(default=GenerateAnalysisRequest()),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Generate Napoleon-style analysis using AWS Bedrock.
+
+    Requires admin role. Replaces existing analysis if present.
+    """
+    from datetime import UTC, datetime
+
+    from app.models import BookAnalysis
+    from app.utils.markdown_parser import parse_analysis_markdown
+
+    # Get book with relationships
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Build book metadata dict
+    book_data = {
+        "title": book.title,
+        "author": book.author.name if book.author else None,
+        "publisher": book.publisher.name if book.publisher else None,
+        "publisher_tier": book.publisher.tier if book.publisher else None,
+        "publication_date": book.publication_date,
+        "volumes": book.volumes,
+        "binding_type": book.binding_type,
+        "binder": book.binder.name if book.binder else None,
+        "condition_notes": book.condition_notes,
+        "purchase_price": float(book.purchase_price) if book.purchase_price else None,
+    }
+
+    # Fetch source URL content if available
+    source_content = fetch_source_url_content(book.source_url)
+
+    # Fetch images
+    images = fetch_book_images_for_bedrock(book.images)
+
+    # Build messages and invoke Bedrock
+    messages = build_bedrock_messages(book_data, images, source_content)
+    model_id = get_model_id(request.model)
+
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    logger.warning(f"Starting Bedrock invocation for book {book_id}, model={request.model}")
+    try:
+        analysis_text = invoke_bedrock(messages, model=request.model)
+        logger.warning(f"Bedrock returned {len(analysis_text)} chars for book {book_id}")
+    except Exception as e:
+        logger.error(f"Bedrock invocation failed for book {book_id}: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Bedrock invocation failed: {str(e)}",
+        ) from e
+
+    # Parse markdown to extract structured fields
+    parsed = parse_analysis_markdown(analysis_text)
+
+    # Delete existing analysis if present
+    if book.analysis:
+        db.delete(book.analysis)
+        db.flush()
+
+    # Create new analysis
+    analysis = BookAnalysis(
+        book_id=book_id,
+        full_markdown=analysis_text,
+        executive_summary=parsed.executive_summary,
+        historical_significance=parsed.historical_significance,
+        condition_assessment=parsed.condition_assessment,
+        market_analysis=parsed.market_analysis,
+        recommendations=parsed.recommendations,
+    )
+    db.add(analysis)
+    db.commit()
+    db.refresh(analysis)
+
+    return {
+        "id": analysis.id,
+        "book_id": book_id,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "model_used": model_id,
+        "full_markdown": analysis_text,
+        "executive_summary": analysis.executive_summary,
+        "condition_assessment": analysis.condition_assessment,
+        "market_analysis": analysis.market_analysis,
+        "historical_significance": analysis.historical_significance,
+        "recommendations": analysis.recommendations,
     }
 
 

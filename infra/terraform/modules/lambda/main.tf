@@ -206,6 +206,27 @@ resource "aws_iam_role_policy" "cognito_access" {
   })
 }
 
+# Bedrock access for AI-powered analysis generation
+resource "aws_iam_role_policy" "bedrock_access" {
+  count = length(var.bedrock_model_ids) > 0 ? 1 : 0
+  name  = "bedrock-access"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [for model_id in var.bedrock_model_ids : "arn:aws:bedrock:*::foundation-model/${model_id}"]
+      }
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # CloudWatch Log Group
 # -----------------------------------------------------------------------------
