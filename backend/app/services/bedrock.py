@@ -56,9 +56,13 @@ Use markdown formatting with headers, bullet points, and tables where appropriat
 
 
 def get_bedrock_client():
-    """Get Bedrock runtime client."""
+    """Get Bedrock runtime client with extended timeout for long generations."""
+    from botocore.config import Config
+
     region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("bedrock-runtime", region_name=region)
+    # Extended read timeout for long Claude responses (default is 60s)
+    config = Config(read_timeout=540, connect_timeout=10, retries={"max_attempts": 0})
+    return boto3.client("bedrock-runtime", region_name=region, config=config)
 
 
 def get_s3_client():
