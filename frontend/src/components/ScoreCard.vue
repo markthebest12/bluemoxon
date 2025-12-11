@@ -188,7 +188,7 @@ function handleRecalculate() {
     </div>
 
     <!-- Detailed Breakdown -->
-    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-3">
+    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-3 overflow-hidden">
       <!-- Investment Grade Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>
@@ -196,14 +196,16 @@ function handleRecalculate() {
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
             :key="factor.name"
-            class="flex items-start gap-2 text-xs"
+            class="text-xs"
           >
-            <span
-              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
-            >
-              {{ formatPoints(factor.points) }}
-            </span>
-            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
+            <div class="flex items-start gap-2">
+              <span
+                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+              >
+                {{ formatPoints(factor.points) }}
+              </span>
+              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -215,14 +217,16 @@ function handleRecalculate() {
           <div
             v-for="factor in breakdownData.breakdown.strategic_fit.factors"
             :key="factor.name"
-            class="flex items-start gap-2 text-xs"
+            class="text-xs"
           >
-            <span
-              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
-            >
-              {{ formatPoints(factor.points) }}
-            </span>
-            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
+            <div class="flex items-start gap-2">
+              <span
+                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+              >
+                {{ formatPoints(factor.points) }}
+              </span>
+              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -234,14 +238,16 @@ function handleRecalculate() {
           <div
             v-for="factor in breakdownData.breakdown.collection_impact.factors"
             :key="factor.name"
-            class="flex items-start gap-2 text-xs"
+            class="text-xs"
           >
-            <span
-              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
-            >
-              {{ formatPoints(factor.points) }}
-            </span>
-            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
+            <div class="flex items-start gap-2">
+              <span
+                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+              >
+                {{ formatPoints(factor.points) }}
+              </span>
+              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+            </div>
           </div>
         </div>
       </div>
