@@ -322,9 +322,7 @@ async def run_migrations(db: Session = Depends(get_db)):
 
     # Check current alembic version
     try:
-        current_version = db.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar()
+        current_version = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     except Exception:
         current_version = None
 
