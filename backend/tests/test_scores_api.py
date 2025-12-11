@@ -68,3 +68,36 @@ class TestCalculateScoresEndpoint:
         """Should return 404 for non-existent book."""
         response = client.post("/api/v1/books/99999/scores/calculate")
         assert response.status_code == 404
+
+
+class TestAutoScoreOnCreate:
+    """Tests for automatic score calculation on book creation."""
+
+    def test_scores_calculated_on_create(self, client, db):
+        """Creating a book should auto-calculate scores."""
+        from app.models.author import Author
+        from app.models.publisher import Publisher
+
+        author = Author(name="Test Author")
+        publisher = Publisher(name="Test Publisher", tier="TIER_1")
+        db.add_all([author, publisher])
+        db.commit()
+
+        response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "Test Book",
+                "author_id": author.id,
+                "publisher_id": publisher.id,
+                "year_start": 1867,
+                "purchase_price": 300,
+                "value_mid": 1000,
+                "status": "EVALUATING",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["investment_grade"] is not None
+        assert data["strategic_fit"] is not None
+        assert data["overall_score"] is not None

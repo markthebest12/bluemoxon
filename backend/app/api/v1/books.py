@@ -32,6 +32,52 @@ router = APIRouter()
 settings = get_settings()
 
 
+def _calculate_and_persist_scores(book: Book, db: Session) -> None:
+    """Calculate and persist scores for a book."""
+    author_priority = 0
+    publisher_tier = None
+    author_book_count = 0
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                break
+
+    scores = calculate_all_scores(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        year_start=book.year_start,
+        is_complete=(book.volumes == 1 or book.volumes is None),
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+    )
+
+    book.investment_grade = scores["investment_grade"]
+    book.strategic_fit = scores["strategic_fit"]
+    book.collection_impact = scores["collection_impact"]
+    book.overall_score = scores["overall_score"]
+    book.scores_calculated_at = datetime.now()
+
+
 def get_api_base_url() -> str:
     """Get the API base URL for constructing absolute URLs."""
     if settings.database_secret_arn is not None:  # Production check
@@ -246,6 +292,10 @@ def create_book(
         book.binding_authenticated = True
 
     db.add(book)
+    db.commit()
+
+    # Auto-calculate scores
+    _calculate_and_persist_scores(book, db)
     db.commit()
     db.refresh(book)
 
@@ -532,58 +582,17 @@ def calculate_book_scores(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Get related data for scoring
-    author_priority = 0
-    publisher_tier = None
-    author_book_count = 0
-
-    if book.author:
-        author_priority = book.author.priority_score or 0
-        # Count other books by this author (excluding current book)
-        author_book_count = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
-        )
-
-    if book.publisher:
-        publisher_tier = book.publisher.tier
-
-    # Check for duplicate titles by same author
-    is_duplicate = False
-    if book.author_id:
-        other_books = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
-        )
-        for other in other_books:
-            if is_duplicate_title(book.title, other.title):
-                is_duplicate = True
-                break
-
-    # Calculate scores
-    scores = calculate_all_scores(
-        purchase_price=book.purchase_price,
-        value_mid=book.value_mid,
-        publisher_tier=publisher_tier,
-        year_start=book.year_start,
-        is_complete=(book.volumes == 1 or book.volumes is None),
-        condition_grade=book.condition_grade,
-        author_priority_score=author_priority,
-        author_book_count=author_book_count,
-        is_duplicate=is_duplicate,
-        completes_set=False,
-        volume_count=book.volumes or 1,
-    )
-
-    # Persist scores
-    book.investment_grade = scores["investment_grade"]
-    book.strategic_fit = scores["strategic_fit"]
-    book.collection_impact = scores["collection_impact"]
-    book.overall_score = scores["overall_score"]
-    book.scores_calculated_at = datetime.now()
-
+    # Use shared helper function
+    _calculate_and_persist_scores(book, db)
     db.commit()
     db.refresh(book)
 
-    return scores
+    return {
+        "investment_grade": book.investment_grade,
+        "strategic_fit": book.strategic_fit,
+        "collection_impact": book.collection_impact,
+        "overall_score": book.overall_score,
+    }
 
 
 @router.post("/bulk/status")

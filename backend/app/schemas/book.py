@@ -127,6 +127,11 @@ class BookResponse(BookBase):
     image_count: int = 0
     primary_image_url: str | None = None
     scoring_snapshot: dict | None = None
+    investment_grade: int | None = None
+    strategic_fit: int | None = None
+    collection_impact: int | None = None
+    overall_score: int | None = None
+    scores_calculated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
