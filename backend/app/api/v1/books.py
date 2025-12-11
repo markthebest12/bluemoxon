@@ -1,10 +1,11 @@
 """Books API endpoints."""
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.v1.images import get_cloudfront_url, is_production
-from app.auth import require_editor
+from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
@@ -14,6 +15,13 @@ from app.schemas.book import (
     BookListResponse,
     BookResponse,
     BookUpdate,
+)
+from app.services.bedrock import (
+    build_bedrock_messages,
+    fetch_book_images_for_bedrock,
+    fetch_source_url_content,
+    get_model_id,
+    invoke_bedrock,
 )
 
 router = APIRouter()
@@ -711,6 +719,101 @@ def reparse_book_analysis(
             "market_analysis": parsed.market_analysis is not None,
             "recommendations": parsed.recommendations is not None,
         },
+    }
+
+
+class GenerateAnalysisRequest(BaseModel):
+    """Request body for analysis generation."""
+
+    model: str = "sonnet"  # "sonnet" or "opus"
+
+
+@router.post("/{book_id}/analysis/generate")
+def generate_analysis(
+    book_id: int,
+    request: GenerateAnalysisRequest = Body(default=GenerateAnalysisRequest()),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Generate Napoleon-style analysis using AWS Bedrock.
+
+    Requires admin role. Replaces existing analysis if present.
+    """
+    from datetime import UTC, datetime
+
+    from app.models import BookAnalysis
+    from app.utils.markdown_parser import parse_analysis_markdown
+
+    # Get book with relationships
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Build book metadata dict
+    book_data = {
+        "title": book.title,
+        "author": book.author.name if book.author else None,
+        "publisher": book.publisher.name if book.publisher else None,
+        "publisher_tier": book.publisher.tier if book.publisher else None,
+        "publication_date": book.publication_date,
+        "volumes": book.volumes,
+        "binding_type": book.binding_type,
+        "binder": book.binder.name if book.binder else None,
+        "condition_notes": book.condition_notes,
+        "purchase_price": float(book.purchase_price) if book.purchase_price else None,
+    }
+
+    # Fetch source URL content if available
+    source_content = fetch_source_url_content(book.source_url)
+
+    # Fetch images
+    images = fetch_book_images_for_bedrock(book.images)
+
+    # Build messages and invoke Bedrock
+    messages = build_bedrock_messages(book_data, images, source_content)
+    model_id = get_model_id(request.model)
+
+    try:
+        analysis_text = invoke_bedrock(messages, model=request.model)
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Bedrock invocation failed: {str(e)}",
+        ) from e
+
+    # Parse markdown to extract structured fields
+    parsed = parse_analysis_markdown(analysis_text)
+
+    # Delete existing analysis if present
+    if book.analysis:
+        db.delete(book.analysis)
+        db.flush()
+
+    # Create new analysis
+    analysis = BookAnalysis(
+        book_id=book_id,
+        full_markdown=analysis_text,
+        executive_summary=parsed.executive_summary,
+        historical_significance=parsed.historical_significance,
+        condition_assessment=parsed.condition_assessment,
+        market_analysis=parsed.market_analysis,
+        recommendations=parsed.recommendations,
+    )
+    db.add(analysis)
+    db.commit()
+    db.refresh(analysis)
+
+    return {
+        "id": analysis.id,
+        "book_id": book_id,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "model_used": model_id,
+        "full_markdown": analysis_text,
+        "executive_summary": analysis.executive_summary,
+        "condition_assessment": analysis.condition_assessment,
+        "market_analysis": analysis.market_analysis,
+        "historical_significance": analysis.historical_significance,
+        "recommendations": analysis.recommendations,
     }
 
 
