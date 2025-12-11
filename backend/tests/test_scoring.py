@@ -5,6 +5,7 @@ from decimal import Decimal
 from app.models.author import Author
 from app.models.book import Book
 from app.services.scoring import (
+    calculate_all_scores,
     calculate_collection_impact,
     calculate_investment_grade,
     calculate_strategic_fit,
@@ -318,3 +319,54 @@ class TestCollectionImpact:
             volume_count=6,
         )
         assert score == 10  # 30 (new author) - 20 (large set)
+
+
+class TestCalculateAllScores:
+    """Tests for full score calculation."""
+
+    def test_returns_all_score_components(self):
+        """Should return dict with all score components."""
+        result = calculate_all_scores(
+            purchase_price=Decimal("300"),
+            value_mid=Decimal("1000"),
+            publisher_tier="TIER_1",
+            year_start=1867,
+            is_complete=True,
+            condition_grade="Very Good",
+            author_priority_score=50,
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=3,
+        )
+
+        assert "investment_grade" in result
+        assert "strategic_fit" in result
+        assert "collection_impact" in result
+        assert "overall_score" in result
+
+    def test_overall_is_sum_of_components(self):
+        """Overall score should be sum of components."""
+        result = calculate_all_scores(
+            purchase_price=Decimal("300"),
+            value_mid=Decimal("1000"),  # 70% discount -> 100
+            publisher_tier="TIER_1",  # +35
+            year_start=1867,  # +20
+            is_complete=True,  # +15
+            condition_grade="Very Good",  # +15
+            author_priority_score=0,  # +0
+            author_book_count=0,  # +30
+            is_duplicate=False,  # +0
+            completes_set=False,  # +0
+            volume_count=3,  # +0
+        )
+
+        expected_investment = 100  # 70% discount
+        expected_strategic = 35 + 20 + 15 + 15  # 85
+        expected_collection = 30  # new author
+        expected_overall = expected_investment + expected_strategic + expected_collection
+
+        assert result["investment_grade"] == expected_investment
+        assert result["strategic_fit"] == expected_strategic
+        assert result["collection_impact"] == expected_collection
+        assert result["overall_score"] == expected_overall

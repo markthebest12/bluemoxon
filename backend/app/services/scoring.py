@@ -178,3 +178,38 @@ def calculate_collection_impact(
         score -= 20
 
     return score
+
+
+def calculate_all_scores(
+    purchase_price: Decimal | None,
+    value_mid: Decimal | None,
+    publisher_tier: str | None,
+    year_start: int | None,
+    is_complete: bool,
+    condition_grade: str | None,
+    author_priority_score: int,
+    author_book_count: int,
+    is_duplicate: bool,
+    completes_set: bool,
+    volume_count: int,
+) -> dict[str, int]:
+    """
+    Calculate all score components for a book.
+
+    Returns:
+        Dict with investment_grade, strategic_fit, collection_impact, overall_score
+    """
+    investment = calculate_investment_grade(purchase_price, value_mid)
+    strategic = calculate_strategic_fit(
+        publisher_tier, year_start, is_complete, condition_grade, author_priority_score
+    )
+    collection = calculate_collection_impact(
+        author_book_count, is_duplicate, completes_set, volume_count
+    )
+
+    return {
+        "investment_grade": investment,
+        "strategic_fit": strategic,
+        "collection_impact": collection,
+        "overall_score": investment + strategic + collection,
+    }
