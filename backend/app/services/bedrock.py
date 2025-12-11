@@ -17,9 +17,12 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Model ID mapping - use inference profile IDs for Claude models
+# TODO: Switch to Claude 4.5 once AWS Marketplace permissions propagate
+# "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude Sonnet 4.5
+# "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",  # Claude Opus 4.5
 MODEL_IDS = {
-    "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude Sonnet 4.5
-    "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",  # Claude Opus 4.5
+    "sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",  # Claude 3.5 Sonnet v2 (fallback)
+    "opus": "us.anthropic.claude-3-opus-20240229-v1:0",  # Claude 3 Opus (fallback)
 }
 
 # Prompt cache with TTL
