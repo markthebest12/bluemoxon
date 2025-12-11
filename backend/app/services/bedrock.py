@@ -18,9 +18,10 @@ settings = get_settings()
 
 # Model ID mapping
 # Use inference profile IDs (not direct model IDs) for newer Claude models
+# Note: Claude 4.5 models require use case form submission - using 3.5 Sonnet v2 as fallback
 MODEL_IDS = {
-    "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    "sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",  # Claude 3.5 Sonnet v2 (widely available)
+    "opus": "us.anthropic.claude-3-opus-20240229-v1:0",  # Claude 3 Opus (widely available)
 }
 
 # Prompt cache with TTL
