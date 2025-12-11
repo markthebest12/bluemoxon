@@ -126,3 +126,90 @@ class TestBatchCalculateScores:
         data = response.json()
         assert data["updated_count"] == 3
         assert len(data["errors"]) == 0
+
+
+class TestScoreBreakdownEndpoint:
+    """Tests for GET /books/{id}/scores/breakdown endpoint."""
+
+    def test_breakdown_returns_detailed_factors(self, client, db):
+        """Should return score breakdown with factor explanations."""
+        from app.models.author import Author
+        from app.models.book import Book
+        from app.models.publisher import Publisher
+
+        author = Author(name="George Eliot", priority_score=50)
+        publisher = Publisher(name="Smith Elder", tier="TIER_1")
+        db.add_all([author, publisher])
+        db.commit()
+
+        book = Book(
+            title="Felix Holt, the Radical",
+            author_id=author.id,
+            publisher_id=publisher.id,
+            year_start=1866,
+            volumes=1,
+            condition_grade="Very Good",
+            purchase_price=Decimal("200"),
+            value_mid=Decimal("600"),
+            status="EVALUATING",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get(f"/api/v1/books/{book.id}/scores/breakdown")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check top-level scores
+        assert "investment_grade" in data
+        assert "strategic_fit" in data
+        assert "collection_impact" in data
+        assert "overall_score" in data
+
+        # Check breakdown structure
+        assert "breakdown" in data
+        assert "investment_grade" in data["breakdown"]
+        assert "strategic_fit" in data["breakdown"]
+        assert "collection_impact" in data["breakdown"]
+
+        # Check factors contain entity names
+        sf_factors = data["breakdown"]["strategic_fit"]["factors"]
+        factor_names = [f["name"] for f in sf_factors]
+        assert "publisher_tier" in factor_names
+        assert "era" in factor_names
+        assert "author_priority" in factor_names
+
+        # Check publisher name appears in reason
+        pub_factor = next(f for f in sf_factors if f["name"] == "publisher_tier")
+        assert "Smith Elder" in pub_factor["reason"]
+
+        # Check author name appears
+        author_factor = next(f for f in sf_factors if f["name"] == "author_priority")
+        assert "George Eliot" in author_factor["reason"]
+
+    def test_breakdown_404_for_missing_book(self, client):
+        """Should return 404 for non-existent book."""
+        response = client.get("/api/v1/books/99999/scores/breakdown")
+        assert response.status_code == 404
+
+    def test_breakdown_handles_missing_data(self, client, db):
+        """Should handle books with minimal data gracefully."""
+        from app.models.book import Book
+
+        book = Book(
+            title="Unknown Book",
+            status="EVALUATING",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get(f"/api/v1/books/{book.id}/scores/breakdown")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["investment_grade"] == 0  # Missing price data
+        assert "breakdown" in data
+        # Should have missing_data factor
+        ig_factors = data["breakdown"]["investment_grade"]["factors"]
+        assert any("missing" in f["reason"].lower() for f in ig_factors)

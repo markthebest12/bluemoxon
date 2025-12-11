@@ -1,7 +1,38 @@
 """Scoring engine for book acquisition evaluation."""
 
 import re
+from dataclasses import dataclass, field
 from decimal import Decimal
+
+
+@dataclass
+class ScoreFactor:
+    """A single scoring factor with explanation."""
+
+    name: str
+    points: int
+    reason: str
+
+
+@dataclass
+class ScoreBreakdown:
+    """Detailed breakdown of a score component."""
+
+    score: int
+    factors: list[ScoreFactor] = field(default_factory=list)
+
+    def add(self, name: str, points: int, reason: str) -> None:
+        """Add a factor to the breakdown."""
+        self.factors.append(ScoreFactor(name, points, reason))
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "score": self.score,
+            "factors": [
+                {"name": f.name, "points": f.points, "reason": f.reason} for f in self.factors
+            ],
+        }
 
 
 def calculate_investment_grade(
@@ -212,4 +243,220 @@ def calculate_all_scores(
         "strategic_fit": strategic,
         "collection_impact": collection,
         "overall_score": investment + strategic + collection,
+    }
+
+
+def calculate_investment_grade_breakdown(
+    purchase_price: Decimal | None,
+    value_mid: Decimal | None,
+) -> ScoreBreakdown:
+    """Calculate investment grade with detailed breakdown."""
+    if purchase_price is None or value_mid is None:
+        breakdown = ScoreBreakdown(score=0)
+        breakdown.add("missing_data", 0, "Missing purchase price or market value")
+        return breakdown
+
+    if value_mid <= 0:
+        breakdown = ScoreBreakdown(score=0)
+        breakdown.add("invalid_value", 0, "Market value must be positive")
+        return breakdown
+
+    discount_pct = float((value_mid - purchase_price) / value_mid * 100)
+    score = calculate_investment_grade(purchase_price, value_mid)
+
+    breakdown = ScoreBreakdown(score=score)
+    breakdown.add(
+        "discount",
+        score,
+        f"{discount_pct:.1f}% discount (${float(purchase_price):.0f} vs ${float(value_mid):.0f} market value)",
+    )
+    return breakdown
+
+
+def calculate_strategic_fit_breakdown(
+    publisher_tier: str | None,
+    year_start: int | None,
+    is_complete: bool,
+    condition_grade: str | None,
+    author_priority_score: int,
+    author_name: str | None = None,
+    publisher_name: str | None = None,
+) -> ScoreBreakdown:
+    """Calculate strategic fit with detailed breakdown."""
+    score = 0
+    breakdown = ScoreBreakdown(score=0)  # Will update at end
+
+    # Publisher tier
+    if publisher_tier == "TIER_1":
+        score += 35
+        breakdown.add(
+            "publisher_tier",
+            35,
+            f"Tier 1 publisher{f' ({publisher_name})' if publisher_name else ''}",
+        )
+    elif publisher_tier == "TIER_2":
+        score += 15
+        breakdown.add(
+            "publisher_tier",
+            15,
+            f"Tier 2 publisher{f' ({publisher_name})' if publisher_name else ''}",
+        )
+    elif publisher_tier:
+        breakdown.add(
+            "publisher_tier",
+            0,
+            f"Non-premium publisher tier ({publisher_tier})",
+        )
+
+    # Era
+    if year_start is not None:
+        if 1800 <= year_start <= 1901:
+            score += 20
+            if 1837 <= year_start <= 1901:
+                breakdown.add("era", 20, f"Victorian era ({year_start})")
+            else:
+                breakdown.add("era", 20, f"Romantic era ({year_start})")
+        else:
+            breakdown.add("era", 0, f"Outside target period ({year_start})")
+
+    # Complete set
+    if is_complete:
+        score += 15
+        breakdown.add("completeness", 15, "Complete set")
+    else:
+        breakdown.add("completeness", 0, "Incomplete or multi-volume set")
+
+    # Condition
+    if condition_grade in ("Fine", "Very Good", "Good"):
+        score += 15
+        breakdown.add("condition", 15, f"{condition_grade} condition")
+    elif condition_grade:
+        breakdown.add("condition", 0, f"{condition_grade} condition (below Good)")
+
+    # Author priority
+    if author_priority_score > 0:
+        score += author_priority_score
+        breakdown.add(
+            "author_priority",
+            author_priority_score,
+            f"Priority author{f' ({author_name})' if author_name else ''} - score {author_priority_score}",
+        )
+    elif author_name:
+        breakdown.add("author_priority", 0, f"{author_name} - not a priority author")
+
+    breakdown.score = score
+    return breakdown
+
+
+def calculate_collection_impact_breakdown(
+    author_book_count: int,
+    is_duplicate: bool,
+    completes_set: bool,
+    volume_count: int,
+    author_name: str | None = None,
+    duplicate_title: str | None = None,
+) -> ScoreBreakdown:
+    """Calculate collection impact with detailed breakdown."""
+    score = 0
+    breakdown = ScoreBreakdown(score=0)  # Will update at end
+
+    # Author presence
+    if author_book_count == 0:
+        score += 30
+        breakdown.add(
+            "author_presence",
+            30,
+            f"New author to collection{f' ({author_name})' if author_name else ''}",
+        )
+    elif author_book_count == 1:
+        score += 15
+        breakdown.add(
+            "author_presence",
+            15,
+            f"Second work by author{f' ({author_name})' if author_name else ''} - builds depth",
+        )
+    else:
+        breakdown.add(
+            "author_presence",
+            0,
+            f"Already have {author_book_count} works by {author_name or 'this author'}",
+        )
+
+    # Duplicate penalty
+    if is_duplicate:
+        score -= 40
+        reason = "Duplicate title in collection"
+        if duplicate_title:
+            reason = f"Duplicate of existing title: {duplicate_title}"
+        breakdown.add("duplicate", -40, reason)
+
+    # Set completion
+    if completes_set:
+        score += 25
+        breakdown.add("set_completion", 25, "Completes an incomplete set")
+
+    # Large set penalty
+    if volume_count >= 5:
+        score -= 20
+        breakdown.add("volume_penalty", -20, f"Large set ({volume_count} volumes)")
+    elif volume_count > 1:
+        breakdown.add("volume_count", 0, f"Multi-volume ({volume_count} volumes)")
+
+    breakdown.score = score
+    return breakdown
+
+
+def calculate_all_scores_with_breakdown(
+    purchase_price: Decimal | None,
+    value_mid: Decimal | None,
+    publisher_tier: str | None,
+    year_start: int | None,
+    is_complete: bool,
+    condition_grade: str | None,
+    author_priority_score: int,
+    author_book_count: int,
+    is_duplicate: bool,
+    completes_set: bool,
+    volume_count: int,
+    author_name: str | None = None,
+    publisher_name: str | None = None,
+    duplicate_title: str | None = None,
+) -> dict:
+    """
+    Calculate all scores with detailed breakdowns.
+
+    Returns:
+        Dict with scores and detailed factor breakdowns for each component.
+    """
+    investment = calculate_investment_grade_breakdown(purchase_price, value_mid)
+    strategic = calculate_strategic_fit_breakdown(
+        publisher_tier,
+        year_start,
+        is_complete,
+        condition_grade,
+        author_priority_score,
+        author_name,
+        publisher_name,
+    )
+    collection = calculate_collection_impact_breakdown(
+        author_book_count,
+        is_duplicate,
+        completes_set,
+        volume_count,
+        author_name,
+        duplicate_title,
+    )
+
+    overall = investment.score + strategic.score + collection.score
+
+    return {
+        "investment_grade": investment.score,
+        "strategic_fit": strategic.score,
+        "collection_impact": collection.score,
+        "overall_score": overall,
+        "breakdown": {
+            "investment_grade": investment.to_dict(),
+            "strategic_fit": strategic.to_dict(),
+            "collection_impact": collection.to_dict(),
+        },
     }

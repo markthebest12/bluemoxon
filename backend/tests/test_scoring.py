@@ -5,10 +5,15 @@ from decimal import Decimal
 from app.models.author import Author
 from app.models.book import Book
 from app.services.scoring import (
+    ScoreBreakdown,
     calculate_all_scores,
+    calculate_all_scores_with_breakdown,
     calculate_collection_impact,
+    calculate_collection_impact_breakdown,
     calculate_investment_grade,
+    calculate_investment_grade_breakdown,
     calculate_strategic_fit,
+    calculate_strategic_fit_breakdown,
     is_duplicate_title,
 )
 
@@ -370,3 +375,220 @@ class TestCalculateAllScores:
         assert result["strategic_fit"] == expected_strategic
         assert result["collection_impact"] == expected_collection
         assert result["overall_score"] == expected_overall
+
+
+class TestScoreBreakdown:
+    """Tests for ScoreBreakdown dataclass."""
+
+    def test_score_breakdown_add_factor(self):
+        """ScoreBreakdown should accumulate factors."""
+        breakdown = ScoreBreakdown(score=50)
+        breakdown.add("test_factor", 25, "Test reason")
+        breakdown.add("another_factor", 25, "Another reason")
+
+        assert len(breakdown.factors) == 2
+        assert breakdown.factors[0].name == "test_factor"
+        assert breakdown.factors[0].points == 25
+        assert breakdown.factors[0].reason == "Test reason"
+
+    def test_score_breakdown_to_dict(self):
+        """ScoreBreakdown.to_dict() should return serializable dict."""
+        breakdown = ScoreBreakdown(score=85)
+        breakdown.add("publisher_tier", 35, "Tier 1 publisher (Smith Elder)")
+        breakdown.add("era", 20, "Victorian era (1867)")
+
+        result = breakdown.to_dict()
+
+        assert result["score"] == 85
+        assert len(result["factors"]) == 2
+        assert result["factors"][0]["name"] == "publisher_tier"
+        assert result["factors"][0]["points"] == 35
+        assert result["factors"][0]["reason"] == "Tier 1 publisher (Smith Elder)"
+
+
+class TestInvestmentGradeBreakdown:
+    """Tests for investment grade breakdown function."""
+
+    def test_investment_grade_breakdown_with_discount(self):
+        """Should include discount percentage in reason."""
+        breakdown = calculate_investment_grade_breakdown(
+            purchase_price=Decimal("100"),
+            value_mid=Decimal("200"),
+        )
+
+        assert breakdown.score == 70  # 50% discount = 70 points
+        assert len(breakdown.factors) == 1
+        assert breakdown.factors[0].name == "discount"
+        assert "50.0% discount" in breakdown.factors[0].reason
+        assert "$100" in breakdown.factors[0].reason
+        assert "$200" in breakdown.factors[0].reason
+
+    def test_investment_grade_breakdown_missing_data(self):
+        """Should explain missing data."""
+        breakdown = calculate_investment_grade_breakdown(
+            purchase_price=None,
+            value_mid=Decimal("200"),
+        )
+
+        assert breakdown.score == 0
+        assert breakdown.factors[0].name == "missing_data"
+        assert "Missing" in breakdown.factors[0].reason
+
+
+class TestStrategicFitBreakdown:
+    """Tests for strategic fit breakdown function."""
+
+    def test_strategic_fit_breakdown_all_factors(self):
+        """Should include all scoring factors with names."""
+        breakdown = calculate_strategic_fit_breakdown(
+            publisher_tier="TIER_1",
+            year_start=1867,
+            is_complete=True,
+            condition_grade="Very Good",
+            author_priority_score=50,
+            author_name="George Eliot",
+            publisher_name="Smith Elder",
+        )
+
+        # Check total score: 35 + 20 + 15 + 15 + 50 = 135
+        assert breakdown.score == 135
+
+        # Check factors include entity names
+        factors_dict = {f.name: f for f in breakdown.factors}
+
+        assert "publisher_tier" in factors_dict
+        assert "Smith Elder" in factors_dict["publisher_tier"].reason
+
+        assert "era" in factors_dict
+        assert "Victorian" in factors_dict["era"].reason
+        assert "1867" in factors_dict["era"].reason
+
+        assert "author_priority" in factors_dict
+        assert "George Eliot" in factors_dict["author_priority"].reason
+
+    def test_strategic_fit_breakdown_non_priority_author(self):
+        """Should explain non-priority author."""
+        breakdown = calculate_strategic_fit_breakdown(
+            publisher_tier=None,
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+            author_name="Unknown Author",
+        )
+
+        factors_dict = {f.name: f for f in breakdown.factors}
+        assert "author_priority" in factors_dict
+        assert factors_dict["author_priority"].points == 0
+        assert "not a priority author" in factors_dict["author_priority"].reason
+
+
+class TestCollectionImpactBreakdown:
+    """Tests for collection impact breakdown function."""
+
+    def test_collection_impact_breakdown_new_author(self):
+        """Should explain new author bonus."""
+        breakdown = calculate_collection_impact_breakdown(
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=1,
+            author_name="Charles Darwin",
+        )
+
+        assert breakdown.score == 30
+        factors_dict = {f.name: f for f in breakdown.factors}
+        assert "author_presence" in factors_dict
+        assert factors_dict["author_presence"].points == 30
+        assert "New author" in factors_dict["author_presence"].reason
+        assert "Charles Darwin" in factors_dict["author_presence"].reason
+
+    def test_collection_impact_breakdown_duplicate_penalty(self):
+        """Should explain duplicate penalty with title."""
+        breakdown = calculate_collection_impact_breakdown(
+            author_book_count=5,
+            is_duplicate=True,
+            completes_set=False,
+            volume_count=1,
+            author_name="Charles Dickens",
+            duplicate_title="A Tale of Two Cities",
+        )
+
+        factors_dict = {f.name: f for f in breakdown.factors}
+        assert "duplicate" in factors_dict
+        assert factors_dict["duplicate"].points == -40
+        assert "A Tale of Two Cities" in factors_dict["duplicate"].reason
+
+    def test_collection_impact_breakdown_large_set(self):
+        """Should explain large set penalty."""
+        breakdown = calculate_collection_impact_breakdown(
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=8,
+        )
+
+        factors_dict = {f.name: f for f in breakdown.factors}
+        assert "volume_penalty" in factors_dict
+        assert factors_dict["volume_penalty"].points == -20
+        assert "8 volumes" in factors_dict["volume_penalty"].reason
+
+
+class TestCalculateAllScoresWithBreakdown:
+    """Tests for combined breakdown function."""
+
+    def test_full_breakdown_structure(self):
+        """Should return scores and nested breakdown dict."""
+        result = calculate_all_scores_with_breakdown(
+            purchase_price=Decimal("100"),
+            value_mid=Decimal("500"),
+            publisher_tier="TIER_1",
+            year_start=1850,
+            is_complete=True,
+            condition_grade="Very Good",
+            author_priority_score=30,
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=1,
+            author_name="Thomas Hardy",
+            publisher_name="Macmillan",
+        )
+
+        # Check top-level scores
+        assert "investment_grade" in result
+        assert "strategic_fit" in result
+        assert "collection_impact" in result
+        assert "overall_score" in result
+
+        # Check breakdown nested structure
+        assert "breakdown" in result
+        assert "investment_grade" in result["breakdown"]
+        assert "strategic_fit" in result["breakdown"]
+        assert "collection_impact" in result["breakdown"]
+
+        # Check each breakdown has score and factors
+        for component in ["investment_grade", "strategic_fit", "collection_impact"]:
+            assert "score" in result["breakdown"][component]
+            assert "factors" in result["breakdown"][component]
+            assert isinstance(result["breakdown"][component]["factors"], list)
+
+    def test_breakdown_factors_match_scores(self):
+        """Breakdown scores should match top-level scores."""
+        result = calculate_all_scores_with_breakdown(
+            purchase_price=Decimal("150"),
+            value_mid=Decimal("300"),
+            publisher_tier="TIER_2",
+            year_start=1820,
+            is_complete=False,
+            condition_grade="Good",
+            author_priority_score=0,
+            author_book_count=2,
+            is_duplicate=False,
+            completes_set=True,
+            volume_count=3,
+        )
+
+        assert result["investment_grade"] == result["breakdown"]["investment_grade"]["score"]
+        assert result["strategic_fit"] == result["breakdown"]["strategic_fit"]["score"]
+        assert result["collection_impact"] == result["breakdown"]["collection_impact"]["score"]

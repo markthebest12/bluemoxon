@@ -26,7 +26,11 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.scoring import calculate_all_scores, is_duplicate_title
+from app.services.scoring import (
+    calculate_all_scores,
+    calculate_all_scores_with_breakdown,
+    is_duplicate_title,
+)
 
 router = APIRouter()
 settings = get_settings()
@@ -593,6 +597,70 @@ def calculate_book_scores(
         "collection_impact": book.collection_impact,
         "overall_score": book.overall_score,
     }
+
+
+@router.get("/{book_id}/scores/breakdown")
+def get_book_score_breakdown(
+    book_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get detailed score breakdown explaining why each score was calculated.
+
+    Returns score values plus breakdown with factors and explanations.
+    """
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Gather all inputs for scoring
+    author_priority = 0
+    author_name = None
+    publisher_tier = None
+    publisher_name = None
+    author_book_count = 0
+    duplicate_title = None
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        author_name = book.author.name
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+        publisher_name = book.publisher.name
+
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                duplicate_title = other.title
+                break
+
+    result = calculate_all_scores_with_breakdown(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        year_start=book.year_start,
+        is_complete=(book.volumes == 1 or book.volumes is None),
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+        author_name=author_name,
+        publisher_name=publisher_name,
+        duplicate_title=duplicate_title,
+    )
+
+    return result
 
 
 @router.post("/scores/calculate-all")
