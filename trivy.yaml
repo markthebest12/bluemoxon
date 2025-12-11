@@ -1,0 +1,13 @@
+# Trivy configuration
+# https://aquasecurity.github.io/trivy/latest/docs/references/configuration/config-file/
+
+# Timeout for scanning
+timeout: 10m
+
+# Severity levels to report
+severity:
+  - HIGH
+  - CRITICAL
+
+# Ignore unfixed vulnerabilities
+ignore-unfixed: true

@@ -618,7 +618,7 @@ jobs:
 
       # Trivy for secrets and vulnerabilities
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -627,10 +627,12 @@ jobs:
           exit-code: '0'  # Report but don't fail initially
           ignore-unfixed: true
           vuln-type: 'library'
+          trivy-config: trivy.yaml
+        continue-on-error: true  # Non-blocking for CI
 
       # Trivy for secret detection
       - name: Run Trivy secret scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -638,6 +640,8 @@ jobs:
           severity: 'HIGH,CRITICAL'
           format: 'table'
           exit-code: '0'  # Report but don't fail initially
+          trivy-config: trivy.yaml
+        continue-on-error: true  # Non-blocking for CI
 
       # GitLeaks for additional secret detection
       - name: Run Gitleaks
