@@ -595,6 +595,28 @@ def calculate_book_scores(
     }
 
 
+@router.post("/scores/calculate-all")
+def calculate_all_book_scores(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Calculate scores for all books. Admin only."""
+    books = db.query(Book).all()
+    updated = 0
+    errors = []
+
+    for book in books:
+        try:
+            _calculate_and_persist_scores(book, db)
+            updated += 1
+        except Exception as e:
+            errors.append({"book_id": book.id, "error": str(e)})
+
+    db.commit()
+
+    return {"updated_count": updated, "errors": errors}
+
+
 @router.post("/bulk/status")
 def bulk_update_status(
     book_ids: list[int],

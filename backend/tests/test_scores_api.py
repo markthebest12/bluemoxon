@@ -101,3 +101,28 @@ class TestAutoScoreOnCreate:
         assert data["investment_grade"] is not None
         assert data["strategic_fit"] is not None
         assert data["overall_score"] is not None
+
+
+class TestBatchCalculateScores:
+    """Tests for POST /books/scores/calculate-all endpoint."""
+
+    def test_batch_calculate_updates_all_books(self, client, db):
+        """Should update scores for all books."""
+        from app.models.book import Book
+
+        # Create test books
+        for i in range(3):
+            book = Book(
+                title=f"Test Book {i}",
+                purchase_price=Decimal("500"),
+                value_mid=Decimal("1000"),
+            )
+            db.add(book)
+        db.commit()
+
+        response = client.post("/api/v1/books/scores/calculate-all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["updated_count"] == 3
+        assert len(data["errors"]) == 0
