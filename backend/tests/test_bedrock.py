@@ -156,7 +156,10 @@ class TestBedrockInvoke:
 
         book_data = {"title": "Test Book"}
         images = [
-            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "abc123"}}
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/jpeg", "data": "abc123"},
+            }
         ]
 
         messages = build_bedrock_messages(book_data, images, None)
@@ -173,7 +176,9 @@ class TestBedrockInvoke:
         # Mock response
         mock_client = MagicMock()
         mock_client.invoke_model.return_value = {
-            "body": MagicMock(read=lambda: b'{"content": [{"text": "# Analysis\\n\\nTest content"}]}')
+            "body": MagicMock(
+                read=lambda: b'{"content": [{"text": "# Analysis\\n\\nTest content"}]}'
+            )
         }
         mock_get_client.return_value = mock_client
 
