@@ -775,9 +775,15 @@ def generate_analysis(
     messages = build_bedrock_messages(book_data, images, source_content)
     model_id = get_model_id(request.model)
 
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.warning(f"Starting Bedrock invocation for book {book_id}, model={request.model}")
     try:
         analysis_text = invoke_bedrock(messages, model=request.model)
+        logger.warning(f"Bedrock returned {len(analysis_text)} chars for book {book_id}")
     except Exception as e:
+        logger.error(f"Bedrock invocation failed for book {book_id}: {type(e).__name__}: {e}")
         raise HTTPException(
             status_code=502,
             detail=f"Bedrock invocation failed: {str(e)}",
