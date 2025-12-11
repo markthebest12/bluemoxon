@@ -223,3 +223,105 @@ def fetch_book_images_for_bedrock(
 
     logger.info(f"Loaded {len(result)} images for Bedrock analysis")
     return result
+
+
+def build_bedrock_messages(
+    book_data: dict,
+    images: list[dict],
+    source_content: str | None,
+) -> list[dict]:
+    """Build messages array for Bedrock Claude API.
+
+    Args:
+        book_data: Dict with book metadata
+        images: List of Bedrock-formatted image blocks
+        source_content: Optional HTML content from source URL
+
+    Returns:
+        Messages array for Bedrock invoke_model
+    """
+    # Build the text prompt with book metadata
+    text_parts = ["Analyze this book for the collection:\n\n## Book Metadata"]
+
+    if book_data.get("title"):
+        text_parts.append(f"- Title: {book_data['title']}")
+    if book_data.get("author"):
+        text_parts.append(f"- Author: {book_data['author']}")
+    if book_data.get("publisher"):
+        publisher = book_data["publisher"]
+        tier = book_data.get("publisher_tier", "")
+        text_parts.append(f"- Publisher: {publisher}" + (f" (Tier: {tier})" if tier else ""))
+    if book_data.get("publication_date"):
+        text_parts.append(f"- Publication Date: {book_data['publication_date']}")
+    if book_data.get("volumes"):
+        text_parts.append(f"- Volumes: {book_data['volumes']}")
+    if book_data.get("binding_type"):
+        text_parts.append(f"- Binding Type: {book_data['binding_type']}")
+    if book_data.get("binder"):
+        text_parts.append(f"- Binder: {book_data['binder']} (authenticated)")
+    if book_data.get("condition_notes"):
+        text_parts.append(f"- Condition Notes: {book_data['condition_notes']}")
+    if book_data.get("purchase_price"):
+        text_parts.append(f"- Purchase/Asking Price: ${book_data['purchase_price']}")
+
+    # Add source listing content if available
+    if source_content:
+        text_parts.append("\n## Source Listing\n")
+        text_parts.append(source_content)
+
+    # Add image instructions if images provided
+    if images:
+        text_parts.append(f"\n## Images\n{len(images)} images are attached below.")
+
+    user_text = "\n".join(text_parts)
+
+    # Build content array with text first, then images
+    content = [{"type": "text", "text": user_text}]
+    content.extend(images)
+
+    return [{"role": "user", "content": content}]
+
+
+def invoke_bedrock(
+    messages: list[dict],
+    model: str = "sonnet",
+    max_tokens: int = 16000,
+) -> str:
+    """Invoke Bedrock Claude model and return response text.
+
+    Args:
+        messages: Messages array for Claude
+        model: Model name ("sonnet" or "opus")
+        max_tokens: Maximum tokens in response
+
+    Returns:
+        Generated text response
+
+    Raises:
+        Exception: If Bedrock invocation fails
+    """
+    client = get_bedrock_client()
+    model_id = get_model_id(model)
+    system_prompt = load_napoleon_prompt()
+
+    body = json.dumps({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "system": system_prompt,
+        "messages": messages,
+    })
+
+    logger.info(f"Invoking Bedrock model {model_id}")
+
+    response = client.invoke_model(
+        modelId=model_id,
+        body=body,
+        contentType="application/json",
+        accept="application/json",
+    )
+
+    response_body = json.loads(response["body"].read())
+    result_text = response_body["content"][0]["text"]
+
+    logger.info(f"Bedrock returned {len(result_text)} chars")
+    return result_text

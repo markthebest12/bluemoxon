@@ -126,3 +126,61 @@ class TestImageFetcher:
         # Should be valid base64
         decoded = base64.b64decode(result["source"]["data"])
         assert decoded == test_data
+
+
+class TestBedrockInvoke:
+    """Tests for Bedrock model invocation."""
+
+    def test_build_messages_metadata_only(self):
+        """Test building messages with just metadata."""
+        from app.services.bedrock import build_bedrock_messages
+
+        book_data = {
+            "title": "Test Book",
+            "author": "Test Author",
+            "publisher": "Test Publisher",
+            "publication_date": "1867",
+        }
+
+        messages = build_bedrock_messages(book_data, [], None)
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        # Content should include book metadata
+        content_text = messages[0]["content"][0]["text"]
+        assert "Test Book" in content_text
+        assert "Test Author" in content_text
+
+    def test_build_messages_with_images(self):
+        """Test building messages with images."""
+        from app.services.bedrock import build_bedrock_messages
+
+        book_data = {"title": "Test Book"}
+        images = [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "abc123"}}
+        ]
+
+        messages = build_bedrock_messages(book_data, images, None)
+        content = messages[0]["content"]
+        # Should have text + image blocks
+        assert len(content) >= 2
+        assert any(c.get("type") == "image" for c in content)
+
+    @patch("app.services.bedrock.get_bedrock_client")
+    def test_invoke_bedrock_success(self, mock_get_client):
+        """Test successful Bedrock invocation."""
+        from app.services.bedrock import invoke_bedrock
+
+        # Mock response
+        mock_client = MagicMock()
+        mock_client.invoke_model.return_value = {
+            "body": MagicMock(read=lambda: b'{"content": [{"text": "# Analysis\\n\\nTest content"}]}')
+        }
+        mock_get_client.return_value = mock_client
+
+        result = invoke_bedrock(
+            messages=[{"role": "user", "content": [{"type": "text", "text": "test"}]}],
+            model="sonnet",
+        )
+
+        assert "# Analysis" in result
+        mock_client.invoke_model.assert_called_once()
