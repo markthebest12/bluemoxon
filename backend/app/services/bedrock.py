@@ -18,8 +18,8 @@ settings = get_settings()
 
 # Model ID mapping
 MODEL_IDS = {
-    "sonnet": "anthropic.claude-sonnet-4-5-20240929",
-    "opus": "anthropic.claude-opus-4-5-20251101",
+    "sonnet": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "opus": "anthropic.claude-opus-4-5-20251101-v1:0",
 }
 
 # Prompt cache with TTL
