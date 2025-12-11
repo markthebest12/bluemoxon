@@ -11,6 +11,7 @@ import httpx
 from botocore.exceptions import ClientError
 
 from app.config import get_settings
+from app.models import BookImage
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -173,7 +174,7 @@ def format_image_for_bedrock(image_data: bytes, media_type: str) -> dict:
 
 
 def fetch_book_images_for_bedrock(
-    images: list,
+    images: list[BookImage],
     max_images: int = 10,
 ) -> list[dict]:
     """Fetch book images from S3 and format for Bedrock.
@@ -202,12 +203,16 @@ def fetch_book_images_for_bedrock(
             response = s3.get_object(Bucket=bucket, Key=s3_key)
             image_data = response["Body"].read()
 
-            # Determine media type from content type or filename
-            content_type = response.get("ContentType", "image/jpeg")
-            if img.s3_key.lower().endswith(".png"):
-                content_type = "image/png"
-            elif img.s3_key.lower().endswith((".jpg", ".jpeg")):
-                content_type = "image/jpeg"
+            # Determine media type from S3 ContentType, fallback to filename extension
+            content_type = response.get("ContentType")
+            if not content_type or content_type == "application/octet-stream":
+                # S3 metadata missing or generic, infer from filename
+                if img.s3_key.lower().endswith(".png"):
+                    content_type = "image/png"
+                elif img.s3_key.lower().endswith((".jpg", ".jpeg")):
+                    content_type = "image/jpeg"
+                else:
+                    content_type = "image/jpeg"  # Default
 
             result.append(format_image_for_bedrock(image_data, content_type))
             logger.debug(f"Loaded image {img.s3_key} for Bedrock")
