@@ -1,9 +1,20 @@
 """Book model - Main entity."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -75,6 +86,13 @@ class Book(Base, TimestampMixin):
 
     # Acquisition scoring (captured at purchase time)
     scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)
+
+    # Calculated scores
+    investment_grade: Mapped[int | None] = mapped_column(Integer)
+    strategic_fit: Mapped[int | None] = mapped_column(Integer)
+    collection_impact: Mapped[int | None] = mapped_column(Integer)
+    overall_score: Mapped[int | None] = mapped_column(Integer)
+    scores_calculated_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)

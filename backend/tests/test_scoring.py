@@ -1,6 +1,37 @@
 """Scoring engine tests."""
 
 from app.models.author import Author
+from app.models.book import Book
+
+
+class TestBookScoreFields:
+    """Tests for book score fields."""
+
+    def test_book_has_score_fields(self, db):
+        """Book model should have all score fields."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        assert hasattr(book, "investment_grade")
+        assert hasattr(book, "strategic_fit")
+        assert hasattr(book, "collection_impact")
+        assert hasattr(book, "overall_score")
+        assert hasattr(book, "scores_calculated_at")
+
+    def test_book_score_fields_default_to_none(self, db):
+        """Score fields should default to None."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        assert book.investment_grade is None
+        assert book.strategic_fit is None
+        assert book.collection_impact is None
+        assert book.overall_score is None
+        assert book.scores_calculated_at is None
 
 
 class TestAuthorPriorityScore:
