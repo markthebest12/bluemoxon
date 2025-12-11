@@ -1,5 +1,6 @@
 """Scoring engine for book acquisition evaluation."""
 
+import re
 from decimal import Decimal
 
 
@@ -87,5 +88,93 @@ def calculate_strategic_fit(
 
     # Author priority
     score += author_priority_score
+
+    return score
+
+
+def normalize_title(title: str) -> str:
+    """Normalize title for comparison: lowercase, remove articles/punctuation."""
+    normalized = title.lower().strip()
+    # Remove leading articles
+    normalized = re.sub(r"^(the|a|an)\s+", "", normalized)
+    # Remove possessive endings
+    normalized = normalized.replace("'s", "")
+    # Remove punctuation
+    normalized = re.sub(r"[^\w\s]", "", normalized)
+    # Normalize whitespace
+    normalized = " ".join(normalized.split())
+    return normalized
+
+
+def is_duplicate_title(title1: str, title2: str, threshold: float = 0.8) -> bool:
+    """
+    Check if two titles are duplicates using token-based similarity.
+
+    Args:
+        title1: First title
+        title2: Second title
+        threshold: Similarity threshold (0-1), default 0.8
+
+    Returns:
+        True if similarity >= threshold
+    """
+    norm1 = normalize_title(title1)
+    norm2 = normalize_title(title2)
+
+    # Exact match after normalization
+    if norm1 == norm2:
+        return True
+
+    # Token-based similarity (Jaccard)
+    tokens1 = set(norm1.split())
+    tokens2 = set(norm2.split())
+
+    if not tokens1 or not tokens2:
+        return False
+
+    intersection = len(tokens1 & tokens2)
+    union = len(tokens1 | tokens2)
+    similarity = intersection / union
+
+    return similarity >= threshold
+
+
+def calculate_collection_impact(
+    author_book_count: int,
+    is_duplicate: bool,
+    completes_set: bool,
+    volume_count: int,
+) -> int:
+    """
+    Calculate collection impact score.
+
+    Factors:
+    - New author (0 existing): +30
+    - Fills author gap (1 existing): +15
+    - Duplicate title: -40
+    - Completes incomplete set: +25
+    - Large set penalty (5+ vols): -20
+
+    Returns score (can be negative).
+    """
+    score = 0
+
+    # Author presence bonus
+    if author_book_count == 0:
+        score += 30  # New author
+    elif author_book_count == 1:
+        score += 15  # Fills gap
+
+    # Duplicate penalty
+    if is_duplicate:
+        score -= 40
+
+    # Set completion bonus
+    if completes_set:
+        score += 25
+
+    # Large set penalty
+    if volume_count >= 5:
+        score -= 20
 
     return score

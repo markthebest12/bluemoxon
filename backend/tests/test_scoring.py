@@ -4,7 +4,12 @@ from decimal import Decimal
 
 from app.models.author import Author
 from app.models.book import Book
-from app.services.scoring import calculate_investment_grade, calculate_strategic_fit
+from app.services.scoring import (
+    calculate_collection_impact,
+    calculate_investment_grade,
+    calculate_strategic_fit,
+    is_duplicate_title,
+)
 
 
 class TestBookScoreFields:
@@ -225,3 +230,91 @@ class TestStrategicFit:
             author_priority_score=50,  # +50
         )
         assert score == 135  # 35 + 20 + 15 + 15 + 50
+
+
+class TestDuplicateDetection:
+    """Tests for fuzzy title matching."""
+
+    def test_exact_match_is_duplicate(self):
+        """Exact title match should be detected as duplicate."""
+        assert is_duplicate_title("Essays of Elia", "Essays of Elia") is True
+
+    def test_case_insensitive_match(self):
+        """Case differences should still match."""
+        assert is_duplicate_title("Essays of Elia", "essays of elia") is True
+
+    def test_article_differences_match(self):
+        """Titles differing only by articles should match."""
+        assert is_duplicate_title("The Water-Babies", "Water-Babies") is True
+
+    def test_different_titles_not_duplicate(self):
+        """Different titles should not match."""
+        assert is_duplicate_title("Complete Works", "Poetical Works") is False
+
+    def test_similar_but_different_not_duplicate(self):
+        """Similar but distinct titles should not match."""
+        assert is_duplicate_title("Essays of Elia", "Last Essays of Elia") is False
+
+
+class TestCollectionImpact:
+    """Tests for collection impact calculation."""
+
+    def test_new_author_adds_30(self):
+        """New author to collection should add 30 points."""
+        score = calculate_collection_impact(
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=1,
+        )
+        assert score == 30
+
+    def test_fills_author_gap_adds_15(self):
+        """Second book by author should add 15 points."""
+        score = calculate_collection_impact(
+            author_book_count=1,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=1,
+        )
+        assert score == 15
+
+    def test_third_book_no_bonus(self):
+        """Third+ book by author gets no bonus."""
+        score = calculate_collection_impact(
+            author_book_count=2,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=1,
+        )
+        assert score == 0
+
+    def test_duplicate_subtracts_40(self):
+        """Duplicate title should subtract 40 points."""
+        score = calculate_collection_impact(
+            author_book_count=0,
+            is_duplicate=True,
+            completes_set=False,
+            volume_count=1,
+        )
+        assert score == -10  # 30 (new author) - 40 (duplicate)
+
+    def test_completes_set_adds_25(self):
+        """Completing a set should add 25 points."""
+        score = calculate_collection_impact(
+            author_book_count=2,
+            is_duplicate=False,
+            completes_set=True,
+            volume_count=1,
+        )
+        assert score == 25
+
+    def test_large_set_subtracts_20(self):
+        """5+ volume set should subtract 20 points."""
+        score = calculate_collection_impact(
+            author_book_count=0,
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=6,
+        )
+        assert score == 10  # 30 (new author) - 20 (large set)
