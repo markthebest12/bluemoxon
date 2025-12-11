@@ -15,6 +15,7 @@ class BookBase(BaseModel):
     publication_date: str | None = None
     edition: str | None = None
     volumes: int = 1
+    is_complete: bool = True  # Set is complete (all volumes present)
     category: str | None = None
     inventory_type: str = "PRIMARY"
     binding_type: str | None = None
@@ -60,6 +61,7 @@ class BookUpdate(BaseModel):
     publication_date: str | None = None
     edition: str | None = None
     volumes: int | None = None
+    is_complete: bool | None = None
     category: str | None = None
     inventory_type: str | None = None
     binding_type: str | None = None
