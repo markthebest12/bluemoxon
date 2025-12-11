@@ -307,6 +307,8 @@ def calculate_strategic_fit_breakdown(
             0,
             f"Non-premium publisher tier ({publisher_tier})",
         )
+    else:
+        breakdown.add("publisher_tier", 0, "Publisher tier not specified")
 
     # Era
     if year_start is not None:
@@ -318,6 +320,8 @@ def calculate_strategic_fit_breakdown(
                 breakdown.add("era", 20, f"Romantic era ({year_start})")
         else:
             breakdown.add("era", 0, f"Outside target period ({year_start})")
+    else:
+        breakdown.add("era", 0, "Publication year not specified")
 
     # Complete set
     if is_complete:
@@ -332,6 +336,8 @@ def calculate_strategic_fit_breakdown(
         breakdown.add("condition", 15, f"{condition_grade} condition")
     elif condition_grade:
         breakdown.add("condition", 0, f"{condition_grade} condition (below Good)")
+    else:
+        breakdown.add("condition", 0, "Condition not specified")
 
     # Author priority
     if author_priority_score > 0:
