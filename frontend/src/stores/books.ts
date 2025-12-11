@@ -32,6 +32,11 @@ export interface Book {
   has_analysis: boolean;
   image_count: number;
   primary_image_url: string | null;
+  investment_grade: number | null;
+  strategic_fit: number | null;
+  collection_impact: number | null;
+  overall_score: number | null;
+  scores_calculated_at: string | null;
 }
 
 interface Filters {
@@ -183,6 +188,11 @@ export const useBooksStore = defineStore("books", () => {
     return response.data;
   }
 
+  async function calculateScores(bookId: number) {
+    const response = await api.post(`/books/${bookId}/scores/calculate`);
+    return response.data;
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -219,6 +229,7 @@ export const useBooksStore = defineStore("books", () => {
     deleteBook,
     updateAnalysis,
     generateAnalysis,
+    calculateScores,
     setFilters,
     setSort,
     setPage,

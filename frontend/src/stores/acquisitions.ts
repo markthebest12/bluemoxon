@@ -19,6 +19,11 @@ export interface AcquisitionBook {
   scoring_snapshot?: Record<string, unknown>;
   primary_image_url?: string;
   has_analysis?: boolean;
+  investment_grade?: number | null;
+  strategic_fit?: number | null;
+  collection_impact?: number | null;
+  overall_score?: number | null;
+  scores_calculated_at?: string | null;
 }
 
 export interface AcquirePayload {
