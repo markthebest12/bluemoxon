@@ -48,9 +48,9 @@ class TestBedrockClient:
         """Test model name to ID mapping."""
         from app.services.bedrock import get_model_id
 
-        assert get_model_id("sonnet") == "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+        assert get_model_id("sonnet") == "us.anthropic.claude-3-5-sonnet-20240620-v1:0"
         assert get_model_id("opus") == "us.anthropic.claude-3-opus-20240229-v1:0"
-        assert get_model_id("invalid") == "us.anthropic.claude-3-5-sonnet-20241022-v2:0"  # Default
+        assert get_model_id("invalid") == "us.anthropic.claude-3-5-sonnet-20240620-v1:0"  # Default
 
 
 class TestSourceUrlFetcher:
