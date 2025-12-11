@@ -188,54 +188,60 @@ function handleRecalculate() {
     </div>
 
     <!-- Detailed Breakdown -->
-    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-4">
+    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-3">
       <!-- Investment Grade Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-blue-600 uppercase mb-1">Investment Grade</h4>
-        <div class="space-y-1">
+        <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>
+        <div class="space-y-1.5">
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
             :key="factor.name"
-            class="flex justify-between text-xs"
+            class="flex items-start gap-2 text-xs"
           >
-            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
-            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+            <span
+              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
+            >
               {{ formatPoints(factor.points) }}
             </span>
+            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
           </div>
         </div>
       </div>
 
       <!-- Strategic Fit Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-purple-600 uppercase mb-1">Strategic Fit</h4>
-        <div class="space-y-1">
+        <h4 class="text-xs font-semibold text-purple-600 uppercase mb-2">Strategic Fit</h4>
+        <div class="space-y-1.5">
           <div
             v-for="factor in breakdownData.breakdown.strategic_fit.factors"
             :key="factor.name"
-            class="flex justify-between text-xs"
+            class="flex items-start gap-2 text-xs"
           >
-            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
-            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+            <span
+              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
+            >
               {{ formatPoints(factor.points) }}
             </span>
+            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
           </div>
         </div>
       </div>
 
       <!-- Collection Impact Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-teal-600 uppercase mb-1">Collection Impact</h4>
-        <div class="space-y-1">
+        <h4 class="text-xs font-semibold text-teal-600 uppercase mb-2">Collection Impact</h4>
+        <div class="space-y-1.5">
           <div
             v-for="factor in breakdownData.breakdown.collection_impact.factors"
             :key="factor.name"
-            class="flex justify-between text-xs"
+            class="flex items-start gap-2 text-xs"
           >
-            <span class="text-gray-600 truncate mr-2">{{ factor.reason }}</span>
-            <span :class="pointsClass(factor.points)" class="font-medium whitespace-nowrap">
+            <span
+              :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap min-w-[32px] text-right']"
+            >
               {{ formatPoints(factor.points) }}
             </span>
+            <span class="text-gray-600 leading-tight">{{ factor.reason }}</span>
           </div>
         </div>
       </div>
