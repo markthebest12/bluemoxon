@@ -30,6 +30,7 @@ def list_authors(
             "birth_year": a.birth_year,
             "death_year": a.death_year,
             "era": a.era,
+            "priority_score": a.priority_score,
             "book_count": len(a.books),
         }
         for a in authors
@@ -86,6 +87,7 @@ def create_author(
         death_year=author.death_year,
         era=author.era,
         first_acquired_date=author.first_acquired_date,
+        priority_score=author.priority_score,
         book_count=len(author.books),
     )
 
@@ -116,6 +118,7 @@ def update_author(
         death_year=author.death_year,
         era=author.era,
         first_acquired_date=author.first_acquired_date,
+        priority_score=author.priority_score,
         book_count=len(author.books),
     )
 
