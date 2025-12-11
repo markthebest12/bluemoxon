@@ -329,6 +329,28 @@ Version is **auto-generated at deploy time** - no manual maintenance required.
 - Version is injected into Lambda package and frontend build
 - Smoke tests validate deployed version matches expected
 
+### Running Database Migrations
+
+Since Aurora is in a private VPC with no bastion host, run migrations via the `/health/migrate` endpoint:
+
+```bash
+# Run migrations in staging
+curl -X POST https://staging.api.bluemoxon.com/api/v1/health/migrate
+
+# Run migrations in production (CAUTION: verify in staging first!)
+curl -X POST https://api.bluemoxon.com/api/v1/health/migrate
+```
+
+This endpoint:
+- Runs all pending Alembic migrations
+- Returns success/failure status with details
+- Is idempotent (safe to run multiple times)
+
+**When to use:**
+- After deploying code that includes new migrations
+- If you see "duplicate key" or sequence-related errors
+- After manual database operations
+
 ## Token-Saving Guidelines
 
 ### CRITICAL: Use Scripts Instead of Claude for These Tasks
