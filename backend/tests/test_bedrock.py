@@ -1,6 +1,5 @@
 """Bedrock service tests."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -19,7 +18,7 @@ class TestPromptLoader:
 
     def test_prompt_cache(self):
         """Test that prompt is cached for 5 minutes."""
-        from app.services.bedrock import load_napoleon_prompt, clear_prompt_cache
+        from app.services.bedrock import clear_prompt_cache, load_napoleon_prompt
 
         # Clear any existing cache
         clear_prompt_cache()
@@ -113,8 +112,9 @@ class TestImageFetcher:
 
     def test_image_to_base64_format(self):
         """Test image data is formatted correctly for Bedrock."""
-        from app.services.bedrock import format_image_for_bedrock
         import base64
+
+        from app.services.bedrock import format_image_for_bedrock
 
         # Create a minimal valid JPEG
         test_data = b"\xff\xd8\xff\xe0\x00\x10JFIF"  # JPEG header
