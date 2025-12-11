@@ -99,3 +99,30 @@ class TestSourceUrlFetcher:
         # httpbin delay endpoint (but we have short timeout)
         content = fetch_source_url_content("https://httpbin.org/delay/10", timeout=1)
         assert content is None
+
+
+class TestImageFetcher:
+    """Tests for fetching book images for Bedrock."""
+
+    def test_fetch_book_images_empty(self):
+        """Test handling book with no images."""
+        from app.services.bedrock import fetch_book_images_for_bedrock
+
+        images = fetch_book_images_for_bedrock([])
+        assert images == []
+
+    def test_image_to_base64_format(self):
+        """Test image data is formatted correctly for Bedrock."""
+        from app.services.bedrock import format_image_for_bedrock
+        import base64
+
+        # Create a minimal valid JPEG
+        test_data = b"\xff\xd8\xff\xe0\x00\x10JFIF"  # JPEG header
+
+        result = format_image_for_bedrock(test_data, "image/jpeg")
+        assert result["type"] == "image"
+        assert result["source"]["type"] == "base64"
+        assert result["source"]["media_type"] == "image/jpeg"
+        # Should be valid base64
+        decoded = base64.b64decode(result["source"]["data"])
+        assert decoded == test_data

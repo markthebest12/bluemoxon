@@ -1,5 +1,6 @@
 """AWS Bedrock service for AI-powered analysis generation."""
 
+import base64
 import json  # Used in invoke_bedrock() (Task 4)
 import logging
 import os
@@ -149,3 +150,71 @@ def fetch_source_url_content(url: str | None, timeout: int = 15) -> str | None:
     except Exception as e:
         logger.warning(f"Error fetching {url}: {e}")
         return None
+
+
+def format_image_for_bedrock(image_data: bytes, media_type: str) -> dict:
+    """Format image data for Bedrock Claude message API.
+
+    Args:
+        image_data: Raw image bytes
+        media_type: MIME type (e.g., "image/jpeg")
+
+    Returns:
+        Dict in Bedrock image content block format
+    """
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": media_type,
+            "data": base64.b64encode(image_data).decode("utf-8"),
+        },
+    }
+
+
+def fetch_book_images_for_bedrock(
+    images: list,
+    max_images: int = 10,
+) -> list[dict]:
+    """Fetch book images from S3 and format for Bedrock.
+
+    Args:
+        images: List of BookImage objects
+        max_images: Maximum number of images to include
+
+    Returns:
+        List of Bedrock-formatted image content blocks
+    """
+    if not images:
+        return []
+
+    result = []
+    s3 = get_s3_client()
+    bucket = os.environ.get("IMAGES_BUCKET", settings.images_bucket)
+
+    # Sort by display_order and take max_images
+    sorted_images = sorted(images, key=lambda x: x.display_order)[:max_images]
+
+    for img in sorted_images:
+        try:
+            # Fetch from S3
+            s3_key = f"books/{img.s3_key}"
+            response = s3.get_object(Bucket=bucket, Key=s3_key)
+            image_data = response["Body"].read()
+
+            # Determine media type from content type or filename
+            content_type = response.get("ContentType", "image/jpeg")
+            if img.s3_key.lower().endswith(".png"):
+                content_type = "image/png"
+            elif img.s3_key.lower().endswith((".jpg", ".jpeg")):
+                content_type = "image/jpeg"
+
+            result.append(format_image_for_bedrock(image_data, content_type))
+            logger.debug(f"Loaded image {img.s3_key} for Bedrock")
+
+        except Exception as e:
+            logger.warning(f"Failed to load image {img.s3_key}: {e}")
+            continue
+
+    logger.info(f"Loaded {len(result)} images for Bedrock analysis")
+    return result
