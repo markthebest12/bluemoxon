@@ -29,6 +29,11 @@ const editMode = ref(false);
 const showDeleteConfirm = ref(false);
 const showPreview = ref(true);
 
+// Generate controls
+const selectedModel = ref<"sonnet" | "opus">("sonnet");
+const generating = ref(false);
+const generateError = ref<string | null>(null);
+
 const canEdit = computed(() => authStore.isEditor);
 
 // Configure marked for GFM (GitHub Flavored Markdown) with tables
@@ -124,6 +129,25 @@ async function deleteAnalysis() {
     error.value = e.response?.data?.detail || e.message || "Failed to delete analysis.";
   } finally {
     deleting.value = false;
+  }
+}
+
+async function generateAnalysis() {
+  if (generating.value) return;
+
+  generating.value = true;
+  generateError.value = null;
+  error.value = null;
+
+  try {
+    const result = await booksStore.generateAnalysis(props.bookId, selectedModel.value);
+    analysis.value = result.full_markdown;
+    editedAnalysis.value = result.full_markdown;
+  } catch (e: any) {
+    generateError.value =
+      e.response?.data?.detail || e.message || "Failed to generate analysis.";
+  } finally {
+    generating.value = false;
   }
 }
 
@@ -257,6 +281,43 @@ function handleKeydown(e: KeyboardEvent) {
                   </button>
                 </template>
                 <template v-else>
+                  <!-- Generate controls (admin only, when not in edit mode) -->
+                  <div class="flex items-center gap-2">
+                    <select
+                      v-model="selectedModel"
+                      class="text-sm border border-gray-300 rounded px-2 py-1"
+                      :disabled="generating"
+                    >
+                      <option value="sonnet">Sonnet 4.5</option>
+                      <option value="opus">Opus 4.5</option>
+                    </select>
+                    <button
+                      @click="generateAnalysis"
+                      :disabled="generating"
+                      class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <span v-if="generating" class="flex items-center gap-2">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                            fill="none"
+                          />
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        Generating...
+                      </span>
+                      <span v-else>{{ analysis ? '🔄 Regenerate' : '⚡ Generate' }}</span>
+                    </button>
+                  </div>
                   <button
                     @click="startEditing"
                     class="px-3 py-1.5 text-sm text-victorian-burgundy hover:text-victorian-burgundy/80 flex items-center gap-1"
@@ -382,6 +443,12 @@ function handleKeydown(e: KeyboardEvent) {
                 class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
               >
                 {{ error }}
+              </div>
+              <div
+                v-if="generateError"
+                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+              >
+                {{ generateError }}
               </div>
               <div class="flex-1 flex overflow-hidden">
                 <!-- Editor pane -->
