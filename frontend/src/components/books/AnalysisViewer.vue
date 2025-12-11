@@ -144,8 +144,7 @@ async function generateAnalysis() {
     analysis.value = result.full_markdown;
     editedAnalysis.value = result.full_markdown;
   } catch (e: any) {
-    generateError.value =
-      e.response?.data?.detail || e.message || "Failed to generate analysis.";
+    generateError.value = e.response?.data?.detail || e.message || "Failed to generate analysis.";
   } finally {
     generating.value = false;
   }
@@ -315,7 +314,7 @@ function handleKeydown(e: KeyboardEvent) {
                         </svg>
                         Generating...
                       </span>
-                      <span v-else>{{ analysis ? '🔄 Regenerate' : '⚡ Generate' }}</span>
+                      <span v-else>{{ analysis ? "🔄 Regenerate" : "⚡ Generate" }}</span>
                     </button>
                   </div>
                   <button
