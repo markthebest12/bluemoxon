@@ -794,7 +794,10 @@ def update_book_analysis(
 
     Accepts raw markdown text in the request body.
     Automatically parses markdown to extract structured fields.
+    If valuation data is found, updates book's FMV and recalculates scores.
     """
+    from decimal import Decimal
+
     from app.models import BookAnalysis
     from app.utils.markdown_parser import parse_analysis_markdown
 
@@ -824,8 +827,36 @@ def update_book_analysis(
         )
         db.add(analysis)
 
+    # Check if valuation data was extracted and update book's FMV if different
+    values_changed = False
+    if parsed.market_analysis and "valuation" in parsed.market_analysis:
+        valuation = parsed.market_analysis["valuation"]
+        if "low" in valuation:
+            new_low = Decimal(valuation["low"])
+            if book.value_low != new_low:
+                book.value_low = new_low
+                values_changed = True
+        if "mid" in valuation:
+            new_mid = Decimal(valuation["mid"])
+            if book.value_mid != new_mid:
+                book.value_mid = new_mid
+                values_changed = True
+        if "high" in valuation:
+            new_high = Decimal(valuation["high"])
+            if book.value_high != new_high:
+                book.value_high = new_high
+                values_changed = True
+
+    # Recalculate scores if values changed
+    if values_changed:
+        _calculate_and_persist_scores(book, db)
+
     db.commit()
-    return {"message": "Analysis updated"}
+    return {
+        "message": "Analysis updated",
+        "values_updated": values_changed,
+        "scores_recalculated": values_changed,
+    }
 
 
 @router.delete("/{book_id}/analysis")
@@ -975,6 +1006,33 @@ def generate_analysis(
         recommendations=parsed.recommendations,
     )
     db.add(analysis)
+
+    # Check if valuation data was extracted and update book's FMV if different
+    from decimal import Decimal
+
+    values_changed = False
+    if parsed.market_analysis and "valuation" in parsed.market_analysis:
+        valuation = parsed.market_analysis["valuation"]
+        if "low" in valuation:
+            new_low = Decimal(valuation["low"])
+            if book.value_low != new_low:
+                book.value_low = new_low
+                values_changed = True
+        if "mid" in valuation:
+            new_mid = Decimal(valuation["mid"])
+            if book.value_mid != new_mid:
+                book.value_mid = new_mid
+                values_changed = True
+        if "high" in valuation:
+            new_high = Decimal(valuation["high"])
+            if book.value_high != new_high:
+                book.value_high = new_high
+                values_changed = True
+
+    # Recalculate scores if values changed
+    if values_changed:
+        _calculate_and_persist_scores(book, db)
+
     db.commit()
     db.refresh(analysis)
 
@@ -989,6 +1047,8 @@ def generate_analysis(
         "market_analysis": analysis.market_analysis,
         "historical_significance": analysis.historical_significance,
         "recommendations": analysis.recommendations,
+        "values_updated": values_changed,
+        "scores_recalculated": values_changed,
     }
 
 
