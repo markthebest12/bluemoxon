@@ -382,13 +382,15 @@ def calculate_collection_impact_breakdown(
             f"Already have {author_book_count} works by {author_name or 'this author'}",
         )
 
-    # Duplicate penalty
+    # Duplicate check
     if is_duplicate:
         score -= 40
         reason = "Duplicate title in collection"
         if duplicate_title:
             reason = f"Duplicate of existing title: {duplicate_title}"
         breakdown.add("duplicate", -40, reason)
+    else:
+        breakdown.add("duplicate", 0, "No duplicate title found in collection")
 
     # Set completion
     if completes_set:
