@@ -24,6 +24,9 @@ export interface AcquisitionBook {
   collection_impact?: number | null;
   overall_score?: number | null;
   scores_calculated_at?: string | null;
+  volumes?: number;
+  is_complete?: boolean;
+  source_url?: string;
 }
 
 export interface AcquirePayload {
@@ -43,6 +46,15 @@ export interface WatchlistPayload {
   volumes?: number;
   source_url?: string;
   purchase_price?: number; // This is the asking price for watchlist items
+}
+
+export interface UpdateWatchlistPayload {
+  value_low?: number;
+  value_mid?: number;
+  value_high?: number;
+  volumes?: number;
+  is_complete?: boolean;
+  source_url?: string;
 }
 
 export const useAcquisitionsStore = defineStore("acquisitions", () => {
@@ -149,6 +161,16 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     return response.data;
   }
 
+  async function updateWatchlistItem(bookId: number, payload: UpdateWatchlistPayload) {
+    const response = await api.put(`/books/${bookId}`, payload);
+    // Update the item in evaluating list
+    const index = evaluating.value.findIndex((b) => b.id === bookId);
+    if (index >= 0) {
+      evaluating.value[index] = response.data;
+    }
+    return response.data;
+  }
+
   return {
     // State
     evaluating,
@@ -167,5 +189,6 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     cancelOrder,
     deleteEvaluating,
     addToWatchlist,
+    updateWatchlistItem,
   };
 });

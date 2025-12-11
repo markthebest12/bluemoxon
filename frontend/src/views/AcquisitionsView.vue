@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
-import { useAcquisitionsStore } from "@/stores/acquisitions";
+import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
+import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
@@ -16,6 +17,8 @@ const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisit
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
 const showWatchlistModal = ref(false);
+const showEditModal = ref(false);
+const editingBook = ref<AcquisitionBook | null>(null);
 
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
@@ -46,6 +49,22 @@ function closeWatchlistModal() {
 
 function handleWatchlistAdded() {
   showWatchlistModal.value = false;
+  acquisitionsStore.fetchAll();
+}
+
+function openEditModal(book: AcquisitionBook) {
+  editingBook.value = book;
+  showEditModal.value = true;
+}
+
+function closeEditModal() {
+  showEditModal.value = false;
+  editingBook.value = null;
+}
+
+function handleEditUpdated() {
+  showEditModal.value = false;
+  editingBook.value = null;
   acquisitionsStore.fetchAll();
 }
 
@@ -167,6 +186,13 @@ async function handleRecalculateScore(bookId: number) {
                   class="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                 >
                   Acquire
+                </button>
+                <button
+                  @click="openEditModal(book)"
+                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded"
+                  title="Edit FMV and details"
+                >
+                  Edit
                 </button>
                 <button
                   @click="handleDelete(book.id)"
@@ -296,6 +322,14 @@ async function handleRecalculateScore(bookId: number) {
       v-if="showWatchlistModal"
       @close="closeWatchlistModal"
       @added="handleWatchlistAdded"
+    />
+
+    <!-- Edit Watchlist Modal -->
+    <EditWatchlistModal
+      v-if="showEditModal && editingBook"
+      :book="editingBook"
+      @close="closeEditModal"
+      @updated="handleEditUpdated"
     />
   </div>
 </template>
