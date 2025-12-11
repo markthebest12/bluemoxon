@@ -45,6 +45,8 @@ bmx-api DELETE /books/123                   # Delete book
 bmx-api --prod GET /books                   # Production (explicit)
 bmx-api --text-file analysis.md PUT /books/123/analysis  # Upload text/plain content
 bmx-api --prod --text-file analysis.md PUT /books/123/analysis  # Production text upload
+bmx-api --image photo.jpg POST /books/123/images  # Upload image (multipart)
+bmx-api --prod --image photo.jpg POST /books/123/images  # Production image upload
 ```
 
 Default is staging. Use `--prod` flag for production.
@@ -52,6 +54,7 @@ Default is staging. Use `--prod` flag for production.
 **Flags:**
 - `--prod` - Use production API instead of staging
 - `--text-file FILE` - Send file contents with `Content-Type: text/plain` (for analysis uploads)
+- `--image FILE` - Upload image with `multipart/form-data` (for image uploads)
 
 Keys stored in `~/.bmx/staging.key` and `~/.bmx/prod.key` (600 permissions).
 
