@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Model ID mapping - use inference profile IDs for Claude models
-# Note: Claude 3.5 Sonnet v2 now requires marketplace - using v1 (June 2024)
+# Note: Claude 3.5 Sonnet v2 works (tested 2025-12-11, 58s for 5464 chars)
+# Claude 4.5 models hang indefinitely - see GitHub #178
 MODEL_IDS = {
-    "sonnet": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",  # Claude 3.5 Sonnet v1
+    "sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",  # Claude 3.5 Sonnet v2
     "opus": "us.anthropic.claude-3-opus-20240229-v1:0",  # Claude 3 Opus
 }
 
