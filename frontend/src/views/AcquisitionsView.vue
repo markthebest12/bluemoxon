@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
+import ScoreCard from "@/components/ScoreCard.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -89,6 +90,19 @@ async function handleGenerateAnalysis(bookId: number) {
     generatingAnalysis.value = null;
   }
 }
+
+const recalculatingScore = ref<number | null>(null);
+
+async function handleRecalculateScore(bookId: number) {
+  if (recalculatingScore.value) return;
+  recalculatingScore.value = bookId;
+  try {
+    await booksStore.calculateScores(bookId);
+    await acquisitionsStore.fetchAll();
+  } finally {
+    recalculatingScore.value = null;
+  }
+}
 </script>
 
 <template>
@@ -134,6 +148,24 @@ async function handleGenerateAnalysis(bookId: number) {
               <div class="mt-2 flex items-center justify-between text-xs">
                 <span class="text-gray-500">FMV: {{ formatPrice(book.value_mid) }}</span>
               </div>
+
+              <!-- Score Card -->
+              <div class="mt-3">
+                <ScoreCard
+                  :investment-grade="book.investment_grade"
+                  :strategic-fit="book.strategic_fit"
+                  :collection-impact="book.collection_impact"
+                  :overall-score="book.overall_score"
+                />
+                <button
+                  @click="handleRecalculateScore(book.id)"
+                  :disabled="recalculatingScore === book.id"
+                  class="mt-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                >
+                  {{ recalculatingScore === book.id ? "Recalculating..." : "Recalculate" }}
+                </button>
+              </div>
+
               <div class="mt-3 flex gap-2">
                 <button
                   @click="openAcquireModal(book.id)"
@@ -196,6 +228,12 @@ async function handleGenerateAnalysis(bookId: number) {
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
               </div>
+
+              <!-- Compact Score Card -->
+              <div class="mt-2">
+                <ScoreCard :overall-score="book.overall_score" compact />
+              </div>
+
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
                 Due: {{ formatDate(book.estimated_delivery) }}
               </div>
@@ -236,6 +274,11 @@ async function handleGenerateAnalysis(bookId: number) {
                 <span class="text-green-600 font-medium"
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
+              </div>
+
+              <!-- Compact Score Card -->
+              <div class="mt-2">
+                <ScoreCard :overall-score="book.overall_score" compact />
               </div>
             </router-link>
           </div>
