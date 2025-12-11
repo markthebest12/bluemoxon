@@ -19,6 +19,7 @@ class Author(Base):
     death_year: Mapped[int | None] = mapped_column(Integer)
     era: Mapped[str | None] = mapped_column(String(50))  # Victorian, Romantic, etc.
     first_acquired_date: Mapped[date | None] = mapped_column(Date)
+    priority_score: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
     books = relationship("Book", back_populates="author")
