@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
+import { useBooksStore } from "@/stores/books";
+import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
+const booksStore = useBooksStore();
+const authStore = useAuthStore();
 const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisitionsStore);
 
 const showAcquireModal = ref(false);
@@ -68,6 +72,23 @@ async function handleDelete(bookId: number) {
     await acquisitionsStore.deleteEvaluating(bookId);
   }
 }
+
+const generatingAnalysis = ref<number | null>(null);
+
+async function handleGenerateAnalysis(bookId: number) {
+  if (generatingAnalysis.value) return;
+
+  generatingAnalysis.value = bookId;
+  try {
+    await booksStore.generateAnalysis(bookId);
+    // Refresh to show has_analysis = true
+    await acquisitionsStore.fetchAll();
+  } catch (e: any) {
+    console.error("Failed to generate analysis:", e);
+  } finally {
+    generatingAnalysis.value = null;
+  }
+}
 </script>
 
 <template>
@@ -125,6 +146,16 @@ async function handleDelete(bookId: number) {
                   class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded"
                 >
                   Delete
+                </button>
+              </div>
+              <div v-if="authStore.isAdmin" class="mt-2">
+                <button
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="generatingAnalysis === book.id"
+                  class="w-full text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                >
+                  <span v-if="generatingAnalysis === book.id">Generating...</span>
+                  <span v-else>{{ book.has_analysis ? "🔄" : "⚡" }} Analysis</span>
                 </button>
               </div>
             </div>

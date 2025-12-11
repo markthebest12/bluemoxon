@@ -18,6 +18,7 @@ export interface AcquisitionBook {
   estimated_delivery?: string;
   scoring_snapshot?: Record<string, unknown>;
   primary_image_url?: string;
+  has_analysis?: boolean;
 }
 
 export interface AcquirePayload {
