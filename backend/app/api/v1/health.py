@@ -290,6 +290,15 @@ async def version():
     return get_version_info()
 
 
+# Migration SQL for e44df6ab5669_add_acquisition_columns
+MIGRATION_E44DF6AB5669_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_url VARCHAR(500)",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_item_id VARCHAR(100)",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS estimated_delivery DATE",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS scoring_snapshot JSONB",
+    "CREATE INDEX IF NOT EXISTS books_source_item_id_idx ON books (source_item_id)",
+]
+
 # Migration SQL for f85b7f976c08_add_scoring_fields
 MIGRATION_F85B7F976C08_SQL = [
     "ALTER TABLE authors ADD COLUMN IF NOT EXISTS priority_score INTEGER NOT NULL DEFAULT 0",
@@ -321,8 +330,9 @@ Run pending database migrations. This endpoint allows running migrations
 from the Lambda which has VPC access to Aurora.
 
 Migrations run in order:
-1. f85b7f976c08 - Add scoring fields
-2. g7890123def0 - Fix sequence sync (resets sequences to max(id) + 1)
+1. e44df6ab5669 - Add acquisition columns (source_url, source_item_id, etc.)
+2. f85b7f976c08 - Add scoring fields
+3. g7890123def0 - Fix sequence sync (resets sequences to max(id) + 1)
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -340,32 +350,19 @@ async def run_migrations(db: Session = Depends(get_db)):
     except Exception:
         current_version = None
 
-    # Define migration chain
+    # Define migration chain - run all migrations regardless of version
+    # Each migration uses IF NOT EXISTS/IF EXISTS to be idempotent
     migrations = [
+        ("e44df6ab5669", MIGRATION_E44DF6AB5669_SQL),
         ("f85b7f976c08", MIGRATION_F85B7F976C08_SQL),
         ("g7890123def0", None),  # Sequence sync uses dynamic SQL
     ]
 
     final_version = "g7890123def0"
 
-    if current_version == final_version:
-        return {
-            "status": "already_current",
-            "current_version": current_version,
-            "message": "Database is already at the latest migration version",
-        }
-
-    new_version = current_version
-
-    # Run migrations in order
+    # Always run all migrations - they are idempotent (IF NOT EXISTS)
+    # This handles cases where alembic_version was updated but columns are missing
     for version, sql_list in migrations:
-        # Skip already-applied migrations
-        if current_version == version:
-            continue
-        # Skip earlier migrations if we're past them
-        if current_version == "f85b7f976c08" and version == "f85b7f976c08":
-            continue
-
         if sql_list:
             # Run static SQL migrations
             for sql in sql_list:
@@ -398,21 +395,19 @@ async def run_migrations(db: Session = Depends(get_db)):
                 except Exception as e:
                     errors.append({"sql": f"setval({table}_id_seq)", "error": str(e)})
 
-        new_version = version
-
     # Update alembic_version to final version
     try:
         if current_version:
             db.execute(
                 text("UPDATE alembic_version SET version_num = :version"),
-                {"version": new_version},
+                {"version": final_version},
             )
         else:
             db.execute(
                 text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
-                {"version": new_version},
+                {"version": final_version},
             )
-        results.append({"sql": f"UPDATE alembic_version to {new_version}", "status": "success"})
+        results.append({"sql": f"UPDATE alembic_version to {final_version}", "status": "success"})
     except Exception as e:
         errors.append({"sql": "UPDATE alembic_version", "error": str(e)})
 
@@ -424,7 +419,7 @@ async def run_migrations(db: Session = Depends(get_db)):
         return {
             "status": "failed",
             "previous_version": current_version,
-            "target_version": new_version,
+            "target_version": final_version,
             "results": results,
             "errors": errors,
         }
@@ -432,7 +427,7 @@ async def run_migrations(db: Session = Depends(get_db)):
     return {
         "status": "success" if not errors else "partial",
         "previous_version": current_version,
-        "new_version": new_version,
+        "new_version": final_version,
         "results": results,
         "errors": errors if errors else None,
     }
