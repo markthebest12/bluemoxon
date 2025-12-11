@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from app.models.author import Author
 from app.models.book import Book
-from app.services.scoring import calculate_investment_grade
+from app.services.scoring import calculate_investment_grade, calculate_strategic_fit
 
 
 class TestBookScoreFields:
@@ -132,3 +132,96 @@ class TestInvestmentGrade:
             value_mid=Decimal("1000"),  # -20% "discount"
         )
         assert score == 5
+
+
+class TestStrategicFit:
+    """Tests for strategic fit calculation."""
+
+    def test_tier_1_publisher_adds_35(self):
+        """Tier 1 publisher should add 35 points."""
+        score = calculate_strategic_fit(
+            publisher_tier="TIER_1",
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 35
+
+    def test_tier_2_publisher_adds_15(self):
+        """Tier 2 publisher should add 15 points."""
+        score = calculate_strategic_fit(
+            publisher_tier="TIER_2",
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 15
+
+    def test_victorian_era_adds_20(self):
+        """Victorian era (1837-1901) should add 20 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            year_start=1867,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 20
+
+    def test_romantic_era_adds_20(self):
+        """Romantic era (1800-1836) should add 20 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            year_start=1820,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 20
+
+    def test_complete_set_adds_15(self):
+        """Complete set should add 15 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            year_start=None,
+            is_complete=True,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 15
+
+    def test_good_condition_adds_15(self):
+        """Good or better condition should add 15 points."""
+        for grade in ["Fine", "Very Good", "Good"]:
+            score = calculate_strategic_fit(
+                publisher_tier=None,
+                year_start=None,
+                is_complete=False,
+                condition_grade=grade,
+                author_priority_score=0,
+            )
+            assert score == 15, f"Failed for grade: {grade}"
+
+    def test_author_priority_added(self):
+        """Author priority score should be added directly."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=50,
+        )
+        assert score == 50
+
+    def test_combined_factors(self):
+        """All factors should combine additively."""
+        score = calculate_strategic_fit(
+            publisher_tier="TIER_1",  # +35
+            year_start=1867,  # +20 (Victorian)
+            is_complete=True,  # +15
+            condition_grade="Very Good",  # +15
+            author_priority_score=50,  # +50
+        )
+        assert score == 135  # 35 + 20 + 15 + 15 + 50

@@ -42,3 +42,50 @@ def calculate_investment_grade(
         return 20
     else:
         return 5
+
+
+def calculate_strategic_fit(
+    publisher_tier: str | None,
+    year_start: int | None,
+    is_complete: bool,
+    condition_grade: str | None,
+    author_priority_score: int,
+) -> int:
+    """
+    Calculate strategic fit score based on collection criteria.
+
+    Factors:
+    - Tier 1 Publisher: +35
+    - Tier 2 Publisher: +15
+    - Victorian/Romantic Era: +20
+    - Complete Set: +15
+    - Good+ Condition: +15
+    - Author Priority: variable (0-50)
+
+    Returns score 0-100+ (can exceed 100 with high author priority).
+    """
+    score = 0
+
+    # Publisher tier
+    if publisher_tier == "TIER_1":
+        score += 35
+    elif publisher_tier == "TIER_2":
+        score += 15
+
+    # Era (Victorian 1837-1901, Romantic 1800-1836)
+    if year_start is not None:
+        if 1800 <= year_start <= 1901:
+            score += 20
+
+    # Complete set
+    if is_complete:
+        score += 15
+
+    # Condition (Good or better)
+    if condition_grade in ("Fine", "Very Good", "Good"):
+        score += 15
+
+    # Author priority
+    score += author_priority_score
+
+    return score
