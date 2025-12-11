@@ -776,6 +776,7 @@ def generate_analysis(
     model_id = get_model_id(request.model)
 
     import logging
+
     logger = logging.getLogger(__name__)
 
     logger.warning(f"Starting Bedrock invocation for book {book_id}, model={request.model}")
