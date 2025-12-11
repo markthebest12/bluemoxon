@@ -1,5 +1,7 @@
 """Books API endpoints."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -725,7 +727,7 @@ def reparse_book_analysis(
 class GenerateAnalysisRequest(BaseModel):
     """Request body for analysis generation."""
 
-    model: str = "sonnet"  # "sonnet" or "opus"
+    model: Literal["sonnet", "opus"] = "sonnet"
 
 
 @router.post("/{book_id}/analysis/generate")
