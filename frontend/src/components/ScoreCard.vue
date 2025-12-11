@@ -200,7 +200,10 @@ function handleRecalculate() {
           >
             <div class="flex items-start gap-2">
               <span
-                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+                :class="[
+                  pointsClass(factor.points),
+                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
@@ -221,7 +224,10 @@ function handleRecalculate() {
           >
             <div class="flex items-start gap-2">
               <span
-                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+                :class="[
+                  pointsClass(factor.points),
+                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
@@ -242,7 +248,10 @@ function handleRecalculate() {
           >
             <div class="flex items-start gap-2">
               <span
-                :class="[pointsClass(factor.points), 'font-medium whitespace-nowrap w-8 text-right flex-shrink-0']"
+                :class="[
+                  pointsClass(factor.points),
+                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
