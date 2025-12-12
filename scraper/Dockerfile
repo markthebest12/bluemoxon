@@ -10,4 +10,7 @@ COPY handler.py .
 # Install Chromium browser
 RUN playwright install chromium
 
+# Run as non-root user for security
+USER pwuser
+
 CMD ["handler.handler"]
