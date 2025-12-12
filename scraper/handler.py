@@ -32,7 +32,17 @@ def handler(event, context):
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # Lambda-compatible Chromium launch args
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--single-process",
+                    "--no-zygote",
+                    "--no-sandbox",
+                    "--disable-gpu",
+                    "--disable-dev-shm-usage",
+                ],
+            )
             page = browser.new_page()
 
             # Set realistic headers
