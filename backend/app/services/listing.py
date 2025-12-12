@@ -114,19 +114,19 @@ def match_reference(
     return None
 
 
-def match_author(name: str, db: Session, threshold: float = 0.9) -> dict | None:
+def match_author(name: str, db: Session, threshold: float = 0.7) -> dict | None:
     """Match author name against database."""
     authors = db.query(Author.id, Author.name).all()
     return match_reference(name, authors, threshold)
 
 
-def match_publisher(name: str, db: Session, threshold: float = 0.9) -> dict | None:
+def match_publisher(name: str, db: Session, threshold: float = 0.7) -> dict | None:
     """Match publisher name against database."""
     publishers = db.query(Publisher.id, Publisher.name).all()
     return match_reference(name, publishers, threshold)
 
 
-def match_binder(name: str, db: Session, threshold: float = 0.9) -> dict | None:
+def match_binder(name: str, db: Session, threshold: float = 0.7) -> dict | None:
     """Match binder name against database."""
     binders = db.query(Binder.id, Binder.name).all()
     return match_reference(name, binders, threshold)
