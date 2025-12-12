@@ -25,15 +25,19 @@ class TestInvokeScraper:
         # Mock successful response
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({
-                "html": "<html>test</html>",
-                "image_urls": ["https://i.ebayimg.com/test.jpg"],
-                "images": [],
-            }),
+            "body": json.dumps(
+                {
+                    "html": "<html>test</html>",
+                    "image_urls": ["https://i.ebayimg.com/test.jpg"],
+                    "images": [],
+                }
+            ),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
-            "Payload": MagicMock(read=MagicMock(return_value=json.dumps(response_payload).encode())),
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
         }
 
         invoke_scraper("https://www.ebay.com/itm/123456")
@@ -53,21 +57,28 @@ class TestInvokeScraper:
 
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({
-                "html": "<html><title>Test Book</title></html>",
-                "image_urls": ["https://i.ebayimg.com/img1.jpg", "https://i.ebayimg.com/img2.jpg"],
-                "images": [
-                    {
-                        "url": "https://i.ebayimg.com/img1.jpg",
-                        "base64": base64.b64encode(b"fake-image-data").decode(),
-                        "content_type": "image/jpeg",
-                    }
-                ],
-            }),
+            "body": json.dumps(
+                {
+                    "html": "<html><title>Test Book</title></html>",
+                    "image_urls": [
+                        "https://i.ebayimg.com/img1.jpg",
+                        "https://i.ebayimg.com/img2.jpg",
+                    ],
+                    "images": [
+                        {
+                            "url": "https://i.ebayimg.com/img1.jpg",
+                            "base64": base64.b64encode(b"fake-image-data").decode(),
+                            "content_type": "image/jpeg",
+                        }
+                    ],
+                }
+            ),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
-            "Payload": MagicMock(read=MagicMock(return_value=json.dumps(response_payload).encode())),
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
         }
 
         result = invoke_scraper("https://www.ebay.com/itm/123456")
@@ -88,7 +99,9 @@ class TestInvokeScraper:
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,  # Lambda itself succeeded
-            "Payload": MagicMock(read=MagicMock(return_value=json.dumps(response_payload).encode())),
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
         }
 
         with pytest.raises(ScraperRateLimitError, match="Rate limited"):
@@ -105,7 +118,9 @@ class TestInvokeScraper:
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
-            "Payload": MagicMock(read=MagicMock(return_value=json.dumps(response_payload).encode())),
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
         }
 
         with pytest.raises(ScraperError, match="Navigation timeout"):
@@ -136,7 +151,9 @@ class TestInvokeScraper:
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
-            "Payload": MagicMock(read=MagicMock(return_value=json.dumps(response_payload).encode())),
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
         }
 
         invoke_scraper("https://www.ebay.com/itm/123456", fetch_images=False)

@@ -71,9 +71,7 @@ onMounted(() => {
 const isValidEbayUrl = computed(() => {
   try {
     const url = new URL(urlInput.value);
-    return (
-      url.hostname.includes("ebay.com") && url.pathname.includes("/itm/")
-    );
+    return url.hostname.includes("ebay.com") && url.pathname.includes("/itm/");
   } catch {
     return false;
   }
@@ -232,7 +230,13 @@ function openSourceUrl() {
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 class="text-lg font-semibold text-gray-900">
-            {{ step === "url" ? "Import from eBay" : step === "review" ? "Review Listing" : "Saving..." }}
+            {{
+              step === "url"
+                ? "Import from eBay"
+                : step === "review"
+                  ? "Review Listing"
+                  : "Saving..."
+            }}
           </h2>
           <button
             @click="handleClose"
@@ -260,9 +264,7 @@ function openSourceUrl() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              eBay Listing URL
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> eBay Listing URL </label>
             <input
               v-model="urlInput"
               type="url"
@@ -353,12 +355,10 @@ function openSourceUrl() {
                 <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
                   {{ validationErrors.author }}
                 </p>
-                <p
-                  v-if="extractedData?.matches?.author"
-                  class="mt-1 text-xs text-green-600"
-                >
-                  Matched: {{ extractedData.matches.author.name }}
-                  ({{ Math.round(extractedData.matches.author.similarity * 100) }}%)
+                <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-green-600">
+                  Matched: {{ extractedData.matches.author.name }} ({{
+                    Math.round(extractedData.matches.author.similarity * 100)
+                  }}%)
                 </p>
               </div>
               <div>
@@ -368,10 +368,7 @@ function openSourceUrl() {
                   v-model="form.publisher_id"
                   @create="handleCreatePublisher"
                 />
-                <p
-                  v-if="extractedData?.matches?.publisher"
-                  class="mt-1 text-xs text-green-600"
-                >
+                <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
                   Matched: {{ extractedData.matches.publisher.name }}
                 </p>
               </div>
@@ -386,10 +383,7 @@ function openSourceUrl() {
                   v-model="form.binder_id"
                   @create="handleCreateBinder"
                 />
-                <p
-                  v-if="extractedData?.matches?.binder"
-                  class="mt-1 text-xs text-green-600"
-                >
+                <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
                   Matched: {{ extractedData.matches.binder.name }}
                 </p>
               </div>
@@ -409,9 +403,7 @@ function openSourceUrl() {
             <!-- Volumes & Asking Price Row -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Volumes
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
                 <input
                   v-model.number="form.volumes"
                   type="number"
@@ -420,9 +412,7 @@ function openSourceUrl() {
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Asking Price
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
                 <div class="relative">
                   <span class="absolute left-3 top-2 text-gray-500">$</span>
                   <input
@@ -439,9 +429,7 @@ function openSourceUrl() {
             <!-- Binding Type & Condition -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Binding Type
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"> Binding Type </label>
                 <input
                   v-model="form.binding_type"
                   type="text"
@@ -464,9 +452,7 @@ function openSourceUrl() {
 
             <!-- Source URL (read-only with link) -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Source URL
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
               <div class="flex gap-2">
                 <input
                   v-model="form.source_url"
@@ -524,7 +510,9 @@ function openSourceUrl() {
 
         <!-- Step 3: Saving -->
         <div v-if="step === 'saving'" class="p-8 text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
+          ></div>
           <p class="text-gray-600">Saving to watchlist...</p>
         </div>
       </div>

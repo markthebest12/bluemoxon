@@ -83,9 +83,7 @@ def extract_listing(
         raise HTTPException(status_code=502, detail=f"Scraping failed: {e}") from e
     except ValueError as e:
         logger.error(f"Extraction error: {e}")
-        raise HTTPException(
-            status_code=422, detail=f"Failed to extract listing data: {e}"
-        ) from e
+        raise HTTPException(status_code=422, detail=f"Failed to extract listing data: {e}") from e
 
     listing_data = result["listing_data"]
 

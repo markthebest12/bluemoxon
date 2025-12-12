@@ -113,9 +113,7 @@ def scrape_ebay_listing(url: str) -> dict:
     images = []
     for img in scraper_result.get("images", []):
         decoded = base64.b64decode(img["base64"])
-        images.append(
-            {"url": img["url"], "data": decoded, "content_type": img["content_type"]}
-        )
+        images.append({"url": img["url"], "data": decoded, "content_type": img["content_type"]})
 
     return {
         "listing_data": listing_data,
