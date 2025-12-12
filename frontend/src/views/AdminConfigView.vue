@@ -1,23 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
-
-const router = useRouter();
-const authStore = useAuthStore();
 
 const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.10 });
 const saving = ref(false);
 const message = ref("");
 
 onMounted(async () => {
-  // Redirect if not admin
-  if (!authStore.isAdmin) {
-    router.push("/");
-    return;
-  }
-
   await loadConfig();
 });
 

@@ -26,11 +26,11 @@ def upgrade() -> None:
         sa.Column('value', postgresql.JSONB, nullable=False),
         sa.Column('updated_at', sa.DateTime, server_default=sa.func.now(), onupdate=sa.func.now())
     )
-    # Seed default values
+    # Seed default values with JSON numeric values
     op.execute("""
         INSERT INTO admin_config (key, value) VALUES
-        ('gbp_to_usd_rate', '1.28'),
-        ('eur_to_usd_rate', '1.10')
+        ('gbp_to_usd_rate', '1.28'::jsonb),
+        ('eur_to_usd_rate', '1.10'::jsonb)
     """)
 
 
