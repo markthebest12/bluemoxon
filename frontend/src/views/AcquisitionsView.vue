@@ -7,6 +7,7 @@ import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
+import ImportListingModal from "@/components/ImportListingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
@@ -18,6 +19,7 @@ const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisit
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
 const showWatchlistModal = ref(false);
+const showImportModal = ref(false);
 const showEditModal = ref(false);
 const editingBook = ref<AcquisitionBook | null>(null);
 const showAnalysisViewer = ref(false);
@@ -52,6 +54,19 @@ function closeWatchlistModal() {
 
 function handleWatchlistAdded() {
   showWatchlistModal.value = false;
+  acquisitionsStore.fetchAll();
+}
+
+function openImportModal() {
+  showImportModal.value = true;
+}
+
+function closeImportModal() {
+  showImportModal.value = false;
+}
+
+function handleImportAdded() {
+  showImportModal.value = false;
   acquisitionsStore.fetchAll();
 }
 
@@ -239,14 +254,23 @@ async function handleRecalculateScore(bookId: number) {
               </div>
             </div>
 
-            <!-- Add Item Button -->
-            <button
-              data-testid="add-to-watchlist"
-              @click="openWatchlistModal"
-              class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
-            >
-              + Add to Watchlist
-            </button>
+            <!-- Add Item Buttons -->
+            <div class="space-y-2">
+              <button
+                data-testid="import-from-ebay"
+                @click="openImportModal"
+                class="block w-full p-3 border-2 border-dashed border-blue-300 rounded-lg text-center text-sm text-blue-600 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50"
+              >
+                🔗 Import from eBay
+              </button>
+              <button
+                data-testid="add-to-watchlist"
+                @click="openWatchlistModal"
+                class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
+              >
+                + Add Manually
+              </button>
+            </div>
           </div>
         </div>
 
@@ -348,6 +372,13 @@ async function handleRecalculateScore(bookId: number) {
       v-if="showWatchlistModal"
       @close="closeWatchlistModal"
       @added="handleWatchlistAdded"
+    />
+
+    <!-- Import from eBay Modal -->
+    <ImportListingModal
+      v-if="showImportModal"
+      @close="closeImportModal"
+      @added="handleImportAdded"
     />
 
     <!-- Edit Watchlist Modal -->
