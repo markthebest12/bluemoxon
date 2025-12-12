@@ -60,7 +60,8 @@ resource "aws_lambda_function" "scraper" {
   environment {
     variables = merge(
       {
-        ENVIRONMENT = var.environment
+        ENVIRONMENT        = var.environment
+        IMAGES_BUCKET_NAME = var.images_bucket_name
       },
       var.environment_variables
     )
@@ -157,6 +158,27 @@ resource "aws_iam_role_policy" "ecr_access" {
         Effect   = "Allow"
         Action   = "ecr:GetAuthorizationToken"
         Resource = "*"
+      }
+    ]
+  })
+}
+
+# S3 write access for scraped images
+resource "aws_iam_role_policy" "s3_access" {
+  count = var.images_bucket_arn != null ? 1 : 0
+  name  = "s3-images-access"
+  role  = aws_iam_role.scraper_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+        ]
+        Resource = "${var.images_bucket_arn}/listings/*"
       }
     ]
   })

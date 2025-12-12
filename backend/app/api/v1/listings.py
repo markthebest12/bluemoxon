@@ -1,7 +1,7 @@
 """Listings extraction API endpoints."""
 
-import base64
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -29,11 +29,13 @@ class ExtractRequest(BaseModel):
 
 
 class ImagePreview(BaseModel):
-    """Image preview in response."""
+    """Image preview in response.
 
-    url: str
-    preview: str  # base64 data URI
-    content_type: str
+    Images are stored in S3 and accessed via presigned URLs.
+    """
+
+    s3_key: str  # S3 object key (e.g., "listings/317651598134/image_00.webp")
+    presigned_url: str  # Presigned URL for direct access (expires in 1 hour)
 
 
 class ReferenceMatch(BaseModel):
@@ -51,7 +53,7 @@ class ExtractResponse(BaseModel):
     ebay_item_id: str
     listing_data: dict
     images: list[ImagePreview]
-    image_urls: list[str]
+    image_urls: list[str]  # Original eBay image URLs (for reference)
     matches: dict
 
 
@@ -63,7 +65,9 @@ def extract_listing(
     """Extract data from an eBay listing URL.
 
     Scrapes the listing, extracts structured book data using AI,
-    and matches against existing authors/binders/publishers.
+    uploads images to S3, and matches against existing authors/binders/publishers.
+
+    Images are uploaded to S3 at listings/{item_id}/ and returned as presigned URLs.
     """
     # Validate URL
     if not is_valid_ebay_url(request.url):
@@ -87,15 +91,13 @@ def extract_listing(
 
     listing_data = result["listing_data"]
 
-    # Build image previews
+    # Build image previews from S3 presigned URLs
     images = []
     for img in result["images"]:
-        preview = f"data:{img['content_type']};base64,{base64.b64encode(img['data']).decode()}"
         images.append(
             ImagePreview(
-                url=img["url"],
-                preview=preview,
-                content_type=img["content_type"],
+                s3_key=img["s3_key"],
+                presigned_url=img["presigned_url"],
             )
         )
 
@@ -119,7 +121,7 @@ def extract_listing(
 
     return ExtractResponse(
         ebay_url=normalized_url,
-        ebay_item_id=item_id,
+        ebay_item_id=result.get("item_id", item_id),
         listing_data=listing_data,
         images=images,
         image_urls=result["image_urls"],

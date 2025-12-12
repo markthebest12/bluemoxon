@@ -67,3 +67,15 @@ variable "provisioned_concurrency" {
   description = "Number of provisioned concurrent executions (0 to disable)"
   default     = 0
 }
+
+variable "images_bucket_arn" {
+  type        = string
+  description = "ARN of the S3 bucket for storing scraped images"
+  default     = null
+}
+
+variable "images_bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket for storing scraped images"
+  default     = null
+}
