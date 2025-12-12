@@ -26,6 +26,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.archive import archive_url
 from app.services.scoring import (
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
@@ -571,6 +572,56 @@ def acquire_book(
             book_dict["primary_image_url"] = (
                 f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
             )
+
+    return BookResponse(**book_dict)
+
+
+@router.post("/{book_id}/archive-source", response_model=BookResponse)
+async def archive_book_source(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Archive the book's source URL to the Wayback Machine.
+
+    Returns existing archive if already successfully archived.
+    """
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.source_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Book has no source_url to archive",
+        )
+
+    # If already successfully archived, return existing
+    if book.archive_status == "success" and book.source_archived_url:
+        book_dict = BookResponse.model_validate(book).model_dump()
+        book_dict["has_analysis"] = book.analysis is not None
+        book_dict["image_count"] = len(book.images) if book.images else 0
+        return BookResponse(**book_dict)
+
+    # Set pending status
+    book.archive_status = "pending"
+    db.commit()
+
+    # Attempt archive
+    result = await archive_url(book.source_url)
+
+    book.archive_status = result["status"]
+    if result["status"] == "success":
+        book.source_archived_url = result["archived_url"]
+
+    db.commit()
+    db.refresh(book)
+
+    # Build response
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)
 
