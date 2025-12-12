@@ -325,6 +325,33 @@ module "db_sync_lambda" {
 }
 
 # =============================================================================
+# Scraper Lambda (Playwright-based eBay scraping)
+# =============================================================================
+
+module "scraper_lambda" {
+  count  = var.enable_lambda ? 1 : 0
+  source = "./modules/scraper-lambda"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  # Allow API Lambda to invoke scraper
+  api_lambda_role_name = module.lambda[0].role_name
+  api_lambda_role_arn  = module.lambda[0].role_arn
+
+  # Scraper settings
+  image_tag   = "v1.0.1"
+  memory_size = 1024 # Playwright needs significant memory
+  timeout     = 60   # eBay pages can be slow
+
+  environment_variables = {
+    ENVIRONMENT = var.environment
+  }
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # API Gateway
 # =============================================================================
 

@@ -10,6 +10,12 @@ variable "api_lambda_role_name" {
   default     = null
 }
 
+variable "enable_api_invoke_permission" {
+  type        = bool
+  description = "Whether to create IAM policy for API Lambda to invoke scraper"
+  default     = true
+}
+
 variable "environment" {
   type        = string
   description = "Environment name (staging, prod)"

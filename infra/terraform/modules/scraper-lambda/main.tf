@@ -159,7 +159,7 @@ resource "aws_cloudwatch_log_group" "scraper" {
 # -----------------------------------------------------------------------------
 
 resource "aws_lambda_permission" "allow_api_invoke" {
-  count         = var.api_lambda_role_arn != null ? 1 : 0
+  count         = var.enable_api_invoke_permission ? 1 : 0
   statement_id  = "AllowAPILambdaInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.scraper.function_name
@@ -169,7 +169,7 @@ resource "aws_lambda_permission" "allow_api_invoke" {
 
 # Policy for API Lambda to invoke scraper
 resource "aws_iam_role_policy" "api_invoke_scraper" {
-  count = var.api_lambda_role_name != null ? 1 : 0
+  count = var.enable_api_invoke_permission ? 1 : 0
   name  = "invoke-scraper"
   role  = var.api_lambda_role_name
 
