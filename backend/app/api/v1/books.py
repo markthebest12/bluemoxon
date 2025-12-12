@@ -19,6 +19,7 @@ from app.schemas.book import (
     BookResponse,
     BookUpdate,
 )
+from app.services.archive import archive_url
 from app.services.bedrock import (
     build_bedrock_messages,
     fetch_book_images_for_bedrock,
@@ -26,7 +27,6 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.archive import archive_url
 from app.services.scoring import (
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
