@@ -546,6 +546,10 @@ def acquire_book(
         },
     }
 
+    # Mark for archive if source_url exists and not already archived
+    if book.source_url and not book.archive_status:
+        book.archive_status = "pending"
+
     db.commit()
     db.refresh(book)
 
