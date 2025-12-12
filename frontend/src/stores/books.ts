@@ -86,9 +86,7 @@ export const useBooksStore = defineStore("books", () => {
 
   // Analysis job tracking (book_id -> job)
   const activeAnalysisJobs = ref<Map<number, AnalysisJob>>(new Map());
-  const analysisJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(
-    new Map()
-  );
+  const analysisJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   const page = ref(1);
   const perPage = ref(20);
@@ -220,10 +218,7 @@ export const useBooksStore = defineStore("books", () => {
     bookId: number,
     model: "sonnet" | "opus" = "sonnet"
   ): Promise<AnalysisJob> {
-    const response = await api.post(
-      `/books/${bookId}/analysis/generate-async`,
-      { model }
-    );
+    const response = await api.post(`/books/${bookId}/analysis/generate-async`, { model });
     const job = response.data as AnalysisJob;
 
     // Track the job

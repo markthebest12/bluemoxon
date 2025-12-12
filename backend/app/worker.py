@@ -149,8 +149,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             new_fmv = Decimal(str(parsed.fair_market_value_low))
             if book.fair_market_value != new_fmv:
                 logger.info(
-                    f"Updating FMV for book {book_id}: "
-                    f"{book.fair_market_value} -> {new_fmv}"
+                    f"Updating FMV for book {book_id}: {book.fair_market_value} -> {new_fmv}"
                 )
                 book.fair_market_value = new_fmv
                 book.fmv_updated_at = datetime.now(UTC)

@@ -141,8 +141,7 @@ watch(
       form.value.title = data.title || "";
       form.value.publication_date = data.publication_date || "";
       form.value.volumes = data.volumes || 1;
-      form.value.source_url =
-        status.ebay_url || `https://www.ebay.com/itm/${currentItemId.value}`;
+      form.value.source_url = status.ebay_url || `https://www.ebay.com/itm/${currentItemId.value}`;
       form.value.binding_type = data.binding_type || data.binding || "";
       form.value.condition_notes = data.condition_description || "";
 
@@ -370,13 +369,8 @@ function openSourceUrl() {
                   : "Processing..."
             }}
           </p>
-          <p class="text-sm text-gray-500">
-            This may take up to 2 minutes. Please wait.
-          </p>
-          <button
-            @click="goBack"
-            class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
+          <p class="text-sm text-gray-500">This may take up to 2 minutes. Please wait.</p>
+          <button @click="goBack" class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800">
             Cancel
           </button>
         </div>
