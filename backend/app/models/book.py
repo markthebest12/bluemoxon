@@ -48,6 +48,9 @@ class Book(Base, TimestampMixin):
     year_end: Mapped[int | None] = mapped_column(Integer)
     edition: Mapped[str | None] = mapped_column(String(100))
     volumes: Mapped[int] = mapped_column(Integer, default=1)
+    is_complete: Mapped[bool] = mapped_column(
+        Boolean, default=True
+    )  # Set is complete (all volumes present)
 
     # Classification
     category: Mapped[str | None] = mapped_column(String(50))

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
-import { useAcquisitionsStore } from "@/stores/acquisitions";
+import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
+import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
+import ImportListingModal from "@/components/ImportListingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
+import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -16,6 +19,11 @@ const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisit
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
 const showWatchlistModal = ref(false);
+const showImportModal = ref(false);
+const showEditModal = ref(false);
+const editingBook = ref<AcquisitionBook | null>(null);
+const showAnalysisViewer = ref(false);
+const analysisBookId = ref<number | null>(null);
 
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
@@ -47,6 +55,45 @@ function closeWatchlistModal() {
 function handleWatchlistAdded() {
   showWatchlistModal.value = false;
   acquisitionsStore.fetchAll();
+}
+
+function openImportModal() {
+  showImportModal.value = true;
+}
+
+function closeImportModal() {
+  showImportModal.value = false;
+}
+
+function handleImportAdded() {
+  showImportModal.value = false;
+  acquisitionsStore.fetchAll();
+}
+
+function openEditModal(book: AcquisitionBook) {
+  editingBook.value = book;
+  showEditModal.value = true;
+}
+
+function closeEditModal() {
+  showEditModal.value = false;
+  editingBook.value = null;
+}
+
+function handleEditUpdated() {
+  showEditModal.value = false;
+  editingBook.value = null;
+  acquisitionsStore.fetchAll();
+}
+
+function openAnalysisViewer(bookId: number) {
+  analysisBookId.value = bookId;
+  showAnalysisViewer.value = true;
+}
+
+function closeAnalysisViewer() {
+  showAnalysisViewer.value = false;
+  analysisBookId.value = null;
 }
 
 function formatPrice(price?: number | null): string {
@@ -141,7 +188,11 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
+              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
+                  {{ book.title }}
+                </h3>
+              </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -169,32 +220,72 @@ async function handleRecalculateScore(bookId: number) {
                   Acquire
                 </button>
                 <button
+                  @click="openEditModal(book)"
+                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded"
+                  title="Edit FMV and details"
+                >
+                  Edit
+                </button>
+                <button
                   @click="handleDelete(book.id)"
                   class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded"
                 >
                   Delete
                 </button>
               </div>
-              <div v-if="authStore.isAdmin" class="mt-2">
+              <!-- Analysis Section -->
+              <div class="mt-2 flex items-center gap-2">
+                <!-- View Analysis link (visible to all when analysis exists) -->
                 <button
+                  v-if="book.has_analysis"
+                  @click="openAnalysisViewer(book.id)"
+                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  title="View analysis"
+                >
+                  📄 View Analysis
+                </button>
+                <!-- Generate Analysis button (admin only, when no analysis exists) -->
+                <button
+                  v-else-if="authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="generatingAnalysis === book.id"
-                  class="w-full text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center justify-center gap-1"
+                  title="Generate analysis"
                 >
-                  <span v-if="generatingAnalysis === book.id">Generating...</span>
-                  <span v-else>{{ book.has_analysis ? "🔄" : "⚡" }} Analysis</span>
+                  <span v-if="generatingAnalysis === book.id">⏳ Generating...</span>
+                  <span v-else>⚡ Generate Analysis</span>
+                </button>
+                <!-- Regenerate button (admin only, when analysis exists) -->
+                <button
+                  v-if="book.has_analysis && authStore.isAdmin"
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="generatingAnalysis === book.id"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  title="Regenerate analysis"
+                >
+                  <span v-if="generatingAnalysis === book.id">⏳</span>
+                  <span v-else>🔄</span>
                 </button>
               </div>
             </div>
 
-            <!-- Add Item Button -->
-            <button
-              data-testid="add-to-watchlist"
-              @click="openWatchlistModal"
-              class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
-            >
-              + Add to Watchlist
-            </button>
+            <!-- Add Item Buttons -->
+            <div class="space-y-2">
+              <button
+                data-testid="import-from-ebay"
+                @click="openImportModal"
+                class="block w-full p-3 border-2 border-dashed border-blue-300 rounded-lg text-center text-sm text-blue-600 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50"
+              >
+                🔗 Import from eBay
+              </button>
+              <button
+                data-testid="add-to-watchlist"
+                @click="openWatchlistModal"
+                class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
+              >
+                + Add Manually
+              </button>
+            </div>
           </div>
         </div>
 
@@ -213,7 +304,11 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
+              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
+                  {{ book.title }}
+                </h3>
+              </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -296,6 +391,29 @@ async function handleRecalculateScore(bookId: number) {
       v-if="showWatchlistModal"
       @close="closeWatchlistModal"
       @added="handleWatchlistAdded"
+    />
+
+    <!-- Import from eBay Modal -->
+    <ImportListingModal
+      v-if="showImportModal"
+      @close="closeImportModal"
+      @added="handleImportAdded"
+    />
+
+    <!-- Edit Watchlist Modal -->
+    <EditWatchlistModal
+      v-if="showEditModal && editingBook"
+      :book="editingBook"
+      @close="closeEditModal"
+      @updated="handleEditUpdated"
+    />
+
+    <!-- Analysis Viewer -->
+    <AnalysisViewer
+      v-if="analysisBookId"
+      :book-id="analysisBookId"
+      :visible="showAnalysisViewer"
+      @close="closeAnalysisViewer"
     />
   </div>
 </template>

@@ -24,6 +24,7 @@ class AuthorUpdate(BaseModel):
     death_year: int | None = None
     era: str | None = None
     first_acquired_date: date | None = None
+    priority_score: int | None = None
 
 
 class AuthorResponse(BaseModel):
@@ -35,6 +36,7 @@ class AuthorResponse(BaseModel):
     death_year: int | None = None
     era: str | None = None
     first_acquired_date: date | None = None
+    priority_score: int = 0
     book_count: int = 0
 
     class Config:
