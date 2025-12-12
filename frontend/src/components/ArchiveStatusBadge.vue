@@ -5,10 +5,22 @@ interface Props {
   status: "pending" | "success" | "failed" | null;
   archivedUrl?: string | null;
   showLabel?: boolean;
+  showArchiveButton?: boolean;
+  archiving?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showLabel: true,
+  showArchiveButton: false,
+  archiving: false,
+});
+
+const emit = defineEmits<{
+  archive: [];
+}>();
+
+const canArchive = computed(() => {
+  return props.showArchiveButton && (props.status === null || props.status === "failed");
 });
 
 const badgeClass = computed(() => {
@@ -52,21 +64,33 @@ const iconPath = computed(() => {
 </script>
 
 <template>
-  <component
-    :is="status === 'success' && archivedUrl ? 'a' : 'span'"
-    :href="status === 'success' && archivedUrl ? archivedUrl : undefined"
-    :target="status === 'success' && archivedUrl ? '_blank' : undefined"
-    :rel="status === 'success' && archivedUrl ? 'noopener noreferrer' : undefined"
-    :class="[
-      badgeClass,
-      'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
-      status === 'success' && archivedUrl ? 'hover:underline cursor-pointer' : '',
-    ]"
-    :title="status === 'success' && archivedUrl ? 'View archived page' : undefined"
-  >
-    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="iconPath" />
-    </svg>
-    <span v-if="showLabel">{{ badgeText }}</span>
-  </component>
+  <div class="inline-flex items-center gap-1">
+    <component
+      :is="status === 'success' && archivedUrl ? 'a' : 'span'"
+      :href="status === 'success' && archivedUrl ? archivedUrl : undefined"
+      :target="status === 'success' && archivedUrl ? '_blank' : undefined"
+      :rel="status === 'success' && archivedUrl ? 'noopener noreferrer' : undefined"
+      :class="[
+        badgeClass,
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
+        status === 'success' && archivedUrl ? 'hover:underline cursor-pointer' : '',
+      ]"
+      :title="status === 'success' && archivedUrl ? 'View archived page' : undefined"
+    >
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="iconPath" />
+      </svg>
+      <span v-if="showLabel">{{ badgeText }}</span>
+    </component>
+    <button
+      v-if="canArchive"
+      @click="emit('archive')"
+      :disabled="archiving"
+      class="ml-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+      :title="status === 'failed' ? 'Retry archive' : 'Archive now'"
+    >
+      <span v-if="archiving">⏳</span>
+      <span v-else>📥 Archive</span>
+    </button>
+  </div>
 </template>

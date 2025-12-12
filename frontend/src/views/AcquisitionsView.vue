@@ -151,6 +151,20 @@ async function handleRecalculateScore(bookId: number) {
     recalculatingScore.value = null;
   }
 }
+
+const archivingBook = ref<number | null>(null);
+
+async function handleArchiveSource(bookId: number) {
+  if (archivingBook.value) return;
+  archivingBook.value = bookId;
+  try {
+    await acquisitionsStore.archiveSource(bookId);
+  } catch (e: unknown) {
+    console.error("Failed to archive source:", e);
+  } finally {
+    archivingBook.value = null;
+  }
+}
 </script>
 
 <template>
@@ -332,6 +346,9 @@ async function handleRecalculateScore(bookId: number) {
                 <ArchiveStatusBadge
                   :status="book.archive_status"
                   :archived-url="book.source_archived_url"
+                  :show-archive-button="true"
+                  :archiving="archivingBook === book.id"
+                  @archive="handleArchiveSource(book.id)"
                 />
               </div>
               <div class="mt-3">
