@@ -61,6 +61,8 @@ def normalize_name(name: str) -> str:
     name = unicodedata.normalize("NFKD", name)
     name = "".join(c for c in name if not unicodedata.combining(c))
     name = name.lower()
+    # Remove parenthetical content (birth/death dates, etc.)
+    name = re.sub(r"\s*\([^)]*\)\s*", " ", name)
     # Remove common suffixes
     name = re.sub(r"\s*&\s*(son|co\.?|sons|company)\s*", "", name)
     name = re.sub(r"\s*(ltd\.?|limited|inc\.?)\s*", "", name)
@@ -140,7 +142,7 @@ EXTRACTION_PROMPT = """Extract book listing details as JSON. Return ONLY valid J
 
 {{
   "title": "book title only, no author/publisher/binder in title",
-  "author": "author name (e.g., 'John Ruskin', 'Charles Dickens')",
+  "author": "author name only, no dates (e.g., 'John Ruskin' not 'John Ruskin (1819-1900)')",
   "publisher": "original publisher name if mentioned (e.g., 'Chapman & Hall', 'Macmillan')",
   "binder": "bindery/bookbinder name if mentioned (Rivière, Zaehnsdorf, Bayntun, Sangorski)",
   "price": 165.00,
@@ -148,7 +150,7 @@ EXTRACTION_PROMPT = """Extract book listing details as JSON. Return ONLY valid J
   "publication_date": "year or date string",
   "volumes": 1,
   "condition": "condition notes",
-  "binding_type": "binding style/material (e.g., 'Full calf', 'Half morocco', 'Full morocco', 'Cloth', 'Tree calf', 'Vellum')"
+  "binding_type": "binding material and coverage ONLY (e.g., 'Full calf', 'Half morocco', 'Full morocco', 'Quarter leather', 'Tree calf', 'Vellum', 'Cloth')"
 }}
 
 Listing HTML:

@@ -61,3 +61,9 @@ variable "timeout" {
   description = "Function timeout in seconds (scraping can take time)"
   default     = 60
 }
+
+variable "provisioned_concurrency" {
+  type        = number
+  description = "Number of provisioned concurrent executions (0 to disable)"
+  default     = 0
+}

@@ -24,6 +24,11 @@ def handler(event, context):
             - image_urls: List of image URLs found
             - images: List of {url, base64, content_type} for downloaded images
     """
+    # Handle warmup requests (from CloudWatch scheduled events)
+    if event.get("warmup"):
+        logger.info("Warmup request - keeping Lambda warm")
+        return {"statusCode": 200, "body": json.dumps({"warmup": True})}
+
     url = event.get("url")
     # Default to NOT fetching images - API Lambda will download them directly
     # This keeps scraper fast (under 30s API Gateway limit)

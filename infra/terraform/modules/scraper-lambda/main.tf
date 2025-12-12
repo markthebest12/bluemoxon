@@ -83,6 +83,25 @@ resource "aws_lambda_function" "scraper" {
 }
 
 # -----------------------------------------------------------------------------
+# Provisioned Concurrency (optional - eliminates cold starts)
+# -----------------------------------------------------------------------------
+
+resource "aws_lambda_alias" "scraper" {
+  count            = var.provisioned_concurrency > 0 ? 1 : 0
+  name             = "live"
+  description      = "Alias for provisioned concurrency"
+  function_name    = aws_lambda_function.scraper.function_name
+  function_version = aws_lambda_function.scraper.version
+}
+
+resource "aws_lambda_provisioned_concurrency_config" "scraper" {
+  count                             = var.provisioned_concurrency > 0 ? 1 : 0
+  function_name                     = aws_lambda_function.scraper.function_name
+  provisioned_concurrent_executions = var.provisioned_concurrency
+  qualifier                         = aws_lambda_alias.scraper[0].name
+}
+
+# -----------------------------------------------------------------------------
 # IAM Role for Lambda Execution
 # -----------------------------------------------------------------------------
 
