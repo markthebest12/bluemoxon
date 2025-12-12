@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useListingsStore, type ImagePreview } from "@/stores/listings";
-import { api } from "@/services/api";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 
 const emit = defineEmits<{
@@ -50,37 +49,6 @@ const form = ref({
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
-
-// Image upload progress
-const uploadingImages = ref(false);
-const imageUploadProgress = ref({ current: 0, total: 0 });
-
-// Copy images from listings/ to books/ path in S3
-async function copyImagesToBook(bookId: number) {
-  const images = extractedData.value?.images || [];
-  if (images.length === 0) return;
-
-  uploadingImages.value = true;
-  imageUploadProgress.value = { current: 0, total: images.length };
-
-  for (let i = 0; i < images.length; i++) {
-    const img = images[i];
-    try {
-      // Copy from listings/{item_id}/ to books/{book_id}/
-      // The backend handles the S3 copy operation
-      await api.post(`/books/${bookId}/images/copy-from-listing`, {
-        s3_key: img.s3_key,
-      });
-
-      imageUploadProgress.value.current = i + 1;
-    } catch (e) {
-      console.error(`Failed to copy image ${i + 1}:`, e);
-      // Continue with other images even if one fails
-    }
-  }
-
-  uploadingImages.value = false;
-}
 
 // Lock body scroll when modal is open
 watch(
@@ -198,10 +166,9 @@ async function handleSubmit() {
       listing_s3_keys: extractedData.value?.images?.map((img) => img.s3_key) || [],
     };
 
-    const book = await acquisitionsStore.addToWatchlist(payload);
+    await acquisitionsStore.addToWatchlist(payload);
 
-    // Images are now copied by backend during addToWatchlist
-    // No need for separate copy step
+    // Images are copied by backend during addToWatchlist
 
     emit("added");
     emit("close");
