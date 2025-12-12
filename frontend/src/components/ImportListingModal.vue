@@ -2,8 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
-import { useListingsStore } from "@/stores/listings";
-import { api } from "@/services/api";
+import { useListingsStore, type ImagePreview } from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 
 const emit = defineEmits<{
@@ -23,10 +22,10 @@ const urlInput = ref("");
 const extracting = ref(false);
 const extractError = ref<string | null>(null);
 
-// Extracted data
+// Extracted data (using new S3-based image format)
 const extractedData = ref<{
   listing_data: Record<string, any>;
-  images: Array<{ url: string; preview: string; content_type: string }>;
+  images: ImagePreview[];
   image_urls: string[];
   matches: Record<string, { id: number; name: string; similarity: number }>;
   ebay_url: string;
@@ -50,56 +49,6 @@ const form = ref({
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
-
-// Image upload progress
-const uploadingImages = ref(false);
-const imageUploadProgress = ref({ current: 0, total: 0 });
-
-// Convert base64 data URI to File object
-function dataURItoFile(dataURI: string, filename: string): File {
-  const arr = dataURI.split(",");
-  const mimeMatch = arr[0].match(/:(.*?);/);
-  const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, { type: mime });
-}
-
-// Upload images to a book
-async function uploadImages(bookId: number) {
-  const images = extractedData.value?.images || [];
-  if (images.length === 0) return;
-
-  uploadingImages.value = true;
-  imageUploadProgress.value = { current: 0, total: images.length };
-
-  for (let i = 0; i < images.length; i++) {
-    const img = images[i];
-    try {
-      const extension = img.content_type.split("/")[1] || "jpg";
-      const filename = `image_${String(i + 1).padStart(2, "0")}.${extension}`;
-      const file = dataURItoFile(img.preview, filename);
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      await api.post(`/books/${bookId}/images`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      imageUploadProgress.value.current = i + 1;
-    } catch (e) {
-      console.error(`Failed to upload image ${i + 1}:`, e);
-      // Continue with other images even if one fails
-    }
-  }
-
-  uploadingImages.value = false;
-}
 
 // Lock body scroll when modal is open
 watch(
@@ -213,14 +162,13 @@ async function handleSubmit() {
       purchase_price: form.value.purchase_price || undefined,
       binding_type: form.value.binding_type || undefined,
       condition_notes: form.value.condition_notes || undefined,
+      // Pass S3 keys so backend can copy images
+      listing_s3_keys: extractedData.value?.images?.map((img) => img.s3_key) || [],
     };
 
-    const book = await acquisitionsStore.addToWatchlist(payload);
+    await acquisitionsStore.addToWatchlist(payload);
 
-    // Upload images if we have them
-    if (extractedData.value?.images?.length) {
-      await uploadImages(book.id);
-    }
+    // Images are copied by backend during addToWatchlist
 
     emit("added");
     emit("close");
@@ -357,12 +305,12 @@ function openSourceUrl() {
 
         <!-- Step 2: Review & Edit -->
         <div v-if="step === 'review'" class="p-4 space-y-4">
-          <!-- Image Preview -->
+          <!-- Image Preview (using presigned URLs from S3) -->
           <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
             <img
               v-for="(img, idx) in extractedData.images.slice(0, 4)"
               :key="idx"
-              :src="img.preview"
+              :src="img.presigned_url"
               class="w-24 h-24 object-cover rounded-lg border border-gray-200"
               :alt="`Image ${idx + 1}`"
             />
@@ -570,14 +518,7 @@ function openSourceUrl() {
           <div
             class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
           ></div>
-          <p class="text-gray-600">
-            <template v-if="uploadingImages">
-              Uploading images ({{ imageUploadProgress.current }}/{{
-                imageUploadProgress.total
-              }})...
-            </template>
-            <template v-else> Saving to watchlist... </template>
-          </p>
+          <p class="text-gray-600">Saving to watchlist...</p>
         </div>
       </div>
     </div>

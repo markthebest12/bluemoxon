@@ -90,6 +90,10 @@ class Book(Base, TimestampMixin):
     # Acquisition scoring (captured at purchase time)
     scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)
 
+    # Archive tracking
+    source_archived_url: Mapped[str | None] = mapped_column(String(500))
+    archive_status: Mapped[str | None] = mapped_column(String(20))  # pending, success, failed
+
     # Calculated scores
     investment_grade: Mapped[int | None] = mapped_column(Integer)
     strategic_fit: Mapped[int | None] = mapped_column(Integer)

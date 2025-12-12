@@ -3,9 +3,8 @@ import { defineStore } from "pinia";
 import { api } from "@/services/api";
 
 export interface ImagePreview {
-  url: string;
-  preview: string; // base64 data URI
-  content_type: string;
+  s3_key: string;
+  presigned_url: string;
 }
 
 export interface ReferenceMatch {
@@ -31,7 +30,7 @@ export interface ExtractedListing {
     condition_description?: string;
   };
   images: ImagePreview[];
-  image_urls: string[];
+  image_urls: string[]; // Original eBay image URLs (for reference)
   matches: {
     author?: ReferenceMatch;
     binder?: ReferenceMatch;

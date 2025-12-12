@@ -9,6 +9,7 @@ import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
 import ImportListingModal from "@/components/ImportListingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
+import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
@@ -148,6 +149,20 @@ async function handleRecalculateScore(bookId: number) {
     await acquisitionsStore.fetchAll();
   } finally {
     recalculatingScore.value = null;
+  }
+}
+
+const archivingBook = ref<number | null>(null);
+
+async function handleArchiveSource(bookId: number) {
+  if (archivingBook.value) return;
+  archivingBook.value = bookId;
+  try {
+    await acquisitionsStore.archiveSource(bookId);
+  } catch (e: unknown) {
+    console.error("Failed to archive source:", e);
+  } finally {
+    archivingBook.value = null;
   }
 }
 </script>
@@ -326,6 +341,15 @@ async function handleRecalculateScore(bookId: number) {
 
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
                 Due: {{ formatDate(book.estimated_delivery) }}
+              </div>
+              <div v-if="book.source_url" class="mt-1">
+                <ArchiveStatusBadge
+                  :status="book.archive_status"
+                  :archived-url="book.source_archived_url"
+                  :show-archive-button="true"
+                  :archiving="archivingBook === book.id"
+                  @archive="handleArchiveSource(book.id)"
+                />
               </div>
               <div class="mt-3">
                 <button

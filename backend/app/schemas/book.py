@@ -42,6 +42,10 @@ class BookBase(BaseModel):
     # Delivery tracking
     estimated_delivery: date | None = None
 
+    # Archive tracking
+    source_archived_url: str | None = None
+    archive_status: str | None = None  # pending, success, failed
+
 
 class BookCreate(BookBase):
     """Schema for creating a book."""
@@ -83,6 +87,8 @@ class BookUpdate(BaseModel):
     source_url: str | None = None
     source_item_id: str | None = None
     estimated_delivery: date | None = None
+    source_archived_url: str | None = None
+    archive_status: str | None = None
 
 
 class AuthorSummary(BaseModel):

@@ -339,10 +339,14 @@ module "scraper_lambda" {
   api_lambda_role_name = module.lambda[0].role_name
   api_lambda_role_arn  = module.lambda[0].role_arn
 
+  # S3 bucket for scraped images
+  images_bucket_arn  = module.images_bucket.bucket_arn
+  images_bucket_name = module.images_bucket.bucket_name
+
   # Scraper settings
-  image_tag   = "v1.0.6"
+  image_tag   = "v1.0.7"
   memory_size = 1024 # Playwright needs significant memory
-  timeout     = 60   # eBay pages can be slow
+  timeout     = 90   # Allow more time for S3 uploads (24 images)
 
   environment_variables = {
     ENVIRONMENT = var.environment
