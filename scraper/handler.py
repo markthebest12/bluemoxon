@@ -184,6 +184,15 @@ def handler(event, context):
             )
             logger.info(f"Found {len(image_urls)} image URLs")
 
+            # Store HTML in S3 for later extraction (avoids re-fetching)
+            html_key = f"listings/{item_id}/page.html"
+            if bucket_name:
+                try:
+                    upload_to_s3(bucket_name, html_key, html.encode("utf-8"), "text/html")
+                    logger.info(f"Uploaded HTML ({len(html)} chars) -> {html_key}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload HTML: {e}")
+
             s3_keys = []
             if fetch_images and bucket_name:
                 for idx, img_url in enumerate(image_urls[:MAX_IMAGES]):

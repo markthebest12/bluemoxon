@@ -259,37 +259,49 @@ def get_extract_status(
             error=f"S3 error: {e}",
         )
 
-    if not s3_keys:
+    # Filter out page.html from s3_keys (we only want images)
+    html_key = f"listings/{item_id}/page.html"
+    image_s3_keys = [k for k in s3_keys if k != html_key]
+
+    if not image_s3_keys:
         # No images yet - scraper still running
         return ExtractStatusResponse(
             item_id=item_id,
             status="pending",
         )
 
-    # Images exist - try to get HTML from scraper result stored in S3
-    # If no HTML stored, we need to fetch it differently
-    # For now, we'll use the simpler approach: call Bedrock directly with the eBay URL
-
     ebay_url = f"https://www.ebay.com/itm/{item_id}"
 
-    # Fetch eBay page content for extraction
-    try:
-        import httpx
+    # Read HTML from S3 (uploaded by scraper Lambda)
+    html = None
+    if html_key in s3_keys:
+        try:
+            response = s3.get_object(Bucket=IMAGES_BUCKET, Key=html_key)
+            html = response["Body"].read().decode("utf-8")
+            logger.info(f"Read HTML from S3: {len(html)} chars")
+        except Exception as e:
+            logger.warning(f"Failed to read HTML from S3: {e}")
 
-        with httpx.Client(timeout=30) as client:
-            resp = client.get(
-                ebay_url,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"},
-                follow_redirects=True,
+    # Fallback: fetch from eBay if HTML not in S3 (legacy items)
+    if not html:
+        logger.warning(f"HTML not found in S3 for {item_id}, falling back to httpx fetch")
+        try:
+            import httpx
+
+            with httpx.Client(timeout=30) as client:
+                resp = client.get(
+                    ebay_url,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"},
+                    follow_redirects=True,
+                )
+                html = resp.text
+        except Exception as e:
+            logger.error(f"Failed to fetch eBay page: {e}")
+            return ExtractStatusResponse(
+                item_id=item_id,
+                status="error",
+                error=f"Failed to fetch listing: {e}",
             )
-            html = resp.text
-    except Exception as e:
-        logger.error(f"Failed to fetch eBay page: {e}")
-        return ExtractStatusResponse(
-            item_id=item_id,
-            status="error",
-            error=f"Failed to fetch listing: {e}",
-        )
 
     # Extract structured data using Bedrock
     try:
@@ -302,9 +314,9 @@ def get_extract_status(
             error=f"Extraction failed: {e}",
         )
 
-    # Build image previews with presigned URLs
+    # Build image previews with presigned URLs (exclude page.html)
     images = []
-    for s3_key in sorted(s3_keys):
+    for s3_key in sorted(image_s3_keys):
         try:
             presigned_url = generate_presigned_url(IMAGES_BUCKET, s3_key, PRESIGNED_URL_EXPIRY)
             images.append(ImagePreview(s3_key=s3_key, presigned_url=presigned_url))
