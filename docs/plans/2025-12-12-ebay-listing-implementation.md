@@ -1492,20 +1492,20 @@ def run_cleanup(
 
 ## Execution Order
 
-1. URL utilities (Task 1)
-2. Reference matching (Task 2)
-3. Bedrock extraction (Task 3)
-4. Scraper Lambda infra (Task 4)
-5. Scraper invocation service (Task 5)
-6. Extract endpoint (Task 6)
-7. Database migration (Task 7)
-8. Frontend modal (Task 8)
-9. Frontend store (Task 9)
-10. Dashboard integration (Task 10)
-11. Cleanup Lambda (Task 11)
-12. Admin cleanup endpoint (Task 12)
-13. Cleanup UI panel (Task 13)
-14. E2E testing & polish (Task 14)
+1. ✅ URL utilities (Task 1) - Completed 2025-12-12
+2. ✅ Reference matching (Task 2) - Completed 2025-12-12
+3. ✅ Bedrock extraction (Task 3) - Completed 2025-12-12
+4. ✅ Scraper Lambda infra (Task 4) - Completed 2025-12-12
+5. ✅ Scraper invocation service (Task 5) - Completed 2025-12-12
+6. ✅ Extract endpoint (Task 6) - Completed 2025-12-12
+7. ✅ Database migration (Task 7) - Completed 2025-12-12
+8. ✅ Frontend modal (Task 8) - Completed 2025-12-12
+9. ✅ Frontend store (Task 9) - Completed 2025-12-12
+10. ✅ Dashboard integration (Task 10) - Completed 2025-12-12
+11. ⏳ Cleanup Lambda (Task 11) - Deferred (GitHub Issue #189)
+12. ⏳ Admin cleanup endpoint (Task 12) - Deferred (GitHub Issue #190)
+13. ⏳ Cleanup UI panel (Task 13) - Deferred (GitHub Issue #191)
+14. ✅ E2E testing & polish (Task 14) - Completed 2025-12-12
 
 ## Estimated Effort
 
