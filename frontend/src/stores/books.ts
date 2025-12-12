@@ -37,6 +37,13 @@ export interface Book {
   collection_impact: number | null;
   overall_score: number | null;
   scores_calculated_at: string | null;
+  // Source tracking
+  source_url: string | null;
+  source_item_id: string | null;
+  estimated_delivery: string | null;
+  // Archive tracking
+  source_archived_url: string | null;
+  archive_status: "pending" | "success" | "failed" | null;
 }
 
 interface Filters {
@@ -198,6 +205,15 @@ export const useBooksStore = defineStore("books", () => {
     return response.data;
   }
 
+  async function archiveSource(bookId: number): Promise<Book> {
+    const response = await api.post(`/books/${bookId}/archive-source`);
+    // Update currentBook if it matches
+    if (currentBook.value?.id === bookId) {
+      currentBook.value = response.data;
+    }
+    return response.data;
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -236,6 +252,7 @@ export const useBooksStore = defineStore("books", () => {
     generateAnalysis,
     calculateScores,
     fetchScoreBreakdown,
+    archiveSource,
     setFilters,
     setSort,
     setPage,

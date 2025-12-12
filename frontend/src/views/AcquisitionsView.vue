@@ -9,6 +9,7 @@ import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
 import ImportListingModal from "@/components/ImportListingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
+import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
@@ -326,6 +327,12 @@ async function handleRecalculateScore(bookId: number) {
 
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
                 Due: {{ formatDate(book.estimated_delivery) }}
+              </div>
+              <div v-if="book.source_url" class="mt-1">
+                <ArchiveStatusBadge
+                  :status="book.archive_status"
+                  :archived-url="book.source_archived_url"
+                />
               </div>
               <div class="mt-3">
                 <button
