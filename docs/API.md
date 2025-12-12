@@ -606,20 +606,198 @@ Export books to JSON format with all details.
 
 ---
 
-## Health Check
+## Book Analysis (AI-Powered)
 
-### Health
+### Generate Analysis
 ```
-GET /health
+POST /books/{book_id}/analysis/generate?model={model}
+```
+
+Generate a Napoleon framework analysis for a book using Claude AI via AWS Bedrock.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `model` | string | sonnet | AI model: `sonnet` (Claude 4.5 Sonnet) or `opus` (Claude 4.5 Opus) |
+
+**How it works:**
+1. Fetches book metadata and images from S3
+2. Loads Napoleon framework prompt from S3
+3. Invokes Claude via AWS Bedrock with images + metadata
+4. Stores analysis in database
+
+**Response:**
+```json
+{
+  "id": 42,
+  "book_id": 123,
+  "content": "# Napoleon Framework Analysis\n\n## Executive Summary...",
+  "model_used": "claude-sonnet-4-5-20250929",
+  "generated_at": "2025-12-12T20:45:00"
+}
+```
+
+**Performance:**
+- Claude 4.5 Sonnet: ~20-30 seconds (10 images)
+- Claude 4.5 Opus: ~40-60 seconds (10 images)
+
+---
+
+## Admin Configuration
+
+### Get Config
+```
+GET /admin/config
+```
+
+Get current admin configuration values.
+
+**Response:**
+```json
+{
+  "gbp_to_usd_rate": 1.28,
+  "eur_to_usd_rate": 1.10
+}
+```
+
+### Update Config
+```
+PUT /admin/config
+```
+
+Update admin configuration values.
+
+**Request Body:**
+```json
+{
+  "gbp_to_usd_rate": 1.30,
+  "eur_to_usd_rate": 1.12
+}
 ```
 
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "version": "0.1.0"
+  "gbp_to_usd_rate": 1.30,
+  "eur_to_usd_rate": 1.12
 }
 ```
+
+---
+
+## Order Extraction
+
+### Extract Order Details
+```
+POST /orders/extract
+```
+
+Extract order details from pasted email/text using regex patterns.
+
+**Request Body:**
+```json
+{
+  "text": "Your order has been confirmed!\nOrder number: 21-13904-88107\nItem price: £239.00\nShipping: £17.99\nOrder total: £256.99"
+}
+```
+
+**Response:**
+```json
+{
+  "order_number": "21-13904-88107",
+  "item_price": 239.0,
+  "shipping": 17.99,
+  "total": 256.99,
+  "currency": "GBP",
+  "total_usd": 328.95,
+  "purchase_date": null,
+  "platform": "eBay",
+  "estimated_delivery": null,
+  "tracking_number": null,
+  "confidence": 0.96,
+  "used_llm": false,
+  "field_confidence": {
+    "order_number": 0.99,
+    "total": 0.95,
+    "item_price": 0.95,
+    "shipping": 0.95
+  }
+}
+```
+
+**Supported Currencies:** USD ($), GBP (£), EUR (€)
+**Supported Platforms:** eBay, AbeBooks, Amazon (auto-detected from text)
+
+---
+
+## Health Check
+
+### Liveness Probe
+```
+GET /health/live
+```
+
+Simple check that the service is running.
+
+**Response:**
+```json
+{"status": "ok"}
+```
+
+### Readiness Probe
+```
+GET /health/ready
+```
+
+Checks if the service is ready to accept traffic.
+
+**Response:**
+```json
+{
+  "status": "ready",
+  "checks": {
+    "database": {"status": "healthy", "latency_ms": 5.2, "book_count": 135}
+  }
+}
+```
+
+### Deep Health Check
+```
+GET /health/deep
+```
+
+Comprehensive health check validating all dependencies.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-12-12T20:40:36.583699+00:00",
+  "version": "2025.12.12-bfceedb",
+  "environment": "production",
+  "total_latency_ms": 219.89,
+  "checks": {
+    "database": {"status": "healthy", "latency_ms": 6.39, "book_count": 135},
+    "s3": {"status": "healthy", "bucket": "bluemoxon-images", "latency_ms": 110.02},
+    "cognito": {"status": "skipped", "reason": "IAM permissions not configured"},
+    "config": {"status": "healthy", "environment": "production", "debug": false}
+  }
+}
+```
+
+### Service Info
+```
+GET /health/info
+```
+
+Returns service metadata and version information.
+
+### Run Migrations
+```
+POST /health/migrate
+```
+
+Run pending database migrations (used for Lambda deployments).
 
 ---
 
