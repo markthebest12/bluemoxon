@@ -95,7 +95,7 @@ async def extract_with_llm(text: str) -> dict:
         return {}
 
 
-async def get_conversion_rate(currency: str, db: Session) -> float:
+def get_conversion_rate(currency: str, db: Session) -> float:
     """Get currency conversion rate from admin config.
 
     Args:
@@ -163,7 +163,7 @@ async def extract_order(request: ExtractRequest, db: Session = Depends(get_db)):
     # Convert to USD if needed
     response = ExtractResponse(**result.model_dump())
     if response.total and response.currency != "USD":
-        rate = await get_conversion_rate(response.currency, db)
+        rate = get_conversion_rate(response.currency, db)
         response.total_usd = round(response.total * rate, 2)
     elif response.total:
         response.total_usd = response.total
