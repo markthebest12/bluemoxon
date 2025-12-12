@@ -333,6 +333,7 @@ MIGRATION_9D7720474D6D_SQL = [
         ON CONFLICT (key) DO NOTHING""",
 ]
 
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
