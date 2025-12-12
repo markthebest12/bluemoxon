@@ -1,19 +1,19 @@
 import re
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel
 
 
 class ExtractionResult(BaseModel):
-    order_number: Optional[str] = None
-    item_price: Optional[float] = None
-    shipping: Optional[float] = None
-    total: Optional[float] = None
+    order_number: str | None = None
+    item_price: float | None = None
+    shipping: float | None = None
+    total: float | None = None
     currency: str = "USD"
-    purchase_date: Optional[str] = None
+    purchase_date: str | None = None
     platform: str = "eBay"
-    estimated_delivery: Optional[str] = None
-    tracking_number: Optional[str] = None
+    estimated_delivery: str | None = None
+    tracking_number: str | None = None
     confidence: float = 0.0
     used_llm: bool = False
     field_confidence: dict = {}
@@ -100,18 +100,15 @@ def extract_with_regex(text: str) -> ExtractionResult:
         match = re.search(pattern, text)
         if match:
             date_str = match.group(1)
-            try:
-                # Try multiple date formats
-                for fmt in ["%b %d, %Y", "%b %d %Y", "%Y-%m-%d", "%m/%d/%Y"]:
-                    try:
-                        dt = datetime.strptime(date_str, fmt)
-                        result.purchase_date = dt.strftime("%Y-%m-%d")
-                        field_confidence["purchase_date"] = conf
-                        break
-                    except ValueError:
-                        continue
-            except Exception:
-                pass
+            # Try multiple date formats
+            for fmt in ["%b %d, %Y", "%b %d %Y", "%Y-%m-%d", "%m/%d/%Y"]:
+                try:
+                    dt = datetime.strptime(date_str, fmt)
+                    result.purchase_date = dt.strftime("%Y-%m-%d")
+                    field_confidence["purchase_date"] = conf
+                    break
+                except ValueError:
+                    continue
             if result.purchase_date:
                 break
 

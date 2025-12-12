@@ -3,7 +3,6 @@
 import json
 import logging
 import re
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -27,16 +26,16 @@ class ExtractRequest(BaseModel):
 class ExtractResponse(BaseModel):
     """Response with extracted order details."""
 
-    order_number: Optional[str] = None
-    item_price: Optional[float] = None
-    shipping: Optional[float] = None
-    total: Optional[float] = None
+    order_number: str | None = None
+    item_price: float | None = None
+    shipping: float | None = None
+    total: float | None = None
     currency: str = "USD"
-    total_usd: Optional[float] = None
-    purchase_date: Optional[str] = None
+    total_usd: float | None = None
+    purchase_date: str | None = None
     platform: str = "eBay"
-    estimated_delivery: Optional[str] = None
-    tracking_number: Optional[str] = None
+    estimated_delivery: str | None = None
+    tracking_number: str | None = None
     confidence: float = 0.0
     used_llm: bool = False
     field_confidence: dict = {}
