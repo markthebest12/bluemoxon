@@ -340,6 +340,48 @@ jobs:
             done
           fi
 
+      # ---- Run Database Migrations ----
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          API_URL="${{ needs.configure.outputs.api_url }}"
+
+          # Wait for Lambda to be fully available
+          sleep 5
+
+          # Call the migrate endpoint
+          response=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/v1/health/migrate")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+          echo "Response:"
+          echo "$body" | jq '.' 2>/dev/null || echo "$body"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "ERROR: Migration endpoint returned HTTP $http_code"
+            exit 1
+          fi
+
+          # Check migration status
+          status=$(echo "$body" | jq -r '.status' 2>/dev/null)
+          if [[ "$status" == "failed" ]]; then
+            echo "ERROR: Migrations failed!"
+            echo "$body" | jq '.errors' 2>/dev/null
+            exit 1
+          fi
+
+          # Log migration results
+          prev_version=$(echo "$body" | jq -r '.previous_version // "none"' 2>/dev/null)
+          new_version=$(echo "$body" | jq -r '.new_version // "unknown"' 2>/dev/null)
+          result_count=$(echo "$body" | jq -r '.results | length' 2>/dev/null)
+
+          echo ""
+          echo "✅ Migrations completed successfully!"
+          echo "   Previous version: $prev_version"
+          echo "   New version: $new_version"
+          echo "   Statements executed: $result_count"
+
       # ---- Deploy Frontend ----
       - name: Sync frontend to S3
         run: |
