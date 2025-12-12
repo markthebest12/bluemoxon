@@ -188,11 +188,10 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
-              <router-link
-                :to="`/books/${book.id}`"
-                class="block hover:text-blue-600"
-              >
-                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">{{ book.title }}</h3>
+              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
+                  {{ book.title }}
+                </h3>
               </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
@@ -305,11 +304,10 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <router-link
-                :to="`/books/${book.id}`"
-                class="block hover:text-blue-600"
-              >
-                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">{{ book.title }}</h3>
+              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
+                  {{ book.title }}
+                </h3>
               </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
