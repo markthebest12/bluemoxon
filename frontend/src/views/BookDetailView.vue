@@ -9,6 +9,7 @@ import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
 import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
+import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -608,6 +609,36 @@ function getStatusColor(status: string): string {
             <div v-if="booksStore.currentBook.roi_pct">
               <dt class="text-sm text-gray-500">ROI</dt>
               <dd class="font-medium text-green-600">{{ booksStore.currentBook.roi_pct }}%</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Source Archive -->
+        <div v-if="booksStore.currentBook.source_url" class="card">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Source Archive</h2>
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-sm text-gray-500">Original Listing</dt>
+              <dd class="font-medium truncate">
+                <a
+                  :href="booksStore.currentBook.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-moxon-600 hover:text-moxon-800 hover:underline"
+                  :title="booksStore.currentBook.source_url"
+                >
+                  View Source
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500 mb-1">Archive Status</dt>
+              <dd>
+                <ArchiveStatusBadge
+                  :status="booksStore.currentBook.archive_status"
+                  :archived-url="booksStore.currentBook.source_archived_url"
+                />
+              </dd>
             </div>
           </dl>
         </div>

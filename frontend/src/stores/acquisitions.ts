@@ -27,6 +27,8 @@ export interface AcquisitionBook {
   volumes?: number;
   is_complete?: boolean;
   source_url?: string;
+  source_archived_url: string | null;
+  archive_status: "pending" | "success" | "failed" | null;
 }
 
 export interface AcquirePayload {
