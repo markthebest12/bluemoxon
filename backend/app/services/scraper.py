@@ -148,10 +148,12 @@ def scrape_ebay_listing(url: str) -> dict:
         for s3_key in s3_keys:
             try:
                 presigned_url = generate_presigned_url(bucket_name, s3_key)
-                images.append({
-                    "s3_key": s3_key,
-                    "presigned_url": presigned_url,
-                })
+                images.append(
+                    {
+                        "s3_key": s3_key,
+                        "presigned_url": presigned_url,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Failed to generate presigned URL for {s3_key}: {e}")
     else:

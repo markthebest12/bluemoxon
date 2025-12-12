@@ -145,12 +145,14 @@ class TestInvokeScraper:
 
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({
-                "html": "<html/>",
-                "image_urls": [],
-                "s3_keys": [],
-                "item_id": "123456",
-            }),
+            "body": json.dumps(
+                {
+                    "html": "<html/>",
+                    "image_urls": [],
+                    "s3_keys": [],
+                    "item_id": "123456",
+                }
+            ),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
@@ -232,7 +234,9 @@ class TestScrapeEbayListing:
             "item_id": "123456",
         }
         mock_extract.return_value = {"title": "Book", "volumes": 1, "currency": "USD"}
-        mock_presign.return_value = "https://s3.amazonaws.com/bucket/listings/123456/image_00.jpg?signed"
+        mock_presign.return_value = (
+            "https://s3.amazonaws.com/bucket/listings/123456/image_00.jpg?signed"
+        )
 
         result = scrape_ebay_listing("https://www.ebay.com/itm/123456")
 
