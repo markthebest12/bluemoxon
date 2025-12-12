@@ -139,16 +139,16 @@ def match_binder(name: str, db: Session, threshold: float = 0.7) -> dict | None:
 EXTRACTION_PROMPT = """Extract book listing details as JSON. Return ONLY valid JSON, no explanation.
 
 {{
-  "title": "book title only, no author/publisher in title",
-  "author": "author name",
-  "publisher": "publisher name if mentioned",
-  "binder": "bindery name if mentioned (Rivière, Zaehnsdorf, Bayntun, etc.)",
+  "title": "book title only, no author/publisher/binder in title",
+  "author": "author name (e.g., 'John Ruskin', 'Charles Dickens')",
+  "publisher": "original publisher name if mentioned (e.g., 'Chapman & Hall', 'Macmillan')",
+  "binder": "bindery/bookbinder name if mentioned (Rivière, Zaehnsdorf, Bayntun, Sangorski)",
   "price": 165.00,
   "currency": "USD or GBP or EUR",
   "publication_date": "year or date string",
   "volumes": 1,
   "condition": "condition notes",
-  "binding": "binding description"
+  "binding_type": "binding style/material (e.g., 'Full calf', 'Half morocco', 'Full morocco', 'Cloth', 'Tree calf', 'Vellum')"
 }}
 
 Listing HTML:
@@ -220,5 +220,9 @@ def extract_listing_data(html: str) -> dict:
     # Ensure required fields have defaults
     data.setdefault("volumes", 1)
     data.setdefault("currency", "USD")
+
+    # Normalize binding field name (binding_type -> binding for API compatibility)
+    if "binding_type" in data and "binding" not in data:
+        data["binding"] = data.pop("binding_type")
 
     return data
