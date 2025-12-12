@@ -120,6 +120,21 @@ output "db_sync_lambda_name" {
   value       = var.enable_database && var.environment == "staging" ? module.db_sync_lambda[0].function_name : null
 }
 
+output "analysis_worker_function_name" {
+  description = "Analysis worker Lambda function name"
+  value       = var.enable_lambda ? module.analysis_worker[0].function_name : null
+}
+
+output "analysis_queue_url" {
+  description = "SQS queue URL for analysis jobs"
+  value       = var.enable_lambda ? module.analysis_worker[0].queue_url : null
+}
+
+output "analysis_dlq_url" {
+  description = "SQS dead letter queue URL for failed analysis jobs"
+  value       = var.enable_lambda ? module.analysis_worker[0].dlq_url : null
+}
+
 # =============================================================================
 # GitHub OIDC Outputs
 # =============================================================================

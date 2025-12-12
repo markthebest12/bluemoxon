@@ -104,14 +104,27 @@ def handler(event, context):
             )
 
             logger.info(f"Navigating to {url}")
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-            # Wait for content to load
-            try:
-                page.wait_for_selector(".x-item-title", timeout=10000)
-            except Exception:
-                # Try alternative selector for older eBay layouts
-                page.wait_for_selector("#itemTitle", timeout=5000)
+            # Wait for content to load - try multiple selectors
+            content_loaded = False
+            selectors = [
+                ".x-item-title",  # Modern eBay layout
+                "#itemTitle",  # Older eBay layout
+                "[data-testid='x-item-title']",  # Data attribute fallback
+                "h1",  # Last resort - any h1
+            ]
+            for selector in selectors:
+                try:
+                    page.wait_for_selector(selector, timeout=15000)
+                    content_loaded = True
+                    logger.info(f"Content loaded using selector: {selector}")
+                    break
+                except Exception:
+                    continue
+
+            if not content_loaded:
+                logger.warning("No title selector found, continuing anyway")
 
             html = page.content()
             logger.info(f"Got HTML: {len(html)} chars")

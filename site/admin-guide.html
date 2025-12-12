@@ -614,12 +614,11 @@
             </button>
             <ul class="nav-links">
                 <li><a href="index.html#about">About</a></li>
-                <li><a href="index.html#features">Features</a></li>
-                <li><a href="index.html#admin">Workflow</a></li>
-                <li><a href="index.html#architecture">Architecture</a></li>
-                <li><a href="index.html#pipeline">Pipeline</a></li>
-                <li><a href="index.html#api">API</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="index.html#screenshots">Screenshots</a></li>
                 <li><a href="admin-guide.html" style="color: var(--accent-blue-light);">Admin Guide</a></li>
+                <li><a href="index.html#architecture">Architecture</a></li>
+                <li><a href="index.html#api">API</a></li>
             </ul>
         </div>
     </nav>
@@ -639,6 +638,14 @@
                 <li><a href="#editing-books">Editing Books</a></li>
                 <li><a href="#deleting-books">Deleting Books</a></li>
                 <li><a href="#status-tracking">Status Tracking</a></li>
+            </ul>
+
+            <h3>Acquisitions</h3>
+            <ul>
+                <li><a href="#acquisitions-dashboard">Acquisitions Dashboard</a></li>
+                <li><a href="#ebay-import">eBay Import</a></li>
+                <li><a href="#investment-scoring">Investment Scoring</a></li>
+                <li><a href="#wayback-archive">Wayback Archive</a></li>
             </ul>
 
             <h3>Images & Media</h3>
@@ -895,6 +902,221 @@
                 <h3>Updating Status via API</h3>
                 <pre><code>curl -X PATCH "https://api.bluemoxon.com/api/v1/books/{id}/status?status=ON_HAND" \
   -H "X-API-Key: $BMX_API_KEY"</code></pre>
+            </section>
+
+            <!-- Acquisitions Dashboard Section -->
+            <section id="acquisitions-dashboard">
+                <h2>Acquisitions Dashboard</h2>
+                <p>
+                    The Acquisitions Dashboard is your command center for tracking book purchases from discovery
+                    through delivery. Access it from <strong>Admin &rarr; Acquisitions</strong> in the navigation.
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>Watchlist</h4>
+                        <p>Track potential acquisitions you're considering. Import eBay listings for research before committing to purchase.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>In Transit</h4>
+                        <p>Monitor purchased items awaiting delivery. Track order numbers and expected arrival dates.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>On Hand</h4>
+                        <p>Recent arrivals ready for cataloging. Convert to full collection entries with a single click.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Investment Scores</h4>
+                        <p>Each acquisition receives Investment Grade (0-100) and Strategic Fit (0-7) scores at import time.</p>
+                    </div>
+                </div>
+
+                <h3>Acquisition Workflow</h3>
+                <p>The typical workflow follows this progression:</p>
+                <ol class="steps">
+                    <li><strong>Discover:</strong> Find a listing on eBay, Etsy, or another marketplace</li>
+                    <li><strong>Import:</strong> Paste the URL into the Acquisitions Dashboard to auto-populate details</li>
+                    <li><strong>Evaluate:</strong> Review the AI-generated investment scores and valuation estimate</li>
+                    <li><strong>Purchase:</strong> If the scores warrant, complete the purchase and update status to "In Transit"</li>
+                    <li><strong>Receive:</strong> When the book arrives, mark as "On Hand" and convert to collection entry</li>
+                </ol>
+            </section>
+
+            <!-- eBay Import Section -->
+            <section id="ebay-import">
+                <h2>eBay Import</h2>
+                <p>
+                    The eBay Import feature lets you paste a listing URL to automatically extract title, price,
+                    seller, images, and other metadata. This eliminates manual data entry and preserves the
+                    original listing information.
+                </p>
+
+                <h3>How to Import</h3>
+                <ol class="steps">
+                    <li>Copy the eBay listing URL from your browser</li>
+                    <li>Navigate to <strong>Admin &rarr; Acquisitions</strong></li>
+                    <li>Click <strong>Import from eBay</strong></li>
+                    <li>Paste the URL and click <strong>Import</strong></li>
+                    <li>Review the extracted data and adjust if needed</li>
+                    <li>Save to add to your Watchlist or directly to In Transit</li>
+                </ol>
+
+                <h3>Extracted Fields</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Title</strong></td>
+                            <td>Listing title (cleaned up)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Price</strong></td>
+                            <td>Current/sold price (converted to USD)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Seller</strong></td>
+                            <td>Seller username</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Images</strong></td>
+                            <td>All listing images (CDN links)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Item Number</strong></td>
+                            <td>eBay item ID for reference</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Description</strong></td>
+                            <td>Listing description (if available)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-info">
+                    <strong>Tip:</strong> Import works best with active listings. Ended/sold listings may have
+                    limited data availability. Consider using Wayback Archive to preserve listing details.
+                </div>
+
+                <h3>Supported Formats</h3>
+                <p>The importer accepts various eBay URL formats:</p>
+                <ul>
+                    <li><code>https://www.ebay.com/itm/123456789</code></li>
+                    <li><code>https://www.ebay.co.uk/itm/123456789</code></li>
+                    <li><code>https://ebay.com/itm/title-slug/123456789</code></li>
+                </ul>
+            </section>
+
+            <!-- Investment Scoring Section -->
+            <section id="investment-scoring">
+                <h2>Investment Scoring</h2>
+                <p>
+                    Every acquisition is automatically scored at import time using a proprietary algorithm that
+                    considers binding quality, author significance, collection fit, and purchase economics.
+                </p>
+
+                <h3>Investment Grade (0-100)</h3>
+                <p>
+                    The Investment Grade measures the overall investment potential of an acquisition. Higher scores
+                    indicate better value propositions based on multiple factors.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Score Range</th>
+                            <th>Rating</th>
+                            <th>Interpretation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-green">80-100</span></td>
+                            <td>Excellent</td>
+                            <td>Strong buy - exceptional value and fit</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">60-79</span></td>
+                            <td>Good</td>
+                            <td>Solid acquisition - good value proposition</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-amber">40-59</span></td>
+                            <td>Fair</td>
+                            <td>Consider carefully - some concerns</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">0-39</span></td>
+                            <td>Poor</td>
+                            <td>Pass recommended - weak value</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Strategic Fit (0-7)</h3>
+                <p>
+                    Strategic Fit measures how well an acquisition aligns with your collection focus. This score
+                    considers your target author list, preferred publishers, and binding priorities.
+                </p>
+
+                <h4>Scoring Factors</h4>
+                <ul>
+                    <li><strong>+2:</strong> Priority 1 target author</li>
+                    <li><strong>+1:</strong> Priority 2-3 target author</li>
+                    <li><strong>+1:</strong> Tier 1 publisher (Moxon, Pickering, etc.)</li>
+                    <li><strong>+1:</strong> Premium binding (full morocco, signed binder)</li>
+                    <li><strong>+1:</strong> Victorian era poetry (collection focus)</li>
+                    <li><strong>+1:</strong> Multi-volume set</li>
+                    <li><strong>+1:</strong> Extra-illustrated or unique features</li>
+                </ul>
+
+                <div class="alert alert-success">
+                    <strong>Historical Tracking:</strong> Scores are captured at acquisition time and preserved
+                    with the book record. This allows you to analyze your purchasing decisions over time and
+                    refine your scoring criteria.
+                </div>
+            </section>
+
+            <!-- Wayback Archive Section -->
+            <section id="wayback-archive">
+                <h2>Wayback Archive</h2>
+                <p>
+                    The Wayback Archive feature automatically saves a snapshot of eBay listings to the Internet
+                    Archive. This preserves the original listing details, images, and pricing for future reference
+                    even after the listing expires or is removed.
+                </p>
+
+                <h3>Why Archive Listings?</h3>
+                <ul>
+                    <li><strong>Provenance Documentation:</strong> Preserve the original listing as purchase evidence</li>
+                    <li><strong>Price Verification:</strong> Original asking price for insurance or resale records</li>
+                    <li><strong>Condition Records:</strong> Seller's description at time of purchase</li>
+                    <li><strong>Image Backup:</strong> Original images even if eBay removes them</li>
+                </ul>
+
+                <h3>How It Works</h3>
+                <ol class="steps">
+                    <li>When you import an eBay listing, the system submits the URL to the Wayback Machine</li>
+                    <li>The archive URL is stored with the acquisition record</li>
+                    <li>Access the archived version anytime from the acquisition details</li>
+                    <li>Archive links are also preserved when converting to collection entries</li>
+                </ol>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Archive snapshots may take a few minutes to become available.
+                    The system stores the archive request URL immediately, but the actual snapshot is
+                    processed asynchronously by the Internet Archive.
+                </div>
+
+                <h3>Viewing Archived Listings</h3>
+                <p>
+                    Click the <strong>View Archive</strong> link on any acquisition to open the preserved
+                    listing in a new tab. The archive shows the listing exactly as it appeared at capture time.
+                </p>
             </section>
 
             <!-- Uploading Images Section -->

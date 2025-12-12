@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueMoxon 1.0 | Features</title>
+    <meta name="description" content="BlueMoxon 1.0 - AI-powered collection management for antiquarian books. Features include acquisition tracking, investment scoring, and automated valuations.">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-blue-light: #60a5fa;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --border-color: #1e293b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 0.75rem 2rem;
+        }
+
+        nav .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        nav .logo img {
+            height: 48px;
+            width: auto;
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        nav .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav .nav-links a:hover {
+            color: var(--accent-blue-light);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Hero */
+        .hero {
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            background: linear-gradient(180deg, #1e3a5f 0%, var(--bg-primary) 100%);
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+        }
+
+        .hero-content {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue-light);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--accent-blue-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        /* Feature Category */
+        .feature-category {
+            margin-bottom: 5rem;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .category-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .category-icon svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .category-header h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .category-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-left: auto;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.75rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-card h3 .icon {
+            color: var(--accent-blue-light);
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .feature-card .tag {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .feature-card .tag.ai {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--accent-purple);
+        }
+
+        .feature-card .tag.new {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-amber);
+        }
+
+        /* Highlight Card */
+        .highlight-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            grid-column: span 2;
+        }
+
+        .highlight-card h3 {
+            font-size: 1.25rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--accent-blue-light);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 0.5rem 1rem;
+            }
+
+            nav .logo img {
+                height: 36px;
+            }
+
+            nav .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 6rem 1rem 3rem;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            main {
+                padding: 2rem 1rem;
+            }
+
+            .category-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            .category-header p {
+                margin-left: 0;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .highlight-card {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-content">
+            <a href="/" class="logo">
+                <img src="/images/bluemoxon-logo.png" alt="BlueMoxon">
+            </a>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/features.html">Features</a></li>
+                <li><a href="/admin-guide.html">Admin Guide</a></li>
+            </ul>
+            <a href="https://app.bluemoxon.com" class="btn btn-primary" target="_blank">
+                Open App
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <span class="version-badge">Version 1.0</span>
+            <h1>BlueMoxon Features</h1>
+            <p>AI-powered collection management for antiquarian books with investment scoring, automated valuations, and seamless acquisition tracking.</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Collection Management -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <h2>Collection Management</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3><span class="icon">📚</span> Comprehensive Catalog</h3>
+                    <p>Track every detail: title, author, publisher, binder, publication date, volumes, binding type, condition notes, and provenance. All searchable and filterable.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📷</span> Image Gallery</h3>
+                    <p>Upload multiple high-resolution images per book. Drag-and-drop reordering, automatic CDN delivery, and full-screen lightbox viewing.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">💰</span> Value Tracking</h3>
+                    <p>Record fair market value estimates (low/mid/high), purchase prices, and track value appreciation over time.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📊</span> Status Workflow</h3>
+                    <p>Track books through their lifecycle: Evaluating → In Transit → On Hand → Sold. Visual indicators and delivery countdown.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🏷️</span> Reference Library</h3>
+                    <p>Maintain catalogs of authors, publishers, and binders with tier classifications. Priority scoring for target acquisitions.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🔍</span> Search & Filter</h3>
+                    <p>Find any book instantly. Filter by status, author, publisher, binder, binding type, or date range. Sort by any field.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Acquisitions Dashboard -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </div>
+                <h2>Acquisitions Dashboard</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card highlight-card">
+                    <h3><span class="icon">📋</span> Kanban Workflow</h3>
+                    <p>Three-column board showing items by status: Watchlist (evaluating), In Transit (purchased), and Recently Received. Drag cards between columns, see key metrics at a glance, and never lose track of pending acquisitions.</p>
+                    <span class="tag new">New in 1.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🔗</span> eBay Import</h3>
+                    <p>Paste any eBay listing URL. AI extracts title, author, publisher, binder, price, and condition. Images captured automatically.</p>
+                    <span class="tag ai">AI-Powered</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🎯</span> Reference Matching</h3>
+                    <p>Fuzzy matching suggests existing authors, publishers, and binders. Prevents duplicates and maintains data consistency.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📝</span> Paste-to-Extract</h3>
+                    <p>Paste order confirmation text from email. AI extracts purchase price, date, order number, and delivery estimate.</p>
+                    <span class="tag ai">AI-Powered</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">⚠️</span> Duplicate Detection</h3>
+                    <p>Warns when similar books already exist in your collection. Shows similarity percentage and links to existing records.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🗄️</span> Wayback Archive</h3>
+                    <p>Automatically archives eBay listings to the Wayback Machine when you acquire. Preserves listing details after sale ends.</p>
+                    <span class="tag new">New in 1.0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Analysis -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                </div>
+                <h2>AI-Powered Analysis</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card highlight-card">
+                    <h3><span class="icon">📜</span> Napoleon Framework Valuations</h3>
+                    <p>Comprehensive book analyses generated by Claude, including executive summary, condition assessment, market analysis, binding classification, rarity assessment, professional valuation methodology, insurance recommendations, and preservation guidelines. 500+ lines of expert analysis per book.</p>
+                    <span class="tag ai">Claude 4.5</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🖼️</span> Image Analysis</h3>
+                    <p>Claude examines up to 10 book images to assess binding quality, condition issues, and authentication details.</p>
+                    <span class="tag ai">Vision</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">⚡</span> On-Demand Generation</h3>
+                    <p>Generate analysis for any book with one click. Auto-triggers for high-value items over $450.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📖</span> Markdown Rendering</h3>
+                    <p>Analyses displayed with rich formatting: headers, bullet points, tables, and emphasis. Live preview editor included.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🎛️</span> Model Selection</h3>
+                    <p>Choose between Sonnet (fast, ~20-30s) or Opus (premium, ~40-60s) based on item importance and complexity.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Investment Scoring -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+                <h2>Investment Scoring</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3><span class="icon">📈</span> Investment Grade (0-100)</h3>
+                    <p>Weighted composite score factoring binding quality, acquisition value, strategic fit, condition, author significance, and provenance.</p>
+                    <span class="tag new">New in 1.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🎯</span> Strategic Fit (0-7)</h3>
+                    <p>Checklist scoring: target author, Tier 1 bindery, Tier 1 publisher, Victorian era, single volume, 40%+ discount, no duplicates.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📊</span> Collection Impact</h3>
+                    <p>See how each acquisition affects total items, volumes, and estimated collection value. Track your position in the sequence.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📸</span> Scoring Snapshot</h3>
+                    <p>All scores captured at acquisition time and stored permanently. Compare current value to purchase performance.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">💹</span> Discount Tracking</h3>
+                    <p>Calculate discount from FMV automatically. See savings and investment return potential at a glance.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">⭐</span> Author Priority</h3>
+                    <p>Score authors by collection priority. Target acquisitions surface in recommendations automatically.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports & Export -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h2>Reports & Export</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3><span class="icon">📋</span> Insurance Reports</h3>
+                    <p>Generate insurance valuation reports with collection summaries, volume counts, and estimate ranges. PDF-ready formatting.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📊</span> Collection Statistics</h3>
+                    <p>Dashboard with total items, volumes, estimated value, monthly metrics, and average discount achieved.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📥</span> CSV Export</h3>
+                    <p>Export your entire collection to CSV for backup, analysis, or migration. All fields included.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">💱</span> Currency Conversion</h3>
+                    <p>Configurable GBP/EUR to USD rates for international purchases. Consistent value tracking across currencies.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Access & Security -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <h2>Access & Security</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3><span class="icon">🔐</span> Secure Authentication</h3>
+                    <p>AWS Cognito-powered login with MFA support. JWT tokens for API access. Session management built in.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">👥</span> Role-Based Access</h3>
+                    <p>Admin (full access), Editor (add/edit books), and Viewer (read-only) roles. Spending data hidden from viewers.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🔑</span> API Key Access</h3>
+                    <p>Generate API keys for CLI tools and automation. Perfect for scripting and bulk operations.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📱</span> Mobile Friendly</h3>
+                    <p>Responsive design works on any device. Browse your collection and track acquisitions from anywhere.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            <a href="https://app.bluemoxon.com" target="_blank">app.bluemoxon.com</a> &bull;
+            <a href="https://github.com/markthebest12/bluemoxon" target="_blank">GitHub</a> &bull;
+            <a href="/">Documentation</a>
+        </p>
+        <p style="margin-top: 1rem;">
+            Built with Vue 3, FastAPI, Aurora PostgreSQL &bull; Powered by Claude
+        </p>
+    </footer>
+</body>
+</html>

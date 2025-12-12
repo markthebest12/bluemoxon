@@ -2,7 +2,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
-import { useListingsStore, type ImagePreview } from "@/stores/listings";
+import {
+  useListingsStore,
+  type ImagePreview,
+  type ExtractionStatusResponse,
+} from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 
 const emit = defineEmits<{
@@ -14,13 +18,17 @@ const refsStore = useReferencesStore();
 const acquisitionsStore = useAcquisitionsStore();
 const listingsStore = useListingsStore();
 
-// Wizard steps: 'url' | 'review' | 'saving'
-const step = ref<"url" | "review" | "saving">("url");
+// Wizard steps: 'url' | 'extracting' | 'review' | 'saving'
+const step = ref<"url" | "extracting" | "review" | "saving">("url");
 
 // URL input
 const urlInput = ref("");
 const extracting = ref(false);
 const extractError = ref<string | null>(null);
+
+// Async extraction tracking
+const currentItemId = ref<string | null>(null);
+const extractionStatus = ref<ExtractionStatusResponse | null>(null);
 
 // Extracted data (using new S3-based image format)
 const extractedData = ref<{
@@ -61,6 +69,10 @@ watch(
 
 onUnmounted(() => {
   document.body.style.overflow = "";
+  // Clean up any active extraction polling
+  if (currentItemId.value) {
+    listingsStore.clearExtraction(currentItemId.value);
+  }
 });
 
 onMounted(() => {
@@ -87,47 +99,78 @@ async function handleExtract() {
   extractError.value = null;
 
   try {
-    const result = await listingsStore.extractListing(urlInput.value);
-    extractedData.value = result;
+    // Start async extraction
+    const job = await listingsStore.extractListingAsync(urlInput.value);
+    currentItemId.value = job.item_id;
 
-    // Populate form with extracted data
-    const data = result.listing_data;
-    form.value.title = data.title || "";
-    form.value.publication_date = data.publication_date || "";
-    form.value.volumes = data.volumes || 1;
-    form.value.source_url = result.ebay_url;
-    form.value.binding_type = data.binding_type || data.binding || "";
-    form.value.condition_notes = data.condition_description || "";
-
-    // Set price
-    if (data.price) {
-      form.value.purchase_price = data.price;
-    }
-
-    // Apply matched references
-    if (result.matches.author) {
-      form.value.author_id = result.matches.author.id;
-    }
-    if (result.matches.binder) {
-      form.value.binder_id = result.matches.binder.id;
-    }
-    if (result.matches.publisher) {
-      form.value.publisher_id = result.matches.publisher.id;
-    }
-
-    step.value = "review";
+    // Transition to extracting step (shows progress)
+    step.value = "extracting";
   } catch (e: any) {
     if (e.response?.status === 429) {
       extractError.value = "Rate limited by eBay. Please try again in a few minutes.";
-    } else if (e.response?.status === 502) {
-      extractError.value = "Failed to scrape listing. The page may have changed.";
+    } else if (e.response?.status === 400) {
+      extractError.value = "Invalid eBay URL. Please check the URL and try again.";
     } else {
-      extractError.value = e.message || "Failed to extract listing data";
+      extractError.value = e.message || "Failed to start extraction";
     }
-  } finally {
     extracting.value = false;
   }
 }
+
+// Watch for extraction status changes
+watch(
+  () => currentItemId.value && listingsStore.activeExtractions.get(currentItemId.value),
+  (status) => {
+    if (!status) return;
+
+    extractionStatus.value = status;
+
+    if (status.status === "ready" && status.listing_data) {
+      // Extraction complete - populate form and go to review
+      extractedData.value = {
+        listing_data: status.listing_data,
+        images: status.images,
+        image_urls: [],
+        matches: status.matches,
+        ebay_url: status.ebay_url || `https://www.ebay.com/itm/${currentItemId.value}`,
+        ebay_item_id: currentItemId.value!,
+      };
+
+      // Populate form with extracted data
+      const data = status.listing_data;
+      form.value.title = data.title || "";
+      form.value.publication_date = data.publication_date || "";
+      form.value.volumes = data.volumes || 1;
+      form.value.source_url = status.ebay_url || `https://www.ebay.com/itm/${currentItemId.value}`;
+      form.value.binding_type = data.binding_type || data.binding || "";
+      form.value.condition_notes = data.condition_description || "";
+
+      // Set price
+      if (data.price) {
+        form.value.purchase_price = data.price;
+      }
+
+      // Apply matched references
+      if (status.matches.author) {
+        form.value.author_id = status.matches.author.id;
+      }
+      if (status.matches.binder) {
+        form.value.binder_id = status.matches.binder.id;
+      }
+      if (status.matches.publisher) {
+        form.value.publisher_id = status.matches.publisher.id;
+      }
+
+      extracting.value = false;
+      step.value = "review";
+    } else if (status.status === "error") {
+      extractError.value = status.error || "Extraction failed";
+      extracting.value = false;
+      step.value = "url";
+    }
+  },
+  { deep: true }
+);
 
 function validate(): boolean {
   validationErrors.value = {};
@@ -187,6 +230,13 @@ function handleClose() {
 }
 
 function goBack() {
+  // Clean up any active extraction polling
+  if (currentItemId.value) {
+    listingsStore.clearExtraction(currentItemId.value);
+    currentItemId.value = null;
+  }
+  extractionStatus.value = null;
+  extracting.value = false;
   step.value = "url";
   extractedData.value = null;
 }
@@ -238,9 +288,11 @@ function openSourceUrl() {
             {{
               step === "url"
                 ? "Import from eBay"
-                : step === "review"
-                  ? "Review Listing"
-                  : "Saving..."
+                : step === "extracting"
+                  ? "Extracting Listing..."
+                  : step === "review"
+                    ? "Review Listing"
+                    : "Saving..."
             }}
           </h2>
           <button
@@ -303,7 +355,27 @@ function openSourceUrl() {
           </div>
         </div>
 
-        <!-- Step 2: Review & Edit -->
+        <!-- Step 2: Extracting (async progress) -->
+        <div v-if="step === 'extracting'" class="p-8 text-center">
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
+          ></div>
+          <p class="text-gray-600 mb-2">
+            {{
+              extractionStatus?.status === "pending"
+                ? "Scraping eBay listing..."
+                : extractionStatus?.status === "scraped"
+                  ? "Extracting book details..."
+                  : "Processing..."
+            }}
+          </p>
+          <p class="text-sm text-gray-500">This may take up to 2 minutes. Please wait.</p>
+          <button @click="goBack" class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800">
+            Cancel
+          </button>
+        </div>
+
+        <!-- Step 3: Review & Edit -->
         <div v-if="step === 'review'" class="p-4 space-y-4">
           <!-- Image Preview (using presigned URLs from S3) -->
           <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
@@ -513,7 +585,7 @@ function openSourceUrl() {
           </form>
         </div>
 
-        <!-- Step 3: Saving -->
+        <!-- Step 4: Saving -->
         <div v-if="step === 'saving'" class="p-8 text-center">
           <div
             class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
