@@ -52,3 +52,29 @@ def test_partial_extraction():
     assert result.total == 50.00
     assert result.currency == "USD"
     assert result.order_number is None
+
+
+def test_extracts_delivery():
+    result = extract_with_regex(SAMPLE_EBAY_EMAIL)
+    assert result.estimated_delivery == "Jan 20-25"
+    assert result.field_confidence["estimated_delivery"] >= 0.85
+
+
+def test_extracts_date_formats():
+    # Test "Jan 15, 2025" format
+    result = extract_with_regex("Order date: Jan 15, 2025")
+    assert result.purchase_date == "2025-01-15"
+
+    # Test ISO format
+    result = extract_with_regex("Date: 2025-01-15")
+    assert result.purchase_date == "2025-01-15"
+
+    # Test MM/DD/YYYY format
+    result = extract_with_regex("Date: 01/15/2025")
+    assert result.purchase_date == "2025-01-15"
+
+
+def test_currency_detection_eur():
+    result = extract_with_regex("Total: €100.00")
+    assert result.total == 100.00
+    assert result.currency == "EUR"
