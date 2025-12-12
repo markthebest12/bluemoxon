@@ -9,6 +9,7 @@ from app.api.v1 import (
     export,
     health,
     images,
+    listings,
     placeholder,
     publishers,
     search,
@@ -29,3 +30,4 @@ router.include_router(authors.router, prefix="/authors", tags=["authors"])
 router.include_router(binders.router, prefix="/binders", tags=["binders"])
 router.include_router(export.router, prefix="/export", tags=["export"])
 router.include_router(users.router, prefix="/users", tags=["users"])
+router.include_router(listings.router, prefix="/listings", tags=["listings"])
