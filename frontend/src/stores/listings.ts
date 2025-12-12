@@ -27,6 +27,7 @@ export interface ExtractedListing {
     volumes?: number;
     publication_date?: string;
     binding_type?: string;
+    binding?: string; // Alternative field name from API
     condition_description?: string;
   };
   images: ImagePreview[];
