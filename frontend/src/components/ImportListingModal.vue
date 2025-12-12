@@ -147,7 +147,7 @@ async function handleExtract() {
     form.value.publication_date = data.publication_date || "";
     form.value.volumes = data.volumes || 1;
     form.value.source_url = result.ebay_url;
-    form.value.binding_type = data.binding_type || "";
+    form.value.binding_type = data.binding_type || data.binding || "";
     form.value.condition_notes = data.condition_description || "";
 
     // Set price
