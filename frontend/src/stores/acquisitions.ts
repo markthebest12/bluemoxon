@@ -173,6 +173,21 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     return response.data;
   }
 
+  async function archiveSource(bookId: number) {
+    const response = await api.post(`/books/${bookId}/archive-source`);
+    // Update the book in the appropriate list
+    const updateBook = (list: typeof evaluating.value) => {
+      const index = list.findIndex((b) => b.id === bookId);
+      if (index >= 0) {
+        list[index] = { ...list[index], ...response.data };
+      }
+    };
+    updateBook(evaluating.value);
+    updateBook(inTransit.value);
+    updateBook(received.value);
+    return response.data;
+  }
+
   return {
     // State
     evaluating,
@@ -192,5 +207,6 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     deleteEvaluating,
     addToWatchlist,
     updateWatchlistItem,
+    archiveSource,
   };
 });
