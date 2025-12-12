@@ -188,7 +188,20 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
+              <h3 class="font-medium text-gray-900 text-sm truncate">
+                <a
+                  v-if="book.source_url"
+                  :href="book.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:text-blue-600 hover:underline"
+                  title="View listing"
+                  @click.stop
+                >
+                  {{ book.title }}
+                </a>
+                <span v-else>{{ book.title }}</span>
+              </h3>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -240,16 +253,27 @@ async function handleRecalculateScore(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
-                <!-- Generate/Regenerate button (admin only) -->
+                <!-- Generate Analysis button (admin only, when no analysis exists) -->
                 <button
-                  v-if="authStore.isAdmin"
+                  v-else-if="authStore.isAdmin"
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="generatingAnalysis === book.id"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center justify-center gap-1"
+                  title="Generate analysis"
+                >
+                  <span v-if="generatingAnalysis === book.id">⏳ Generating...</span>
+                  <span v-else>⚡ Generate Analysis</span>
+                </button>
+                <!-- Regenerate button (admin only, when analysis exists) -->
+                <button
+                  v-if="book.has_analysis && authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="generatingAnalysis === book.id"
                   class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                  :title="book.has_analysis ? 'Regenerate analysis' : 'Generate analysis'"
+                  title="Regenerate analysis"
                 >
                   <span v-if="generatingAnalysis === book.id">⏳</span>
-                  <span v-else>{{ book.has_analysis ? "🔄" : "⚡" }}</span>
+                  <span v-else>🔄</span>
                 </button>
               </div>
             </div>
@@ -289,7 +313,20 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
+              <h3 class="font-medium text-gray-900 text-sm truncate">
+                <a
+                  v-if="book.source_url"
+                  :href="book.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:text-blue-600 hover:underline"
+                  title="View listing"
+                  @click.stop
+                >
+                  {{ book.title }}
+                </a>
+                <span v-else>{{ book.title }}</span>
+              </h3>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
