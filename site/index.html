@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlueMoxon | Technical Documentation</title>
-    <meta name="description" content="BlueMoxon - A modern platform for managing rare and valuable book collections">
+    <title>BlueMoxon | A Hobbyist Take on Rare Book Collection Management</title>
+    <meta name="description" content="BlueMoxon - End-to-end tracking and inventory management for rare and antiquarian book collections. AI-powered valuations, acquisition pipeline, and investment scoring.">
 
     <!-- Favicons -->
     <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -978,12 +978,11 @@
             </button>
             <ul class="nav-links">
                 <li><a href="#about">About</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#admin">Workflow</a></li>
-                <li><a href="#architecture">Architecture</a></li>
-                <li><a href="#pipeline">Pipeline</a></li>
-                <li><a href="#api">API</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="#screenshots">Screenshots</a></li>
                 <li><a href="admin-guide.html">Admin Guide</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#api">API</a></li>
             </ul>
         </div>
     </nav>
@@ -1055,11 +1054,17 @@
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section id="features">
+    <!-- Screenshots Section -->
+    <section id="screenshots">
         <div class="section-header">
-            <h2>Platform Features</h2>
-            <p>Everything you need to manage a world-class collection</p>
+            <h2>Platform Screenshots</h2>
+            <p>A visual tour of the BlueMoxon collection management system</p>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <a href="features.html" class="btn btn-secondary">
+                View All Features →
+            </a>
         </div>
 
         <div class="screenshots-grid">
@@ -1178,208 +1183,73 @@
         </div>
     </section>
 
-    <!-- Admin Flow Section -->
-    <section id="admin">
+    <!-- What BlueMoxon Does Section -->
+    <section id="what-it-does">
         <div class="section-header">
-            <h2>AI-Powered Acquisition Workflow</h2>
-            <p>Using Claude Code as the intelligent assistant for evaluating and managing rare book acquisitions</p>
+            <h2>End-to-End Book Collection Management</h2>
+            <p>From discovery to delivery to valuation - one integrated platform</p>
         </div>
 
         <div class="name-origin" style="margin-bottom: 3rem;">
             <div class="name-grid">
                 <div class="name-card">
-                    <h3>Claude Code Integration</h3>
+                    <h3>Acquisition Pipeline</h3>
                     <p>
-                        Every potential acquisition goes through a rigorous evaluation process powered by <strong>Claude Code</strong> (Opus 4.5).
-                        Simply paste an eBay or Etsy listing URL and Claude instantly analyzes binding quality, condition indicators,
-                        seller reputation, pricing against comparable sales, and generates detailed assessments using the
-                        <em>Napoleon Framework</em> for rare book evaluation.
+                        <strong>Watchlist → Purchase → Delivery → On Hand</strong> - track every book through the complete
+                        acquisition lifecycle. Paste an eBay URL to instantly import listing details. Record purchase prices,
+                        order numbers, and estimated delivery dates. Know exactly what's in transit and what's arrived.
                     </p>
                     <p class="quote">
-                        "A 21st-century approach to a 19th-century passion - AI meets antiquarian collecting."
+                        "No more spreadsheets - a purpose-built system for collectors who are serious about their acquisitions."
                     </p>
                 </div>
                 <div class="name-card">
-                    <h3>The Evaluation Protocol</h3>
+                    <h3>AI-Powered Valuations</h3>
                     <p>
-                        Claude applies a structured methodology: initial listing assessment, condition red-flag detection,
-                        binding type classification (morocco, calf, vellum), comparable sales research, and ultimately
-                        a BUY / PASS / CONDITIONAL BUY recommendation. Analysis documents are generated in markdown
-                        and synced directly to BlueMoxon via the API.
+                        Generate professional-grade valuations using the <strong>Napoleon Framework</strong>. Claude analyzes
+                        book images, metadata, and comparable sales to produce detailed condition assessments, market analysis,
+                        and fair market value estimates. Perfect for insurance documentation and informed buying decisions.
                     </p>
                     <p class="quote">
-                        "No more impulse buys - every acquisition is systematically evaluated before commitment."
+                        "Every high-value acquisition gets a thorough analysis - binding quality, condition notes, comparable sales."
                     </p>
                 </div>
             </div>
-        </div>
-
-        <div class="screenshots-grid" style="grid-template-columns: 1fr 1fr;">
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/claude-evaluation.png" alt="Claude Code Evaluation" style="height: 320px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Live Listing Evaluation</h4>
-                    <p>Claude parses eBay listings, extracts key metadata (title, publisher, binding, price),
-                    flags condition concerns, and provides instant assessment with actionable recommendations.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/pipeline-detail.png" alt="Pipeline Detail" style="height: 320px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Automated Deployment Pipeline</h4>
-                    <p>18 parallel CI jobs including security scans, type checking, tests, and production deployment -
-                    all triggered automatically on every push to main.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Terminal showing Claude evaluation -->
-        <div class="terminal" style="margin-top: 2rem;">
-            <div class="terminal-header">
-                <div class="dots">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                </div>
-                <span class="title">Claude Code - Acquisition Evaluation</span>
-            </div>
-            <div class="terminal-body">
-<span class="prompt">$</span> <span class="command">https://www.ebay.com/itm/336324565066</span>
-
-<span class="info">Fetching listing...</span> <span class="success">604KB (200 OK)</span>
-
-<span class="info">eBay Listing: Plutarch's Lives (Langhorne, 1830)</span>
-
-<span class="muted">┌─────────────┬──────────────────────────────────────────┐</span>
-<span class="muted">│</span> <span class="info">Field</span>       <span class="muted">│</span> Value                                    <span class="muted">│</span>
-<span class="muted">├─────────────┼──────────────────────────────────────────┤</span>
-<span class="muted">│</span> Title       <span class="muted">│</span> <span class="string">Plutarch's Lives</span>                         <span class="muted">│</span>
-<span class="muted">│</span> Publisher   <span class="muted">│</span> <span class="string">James Crissy, Philadelphia</span>               <span class="muted">│</span>
-<span class="muted">│</span> Date        <span class="muted">│</span> <span class="number">1830</span>                                     <span class="muted">│</span>
-<span class="muted">│</span> Volumes     <span class="muted">│</span> <span class="number">3</span>                                        <span class="muted">│</span>
-<span class="muted">│</span> Binding     <span class="muted">│</span> <span class="warning">Leather (type unspecified)</span>               <span class="muted">│</span>
-<span class="muted">│</span> Price       <span class="muted">│</span> <span class="string">$350 (Best Offer available)</span>              <span class="muted">│</span>
-<span class="muted">└─────────────┴──────────────────────────────────────────┘</span>
-
-<span class="warning">⚠ Concerns:</span>
-<span class="muted">1.</span> No condition description whatsoever
-<span class="muted">2.</span> Vague "leather" binding - could be rubbed calf to fine morocco
-<span class="muted">3.</span> American trade binding from 1830 typically not premium
-<span class="muted">4.</span> <span class="error">✗</span> No returns accepted - risky purchase
-
-<span class="info">Recommendation:</span> <span class="warning">CONDITIONAL BUY</span> - Request additional photos and condition details
-            </div>
-        </div>
-
-        <!-- Admin Interface Section -->
-        <div class="section-header" style="margin-top: 5rem;">
-            <h2>Admin Interface</h2>
-            <p>Full CRUD operations with role-based access control</p>
         </div>
 
         <div class="name-origin" style="margin-bottom: 2rem;">
             <div class="name-grid">
                 <div class="name-card">
-                    <h3>Collection Management</h3>
+                    <h3>Investment Scoring</h3>
                     <p>
-                        Authenticated users can <strong>add, edit, and delete</strong> books directly from the web interface.
-                        The dashboard provides real-time statistics, and the collection browser supports filtering by author,
-                        publisher, binding type, inventory classification, and delivery status.
+                        Each book receives an <strong>Investment Grade (0-100)</strong> and <strong>Strategic Fit (0-7)</strong>
+                        score based on binding quality, acquisition discount, collection alignment, and more. Scores are
+                        captured at acquisition time for historical tracking. Know which pieces are your best investments.
                     </p>
                     <p class="quote">
-                        "Every field from title to valuation is editable - no more command-line-only updates."
+                        "Data-driven collecting - understand the value proposition of every acquisition."
                     </p>
                 </div>
                 <div class="name-card">
-                    <h3>Image & Analysis Management</h3>
+                    <h3>Reference Library</h3>
                     <p>
-                        Upload multiple images per book with <strong>drag-and-drop reordering</strong>. Set primary images,
-                        delete unwanted photos, and preview in full-screen lightbox. Analysis documents support full
-                        markdown with live preview editing.
+                        Build your <strong>target author list</strong> with priority scores for guided acquisitions.
+                        Track publisher tiers (Moxon, Pickering, Dent) and authenticated binderies (Zaehnsdorf, Rivière,
+                        Sangorski & Sutcliffe). The system knows your collection focus and scores accordingly.
                     </p>
                     <p class="quote">
-                        "Images are automatically optimized and delivered via CloudFront CDN for fast global access."
+                        "Define your collecting strategy, let the system help you execute it."
                     </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="screenshots-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/admin-dashboard.png" alt="Admin Dashboard" style="height: 200px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Dashboard</h4>
-                    <p>Collection stats, recent additions, and quick actions for authenticated users.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/admin-add-book.png" alt="Add Book Form" style="height: 200px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Add New Book</h4>
-                    <p>Comprehensive form with author/publisher dropdowns, binding types, and valuation fields.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/admin-edit-book.png" alt="Edit Book" style="height: 200px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Edit Book</h4>
-                    <p>Inline editing of all metadata, status updates, and analysis document editing.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="screenshots/admin-panel.png" alt="User Management" style="height: 200px;">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>User Management</h4>
-                    <p>Role-based access control with admin/editor/viewer roles and MFA status tracking.</p>
                 </div>
             </div>
         </div>
 
         <div style="text-align: center; margin-top: 2rem;">
-            <a href="admin-guide.html" class="btn btn-secondary">
-                View Full Admin Guide →
+            <a href="features.html" class="btn btn-primary">
+                See All Features →
+            </a>
+            <a href="admin-guide.html" class="btn btn-secondary" style="margin-left: 1rem;">
+                Admin Guide →
             </a>
         </div>
     </section>
@@ -1428,6 +1298,58 @@ graph TB
     style Lambda fill:#FF9800,color:#fff
     style Aurora fill:#2196F3,color:#fff
     style Cognito fill:#4CAF50,color:#fff
+            </div>
+        </div>
+
+        <!-- AI Valuation Flow -->
+        <div class="diagram-container">
+            <h4>AI-Powered Valuation Flow (AWS Bedrock + Claude Sonnet 4)</h4>
+            <div class="mermaid">
+flowchart TB
+    subgraph Input["Acquisition Input"]
+        eBay[eBay Listing URL]
+        Manual[Manual Entry]
+    end
+    subgraph Import["Data Import"]
+        Parse[Parse Listing<br/>Title, Price, Images]
+        Archive[Wayback Archive<br/>Snapshot Storage]
+    end
+    subgraph AI["AWS Bedrock AI Layer"]
+        Bedrock[AWS Bedrock<br/>Claude Sonnet 4]
+        Napoleon[Napoleon Framework<br/>Valuation Prompt]
+    end
+    subgraph Analysis["Valuation Output"]
+        Condition[Condition Assessment<br/>Binding, Pages, Foxing]
+        Market[Market Analysis<br/>Comparable Sales]
+        FMV[Fair Market Value<br/>Low/Mid/High Range]
+    end
+    subgraph Scoring["Investment Scoring"]
+        Grade[Investment Grade<br/>0-100 Score]
+        Fit[Strategic Fit<br/>0-7 Collection Match]
+    end
+    subgraph Storage["Data Layer"]
+        DB[(Aurora PostgreSQL)]
+        S3[S3 Images]
+    end
+    eBay --> Parse
+    Manual --> Parse
+    Parse --> Archive
+    Parse --> Bedrock
+    Napoleon --> Bedrock
+    Bedrock --> Condition
+    Bedrock --> Market
+    Condition --> FMV
+    Market --> FMV
+    FMV --> Grade
+    Grade --> Fit
+    Fit --> DB
+    Parse --> S3
+    Archive --> S3
+    style Bedrock fill:#FF9800,color:#fff
+    style Napoleon fill:#8b5cf6,color:#fff
+    style Grade fill:#10b981,color:#fff
+    style Fit fill:#3b82f6,color:#fff
+    style DB fill:#2196F3,color:#fff
             </div>
         </div>
 
@@ -1666,9 +1588,10 @@ flowchart LR
     <section id="api">
         <div class="section-header">
             <h2>REST API</h2>
-            <p>40+ endpoints for complete collection management</p>
+            <p>50+ endpoints for complete collection management</p>
         </div>
 
+        <h4 style="color: var(--accent-blue-light); margin-bottom: 1rem;">Books & Collection</h4>
         <table class="api-table">
             <thead>
                 <tr>
@@ -1713,6 +1636,85 @@ flowchart LR
                     <td>/api/v1/books/{id}/analysis/raw</td>
                     <td>Update markdown analysis document</td>
                 </tr>
+            </tbody>
+        </table>
+
+        <h4 style="color: var(--accent-purple); margin: 2rem 0 1rem;">Acquisitions & Scoring</h4>
+        <table class="api-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="method get">GET</span></td>
+                    <td>/api/v1/acquisitions</td>
+                    <td>List acquisitions with status filter (watchlist, in_transit, on_hand)</td>
+                </tr>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/acquisitions</td>
+                    <td>Create new acquisition with automatic scoring</td>
+                </tr>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/acquisitions/parse-order</td>
+                    <td>Parse eBay order text to extract listing details</td>
+                </tr>
+                <tr>
+                    <td><span class="method patch">PATCH</span></td>
+                    <td>/api/v1/acquisitions/{id}</td>
+                    <td>Update acquisition status or details</td>
+                </tr>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/acquisitions/{id}/convert</td>
+                    <td>Convert acquisition to collection book entry</td>
+                </tr>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/acquisitions/{id}/archive</td>
+                    <td>Save listing to Wayback Machine</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 style="color: var(--accent-amber); margin: 2rem 0 1rem;">AI Valuations (AWS Bedrock)</h4>
+        <table class="api-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/books/{id}/valuation</td>
+                    <td>Generate AI valuation using Napoleon Framework (Claude Sonnet 4)</td>
+                </tr>
+                <tr>
+                    <td><span class="method post">POST</span></td>
+                    <td>/api/v1/acquisitions/{id}/score</td>
+                    <td>Calculate Investment Grade and Strategic Fit scores</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 style="color: var(--accent-green); margin: 2rem 0 1rem;">Health & Export</h4>
+        <table class="api-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
                 <tr>
                     <td><span class="method get">GET</span></td>
                     <td>/api/v1/export/csv</td>
@@ -1723,11 +1725,19 @@ flowchart LR
                     <td>/api/v1/health/deep</td>
                     <td>Deep health check with all dependencies</td>
                 </tr>
+                <tr>
+                    <td><span class="method get">GET</span></td>
+                    <td>/api/v1/health/version</td>
+                    <td>Get deployed version and build info</td>
+                </tr>
             </tbody>
         </table>
 
         <div style="text-align: center; margin-top: 2rem;">
-            <a href="https://github.com/markthebest12/bluemoxon" class="btn btn-primary" target="_blank">
+            <a href="https://api.bluemoxon.com/docs" class="btn btn-primary" target="_blank">
+                View API Docs (Swagger)
+            </a>
+            <a href="https://github.com/markthebest12/bluemoxon" class="btn btn-secondary" target="_blank" style="margin-left: 1rem;">
                 View Source on GitHub
             </a>
         </div>
