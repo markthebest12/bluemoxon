@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useListingsStore } from "@/stores/listings";
+import { api } from "@/services/api";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 
 const emit = defineEmits<{
@@ -49,6 +50,56 @@ const form = ref({
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
+
+// Image upload progress
+const uploadingImages = ref(false);
+const imageUploadProgress = ref({ current: 0, total: 0 });
+
+// Convert base64 data URI to File object
+function dataURItoFile(dataURI: string, filename: string): File {
+  const arr = dataURI.split(",");
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+// Upload images to a book
+async function uploadImages(bookId: number) {
+  const images = extractedData.value?.images || [];
+  if (images.length === 0) return;
+
+  uploadingImages.value = true;
+  imageUploadProgress.value = { current: 0, total: images.length };
+
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    try {
+      const extension = img.content_type.split("/")[1] || "jpg";
+      const filename = `image_${String(i + 1).padStart(2, "0")}.${extension}`;
+      const file = dataURItoFile(img.preview, filename);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await api.post(`/books/${bookId}/images`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      imageUploadProgress.value.current = i + 1;
+    } catch (e) {
+      console.error(`Failed to upload image ${i + 1}:`, e);
+      // Continue with other images even if one fails
+    }
+  }
+
+  uploadingImages.value = false;
+}
 
 // Lock body scroll when modal is open
 watch(
@@ -164,7 +215,13 @@ async function handleSubmit() {
       condition_notes: form.value.condition_notes || undefined,
     };
 
-    await acquisitionsStore.addToWatchlist(payload);
+    const book = await acquisitionsStore.addToWatchlist(payload);
+
+    // Upload images if we have them
+    if (extractedData.value?.images?.length) {
+      await uploadImages(book.id);
+    }
+
     emit("added");
     emit("close");
   } catch (e: any) {
@@ -513,7 +570,14 @@ function openSourceUrl() {
           <div
             class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
           ></div>
-          <p class="text-gray-600">Saving to watchlist...</p>
+          <p class="text-gray-600">
+            <template v-if="uploadingImages">
+              Uploading images ({{ imageUploadProgress.current }}/{{
+                imageUploadProgress.total
+              }})...
+            </template>
+            <template v-else> Saving to watchlist... </template>
+          </p>
         </div>
       </div>
     </div>
