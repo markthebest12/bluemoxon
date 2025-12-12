@@ -1,4 +1,3 @@
-import pytest
 from app.services.order_extractor import extract_with_regex
 
 SAMPLE_EBAY_EMAIL = """

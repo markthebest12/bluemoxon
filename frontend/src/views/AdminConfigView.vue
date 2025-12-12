@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue";
 import { api } from "@/services/api";
 
-const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.10 });
+const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
 const saving = ref(false);
 const message = ref("");
 

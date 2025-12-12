@@ -138,9 +138,7 @@ function handleClose() {
 
         <!-- Input State -->
         <div v-if="!extractedData" class="p-4 space-y-4">
-          <p class="text-sm text-gray-600">
-            Paste your eBay order confirmation email text below.
-          </p>
+          <p class="text-sm text-gray-600">Paste your eBay order confirmation email text below.</p>
           <textarea
             v-model="pastedText"
             rows="10"
@@ -194,13 +192,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -238,13 +230,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -276,13 +262,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -314,13 +294,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -351,13 +325,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -369,10 +337,7 @@ function handleClose() {
               </span>
             </div>
 
-            <div
-              v-if="extractedData.estimated_delivery"
-              class="flex justify-between items-center"
-            >
+            <div v-if="extractedData.estimated_delivery" class="flex justify-between items-center">
               <span class="text-sm text-gray-600">Est. Delivery</span>
               <span class="font-medium flex items-center gap-1">
                 {{ extractedData.estimated_delivery }}
@@ -391,13 +356,7 @@ function handleClose() {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -438,7 +397,12 @@ function handleClose() {
           </div>
 
           <div class="text-xs text-gray-500 flex items-center gap-2">
-            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -448,7 +412,12 @@ function handleClose() {
             </svg>
             <span>High confidence</span>
             <span class="mx-1">|</span>
-            <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4 text-yellow-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
