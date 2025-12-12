@@ -18,7 +18,9 @@ class TestArchiveUrl:
         mock_response.headers = {
             "Content-Location": "/web/20251212120000/https://www.ebay.com/itm/123"
         }
-        mock_response.url = "https://web.archive.org/web/20251212120000/https://www.ebay.com/itm/123"
+        mock_response.url = (
+            "https://web.archive.org/web/20251212120000/https://www.ebay.com/itm/123"
+        )
 
         with patch("app.services.archive.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
