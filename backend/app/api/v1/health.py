@@ -320,6 +320,19 @@ MIGRATION_I9012345ABCD_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS archive_status VARCHAR(20)",
 ]
 
+# Migration SQL for 9d7720474d6d_add_admin_config_table
+MIGRATION_9D7720474D6D_SQL = [
+    """CREATE TABLE IF NOT EXISTS admin_config (
+        key VARCHAR(50) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+    )""",
+    """INSERT INTO admin_config (key, value) VALUES
+        ('gbp_to_usd_rate', '1.28'::jsonb),
+        ('eur_to_usd_rate', '1.10'::jsonb)
+        ON CONFLICT (key) DO NOTHING""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
@@ -346,6 +359,7 @@ Migrations run in order:
 3. g7890123def0 - Fix sequence sync (resets sequences to max(id) + 1)
 4. h8901234efgh - Add is_complete field for multi-volume sets
 5. i9012345abcd - Add archive fields (source_archived_url, archive_status)
+6. 9d7720474d6d - Add admin_config table for currency rates
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -371,9 +385,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("g7890123def0", None),  # Sequence sync uses dynamic SQL
         ("h8901234efgh", MIGRATION_H8901234EFGH_SQL),
         ("i9012345abcd", MIGRATION_I9012345ABCD_SQL),
+        ("9d7720474d6d", MIGRATION_9D7720474D6D_SQL),
     ]
 
-    final_version = "i9012345abcd"
+    final_version = "9d7720474d6d"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useAcquisitionsStore, type AcquirePayload } from "@/stores/acquisitions";
+import PasteOrderModal from "./PasteOrderModal.vue";
 
 const props = defineProps<{
   bookId: number;
@@ -25,6 +26,7 @@ const form = ref<AcquirePayload>({
 
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
+const showPasteModal = ref(false);
 
 const estimatedDiscount = computed(() => {
   if (!props.valueMid || !form.value.purchase_price) return null;
@@ -71,6 +73,24 @@ function handleClose() {
     emit("close");
   }
 }
+
+function handlePasteApply(data: any) {
+  if (data.order_number) {
+    form.value.order_number = data.order_number;
+  }
+  if (data.total_usd) {
+    form.value.purchase_price = data.total_usd;
+  } else if (data.total) {
+    form.value.purchase_price = data.total;
+  }
+  if (data.purchase_date) {
+    form.value.purchase_date = data.purchase_date;
+  }
+  if (data.estimated_delivery) {
+    form.value.estimated_delivery = data.estimated_delivery;
+  }
+  showPasteModal.value = false;
+}
 </script>
 
 <template>
@@ -86,20 +106,38 @@ function handleClose() {
             <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
             <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
           </div>
-          <button
-            @click="handleClose"
-            :disabled="submitting"
-            class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="showPasteModal = true"
+              :disabled="submitting"
+              class="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
+              title="Paste order details from email"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+              Paste Order
+            </button>
+            <button
+              @click="handleClose"
+              :disabled="submitting"
+              class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Form -->
@@ -199,6 +237,13 @@ function handleClose() {
         </form>
       </div>
     </div>
+
+    <!-- Paste Order Modal -->
+    <PasteOrderModal
+      v-if="showPasteModal"
+      @close="showPasteModal = false"
+      @apply="handlePasteApply"
+    />
   </Teleport>
 </template>
 
