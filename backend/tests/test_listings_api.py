@@ -34,12 +34,12 @@ class TestExtractListingEndpoint:
             },
             "images": [
                 {
-                    "url": "https://i.ebayimg.com/img1.jpg",
-                    "data": b"fake-image-data",
-                    "content_type": "image/jpeg",
+                    "s3_key": "listings/123456/image_00.jpg",
+                    "presigned_url": "https://s3.amazonaws.com/bucket/listings/123456/image_00.jpg?signed",
                 }
             ],
             "image_urls": ["https://i.ebayimg.com/img1.jpg"],
+            "item_id": "123456",
         }
         mock_author.return_value = None
         mock_binder.return_value = None
@@ -63,18 +63,17 @@ class TestExtractListingEndpoint:
     def test_returns_image_previews(
         self, mock_scrape, mock_author, mock_binder, mock_publisher, client
     ):
-        # Image data as base64 for preview
-        image_data = b"\xff\xd8\xff\xe0fake-jpeg-data"
+        # Images now use S3 presigned URLs instead of base64
         mock_scrape.return_value = {
             "listing_data": {"title": "Test Book", "volumes": 1, "currency": "USD"},
             "images": [
                 {
-                    "url": "https://i.ebayimg.com/img1.jpg",
-                    "data": image_data,
-                    "content_type": "image/jpeg",
+                    "s3_key": "listings/123456/image_00.jpg",
+                    "presigned_url": "https://s3.amazonaws.com/bucket/listings/123456/image_00.jpg?signed",
                 }
             ],
             "image_urls": ["https://i.ebayimg.com/img1.jpg"],
+            "item_id": "123456",
         }
         mock_author.return_value = None
         mock_binder.return_value = None
@@ -87,9 +86,10 @@ class TestExtractListingEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        # Images should include base64 preview
-        assert "preview" in data["images"][0]
-        assert data["images"][0]["preview"].startswith("data:image/jpeg;base64,")
+        # Images should have S3 key and presigned URL
+        assert "s3_key" in data["images"][0]
+        assert "presigned_url" in data["images"][0]
+        assert data["images"][0]["s3_key"].startswith("listings/")
 
     def test_validates_ebay_url(self, client):
         response = client.post(
@@ -159,6 +159,7 @@ class TestExtractListingEndpoint:
             },
             "images": [],
             "image_urls": [],
+            "item_id": "123456",
         }
         mock_author.return_value = {"id": 5, "name": "John Ruskin", "similarity": 1.0}
         mock_binder.return_value = {"id": 3, "name": "Zaehnsdorf", "similarity": 1.0}
@@ -184,6 +185,7 @@ class TestExtractListingEndpoint:
             "listing_data": {"title": "Test", "volumes": 1, "currency": "USD"},
             "images": [],
             "image_urls": [],
+            "item_id": "123456789",
         }
         mock_author.return_value = None
         mock_binder.return_value = None

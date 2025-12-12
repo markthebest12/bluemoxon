@@ -1,6 +1,5 @@
 """Tests for scraper invocation service."""
 
-import base64
 import json
 from unittest.mock import MagicMock, patch
 
@@ -22,14 +21,15 @@ class TestInvokeScraper:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        # Mock successful response
+        # Mock successful response with S3 keys
         response_payload = {
             "statusCode": 200,
             "body": json.dumps(
                 {
                     "html": "<html>test</html>",
                     "image_urls": ["https://i.ebayimg.com/test.jpg"],
-                    "images": [],
+                    "s3_keys": ["listings/123456/image_00.jpg"],
+                    "item_id": "123456",
                 }
             ),
         }
@@ -51,7 +51,7 @@ class TestInvokeScraper:
         assert payload["url"] == "https://www.ebay.com/itm/123456"
 
     @patch("app.services.scraper.get_lambda_client")
-    def test_returns_html_and_images(self, mock_get_client):
+    def test_returns_html_and_s3_keys(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
@@ -64,13 +64,11 @@ class TestInvokeScraper:
                         "https://i.ebayimg.com/img1.jpg",
                         "https://i.ebayimg.com/img2.jpg",
                     ],
-                    "images": [
-                        {
-                            "url": "https://i.ebayimg.com/img1.jpg",
-                            "base64": base64.b64encode(b"fake-image-data").decode(),
-                            "content_type": "image/jpeg",
-                        }
+                    "s3_keys": [
+                        "listings/123456/image_00.jpg",
+                        "listings/123456/image_01.jpg",
                     ],
+                    "item_id": "123456",
                 }
             ),
         }
@@ -85,8 +83,8 @@ class TestInvokeScraper:
 
         assert result["html"] == "<html><title>Test Book</title></html>"
         assert len(result["image_urls"]) == 2
-        assert len(result["images"]) == 1
-        assert result["images"][0]["content_type"] == "image/jpeg"
+        assert len(result["s3_keys"]) == 2
+        assert result["s3_keys"][0] == "listings/123456/image_00.jpg"
 
     @patch("app.services.scraper.get_lambda_client")
     def test_raises_on_rate_limit(self, mock_get_client):
@@ -147,7 +145,12 @@ class TestInvokeScraper:
 
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({"html": "<html/>", "image_urls": [], "images": []}),
+            "body": json.dumps({
+                "html": "<html/>",
+                "image_urls": [],
+                "s3_keys": [],
+                "item_id": "123456",
+            }),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
@@ -166,19 +169,16 @@ class TestInvokeScraper:
 class TestScrapeEbayListing:
     """Tests for the high-level scraping function."""
 
+    @patch("app.services.scraper.generate_presigned_url")
     @patch("app.services.scraper.invoke_scraper")
     @patch("app.services.scraper.extract_listing_data")
-    def test_scrapes_and_extracts_data(self, mock_extract, mock_invoke):
+    @patch.dict("os.environ", {"IMAGES_BUCKET": "test-bucket"})
+    def test_scrapes_and_extracts_data(self, mock_extract, mock_invoke, mock_presign):
         mock_invoke.return_value = {
             "html": "<html><title>The Queen of the Air</title></html>",
             "image_urls": ["https://i.ebayimg.com/img1.jpg"],
-            "images": [
-                {
-                    "url": "https://i.ebayimg.com/img1.jpg",
-                    "base64": base64.b64encode(b"image-data").decode(),
-                    "content_type": "image/jpeg",
-                }
-            ],
+            "s3_keys": ["listings/123456/image_00.jpg"],
+            "item_id": "123456",
         }
         mock_extract.return_value = {
             "title": "The Queen of the Air",
@@ -187,12 +187,15 @@ class TestScrapeEbayListing:
             "currency": "USD",
             "volumes": 1,
         }
+        mock_presign.return_value = "https://s3.amazonaws.com/signed-url"
 
         result = scrape_ebay_listing("https://www.ebay.com/itm/123456")
 
         assert result["listing_data"]["title"] == "The Queen of the Air"
         assert result["listing_data"]["author"] == "John Ruskin"
         assert len(result["images"]) == 1
+        assert result["images"][0]["s3_key"] == "listings/123456/image_00.jpg"
+        assert result["images"][0]["presigned_url"] == "https://s3.amazonaws.com/signed-url"
         assert result["image_urls"] == ["https://i.ebayimg.com/img1.jpg"]
 
     @patch("app.services.scraper.invoke_scraper")
@@ -201,7 +204,8 @@ class TestScrapeEbayListing:
         mock_invoke.return_value = {
             "html": "<html>test</html>",
             "image_urls": [],
-            "images": [],
+            "s3_keys": [],
+            "item_id": "123456",
         }
         mock_extract.return_value = {
             "title": "Test Book",
@@ -216,28 +220,26 @@ class TestScrapeEbayListing:
         assert result["images"] == []
         assert result["image_urls"] == []
 
+    @patch("app.services.scraper.generate_presigned_url")
     @patch("app.services.scraper.invoke_scraper")
     @patch("app.services.scraper.extract_listing_data")
-    def test_decodes_base64_images(self, mock_extract, mock_invoke):
-        image_data = b"\xff\xd8\xff\xe0fake-jpeg-data"
+    @patch.dict("os.environ", {"IMAGES_BUCKET": "test-bucket"})
+    def test_generates_presigned_urls_for_s3_images(self, mock_extract, mock_invoke, mock_presign):
         mock_invoke.return_value = {
             "html": "<html/>",
             "image_urls": ["https://i.ebayimg.com/img1.jpg"],
-            "images": [
-                {
-                    "url": "https://i.ebayimg.com/img1.jpg",
-                    "base64": base64.b64encode(image_data).decode(),
-                    "content_type": "image/jpeg",
-                }
-            ],
+            "s3_keys": ["listings/123456/image_00.jpg"],
+            "item_id": "123456",
         }
         mock_extract.return_value = {"title": "Book", "volumes": 1, "currency": "USD"}
+        mock_presign.return_value = "https://s3.amazonaws.com/bucket/listings/123456/image_00.jpg?signed"
 
         result = scrape_ebay_listing("https://www.ebay.com/itm/123456")
 
-        # Images should have decoded bytes
-        assert result["images"][0]["data"] == image_data
-        assert result["images"][0]["content_type"] == "image/jpeg"
+        # Images should have S3 keys and presigned URLs
+        assert result["images"][0]["s3_key"] == "listings/123456/image_00.jpg"
+        assert "presigned_url" in result["images"][0]
+        mock_presign.assert_called_once_with("test-bucket", "listings/123456/image_00.jpg")
 
     @patch("app.services.scraper.invoke_scraper")
     def test_propagates_scraper_errors(self, mock_invoke):
@@ -252,7 +254,8 @@ class TestScrapeEbayListing:
         mock_invoke.return_value = {
             "html": "<html>malformed</html>",
             "image_urls": [],
-            "images": [],
+            "s3_keys": [],
+            "item_id": "123456",
         }
         mock_extract.side_effect = ValueError("Failed to parse listing data")
 
