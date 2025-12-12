@@ -340,7 +340,7 @@ module "scraper_lambda" {
   api_lambda_role_arn  = module.lambda[0].role_arn
 
   # Scraper settings
-  image_tag   = "v1.0.1"
+  image_tag   = "v1.0.2"
   memory_size = 1024 # Playwright needs significant memory
   timeout     = 60   # eBay pages can be slow
 
