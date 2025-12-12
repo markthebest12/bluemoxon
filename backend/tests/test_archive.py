@@ -81,3 +81,48 @@ class TestArchiveUrl:
 
         assert result["status"] == "failed"
         assert "No URL" in result["error"]
+
+
+class TestArchiveEndpoint:
+    """Tests for POST /books/{id}/archive-source endpoint."""
+
+    def test_archive_source_no_url_returns_error(self, client, db):
+        """Test archive endpoint returns error when no source_url."""
+        from app.models.book import Book
+
+        book = Book(title="Test Book", status="EVALUATING")
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        response = client.post(f"/api/v1/books/{book.id}/archive-source")
+
+        assert response.status_code == 400
+        assert "source_url" in response.json()["detail"].lower()
+
+    def test_archive_source_already_archived_returns_existing(self, client, db):
+        """Test archive endpoint returns existing URL if already archived."""
+        from app.models.book import Book
+
+        book = Book(
+            title="Test Book",
+            source_url="https://www.ebay.com/itm/123456",
+            source_archived_url="https://web.archive.org/web/123/https://ebay.com/itm/123456",
+            archive_status="success",
+            status="EVALUATING",
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        response = client.post(f"/api/v1/books/{book.id}/archive-source")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["archive_status"] == "success"
+        assert "web.archive.org" in data["source_archived_url"]
+
+    def test_archive_source_book_not_found(self, client, db):
+        """Test archive endpoint returns 404 for nonexistent book."""
+        response = client.post("/api/v1/books/99999/archive-source")
+        assert response.status_code == 404
