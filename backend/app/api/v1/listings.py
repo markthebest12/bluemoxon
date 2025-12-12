@@ -1,24 +1,41 @@
 """Listings extraction API endpoints."""
 
+import json
 import logging
+import os
+from typing import Literal
 
+import boto3
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.services.listing import (
+    extract_listing_data,
     is_valid_ebay_url,
     match_author,
     match_binder,
     match_publisher,
     normalize_ebay_url,
 )
-from app.services.scraper import ScraperError, ScraperRateLimitError, scrape_ebay_listing
+from app.services.scraper import (
+    PRESIGNED_URL_EXPIRY,
+    ScraperError,
+    ScraperRateLimitError,
+    generate_presigned_url,
+    scrape_ebay_listing,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# S3 bucket for images
+IMAGES_BUCKET = os.environ.get("IMAGES_BUCKET", "")
+
+# Lambda function name pattern
+SCRAPER_FUNCTION_NAME = "bluemoxon-{environment}-scraper"
 
 
 class ExtractRequest(BaseModel):
@@ -124,5 +141,199 @@ def extract_listing(
         listing_data=listing_data,
         images=images,
         image_urls=result["image_urls"],
+        matches=matches,
+    )
+
+
+# =============================================================================
+# Async Extraction Endpoints
+# =============================================================================
+
+
+class ExtractAsyncResponse(BaseModel):
+    """Response from async extraction initiation."""
+
+    item_id: str
+    status: Literal["started", "already_scraped"]
+    message: str
+
+
+class ExtractStatusResponse(BaseModel):
+    """Response from extraction status check."""
+
+    item_id: str
+    status: Literal["pending", "scraped", "ready", "error"]
+    ebay_url: str | None = None
+    listing_data: dict | None = None
+    images: list[ImagePreview] = []
+    matches: dict = {}
+    error: str | None = None
+
+
+@router.post("/extract-async", response_model=ExtractAsyncResponse, status_code=202)
+def extract_listing_async(
+    request: ExtractRequest,
+):
+    """Start async extraction of an eBay listing.
+
+    Kicks off the scraper Lambda asynchronously and returns immediately.
+    Poll /extract/{item_id}/status for results.
+    """
+    # Validate URL
+    if not is_valid_ebay_url(request.url):
+        raise HTTPException(status_code=400, detail="Invalid eBay URL")
+
+    # Normalize URL and extract item ID
+    normalized_url, item_id = normalize_ebay_url(request.url)
+
+    # Check if already scraped (images exist in S3)
+    s3 = boto3.client("s3")
+    try:
+        # Check for at least one image
+        response = s3.list_objects_v2(
+            Bucket=IMAGES_BUCKET,
+            Prefix=f"listings/{item_id}/",
+            MaxKeys=1,
+        )
+        already_scraped = response.get("KeyCount", 0) > 0
+    except Exception as e:
+        logger.warning(f"Error checking S3 for existing images: {e}")
+        already_scraped = False
+
+    if already_scraped:
+        return ExtractAsyncResponse(
+            item_id=item_id,
+            status="already_scraped",
+            message="Images already exist. Check /extract/{item_id}/status for results.",
+        )
+
+    # Invoke scraper Lambda asynchronously
+    environment = os.getenv("ENVIRONMENT", "staging")
+    function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
+
+    lambda_client = boto3.client("lambda")
+    payload = {"url": request.url, "fetch_images": True}
+
+    try:
+        lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType="Event",  # Async invocation
+            Payload=json.dumps(payload),
+        )
+        logger.info(f"Started async scraper for {item_id}")
+    except Exception as e:
+        logger.error(f"Failed to invoke scraper Lambda: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to start scraper: {e}") from None
+
+    return ExtractAsyncResponse(
+        item_id=item_id,
+        status="started",
+        message="Scraper started. Poll /extract/{item_id}/status for results.",
+    )
+
+
+@router.get("/extract/{item_id}/status", response_model=ExtractStatusResponse)
+def get_extract_status(
+    item_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get status of an async extraction job.
+
+    Returns 'pending' if scraper still running, 'scraped' if images exist but not extracted,
+    'ready' if extraction complete with listing data and matches.
+    """
+    s3 = boto3.client("s3")
+
+    # Check if images exist in S3
+    try:
+        response = s3.list_objects_v2(
+            Bucket=IMAGES_BUCKET,
+            Prefix=f"listings/{item_id}/",
+        )
+        s3_keys = [obj["Key"] for obj in response.get("Contents", [])]
+    except Exception as e:
+        logger.error(f"Error checking S3 for images: {e}")
+        return ExtractStatusResponse(
+            item_id=item_id,
+            status="error",
+            error=f"S3 error: {e}",
+        )
+
+    if not s3_keys:
+        # No images yet - scraper still running
+        return ExtractStatusResponse(
+            item_id=item_id,
+            status="pending",
+        )
+
+    # Images exist - try to get HTML from scraper result stored in S3
+    # If no HTML stored, we need to fetch it differently
+    # For now, we'll use the simpler approach: call Bedrock directly with the eBay URL
+
+    ebay_url = f"https://www.ebay.com/itm/{item_id}"
+
+    # Fetch eBay page content for extraction
+    try:
+        import httpx
+
+        with httpx.Client(timeout=30) as client:
+            resp = client.get(
+                ebay_url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BlueMoxon/1.0)"},
+                follow_redirects=True,
+            )
+            html = resp.text
+    except Exception as e:
+        logger.error(f"Failed to fetch eBay page: {e}")
+        return ExtractStatusResponse(
+            item_id=item_id,
+            status="error",
+            error=f"Failed to fetch listing: {e}",
+        )
+
+    # Extract structured data using Bedrock
+    try:
+        listing_data = extract_listing_data(html)
+    except Exception as e:
+        logger.error(f"Extraction failed: {e}")
+        return ExtractStatusResponse(
+            item_id=item_id,
+            status="error",
+            error=f"Extraction failed: {e}",
+        )
+
+    # Build image previews with presigned URLs
+    images = []
+    for s3_key in sorted(s3_keys):
+        try:
+            presigned_url = generate_presigned_url(IMAGES_BUCKET, s3_key, PRESIGNED_URL_EXPIRY)
+            images.append(ImagePreview(s3_key=s3_key, presigned_url=presigned_url))
+        except Exception as e:
+            logger.warning(f"Failed to generate presigned URL for {s3_key}: {e}")
+
+    # Match references
+    matches = {}
+
+    if listing_data.get("author"):
+        author_match = match_author(listing_data["author"], db)
+        if author_match:
+            matches["author"] = author_match
+
+    if listing_data.get("binder"):
+        binder_match = match_binder(listing_data["binder"], db)
+        if binder_match:
+            matches["binder"] = binder_match
+
+    if listing_data.get("publisher"):
+        publisher_match = match_publisher(listing_data["publisher"], db)
+        if publisher_match:
+            matches["publisher"] = publisher_match
+
+    return ExtractStatusResponse(
+        item_id=item_id,
+        status="ready",
+        ebay_url=ebay_url,
+        listing_data=listing_data,
+        images=images,
         matches=matches,
     )

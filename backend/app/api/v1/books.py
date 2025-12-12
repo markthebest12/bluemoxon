@@ -1140,3 +1140,118 @@ def reparse_all_analyses(
 
     db.commit()
     return {"message": f"Re-parsed {len(results)} analyses", "results": results}
+
+
+# =============================================================================
+# Async Analysis Job Endpoints
+# =============================================================================
+
+
+class GenerateAnalysisAsyncRequest(BaseModel):
+    """Request body for async analysis generation."""
+
+    model: Literal["sonnet", "opus"] = "sonnet"
+
+
+@router.post("/{book_id}/analysis/generate-async", status_code=202)
+def generate_analysis_async(
+    book_id: int,
+    request: GenerateAnalysisAsyncRequest = Body(default=GenerateAnalysisAsyncRequest()),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Start async analysis generation using AWS Bedrock.
+
+    Returns immediately with job ID. Poll /analysis/status for progress.
+    Requires admin role.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models import AnalysisJob
+    from app.schemas.analysis_job import AnalysisJobResponse
+    from app.services.sqs import send_analysis_job
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Check for existing active job
+    active_job = (
+        db.query(AnalysisJob)
+        .filter(
+            AnalysisJob.book_id == book_id,
+            AnalysisJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail="Analysis job already in progress for this book",
+        )
+
+    # Create job record
+    job = AnalysisJob(
+        book_id=book_id,
+        model=request.model,
+        status="pending",
+    )
+
+    try:
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Analysis job already in progress for this book",
+        ) from None
+
+    # Send message to SQS
+    try:
+        send_analysis_job(job.id, book_id, request.model)
+    except Exception as e:
+        # If SQS send fails, mark job as failed
+        job.status = "failed"
+        job.error_message = f"Failed to queue job: {e}"
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to queue analysis job: {e}",
+        ) from None
+
+    return AnalysisJobResponse.from_orm_model(job)
+
+
+@router.get("/{book_id}/analysis/status")
+def get_analysis_job_status(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Get status of the latest analysis job for a book.
+
+    Requires admin role.
+    """
+    from app.models import AnalysisJob
+    from app.schemas.analysis_job import AnalysisJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get latest job for this book
+    job = (
+        db.query(AnalysisJob)
+        .filter(AnalysisJob.book_id == book_id)
+        .order_by(AnalysisJob.created_at.desc())
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404, detail="No analysis job found for this book")
+
+    return AnalysisJobResponse.from_orm_model(job)

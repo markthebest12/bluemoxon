@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
+import { onMounted, onUnmounted, ref, computed } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
@@ -29,10 +29,6 @@ const analysisBookId = ref<number | null>(null);
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
   return evaluating.value.find((b) => b.id === selectedBookId.value);
-});
-
-onMounted(() => {
-  acquisitionsStore.fetchAll();
 });
 
 function openAcquireModal(bookId: number) {
@@ -122,22 +118,65 @@ async function handleDelete(bookId: number) {
   }
 }
 
-const generatingAnalysis = ref<number | null>(null);
+// Active analysis jobs for status tracking
+function getJobStatus(bookId: number) {
+  return booksStore.getActiveJob(bookId);
+}
+
+function isAnalysisRunning(bookId: number) {
+  return booksStore.hasActiveJob(bookId);
+}
 
 async function handleGenerateAnalysis(bookId: number) {
-  if (generatingAnalysis.value) return;
+  if (isAnalysisRunning(bookId)) return;
 
-  generatingAnalysis.value = bookId;
   try {
-    await booksStore.generateAnalysis(bookId);
-    // Refresh to show has_analysis = true
-    await acquisitionsStore.fetchAll();
+    await booksStore.generateAnalysisAsync(bookId);
+    // Polling will automatically update when job completes
   } catch (e: any) {
-    console.error("Failed to generate analysis:", e);
-  } finally {
-    generatingAnalysis.value = null;
+    console.error("Failed to start analysis job:", e);
+    if (e.response?.status === 409) {
+      // Job already exists, try to get its status
+      try {
+        await booksStore.fetchAnalysisJobStatus(bookId);
+      } catch {
+        // Ignore - job might have just completed
+      }
+    }
   }
 }
+
+// Watch for job completions to refresh the list
+const jobCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
+
+onMounted(() => {
+  acquisitionsStore.fetchAll();
+
+  // Periodically check if any active jobs have completed and refresh
+  jobCheckInterval.value = setInterval(async () => {
+    // Check all evaluating books for completed jobs
+    for (const book of evaluating.value) {
+      const job = getJobStatus(book.id);
+      if (job?.status === "completed") {
+        // Refresh list to show updated has_analysis
+        await acquisitionsStore.fetchAll();
+        // Clear the completed job
+        booksStore.clearJob(book.id);
+        break;
+      } else if (job?.status === "failed") {
+        // Clear failed job so user can retry
+        console.error(`Analysis job failed for book ${book.id}:`, job.error_message);
+        booksStore.clearJob(book.id);
+      }
+    }
+  }, 2000);
+});
+
+onUnmounted(() => {
+  if (jobCheckInterval.value) {
+    clearInterval(jobCheckInterval.value);
+  }
+});
 
 const recalculatingScore = ref<number | null>(null);
 
@@ -259,26 +298,42 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <!-- Job in progress indicator -->
+                <div
+                  v-else-if="isAnalysisRunning(book.id)"
+                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{ getJobStatus(book.id)?.status === "pending" ? "Queued..." : "Analyzing..." }}
+                  </span>
+                </div>
+                <!-- Job failed indicator -->
+                <div
+                  v-else-if="getJobStatus(book.id)?.status === 'failed'"
+                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
+                >
+                  ❌ Failed - click to retry
+                </div>
                 <!-- Generate Analysis button (admin only, when no analysis exists) -->
                 <button
                   v-else-if="authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
-                  :disabled="generatingAnalysis === book.id"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center justify-center gap-1"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1"
                   title="Generate analysis"
                 >
-                  <span v-if="generatingAnalysis === book.id">⏳ Generating...</span>
-                  <span v-else>⚡ Generate Analysis</span>
+                  ⚡ Generate Analysis
                 </button>
                 <!-- Regenerate button (admin only, when analysis exists) -->
                 <button
                   v-if="book.has_analysis && authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
-                  :disabled="generatingAnalysis === book.id"
+                  :disabled="isAnalysisRunning(book.id)"
                   class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
                   title="Regenerate analysis"
                 >
-                  <span v-if="generatingAnalysis === book.id">⏳</span>
+                  <span v-if="isAnalysisRunning(book.id)">⏳</span>
                   <span v-else>🔄</span>
                 </button>
               </div>
