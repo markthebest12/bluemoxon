@@ -25,7 +25,9 @@ def handler(event, context):
             - images: List of {url, base64, content_type} for downloaded images
     """
     url = event.get("url")
-    fetch_images = event.get("fetch_images", True)
+    # Default to NOT fetching images - API Lambda will download them directly
+    # This keeps scraper fast (under 30s API Gateway limit)
+    fetch_images = event.get("fetch_images", False)
 
     if not url:
         return {"statusCode": 400, "body": json.dumps({"error": "URL required"})}
@@ -123,6 +125,9 @@ def handler(event, context):
                     except Exception as e:
                         logger.warning(f"Failed to fetch image {img_url}: {e}")
 
+            logger.info(f"Closing browser...")
+            # Close page first to speed up cleanup
+            page.close()
             browser.close()
             logger.info(f"Returning {len(images)} images")
 
