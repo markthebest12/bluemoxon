@@ -188,20 +188,12 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">
-                <a
-                  v-if="book.source_url"
-                  :href="book.source_url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-blue-600 hover:underline"
-                  title="View listing"
-                  @click.stop
-                >
-                  {{ book.title }}
-                </a>
-                <span v-else>{{ book.title }}</span>
-              </h3>
+              <router-link
+                :to="`/books/${book.id}`"
+                class="block hover:text-blue-600"
+              >
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">{{ book.title }}</h3>
+              </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -313,20 +305,12 @@ async function handleRecalculateScore(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">
-                <a
-                  v-if="book.source_url"
-                  :href="book.source_url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-blue-600 hover:underline"
-                  title="View listing"
-                  @click.stop
-                >
-                  {{ book.title }}
-                </a>
-                <span v-else>{{ book.title }}</span>
-              </h3>
+              <router-link
+                :to="`/books/${book.id}`"
+                class="block hover:text-blue-600"
+              >
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">{{ book.title }}</h3>
+              </router-link>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
