@@ -314,6 +314,12 @@ MIGRATION_H8901234EFGH_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS is_complete BOOLEAN NOT NULL DEFAULT TRUE",
 ]
 
+# Migration SQL for i9012345abcd_add_archive_fields
+MIGRATION_I9012345ABCD_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_archived_url VARCHAR(500)",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS archive_status VARCHAR(20)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
@@ -339,6 +345,7 @@ Migrations run in order:
 2. f85b7f976c08 - Add scoring fields
 3. g7890123def0 - Fix sequence sync (resets sequences to max(id) + 1)
 4. h8901234efgh - Add is_complete field for multi-volume sets
+5. i9012345abcd - Add archive fields (source_archived_url, archive_status)
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -363,9 +370,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("f85b7f976c08", MIGRATION_F85B7F976C08_SQL),
         ("g7890123def0", None),  # Sequence sync uses dynamic SQL
         ("h8901234efgh", MIGRATION_H8901234EFGH_SQL),
+        ("i9012345abcd", MIGRATION_I9012345ABCD_SQL),
     ]
 
-    final_version = "h8901234efgh"
+    final_version = "i9012345abcd"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
