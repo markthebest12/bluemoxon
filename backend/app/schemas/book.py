@@ -42,6 +42,11 @@ class BookBase(BaseModel):
     # Delivery tracking
     estimated_delivery: date | None = None
 
+    # Shipment tracking
+    tracking_number: str | None = None
+    tracking_carrier: str | None = None
+    tracking_url: str | None = None
+
     # Archive tracking
     source_archived_url: str | None = None
     archive_status: str | None = None  # pending, success, failed
@@ -176,3 +181,11 @@ class ScoringSnapshot(BaseModel):
     investment_grade: Decimal
     strategic_fit: dict  # {"score": x, "max": y, "criteria": [...]}
     collection_position: dict  # {"items_before": x, "volumes_before": y}
+
+
+class TrackingRequest(BaseModel):
+    """Request body for adding shipment tracking."""
+
+    tracking_number: str | None = None
+    tracking_carrier: str | None = None
+    tracking_url: str | None = None

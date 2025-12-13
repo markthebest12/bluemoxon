@@ -182,3 +182,148 @@ class TestInventoryType:
         assert response.status_code == 200
         assert response.json()["old_type"] == "PRIMARY"
         assert response.json()["new_type"] == "FLAGGED"
+
+
+class TestAddTracking:
+    """Tests for PATCH /api/v1/books/{id}/tracking."""
+
+    def test_add_tracking_with_url(self, client):
+        """Test adding tracking with direct URL."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Add tracking
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={
+                "tracking_number": "12345",
+                "tracking_carrier": "Custom",
+                "tracking_url": "https://custom-tracker.com/12345",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tracking_number"] == "12345"
+        assert data["tracking_carrier"] == "Custom"
+        assert data["tracking_url"] == "https://custom-tracker.com/12345"
+
+    def test_add_tracking_auto_detect_ups(self, client):
+        """Test auto-detecting UPS carrier from tracking number."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Add tracking (UPS format)
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={"tracking_number": "1Z999AA10123456784"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tracking_number"] == "1Z999AA10123456784"
+        assert data["tracking_carrier"] == "UPS"
+        assert "ups.com" in data["tracking_url"]
+
+    def test_add_tracking_auto_detect_usps(self, client):
+        """Test auto-detecting USPS carrier from tracking number."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Add tracking (USPS format)
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={"tracking_number": "9400111899223100001234"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tracking_carrier"] == "USPS"
+        assert "usps.com" in data["tracking_url"]
+
+    def test_add_tracking_requires_in_transit(self, client):
+        """Test that tracking can only be added to IN_TRANSIT books."""
+        # Create ON_HAND book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "ON_HAND"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Try to add tracking
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={"tracking_url": "https://example.com/track"},
+        )
+        assert response.status_code == 400
+        assert "IN_TRANSIT" in response.json()["detail"]
+
+    def test_add_tracking_unknown_carrier_error(self, client):
+        """Test error when carrier cannot be detected."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Try to add tracking with unknown format
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={"tracking_number": "INVALID123"},
+        )
+        assert response.status_code == 400
+        assert "Could not detect carrier" in response.json()["detail"]
+
+    def test_add_tracking_not_found(self, client):
+        """Test 404 when book doesn't exist."""
+        response = client.patch(
+            "/api/v1/books/999/tracking",
+            json={"tracking_url": "https://example.com/track"},
+        )
+        assert response.status_code == 404
+
+    def test_add_tracking_empty_request(self, client):
+        """Test that empty tracking request is rejected."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Try empty tracking
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={},
+        )
+        assert response.status_code == 400
+        assert "tracking_number or tracking_url" in response.json()["detail"]
+
+    def test_add_tracking_normalizes_number(self, client):
+        """Test that tracking number is normalized (uppercase, no spaces)."""
+        # Create IN_TRANSIT book
+        create_response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "status": "IN_TRANSIT"},
+        )
+        book_id = create_response.json()["id"]
+
+        # Add tracking with messy number
+        response = client.patch(
+            f"/api/v1/books/{book_id}/tracking",
+            json={"tracking_number": "1z 999 aa1-0123-4567-84"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Should be normalized
+        assert data["tracking_number"] == "1Z999AA10123456784"

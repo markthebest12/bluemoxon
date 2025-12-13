@@ -8,6 +8,7 @@ import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
 import ImportListingModal from "@/components/ImportListingModal.vue";
+import AddTrackingModal from "@/components/AddTrackingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
@@ -25,6 +26,8 @@ const showEditModal = ref(false);
 const editingBook = ref<AcquisitionBook | null>(null);
 const showAnalysisViewer = ref(false);
 const analysisBookId = ref<number | null>(null);
+const showTrackingModal = ref(false);
+const trackingBook = ref<AcquisitionBook | null>(null);
 
 const selectedBook = computed(() => {
   if (!selectedBookId.value) return null;
@@ -93,14 +96,42 @@ function closeAnalysisViewer() {
   analysisBookId.value = null;
 }
 
-function formatPrice(price?: number | null): string {
-  if (price == null || typeof price !== "number") return "-";
-  return `$${price.toFixed(2)}`;
+function openTrackingModal(book: AcquisitionBook) {
+  trackingBook.value = book;
+  showTrackingModal.value = true;
 }
 
-function formatDiscount(discount?: number | null): string {
-  if (discount == null || typeof discount !== "number") return "-";
-  return `${discount.toFixed(0)}%`;
+function closeTrackingModal() {
+  showTrackingModal.value = false;
+  trackingBook.value = null;
+}
+
+function handleTrackingAdded() {
+  showTrackingModal.value = false;
+  trackingBook.value = null;
+}
+
+function formatTrackingNumber(number?: string | null): string {
+  if (!number) return "";
+  // Truncate long tracking numbers for display
+  if (number.length > 12) {
+    return number.slice(0, 6) + "..." + number.slice(-4);
+  }
+  return number;
+}
+
+function formatPrice(price?: number | string | null): string {
+  if (price == null) return "-";
+  const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  if (isNaN(numPrice)) return "-";
+  return `$${numPrice.toFixed(2)}`;
+}
+
+function formatDiscount(discount?: number | string | null): string {
+  if (discount == null) return "-";
+  const numDiscount = typeof discount === "string" ? parseFloat(discount) : discount;
+  if (isNaN(numDiscount)) return "-";
+  return `${numDiscount.toFixed(0)}%`;
 }
 
 function formatDate(dateStr?: string): string {
@@ -414,6 +445,36 @@ async function handleArchiveSource(bookId: number) {
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
                 Due: {{ formatDate(book.estimated_delivery) }}
               </div>
+
+              <!-- Tracking Info -->
+              <div v-if="book.tracking_url" class="mt-2">
+                <a
+                  :href="book.tracking_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                  <span v-if="book.tracking_carrier">{{ book.tracking_carrier }}:</span>
+                  <span>{{ formatTrackingNumber(book.tracking_number) || "Track" }}</span>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              </div>
+
               <div v-if="book.source_url" class="mt-1">
                 <ArchiveStatusBadge
                   :status="book.archive_status"
@@ -423,10 +484,17 @@ async function handleArchiveSource(bookId: number) {
                   @archive="handleArchiveSource(book.id)"
                 />
               </div>
-              <div class="mt-3">
+              <div class="mt-3 flex gap-2">
+                <button
+                  v-if="!book.tracking_url"
+                  @click="openTrackingModal(book)"
+                  class="flex-1 px-2 py-1 border border-blue-600 text-blue-600 text-xs rounded hover:bg-blue-50"
+                >
+                  Add Tracking
+                </button>
                 <button
                   @click="handleMarkReceived(book.id)"
-                  class="w-full px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  class="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                 >
                   Mark Received
                 </button>
@@ -510,6 +578,15 @@ async function handleArchiveSource(bookId: number) {
       :book-id="analysisBookId"
       :visible="showAnalysisViewer"
       @close="closeAnalysisViewer"
+    />
+
+    <!-- Add Tracking Modal -->
+    <AddTrackingModal
+      v-if="showTrackingModal && trackingBook"
+      :book-id="trackingBook.id"
+      :book-title="trackingBook.title"
+      @close="closeTrackingModal"
+      @added="handleTrackingAdded"
     />
   </div>
 </template>
