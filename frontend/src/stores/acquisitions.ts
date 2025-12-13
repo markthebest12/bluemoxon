@@ -29,6 +29,10 @@ export interface AcquisitionBook {
   source_url?: string;
   source_archived_url: string | null;
   archive_status: "pending" | "success" | "failed" | null;
+  // Shipment tracking
+  tracking_number?: string | null;
+  tracking_carrier?: string | null;
+  tracking_url?: string | null;
 }
 
 export interface AcquirePayload {
@@ -57,6 +61,12 @@ export interface UpdateWatchlistPayload {
   volumes?: number;
   is_complete?: boolean;
   source_url?: string;
+}
+
+export interface TrackingPayload {
+  tracking_number?: string;
+  tracking_carrier?: string;
+  tracking_url?: string;
 }
 
 export const useAcquisitionsStore = defineStore("acquisitions", () => {
@@ -188,6 +198,16 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     return response.data;
   }
 
+  async function addTracking(bookId: number, payload: TrackingPayload) {
+    const response = await api.patch(`/books/${bookId}/tracking`, payload);
+    // Update the book in inTransit list
+    const index = inTransit.value.findIndex((b) => b.id === bookId);
+    if (index >= 0) {
+      inTransit.value[index] = response.data;
+    }
+    return response.data;
+  }
+
   return {
     // State
     evaluating,
@@ -208,5 +228,6 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     addToWatchlist,
     updateWatchlistItem,
     archiveSource,
+    addTracking,
   };
 });
