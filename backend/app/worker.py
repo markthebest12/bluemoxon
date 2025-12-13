@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.config import get_settings
-from app.database import SessionLocal
+from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis
 from app.services.bedrock import (
     build_bedrock_messages,
