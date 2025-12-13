@@ -3,8 +3,10 @@
 from app.utils.markdown_parser import (
     ParsedAnalysis,
     _extract_sections,
+    _parse_binder_identification,
     _parse_condition_assessment,
     _parse_market_analysis,
+    _parse_structured_data,
     parse_analysis_markdown,
 )
 
@@ -318,3 +320,176 @@ Should acquire.
         assert result.market_analysis.get("valuation", {}).get("mid") == 150
         assert result.recommendations is not None
         assert "acquire" in result.recommendations
+
+
+class TestParseStructuredData:
+    """Test v2 structured data parsing."""
+
+    def test_extracts_full_structured_data(self):
+        markdown = """---STRUCTURED-DATA---
+CONDITION_GRADE: VG+
+BINDER_IDENTIFIED: Zaehnsdorf
+BINDER_CONFIDENCE: HIGH
+BINDING_TYPE: Full Morocco
+VALUATION_LOW: 500
+VALUATION_MID: 750
+VALUATION_HIGH: 1000
+ERA_PERIOD: Victorian
+PUBLICATION_YEAR: 1885
+---END-STRUCTURED-DATA---
+
+## Executive Summary
+Some content here.
+"""
+        result = _parse_structured_data(markdown)
+        assert result is not None
+        assert result["condition_grade"] == "VG+"
+        assert result["binder_identified"] == "Zaehnsdorf"
+        assert result["binder_confidence"] == "HIGH"
+        assert result["binding_type"] == "Full Morocco"
+        assert result["valuation_low"] == 500
+        assert result["valuation_mid"] == 750
+        assert result["valuation_high"] == 1000
+        assert result["era_period"] == "Victorian"
+        assert result["publication_year"] == 1885
+
+    def test_handles_unknown_values(self):
+        markdown = """---STRUCTURED-DATA---
+CONDITION_GRADE: Good
+BINDER_IDENTIFIED: UNKNOWN
+PUBLICATION_YEAR: UNKNOWN
+---END-STRUCTURED-DATA---
+"""
+        result = _parse_structured_data(markdown)
+        assert result is not None
+        assert result["condition_grade"] == "Good"
+        assert result["binder_identified"] is None
+        assert result["publication_year"] is None
+
+    def test_returns_none_without_structured_data(self):
+        markdown = """## Executive Summary
+Just a regular analysis without structured data.
+"""
+        result = _parse_structured_data(markdown)
+        assert result is None
+
+    def test_handles_malformed_structured_data(self):
+        # Note: lines with colons still get parsed, even if not valid keys
+        # This tests a line WITHOUT a colon
+        markdown = """---STRUCTURED-DATA---
+This line has no colon so cannot be parsed
+---END-STRUCTURED-DATA---
+"""
+        result = _parse_structured_data(markdown)
+        # Should return None since no valid keys found
+        assert result is None
+
+
+class TestParseBinderIdentification:
+    """Test binder identification parsing."""
+
+    def test_extracts_explicit_binder_block(self):
+        text = """**Binder Identification:**
+- **Name:** Sangorski & Sutcliffe
+- **Confidence:** HIGH
+- **Evidence:** Signed in gilt on front turn-in
+- **Authentication Notes:** Check endpapers for additional stamps
+"""
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert result["name"] == "Sangorski & Sutcliffe"
+        assert result["confidence"] == "HIGH"
+        assert "Signed in gilt" in result["evidence"]
+        assert "endpapers" in result["authentication_notes"]
+
+    def test_extracts_binder_from_text_patterns(self):
+        text = "This volume was bound by Zaehnsdorf in their characteristic style."
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert result["name"] == "Zaehnsdorf"
+        assert result["confidence"] == "MEDIUM"
+
+    def test_extracts_riviere_binding(self):
+        text = "A fine Rivière binding with exceptional gilt work."
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert "Rivière" in result["name"] or "Riviere" in result["name"]
+
+    def test_extracts_signed_binder(self):
+        text = "Signed by Bayntun on the front turn-in."
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert result["name"] == "Bayntun"
+
+    def test_returns_none_for_no_binder(self):
+        text = "A standard publisher's cloth binding in good condition."
+        result = _parse_binder_identification(text)
+        assert result is None
+
+    def test_ignores_unidentified_name(self):
+        text = """**Binder Identification:**
+- **Name:** Unidentified
+- **Confidence:** NONE
+"""
+        result = _parse_binder_identification(text)
+        assert result is None or "name" not in result
+
+    def test_handles_unknown_name(self):
+        text = """**Binder Identification:**
+- **Name:** Unknown
+"""
+        result = _parse_binder_identification(text)
+        assert result is None or "name" not in result
+
+
+class TestV2Integration:
+    """Test v2 features integration in main parser."""
+
+    def test_parses_v2_format_with_structured_data(self):
+        markdown = """---STRUCTURED-DATA---
+CONDITION_GRADE: Fine
+BINDER_IDENTIFIED: Rivière & Son
+BINDER_CONFIDENCE: HIGH
+VALUATION_LOW: 800
+VALUATION_MID: 1200
+VALUATION_HIGH: 1600
+---END-STRUCTURED-DATA---
+
+## Executive Summary
+
+A magnificent Rivière binding in fine condition.
+
+## II. PHYSICAL DESCRIPTION
+
+**Binder Identification:**
+- **Name:** Rivière & Son
+- **Confidence:** HIGH
+- **Evidence:** Signed in gilt on turn-in
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.structured_data is not None
+        assert result.structured_data["condition_grade"] == "Fine"
+        assert result.structured_data["valuation_mid"] == 1200
+
+        assert result.binder_identification is not None
+        assert result.binder_identification["name"] == "Rivière & Son"
+        assert result.binder_identification["confidence"] == "HIGH"
+
+    def test_fallback_to_text_pattern_binder(self):
+        # Even without explicit block, should find binder from text patterns
+        markdown = """## Executive Summary
+
+This volume was bound by Sangorski & Sutcliffe in their distinctive style.
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.binder_identification is not None
+        assert result.binder_identification["name"] == "Sangorski & Sutcliffe"
+
+    def test_v1_format_still_works(self):
+        # Ensure backward compatibility with v1 format (no structured data)
+        result = parse_analysis_markdown(SAMPLE_MARKDOWN)
+        assert result.executive_summary is not None
+        assert result.condition_assessment is not None
+        assert result.market_analysis is not None
+        # structured_data should be None for v1 format
+        assert result.structured_data is None

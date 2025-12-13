@@ -81,6 +81,7 @@ class BinderCreate(BaseModel):
     """Schema for creating a binder."""
 
     name: str
+    tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
 
@@ -89,6 +90,7 @@ class BinderUpdate(BaseModel):
     """Schema for updating a binder."""
 
     name: str | None = None
+    tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
 
@@ -98,6 +100,7 @@ class BinderResponse(BaseModel):
 
     id: int
     name: str
+    tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
     book_count: int = 0

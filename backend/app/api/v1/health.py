@@ -360,6 +360,18 @@ MIGRATION_A1234567BCDE_SQL = [
     END $$""",
 ]
 
+# Migration SQL for i0123456abcd_add_binder_tier
+MIGRATION_I0123456ABCD_SQL = [
+    "ALTER TABLE binders ADD COLUMN IF NOT EXISTS tier VARCHAR(20)",
+    # Populate Tier 1 binders (per Victorian Book Acquisition Guide)
+    """UPDATE binders SET tier = 'TIER_1'
+        WHERE name IN ('Zaehnsdorf', 'Rivière & Son', 'Riviere', 'Sangorski & Sutcliffe',
+                       'Sangorski', 'Cobden-Sanderson', 'Bedford') AND tier IS NULL""",
+    # Populate Tier 2 binders
+    """UPDATE binders SET tier = 'TIER_2'
+        WHERE name IN ('Morrell', 'Root & Son', 'Bayntun', 'Tout', 'Stikeman') AND tier IS NULL""",
+]
+
 
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
@@ -389,6 +401,7 @@ Migrations run in order:
 5. i9012345abcd - Add archive fields (source_archived_url, archive_status)
 6. 9d7720474d6d - Add admin_config table for currency rates
 7. a1234567bcde - Add analysis_jobs table for async Bedrock analysis
+8. i0123456abcd - Add binder tier column for scoring calculations
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -416,9 +429,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("i9012345abcd", MIGRATION_I9012345ABCD_SQL),
         ("9d7720474d6d", MIGRATION_9D7720474D6D_SQL),
         ("a1234567bcde", MIGRATION_A1234567BCDE_SQL),
+        ("i0123456abcd", MIGRATION_I0123456ABCD_SQL),
     ]
 
-    final_version = "a1234567bcde"
+    final_version = "i0123456abcd"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

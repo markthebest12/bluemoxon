@@ -78,10 +78,12 @@ def calculate_investment_grade(
 
 def calculate_strategic_fit(
     publisher_tier: str | None,
+    binder_tier: str | None,
     year_start: int | None,
     is_complete: bool,
     condition_grade: str | None,
     author_priority_score: int,
+    volume_count: int = 1,
 ) -> int:
     """
     Calculate strategic fit score based on collection criteria.
@@ -89,10 +91,14 @@ def calculate_strategic_fit(
     Factors:
     - Tier 1 Publisher: +35
     - Tier 2 Publisher: +15
+    - Tier 1 Binder: +40
+    - Tier 2 Binder: +20
+    - DOUBLE TIER 1 Bonus: +15 (both publisher AND binder are Tier 1)
     - Victorian/Romantic Era: +20
     - Complete Set: +15
     - Good+ Condition: +15
     - Author Priority: variable (0-50)
+    - Volume Penalty: -10 (4 vols), -20 (5+ vols)
 
     Returns score 0-100+ (can exceed 100 with high author priority).
     """
@@ -104,6 +110,16 @@ def calculate_strategic_fit(
     elif publisher_tier == "TIER_2":
         score += 15
 
+    # Binder tier
+    if binder_tier == "TIER_1":
+        score += 40
+    elif binder_tier == "TIER_2":
+        score += 20
+
+    # DOUBLE TIER 1 bonus - when both publisher AND binder are Tier 1
+    if publisher_tier == "TIER_1" and binder_tier == "TIER_1":
+        score += 15
+
     # Era (Victorian 1837-1901, Romantic 1800-1836)
     if year_start is not None:
         if 1800 <= year_start <= 1901:
@@ -113,9 +129,15 @@ def calculate_strategic_fit(
     if is_complete:
         score += 15
 
-    # Condition (Good or better)
-    if condition_grade in ("Fine", "Very Good", "Good"):
+    # Condition (Good or better) - expanded to include VG variants
+    if condition_grade in ("Fine", "VG+", "VG", "Very Good", "VG-", "Good+", "Good"):
         score += 15
+
+    # Volume penalty - graduated scale
+    if volume_count == 4:
+        score -= 10
+    elif volume_count >= 5:
+        score -= 20
 
     # Author priority
     score += author_priority_score
@@ -174,7 +196,7 @@ def calculate_collection_impact(
     author_book_count: int,
     is_duplicate: bool,
     completes_set: bool,
-    volume_count: int,
+    volume_count: int,  # Kept for API compatibility, but penalty moved to strategic_fit
 ) -> int:
     """
     Calculate collection impact score.
@@ -184,7 +206,8 @@ def calculate_collection_impact(
     - Fills author gap (1 existing): +15
     - Duplicate title: -40
     - Completes incomplete set: +25
-    - Large set penalty (5+ vols): -20
+
+    Note: Volume penalty moved to strategic_fit for graduated scale.
 
     Returns score (can be negative).
     """
@@ -204,10 +227,6 @@ def calculate_collection_impact(
     if completes_set:
         score += 25
 
-    # Large set penalty
-    if volume_count >= 5:
-        score -= 20
-
     return score
 
 
@@ -215,6 +234,7 @@ def calculate_all_scores(
     purchase_price: Decimal | None,
     value_mid: Decimal | None,
     publisher_tier: str | None,
+    binder_tier: str | None,
     year_start: int | None,
     is_complete: bool,
     condition_grade: str | None,
@@ -232,7 +252,13 @@ def calculate_all_scores(
     """
     investment = calculate_investment_grade(purchase_price, value_mid)
     strategic = calculate_strategic_fit(
-        publisher_tier, year_start, is_complete, condition_grade, author_priority_score
+        publisher_tier,
+        binder_tier,
+        year_start,
+        is_complete,
+        condition_grade,
+        author_priority_score,
+        volume_count,
     )
     collection = calculate_collection_impact(
         author_book_count, is_duplicate, completes_set, volume_count
@@ -275,12 +301,15 @@ def calculate_investment_grade_breakdown(
 
 def calculate_strategic_fit_breakdown(
     publisher_tier: str | None,
+    binder_tier: str | None,
     year_start: int | None,
     is_complete: bool,
     condition_grade: str | None,
     author_priority_score: int,
+    volume_count: int = 1,
     author_name: str | None = None,
     publisher_name: str | None = None,
+    binder_name: str | None = None,
 ) -> ScoreBreakdown:
     """Calculate strategic fit with detailed breakdown."""
     score = 0
@@ -310,6 +339,38 @@ def calculate_strategic_fit_breakdown(
     else:
         breakdown.add("publisher_tier", 0, "Publisher tier not specified")
 
+    # Binder tier
+    if binder_tier == "TIER_1":
+        score += 40
+        breakdown.add(
+            "binder_tier",
+            40,
+            f"Tier 1 binder{f' ({binder_name})' if binder_name else ''}",
+        )
+    elif binder_tier == "TIER_2":
+        score += 20
+        breakdown.add(
+            "binder_tier",
+            20,
+            f"Tier 2 binder{f' ({binder_name})' if binder_name else ''}",
+        )
+    elif binder_tier:
+        breakdown.add(
+            "binder_tier",
+            0,
+            f"Non-premium binder tier ({binder_tier})",
+        )
+    # No "not specified" message for binder - many books don't have authenticated binders
+
+    # DOUBLE TIER 1 bonus
+    if publisher_tier == "TIER_1" and binder_tier == "TIER_1":
+        score += 15
+        breakdown.add(
+            "double_tier_1",
+            15,
+            "DOUBLE TIER 1 bonus (both publisher and binder are Tier 1)",
+        )
+
     # Era
     if year_start is not None:
         if 1800 <= year_start <= 1901:
@@ -330,14 +391,24 @@ def calculate_strategic_fit_breakdown(
     else:
         breakdown.add("completeness", 0, "Incomplete or multi-volume set")
 
-    # Condition
-    if condition_grade in ("Fine", "Very Good", "Good"):
+    # Condition - expanded to include VG variants
+    if condition_grade in ("Fine", "VG+", "VG", "Very Good", "VG-", "Good+", "Good"):
         score += 15
         breakdown.add("condition", 15, f"{condition_grade} condition")
     elif condition_grade:
         breakdown.add("condition", 0, f"{condition_grade} condition (below Good)")
     else:
         breakdown.add("condition", 0, "Condition not specified")
+
+    # Volume penalty - graduated scale
+    if volume_count == 4:
+        score -= 10
+        breakdown.add("volume_penalty", -10, "4-volume set storage consideration")
+    elif volume_count >= 5:
+        score -= 20
+        breakdown.add("volume_penalty", -20, f"Large set ({volume_count} volumes)")
+    elif volume_count > 1:
+        breakdown.add("volume_count", 0, f"Multi-volume ({volume_count} volumes)")
 
     # Author priority
     if author_priority_score > 0:
@@ -358,11 +429,14 @@ def calculate_collection_impact_breakdown(
     author_book_count: int,
     is_duplicate: bool,
     completes_set: bool,
-    volume_count: int,
+    volume_count: int,  # Kept for API compatibility, but penalty moved to strategic_fit
     author_name: str | None = None,
     duplicate_title: str | None = None,
 ) -> ScoreBreakdown:
-    """Calculate collection impact with detailed breakdown."""
+    """Calculate collection impact with detailed breakdown.
+
+    Note: Volume penalty moved to strategic_fit_breakdown for graduated scale.
+    """
     score = 0
     breakdown = ScoreBreakdown(score=0)  # Will update at end
 
@@ -403,13 +477,6 @@ def calculate_collection_impact_breakdown(
         score += 25
         breakdown.add("set_completion", 25, "Completes an incomplete set")
 
-    # Large set penalty
-    if volume_count >= 5:
-        score -= 20
-        breakdown.add("volume_penalty", -20, f"Large set ({volume_count} volumes)")
-    elif volume_count > 1:
-        breakdown.add("volume_count", 0, f"Multi-volume ({volume_count} volumes)")
-
     breakdown.score = score
     return breakdown
 
@@ -418,6 +485,7 @@ def calculate_all_scores_with_breakdown(
     purchase_price: Decimal | None,
     value_mid: Decimal | None,
     publisher_tier: str | None,
+    binder_tier: str | None,
     year_start: int | None,
     is_complete: bool,
     condition_grade: str | None,
@@ -428,6 +496,7 @@ def calculate_all_scores_with_breakdown(
     volume_count: int,
     author_name: str | None = None,
     publisher_name: str | None = None,
+    binder_name: str | None = None,
     duplicate_title: str | None = None,
 ) -> dict:
     """
@@ -439,12 +508,15 @@ def calculate_all_scores_with_breakdown(
     investment = calculate_investment_grade_breakdown(purchase_price, value_mid)
     strategic = calculate_strategic_fit_breakdown(
         publisher_tier,
+        binder_tier,
         year_start,
         is_complete,
         condition_grade,
         author_priority_score,
+        volume_count,
         author_name,
         publisher_name,
+        binder_name,
     )
     collection = calculate_collection_impact_breakdown(
         author_book_count,

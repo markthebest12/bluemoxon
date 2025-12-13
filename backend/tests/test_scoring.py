@@ -152,6 +152,7 @@ class TestStrategicFit:
         """Tier 1 publisher should add 35 points."""
         score = calculate_strategic_fit(
             publisher_tier="TIER_1",
+            binder_tier=None,
             year_start=None,
             is_complete=False,
             condition_grade=None,
@@ -163,6 +164,7 @@ class TestStrategicFit:
         """Tier 2 publisher should add 15 points."""
         score = calculate_strategic_fit(
             publisher_tier="TIER_2",
+            binder_tier=None,
             year_start=None,
             is_complete=False,
             condition_grade=None,
@@ -170,10 +172,61 @@ class TestStrategicFit:
         )
         assert score == 15
 
+    def test_tier_1_binder_adds_40(self):
+        """Tier 1 binder should add 40 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            binder_tier="TIER_1",
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 40
+
+    def test_tier_2_binder_adds_20(self):
+        """Tier 2 binder should add 20 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            binder_tier="TIER_2",
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        assert score == 20
+
+    def test_double_tier_1_bonus_adds_15(self):
+        """DOUBLE TIER 1 bonus when both publisher AND binder are Tier 1."""
+        score = calculate_strategic_fit(
+            publisher_tier="TIER_1",  # +35
+            binder_tier="TIER_1",  # +40
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        # 35 (publisher) + 40 (binder) + 15 (DOUBLE TIER 1) = 90
+        assert score == 90
+
+    def test_no_double_tier_1_bonus_with_tier_2(self):
+        """No DOUBLE TIER 1 bonus when one is Tier 2."""
+        score = calculate_strategic_fit(
+            publisher_tier="TIER_1",  # +35
+            binder_tier="TIER_2",  # +20
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+        )
+        # 35 (publisher) + 20 (binder) = 55, no bonus
+        assert score == 55
+
     def test_victorian_era_adds_20(self):
         """Victorian era (1837-1901) should add 20 points."""
         score = calculate_strategic_fit(
             publisher_tier=None,
+            binder_tier=None,
             year_start=1867,
             is_complete=False,
             condition_grade=None,
@@ -185,6 +238,7 @@ class TestStrategicFit:
         """Romantic era (1800-1836) should add 20 points."""
         score = calculate_strategic_fit(
             publisher_tier=None,
+            binder_tier=None,
             year_start=1820,
             is_complete=False,
             condition_grade=None,
@@ -196,6 +250,7 @@ class TestStrategicFit:
         """Complete set should add 15 points."""
         score = calculate_strategic_fit(
             publisher_tier=None,
+            binder_tier=None,
             year_start=None,
             is_complete=True,
             condition_grade=None,
@@ -205,9 +260,10 @@ class TestStrategicFit:
 
     def test_good_condition_adds_15(self):
         """Good or better condition should add 15 points."""
-        for grade in ["Fine", "Very Good", "Good"]:
+        for grade in ["Fine", "VG+", "VG", "Very Good", "VG-", "Good+", "Good"]:
             score = calculate_strategic_fit(
                 publisher_tier=None,
+                binder_tier=None,
                 year_start=None,
                 is_complete=False,
                 condition_grade=grade,
@@ -219,6 +275,7 @@ class TestStrategicFit:
         """Author priority score should be added directly."""
         score = calculate_strategic_fit(
             publisher_tier=None,
+            binder_tier=None,
             year_start=None,
             is_complete=False,
             condition_grade=None,
@@ -226,16 +283,45 @@ class TestStrategicFit:
         )
         assert score == 50
 
+    def test_four_volume_penalty_minus_10(self):
+        """4-volume set should subtract 10 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+            volume_count=4,
+        )
+        assert score == -10
+
+    def test_five_plus_volume_penalty_minus_20(self):
+        """5+ volume set should subtract 20 points."""
+        score = calculate_strategic_fit(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+            volume_count=6,
+        )
+        assert score == -20
+
     def test_combined_factors(self):
         """All factors should combine additively."""
         score = calculate_strategic_fit(
             publisher_tier="TIER_1",  # +35
+            binder_tier="TIER_1",  # +40 + 15 (DOUBLE TIER 1)
             year_start=1867,  # +20 (Victorian)
             is_complete=True,  # +15
             condition_grade="Very Good",  # +15
             author_priority_score=50,  # +50
+            volume_count=4,  # -10
         )
-        assert score == 135  # 35 + 20 + 15 + 15 + 50
+        # 35 + 40 + 15 + 20 + 15 + 15 + 50 - 10 = 180
+        assert score == 180
 
 
 class TestDuplicateDetection:
@@ -315,15 +401,16 @@ class TestCollectionImpact:
         )
         assert score == 25
 
-    def test_large_set_subtracts_20(self):
-        """5+ volume set should subtract 20 points."""
+    def test_volume_count_no_longer_affects_collection_impact(self):
+        """Volume penalty moved to strategic_fit - should not affect collection_impact."""
         score = calculate_collection_impact(
             author_book_count=0,
             is_duplicate=False,
             completes_set=False,
             volume_count=6,
         )
-        assert score == 10  # 30 (new author) - 20 (large set)
+        # Volume penalty is now in strategic_fit, not here
+        assert score == 30  # 30 (new author) only, no volume penalty
 
 
 class TestCalculateAllScores:
@@ -335,6 +422,7 @@ class TestCalculateAllScores:
             purchase_price=Decimal("300"),
             value_mid=Decimal("1000"),
             publisher_tier="TIER_1",
+            binder_tier=None,
             year_start=1867,
             is_complete=True,
             condition_grade="Very Good",
@@ -356,6 +444,7 @@ class TestCalculateAllScores:
             purchase_price=Decimal("300"),
             value_mid=Decimal("1000"),  # 70% discount -> 100
             publisher_tier="TIER_1",  # +35
+            binder_tier=None,
             year_start=1867,  # +20
             is_complete=True,  # +15
             condition_grade="Very Good",  # +15
@@ -375,6 +464,30 @@ class TestCalculateAllScores:
         assert result["strategic_fit"] == expected_strategic
         assert result["collection_impact"] == expected_collection
         assert result["overall_score"] == expected_overall
+
+    def test_binder_tier_affects_strategic_fit(self):
+        """Binder tier should contribute to strategic fit score."""
+        result = calculate_all_scores(
+            purchase_price=Decimal("500"),
+            value_mid=Decimal("1000"),  # 50% discount -> 70
+            publisher_tier="TIER_1",  # +35
+            binder_tier="TIER_1",  # +40 + 15 (DOUBLE TIER 1)
+            year_start=1867,  # +20
+            is_complete=True,  # +15
+            condition_grade="VG",  # +15
+            author_priority_score=0,
+            author_book_count=0,  # +30
+            is_duplicate=False,
+            completes_set=False,
+            volume_count=4,  # -10
+        )
+
+        # strategic_fit = 35 + 40 + 15 + 20 + 15 + 15 - 10 = 130
+        assert result["strategic_fit"] == 130
+        # collection_impact = 30 (new author)
+        assert result["collection_impact"] == 30
+        # overall = 70 + 130 + 30 = 230
+        assert result["overall_score"] == 230
 
 
 class TestScoreBreakdown:
@@ -442,16 +555,19 @@ class TestStrategicFitBreakdown:
         """Should include all scoring factors with names."""
         breakdown = calculate_strategic_fit_breakdown(
             publisher_tier="TIER_1",
+            binder_tier="TIER_1",
             year_start=1867,
             is_complete=True,
             condition_grade="Very Good",
             author_priority_score=50,
+            volume_count=4,
             author_name="George Eliot",
             publisher_name="Smith Elder",
+            binder_name="Zaehnsdorf",
         )
 
-        # Check total score: 35 + 20 + 15 + 15 + 50 = 135
-        assert breakdown.score == 135
+        # Check total score: 35 + 40 + 15 (DOUBLE) + 20 + 15 + 15 + 50 - 10 = 180
+        assert breakdown.score == 180
 
         # Check factors include entity names
         factors_dict = {f.name: f for f in breakdown.factors}
@@ -459,9 +575,18 @@ class TestStrategicFitBreakdown:
         assert "publisher_tier" in factors_dict
         assert "Smith Elder" in factors_dict["publisher_tier"].reason
 
+        assert "binder_tier" in factors_dict
+        assert "Zaehnsdorf" in factors_dict["binder_tier"].reason
+
+        assert "double_tier_1" in factors_dict
+        assert factors_dict["double_tier_1"].points == 15
+
         assert "era" in factors_dict
         assert "Victorian" in factors_dict["era"].reason
         assert "1867" in factors_dict["era"].reason
+
+        assert "volume_penalty" in factors_dict
+        assert factors_dict["volume_penalty"].points == -10
 
         assert "author_priority" in factors_dict
         assert "George Eliot" in factors_dict["author_priority"].reason
@@ -470,6 +595,7 @@ class TestStrategicFitBreakdown:
         """Should explain non-priority author."""
         breakdown = calculate_strategic_fit_breakdown(
             publisher_tier=None,
+            binder_tier=None,
             year_start=None,
             is_complete=False,
             condition_grade=None,
@@ -481,6 +607,23 @@ class TestStrategicFitBreakdown:
         assert "author_priority" in factors_dict
         assert factors_dict["author_priority"].points == 0
         assert "not a priority author" in factors_dict["author_priority"].reason
+
+    def test_strategic_fit_breakdown_binder_tier(self):
+        """Should include binder tier in breakdown."""
+        breakdown = calculate_strategic_fit_breakdown(
+            publisher_tier=None,
+            binder_tier="TIER_1",
+            year_start=None,
+            is_complete=False,
+            condition_grade=None,
+            author_priority_score=0,
+            binder_name="Rivière",
+        )
+
+        factors_dict = {f.name: f for f in breakdown.factors}
+        assert "binder_tier" in factors_dict
+        assert factors_dict["binder_tier"].points == 40
+        assert "Rivière" in factors_dict["binder_tier"].reason
 
 
 class TestCollectionImpactBreakdown:
@@ -519,8 +662,8 @@ class TestCollectionImpactBreakdown:
         assert factors_dict["duplicate"].points == -40
         assert "A Tale of Two Cities" in factors_dict["duplicate"].reason
 
-    def test_collection_impact_breakdown_large_set(self):
-        """Should explain large set penalty."""
+    def test_collection_impact_breakdown_no_volume_penalty(self):
+        """Volume penalty moved to strategic_fit - should not appear in collection_impact."""
         breakdown = calculate_collection_impact_breakdown(
             author_book_count=0,
             is_duplicate=False,
@@ -528,10 +671,11 @@ class TestCollectionImpactBreakdown:
             volume_count=8,
         )
 
+        # Volume penalty is now in strategic_fit_breakdown, not here
         factors_dict = {f.name: f for f in breakdown.factors}
-        assert "volume_penalty" in factors_dict
-        assert factors_dict["volume_penalty"].points == -20
-        assert "8 volumes" in factors_dict["volume_penalty"].reason
+        assert "volume_penalty" not in factors_dict
+        # Score should be 30 (new author) only
+        assert breakdown.score == 30
 
 
 class TestCalculateAllScoresWithBreakdown:
@@ -543,6 +687,7 @@ class TestCalculateAllScoresWithBreakdown:
             purchase_price=Decimal("100"),
             value_mid=Decimal("500"),
             publisher_tier="TIER_1",
+            binder_tier=None,
             year_start=1850,
             is_complete=True,
             condition_grade="Very Good",
@@ -579,6 +724,7 @@ class TestCalculateAllScoresWithBreakdown:
             purchase_price=Decimal("150"),
             value_mid=Decimal("300"),
             publisher_tier="TIER_2",
+            binder_tier=None,
             year_start=1820,
             is_complete=False,
             condition_grade="Good",
