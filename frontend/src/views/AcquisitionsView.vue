@@ -114,7 +114,15 @@ async function handleMarkReceived(bookId: number) {
 
 async function handleDelete(bookId: number) {
   if (confirm("Delete this item from watchlist?")) {
-    await acquisitionsStore.deleteEvaluating(bookId);
+    deletingBook.value = bookId;
+    try {
+      await acquisitionsStore.deleteEvaluating(bookId);
+    } catch (e: unknown) {
+      console.error("Failed to delete:", e);
+      alert("Failed to delete item. Please try again.");
+    } finally {
+      deletingBook.value = null;
+    }
   }
 }
 
@@ -128,8 +136,9 @@ function isAnalysisRunning(bookId: number) {
 }
 
 async function handleGenerateAnalysis(bookId: number) {
-  if (isAnalysisRunning(bookId)) return;
+  if (isAnalysisRunning(bookId) || startingAnalysis.value === bookId) return;
 
+  startingAnalysis.value = bookId;
   try {
     await booksStore.generateAnalysisAsync(bookId);
     // Polling will automatically update when job completes
@@ -142,7 +151,11 @@ async function handleGenerateAnalysis(bookId: number) {
       } catch {
         // Ignore - job might have just completed
       }
+    } else {
+      alert("Failed to start analysis. Please try again.");
     }
+  } finally {
+    startingAnalysis.value = null;
   }
 }
 
@@ -192,6 +205,8 @@ async function handleRecalculateScore(bookId: number) {
 }
 
 const archivingBook = ref<number | null>(null);
+const deletingBook = ref<number | null>(null);
+const startingAnalysis = ref<number | null>(null);
 
 async function handleArchiveSource(bookId: number) {
   if (archivingBook.value) return;
@@ -282,9 +297,10 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <button
                   @click="handleDelete(book.id)"
-                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded"
+                  :disabled="deletingBook === book.id"
+                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded disabled:opacity-50"
                 >
-                  Delete
+                  {{ deletingBook === book.id ? "Deleting..." : "Delete" }}
                 </button>
               </div>
               <!-- Analysis Section -->
@@ -320,20 +336,23 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-else-if="authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1"
+                  :disabled="startingAnalysis === book.id"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
-                  ⚡ Generate Analysis
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
                 </button>
                 <!-- Regenerate button (admin only, when analysis exists) -->
                 <button
                   v-if="book.has_analysis && authStore.isAdmin"
                   @click="handleGenerateAnalysis(book.id)"
-                  :disabled="isAnalysisRunning(book.id)"
+                  :disabled="isAnalysisRunning(book.id) || startingAnalysis === book.id"
                   class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
                   title="Regenerate analysis"
                 >
-                  <span v-if="isAnalysisRunning(book.id)">⏳</span>
+                  <span v-if="isAnalysisRunning(book.id) || startingAnalysis === book.id" class="animate-spin">⏳</span>
                   <span v-else>🔄</span>
                 </button>
               </div>
