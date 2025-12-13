@@ -261,10 +261,13 @@ module "lambda" {
   # Cognito access for user management
   cognito_user_pool_arns = [module.cognito.user_pool_arn]
 
-  # Bedrock model access for AI-powered analysis generation
+  # Bedrock model access for AI-powered features
+  # - Haiku: fast, cheap extraction for listing/order parsing
+  # - Sonnet/Opus: complex analysis generation
   bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-20240929",
-    "anthropic.claude-opus-4-5-20251101"
+    "anthropic.claude-3-haiku-20240307-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
   # Environment variables (secret ARN set after database_secret is created)
