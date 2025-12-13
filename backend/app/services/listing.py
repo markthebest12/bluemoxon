@@ -171,9 +171,7 @@ def extract_relevant_html(html: str) -> str:
         parts.append(f"Page Title: {title_match.group(1)}")
 
     # Extract meta description (contains detailed listing info)
-    desc_match = re.search(
-        r'<meta\s+name="description"\s+content="([^"]+)"', html, re.IGNORECASE
-    )
+    desc_match = re.search(r'<meta\s+name="description"\s+content="([^"]+)"', html, re.IGNORECASE)
     if desc_match:
         parts.append(f"Description: {desc_match.group(1)}")
 
