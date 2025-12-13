@@ -376,7 +376,7 @@ module "analysis_worker" {
   timeout              = 600
   visibility_timeout   = 660
   memory_size          = 256
-  reserved_concurrency = -1  # No reservation (account has low concurrency limit)
+  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
 
   # VPC configuration (same as API Lambda)
   subnet_ids         = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
