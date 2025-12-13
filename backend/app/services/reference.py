@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from app.models.binder import Binder
 
-
 # Binder tier mappings based on market recognition and historical significance
 TIER_1_BINDERS = {
     "Sangorski & Sutcliffe": "Sangorski & Sutcliffe",

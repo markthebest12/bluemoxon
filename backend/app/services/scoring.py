@@ -403,7 +403,7 @@ def calculate_strategic_fit_breakdown(
     # Volume penalty - graduated scale
     if volume_count == 4:
         score -= 10
-        breakdown.add("volume_penalty", -10, f"4-volume set storage consideration")
+        breakdown.add("volume_penalty", -10, "4-volume set storage consideration")
     elif volume_count >= 5:
         score -= 20
         breakdown.add("volume_penalty", -20, f"Large set ({volume_count} volumes)")

@@ -5,19 +5,19 @@ Tier 1 binders (Zaehnsdorf, Rivière, etc.) get +40 points,
 Tier 2 binders get +20 points.
 
 Revision ID: i0123456abcd
-Revises: h8901234efgh
+Revises: a1234567bcde
 Create Date: 2025-12-13 10:00:00.000000
 
 """
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 
 # revision identifiers, used by Alembic.
 revision: str = 'i0123456abcd'
-down_revision: str | None = 'h8901234efgh'
+down_revision: str | None = 'a1234567bcde'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
