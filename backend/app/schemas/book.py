@@ -54,6 +54,9 @@ class BookCreate(BookBase):
     publisher_id: int | None = None
     binder_id: int | None = None
 
+    # S3 keys from listing import (images will be copied to book's folder)
+    listing_s3_keys: list[str] | None = None
+
 
 class BookUpdate(BaseModel):
     """Schema for updating a book."""

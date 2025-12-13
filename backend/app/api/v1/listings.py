@@ -262,9 +262,12 @@ def get_extract_status(
     # Filter out page.html from s3_keys (we only want images)
     html_key = f"listings/{item_id}/page.html"
     image_s3_keys = [k for k in s3_keys if k != html_key]
+    has_html = html_key in s3_keys
 
-    if not image_s3_keys:
-        # No images yet - scraper still running
+    # HTML is uploaded LAST by scraper, so if we don't have HTML yet,
+    # the scraper is still uploading images
+    if not has_html or not image_s3_keys:
+        # Scraper still running - either no images or no HTML yet
         return ExtractStatusResponse(
             item_id=item_id,
             status="pending",
