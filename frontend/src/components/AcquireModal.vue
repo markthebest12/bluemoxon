@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useAcquisitionsStore, type AcquirePayload } from "@/stores/acquisitions";
+import { api } from "@/services/api";
 import PasteOrderModal from "./PasteOrderModal.vue";
 
 const props = defineProps<{
@@ -16,6 +17,11 @@ const emit = defineEmits<{
 
 const acquisitionsStore = useAcquisitionsStore();
 
+type Currency = "USD" | "GBP" | "EUR";
+const selectedCurrency = ref<Currency>("USD");
+const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
+const loadingRates = ref(false);
+
 const form = ref<AcquirePayload>({
   purchase_price: 0,
   purchase_date: new Date().toISOString().split("T")[0],
@@ -28,10 +34,49 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const showPasteModal = ref(false);
 
+const currencySymbol = computed(() => {
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return "£";
+    case "EUR":
+      return "€";
+    default:
+      return "$";
+  }
+});
+
+const priceInUsd = computed(() => {
+  if (!form.value.purchase_price) return 0;
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
+    case "EUR":
+      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
+    default:
+      return form.value.purchase_price;
+  }
+});
+
 const estimatedDiscount = computed(() => {
-  if (!props.valueMid || !form.value.purchase_price) return null;
-  const discount = ((props.valueMid - form.value.purchase_price) / props.valueMid) * 100;
+  if (!props.valueMid || !priceInUsd.value) return null;
+  const discount = ((props.valueMid - priceInUsd.value) / props.valueMid) * 100;
   return discount.toFixed(1);
+});
+
+async function loadExchangeRates() {
+  loadingRates.value = true;
+  try {
+    const res = await api.get("/admin/config");
+    exchangeRates.value = res.data;
+  } catch (e) {
+    console.error("Failed to load exchange rates:", e);
+  } finally {
+    loadingRates.value = false;
+  }
+}
+
+onMounted(() => {
+  loadExchangeRates();
 });
 
 // Lock body scroll when modal is open
@@ -58,7 +103,12 @@ async function handleSubmit() {
   errorMessage.value = null;
 
   try {
-    await acquisitionsStore.acquireBook(props.bookId, form.value);
+    // Convert price to USD before submitting
+    const payload = {
+      ...form.value,
+      purchase_price: priceInUsd.value,
+    };
+    await acquisitionsStore.acquireBook(props.bookId, payload);
     emit("acquired");
     emit("close");
   } catch (e: any) {
@@ -150,19 +200,33 @@ function handlePasteApply(data: any) {
             {{ errorMessage }}
           </div>
 
-          <!-- Purchase Price -->
+          <!-- Purchase Price with Currency Selector -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Price * </label>
-            <div class="relative">
-              <span class="absolute left-3 top-2 text-gray-500">$</span>
-              <input
-                v-model.number="form.purchase_price"
-                type="number"
-                step="0.01"
-                min="0"
-                class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
+            <div class="flex gap-2">
+              <select
+                v-model="selectedCurrency"
+                class="w-24 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="USD">USD $</option>
+                <option value="GBP">GBP £</option>
+                <option value="EUR">EUR €</option>
+              </select>
+              <div class="relative flex-1">
+                <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+                <input
+                  v-model.number="form.purchase_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            <div v-if="selectedCurrency !== 'USD' && form.purchase_price" class="mt-1 text-sm text-gray-600">
+              ≈ ${{ priceInUsd.toFixed(2) }} USD
+              <span class="text-gray-400">(rate: {{ selectedCurrency === 'GBP' ? exchangeRates.gbp_to_usd_rate : exchangeRates.eur_to_usd_rate }})</span>
             </div>
             <p v-if="estimatedDiscount" class="mt-1 text-sm text-green-600">
               {{ estimatedDiscount }}% discount from FMV (${{ valueMid?.toFixed(2) }})
