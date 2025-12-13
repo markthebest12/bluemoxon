@@ -143,7 +143,7 @@ async function handleGenerateAnalysis(bookId: number) {
     // Use sync endpoint - may take 20-30 seconds for Bedrock
     await booksStore.generateAnalysis(bookId);
     // Refresh books to show updated analysis status
-    await loadBooks();
+    await acquisitionsStore.fetchAll();
   } catch (e: any) {
     console.error("Failed to generate analysis:", e);
     const message = e.response?.data?.detail || e.message || "Failed to generate analysis";
