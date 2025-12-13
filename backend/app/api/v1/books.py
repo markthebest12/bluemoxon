@@ -1,8 +1,11 @@
 """Books API endpoints."""
 
+import logging
+import os
 from datetime import datetime
 from typing import Literal
 
+import boto3
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -12,6 +15,7 @@ from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
+from app.models.image import BookImage
 from app.schemas.book import (
     AcquireRequest,
     BookCreate,
@@ -32,6 +36,8 @@ from app.services.scoring import (
     calculate_all_scores_with_breakdown,
     is_duplicate_title,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
@@ -88,6 +94,93 @@ def get_api_base_url() -> str:
     if settings.database_secret_arn is not None:  # Production check
         return "https://api.bluemoxon.com"
     return ""  # Relative URLs for local dev
+
+
+def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
+    """Copy images from listing folder to book folder and create BookImage records.
+
+    Also generates thumbnails for each image.
+
+    Args:
+        book_id: ID of the book to associate images with
+        listing_s3_keys: S3 keys of images in listings/{item_id}/ format
+        db: Database session
+    """
+    from pathlib import Path
+
+    from app.api.v1.images import generate_thumbnail
+
+    bucket_name = os.environ.get("IMAGES_BUCKET", "")
+    if not bucket_name:
+        logger.warning("IMAGES_BUCKET not set, skipping image copy")
+        return
+
+    if not listing_s3_keys:
+        return
+
+    s3 = boto3.client("s3")
+
+    for idx, source_key in enumerate(listing_s3_keys):
+        try:
+            # Determine file extension from source key
+            ext = source_key.split(".")[-1] if "." in source_key else "jpg"
+            # s3_key is the relative path (used for URL generation with S3_IMAGES_PREFIX)
+            s3_key = f"{book_id}/image_{idx:02d}.{ext}"
+            # Full S3 path includes books/ prefix
+            target_key = f"books/{s3_key}"
+            thumbnail_key = f"books/thumb_{s3_key}"
+
+            # Copy object within same bucket
+            s3.copy_object(
+                Bucket=bucket_name,
+                CopySource={"Bucket": bucket_name, "Key": source_key},
+                Key=target_key,
+            )
+
+            # Generate thumbnail: download, resize, upload
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp_img:
+                local_path = Path(tmp_img.name)
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_thumb:
+                thumb_path = Path(tmp_thumb.name)
+            try:
+                s3.download_file(bucket_name, target_key, str(local_path))
+                success, _ = generate_thumbnail(local_path, thumb_path)
+                if success and thumb_path.exists():
+                    s3.upload_file(
+                        str(thumb_path),
+                        bucket_name,
+                        thumbnail_key,
+                        ExtraArgs={"ContentType": "image/jpeg"},
+                    )
+                    logger.info(f"Generated thumbnail -> {thumbnail_key}")
+            except Exception as thumb_err:
+                logger.warning(f"Thumbnail generation failed for {s3_key}: {thumb_err}")
+            finally:
+                # Clean up temp files
+                if local_path.exists():
+                    local_path.unlink()
+                if thumb_path.exists():
+                    thumb_path.unlink()
+
+            # Create BookImage record (s3_key without books/ prefix)
+            book_image = BookImage(
+                book_id=book_id,
+                s3_key=s3_key,
+                display_order=idx,
+                is_primary=(idx == 0),
+            )
+            db.add(book_image)
+
+            logger.info(f"Copied {source_key} -> {target_key}")
+
+        except Exception as e:
+            logger.error(f"Failed to copy image {source_key}: {e}")
+            # Continue with other images even if one fails
+
+    db.commit()
+    logger.info(f"Copied {len(listing_s3_keys)} images for book {book_id}")
 
 
 @router.get("", response_model=BookListResponse)
@@ -284,7 +377,10 @@ def create_book(
     _user=Depends(require_editor),
 ):
     """Create a new book. Requires editor role."""
-    book = Book(**book_data.model_dump())
+    # Extract listing_s3_keys before creating book (not a Book model field)
+    listing_s3_keys = book_data.listing_s3_keys
+    book_dict = book_data.model_dump(exclude={"listing_s3_keys"})
+    book = Book(**book_dict)
 
     # Parse year from publication_date
     if book.publication_date:
@@ -298,6 +394,11 @@ def create_book(
 
     db.add(book)
     db.commit()
+    db.refresh(book)
+
+    # Copy images from listing folder to book folder if S3 keys provided
+    if listing_s3_keys:
+        _copy_listing_images_to_book(book.id, listing_s3_keys, db)
 
     # Auto-calculate scores
     _calculate_and_persist_scores(book, db)
@@ -1140,3 +1241,141 @@ def reparse_all_analyses(
 
     db.commit()
     return {"message": f"Re-parsed {len(results)} analyses", "results": results}
+
+
+# =============================================================================
+# Async Analysis Job Endpoints
+# =============================================================================
+
+
+class GenerateAnalysisAsyncRequest(BaseModel):
+    """Request body for async analysis generation."""
+
+    model: Literal["sonnet", "opus"] = "sonnet"
+
+
+@router.post("/{book_id}/analysis/generate-async", status_code=202)
+def generate_analysis_async(
+    book_id: int,
+    request: GenerateAnalysisAsyncRequest = Body(default=GenerateAnalysisAsyncRequest()),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Start async analysis generation using AWS Bedrock.
+
+    Returns immediately with job ID. Poll /analysis/status for progress.
+    Requires admin role.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models import AnalysisJob
+    from app.schemas.analysis_job import AnalysisJobResponse
+    from app.services.sqs import send_analysis_job
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Check for existing active job
+    active_job = (
+        db.query(AnalysisJob)
+        .filter(
+            AnalysisJob.book_id == book_id,
+            AnalysisJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail="Analysis job already in progress for this book",
+        )
+
+    # Create job record
+    job = AnalysisJob(
+        book_id=book_id,
+        model=request.model,
+        status="pending",
+    )
+
+    try:
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Analysis job already in progress for this book",
+        ) from None
+
+    # Send message to SQS
+    try:
+        send_analysis_job(job.id, book_id, request.model)
+    except Exception as e:
+        # If SQS send fails, mark job as failed
+        job.status = "failed"
+        job.error_message = f"Failed to queue job: {e}"
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to queue analysis job: {e}",
+        ) from None
+
+    return AnalysisJobResponse.from_orm_model(job)
+
+
+# Threshold for detecting stale "running" jobs (worker likely crashed/timed out)
+STALE_JOB_THRESHOLD_MINUTES = 15
+
+
+@router.get("/{book_id}/analysis/status")
+def get_analysis_job_status(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """Get status of the latest analysis job for a book.
+
+    Requires admin role.
+
+    Automatically detects and marks stale jobs as failed. A job is considered
+    stale if it has been in "running" status for more than 15 minutes without
+    updates, indicating the worker likely crashed or timed out.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.models import AnalysisJob
+    from app.schemas.analysis_job import AnalysisJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get latest job for this book
+    job = (
+        db.query(AnalysisJob)
+        .filter(AnalysisJob.book_id == book_id)
+        .order_by(AnalysisJob.created_at.desc())
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404, detail="No analysis job found for this book")
+
+    # Detect and auto-fail stale "running" jobs
+    # This handles cases where the worker Lambda timed out or crashed
+    if job.status == "running":
+        stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
+        if job.updated_at < stale_threshold:
+            job.status = "failed"
+            job.error_message = (
+                f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes "
+                "(worker likely crashed or timed out)"
+            )
+            job.updated_at = datetime.now(UTC)
+            db.commit()
+
+    return AnalysisJobResponse.from_orm_model(job)

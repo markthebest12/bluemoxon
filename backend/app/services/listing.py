@@ -157,6 +157,51 @@ Listing HTML:
 {listing_html}"""
 
 
+def extract_relevant_html(html: str) -> str:
+    """Extract relevant content from eBay HTML for Bedrock processing.
+
+    Modern eBay pages have listing data buried deep in the HTML (500KB+).
+    This function extracts the key content: meta tags, title, price info.
+    """
+    parts = []
+
+    # Extract title tag
+    title_match = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
+    if title_match:
+        parts.append(f"Page Title: {title_match.group(1)}")
+
+    # Extract meta description (contains detailed listing info)
+    desc_match = re.search(r'<meta\s+name="description"\s+content="([^"]+)"', html, re.IGNORECASE)
+    if desc_match:
+        parts.append(f"Description: {desc_match.group(1)}")
+
+    # Extract Open Graph description (often same but sometimes different)
+    og_desc_match = re.search(
+        r'<meta\s+property="og:description"\s+content="([^"]+)"', html, re.IGNORECASE
+    )
+    if og_desc_match and og_desc_match.group(1) != (desc_match.group(1) if desc_match else ""):
+        parts.append(f"OG Description: {og_desc_match.group(1)}")
+
+    # Extract price if visible in HTML (look for common patterns)
+    price_patterns = [
+        r'"price":\s*"?([0-9,.]+)"?',
+        r'itemprop="price"\s+content="([0-9,.]+)"',
+        r'class="[^"]*price[^"]*"[^>]*>([^<]*\$[0-9,.]+[^<]*)<',
+    ]
+    for pattern in price_patterns:
+        price_match = re.search(pattern, html, re.IGNORECASE)
+        if price_match:
+            parts.append(f"Price: {price_match.group(1)}")
+            break
+
+    # If we found meta tags, use them; otherwise fall back to truncation
+    if parts:
+        return "\n".join(parts)
+
+    # Fallback: return truncated HTML
+    return html[:50000]
+
+
 def invoke_bedrock_extraction(html: str) -> dict:
     """Invoke Bedrock Claude Haiku to extract structured data from listing HTML.
 
@@ -171,9 +216,10 @@ def invoke_bedrock_extraction(html: str) -> dict:
     """
     client = get_bedrock_client()
 
-    # Truncate HTML if too long (Bedrock has token limits)
-    truncated_html = html[:50000]
-    prompt = EXTRACTION_PROMPT.format(listing_html=truncated_html)
+    # Extract relevant content from potentially huge eBay HTML
+    relevant_content = extract_relevant_html(html)
+    logger.info(f"Extracted {len(relevant_content)} chars from {len(html)} char HTML")
+    prompt = EXTRACTION_PROMPT.format(listing_html=relevant_content)
 
     response = client.invoke_model(
         modelId="anthropic.claude-3-haiku-20240307-v1:0",

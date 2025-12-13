@@ -118,6 +118,13 @@ resource "aws_cognito_user_pool_client" "this" {
     id_token      = "hours"
     refresh_token = "days"
   }
+
+  # Prevent Terraform from recreating the client and generating a new client ID.
+  # Client ID changes break frontend auth until config files are manually updated.
+  # To make changes: use AWS console/CLI, then import state, or taint and recreate deliberately.
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # =============================================================================

@@ -54,6 +54,7 @@ jobs:
     outputs:
       environment: ${{ steps.config.outputs.environment }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
+      worker_function_name: ${{ steps.config.outputs.worker_function_name }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
       api_url: ${{ steps.config.outputs.api_url }}
@@ -87,6 +88,7 @@ jobs:
           # Read all values from config file (single source of truth)
           echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
@@ -339,6 +341,26 @@ jobs:
                 --qualifier "$VERSION" || true
             done
           fi
+
+      # ---- Deploy Analysis Worker Lambda (if configured) ----
+      - name: Update Worker Lambda function
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          echo "Deploying worker Lambda: $WORKER_FUNCTION"
+
+          aws lambda update-function-code \
+            --function-name "$WORKER_FUNCTION" \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/bluemoxon-api.zip
+
+      - name: Wait for Worker Lambda update
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          echo "Waiting for Worker Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          echo "Worker Lambda updated successfully"
 
       # ---- Run Database Migrations ----
       - name: Run database migrations

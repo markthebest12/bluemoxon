@@ -129,6 +129,13 @@ class Book(Base, TimestampMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    analysis_jobs = relationship(
+        "AnalysisJob",
+        back_populates="book",
+        order_by="AnalysisJob.created_at.desc()",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         Index("books_inventory_type_idx", "inventory_type"),

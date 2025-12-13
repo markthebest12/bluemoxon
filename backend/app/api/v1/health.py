@@ -333,6 +333,34 @@ MIGRATION_9D7720474D6D_SQL = [
         ON CONFLICT (key) DO NOTHING""",
 ]
 
+# Migration SQL for a1234567bcde_add_analysis_jobs_table
+MIGRATION_A1234567BCDE_SQL = [
+    """CREATE TABLE IF NOT EXISTS analysis_jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        model VARCHAR(50) NOT NULL DEFAULT 'sonnet',
+        error_message TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        completed_at TIMESTAMP WITH TIME ZONE
+    )""",
+    """CREATE INDEX IF NOT EXISTS idx_analysis_jobs_book_status
+        ON analysis_jobs(book_id, status)""",
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'idx_unique_active_job'
+        ) THEN
+            CREATE UNIQUE INDEX idx_unique_active_job
+                ON analysis_jobs(book_id)
+                WHERE status IN ('pending', 'running');
+        END IF;
+    END $$""",
+]
+
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
@@ -360,6 +388,7 @@ Migrations run in order:
 4. h8901234efgh - Add is_complete field for multi-volume sets
 5. i9012345abcd - Add archive fields (source_archived_url, archive_status)
 6. 9d7720474d6d - Add admin_config table for currency rates
+7. a1234567bcde - Add analysis_jobs table for async Bedrock analysis
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -386,9 +415,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("h8901234efgh", MIGRATION_H8901234EFGH_SQL),
         ("i9012345abcd", MIGRATION_I9012345ABCD_SQL),
         ("9d7720474d6d", MIGRATION_9D7720474D6D_SQL),
+        ("a1234567bcde", MIGRATION_A1234567BCDE_SQL),
     ]
 
-    final_version = "9d7720474d6d"
+    final_version = "a1234567bcde"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

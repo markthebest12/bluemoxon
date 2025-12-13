@@ -2,6 +2,17 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
 
+export interface AnalysisJob {
+  job_id: string;
+  book_id: number;
+  status: "pending" | "running" | "completed" | "failed";
+  model: string;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
 export interface Book {
   id: number;
   title: string;
@@ -72,6 +83,10 @@ export const useBooksStore = defineStore("books", () => {
   const currentBook = ref<Book | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+
+  // Analysis job tracking (book_id -> job)
+  const activeAnalysisJobs = ref<Map<number, AnalysisJob>>(new Map());
+  const analysisJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   const page = ref(1);
   const perPage = ref(20);
@@ -195,6 +210,102 @@ export const useBooksStore = defineStore("books", () => {
     return response.data;
   }
 
+  /**
+   * Start async analysis generation job.
+   * Returns immediately with job info, poll status for completion.
+   */
+  async function generateAnalysisAsync(
+    bookId: number,
+    model: "sonnet" | "opus" = "sonnet"
+  ): Promise<AnalysisJob> {
+    const response = await api.post(`/books/${bookId}/analysis/generate-async`, { model });
+    const job = response.data as AnalysisJob;
+
+    // Track the job
+    activeAnalysisJobs.value.set(bookId, job);
+
+    // Start polling for status
+    startJobPoller(bookId);
+
+    return job;
+  }
+
+  /**
+   * Get latest analysis job status for a book.
+   */
+  async function fetchAnalysisJobStatus(bookId: number): Promise<AnalysisJob> {
+    const response = await api.get(`/books/${bookId}/analysis/status`);
+    const job = response.data as AnalysisJob;
+
+    // Update tracked job
+    activeAnalysisJobs.value.set(bookId, job);
+
+    return job;
+  }
+
+  /**
+   * Start polling for job status updates.
+   */
+  function startJobPoller(bookId: number, intervalMs: number = 5000) {
+    // Clear any existing poller for this book
+    stopJobPoller(bookId);
+
+    const poller = setInterval(async () => {
+      try {
+        const job = await fetchAnalysisJobStatus(bookId);
+
+        if (job.status === "completed" || job.status === "failed") {
+          stopJobPoller(bookId);
+
+          // Update book's has_analysis flag if completed
+          if (job.status === "completed" && currentBook.value?.id === bookId) {
+            currentBook.value.has_analysis = true;
+          }
+        }
+      } catch (e) {
+        console.error(`Failed to poll job status for book ${bookId}:`, e);
+        // Stop polling on error (job might not exist)
+        stopJobPoller(bookId);
+      }
+    }, intervalMs);
+
+    analysisJobPollers.value.set(bookId, poller);
+  }
+
+  /**
+   * Stop polling for a book's job status.
+   */
+  function stopJobPoller(bookId: number) {
+    const existingPoller = analysisJobPollers.value.get(bookId);
+    if (existingPoller) {
+      clearInterval(existingPoller);
+      analysisJobPollers.value.delete(bookId);
+    }
+  }
+
+  /**
+   * Get active analysis job for a book (if any).
+   */
+  function getActiveJob(bookId: number): AnalysisJob | undefined {
+    return activeAnalysisJobs.value.get(bookId);
+  }
+
+  /**
+   * Check if a book has an active (pending/running) analysis job.
+   */
+  function hasActiveJob(bookId: number): boolean {
+    const job = activeAnalysisJobs.value.get(bookId);
+    return !!job && (job.status === "pending" || job.status === "running");
+  }
+
+  /**
+   * Clear completed/failed job from tracking.
+   */
+  function clearJob(bookId: number) {
+    activeAnalysisJobs.value.delete(bookId);
+    stopJobPoller(bookId);
+  }
+
   async function calculateScores(bookId: number) {
     const response = await api.post(`/books/${bookId}/scores/calculate`);
     return response.data;
@@ -243,6 +354,7 @@ export const useBooksStore = defineStore("books", () => {
     filters,
     sortBy,
     sortOrder,
+    activeAnalysisJobs,
     fetchBooks,
     fetchBook,
     createBook,
@@ -250,6 +362,11 @@ export const useBooksStore = defineStore("books", () => {
     deleteBook,
     updateAnalysis,
     generateAnalysis,
+    generateAnalysisAsync,
+    fetchAnalysisJobStatus,
+    getActiveJob,
+    hasActiveJob,
+    clearJob,
     calculateScores,
     fetchScoreBreakdown,
     archiveSource,

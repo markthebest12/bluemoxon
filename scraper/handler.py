@@ -94,24 +94,55 @@ def handler(event, context):
                     "--disable-dev-shm-usage",
                 ],
             )
-            page = browser.new_page()
+            # Create browser context with realistic settings
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+                locale="en-US",
+            )
+            page = context.new_page()
 
             # Set realistic headers
             page.set_extra_http_headers(
                 {
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": '"macOS"',
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
+                    "Sec-Fetch-User": "?1",
+                    "Upgrade-Insecure-Requests": "1",
                 }
             )
 
             logger.info(f"Navigating to {url}")
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-            # Wait for content to load
-            try:
-                page.wait_for_selector(".x-item-title", timeout=10000)
-            except Exception:
-                # Try alternative selector for older eBay layouts
-                page.wait_for_selector("#itemTitle", timeout=5000)
+            # Wait for content to load - try multiple selectors
+            content_loaded = False
+            selectors = [
+                ".x-item-title",  # Modern eBay layout
+                "#itemTitle",  # Older eBay layout
+                "[data-testid='x-item-title']",  # Data attribute fallback
+                "h1",  # Last resort - any h1
+            ]
+            for selector in selectors:
+                try:
+                    page.wait_for_selector(selector, timeout=15000)
+                    content_loaded = True
+                    logger.info(f"Content loaded using selector: {selector}")
+                    break
+                except Exception:
+                    continue
+
+            if not content_loaded:
+                logger.warning("No title selector found, continuing anyway")
 
             html = page.content()
             logger.info(f"Got HTML: {len(html)} chars")
@@ -153,6 +184,7 @@ def handler(event, context):
             )
             logger.info(f"Found {len(image_urls)} image URLs")
 
+            # Upload images first, then HTML (so status endpoint knows upload is complete)
             s3_keys = []
             if fetch_images and bucket_name:
                 for idx, img_url in enumerate(image_urls[:MAX_IMAGES]):
@@ -188,8 +220,18 @@ def handler(event, context):
                     except Exception as e:
                         logger.warning(f"Failed to process image {img_url}: {e}")
 
+            # Upload HTML LAST (signals to status endpoint that scraping is complete)
+            html_key = f"listings/{item_id}/page.html"
+            if bucket_name:
+                try:
+                    upload_to_s3(bucket_name, html_key, html.encode("utf-8"), "text/html")
+                    logger.info(f"Uploaded HTML ({len(html)} chars) -> {html_key}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload HTML: {e}")
+
             logger.info(f"Closing browser...")
             page.close()
+            context.close()
             browser.close()
             logger.info(f"Uploaded {len(s3_keys)} images to S3")
 

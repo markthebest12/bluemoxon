@@ -278,6 +278,8 @@ module "lambda" {
       API_KEY_HASH          = var.api_key_hash
       ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       MAINTENANCE_MODE      = var.maintenance_mode
+      # Analysis worker queue name (URL constructed at runtime)
+      ANALYSIS_QUEUE_NAME = "${local.name_prefix}-analysis-jobs"
     },
     var.enable_database ? {
       DATABASE_SECRET_NAME = "${local.name_prefix}/database"
@@ -351,6 +353,62 @@ module "scraper_lambda" {
   environment_variables = {
     ENVIRONMENT = var.environment
   }
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# Analysis Worker (async Bedrock analysis with SQS)
+# =============================================================================
+
+module "analysis_worker" {
+  count  = var.enable_lambda ? 1 : 0
+  source = "./modules/analysis-worker"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  package_path     = var.lambda_package_path
+  source_code_hash = var.lambda_source_code_hash
+  runtime          = var.lambda_runtime
+
+  # Match API Lambda timeout + buffer for SQS visibility
+  timeout              = 600
+  visibility_timeout   = 660
+  memory_size          = 256
+  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
+
+  # VPC configuration (same as API Lambda)
+  subnet_ids         = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
+  security_group_ids = var.enable_database ? [module.lambda[0].security_group_id] : []
+
+  # Secrets Manager access
+  secrets_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+  ] : []
+
+  # S3 bucket access
+  s3_bucket_arns = [module.images_bucket.bucket_arn]
+
+  # Bedrock model access (wildcards to cover all versions)
+  bedrock_model_ids = [
+    "anthropic.claude-sonnet-4-5-*",
+    "anthropic.claude-opus-4-5-*"
+  ]
+
+  # Allow API Lambda to send messages to SQS
+  api_lambda_role_name = module.lambda[0].role_name
+
+  # Environment variables
+  environment_variables = merge(
+    {
+      IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      IMAGES_BUCKET     = module.images_bucket.bucket_name
+    },
+    var.enable_database ? {
+      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+    } : {}
+  )
 
   tags = local.common_tags
 }
