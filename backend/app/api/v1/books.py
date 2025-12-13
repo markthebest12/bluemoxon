@@ -99,11 +99,17 @@ def get_api_base_url() -> str:
 def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
     """Copy images from listing folder to book folder and create BookImage records.
 
+    Also generates thumbnails for each image.
+
     Args:
         book_id: ID of the book to associate images with
         listing_s3_keys: S3 keys of images in listings/{item_id}/ format
         db: Database session
     """
+    from pathlib import Path
+
+    from app.api.v1.images import generate_thumbnail
+
     bucket_name = os.environ.get("IMAGES_BUCKET", "")
     if not bucket_name:
         logger.warning("IMAGES_BUCKET not set, skipping image copy")
@@ -122,6 +128,7 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
             s3_key = f"{book_id}/image_{idx:02d}.{ext}"
             # Full S3 path includes books/ prefix
             target_key = f"books/{s3_key}"
+            thumbnail_key = f"books/thumb_{s3_key}"
 
             # Copy object within same bucket
             s3.copy_object(
@@ -129,6 +136,33 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
                 CopySource={"Bucket": bucket_name, "Key": source_key},
                 Key=target_key,
             )
+
+            # Generate thumbnail: download, resize, upload
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp_img:
+                local_path = Path(tmp_img.name)
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_thumb:
+                thumb_path = Path(tmp_thumb.name)
+            try:
+                s3.download_file(bucket_name, target_key, str(local_path))
+                success, _ = generate_thumbnail(local_path, thumb_path)
+                if success and thumb_path.exists():
+                    s3.upload_file(
+                        str(thumb_path),
+                        bucket_name,
+                        thumbnail_key,
+                        ExtraArgs={"ContentType": "image/jpeg"},
+                    )
+                    logger.info(f"Generated thumbnail -> {thumbnail_key}")
+            except Exception as thumb_err:
+                logger.warning(f"Thumbnail generation failed for {s3_key}: {thumb_err}")
+            finally:
+                # Clean up temp files
+                if local_path.exists():
+                    local_path.unlink()
+                if thumb_path.exists():
+                    thumb_path.unlink()
 
             # Create BookImage record (s3_key without books/ prefix)
             book_image = BookImage(
