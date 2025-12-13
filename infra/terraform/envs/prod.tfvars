@@ -29,12 +29,31 @@ db_allocated_storage = 50
 # Lambda: Different IAM role structure, VPC config, env var names
 # Database: Lambda VPC config depends on database module
 # VPC: Lambda references VPC resources
+# Cognito: Existing pool with production users, managed externally
 enable_cloudfront         = false
+enable_cognito            = false
 enable_lambda             = false
 enable_database           = false
 enable_nat_gateway        = false
 enable_waf                = true
 skip_s3_cloudfront_policy = true # Prod uses OAC (not OAI) - bucket policy managed externally
+
+# =============================================================================
+# Analysis Worker Configuration
+# =============================================================================
+# Enabled independently of main Lambda - creates SQS queue + worker Lambda
+# for async Bedrock analysis generation.
+enable_analysis_worker = true
+
+# External Lambda references (used when enable_lambda=false)
+external_lambda_role_name         = "bluemoxon-lambda-role"
+external_lambda_security_group_id = "sg-0ae3f0f22c08e0c62"
+
+# VPC configuration for analysis worker (same subnets as main Lambda)
+private_subnet_ids = [
+  "subnet-026cb4a2cf0464f88", # us-west-2a - 10.0.11.0/24
+  "subnet-0ffc724f850e0a438"  # us-west-2b - 10.0.12.0/24
+]
 
 # ACM Certificates
 api_acm_cert_arn      = "arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a"

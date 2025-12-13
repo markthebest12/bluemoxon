@@ -118,6 +118,7 @@ module "images_cdn" {
 # =============================================================================
 
 module "cognito" {
+  count  = var.enable_cognito ? 1 : 0
   source = "./modules/cognito"
 
   user_pool_name                 = local.cognito_user_pool_name
@@ -258,8 +259,8 @@ module "lambda" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Cognito access for user management
-  cognito_user_pool_arns = [module.cognito.user_pool_arn]
+  # Cognito access for user management (requires enable_cognito=true)
+  cognito_user_pool_arns = var.enable_cognito ? [module.cognito[0].user_pool_arn] : []
 
   # Bedrock model access for AI-powered features
   # - Haiku: fast, cheap extraction for listing/order parsing
@@ -275,8 +276,8 @@ module "lambda" {
     {
       CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
       IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
-      COGNITO_USER_POOL_ID  = module.cognito.user_pool_id
-      COGNITO_APP_CLIENT_ID = module.cognito.client_id
+      COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : ""
+      COGNITO_APP_CLIENT_ID = var.enable_cognito ? module.cognito[0].client_id : ""
       IMAGES_BUCKET         = module.images_bucket.bucket_name
       API_KEY_HASH          = var.api_key_hash
       ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
@@ -315,13 +316,13 @@ module "db_sync_lambda" {
   ]
 
   # Cognito pool for user mapping after DB sync
-  cognito_user_pool_id = module.cognito.user_pool_id
+  cognito_user_pool_id = module.cognito[0].user_pool_id
 
   environment_variables = {
     PROD_SECRET_ARN      = var.prod_database_secret_arn
     STAGING_SECRET_ARN   = module.database_secret[0].arn
     PROD_SECRET_REGION   = "us-west-2"
-    COGNITO_USER_POOL_ID = module.cognito.user_pool_id
+    COGNITO_USER_POOL_ID = module.cognito[0].user_pool_id
   }
 
   tags = local.common_tags
@@ -363,9 +364,12 @@ module "scraper_lambda" {
 # =============================================================================
 # Analysis Worker (async Bedrock analysis with SQS)
 # =============================================================================
+# Can be enabled independently of main Lambda using enable_analysis_worker.
+# When enable_lambda=false, uses external_lambda_role_name and
+# external_lambda_security_group_id for permissions and VPC config.
 
 module "analysis_worker" {
-  count  = var.enable_lambda ? 1 : 0
+  count  = local.analysis_worker_enabled ? 1 : 0
   source = "./modules/analysis-worker"
 
   name_prefix = local.name_prefix
@@ -381,14 +385,19 @@ module "analysis_worker" {
   memory_size          = 256
   reserved_concurrency = -1 # No reservation (account has low concurrency limit)
 
-  # VPC configuration (same as API Lambda)
-  subnet_ids         = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
-  security_group_ids = var.enable_database ? [module.lambda[0].security_group_id] : []
+  # VPC configuration - use external security group if Lambda is managed externally
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
 
-  # Secrets Manager access
+  # Secrets Manager access - use prod secret ARN pattern for external Lambda
   secrets_arns = var.enable_database ? [
     "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
-  ] : []
+    ] : (
+    # For prod with external Lambda, use the secret ARN pattern directly
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
 
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
@@ -399,8 +408,8 @@ module "analysis_worker" {
     "anthropic.claude-opus-4-5-*"
   ]
 
-  # Allow API Lambda to send messages to SQS
-  api_lambda_role_name = module.lambda[0].role_name
+  # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
+  api_lambda_role_name = local.api_lambda_role_name
 
   # Environment variables
   environment_variables = merge(
@@ -410,6 +419,10 @@ module "analysis_worker" {
     },
     var.enable_database ? {
       DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+    } : {},
+    # For prod with external Lambda, use the secret ARN directly (prod uses ARN, not name)
+    local.is_prod && !var.enable_database ? {
+      DATABASE_SECRET_ARN = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials-Firmtl"
     } : {}
   )
 

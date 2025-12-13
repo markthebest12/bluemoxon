@@ -85,6 +85,12 @@ variable "enable_cloudfront" {
   default     = true
 }
 
+variable "enable_cognito" {
+  type        = bool
+  description = "Enable Cognito user pool management (set false for prod where Cognito is managed externally)"
+  default     = true
+}
+
 variable "enable_database" {
   type        = bool
   description = "Enable RDS PostgreSQL database"
@@ -106,6 +112,24 @@ variable "lambda_function_name_external" {
 variable "lambda_invoke_arn_external" {
   type        = string
   description = "External Lambda invoke ARN (used when enable_lambda=false)"
+  default     = null
+}
+
+variable "enable_analysis_worker" {
+  type        = bool
+  description = "Enable analysis worker Lambda + SQS (can be enabled independently of main Lambda)"
+  default     = null # Defaults to enable_lambda value when null
+}
+
+variable "external_lambda_role_name" {
+  type        = string
+  description = "External Lambda IAM role name for SQS send permissions (used when enable_lambda=false)"
+  default     = null
+}
+
+variable "external_lambda_security_group_id" {
+  type        = string
+  description = "External Lambda security group ID for worker VPC config (used when enable_lambda=false)"
   default     = null
 }
 
