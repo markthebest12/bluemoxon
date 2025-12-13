@@ -514,14 +514,17 @@ def delete_book(
         raise HTTPException(status_code=500, detail=f"Failed to delete book: {str(e)}") from e
 
 
-@router.patch("/{book_id}/status")
+@router.patch("/{book_id}/status", response_model=BookResponse)
 def update_book_status(
     book_id: int,
     status: str = Query(...),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
-    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED)."""
+    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED).
+
+    Returns the full book object with relationships for frontend state updates.
+    """
     valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
     if status not in valid_statuses:
         raise HTTPException(
@@ -535,8 +538,14 @@ def update_book_status(
 
     book.status = status
     db.commit()
+    db.refresh(book)
 
-    return {"message": "Status updated", "status": status}
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    return BookResponse(**book_dict)
 
 
 @router.patch("/{book_id}/inventory-type")
