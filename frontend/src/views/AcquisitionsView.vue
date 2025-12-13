@@ -93,14 +93,18 @@ function closeAnalysisViewer() {
   analysisBookId.value = null;
 }
 
-function formatPrice(price?: number | null): string {
-  if (price == null || typeof price !== "number") return "-";
-  return `$${price.toFixed(2)}`;
+function formatPrice(price?: number | string | null): string {
+  if (price == null) return "-";
+  const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  if (isNaN(numPrice)) return "-";
+  return `$${numPrice.toFixed(2)}`;
 }
 
-function formatDiscount(discount?: number | null): string {
-  if (discount == null || typeof discount !== "number") return "-";
-  return `${discount.toFixed(0)}%`;
+function formatDiscount(discount?: number | string | null): string {
+  if (discount == null) return "-";
+  const numDiscount = typeof discount === "string" ? parseFloat(discount) : discount;
+  if (isNaN(numDiscount)) return "-";
+  return `${numDiscount.toFixed(0)}%`;
 }
 
 function formatDate(dateStr?: string): string {
