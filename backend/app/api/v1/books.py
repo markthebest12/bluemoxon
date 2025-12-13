@@ -118,7 +118,10 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
         try:
             # Determine file extension from source key
             ext = source_key.split(".")[-1] if "." in source_key else "jpg"
-            target_key = f"books/{book_id}/image_{idx:02d}.{ext}"
+            # s3_key is the relative path (used for URL generation with S3_IMAGES_PREFIX)
+            s3_key = f"{book_id}/image_{idx:02d}.{ext}"
+            # Full S3 path includes books/ prefix
+            target_key = f"books/{s3_key}"
 
             # Copy object within same bucket
             s3.copy_object(
@@ -127,10 +130,10 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
                 Key=target_key,
             )
 
-            # Create BookImage record
+            # Create BookImage record (s3_key without books/ prefix)
             book_image = BookImage(
                 book_id=book_id,
-                s3_key=target_key,
+                s3_key=s3_key,
                 display_order=idx,
                 is_primary=(idx == 0),
             )
