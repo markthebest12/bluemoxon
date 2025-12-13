@@ -282,18 +282,18 @@ Staging uses its own Cognito user pool, separate from production. This provides 
 
 **Staging Cognito Config:**
 ```
-Pool ID: us-west-2_5pOhFH6LN
-Client ID: 7h1b144ggk7j4dl9vr94ipe6k5
+Pool ID: us-west-2_xhoIfvlHv
+Client ID: f3o3gvjtmc32kjg6v047m0gh2
 Domain: bluemoxon-staging.auth.us-west-2.amazoncognito.com
 ```
 
 **Create/Reset a staging user:**
 ```bash
 # Create user (or skip if exists)
-AWS_PROFILE=staging aws cognito-idp admin-create-user --user-pool-id us-west-2_5pOhFH6LN --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
+AWS_PROFILE=staging aws cognito-idp admin-create-user --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
 
 # Set permanent password
-AWS_PROFILE=staging aws cognito-idp admin-set-user-password --user-pool-id us-west-2_5pOhFH6LN --username user@example.com --password 'YourPassword123!' --permanent
+AWS_PROFILE=staging aws cognito-idp admin-set-user-password --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --password 'YourPassword123!' --permanent
 
 # Map Cognito sub to database (run after creating user)
 AWS_PROFILE=staging aws lambda invoke --function-name bluemoxon-staging-db-sync --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
