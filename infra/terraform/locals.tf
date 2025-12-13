@@ -44,4 +44,18 @@ locals {
 
   # Environment-specific settings
   is_prod = var.environment == "prod"
+
+  # Analysis worker enabled - defaults to enable_lambda if not explicitly set
+  # Allows enabling analysis worker when main Lambda is managed externally
+  analysis_worker_enabled = coalesce(var.enable_analysis_worker, var.enable_lambda)
+
+  # Lambda role name for SQS permissions - use external if Lambda disabled
+  api_lambda_role_name = var.enable_lambda ? (
+    length(module.lambda) > 0 ? module.lambda[0].role_name : null
+  ) : var.external_lambda_role_name
+
+  # Security group for worker VPC config - use external if Lambda disabled
+  lambda_security_group_id = var.enable_lambda ? (
+    length(module.lambda) > 0 ? module.lambda[0].security_group_id : null
+  ) : var.external_lambda_security_group_id
 }

@@ -20,17 +20,17 @@ output "aws_region" {
 
 output "cognito_client_id" {
   description = "Cognito app client ID"
-  value       = module.cognito.client_id
+  value       = var.enable_cognito ? module.cognito[0].client_id : null
 }
 
 output "cognito_domain" {
   description = "Cognito domain"
-  value       = module.cognito.domain
+  value       = var.enable_cognito ? module.cognito[0].domain : null
 }
 
 output "cognito_user_pool_id" {
   description = "Cognito user pool ID"
-  value       = module.cognito.user_pool_id
+  value       = var.enable_cognito ? module.cognito[0].user_pool_id : null
 }
 
 output "environment" {
@@ -122,17 +122,17 @@ output "db_sync_lambda_name" {
 
 output "analysis_worker_function_name" {
   description = "Analysis worker Lambda function name"
-  value       = var.enable_lambda ? module.analysis_worker[0].function_name : null
+  value       = local.analysis_worker_enabled ? module.analysis_worker[0].function_name : null
 }
 
 output "analysis_queue_url" {
   description = "SQS queue URL for analysis jobs"
-  value       = var.enable_lambda ? module.analysis_worker[0].queue_url : null
+  value       = local.analysis_worker_enabled ? module.analysis_worker[0].queue_url : null
 }
 
 output "analysis_dlq_url" {
   description = "SQS dead letter queue URL for failed analysis jobs"
-  value       = var.enable_lambda ? module.analysis_worker[0].dlq_url : null
+  value       = local.analysis_worker_enabled ? module.analysis_worker[0].dlq_url : null
 }
 
 # =============================================================================
