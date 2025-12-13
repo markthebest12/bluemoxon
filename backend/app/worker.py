@@ -17,6 +17,7 @@ from app.services.bedrock import (
     fetch_source_url_content,
     invoke_bedrock,
 )
+from app.services.reference import get_or_create_binder
 from app.utils.markdown_parser import parse_analysis_markdown
 
 # Configure logging
@@ -156,6 +157,15 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                 book.fair_market_value = new_fmv
                 book.fmv_updated_at = datetime.now(UTC)
                 book.fmv_source = "ai_analysis"
+
+        # Extract binder identification and associate with book
+        if parsed.binder_identification:
+            binder = get_or_create_binder(db, parsed.binder_identification)
+            if binder and book.binder_id != binder.id:
+                logger.info(
+                    f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
+                )
+                book.binder_id = binder.id
 
         # Mark job as completed
         job.status = "completed"
