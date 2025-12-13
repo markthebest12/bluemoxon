@@ -43,3 +43,4 @@ backend.hcl
 # Sensitive variable files
 *.auto.tfvars
 secrets.tfvars
+placeholder.zip
