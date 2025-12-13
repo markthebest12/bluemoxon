@@ -1,7 +1,8 @@
 # Async Analysis Jobs Design
 
 **Date:** 2025-12-12
-**Status:** Approved
+**Status:** Implemented (2025-12-13)
+**Implementation:** [2025-12-13-async-analysis-implementation.md](./2025-12-13-async-analysis-implementation.md)
 **Problem:** API Gateway 29-second timeout causes 503 errors when Bedrock Sonnet 4.5 takes 5+ minutes
 
 ## Solution Overview
@@ -151,6 +152,7 @@ const analysisJob = ref<{
 - **Automatic retries:** SQS retries failed jobs twice before DLQ
 - **Visibility:** Failed jobs land in DLQ for investigation
 - **Graceful degradation:** Frontend shows error and allows retry
+- **Stale job detection:** Status endpoint auto-fails jobs stuck >15 minutes (handles Lambda crashes/timeouts)
 
 ## Migration Path
 
