@@ -390,10 +390,10 @@ module "analysis_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access
+  # Bedrock model access (wildcards to cover all versions)
   bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-20240929",
-    "anthropic.claude-opus-4-5-20251101"
+    "anthropic.claude-sonnet-4-5-*",
+    "anthropic.claude-opus-4-5-*"
   ]
 
   # Allow API Lambda to send messages to SQS

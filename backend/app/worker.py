@@ -144,9 +144,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         )
         db.add(analysis)
 
-        # Update book's FMV if different from parsed valuation
-        if parsed.fair_market_value_low is not None and parsed.fair_market_value_high is not None:
-            new_fmv = Decimal(str(parsed.fair_market_value_low))
+        # Update book's FMV if valuation data is present in market_analysis
+        valuation = (parsed.market_analysis or {}).get("valuation", {})
+        fmv_low = valuation.get("low")
+        if fmv_low is not None:
+            new_fmv = Decimal(str(fmv_low))
             if book.fair_market_value != new_fmv:
                 logger.info(
                     f"Updating FMV for book {book_id}: {book.fair_market_value} -> {new_fmv}"
