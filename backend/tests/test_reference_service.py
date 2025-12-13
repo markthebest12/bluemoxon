@@ -1,6 +1,5 @@
 """Tests for reference data services."""
 
-
 from app.services.reference import get_or_create_binder, normalize_binder_name
 
 
