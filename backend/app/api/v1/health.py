@@ -360,6 +360,7 @@ MIGRATION_A1234567BCDE_SQL = [
     END $$""",
 ]
 
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
