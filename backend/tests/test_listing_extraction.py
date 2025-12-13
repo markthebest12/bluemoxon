@@ -150,7 +150,7 @@ class TestInvokeBedrockExtraction:
 
         invoke_bedrock_extraction("<html>test</html>")
 
-        # Verify Haiku model was used
+        # Verify Haiku model was used (fast, cheap extraction)
         call_kwargs = mock_client.invoke_model.call_args[1]
         assert "claude-3-haiku" in call_kwargs["modelId"]
 
