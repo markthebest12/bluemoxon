@@ -1326,6 +1326,10 @@ def generate_analysis_async(
     return AnalysisJobResponse.from_orm_model(job)
 
 
+# Threshold for detecting stale "running" jobs (worker likely crashed/timed out)
+STALE_JOB_THRESHOLD_MINUTES = 15
+
+
 @router.get("/{book_id}/analysis/status")
 def get_analysis_job_status(
     book_id: int,
@@ -1335,7 +1339,13 @@ def get_analysis_job_status(
     """Get status of the latest analysis job for a book.
 
     Requires admin role.
+
+    Automatically detects and marks stale jobs as failed. A job is considered
+    stale if it has been in "running" status for more than 15 minutes without
+    updates, indicating the worker likely crashed or timed out.
     """
+    from datetime import UTC, datetime, timedelta
+
     from app.models import AnalysisJob
     from app.schemas.analysis_job import AnalysisJobResponse
 
@@ -1354,5 +1364,18 @@ def get_analysis_job_status(
 
     if not job:
         raise HTTPException(status_code=404, detail="No analysis job found for this book")
+
+    # Detect and auto-fail stale "running" jobs
+    # This handles cases where the worker Lambda timed out or crashed
+    if job.status == "running":
+        stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
+        if job.updated_at < stale_threshold:
+            job.status = "failed"
+            job.error_message = (
+                f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes "
+                "(worker likely crashed or timed out)"
+            )
+            job.updated_at = datetime.now(UTC)
+            db.commit()
 
     return AnalysisJobResponse.from_orm_model(job)
