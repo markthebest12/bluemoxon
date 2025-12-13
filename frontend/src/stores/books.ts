@@ -145,6 +145,30 @@ export const useBooksStore = defineStore("books", () => {
     }
   }
 
+  interface DuplicateMatch {
+    id: number;
+    title: string;
+    author_name: string | null;
+    status: string;
+    similarity_score: number;
+  }
+
+  interface DuplicateCheckResponse {
+    has_duplicates: boolean;
+    matches: DuplicateMatch[];
+  }
+
+  async function checkDuplicate(
+    title: string,
+    authorId?: number | null
+  ): Promise<DuplicateCheckResponse> {
+    const response = await api.post("/books/check-duplicate", {
+      title,
+      author_id: authorId || undefined,
+    });
+    return response.data;
+  }
+
   async function updateBook(id: number, bookData: Partial<Book>) {
     loading.value = true;
     error.value = null;
@@ -358,6 +382,7 @@ export const useBooksStore = defineStore("books", () => {
     fetchBooks,
     fetchBook,
     createBook,
+    checkDuplicate,
     updateBook,
     deleteBook,
     updateAnalysis,

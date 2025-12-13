@@ -22,6 +22,9 @@ from app.schemas.book import (
     BookListResponse,
     BookResponse,
     BookUpdate,
+    DuplicateCheckRequest,
+    DuplicateCheckResponse,
+    DuplicateMatch,
     TrackingRequest,
 )
 from app.services.archive import archive_url
@@ -35,6 +38,7 @@ from app.services.bedrock import (
 from app.services.scoring import (
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
+    calculate_title_similarity,
     is_duplicate_title,
 )
 
@@ -374,6 +378,51 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
             )
 
     return BookResponse(**book_dict)
+
+
+@router.post("/check-duplicate", response_model=DuplicateCheckResponse)
+def check_duplicate(
+    request: DuplicateCheckRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Check for potential duplicate books before creating a new one.
+
+    Returns books with similar titles, optionally filtered by same author.
+    Uses token-based Jaccard similarity with 0.7 threshold.
+    """
+    similarity_threshold = 0.7
+
+    # Query existing books
+    query = db.query(Book)
+
+    # If author specified, check for same author
+    if request.author_id:
+        query = query.filter(Book.author_id == request.author_id)
+
+    existing_books = query.all()
+
+    matches = []
+    for book in existing_books:
+        similarity = calculate_title_similarity(request.title, book.title)
+        if similarity >= similarity_threshold:
+            matches.append(
+                DuplicateMatch(
+                    id=book.id,
+                    title=book.title,
+                    author_name=book.author.name if book.author else None,
+                    status=book.status,
+                    similarity_score=round(similarity, 2),
+                )
+            )
+
+    # Sort by similarity descending
+    matches.sort(key=lambda m: m.similarity_score, reverse=True)
+
+    return DuplicateCheckResponse(
+        has_duplicates=len(matches) > 0,
+        matches=matches[:10],  # Limit to top 10 matches
+    )
 
 
 @router.post("", response_model=BookResponse, status_code=201)

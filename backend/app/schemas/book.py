@@ -189,3 +189,30 @@ class TrackingRequest(BaseModel):
     tracking_number: str | None = None
     tracking_carrier: str | None = None
     tracking_url: str | None = None
+
+
+class DuplicateCheckRequest(BaseModel):
+    """Request body for checking duplicate books."""
+
+    title: str
+    author_id: int | None = None
+
+
+class DuplicateMatch(BaseModel):
+    """A potential duplicate book match."""
+
+    id: int
+    title: str
+    author_name: str | None
+    status: str
+    similarity_score: float
+
+    class Config:
+        from_attributes = True
+
+
+class DuplicateCheckResponse(BaseModel):
+    """Response for duplicate check."""
+
+    has_duplicates: bool
+    matches: list[DuplicateMatch]
