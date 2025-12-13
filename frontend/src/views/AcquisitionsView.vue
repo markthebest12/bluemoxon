@@ -352,7 +352,11 @@ async function handleArchiveSource(bookId: number) {
                   class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
                   title="Regenerate analysis"
                 >
-                  <span v-if="isAnalysisRunning(book.id) || startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span
+                    v-if="isAnalysisRunning(book.id) || startingAnalysis === book.id"
+                    class="animate-spin"
+                    >⏳</span
+                  >
                   <span v-else>🔄</span>
                 </button>
               </div>
