@@ -140,20 +140,14 @@ async function handleGenerateAnalysis(bookId: number) {
 
   startingAnalysis.value = bookId;
   try {
-    await booksStore.generateAnalysisAsync(bookId);
-    // Polling will automatically update when job completes
+    // Use sync endpoint - may take 20-30 seconds for Bedrock
+    await booksStore.generateAnalysis(bookId);
+    // Refresh books to show updated analysis status
+    await loadBooks();
   } catch (e: any) {
-    console.error("Failed to start analysis job:", e);
-    if (e.response?.status === 409) {
-      // Job already exists, try to get its status
-      try {
-        await booksStore.fetchAnalysisJobStatus(bookId);
-      } catch {
-        // Ignore - job might have just completed
-      }
-    } else {
-      alert("Failed to start analysis. Please try again.");
-    }
+    console.error("Failed to generate analysis:", e);
+    const message = e.response?.data?.detail || e.message || "Failed to generate analysis";
+    alert(message);
   } finally {
     startingAnalysis.value = null;
   }
