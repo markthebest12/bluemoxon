@@ -1,0 +1,17 @@
+# CODEOWNERS - Require review for sensitive changes
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Infrastructure changes require owner review
+/infra/ @markthebest12
+
+# Terraform specifically
+/infra/terraform/ @markthebest12
+
+# Workflow changes (CI/CD pipeline)
+/.github/workflows/ @markthebest12
+
+# Security-sensitive files
+/.github/CODEOWNERS @markthebest12
+
+# Config files that affect deployments
+/infra/config/ @markthebest12

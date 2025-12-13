@@ -637,6 +637,35 @@ curl -s https://staging.app.bluemoxon.com | head -20
 - RDS snapshots (manual backup)
 - S3 bucket data (if buckets not destroyed)
 
+### Pipeline Enforcement (Automated Drift Prevention)
+
+The following automated checks enforce infrastructure discipline:
+
+| Mechanism | When | Action |
+|-----------|------|--------|
+| **Drift Detection** | Daily 6 AM UTC | `terraform plan -detailed-exitcode` on both environments. Creates GitHub issue if drift found. |
+| **CODEOWNERS** | On PR | Requires owner review for `/infra/`, `/infra/terraform/`, `/.github/workflows/` |
+| **Terraform Validation** | On PR to infra/ | Runs `fmt`, `validate`, `tflint`, `tfsec`, `checkov` |
+| **PR Plan Comments** | On PR to infra/ | Posts Terraform plan output as PR comment |
+
+**Workflow Files:**
+- `.github/workflows/drift-detection.yml` - Scheduled drift checks
+- `.github/workflows/terraform.yml` - PR validation
+- `.github/CODEOWNERS` - Review requirements
+
+**Manual Drift Check:**
+```bash
+# Trigger drift detection manually
+gh workflow run drift-detection.yml -f environment=staging
+
+# Watch results
+gh run list --workflow drift-detection.yml --limit 1
+gh run watch <run-id>
+```
+
+**Future Enhancement (after Terraform parity complete):**
+Once all production resources are imported (#224-#226), add pre-deploy drift check to `deploy.yml` that warns/blocks if Terraform state doesn't match AWS.
+
 ## CRITICAL: Terraform Style Requirements
 
 **STRICTLY follow HashiCorp's official guidelines:**
