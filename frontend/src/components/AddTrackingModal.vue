@@ -188,26 +188,20 @@ function handleClose() {
                   {{ carrier }}
                 </option>
               </select>
-              <p class="mt-1 text-xs text-gray-500">
-                Override if auto-detection fails
-              </p>
+              <p class="mt-1 text-xs text-gray-500">Override if auto-detection fails</p>
             </div>
           </div>
 
           <!-- Direct URL Input -->
           <div v-if="inputMode === 'url'">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Tracking URL *
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Tracking URL * </label>
             <input
               v-model="form.tracking_url"
               type="url"
               placeholder="https://..."
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <p class="mt-1 text-xs text-gray-500">
-              Paste a direct tracking link from any carrier
-            </p>
+            <p class="mt-1 text-xs text-gray-500">Paste a direct tracking link from any carrier</p>
           </div>
 
           <!-- Footer Buttons -->
