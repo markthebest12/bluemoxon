@@ -21,6 +21,7 @@ def list_binders(db: Session = Depends(get_db)):
             "name": b.name,
             "full_name": b.full_name,
             "authentication_markers": b.authentication_markers,
+            "tier": b.tier,
             "book_count": len(b.books),
         }
         for b in binders
@@ -39,6 +40,7 @@ def get_binder(binder_id: int, db: Session = Depends(get_db)):
         "name": binder.name,
         "full_name": binder.full_name,
         "authentication_markers": binder.authentication_markers,
+        "tier": binder.tier,
         "book_count": len(binder.books),
         "books": [
             {
@@ -73,6 +75,7 @@ def create_binder(
     return BinderResponse(
         id=binder.id,
         name=binder.name,
+        tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
         book_count=len(binder.books),
@@ -101,6 +104,7 @@ def update_binder(
     return BinderResponse(
         id=binder.id,
         name=binder.name,
+        tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
         book_count=len(binder.books),
