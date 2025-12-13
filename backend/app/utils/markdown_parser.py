@@ -13,6 +13,9 @@ class ParsedAnalysis:
     condition_assessment: dict | None = None
     market_analysis: dict | None = None
     recommendations: str | None = None
+    # New v2 fields
+    structured_data: dict | None = None
+    binder_identification: dict | None = None
 
 
 # Optional prefix pattern: handles emojis, numbers like "1.", roman numerals like "I."
@@ -183,6 +186,115 @@ def _parse_market_analysis(text: str) -> dict:
     return result
 
 
+def _parse_structured_data(markdown: str) -> dict | None:
+    """Extract structured data section from v2 format analysis.
+
+    Looks for:
+    ```
+    ---STRUCTURED-DATA---
+    KEY: value
+    ---END-STRUCTURED-DATA---
+    ```
+    """
+    pattern = r"---STRUCTURED-DATA---\s*(.*?)\s*---END-STRUCTURED-DATA---"
+    match = re.search(pattern, markdown, re.DOTALL)
+
+    if not match:
+        return None
+
+    result: dict = {}
+    content = match.group(1).strip()
+
+    for line in content.split("\n"):
+        line = line.strip()
+        if ":" in line:
+            key, value = line.split(":", 1)
+            key = key.strip().lower().replace("-", "_")
+            value = value.strip()
+
+            # Convert numeric values
+            if key in ("valuation_low", "valuation_mid", "valuation_high", "publication_year"):
+                try:
+                    result[key] = int(value) if value != "UNKNOWN" else None
+                except ValueError:
+                    result[key] = None
+            else:
+                result[key] = value if value != "UNKNOWN" else None
+
+    return result if result else None
+
+
+def _parse_binder_identification(text: str) -> dict | None:
+    """Extract binder identification from binding context section.
+
+    Looks for:
+    **Binder Identification:**
+    - **Name:** [Binder name]
+    - **Confidence:** [HIGH/MEDIUM/LOW]
+    - **Evidence:** [What was found]
+    """
+    result: dict = {}
+
+    # Look for explicit binder identification block
+    name_match = re.search(r"\*\*Name:\*\*\s*(.+)", text)
+    if name_match:
+        name = name_match.group(1).strip()
+        if name.lower() not in ("unidentified", "unknown", "none"):
+            result["name"] = name
+
+    confidence_match = re.search(r"\*\*Confidence:\*\*\s*(\w+)", text)
+    if confidence_match:
+        result["confidence"] = confidence_match.group(1).strip().upper()
+
+    evidence_match = re.search(r"\*\*Evidence:\*\*\s*(.+)", text)
+    if evidence_match:
+        result["evidence"] = evidence_match.group(1).strip()
+
+    auth_match = re.search(r"\*\*Authentication Notes:\*\*\s*(.+)", text)
+    if auth_match:
+        result["authentication_notes"] = auth_match.group(1).strip()
+
+    # Also check for binder mentions in the text using known binder names
+    known_binders = [
+        "Sangorski & Sutcliffe",
+        "Sangorski",
+        "Rivière & Son",
+        "Rivière",
+        "Riviere",
+        "Zaehnsdorf",
+        "Cobden-Sanderson",
+        "Doves Bindery",
+        "Bedford",
+        "Morrell",
+        "Root & Son",
+        "Root",
+        "Bayntun",
+        "Tout",
+        "Stikeman",
+    ]
+
+    if "name" not in result:
+        # Try to find binder name mentioned in text
+        for binder in known_binders:
+            # Look for patterns like "bound by Zaehnsdorf" or "Zaehnsdorf binding"
+            patterns = [
+                rf"bound by\s+{re.escape(binder)}",
+                rf"{re.escape(binder)}\s+bind(?:ing|er)",
+                rf"signed\s+(?:by\s+)?{re.escape(binder)}",
+                rf"{re.escape(binder)}\s+signed",
+            ]
+            for pattern in patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    result["name"] = binder
+                    if "confidence" not in result:
+                        result["confidence"] = "MEDIUM"
+                    break
+            if "name" in result:
+                break
+
+    return result if result else None
+
+
 def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
     """Parse a markdown analysis document into structured fields.
 
@@ -193,6 +305,21 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
         ParsedAnalysis with extracted fields populated.
     """
     sections = _extract_sections(markdown)
+
+    # Extract structured data from v2 format (if present)
+    structured_data = _parse_structured_data(markdown)
+
+    # Extract binder identification from full text
+    binder_identification = _parse_binder_identification(markdown)
+
+    # If structured data has binder info, merge it
+    if structured_data and structured_data.get("binder_identified"):
+        if not binder_identification:
+            binder_identification = {}
+        if "name" not in binder_identification:
+            binder_identification["name"] = structured_data["binder_identified"]
+        if "confidence" not in binder_identification and structured_data.get("binder_confidence"):
+            binder_identification["confidence"] = structured_data["binder_confidence"]
 
     return ParsedAnalysis(
         executive_summary=sections.get("executive_summary"),
@@ -208,4 +335,6 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
             else None
         ),
         recommendations=sections.get("recommendations"),
+        structured_data=structured_data,
+        binder_identification=binder_identification,
     )

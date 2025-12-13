@@ -47,6 +47,7 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
     """Calculate and persist scores for a book."""
     author_priority = 0
     publisher_tier = None
+    binder_tier = None
     author_book_count = 0
 
     if book.author:
@@ -57,6 +58,9 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
     if book.publisher:
         publisher_tier = book.publisher.tier
+
+    if book.binder:
+        binder_tier = book.binder.tier
 
     is_duplicate = False
     if book.author_id:
@@ -72,6 +76,7 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
         purchase_price=book.purchase_price,
         value_mid=book.value_mid,
         publisher_tier=publisher_tier,
+        binder_tier=binder_tier,
         year_start=book.year_start,
         is_complete=book.is_complete,
         condition_grade=book.condition_grade,
@@ -774,6 +779,8 @@ def get_book_score_breakdown(
     author_name = None
     publisher_tier = None
     publisher_name = None
+    binder_tier = None
+    binder_name = None
     author_book_count = 0
     duplicate_title = None
 
@@ -787,6 +794,10 @@ def get_book_score_breakdown(
     if book.publisher:
         publisher_tier = book.publisher.tier
         publisher_name = book.publisher.name
+
+    if book.binder:
+        binder_tier = book.binder.tier
+        binder_name = book.binder.name
 
     is_duplicate = False
     if book.author_id:
@@ -803,6 +814,7 @@ def get_book_score_breakdown(
         purchase_price=book.purchase_price,
         value_mid=book.value_mid,
         publisher_tier=publisher_tier,
+        binder_tier=binder_tier,
         year_start=book.year_start,
         is_complete=book.is_complete,
         condition_grade=book.condition_grade,
@@ -813,6 +825,7 @@ def get_book_score_breakdown(
         volume_count=book.volumes or 1,
         author_name=author_name,
         publisher_name=publisher_name,
+        binder_name=binder_name,
         duplicate_title=duplicate_title,
     )
 
@@ -951,10 +964,12 @@ def update_book_analysis(
     Accepts raw markdown text in the request body.
     Automatically parses markdown to extract structured fields.
     If valuation data is found, updates book's FMV and recalculates scores.
+    If binder is identified, associates binder with book.
     """
     from decimal import Decimal
 
     from app.models import BookAnalysis
+    from app.services.reference import get_or_create_binder
     from app.utils.markdown_parser import parse_analysis_markdown
 
     book = db.query(Book).filter(Book.id == book_id).first()
@@ -963,6 +978,14 @@ def update_book_analysis(
 
     # Parse markdown to extract structured fields
     parsed = parse_analysis_markdown(full_markdown)
+
+    # Extract binder identification and associate with book
+    binder_updated = False
+    if parsed.binder_identification:
+        binder = get_or_create_binder(db, parsed.binder_identification)
+        if binder and book.binder_id != binder.id:
+            book.binder_id = binder.id
+            binder_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
@@ -1003,15 +1026,16 @@ def update_book_analysis(
                 book.value_high = new_high
                 values_changed = True
 
-    # Recalculate scores if values changed
-    if values_changed:
+    # Recalculate scores if values or binder changed
+    if values_changed or binder_updated:
         _calculate_and_persist_scores(book, db)
 
     db.commit()
     return {
         "message": "Analysis updated",
         "values_updated": values_changed,
-        "scores_recalculated": values_changed,
+        "binder_updated": binder_updated,
+        "scores_recalculated": values_changed or binder_updated,
     }
 
 
