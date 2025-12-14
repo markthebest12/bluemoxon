@@ -19,13 +19,14 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 # Default VPC and subnets (for RDS and Lambda VPC access)
+# Needed when database is enabled OR when Lambda needs VPC connectivity
 data "aws_vpc" "default" {
-  count   = var.enable_database ? 1 : 0
+  count   = var.enable_database || local.enable_lambda_vpc ? 1 : 0
   default = true
 }
 
 data "aws_subnets" "default" {
-  count = var.enable_database ? 1 : 0
+  count = var.enable_database || local.enable_lambda_vpc ? 1 : 0
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default[0].id]
@@ -259,22 +260,31 @@ module "lambda" {
 
   provisioned_concurrency = var.lambda_provisioned_concurrency
 
-  # VPC configuration (when database is enabled)
-  # Use private_subnet_ids if NAT gateway is enabled, otherwise use all default subnets
-  create_security_group = var.enable_database
-  vpc_id                = var.enable_database ? data.aws_vpc.default[0].id : null
-  subnet_ids            = var.enable_database ? (var.enable_nat_gateway ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
+  # VPC configuration (when Lambda VPC is enabled)
+  # Use private_subnet_ids if provided, otherwise use all default subnets
+  # Use prod_vpc_id if provided, otherwise use default VPC
+  create_security_group      = local.enable_lambda_vpc
+  vpc_id                     = local.lambda_vpc_id
+  subnet_ids                 = local.enable_lambda_vpc ? (length(var.private_subnet_ids) > 0 ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
+  security_group_name        = var.lambda_security_group_name_override
+  security_group_description = var.lambda_security_group_description_override
 
-  # Secrets Manager access (use ARN pattern to avoid circular dependency)
+  # Secrets Manager access
+  # - If database module enabled: use module-created secret pattern
+  # - If database_secret_arn provided: use explicit ARN (for prod with external Aurora)
   secrets_arns = var.enable_database ? [
     "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
-  ] : []
+  ] : (var.database_secret_arn != null ? [var.database_secret_arn] : [])
 
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Cognito access for user management (requires enable_cognito=true)
-  cognito_user_pool_arns = var.enable_cognito ? [module.cognito[0].user_pool_arn] : []
+  # Cognito access for user management
+  # - If cognito module enabled: use module-created pool ARN
+  # - If external ARN provided: use explicit ARN (for prod with external Cognito)
+  cognito_user_pool_arns = var.enable_cognito ? [module.cognito[0].user_pool_arn] : (
+    var.cognito_user_pool_arn_external != null ? [var.cognito_user_pool_arn_external] : []
+  )
 
   # Bedrock model access for AI-powered features
   # - Haiku: fast, cheap extraction for listing/order parsing
@@ -285,23 +295,29 @@ module "lambda" {
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
+  # Lambda invoke permissions (e.g., scraper Lambda)
+  lambda_invoke_arns = var.scraper_lambda_arn != null ? [var.scraper_lambda_arn] : []
+
   # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(
     {
       BMX_CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
-      BMX_IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
-      BMX_COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : ""
-      BMX_COGNITO_CLIENT_ID     = var.enable_cognito ? module.cognito[0].client_id : ""
+      BMX_IMAGES_CDN_URL        = coalesce(var.images_cdn_url_override, var.enable_cloudfront ? "https://${local.app_domain}/book-images" : "")
+      BMX_COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : coalesce(var.cognito_user_pool_id_external, "")
+      BMX_COGNITO_CLIENT_ID     = var.enable_cognito ? module.cognito[0].client_id : coalesce(var.cognito_client_id_external, "")
       BMX_IMAGES_BUCKET         = module.images_bucket.bucket_name
       BMX_API_KEY_HASH          = var.api_key_hash
       BMX_ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       BMX_MAINTENANCE_MODE      = var.maintenance_mode
-      BMX_ENVIRONMENT           = var.environment
+      BMX_ENVIRONMENT           = coalesce(var.environment_name_override, var.environment)
       # Analysis worker queue name (URL constructed at runtime)
       BMX_ANALYSIS_QUEUE_NAME = "${local.name_prefix}-analysis-jobs"
     },
     var.enable_database ? {
       BMX_DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+    } : {},
+    var.database_secret_arn != null ? {
+      BMX_DATABASE_SECRET_ARN = var.database_secret_arn
     } : {}
   )
 
@@ -351,7 +367,7 @@ module "db_sync_lambda" {
 # =============================================================================
 
 module "scraper_lambda" {
-  count  = var.enable_lambda ? 1 : 0
+  count  = local.scraper_enabled ? 1 : 0
   source = "./modules/scraper-lambda"
 
   name_prefix = local.name_prefix
@@ -450,6 +466,7 @@ module "analysis_worker" {
 # =============================================================================
 
 module "api_gateway" {
+  count  = var.enable_api_gateway ? 1 : 0
   source = "./modules/api-gateway"
 
   api_name = local.api_gateway_name
@@ -518,6 +535,10 @@ module "github_oidc" {
   cloudfront_distribution_arns = length(var.github_oidc_cloudfront_distribution_arns) > 0 ? var.github_oidc_cloudfront_distribution_arns : (
     var.enable_cloudfront ? [module.frontend_cdn[0].distribution_arn] : []
   )
+
+  # Terraform state access (cross-account for staging to read prod state)
+  terraform_state_bucket_arn         = var.terraform_state_bucket_arn
+  terraform_state_dynamodb_table_arn = var.terraform_state_dynamodb_table_arn
 
   tags = local.common_tags
 }

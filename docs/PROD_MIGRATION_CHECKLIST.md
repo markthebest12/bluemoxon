@@ -542,3 +542,44 @@ When adding new config values:
 1. Add to both `staging.json` and `production.json`
 2. Update workflow to read new value via `jq`
 3. Add to smoke tests if validation needed
+
+## Manual Infrastructure Changes (To Be Terraformized)
+
+This section tracks manual changes made to production infrastructure that need to be incorporated into Terraform.
+
+### Change #1: Fixed CloudFront Image URLs (2024-12-14)
+
+**Issue:** CloudFront was returning HTML error pages (HTTP 200, Content-Type: text/html) instead of actual images.
+
+**Root Cause:**
+- API was generating URLs like `https://d2yd5bvqaomg54.cloudfront.net/books/33_xxx.jpg`
+- CloudFront cache behavior only routes `/book-images/*` to images S3 bucket
+- Paths like `/books/*` fell through to default behavior (frontend bucket), returning `index.html`
+
+**Fix Applied:**
+Changed Lambda environment variable from:
+- `BMX_IMAGES_CDN_DOMAIN=d2yd5bvqaomg54.cloudfront.net`
+To:
+- `BMX_IMAGES_CDN_URL=https://app.bluemoxon.com/book-images`
+
+**AWS CLI Command:**
+```bash
+aws lambda update-function-configuration \
+  --function-name bluemoxon-api \
+  --profile prod \
+  --environment file://lambda-env.json
+```
+
+**Terraform Update:**
+Updated `infra/terraform/main.tf` line 292:
+```hcl
+# Before:
+BMX_IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+
+# After:
+BMX_IMAGES_CDN_URL = var.enable_cloudfront ? "https://${local.app_domain}/book-images" : ""
+```
+
+**Status:** Manual fix applied. Terraform change committed. Will be applied when Lambda is managed by Terraform.
+
+**GitHub Issue:** #294

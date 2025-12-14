@@ -170,6 +170,98 @@ All above changes need to be added to Terraform modules:
 | Private Subnets | `subnet-0ceb0276fa36428f2`, `subnet-09eeb023cb49a83d5`, `subnet-0bfb299044084bad3` |
 | Lambda Security Group | `sg-050fb5268bcd06443` |
 
+### 9. GitHub Actions OIDC Role - Cross-Account Terraform State Access
+
+**Problem**: GitHub Actions role cannot access Terraform state bucket in prod account for `terraform output` reading
+**Related**: PR #291 (auto-sync from Terraform), PR #292 (revert workaround), Issue #293
+
+**Root Cause**: Cross-account S3 access requires BOTH:
+- Resource-based policy (bucket policy on `bluemoxon-terraform-state`) ✅ DONE via prod admin
+- Identity-based policy (IAM policy on staging role) ❌ PENDING
+
+**Required IAM Policy** (needs IAM admin access):
+
+Add inline policy `terraform-state-access` to role `github-actions-deploy`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformStateAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bluemoxon-terraform-state",
+        "arn:aws:s3:::bluemoxon-terraform-state/*"
+      ]
+    },
+    {
+      "Sid": "DynamoDBLockAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-west-2:266672885920:table/bluemoxon-terraform-locks"
+    }
+  ]
+}
+```
+
+**Commands** (requires IAM admin):
+
+```bash
+# Create policy document
+cat > /tmp/terraform-state-policy.json <<'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformStateAccess",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::bluemoxon-terraform-state",
+        "arn:aws:s3:::bluemoxon-terraform-state/*"
+      ]
+    },
+    {
+      "Sid": "DynamoDBLockAccess",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+      "Resource": "arn:aws:dynamodb:us-west-2:266672885920:table/bluemoxon-terraform-locks"
+    }
+  ]
+}
+EOF
+
+# Apply to role
+AWS_PROFILE=staging aws iam put-role-policy \
+  --role-name github-actions-deploy \
+  --policy-name terraform-state-access \
+  --policy-document file:///tmp/terraform-state-policy.json
+```
+
+**Validation**:
+
+```bash
+# Test S3 access
+AWS_PROFILE=staging aws s3 ls s3://bluemoxon-terraform-state/bluemoxon/staging/
+
+# Test DynamoDB access (read lock table)
+AWS_PROFILE=staging aws dynamodb scan \
+  --table-name bluemoxon-terraform-locks \
+  --limit 1 \
+  --region us-west-2
+```
+
+**Alternative**: Enable github-oidc Terraform module and import existing role (requires IAM import permissions).
+
 ## Estimated Monthly Cost Impact
 
 | Resource | Cost |

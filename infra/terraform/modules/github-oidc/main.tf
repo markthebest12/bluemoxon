@@ -128,6 +128,33 @@ resource "aws_iam_role_policy" "deploy" {
           ]
           Resource = var.cloudfront_distribution_arns
         }
+      ] : [],
+      # Terraform state access (cross-account for staging/prod state reading)
+      var.terraform_state_bucket_arn != null ? [
+        {
+          Sid    = "TerraformStateAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ]
+          Resource = [
+            var.terraform_state_bucket_arn,
+            "${var.terraform_state_bucket_arn}/*"
+          ]
+        }
+      ] : [],
+      var.terraform_state_dynamodb_table_arn != null ? [
+        {
+          Sid    = "DynamoDBLockAccess"
+          Effect = "Allow"
+          Action = [
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:DeleteItem"
+          ]
+          Resource = var.terraform_state_dynamodb_table_arn
+        }
       ] : []
     )
   })
