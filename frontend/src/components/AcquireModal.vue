@@ -224,9 +224,19 @@ function handlePasteApply(data: any) {
                 />
               </div>
             </div>
-            <div v-if="selectedCurrency !== 'USD' && form.purchase_price" class="mt-1 text-sm text-gray-600">
+            <div
+              v-if="selectedCurrency !== 'USD' && form.purchase_price"
+              class="mt-1 text-sm text-gray-600"
+            >
               ≈ ${{ priceInUsd.toFixed(2) }} USD
-              <span class="text-gray-400">(rate: {{ selectedCurrency === 'GBP' ? exchangeRates.gbp_to_usd_rate : exchangeRates.eur_to_usd_rate }})</span>
+              <span class="text-gray-400"
+                >(rate:
+                {{
+                  selectedCurrency === "GBP"
+                    ? exchangeRates.gbp_to_usd_rate
+                    : exchangeRates.eur_to_usd_rate
+                }})</span
+              >
             </div>
             <p v-if="estimatedDiscount" class="mt-1 text-sm text-green-600">
               {{ estimatedDiscount }}% discount from FMV (${{ valueMid?.toFixed(2) }})
