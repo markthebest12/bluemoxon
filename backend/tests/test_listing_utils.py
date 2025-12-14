@@ -41,3 +41,26 @@ class TestEbayUrlParsing:
         assert is_valid_ebay_url("https://m.ebay.com/itm/123") is True
         assert is_valid_ebay_url("https://amazon.com/item/123") is False
         assert is_valid_ebay_url("not a url") is False
+
+    def test_ebay_us_short_url_validation(self):
+        """Test that ebay.us short URLs are recognized as valid."""
+        assert is_valid_ebay_url("https://ebay.us/m/9R8Zfd") is True
+        assert is_valid_ebay_url("https://www.ebay.us/m/9R8Zfd") is True
+        assert is_valid_ebay_url("https://ebay.us/") is False  # No path
+
+    @pytest.mark.skip(reason="Requires valid ebay.us short URL - test manually with fresh URL")
+    def test_ebay_us_short_url_normalization(self):
+        """Test that ebay.us short URLs resolve to canonical URLs.
+
+        This test makes a real HTTP request to follow the redirect.
+        Skipped by default since ebay.us short URLs can expire.
+        To test manually, find a fresh short URL and run:
+            pytest tests/test_listing_utils.py::TestEbayUrlParsing::test_ebay_us_short_url_normalization -v --runxfail
+        """
+        url = "https://ebay.us/m/9R8Zfd"
+        normalized, item_id = normalize_ebay_url(url)
+
+        # Should resolve to the canonical eBay URL
+        assert normalized.startswith("https://www.ebay.com/itm/")
+        assert item_id.isdigit()
+        assert len(item_id) > 5  # eBay item IDs are long numbers
