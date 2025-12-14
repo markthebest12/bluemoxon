@@ -150,9 +150,9 @@ class TestInvokeBedrockExtraction:
 
         invoke_bedrock_extraction("<html>test</html>")
 
-        # Verify Haiku model was used (fast, cheap extraction)
+        # Verify Sonnet 4.5 model was used (via cross-region inference profile)
         call_kwargs = mock_client.invoke_model.call_args[1]
-        assert "haiku" in call_kwargs["modelId"]
+        assert "sonnet" in call_kwargs["modelId"]
 
     @patch("app.services.listing.get_bedrock_client")
     def test_parses_json_response(self, mock_get_client):

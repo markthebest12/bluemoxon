@@ -272,8 +272,10 @@ def invoke_bedrock_extraction(html: str) -> dict:
     logger.info(f"Extracted {len(relevant_content)} chars from {len(html)} char HTML")
     prompt = EXTRACTION_PROMPT.format(listing_html=relevant_content)
 
+    # Use Sonnet 4.5 via cross-region inference profile
+    # (Haiku models require Marketplace subscription which is blocked at account level)
     response = client.invoke_model(
-        modelId="anthropic.claude-3-5-haiku-20241022-v1:0",
+        modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         contentType="application/json",
         accept="application/json",
         body=json.dumps(
