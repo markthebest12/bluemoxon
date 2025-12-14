@@ -90,3 +90,43 @@ variable "tags" {
   description = "Resource tags"
   default     = {}
 }
+
+# =============================================================================
+# Multi-Origin Support (Optional - for production's combined distribution)
+# =============================================================================
+
+variable "secondary_origin_bucket_domain_name" {
+  type        = string
+  description = "Regional domain name of secondary S3 bucket (optional, for multi-origin distributions)"
+  default     = null
+}
+
+variable "secondary_origin_bucket_name" {
+  type        = string
+  description = "Name of secondary S3 bucket origin (optional, for multi-origin distributions)"
+  default     = null
+}
+
+variable "secondary_origin_oac_id" {
+  type        = string
+  description = "OAC ID for secondary origin (optional, for multi-origin distributions with OAC)"
+  default     = null
+}
+
+variable "secondary_origin_path_pattern" {
+  type        = string
+  description = "Path pattern for secondary origin cache behavior (e.g., '/book-images/*')"
+  default     = null
+}
+
+variable "secondary_origin_ttl" {
+  type        = number
+  description = "TTL for secondary origin cache behavior in seconds"
+  default     = 604800 # 7 days
+}
+
+variable "cloudfront_function_arn" {
+  type        = string
+  description = "ARN of CloudFront function to attach to secondary origin (optional)"
+  default     = null
+}

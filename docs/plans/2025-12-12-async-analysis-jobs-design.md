@@ -152,7 +152,10 @@ const analysisJob = ref<{
 - **Automatic retries:** SQS retries failed jobs twice before DLQ
 - **Visibility:** Failed jobs land in DLQ for investigation
 - **Graceful degradation:** Frontend shows error and allows retry
+<<<<<<< HEAD
 - **Stale job detection:** Status endpoint auto-fails jobs stuck >15 minutes (handles Lambda crashes/timeouts)
+=======
+>>>>>>> 08cb3d3 (docs: Add async analysis jobs design for Bedrock timeout fix)
 
 ## Migration Path
 

@@ -139,6 +139,14 @@ function formatDate(dateStr?: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function formatDateRange(startDate?: string, endDate?: string): string {
+  if (!startDate) return "-";
+  const start = formatDate(startDate);
+  if (!endDate) return start;
+  const end = formatDate(endDate);
+  return `${start} - ${end}`;
+}
+
 async function handleMarkReceived(bookId: number) {
   await acquisitionsStore.markReceived(bookId);
 }
@@ -443,7 +451,8 @@ async function handleArchiveSource(bookId: number) {
               </div>
 
               <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
-                Due: {{ formatDate(book.estimated_delivery) }}
+                Est. Delivery:
+                {{ formatDateRange(book.estimated_delivery, book.estimated_delivery_end) }}
               </div>
 
               <!-- Tracking Info -->
