@@ -22,6 +22,10 @@ from app.schemas.book import (
     BookListResponse,
     BookResponse,
     BookUpdate,
+    DuplicateCheckRequest,
+    DuplicateCheckResponse,
+    DuplicateMatch,
+    TrackingRequest,
 )
 from app.services.archive import archive_url
 from app.services.bedrock import (
@@ -34,6 +38,7 @@ from app.services.bedrock import (
 from app.services.scoring import (
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
+    calculate_title_similarity,
     is_duplicate_title,
 )
 
@@ -375,6 +380,51 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     return BookResponse(**book_dict)
 
 
+@router.post("/check-duplicate", response_model=DuplicateCheckResponse)
+def check_duplicate(
+    request: DuplicateCheckRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Check for potential duplicate books before creating a new one.
+
+    Returns books with similar titles, optionally filtered by same author.
+    Uses token-based Jaccard similarity with 0.7 threshold.
+    """
+    similarity_threshold = 0.7
+
+    # Query existing books
+    query = db.query(Book)
+
+    # If author specified, check for same author
+    if request.author_id:
+        query = query.filter(Book.author_id == request.author_id)
+
+    existing_books = query.all()
+
+    matches = []
+    for book in existing_books:
+        similarity = calculate_title_similarity(request.title, book.title)
+        if similarity >= similarity_threshold:
+            matches.append(
+                DuplicateMatch(
+                    id=book.id,
+                    title=book.title,
+                    author_name=book.author.name if book.author else None,
+                    status=book.status,
+                    similarity_score=round(similarity, 2),
+                )
+            )
+
+    # Sort by similarity descending
+    matches.sort(key=lambda m: m.similarity_score, reverse=True)
+
+    return DuplicateCheckResponse(
+        has_duplicates=len(matches) > 0,
+        matches=matches[:10],  # Limit to top 10 matches
+    )
+
+
 @router.post("", response_model=BookResponse, status_code=201)
 def create_book(
     book_data: BookCreate,
@@ -513,14 +563,17 @@ def delete_book(
         raise HTTPException(status_code=500, detail=f"Failed to delete book: {str(e)}") from e
 
 
-@router.patch("/{book_id}/status")
+@router.patch("/{book_id}/status", response_model=BookResponse)
 def update_book_status(
     book_id: int,
     status: str = Query(...),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
-    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED)."""
+    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED).
+
+    Returns the full book object with relationships for frontend state updates.
+    """
     valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
     if status not in valid_statuses:
         raise HTTPException(
@@ -534,8 +587,14 @@ def update_book_status(
 
     book.status = status
     db.commit()
+    db.refresh(book)
 
-    return {"message": "Status updated", "status": status}
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    return BookResponse(**book_dict)
 
 
 @router.patch("/{book_id}/inventory-type")
@@ -655,6 +714,85 @@ def acquire_book(
     # Mark for archive if source_url exists and not already archived
     if book.source_url and not book.archive_status:
         book.archive_status = "pending"
+
+    db.commit()
+    db.refresh(book)
+
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
+
+
+@router.patch("/{book_id}/tracking", response_model=BookResponse)
+def add_tracking(
+    book_id: int,
+    tracking_data: TrackingRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Add shipment tracking to an IN_TRANSIT book.
+
+    Auto-detects carrier from tracking number format if not provided.
+    Generates tracking URL based on carrier.
+
+    Accepts either:
+    - tracking_number + optional tracking_carrier (URL auto-generated)
+    - tracking_url directly (for unsupported carriers)
+    """
+    from app.services.tracking import process_tracking
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.status != "IN_TRANSIT":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only add tracking to IN_TRANSIT books. Current status: {book.status}",
+        )
+
+    # Validate input: need either tracking_number or tracking_url
+    if not tracking_data.tracking_number and not tracking_data.tracking_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide either tracking_number or tracking_url",
+        )
+
+    try:
+        tracking_number, tracking_carrier, tracking_url = process_tracking(
+            tracking_data.tracking_number,
+            tracking_data.tracking_carrier,
+            tracking_data.tracking_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+
+    book.tracking_number = tracking_number
+    book.tracking_carrier = tracking_carrier
+    book.tracking_url = tracking_url
 
     db.commit()
     db.refresh(book)
