@@ -52,147 +52,57 @@ jobs:
     name: Configure Environment
     runs-on: ubuntu-latest
     outputs:
-      environment: ${{ steps.terraform.outputs.environment }}
-      lambda_function_name: ${{ steps.terraform.outputs.lambda_function_name }}
-      worker_function_name: ${{ steps.terraform.outputs.worker_function_name }}
-      s3_frontend_bucket: ${{ steps.terraform.outputs.s3_frontend_bucket }}
-      cloudfront_distribution_id: ${{ steps.terraform.outputs.cloudfront_distribution_id }}
-      api_url: ${{ steps.terraform.outputs.api_url }}
-      app_url: ${{ steps.terraform.outputs.app_url }}
-      cognito_user_pool_id: ${{ steps.terraform.outputs.cognito_user_pool_id }}
-      cognito_client_id: ${{ steps.terraform.outputs.cognito_client_id }}
-      cognito_domain: ${{ steps.terraform.outputs.cognito_domain }}
+      environment: ${{ steps.config.outputs.environment }}
+      lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
+      worker_function_name: ${{ steps.config.outputs.worker_function_name }}
+      s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
+      cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
+      api_url: ${{ steps.config.outputs.api_url }}
+      app_url: ${{ steps.config.outputs.app_url }}
+      cognito_user_pool_id: ${{ steps.config.outputs.cognito_user_pool_id }}
+      cognito_client_id: ${{ steps.config.outputs.cognito_client_id }}
+      cognito_domain: ${{ steps.config.outputs.cognito_domain }}
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.0"
-          terraform_wrapper: false  # Required for output parsing
+          sparse-checkout: |
+            infra/config
+          sparse-checkout-cone-mode: false
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ github.ref_name == 'main' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Initialize Terraform
-        working-directory: infra/terraform
+      - name: Load environment configuration
+        id: config
         run: |
-          # Determine environment based on branch
+          # Determine config file based on branch
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            ENV="production"
+            CONFIG_FILE="infra/config/production.json"
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
-            ENV="staging"
+            CONFIG_FILE="infra/config/staging.json"
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
           fi
 
-          echo "Initializing Terraform for environment: $ENV"
+          echo "Loading configuration from: $CONFIG_FILE"
+          cat "$CONFIG_FILE"
 
-          # Initialize with environment-specific backend
-          terraform init \
-            -backend-config="key=bluemoxon/${ENV}/terraform.tfstate" \
-            -input=false
+          # Read all values from config file (single source of truth)
+          echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_user_pool_id=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_client_id=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "cognito_domain=$(jq -r '.cognito.domain' $CONFIG_FILE)" >> $GITHUB_OUTPUT
 
-      - name: Read Terraform outputs
-        id: terraform
-        working-directory: infra/terraform
-        run: |
-          # Determine tfvars file based on branch
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            TFVARS_FILE="envs/production.tfvars"
+          # CloudFront distribution ID: use config file value, fall back to GitHub variable for staging
+          CF_DIST_ID=$(jq -r '.cloudfront.frontend_distribution_id' $CONFIG_FILE)
+          if [[ "$CF_DIST_ID" == *'${'* ]]; then
+            # Config has placeholder, use GitHub variable
+            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
           else
-            TFVARS_FILE="envs/staging.tfvars"
-          fi
-
-          echo "Reading Terraform outputs from state (using $TFVARS_FILE for context)"
-
-          # Read outputs from Terraform state
-          # Note: We use terraform output to read from state, not apply
-          # This ensures we deploy with the currently-deployed infrastructure values
-          echo "environment=$(terraform output -raw environment 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "lambda_function_name=$(terraform output -raw lambda_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "worker_function_name=$(terraform output -raw analysis_worker_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "s3_frontend_bucket=$(terraform output -raw frontend_bucket_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$(terraform output -raw frontend_cdn_distribution_id 2>/dev/null || echo '${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}')" >> $GITHUB_OUTPUT
-          echo "api_url=$(terraform output -raw api_url 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "app_url=$(terraform output -raw app_url 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "cognito_client_id=$(terraform output -raw cognito_client_id 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "cognito_domain=$(terraform output -raw cognito_domain 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-
-      - name: Validate configuration
-        run: |
-          # Determine config file based on branch
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            CONFIG_FILE="infra/config/production.json"
-          else
-            CONFIG_FILE="infra/config/staging.json"
-          fi
-
-          echo "Validating Terraform outputs against static config: $CONFIG_FILE"
-          echo ""
-
-          # Read values from both sources
-          TF_COGNITO_POOL="${{ steps.terraform.outputs.cognito_user_pool_id }}"
-          TF_COGNITO_CLIENT="${{ steps.terraform.outputs.cognito_client_id }}"
-          TF_LAMBDA="${{ steps.terraform.outputs.lambda_function_name }}"
-          TF_BUCKET="${{ steps.terraform.outputs.s3_frontend_bucket }}"
-
-          CFG_COGNITO_POOL=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)
-          CFG_COGNITO_CLIENT=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)
-          CFG_LAMBDA=$(jq -r '.lambda.function_name' $CONFIG_FILE)
-          CFG_BUCKET=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)
-
-          # Compare and warn on mismatches
-          MISMATCH=0
-
-          if [[ "$TF_COGNITO_POOL" != "$CFG_COGNITO_POOL" && -n "$TF_COGNITO_POOL" ]]; then
-            echo "⚠️  WARNING: Cognito pool ID mismatch"
-            echo "   Terraform: $TF_COGNITO_POOL"
-            echo "   Config:    $CFG_COGNITO_POOL"
-            echo "   → Using Terraform value (source of truth)"
-            echo ""
-            MISMATCH=1
-          fi
-
-          if [[ "$TF_COGNITO_CLIENT" != "$CFG_COGNITO_CLIENT" && -n "$TF_COGNITO_CLIENT" ]]; then
-            echo "⚠️  WARNING: Cognito client ID mismatch"
-            echo "   Terraform: $TF_COGNITO_CLIENT"
-            echo "   Config:    $CFG_COGNITO_CLIENT"
-            echo "   → Using Terraform value (source of truth)"
-            echo ""
-            MISMATCH=1
-          fi
-
-          if [[ "$TF_LAMBDA" != "$CFG_LAMBDA" && -n "$TF_LAMBDA" ]]; then
-            echo "⚠️  WARNING: Lambda function name mismatch"
-            echo "   Terraform: $TF_LAMBDA"
-            echo "   Config:    $CFG_LAMBDA"
-            echo "   → Using Terraform value (source of truth)"
-            echo ""
-            MISMATCH=1
-          fi
-
-          if [[ "$TF_BUCKET" != "$CFG_BUCKET" && -n "$TF_BUCKET" ]]; then
-            echo "⚠️  WARNING: S3 bucket name mismatch"
-            echo "   Terraform: $TF_BUCKET"
-            echo "   Config:    $CFG_BUCKET"
-            echo "   → Using Terraform value (source of truth)"
-            echo ""
-            MISMATCH=1
-          fi
-
-          if [[ $MISMATCH -eq 1 ]]; then
-            echo "⚠️  Configuration drift detected!"
-            echo "   Static config file should be updated to match Terraform state."
-            echo "   See issue #287 for context."
-            echo ""
-          else
-            echo "✅ Configuration validation passed - no drift detected"
+            echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
           fi
 
   # ============================================
