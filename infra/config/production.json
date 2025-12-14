@@ -22,7 +22,6 @@
 
   "lambda": {
     "function_name": "bluemoxon-api",
-    "worker_function_name": "bluemoxon-analysis-worker",
     "memory_size": 512,
     "timeout": 30,
     "provisioned_concurrency": 1
