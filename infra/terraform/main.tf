@@ -287,10 +287,10 @@ module "lambda" {
   )
 
   # Bedrock model access for AI-powered features
-  # - Haiku: fast, cheap extraction for listing/order parsing
+  # - Haiku 3.5: fast, cheap extraction for listing/order parsing
   # - Sonnet/Opus: complex analysis generation
   bedrock_model_ids = [
-    "anthropic.claude-3-haiku-20240307-v1:0",
+    "anthropic.claude-3-5-haiku-20241022-v1:0",
     "anthropic.claude-sonnet-4-5-20250929-v1:0",
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
