@@ -209,6 +209,51 @@ This ensures dependency updates are tested in staging before reaching production
 - ❌ Skipping staging "because it's a small change"
 - ❌ Manual dependency updates bypassing staging
 
+### CRITICAL: Deferred Work Must Have GitHub Issues
+
+**When work is deferred, ALWAYS create a GitHub issue immediately.** Don't leave deferred items buried in PR comments or issue threads.
+
+**Required for deferred work:**
+```bash
+gh issue create --title "feat/fix: [Description] (Phase X of #NNN)" --body "$(cat <<'EOF'
+## Background
+Deferred from #NNN ([original issue title]). See original issue for full context.
+
+## Problem
+[What's not working or missing]
+
+## Root Cause (if known)
+[Technical details from investigation]
+
+## Solution
+[Proposed fix]
+
+## Files to Modify
+- `path/to/file.py` - [what needs to change]
+
+## Related
+- Parent: #NNN
+- Depends on: #XXX (if any)
+EOF
+)"
+```
+
+**Why this matters:**
+- Deferred work in comments gets lost
+- Future sessions need issue numbers to find context
+- Enables proper prioritization and sprint planning
+- Creates audit trail of technical debt
+
+**Anti-patterns (DO NOT DO):**
+- ❌ "Phases 3-5 can be done later" (in PR comment)
+- ❌ "Future work: add X" (in code comment)
+- ❌ "TODO: fix this properly" (without issue link)
+
+**Correct pattern:**
+- ✅ Close current issue with "Phases 1-2 complete, see #276, #277, #278 for remaining work"
+- ✅ Each deferred phase gets its own trackable issue
+- ✅ Issues reference parent for context breadcrumbs
+
 ### CRITICAL: Merge Conflict Resolution
 
 **After resolving ANY merge conflict, ALWAYS verify no duplicate code was introduced.**
