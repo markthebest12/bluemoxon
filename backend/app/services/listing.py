@@ -57,17 +57,30 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
         try:
             import httpx
 
-            # Follow redirects to get final URL
-            with httpx.Client(follow_redirects=True, timeout=10.0) as client:
+            # Follow redirects to get final URL (limit redirects to catch loops)
+            with httpx.Client(follow_redirects=True, timeout=10.0, max_redirects=10) as client:
                 response = client.head(url)
                 final_url = str(response.url)
                 logger.info(f"Resolved ebay.us short URL: {url} -> {final_url}")
+
+            # Check if eBay returned an error page (expired/invalid short URL)
+            if "/n/error" in final_url or "page_not_responding" in final_url:
+                raise ValueError(
+                    "Short URL has expired or is invalid. Please use the full eBay listing URL."
+                )
 
             # Extract item_id from final URL
             match = EBAY_ITEM_PATTERN.search(final_url)
             if not match:
                 raise ValueError(f"Could not extract item ID from redirected URL: {final_url}")
             item_id = match.group(1)
+        except httpx.TooManyRedirects:
+            logger.error(f"Too many redirects for ebay.us short URL {url}")
+            raise ValueError(
+                "Short URL has expired or is invalid. Please use the full eBay listing URL."
+            ) from None
+        except ValueError:
+            raise
         except Exception as e:
             logger.error(f"Failed to resolve ebay.us short URL {url}: {e}")
             raise ValueError(f"Failed to resolve short URL: {e}") from e

@@ -64,3 +64,37 @@ class TestEbayUrlParsing:
         assert normalized.startswith("https://www.ebay.com/itm/")
         assert item_id.isdigit()
         assert len(item_id) > 5  # eBay item IDs are long numbers
+
+    def test_ebay_us_expired_url_error_message(self):
+        """Test that expired ebay.us URLs give a clear error message."""
+        from unittest.mock import MagicMock, patch
+
+        # Mock httpx to simulate an expired URL redirect to error page
+        mock_response = MagicMock()
+        mock_response.url = "https://www.ebay.com/n/error?statuscode=500"
+
+        with patch("httpx.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_instance.head.return_value = mock_response
+            mock_client.return_value = mock_instance
+
+            with pytest.raises(ValueError, match="Short URL has expired or is invalid"):
+                normalize_ebay_url("https://ebay.us/m/expired123")
+
+    def test_ebay_us_too_many_redirects_error(self):
+        """Test that redirect loops give a clear error message."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        with patch("httpx.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_instance.head.side_effect = httpx.TooManyRedirects("Too many redirects")
+            mock_client.return_value = mock_instance
+
+            with pytest.raises(ValueError, match="Short URL has expired or is invalid"):
+                normalize_ebay_url("https://ebay.us/m/looping123")
