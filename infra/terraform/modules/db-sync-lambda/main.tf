@@ -59,9 +59,9 @@ resource "aws_iam_role_policy" "secrets" {
   })
 }
 
-# Cognito access for user mapping (only if pool ID is provided)
+# Cognito access for user mapping (controlled by enable_cognito_access to avoid count dependency issues)
 resource "aws_iam_role_policy" "cognito" {
-  count = var.cognito_user_pool_id != "" ? 1 : 0
+  count = var.enable_cognito_access ? 1 : 0
   name  = "cognito-access"
   role  = aws_iam_role.this.id
 
