@@ -28,6 +28,7 @@ const error = ref<string | null>(null);
 const editMode = ref(false);
 const showDeleteConfirm = ref(false);
 const showPreview = ref(true);
+const showMobileMenu = ref(false);
 
 // Generate controls
 const selectedModel = ref<"sonnet" | "opus">("sonnet");
@@ -56,6 +57,7 @@ watch(
       // Reset edit mode when closing
       editMode.value = false;
       showDeleteConfirm.value = false;
+      showMobileMenu.value = false;
     }
   }
 );
@@ -214,19 +216,21 @@ function handleKeydown(e: KeyboardEvent) {
           ]"
         >
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b bg-victorian-cream">
-            <h2 class="text-xl font-semibold text-gray-800">
+          <div
+            class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b bg-victorian-cream"
+          >
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-800 truncate mr-2">
               {{ editMode ? "Edit Analysis" : "Book Analysis" }}
             </h2>
-            <div class="flex items-center gap-2">
-              <!-- Edit mode controls -->
+            <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <!-- Edit mode controls - hidden on mobile except save/cancel -->
               <template v-if="canEdit && !loading">
                 <template v-if="editMode">
-                  <!-- Preview toggle -->
+                  <!-- Preview toggle - hidden on mobile -->
                   <button
                     @click="showPreview = !showPreview"
                     :class="[
-                      'px-3 py-1.5 text-sm rounded flex items-center gap-1',
+                      'hidden sm:flex px-3 py-1.5 text-sm rounded items-center gap-1',
                       showPreview
                         ? 'bg-gray-200 text-gray-700'
                         : 'text-gray-500 hover:text-gray-700',
@@ -252,14 +256,14 @@ function handleKeydown(e: KeyboardEvent) {
                   <button
                     @click="cancelEditing"
                     :disabled="saving"
-                    class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                    class="px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     @click="saveAnalysis"
                     :disabled="saving"
-                    class="px-3 py-1.5 text-sm bg-victorian-burgundy text-white rounded hover:bg-victorian-burgundy/90 disabled:opacity-50 flex items-center gap-1"
+                    class="px-2 sm:px-3 py-1.5 text-sm bg-victorian-burgundy text-white rounded hover:bg-victorian-burgundy/90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle
@@ -280,8 +284,8 @@ function handleKeydown(e: KeyboardEvent) {
                   </button>
                 </template>
                 <template v-else>
-                  <!-- Generate controls (admin only, when not in edit mode) -->
-                  <div class="flex items-center gap-2">
+                  <!-- Generate controls (admin only, when not in edit mode) - hidden on mobile -->
+                  <div class="hidden sm:flex items-center gap-2">
                     <select
                       v-model="selectedModel"
                       class="text-sm border border-gray-300 rounded px-2 py-1"
@@ -319,7 +323,7 @@ function handleKeydown(e: KeyboardEvent) {
                   </div>
                   <button
                     @click="startEditing"
-                    class="px-3 py-1.5 text-sm text-victorian-burgundy hover:text-victorian-burgundy/80 flex items-center gap-1"
+                    class="hidden sm:flex px-3 py-1.5 text-sm text-victorian-burgundy hover:text-victorian-burgundy/80 items-center gap-1"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -331,11 +335,11 @@ function handleKeydown(e: KeyboardEvent) {
                     </svg>
                     Edit
                   </button>
-                  <!-- Delete button (only if analysis exists) -->
+                  <!-- Delete button (only if analysis exists) - hidden on mobile -->
                   <button
                     v-if="analysis"
                     @click="showDeleteConfirm = true"
-                    class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+                    class="hidden sm:flex px-3 py-1.5 text-sm text-red-600 hover:text-red-700 items-center gap-1"
                     title="Delete analysis"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,9 +351,96 @@ function handleKeydown(e: KeyboardEvent) {
                       />
                     </svg>
                   </button>
+                  <!-- Mobile actions menu (3-dot menu) - visible only on mobile -->
+                  <div class="relative sm:hidden">
+                    <button
+                      @click="showMobileMenu = !showMobileMenu"
+                      class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                      title="More actions"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+                    <!-- Dropdown menu -->
+                    <div
+                      v-if="showMobileMenu"
+                      class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-20"
+                    >
+                      <button
+                        @click="
+                          startEditing();
+                          showMobileMenu = false;
+                        "
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                        Edit
+                      </button>
+                      <button
+                        @click="
+                          generateAnalysis();
+                          showMobileMenu = false;
+                        "
+                        :disabled="generating"
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          />
+                        </svg>
+                        {{ analysis ? "Regenerate" : "Generate" }}
+                      </button>
+                      <button
+                        v-if="analysis"
+                        @click="
+                          showDeleteConfirm = true;
+                          showMobileMenu = false;
+                        "
+                        class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                    <!-- Backdrop to close menu -->
+                    <div
+                      v-if="showMobileMenu"
+                      class="fixed inset-0 z-10"
+                      @click="showMobileMenu = false"
+                    />
+                  </div>
                 </template>
               </template>
-              <button @click="emit('close')" class="text-gray-500 hover:text-gray-700 ml-2">
+              <!-- Close button - always visible and prominent -->
+              <button
+                @click="emit('close')"
+                class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors ml-1 sm:ml-2"
+                title="Close"
+              >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"

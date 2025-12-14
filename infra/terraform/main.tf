@@ -88,9 +88,12 @@ module "frontend_cdn" {
 
   s3_bucket_name        = module.frontend_bucket.bucket_name
   s3_bucket_domain_name = module.frontend_bucket.bucket_regional_domain_name
+  s3_bucket_arn         = module.frontend_bucket.bucket_arn
   domain_aliases        = var.frontend_acm_cert_arn != null ? [local.app_domain] : []
   acm_certificate_arn   = var.frontend_acm_cert_arn
+  origin_access_type    = var.cloudfront_origin_access_type
   oai_comment           = "OAI for ${local.frontend_bucket_name}"
+  oac_name              = "${local.frontend_bucket_name}-oac"
   comment               = "BlueMoxon Frontend - ${var.environment}"
 
   tags = local.common_tags
@@ -102,10 +105,13 @@ module "images_cdn" {
 
   s3_bucket_name        = module.images_bucket.bucket_name
   s3_bucket_domain_name = module.images_bucket.bucket_regional_domain_name
+  s3_bucket_arn         = module.images_bucket.bucket_arn
   domain_aliases        = []
   acm_certificate_arn   = null
   default_root_object   = ""
+  origin_access_type    = var.cloudfront_origin_access_type
   oai_comment           = "OAI for ${local.images_bucket_name}"
+  oac_name              = "${local.images_bucket_name}-oac"
   comment               = "BlueMoxon Images CDN - ${var.environment}"
   default_ttl           = 604800  # 7 days for images
   max_ttl               = 2592000 # 30 days
@@ -235,6 +241,7 @@ module "lambda" {
   source = "./modules/lambda"
 
   function_name    = local.lambda_function_name
+  iam_role_name    = var.lambda_iam_role_name_override
   environment      = var.environment
   package_path     = var.lambda_package_path
   source_code_hash = var.lambda_source_code_hash

@@ -85,6 +85,17 @@ variable "enable_cloudfront" {
   default     = true
 }
 
+variable "cloudfront_origin_access_type" {
+  type        = string
+  description = "Type of S3 origin access for CloudFront: 'oai' (legacy Origin Access Identity) or 'oac' (modern Origin Access Control)"
+  default     = "oai"
+
+  validation {
+    condition     = contains(["oai", "oac"], var.cloudfront_origin_access_type)
+    error_message = "cloudfront_origin_access_type must be 'oai' or 'oac'"
+  }
+}
+
 variable "enable_cognito" {
   type        = bool
   description = "Enable Cognito user pool management (set false for prod where Cognito is managed externally)"
@@ -301,6 +312,12 @@ variable "images_bucket_name_override" {
 variable "lambda_function_name_override" {
   type        = string
   description = "Override Lambda function name (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "lambda_iam_role_name_override" {
+  type        = string
+  description = "Override Lambda IAM role name (for legacy resources with different naming pattern)"
   default     = null
 }
 

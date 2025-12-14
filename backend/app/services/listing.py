@@ -13,7 +13,7 @@ from app.services.bedrock import get_bedrock_client
 
 logger = logging.getLogger(__name__)
 
-EBAY_HOSTS = {"ebay.com", "www.ebay.com", "m.ebay.com"}
+EBAY_HOSTS = {"ebay.com", "www.ebay.com", "m.ebay.com", "ebay.us", "www.ebay.us"}
 EBAY_ITEM_PATTERN = re.compile(r"/itm/(?:[^/]+/)?(\d+)")
 
 
@@ -24,6 +24,13 @@ def is_valid_ebay_url(url: str) -> bool:
         host = parsed.netloc.lower()
         if host not in EBAY_HOSTS:
             return False
+
+        # ebay.us short URLs don't have /itm/ pattern - they redirect to full URLs
+        if "ebay.us" in host:
+            # Accept any ebay.us URL with a path (e.g., /m/9R8Zfd)
+            return bool(parsed.path and len(parsed.path) > 1)
+
+        # Standard eBay URLs must have /itm/ pattern
         return bool(EBAY_ITEM_PATTERN.search(parsed.path))
     except Exception:
         return False
@@ -31,6 +38,8 @@ def is_valid_ebay_url(url: str) -> bool:
 
 def normalize_ebay_url(url: str) -> tuple[str, str]:
     """Normalize eBay URL and extract item ID.
+
+    For ebay.us short URLs, follows the redirect to get the canonical URL.
 
     Returns:
         Tuple of (normalized_url, item_id)
@@ -42,8 +51,50 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
         raise ValueError("Invalid eBay URL")
 
     parsed = urlparse(url)
-    match = EBAY_ITEM_PATTERN.search(parsed.path)
-    item_id = match.group(1)
+
+    # Handle ebay.us short URLs - follow redirect to get real item ID
+    if "ebay.us" in parsed.netloc.lower():
+        try:
+            import httpx
+
+            # Follow redirects to get final URL
+            # NOTE: Must use GET not HEAD - eBay short URLs don't handle HEAD properly
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            with httpx.Client(
+                follow_redirects=True, timeout=15.0, max_redirects=10, headers=headers
+            ) as client:
+                response = client.get(url)
+                final_url = str(response.url)
+                logger.info(f"Resolved ebay.us short URL: {url} -> {final_url}")
+
+            # Check if eBay returned an error page (expired/invalid short URL)
+            if "/n/error" in final_url or "page_not_responding" in final_url:
+                raise ValueError(
+                    "Short URL has expired or is invalid. Please use the full eBay listing URL."
+                )
+
+            # Extract item_id from final URL
+            match = EBAY_ITEM_PATTERN.search(final_url)
+            if not match:
+                raise ValueError(f"Could not extract item ID from redirected URL: {final_url}")
+            item_id = match.group(1)
+        except httpx.TooManyRedirects:
+            logger.error(f"Too many redirects for ebay.us short URL {url}")
+            raise ValueError(
+                "Short URL has expired or is invalid. Please use the full eBay listing URL."
+            ) from None
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to resolve ebay.us short URL {url}: {e}")
+            raise ValueError(f"Failed to resolve short URL: {e}") from e
+    else:
+        # Standard eBay URL - extract item_id directly
+        match = EBAY_ITEM_PATTERN.search(parsed.path)
+        item_id = match.group(1)
 
     # Build canonical URL
     normalized = f"https://www.ebay.com/itm/{item_id}"

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from typing import Literal
+from urllib.parse import urlparse
 
 import boto3
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,6 +37,19 @@ IMAGES_BUCKET = os.environ.get("IMAGES_BUCKET", "")
 
 # Lambda function name pattern
 SCRAPER_FUNCTION_NAME = "bluemoxon-{environment}-scraper"
+
+
+def is_ebay_short_url(url: str) -> bool:
+    """Check if URL is an ebay.us short URL that needs scraper-based resolution.
+
+    These URLs can't be resolved via httpx from Lambda (timeout issues),
+    so we let the scraper Lambda handle the redirect via Playwright.
+    """
+    try:
+        parsed = urlparse(url)
+        return "ebay.us" in parsed.netloc.lower()
+    except Exception:
+        return False
 
 
 class ExtractRequest(BaseModel):
@@ -89,8 +103,18 @@ def extract_listing(
     if not is_valid_ebay_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid eBay URL")
 
-    # Normalize URL and extract item ID
-    normalized_url, item_id = normalize_ebay_url(request.url)
+    # For ebay.us short URLs, skip normalize_ebay_url (times out from Lambda VPC)
+    # and let the scraper handle the redirect via Playwright
+    if is_ebay_short_url(request.url):
+        logger.info(f"Short URL detected, letting scraper handle redirect: {request.url}")
+        normalized_url = None  # Will be set from scraper result
+        item_id = None
+    else:
+        # Normalize URL and extract item ID (can raise ValueError for expired short URLs)
+        try:
+            normalized_url, item_id = normalize_ebay_url(request.url)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     try:
         # Scrape and extract
@@ -104,6 +128,14 @@ def extract_listing(
     except ValueError as e:
         logger.error(f"Extraction error: {e}")
         raise HTTPException(status_code=422, detail=f"Failed to extract listing data: {e}") from e
+
+    # For short URLs, get the item_id from scraper result and build normalized URL
+    scraper_item_id = result.get("item_id", "")
+    if not normalized_url and scraper_item_id:
+        item_id = scraper_item_id
+        normalized_url = f"https://www.ebay.com/itm/{item_id}"
+    elif not normalized_url:
+        raise HTTPException(status_code=422, detail="Could not extract item ID from short URL")
 
     listing_data = result["listing_data"]
 
@@ -183,8 +215,20 @@ def extract_listing_async(
     if not is_valid_ebay_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid eBay URL")
 
-    # Normalize URL and extract item ID
-    normalized_url, item_id = normalize_ebay_url(request.url)
+    # Short URLs not supported for async extraction (can't get item_id without scraping)
+    # Use the sync /extract endpoint instead
+    if is_ebay_short_url(request.url):
+        raise HTTPException(
+            status_code=400,
+            detail="Short URLs (ebay.us) are not supported for async extraction. "
+            "Please use the /extract endpoint instead.",
+        )
+
+    # Normalize URL and extract item ID (can raise ValueError for expired short URLs)
+    try:
+        normalized_url, item_id = normalize_ebay_url(request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Check if already scraped (images exist in S3)
     s3 = boto3.client("s3")
