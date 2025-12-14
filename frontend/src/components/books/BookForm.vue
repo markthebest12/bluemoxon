@@ -43,6 +43,18 @@ const form = ref({
 const saving = ref(false);
 const errorMessage = ref("");
 
+// Duplicate detection
+interface DuplicateMatch {
+  id: number;
+  title: string;
+  author_name: string | null;
+  status: string;
+  similarity_score: number;
+}
+const showDuplicateWarning = ref(false);
+const duplicateMatches = ref<DuplicateMatch[]>([]);
+const skipDuplicateCheck = ref(false);
+
 // Category options
 const categories = [
   "Victorian Poetry",
@@ -99,38 +111,58 @@ function populateForm(book: Book) {
   };
 }
 
+function prepareFormData() {
+  // Prepare data - only include non-empty values
+  const data: any = {
+    title: form.value.title,
+    volumes: form.value.volumes,
+    inventory_type: form.value.inventory_type,
+    status: form.value.status,
+  };
+
+  // Optional fields
+  if (form.value.author_id) data.author_id = form.value.author_id;
+  if (form.value.publisher_id) data.publisher_id = form.value.publisher_id;
+  if (form.value.binder_id) data.binder_id = form.value.binder_id;
+  if (form.value.publication_date) data.publication_date = form.value.publication_date;
+  if (form.value.edition) data.edition = form.value.edition;
+  if (form.value.category) data.category = form.value.category;
+  if (form.value.binding_type) data.binding_type = form.value.binding_type;
+  if (form.value.binding_description) data.binding_description = form.value.binding_description;
+  if (form.value.condition_grade) data.condition_grade = form.value.condition_grade;
+  if (form.value.condition_notes) data.condition_notes = form.value.condition_notes;
+  if (form.value.value_low !== null) data.value_low = form.value.value_low;
+  if (form.value.value_mid !== null) data.value_mid = form.value.value_mid;
+  if (form.value.value_high !== null) data.value_high = form.value.value_high;
+  if (form.value.purchase_price !== null) data.purchase_price = form.value.purchase_price;
+  if (form.value.purchase_date) data.purchase_date = form.value.purchase_date;
+  if (form.value.purchase_source) data.purchase_source = form.value.purchase_source;
+  if (form.value.notes) data.notes = form.value.notes;
+  if (form.value.provenance) data.provenance = form.value.provenance;
+
+  return data;
+}
+
 async function handleSubmit() {
   saving.value = true;
   errorMessage.value = "";
 
   try {
-    // Prepare data - only include non-empty values
-    const data: any = {
-      title: form.value.title,
-      volumes: form.value.volumes,
-      inventory_type: form.value.inventory_type,
-      status: form.value.status,
-    };
+    const data = prepareFormData();
 
-    // Optional fields
-    if (form.value.author_id) data.author_id = form.value.author_id;
-    if (form.value.publisher_id) data.publisher_id = form.value.publisher_id;
-    if (form.value.binder_id) data.binder_id = form.value.binder_id;
-    if (form.value.publication_date) data.publication_date = form.value.publication_date;
-    if (form.value.edition) data.edition = form.value.edition;
-    if (form.value.category) data.category = form.value.category;
-    if (form.value.binding_type) data.binding_type = form.value.binding_type;
-    if (form.value.binding_description) data.binding_description = form.value.binding_description;
-    if (form.value.condition_grade) data.condition_grade = form.value.condition_grade;
-    if (form.value.condition_notes) data.condition_notes = form.value.condition_notes;
-    if (form.value.value_low !== null) data.value_low = form.value.value_low;
-    if (form.value.value_mid !== null) data.value_mid = form.value.value_mid;
-    if (form.value.value_high !== null) data.value_high = form.value.value_high;
-    if (form.value.purchase_price !== null) data.purchase_price = form.value.purchase_price;
-    if (form.value.purchase_date) data.purchase_date = form.value.purchase_date;
-    if (form.value.purchase_source) data.purchase_source = form.value.purchase_source;
-    if (form.value.notes) data.notes = form.value.notes;
-    if (form.value.provenance) data.provenance = form.value.provenance;
+    // Check for duplicates when creating new books (not editing)
+    if (!isEditing.value && !skipDuplicateCheck.value) {
+      const duplicateCheck = await booksStore.checkDuplicate(
+        form.value.title,
+        form.value.author_id
+      );
+      if (duplicateCheck.has_duplicates) {
+        duplicateMatches.value = duplicateCheck.matches;
+        showDuplicateWarning.value = true;
+        saving.value = false;
+        return;
+      }
+    }
 
     let result;
     if (isEditing.value && props.bookId) {
@@ -145,7 +177,19 @@ async function handleSubmit() {
     errorMessage.value = e.response?.data?.detail || e.message || "Failed to save book";
   } finally {
     saving.value = false;
+    skipDuplicateCheck.value = false;
   }
+}
+
+function confirmCreateDuplicate() {
+  showDuplicateWarning.value = false;
+  skipDuplicateCheck.value = true;
+  handleSubmit();
+}
+
+function cancelDuplicateWarning() {
+  showDuplicateWarning.value = false;
+  duplicateMatches.value = [];
 }
 
 function cancel() {
@@ -427,5 +471,77 @@ function cancel() {
         {{ saving ? "Saving..." : isEditing ? "Update Book" : "Create Book" }}
       </button>
     </div>
+
+    <!-- Duplicate Warning Dialog -->
+    <Teleport to="body">
+      <div
+        v-if="showDuplicateWarning"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="cancelDuplicateWarning"
+      >
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+          <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-amber-600 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              Potential Duplicate Found
+            </h3>
+          </div>
+          <div class="p-4">
+            <p class="text-gray-700 mb-4">
+              Similar books already exist in your collection. Are you sure you want to create
+              another entry?
+            </p>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <div
+                v-for="match in duplicateMatches"
+                :key="match.id"
+                class="p-3 bg-gray-50 rounded-lg border border-gray-200"
+              >
+                <div class="font-medium text-gray-900">{{ match.title }}</div>
+                <div class="text-sm text-gray-600 flex gap-4">
+                  <span v-if="match.author_name">{{ match.author_name }}</span>
+                  <span
+                    class="px-2 py-0.5 text-xs rounded"
+                    :class="{
+                      'bg-green-100 text-green-800': match.status === 'ON_HAND',
+                      'bg-blue-100 text-blue-800': match.status === 'IN_TRANSIT',
+                      'bg-yellow-100 text-yellow-800': match.status === 'EVALUATING',
+                      'bg-gray-100 text-gray-800': match.status === 'SOLD',
+                    }"
+                  >
+                    {{ match.status }}
+                  </span>
+                  <span class="text-gray-400"
+                    >{{ Math.round(match.similarity_score * 100) }}% match</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-3 justify-end">
+            <button
+              type="button"
+              @click="cancelDuplicateWarning"
+              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="confirmCreateDuplicate"
+              class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            >
+              Create Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </form>
 </template>

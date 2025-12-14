@@ -159,6 +159,36 @@ def normalize_title(title: str) -> str:
     return normalized
 
 
+def calculate_title_similarity(title1: str, title2: str) -> float:
+    """
+    Calculate similarity between two titles using token-based Jaccard similarity.
+
+    Args:
+        title1: First title
+        title2: Second title
+
+    Returns:
+        Similarity score between 0 and 1
+    """
+    norm1 = normalize_title(title1)
+    norm2 = normalize_title(title2)
+
+    # Exact match after normalization
+    if norm1 == norm2:
+        return 1.0
+
+    # Token-based similarity (Jaccard)
+    tokens1 = set(norm1.split())
+    tokens2 = set(norm2.split())
+
+    if not tokens1 or not tokens2:
+        return 0.0
+
+    intersection = len(tokens1 & tokens2)
+    union = len(tokens1 | tokens2)
+    return intersection / union
+
+
 def is_duplicate_title(title1: str, title2: str, threshold: float = 0.8) -> bool:
     """
     Check if two titles are duplicates using token-based similarity.
@@ -171,25 +201,7 @@ def is_duplicate_title(title1: str, title2: str, threshold: float = 0.8) -> bool
     Returns:
         True if similarity >= threshold
     """
-    norm1 = normalize_title(title1)
-    norm2 = normalize_title(title2)
-
-    # Exact match after normalization
-    if norm1 == norm2:
-        return True
-
-    # Token-based similarity (Jaccard)
-    tokens1 = set(norm1.split())
-    tokens2 = set(norm2.split())
-
-    if not tokens1 or not tokens2:
-        return False
-
-    intersection = len(tokens1 & tokens2)
-    union = len(tokens1 | tokens2)
-    similarity = intersection / union
-
-    return similarity >= threshold
+    return calculate_title_similarity(title1, title2) >= threshold
 
 
 def calculate_collection_impact(
