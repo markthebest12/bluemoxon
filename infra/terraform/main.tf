@@ -285,22 +285,23 @@ module "lambda" {
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
-  # Environment variables (secret ARN set after database_secret is created)
+  # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(
     {
-      CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
-      IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
-      COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : ""
-      COGNITO_APP_CLIENT_ID = var.enable_cognito ? module.cognito[0].client_id : ""
-      IMAGES_BUCKET         = module.images_bucket.bucket_name
-      API_KEY_HASH          = var.api_key_hash
-      ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
-      MAINTENANCE_MODE      = var.maintenance_mode
+      BMX_CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
+      BMX_IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      BMX_COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : ""
+      BMX_COGNITO_CLIENT_ID     = var.enable_cognito ? module.cognito[0].client_id : ""
+      BMX_IMAGES_BUCKET         = module.images_bucket.bucket_name
+      BMX_API_KEY_HASH          = var.api_key_hash
+      BMX_ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
+      BMX_MAINTENANCE_MODE      = var.maintenance_mode
+      BMX_ENVIRONMENT           = var.environment
       # Analysis worker queue name (URL constructed at runtime)
-      ANALYSIS_QUEUE_NAME = "${local.name_prefix}-analysis-jobs"
+      BMX_ANALYSIS_QUEUE_NAME = "${local.name_prefix}-analysis-jobs"
     },
     var.enable_database ? {
-      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+      BMX_DATABASE_SECRET_NAME = "${local.name_prefix}/database"
     } : {}
   )
 
@@ -330,7 +331,8 @@ module "db_sync_lambda" {
   ]
 
   # Cognito pool for user mapping after DB sync
-  cognito_user_pool_id = module.cognito[0].user_pool_id
+  cognito_user_pool_id  = module.cognito[0].user_pool_id
+  enable_cognito_access = var.enable_cognito
 
   environment_variables = {
     PROD_SECRET_ARN      = var.prod_database_secret_arn
