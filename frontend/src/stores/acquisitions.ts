@@ -98,6 +98,8 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
             status: "EVALUATING",
             inventory_type: "PRIMARY",
             per_page: 100,
+            sort_by: "updated_at",
+            sort_order: "desc",
           },
         }),
         api.get("/books", {
@@ -105,6 +107,8 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
             status: "IN_TRANSIT",
             inventory_type: "PRIMARY",
             per_page: 100,
+            sort_by: "updated_at",
+            sort_order: "desc",
           },
         }),
         api.get("/books", {
@@ -112,7 +116,7 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
             status: "ON_HAND",
             inventory_type: "PRIMARY",
             per_page: 50,
-            sort_by: "purchase_date",
+            sort_by: "updated_at",
             sort_order: "desc",
           },
         }),
