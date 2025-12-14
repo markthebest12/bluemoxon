@@ -385,7 +385,6 @@ MIGRATION_K3456789IJKL_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS estimated_delivery_end DATE",
 ]
 
-
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",

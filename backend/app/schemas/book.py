@@ -54,6 +54,11 @@ class BookBase(BaseModel):
     tracking_carrier: str | None = None
     tracking_url: str | None = None
 
+    # Shipment tracking
+    tracking_number: str | None = None
+    tracking_carrier: str | None = None
+    tracking_url: str | None = None
+
     # Archive tracking
     source_archived_url: str | None = None
     archive_status: str | None = None  # pending, success, failed
