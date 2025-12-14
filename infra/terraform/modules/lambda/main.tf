@@ -11,12 +11,12 @@
 resource "aws_security_group" "lambda" {
   count = var.create_security_group && var.vpc_id != null ? 1 : 0
 
-  name        = "${var.function_name}-sg"
-  description = "Security group for Lambda function ${var.function_name}"
+  name        = coalesce(var.security_group_name, "${var.function_name}-sg")
+  description = coalesce(var.security_group_description, "Security group for Lambda function ${var.function_name}")
   vpc_id      = var.vpc_id
 
   tags = merge(var.tags, {
-    Name = "${var.function_name}-sg"
+    Name = coalesce(var.security_group_name, "${var.function_name}-sg")
   })
 }
 
@@ -222,6 +222,24 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = [for model_id in var.bedrock_model_ids : "arn:aws:bedrock:*::foundation-model/${model_id}"]
+      }
+    ]
+  })
+}
+
+# Lambda invoke access (e.g., for invoking scraper Lambda)
+resource "aws_iam_role_policy" "lambda_invoke" {
+  count = length(var.lambda_invoke_arns) > 0 ? 1 : 0
+  name  = "lambda-invoke"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = var.lambda_invoke_arns
       }
     ]
   })

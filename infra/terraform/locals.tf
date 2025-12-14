@@ -45,17 +45,33 @@ locals {
   # Environment-specific settings
   is_prod = var.environment == "prod"
 
+  # Lambda VPC enabled - defaults to enable_database if not explicitly set
+  # Allows prod to have Lambda in VPC without managing RDS via Terraform
+  enable_lambda_vpc = coalesce(var.enable_lambda_vpc, var.enable_database)
+
+  # VPC ID for Lambda - use override if provided (prod has dedicated VPC)
+  # Default: uses data.aws_vpc.default[0].id
+  # Prod override: vpc-023f4b1dc7c2c4296 (bluemoxon-vpc)
+  lambda_vpc_id = local.enable_lambda_vpc ? coalesce(var.prod_vpc_id, try(data.aws_vpc.default[0].id, null)) : null
+
   # Analysis worker enabled - defaults to enable_lambda if not explicitly set
   # Allows enabling analysis worker when main Lambda is managed externally
   analysis_worker_enabled = coalesce(var.enable_analysis_worker, var.enable_lambda)
 
-  # Lambda role name for SQS permissions - use external if Lambda disabled
+  # Scraper Lambda enabled - defaults to enable_lambda if not explicitly set
+  # Allows disabling scraper when using existing scraper (prod uses bluemoxon-production-scraper)
+  scraper_enabled = coalesce(var.enable_scraper, var.enable_lambda)
+
+  # Lambda role name for SQS permissions
+  # Uses override when provided (required for import workflow), falls back to module output
+  # For external Lambda, uses external_lambda_role_name
   api_lambda_role_name = var.enable_lambda ? (
-    length(module.lambda) > 0 ? module.lambda[0].role_name : null
+    coalesce(var.lambda_iam_role_name_override, try(module.lambda[0].role_name, null))
   ) : var.external_lambda_role_name
 
-  # Security group for worker VPC config - use external if Lambda disabled
+  # Security group for worker VPC config
+  # Uses external SG when provided (required for import workflow), falls back to module output
   lambda_security_group_id = var.enable_lambda ? (
-    length(module.lambda) > 0 ? module.lambda[0].security_group_id : null
+    coalesce(var.external_lambda_security_group_id, try(module.lambda[0].security_group_id, null))
   ) : var.external_lambda_security_group_id
 }

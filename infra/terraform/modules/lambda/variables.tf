@@ -4,6 +4,12 @@ variable "bedrock_model_ids" {
   default     = []
 }
 
+variable "lambda_invoke_arns" {
+  type        = list(string)
+  description = "Lambda function ARNs this function can invoke (e.g., for scraper invocation)"
+  default     = []
+}
+
 variable "cognito_user_pool_arns" {
   type        = list(string)
   description = "Cognito user pool ARNs the Lambda function can access for admin operations"
@@ -85,10 +91,22 @@ variable "secrets_arns" {
   default     = []
 }
 
+variable "security_group_description" {
+  type        = string
+  description = "Override security group description (default: 'Security group for Lambda function {function_name}')"
+  default     = null
+}
+
 variable "security_group_ids" {
   type        = list(string)
   description = "Additional security group IDs for Lambda VPC configuration"
   default     = []
+}
+
+variable "security_group_name" {
+  type        = string
+  description = "Override security group name (default: {function_name}-sg). Use for importing existing Lambda with different SG naming."
+  default     = null
 }
 
 variable "source_code_hash" {

@@ -67,6 +67,12 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "database_secret_arn" {
+  type        = string
+  description = "Explicit database secret ARN (for prod where database is managed externally)"
+  default     = null
+}
+
 variable "db_username" {
   type        = string
   description = "Database master username"
@@ -114,6 +120,12 @@ variable "enable_lambda" {
   default     = true
 }
 
+variable "enable_lambda_vpc" {
+  type        = bool
+  description = "Enable Lambda VPC configuration (for database connectivity). Defaults to enable_database if not set."
+  default     = null
+}
+
 variable "lambda_function_name_external" {
   type        = string
   description = "External Lambda function name (used when enable_lambda=false)"
@@ -124,6 +136,18 @@ variable "lambda_invoke_arn_external" {
   type        = string
   description = "External Lambda invoke ARN (used when enable_lambda=false)"
   default     = null
+}
+
+variable "scraper_lambda_arn" {
+  type        = string
+  description = "ARN of scraper Lambda function that API Lambda can invoke"
+  default     = null
+}
+
+variable "enable_scraper" {
+  type        = bool
+  description = "Enable scraper Lambda module (container-based Playwright scraper). Set false when using existing scraper."
+  default     = null # Defaults to enable_lambda value when null
 }
 
 variable "enable_analysis_worker" {
@@ -164,6 +188,12 @@ variable "environment" {
     condition     = contains(["staging", "prod"], var.environment)
     error_message = "Environment must be 'staging' or 'prod'."
   }
+}
+
+variable "environment_name_override" {
+  type        = string
+  description = "Override for BMX_ENVIRONMENT env var (e.g., 'production' instead of 'prod' for scraper function naming)"
+  default     = null
 }
 
 variable "lambda_memory_size" {
@@ -233,6 +263,12 @@ variable "private_subnet_ids" {
   default     = []
 }
 
+variable "prod_vpc_id" {
+  type        = string
+  description = "VPC ID for prod Lambda (overrides default VPC lookup). Use when prod has dedicated VPC."
+  default     = null
+}
+
 variable "prod_database_secret_arn" {
   type        = string
   description = "ARN of the production database secret (for staging sync Lambda)"
@@ -285,9 +321,21 @@ variable "cloudfront_function_arn" {
   default     = null
 }
 
+variable "images_cdn_url_override" {
+  type        = string
+  description = "Explicit images CDN URL (used when enable_cloudfront=false, e.g., https://app.bluemoxon.com/book-images)"
+  default     = null
+}
+
 # =============================================================================
 # GitHub OIDC Variables
 # =============================================================================
+
+variable "enable_api_gateway" {
+  type        = bool
+  description = "Enable API Gateway management (set false for prod where API Gateway is managed externally)"
+  default     = true
+}
 
 variable "enable_github_oidc" {
   type        = bool
@@ -361,6 +409,18 @@ variable "lambda_iam_role_name_override" {
   default     = null
 }
 
+variable "lambda_security_group_description_override" {
+  type        = string
+  description = "Override Lambda security group description (for legacy resources with different naming pattern)"
+  default     = null
+}
+
+variable "lambda_security_group_name_override" {
+  type        = string
+  description = "Override Lambda security group name (for legacy resources with different naming pattern)"
+  default     = null
+}
+
 variable "api_gateway_name_override" {
   type        = string
   description = "Override API Gateway name (for legacy resources without env suffix)"
@@ -376,6 +436,24 @@ variable "cognito_user_pool_name_override" {
 variable "cognito_domain_override" {
   type        = string
   description = "Override Cognito domain prefix (for legacy resources without env suffix)"
+  default     = null
+}
+
+variable "cognito_user_pool_id_external" {
+  type        = string
+  description = "External Cognito user pool ID (used when enable_cognito=false)"
+  default     = null
+}
+
+variable "cognito_client_id_external" {
+  type        = string
+  description = "External Cognito client ID (used when enable_cognito=false)"
+  default     = null
+}
+
+variable "cognito_user_pool_arn_external" {
+  type        = string
+  description = "External Cognito user pool ARN for Lambda IAM permissions (used when enable_cognito=false)"
   default     = null
 }
 

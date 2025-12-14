@@ -25,7 +25,7 @@ output "cognito_client_id" {
 
 output "cognito_domain" {
   description = "Cognito domain (full auth domain)"
-  value       = var.enable_cognito && module.cognito[0].domain != null ? "${module.cognito[0].domain}.auth.${data.aws_region.current.name}.amazoncognito.com" : null
+  value       = var.enable_cognito ? (module.cognito[0].domain != null ? "${module.cognito[0].domain}.auth.${data.aws_region.current.name}.amazoncognito.com" : null) : null
 }
 
 output "cognito_user_pool_id" {
@@ -88,17 +88,17 @@ output "lambda_invoke_arn" {
 }
 
 # =============================================================================
-# API Gateway Outputs
+# API Gateway Outputs (when enabled)
 # =============================================================================
 
 output "api_gateway_endpoint" {
   description = "API Gateway endpoint URL"
-  value       = module.api_gateway.api_endpoint
+  value       = var.enable_api_gateway ? module.api_gateway[0].api_endpoint : null
 }
 
 output "api_gateway_id" {
   description = "API Gateway ID"
-  value       = module.api_gateway.api_id
+  value       = var.enable_api_gateway ? module.api_gateway[0].api_id : null
 }
 
 # =============================================================================

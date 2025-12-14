@@ -13,8 +13,8 @@ app_subdomain = "app"
 
 # Lambda - production sizing with warm starts
 lambda_memory_size             = 512
-lambda_timeout                 = 30
-lambda_provisioned_concurrency = 1 # Keep 1 instance warm to avoid cold starts
+lambda_timeout                 = 600 # Preserve existing prod setting (analysis generation can be slow)
+lambda_provisioned_concurrency = 0   # Disabled - AWS account limit is 10 (see #295 to re-enable)
 
 # Database - production sizing
 db_instance_class    = "db.t3.small"
@@ -26,17 +26,18 @@ db_allocated_storage = 50
 # with the Terraform modules. They are managed externally.
 #
 # CloudFront: Uses OAC (Origin Access Control), module uses OAI
-# Lambda: Different IAM role structure, VPC config, env var names
-# Database: Lambda VPC config depends on database module
-# VPC: Lambda references VPC resources
+# Database: Aurora Serverless managed externally (different module needed)
 # Cognito: Existing pool with production users, managed externally
 enable_cloudfront         = false
 enable_cognito            = false
-enable_lambda             = false
+enable_lambda             = true  # Lambda imported into Terraform (#225 Phase 3)
+enable_lambda_vpc         = true  # Lambda needs VPC for Aurora connectivity
+enable_api_gateway        = false # API Gateway managed externally (import in future phase)
 enable_database           = false
 enable_nat_gateway        = false
 enable_waf                = true
-skip_s3_cloudfront_policy = true # Prod uses OAC (not OAI) - bucket policy managed externally
+enable_scraper            = false # Existing scraper (bluemoxon-production-scraper) managed externally
+skip_s3_cloudfront_policy = true  # Prod uses OAC (not OAI) - bucket policy managed externally
 
 # =============================================================================
 # Analysis Worker Configuration
@@ -45,23 +46,50 @@ skip_s3_cloudfront_policy = true # Prod uses OAC (not OAI) - bucket policy manag
 # for async Bedrock analysis generation.
 enable_analysis_worker = true
 
-# External Lambda references (used when enable_lambda=false)
-external_lambda_role_name         = "bluemoxon-lambda-role"
-external_lambda_security_group_id = "sg-0ae3f0f22c08e0c62"
+# Lambda VPC configuration (for Aurora connectivity)
+# These are NOT used for external_lambda (which is disabled) but for VPC config
+# Security group will be created by the module
 
 # VPC configuration for analysis worker (same subnets as main Lambda)
+prod_vpc_id = "vpc-023f4b1dc7c2c4296" # bluemoxon-vpc (dedicated VPC, not default)
 private_subnet_ids = [
   "subnet-026cb4a2cf0464f88", # us-west-2a - 10.0.11.0/24
   "subnet-0ffc724f850e0a438"  # us-west-2b - 10.0.12.0/24
 ]
 
+# External Lambda security group (needed during import before Lambda module exists)
+external_lambda_security_group_id = "sg-0ae3f0f22c08e0c62"
+
+# Security group name/description overrides (preserve existing names during import)
+lambda_security_group_name_override        = "bluemoxon-lambda-sg"
+lambda_security_group_description_override = "Security group for BlueMoxon Lambda"
+
 # ACM Certificates
 api_acm_cert_arn      = "arn:aws:acm:us-west-2:266672885920:certificate/85f33a7f-bd9e-4e60-befe-95cffea5cf9a"
 frontend_acm_cert_arn = "arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861"
 
-# External Lambda configuration (managed outside Terraform)
-lambda_function_name_external = "bluemoxon-api"
-lambda_invoke_arn_external    = "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-api/invocations"
+# =============================================================================
+# External Resources (managed outside Terraform)
+# =============================================================================
+# These provide configuration for resources that are not managed by Terraform modules
+# but need to be referenced by the Lambda function.
+
+# Database secret (Aurora cluster credentials - not managed by Terraform)
+database_secret_arn = "arn:aws:secretsmanager:us-west-2:266672885920:secret:bluemoxon/db-credentials-Firmtl"
+
+# Cognito user pool (existing pool - not managed by Terraform)
+cognito_user_pool_id_external  = "us-west-2_PvdIpXVKF"
+cognito_client_id_external     = "3ndaok3psd2ncqfjrdb57825he"
+cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:userpool/us-west-2_PvdIpXVKF"
+
+# Scraper Lambda (for eBay listing scraping)
+scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-production-scraper"
+
+# Images CDN URL (CloudFront managed externally)
+images_cdn_url_override = "https://app.bluemoxon.com/book-images"
+
+# Environment name override (prod uses "production" for scraper function naming)
+environment_name_override = "production"
 
 # Cognito settings - preserve existing prod configuration
 cognito_mfa_configuration        = "OPTIONAL"
@@ -121,6 +149,7 @@ EOT
 frontend_bucket_name_override   = "bluemoxon-frontend"
 images_bucket_name_override     = "bluemoxon-images"
 lambda_function_name_override   = "bluemoxon-api"
+lambda_iam_role_name_override   = "bluemoxon-lambda-role"
 api_gateway_name_override       = "bluemoxon-api"
 cognito_user_pool_name_override = "bluemoxon-users"
 cognito_domain_override         = "bluemoxon"
