@@ -163,6 +163,52 @@ git tag -a v1.0.0 -m "Release description"
 git push origin v1.0.0
 ```
 
+### Deploy Configuration (Terraform-based)
+
+**Deploy configuration is auto-synced from Terraform outputs** - no manual updates needed.
+
+The deploy workflow reads configuration values directly from Terraform state instead of static config files:
+
+```yaml
+# .github/workflows/deploy.yml configure job:
+1. Initialize Terraform with environment-specific backend
+2. Read outputs from Terraform state (terraform output -raw)
+3. Validate against static config files (warns on drift)
+4. Use Terraform values for deployment
+```
+
+**Key outputs read from Terraform:**
+- `environment` - staging or production
+- `lambda_function_name` - Main API Lambda
+- `analysis_worker_function_name` - Async analysis worker Lambda
+- `frontend_bucket_name` - S3 bucket for frontend
+- `frontend_cdn_distribution_id` - CloudFront distribution ID
+- `cognito_user_pool_id` - Cognito user pool
+- `cognito_client_id` - Cognito app client
+- `cognito_domain` - Full Cognito auth domain
+- `api_url` - Full API URL with /api/v1 prefix
+- `app_url` - Full app URL
+
+**Static config files remain for:**
+- Documentation/reference
+- Local development context
+- Quick lookups without Terraform
+
+**Validation:**
+The deploy workflow compares Terraform outputs against `infra/config/{environment}.json` and warns if drift is detected, but continues deployment using Terraform values as the source of truth.
+
+**Benefits:**
+- Eliminates manual config updates after Terraform changes
+- Prevents deployment failures from stale config (e.g., #280, #287)
+- Terraform state is single source of truth
+- Config drift is automatically detected and logged
+
+**When adding new infrastructure:**
+1. Add resource to Terraform
+2. Export values via `infra/terraform/outputs.tf`
+3. Update deploy workflow to read the new output
+4. Update static config files for documentation (optional)
+
 ## CRITICAL: Staging-First Workflow
 
 **ALL changes MUST go through staging before production.** This is mandatory for:
