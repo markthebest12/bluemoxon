@@ -28,6 +28,8 @@ const form = ref<AcquirePayload>({
   order_number: "",
   place_of_purchase: "eBay",
   estimated_delivery: undefined,
+  tracking_number: undefined,
+  tracking_carrier: undefined,
 });
 
 const submitting = ref(false);
@@ -288,6 +290,42 @@ function handlePasteApply(data: any) {
               type="date"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+
+          <!-- Tracking Number (Optional) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Tracking Number (Optional)
+            </label>
+            <input
+              v-model="form.tracking_number"
+              type="text"
+              placeholder="e.g., 1Z999AA10123456784"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Carrier will be auto-detected. Add tracking now or later.
+            </p>
+          </div>
+
+          <!-- Carrier Override (Optional) -->
+          <div v-if="form.tracking_number">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Carrier (Optional Override)
+            </label>
+            <select
+              v-model="form.tracking_carrier"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Auto-detect</option>
+              <option value="USPS">USPS</option>
+              <option value="UPS">UPS</option>
+              <option value="FedEx">FedEx</option>
+              <option value="DHL">DHL</option>
+              <option value="Royal Mail">Royal Mail</option>
+              <option value="Parcelforce">Parcelforce</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Override if auto-detection fails</p>
           </div>
 
           <!-- Footer Buttons -->

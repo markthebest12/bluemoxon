@@ -85,3 +85,17 @@ output "origin_access_type" {
   description = "The type of origin access being used (oai or oac)"
   value       = var.origin_access_type
 }
+
+# -----------------------------------------------------------------------------
+# Secondary OAC Outputs (for multi-origin distributions)
+# -----------------------------------------------------------------------------
+
+output "secondary_oac_id" {
+  description = "ID of the secondary Origin Access Control (null if not using multi-origin)"
+  value       = length(aws_cloudfront_origin_access_control.secondary) > 0 ? aws_cloudfront_origin_access_control.secondary[0].id : null
+}
+
+output "secondary_oac_etag" {
+  description = "ETag of the secondary Origin Access Control (null if not using multi-origin)"
+  value       = length(aws_cloudfront_origin_access_control.secondary) > 0 ? aws_cloudfront_origin_access_control.secondary[0].etag : null
+}

@@ -661,6 +661,28 @@ def acquire_book(
     if acquire_data.estimated_delivery:
         book.estimated_delivery = acquire_data.estimated_delivery
 
+    # Process tracking information if provided
+    if acquire_data.tracking_number or acquire_data.tracking_url:
+        from datetime import date as date_module
+
+        from app.services.tracking import process_tracking
+
+        try:
+            tracking_number, tracking_carrier, tracking_url = process_tracking(
+                acquire_data.tracking_number,
+                acquire_data.tracking_carrier,
+                acquire_data.tracking_url,
+            )
+            book.tracking_number = tracking_number
+            book.tracking_carrier = tracking_carrier
+            book.tracking_url = tracking_url
+
+            # Set ship_date to today when tracking is added
+            book.ship_date = date_module.today()
+        except ValueError as e:
+            # If tracking processing fails, log but don't fail the acquisition
+            logger.warning(f"Failed to process tracking for book {book_id}: {e}")
+
     # Store order number in notes (or create order_number field later)
     if book.notes:
         book.notes = f"Order: {acquire_data.order_number}\n{book.notes}"
@@ -710,10 +732,6 @@ def acquire_book(
             ),
         },
     }
-
-    # Mark for archive if source_url exists and not already archived
-    if book.source_url and not book.archive_status:
-        book.archive_status = "pending"
 
     db.commit()
     db.refresh(book)

@@ -41,6 +41,13 @@ class BookBase(BaseModel):
 
     # Delivery tracking
     estimated_delivery: date | None = None
+    estimated_delivery_end: date | None = None
+
+    # Shipment tracking
+    tracking_number: str | None = None
+    tracking_carrier: str | None = None
+    tracking_url: str | None = None
+    ship_date: date | None = None
 
     # Shipment tracking
     tracking_number: str | None = None
@@ -169,6 +176,9 @@ class AcquireRequest(BaseModel):
     order_number: str
     place_of_purchase: str
     estimated_delivery: date | None = None
+    tracking_number: str | None = None
+    tracking_carrier: str | None = None
+    tracking_url: str | None = None
 
 
 class ScoringSnapshot(BaseModel):
