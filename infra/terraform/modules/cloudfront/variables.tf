@@ -98,6 +98,46 @@ variable "tags" {
 }
 
 # =============================================================================
+# Cache and Policy Settings
+# =============================================================================
+
+variable "cache_policy_id" {
+  type        = string
+  description = "Cache policy ID (managed policy). When set, TTL values and forwarded_values are ignored."
+  default     = null
+}
+
+variable "error_caching_min_ttl" {
+  type        = number
+  description = "Minimum TTL for caching error responses"
+  default     = 300
+}
+
+variable "http_version" {
+  type        = string
+  description = "HTTP version for CloudFront (http1.1, http2, http2and3, http3)"
+  default     = "http2"
+}
+
+variable "logging_bucket" {
+  type        = string
+  description = "S3 bucket for access logs (e.g., 'bucket-name.s3.amazonaws.com')"
+  default     = null
+}
+
+variable "logging_prefix" {
+  type        = string
+  description = "Prefix for access log files"
+  default     = "cloudfront/"
+}
+
+variable "response_headers_policy_id" {
+  type        = string
+  description = "Response headers policy ID (managed policy)"
+  default     = null
+}
+
+# =============================================================================
 # Multi-Origin Support (Optional - for production's combined distribution)
 # =============================================================================
 
@@ -129,4 +169,22 @@ variable "secondary_origin_ttl" {
   type        = number
   description = "TTL for secondary origin cache behavior in seconds"
   default     = 604800 # 7 days
+}
+
+variable "secondary_origin_oac_name" {
+  type        = string
+  description = "Name for secondary origin OAC (optional, defaults to bucket-name-oac)"
+  default     = null
+}
+
+variable "secondary_origin_oac_description" {
+  type        = string
+  description = "Description for secondary origin OAC"
+  default     = "OAC for secondary S3 bucket access"
+}
+
+variable "secondary_origin_function_arn" {
+  type        = string
+  description = "ARN of CloudFront function for secondary origin viewer-request (e.g., path prefix stripping)"
+  default     = null
 }

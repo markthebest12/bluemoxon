@@ -95,14 +95,23 @@ module "frontend_cdn" {
   origin_access_type    = var.cloudfront_origin_access_type
   oai_comment           = "OAI for ${local.frontend_bucket_name}"
   oac_name              = "${local.frontend_bucket_name}-oac"
-  comment               = "BlueMoxon Frontend - ${var.environment}"
+  comment               = var.cloudfront_multi_origin_enabled ? "BlueMoxon Frontend Distribution" : "BlueMoxon Frontend - ${var.environment}"
+
+  # HTTP version and cache policies
+  http_version               = var.cloudfront_http_version
+  cache_policy_id            = var.cloudfront_cache_policy_id
+  response_headers_policy_id = var.cloudfront_response_headers_policy_id
+
+  # Access logging (prod only)
+  logging_bucket = var.cloudfront_logging_bucket
+  logging_prefix = var.cloudfront_logging_prefix
 
   # Multi-origin support (production uses this for images)
   secondary_origin_bucket_name        = var.cloudfront_multi_origin_enabled ? module.images_bucket.bucket_name : null
   secondary_origin_bucket_domain_name = var.cloudfront_multi_origin_enabled ? module.images_bucket.bucket_regional_domain_name : null
   secondary_origin_path_pattern       = var.cloudfront_multi_origin_enabled ? var.cloudfront_images_path_pattern : null
-  secondary_origin_oac_id             = var.cloudfront_multi_origin_enabled && var.cloudfront_images_oac_id != null ? var.cloudfront_images_oac_id : null
-  cloudfront_function_arn             = var.cloudfront_function_arn
+  secondary_origin_oac_name           = var.cloudfront_multi_origin_enabled ? "${module.images_bucket.bucket_name}-oac" : null
+  secondary_origin_function_arn       = var.cloudfront_multi_origin_enabled ? var.cloudfront_function_arn : null
 
   tags = local.common_tags
 }
@@ -446,7 +455,8 @@ module "analysis_worker" {
   # Environment variables
   environment_variables = merge(
     {
-      IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      # When multi-origin enabled, images are served via frontend_cdn at /book-images/*
+      IMAGES_CDN_DOMAIN = var.enable_cloudfront ? (var.cloudfront_multi_origin_enabled ? module.frontend_cdn[0].distribution_domain_name : module.images_cdn[0].distribution_domain_name) : ""
       IMAGES_BUCKET     = module.images_bucket.bucket_name
     },
     var.enable_database ? {

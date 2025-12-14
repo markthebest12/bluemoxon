@@ -321,6 +321,36 @@ variable "cloudfront_function_arn" {
   default     = null
 }
 
+variable "cloudfront_http_version" {
+  type        = string
+  description = "HTTP version for CloudFront (http1.1, http2, http2and3, http3)"
+  default     = "http2"
+}
+
+variable "cloudfront_cache_policy_id" {
+  type        = string
+  description = "CloudFront managed cache policy ID (e.g., '658327ea-f89d-4fab-a63d-7e88639e58f6' for CachingOptimized)"
+  default     = null
+}
+
+variable "cloudfront_response_headers_policy_id" {
+  type        = string
+  description = "CloudFront response headers policy ID"
+  default     = null
+}
+
+variable "cloudfront_logging_bucket" {
+  type        = string
+  description = "S3 bucket for CloudFront access logs (e.g., 'bucket-name.s3.amazonaws.com')"
+  default     = null
+}
+
+variable "cloudfront_logging_prefix" {
+  type        = string
+  description = "Prefix for CloudFront access log files"
+  default     = "cloudfront/"
+}
+
 variable "images_cdn_url_override" {
   type        = string
   description = "Explicit images CDN URL (used when enable_cloudfront=false, e.g., https://app.bluemoxon.com/book-images)"

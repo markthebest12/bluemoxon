@@ -59,13 +59,13 @@ output "images_bucket_name" {
 }
 
 output "images_cdn_distribution_id" {
-  description = "Images CloudFront distribution ID"
-  value       = var.enable_cloudfront ? module.images_cdn[0].distribution_id : null
+  description = "Images CloudFront distribution ID (null when using multi-origin frontend_cdn)"
+  value       = var.enable_cloudfront && !var.cloudfront_multi_origin_enabled ? module.images_cdn[0].distribution_id : null
 }
 
 output "images_cdn_domain" {
-  description = "Images CloudFront domain"
-  value       = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : null
+  description = "Images CloudFront domain (null when using multi-origin frontend_cdn)"
+  value       = var.enable_cloudfront && !var.cloudfront_multi_origin_enabled ? module.images_cdn[0].distribution_domain_name : null
 }
 
 # =============================================================================

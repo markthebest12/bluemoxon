@@ -25,10 +25,10 @@ db_allocated_storage = 50
 # Several resources have architectural differences that make them incompatible
 # with the Terraform modules. They are managed externally.
 #
-# CloudFront: Uses OAC (Origin Access Control), module uses OAI
+# CloudFront: Imported into Terraform with OAC support (#227)
 # Database: Aurora Serverless managed externally (different module needed)
 # Cognito: Existing pool with production users, managed externally
-enable_cloudfront         = false
+enable_cloudfront         = true # CloudFront imported into Terraform (#227)
 enable_cognito            = false
 enable_lambda             = true  # Lambda imported into Terraform (#225 Phase 3)
 enable_lambda_vpc         = true  # Lambda needs VPC for Aurora connectivity
@@ -38,6 +38,20 @@ enable_nat_gateway        = false
 enable_waf                = true
 enable_scraper            = false # Existing scraper (bluemoxon-production-scraper) managed externally
 skip_s3_cloudfront_policy = true  # Prod uses OAC (not OAI) - bucket policy managed externally
+
+# =============================================================================
+# CloudFront Configuration (imported from existing distribution)
+# =============================================================================
+# Production CloudFront uses multi-origin with OAC for frontend + images
+cloudfront_origin_access_type         = "oac"
+cloudfront_multi_origin_enabled       = true
+cloudfront_images_path_pattern        = "/book-images/*"
+cloudfront_http_version               = "http2and3"
+cloudfront_cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+cloudfront_response_headers_policy_id = "08eb24a0-dae8-4e4b-a6a4-c35f5f582154"
+cloudfront_function_arn               = "arn:aws:cloudfront::266672885920:function/bluemoxon-strip-prefix"
+cloudfront_logging_bucket             = "bluemoxon-logs.s3.amazonaws.com"
+cloudfront_logging_prefix             = "cloudfront/"
 
 # =============================================================================
 # Analysis Worker Configuration
