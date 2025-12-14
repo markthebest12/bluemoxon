@@ -263,11 +263,11 @@ module "lambda" {
   # VPC configuration (when Lambda VPC is enabled)
   # Use private_subnet_ids if provided, otherwise use all default subnets
   # Use prod_vpc_id if provided, otherwise use default VPC
-  create_security_group          = local.enable_lambda_vpc
-  vpc_id                         = local.lambda_vpc_id
-  subnet_ids                     = local.enable_lambda_vpc ? (length(var.private_subnet_ids) > 0 ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
-  security_group_name            = var.lambda_security_group_name_override
-  security_group_description     = var.lambda_security_group_description_override
+  create_security_group      = local.enable_lambda_vpc
+  vpc_id                     = local.lambda_vpc_id
+  subnet_ids                 = local.enable_lambda_vpc ? (length(var.private_subnet_ids) > 0 ? var.private_subnet_ids : data.aws_subnets.default[0].ids) : []
+  security_group_name        = var.lambda_security_group_name_override
+  security_group_description = var.lambda_security_group_description_override
 
   # Secrets Manager access
   # - If database module enabled: use module-created secret pattern
