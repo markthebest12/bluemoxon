@@ -1182,16 +1182,16 @@ def update_book_analysis(
                 book.value_high = new_high
                 values_changed = True
 
-    # Recalculate scores if values or binder changed
-    if values_changed or binder_updated:
-        _calculate_and_persist_scores(book, db)
+    # Always recalculate scores when analysis is created/updated
+    # Analysis content affects scoring (condition, market data, comparables)
+    _calculate_and_persist_scores(book, db)
 
     db.commit()
     return {
         "message": "Analysis updated",
         "values_updated": values_changed,
         "binder_updated": binder_updated,
-        "scores_recalculated": values_changed or binder_updated,
+        "scores_recalculated": True,
     }
 
 
@@ -1244,6 +1244,9 @@ def reparse_book_analysis(
     book.analysis.market_analysis = parsed.market_analysis
     book.analysis.recommendations = parsed.recommendations
 
+    # Recalculate scores when analysis is reparsed
+    _calculate_and_persist_scores(book, db)
+
     db.commit()
     return {
         "message": "Analysis re-parsed",
@@ -1254,6 +1257,7 @@ def reparse_book_analysis(
             "market_analysis": parsed.market_analysis is not None,
             "recommendations": parsed.recommendations is not None,
         },
+        "scores_recalculated": True,
     }
 
 
@@ -1365,9 +1369,9 @@ def generate_analysis(
                 book.value_high = new_high
                 values_changed = True
 
-    # Recalculate scores if values changed
-    if values_changed:
-        _calculate_and_persist_scores(book, db)
+    # Always recalculate scores when analysis is generated
+    # Analysis content affects scoring (condition, market data, comparables)
+    _calculate_and_persist_scores(book, db)
 
     db.commit()
     db.refresh(analysis)
@@ -1384,7 +1388,7 @@ def generate_analysis(
         "historical_significance": analysis.historical_significance,
         "recommendations": analysis.recommendations,
         "values_updated": values_changed,
-        "scores_recalculated": values_changed,
+        "scores_recalculated": True,
     }
 
 
