@@ -221,7 +221,11 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = [for model_id in var.bedrock_model_ids : "arn:aws:bedrock:*::foundation-model/${model_id}"]
+        Resource = concat(
+          [for model_id in var.bedrock_model_ids : "arn:aws:bedrock:*::foundation-model/${model_id}"],
+          # Cross-region inference profiles (us.anthropic.* format)
+          ["arn:aws:bedrock:*:*:inference-profile/us.anthropic.*"]
+        )
       }
     ]
   })
