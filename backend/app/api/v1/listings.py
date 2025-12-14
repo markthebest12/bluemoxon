@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.services.listing import (
     extract_listing_data,
@@ -32,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# S3 bucket for images
-IMAGES_BUCKET = os.environ.get("IMAGES_BUCKET", "")
+# S3 bucket for images - retrieved at runtime via get_settings()
+# (supports BMX_IMAGES_BUCKET, IMAGES_BUCKET, S3_BUCKET env vars)
 
 # Lambda function name pattern
 SCRAPER_FUNCTION_NAME = "bluemoxon-{environment}-scraper"
@@ -232,10 +233,11 @@ def extract_listing_async(
 
     # Check if already scraped (images exist in S3)
     s3 = boto3.client("s3")
+    settings = get_settings()
     try:
         # Check for at least one image
         response = s3.list_objects_v2(
-            Bucket=IMAGES_BUCKET,
+            Bucket=settings.images_bucket,
             Prefix=f"listings/{item_id}/",
             MaxKeys=1,
         )
@@ -287,11 +289,12 @@ def get_extract_status(
     'ready' if extraction complete with listing data and matches.
     """
     s3 = boto3.client("s3")
+    settings = get_settings()
 
     # Check if images exist in S3
     try:
         response = s3.list_objects_v2(
-            Bucket=IMAGES_BUCKET,
+            Bucket=settings.images_bucket,
             Prefix=f"listings/{item_id}/",
         )
         s3_keys = [obj["Key"] for obj in response.get("Contents", [])]
@@ -323,7 +326,7 @@ def get_extract_status(
     html = None
     if html_key in s3_keys:
         try:
-            response = s3.get_object(Bucket=IMAGES_BUCKET, Key=html_key)
+            response = s3.get_object(Bucket=settings.images_bucket, Key=html_key)
             html = response["Body"].read().decode("utf-8")
             logger.info(f"Read HTML from S3: {len(html)} chars")
         except Exception as e:
@@ -365,7 +368,9 @@ def get_extract_status(
     images = []
     for s3_key in sorted(image_s3_keys):
         try:
-            presigned_url = generate_presigned_url(IMAGES_BUCKET, s3_key, PRESIGNED_URL_EXPIRY)
+            presigned_url = generate_presigned_url(
+                settings.images_bucket, s3_key, PRESIGNED_URL_EXPIRY
+            )
             images.append(ImagePreview(s3_key=s3_key, presigned_url=presigned_url))
         except Exception as e:
             logger.warning(f"Failed to generate presigned URL for {s3_key}: {e}")
