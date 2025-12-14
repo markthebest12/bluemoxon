@@ -209,6 +209,29 @@ This ensures dependency updates are tested in staging before reaching production
 - ❌ Skipping staging "because it's a small change"
 - ❌ Manual dependency updates bypassing staging
 
+### CRITICAL: Merge Conflict Resolution
+
+**After resolving ANY merge conflict, ALWAYS verify no duplicate code was introduced.**
+
+Merge conflicts in Python files can easily result in duplicate function definitions when the same code appears both inside and outside conflict markers.
+
+**Required verification after conflict resolution:**
+```bash
+# Check for duplicate function definitions
+grep -n "def function_name" path/to/file.py
+
+# Run lint to catch redefinitions (F811 error)
+poetry run ruff check backend/
+```
+
+**Common failure mode:**
+When merging staging→main, if both branches modified the same file, the conflict markers may include code that ALSO exists after the markers. Keeping "both sides" creates duplicates.
+
+**Prevention checklist:**
+1. After resolving conflicts, search for `def ` to verify each function is defined only once
+2. Run `ruff check` before committing the merge
+3. If CI fails with F811 (redefinition), the merge introduced duplicate code
+
 ## Branching Strategy (GitFlow)
 
 ```
