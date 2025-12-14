@@ -71,3 +71,9 @@ variable "cognito_user_pool_id" {
   type        = string
   default     = ""
 }
+
+variable "enable_cognito_access" {
+  description = "Whether to create Cognito access policy (use when cognito_user_pool_id comes from module output)"
+  type        = bool
+  default     = false
+}

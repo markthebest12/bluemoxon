@@ -15,16 +15,16 @@
   },
 
   "cognito": {
-    "user_pool_id": "us-west-2_xhoIfvlHv",
-    "app_client_id": "f3o3gvjtmc32kjg6v047m0gh2",
+    "user_pool_id": "us-west-2_mV1xeyw7v",
+    "app_client_id": "4bb77j6uskmjibq27i15ajfpqq",
     "domain": "bluemoxon-staging.auth.us-west-2.amazoncognito.com"
   },
 
   "lambda": {
     "function_name": "bluemoxon-staging-api",
     "worker_function_name": "bluemoxon-staging-analysis-worker",
-    "memory_size": 256,
-    "timeout": 30,
+    "memory_size": 512,
+    "timeout": 600,
     "provisioned_concurrency": 0
   },
 
