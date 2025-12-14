@@ -252,7 +252,7 @@ def extract_listing_async(
         )
 
     # Invoke scraper Lambda asynchronously
-    environment = os.getenv("ENVIRONMENT", "staging")
+    environment = os.getenv("BMX_ENVIRONMENT", "staging")
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     lambda_client = boto3.client("lambda")
