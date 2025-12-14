@@ -57,9 +57,16 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
         try:
             import httpx
 
-            # Follow redirects to get final URL (limit redirects to catch loops)
-            with httpx.Client(follow_redirects=True, timeout=10.0, max_redirects=10) as client:
-                response = client.head(url)
+            # Follow redirects to get final URL
+            # NOTE: Must use GET not HEAD - eBay short URLs don't handle HEAD properly
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            with httpx.Client(
+                follow_redirects=True, timeout=15.0, max_redirects=10, headers=headers
+            ) as client:
+                response = client.get(url)
                 final_url = str(response.url)
                 logger.info(f"Resolved ebay.us short URL: {url} -> {final_url}")
 
