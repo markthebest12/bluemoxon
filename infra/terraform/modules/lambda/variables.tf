@@ -38,6 +38,12 @@ variable "handler" {
   default     = "app.main.handler"
 }
 
+variable "iam_role_name" {
+  type        = string
+  description = "Override IAM role name (default: {function_name}-exec-role). Use for importing existing Lambda with different role naming."
+  default     = null
+}
+
 variable "log_retention_days" {
   type        = number
   description = "CloudWatch log retention in days"

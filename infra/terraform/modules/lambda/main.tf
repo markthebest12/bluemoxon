@@ -88,7 +88,7 @@ resource "aws_lambda_function" "this" {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "${var.function_name}-exec-role"
+  name = coalesce(var.iam_role_name, "${var.function_name}-exec-role")
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

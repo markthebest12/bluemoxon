@@ -1,9 +1,35 @@
 # =============================================================================
 # CloudFront Distribution Module
 # =============================================================================
+# Supports both OAI (legacy) and OAC (modern) origin access types.
+# OAC is the recommended approach for new distributions.
+
+locals {
+  use_oai  = var.origin_access_type == "oai"
+  use_oac  = var.origin_access_type == "oac"
+  oac_name = var.oac_name != null ? var.oac_name : "${var.s3_bucket_name}-oac"
+}
+
+# -----------------------------------------------------------------------------
+# Origin Access Identity (OAI) - Legacy approach
+# -----------------------------------------------------------------------------
 
 resource "aws_cloudfront_origin_access_identity" "this" {
+  count   = local.use_oai ? 1 : 0
   comment = var.oai_comment
+}
+
+# -----------------------------------------------------------------------------
+# Origin Access Control (OAC) - Modern approach
+# -----------------------------------------------------------------------------
+
+resource "aws_cloudfront_origin_access_control" "this" {
+  count                             = local.use_oac ? 1 : 0
+  name                              = local.oac_name
+  description                       = var.oac_description
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
 # When using CloudFront default certificate (no ACM), AWS doesn't allow setting minimum_protocol_version.
@@ -18,11 +44,15 @@ resource "aws_cloudfront_distribution" "this" {
   comment             = var.comment
 
   origin {
-    domain_name = var.s3_bucket_domain_name
-    origin_id   = "S3-${var.s3_bucket_name}"
+    domain_name              = var.s3_bucket_domain_name
+    origin_id                = "S3-${var.s3_bucket_name}"
+    origin_access_control_id = local.use_oac ? aws_cloudfront_origin_access_control.this[0].id : null
 
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.this.cloudfront_access_identity_path
+    dynamic "s3_origin_config" {
+      for_each = local.use_oai ? [1] : []
+      content {
+        origin_access_identity = aws_cloudfront_origin_access_identity.this[0].cloudfront_access_identity_path
+      }
     }
   }
 
