@@ -77,7 +77,7 @@ class TestEbayUrlParsing:
             mock_instance = MagicMock()
             mock_instance.__enter__ = MagicMock(return_value=mock_instance)
             mock_instance.__exit__ = MagicMock(return_value=False)
-            mock_instance.head.return_value = mock_response
+            mock_instance.get.return_value = mock_response
             mock_client.return_value = mock_instance
 
             with pytest.raises(ValueError, match="Short URL has expired or is invalid"):
@@ -93,7 +93,7 @@ class TestEbayUrlParsing:
             mock_instance = MagicMock()
             mock_instance.__enter__ = MagicMock(return_value=mock_instance)
             mock_instance.__exit__ = MagicMock(return_value=False)
-            mock_instance.head.side_effect = httpx.TooManyRedirects("Too many redirects")
+            mock_instance.get.side_effect = httpx.TooManyRedirects("Too many redirects")
             mock_client.return_value = mock_instance
 
             with pytest.raises(ValueError, match="Short URL has expired or is invalid"):
