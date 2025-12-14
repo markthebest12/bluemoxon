@@ -289,7 +289,7 @@ module "lambda" {
   environment_variables = merge(
     {
       BMX_CORS_ORIGINS          = "https://${local.app_domain},http://localhost:5173"
-      BMX_IMAGES_CDN_DOMAIN     = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      BMX_IMAGES_CDN_URL        = var.enable_cloudfront ? "https://${local.app_domain}/book-images" : ""
       BMX_COGNITO_USER_POOL_ID  = var.enable_cognito ? module.cognito[0].user_pool_id : ""
       BMX_COGNITO_CLIENT_ID     = var.enable_cognito ? module.cognito[0].client_id : ""
       BMX_IMAGES_BUCKET         = module.images_bucket.bucket_name
@@ -518,6 +518,10 @@ module "github_oidc" {
   cloudfront_distribution_arns = length(var.github_oidc_cloudfront_distribution_arns) > 0 ? var.github_oidc_cloudfront_distribution_arns : (
     var.enable_cloudfront ? [module.frontend_cdn[0].distribution_arn] : []
   )
+
+  # Terraform state access (cross-account for staging to read prod state)
+  terraform_state_bucket_arn         = var.terraform_state_bucket_arn
+  terraform_state_dynamodb_table_arn = var.terraform_state_dynamodb_table_arn
 
   tags = local.common_tags
 }

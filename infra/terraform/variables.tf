@@ -319,6 +319,18 @@ variable "github_repo" {
   default     = "markthebest12/bluemoxon"
 }
 
+variable "terraform_state_bucket_arn" {
+  type        = string
+  description = "ARN of the Terraform state S3 bucket for cross-account access (prod account)"
+  default     = null
+}
+
+variable "terraform_state_dynamodb_table_arn" {
+  type        = string
+  description = "ARN of the Terraform state DynamoDB lock table for cross-account access (prod account)"
+  default     = null
+}
+
 # =============================================================================
 # Legacy Resource Name Overrides (for production)
 # =============================================================================

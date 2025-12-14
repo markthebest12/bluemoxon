@@ -43,3 +43,15 @@ variable "tags" {
   description = "Resource tags"
   default     = {}
 }
+
+variable "terraform_state_bucket_arn" {
+  type        = string
+  description = "ARN of the Terraform state S3 bucket (for cross-account access)"
+  default     = null
+}
+
+variable "terraform_state_dynamodb_table_arn" {
+  type        = string
+  description = "ARN of the Terraform state DynamoDB lock table (for cross-account access)"
+  default     = null
+}

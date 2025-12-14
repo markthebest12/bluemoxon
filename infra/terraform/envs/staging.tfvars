@@ -37,6 +37,10 @@ enable_waf        = false
 #   terraform import 'module.github_oidc[0].aws_iam_role.github_actions' 'github-actions-deploy'
 enable_github_oidc = false
 
+# Terraform state access (cross-account to prod state bucket for terraform output reading)
+terraform_state_bucket_arn         = "arn:aws:s3:::bluemoxon-terraform-state"
+terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:266672885920:table/bluemoxon-terraform-locks"
+
 # Cognito MFA - OPTIONAL with TOTP enabled (matches prod)
 cognito_mfa_configuration = "OPTIONAL"
 cognito_mfa_totp_enabled  = true
