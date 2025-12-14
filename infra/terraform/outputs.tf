@@ -24,8 +24,8 @@ output "cognito_client_id" {
 }
 
 output "cognito_domain" {
-  description = "Cognito domain"
-  value       = var.enable_cognito ? module.cognito[0].domain : null
+  description = "Cognito domain (full auth domain)"
+  value       = var.enable_cognito && module.cognito[0].domain != null ? "${module.cognito[0].domain}.auth.${data.aws_region.current.name}.amazoncognito.com" : null
 }
 
 output "cognito_user_pool_id" {
@@ -147,4 +147,18 @@ output "github_oidc_role_arn" {
 output "github_oidc_provider_arn" {
   description = "GitHub OIDC provider ARN"
   value       = var.enable_github_oidc ? module.github_oidc[0].oidc_provider_arn : null
+}
+
+# =============================================================================
+# Full URLs (for deploy workflow)
+# =============================================================================
+
+output "api_url" {
+  description = "Full API URL with path prefix"
+  value       = "https://${local.api_domain}/api/v1"
+}
+
+output "app_url" {
+  description = "Full app URL"
+  value       = "https://${local.app_domain}"
 }
