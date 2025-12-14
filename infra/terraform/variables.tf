@@ -258,6 +258,34 @@ variable "api_acm_cert_arn" {
 }
 
 # =============================================================================
+# CloudFront Configuration (Multi-Origin Support)
+# =============================================================================
+
+variable "cloudfront_multi_origin_enabled" {
+  type        = bool
+  description = "Enable multi-origin CloudFront distribution (production uses this pattern)"
+  default     = false
+}
+
+variable "cloudfront_images_path_pattern" {
+  type        = string
+  description = "Path pattern for images origin in multi-origin distribution"
+  default     = "/book-images/*"
+}
+
+variable "cloudfront_images_oac_id" {
+  type        = string
+  description = "OAC ID for images origin (when importing existing multi-origin distribution)"
+  default     = null
+}
+
+variable "cloudfront_function_arn" {
+  type        = string
+  description = "ARN of CloudFront function for path rewriting (production uses this)"
+  default     = null
+}
+
+# =============================================================================
 # GitHub OIDC Variables
 # =============================================================================
 

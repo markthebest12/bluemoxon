@@ -4,20 +4,9 @@ variable "acm_certificate_arn" {
   default     = null
 }
 
-variable "origin_access_type" {
+variable "cloudfront_function_arn" {
   type        = string
-  description = "Type of S3 origin access: 'oai' (legacy Origin Access Identity) or 'oac' (modern Origin Access Control)"
-  default     = "oai"
-
-  validation {
-    condition     = contains(["oai", "oac"], var.origin_access_type)
-    error_message = "origin_access_type must be 'oai' or 'oac'"
-  }
-}
-
-variable "s3_bucket_arn" {
-  type        = string
-  description = "ARN of the S3 bucket (required for OAC bucket policy)"
+  description = "ARN of CloudFront function to attach to secondary origin (optional)"
   default     = null
 }
 
@@ -51,10 +40,10 @@ variable "max_ttl" {
   default     = 31536000
 }
 
-variable "oai_comment" {
+variable "oac_description" {
   type        = string
-  description = "Comment for the Origin Access Identity (used when origin_access_type = 'oai')"
-  default     = "OAI for S3 bucket access"
+  description = "Description for the Origin Access Control"
+  default     = "OAC for S3 bucket access"
 }
 
 variable "oac_name" {
@@ -63,16 +52,33 @@ variable "oac_name" {
   default     = null
 }
 
-variable "oac_description" {
+variable "oai_comment" {
   type        = string
-  description = "Description for the Origin Access Control"
-  default     = "OAC for S3 bucket access"
+  description = "Comment for the Origin Access Identity (used when origin_access_type = 'oai')"
+  default     = "OAI for S3 bucket access"
+}
+
+variable "origin_access_type" {
+  type        = string
+  description = "Type of S3 origin access: 'oai' (legacy Origin Access Identity) or 'oac' (modern Origin Access Control)"
+  default     = "oai"
+
+  validation {
+    condition     = contains(["oai", "oac"], var.origin_access_type)
+    error_message = "origin_access_type must be 'oai' or 'oac'"
+  }
 }
 
 variable "price_class" {
   type        = string
   description = "CloudFront price class"
   default     = "PriceClass_100"
+}
+
+variable "s3_bucket_arn" {
+  type        = string
+  description = "ARN of the S3 bucket (required for OAC bucket policy)"
+  default     = null
 }
 
 variable "s3_bucket_domain_name" {
@@ -123,10 +129,4 @@ variable "secondary_origin_ttl" {
   type        = number
   description = "TTL for secondary origin cache behavior in seconds"
   default     = 604800 # 7 days
-}
-
-variable "cloudfront_function_arn" {
-  type        = string
-  description = "ARN of CloudFront function to attach to secondary origin (optional)"
-  default     = null
 }
