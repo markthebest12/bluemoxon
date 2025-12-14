@@ -89,8 +89,11 @@ def extract_listing(
     if not is_valid_ebay_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid eBay URL")
 
-    # Normalize URL and extract item ID
-    normalized_url, item_id = normalize_ebay_url(request.url)
+    # Normalize URL and extract item ID (can raise ValueError for expired short URLs)
+    try:
+        normalized_url, item_id = normalize_ebay_url(request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     try:
         # Scrape and extract
@@ -183,8 +186,11 @@ def extract_listing_async(
     if not is_valid_ebay_url(request.url):
         raise HTTPException(status_code=400, detail="Invalid eBay URL")
 
-    # Normalize URL and extract item ID
-    normalized_url, item_id = normalize_ebay_url(request.url)
+    # Normalize URL and extract item ID (can raise ValueError for expired short URLs)
+    try:
+        normalized_url, item_id = normalize_ebay_url(request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Check if already scraped (images exist in S3)
     s3 = boto3.client("s3")
