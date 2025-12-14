@@ -152,7 +152,7 @@ class TestInvokeBedrockExtraction:
 
         # Verify Haiku model was used (fast, cheap extraction)
         call_kwargs = mock_client.invoke_model.call_args[1]
-        assert "claude-3-haiku" in call_kwargs["modelId"]
+        assert "haiku" in call_kwargs["modelId"]
 
     @patch("app.services.listing.get_bedrock_client")
     def test_parses_json_response(self, mock_get_client):

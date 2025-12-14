@@ -273,7 +273,7 @@ def invoke_bedrock_extraction(html: str) -> dict:
     prompt = EXTRACTION_PROMPT.format(listing_html=relevant_content)
 
     response = client.invoke_model(
-        modelId="anthropic.claude-3-haiku-20240307-v1:0",
+        modelId="anthropic.claude-3-5-haiku-20241022-v1:0",
         contentType="application/json",
         accept="application/json",
         body=json.dumps(
