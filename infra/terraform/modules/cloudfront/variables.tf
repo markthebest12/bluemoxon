@@ -4,6 +4,23 @@ variable "acm_certificate_arn" {
   default     = null
 }
 
+variable "origin_access_type" {
+  type        = string
+  description = "Type of S3 origin access: 'oai' (legacy Origin Access Identity) or 'oac' (modern Origin Access Control)"
+  default     = "oai"
+
+  validation {
+    condition     = contains(["oai", "oac"], var.origin_access_type)
+    error_message = "origin_access_type must be 'oai' or 'oac'"
+  }
+}
+
+variable "s3_bucket_arn" {
+  type        = string
+  description = "ARN of the S3 bucket (required for OAC bucket policy)"
+  default     = null
+}
+
 variable "comment" {
   type        = string
   description = "Comment for the CloudFront distribution"
@@ -36,8 +53,20 @@ variable "max_ttl" {
 
 variable "oai_comment" {
   type        = string
-  description = "Comment for the Origin Access Identity"
+  description = "Comment for the Origin Access Identity (used when origin_access_type = 'oai')"
   default     = "OAI for S3 bucket access"
+}
+
+variable "oac_name" {
+  type        = string
+  description = "Name for the Origin Access Control (used when origin_access_type = 'oac')"
+  default     = null
+}
+
+variable "oac_description" {
+  type        = string
+  description = "Description for the Origin Access Control"
+  default     = "OAC for S3 bucket access"
 }
 
 variable "price_class" {
