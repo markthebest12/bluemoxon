@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from app.config import get_settings
 from app.services.listing import extract_listing_data
 
 logger = logging.getLogger(__name__)
@@ -141,7 +142,8 @@ def scrape_ebay_listing(url: str) -> dict:
 
     # Generate presigned URLs for S3 images
     images = []
-    bucket_name = os.getenv("IMAGES_BUCKET")
+    settings = get_settings()
+    bucket_name = settings.images_bucket
     s3_keys = scraper_result.get("s3_keys", [])
 
     if bucket_name and s3_keys:

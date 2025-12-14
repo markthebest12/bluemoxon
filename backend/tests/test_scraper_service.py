@@ -225,8 +225,15 @@ class TestScrapeEbayListing:
     @patch("app.services.scraper.generate_presigned_url")
     @patch("app.services.scraper.invoke_scraper")
     @patch("app.services.scraper.extract_listing_data")
-    @patch.dict("os.environ", {"IMAGES_BUCKET": "test-bucket"})
-    def test_generates_presigned_urls_for_s3_images(self, mock_extract, mock_invoke, mock_presign):
+    @patch("app.services.scraper.get_settings")
+    def test_generates_presigned_urls_for_s3_images(
+        self, mock_get_settings, mock_extract, mock_invoke, mock_presign
+    ):
+        # Mock get_settings to return test bucket name
+        mock_settings = MagicMock()
+        mock_settings.images_bucket = "test-bucket"
+        mock_get_settings.return_value = mock_settings
+
         mock_invoke.return_value = {
             "html": "<html/>",
             "image_urls": ["https://i.ebayimg.com/img1.jpg"],
