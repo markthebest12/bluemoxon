@@ -86,6 +86,18 @@ class Book(Base, TimestampMixin):
 
     # Delivery tracking
     estimated_delivery: Mapped[date | None] = mapped_column(Date)
+    estimated_delivery_end: Mapped[date | None] = mapped_column(Date)
+
+    # Shipment tracking
+    tracking_number: Mapped[str | None] = mapped_column(String(100))
+    tracking_carrier: Mapped[str | None] = mapped_column(String(50))
+    tracking_url: Mapped[str | None] = mapped_column(String(500))
+    ship_date: Mapped[date | None] = mapped_column(Date)
+
+    # Shipment tracking
+    tracking_number: Mapped[str | None] = mapped_column(String(100))
+    tracking_carrier: Mapped[str | None] = mapped_column(String(50))
+    tracking_url: Mapped[str | None] = mapped_column(String(500))
 
     # Shipment tracking
     tracking_number: Mapped[str | None] = mapped_column(String(100))

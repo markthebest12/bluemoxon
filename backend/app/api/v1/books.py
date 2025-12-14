@@ -661,6 +661,28 @@ def acquire_book(
     if acquire_data.estimated_delivery:
         book.estimated_delivery = acquire_data.estimated_delivery
 
+    # Process tracking information if provided
+    if acquire_data.tracking_number or acquire_data.tracking_url:
+        from datetime import date as date_module
+
+        from app.services.tracking import process_tracking
+
+        try:
+            tracking_number, tracking_carrier, tracking_url = process_tracking(
+                acquire_data.tracking_number,
+                acquire_data.tracking_carrier,
+                acquire_data.tracking_url,
+            )
+            book.tracking_number = tracking_number
+            book.tracking_carrier = tracking_carrier
+            book.tracking_url = tracking_url
+
+            # Set ship_date to today when tracking is added
+            book.ship_date = date_module.today()
+        except ValueError as e:
+            # If tracking processing fails, log but don't fail the acquisition
+            logger.warning(f"Failed to process tracking for book {book_id}: {e}")
+
     # Store order number in notes (or create order_number field later)
     if book.notes:
         book.notes = f"Order: {acquire_data.order_number}\n{book.notes}"
@@ -711,9 +733,84 @@ def acquire_book(
         },
     }
 
-    # Mark for archive if source_url exists and not already archived
-    if book.source_url and not book.archive_status:
-        book.archive_status = "pending"
+    db.commit()
+    db.refresh(book)
+
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
+
+
+@router.patch("/{book_id}/tracking", response_model=BookResponse)
+def add_tracking(
+    book_id: int,
+    tracking_data: TrackingRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Add shipment tracking to an IN_TRANSIT book.
+
+    Auto-detects carrier from tracking number format if not provided.
+    Generates tracking URL based on carrier.
+
+    Accepts either:
+    - tracking_number + optional tracking_carrier (URL auto-generated)
+    - tracking_url directly (for unsupported carriers)
+    """
+    from app.services.tracking import process_tracking
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.status != "IN_TRANSIT":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only add tracking to IN_TRANSIT books. Current status: {book.status}",
+        )
+
+    # Validate input: need either tracking_number or tracking_url
+    if not tracking_data.tracking_number and not tracking_data.tracking_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide either tracking_number or tracking_url",
+        )
+
+    try:
+        tracking_number, tracking_carrier, tracking_url = process_tracking(
+            tracking_data.tracking_number,
+            tracking_data.tracking_carrier,
+            tracking_data.tracking_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+
+    book.tracking_number = tracking_number
+    book.tracking_carrier = tracking_carrier
+    book.tracking_url = tracking_url
 
     db.commit()
     db.refresh(book)

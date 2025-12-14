@@ -16,6 +16,7 @@ export interface AcquisitionBook {
   purchase_date?: string;
   discount_pct?: number;
   estimated_delivery?: string;
+  estimated_delivery_end?: string;
   scoring_snapshot?: Record<string, unknown>;
   primary_image_url?: string;
   has_analysis?: boolean;
@@ -33,6 +34,7 @@ export interface AcquisitionBook {
   tracking_number?: string | null;
   tracking_carrier?: string | null;
   tracking_url?: string | null;
+  ship_date?: string | null;
 }
 
 export interface AcquirePayload {
@@ -41,6 +43,8 @@ export interface AcquirePayload {
   order_number: string;
   place_of_purchase: string;
   estimated_delivery?: string;
+  tracking_number?: string;
+  tracking_carrier?: string;
 }
 
 export interface WatchlistPayload {

@@ -379,6 +379,11 @@ MIGRATION_J2345678EFGH_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_url VARCHAR(500)",
 ]
 
+# Migration SQL for k3456789ijkl_add_ship_date_delivery_end
+MIGRATION_K3456789IJKL_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS ship_date DATE",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS estimated_delivery_end DATE",
+]
 
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
@@ -410,6 +415,7 @@ Migrations run in order:
 7. a1234567bcde - Add analysis_jobs table for async Bedrock analysis
 8. i0123456abcd - Add binder tier column for scoring calculations
 9. j2345678efgh - Add tracking fields (tracking_number, carrier, url)
+10. k3456789ijkl - Add ship_date and estimated_delivery_end fields
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -439,9 +445,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("a1234567bcde", MIGRATION_A1234567BCDE_SQL),
         ("i0123456abcd", MIGRATION_I0123456ABCD_SQL),
         ("j2345678efgh", MIGRATION_J2345678EFGH_SQL),
+        ("k3456789ijkl", MIGRATION_K3456789IJKL_SQL),
     ]
 
-    final_version = "j2345678efgh"
+    final_version = "k3456789ijkl"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
