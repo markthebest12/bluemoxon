@@ -152,7 +152,10 @@ async function handleSubmit() {
 
     // Check for duplicates when creating new books (not editing)
     if (!isEditing.value && !skipDuplicateCheck.value) {
-      const duplicateCheck = await booksStore.checkDuplicate(form.value.title, form.value.author_id);
+      const duplicateCheck = await booksStore.checkDuplicate(
+        form.value.title,
+        form.value.author_id
+      );
       if (duplicateCheck.has_duplicates) {
         duplicateMatches.value = duplicateCheck.matches;
         showDuplicateWarning.value = true;
@@ -491,8 +494,8 @@ function cancel() {
           </div>
           <div class="p-4">
             <p class="text-gray-700 mb-4">
-              Similar books already exist in your collection. Are you sure you want to create another
-              entry?
+              Similar books already exist in your collection. Are you sure you want to create
+              another entry?
             </p>
             <div class="space-y-2 max-h-48 overflow-y-auto">
               <div
@@ -514,7 +517,9 @@ function cancel() {
                   >
                     {{ match.status }}
                   </span>
-                  <span class="text-gray-400">{{ Math.round(match.similarity_score * 100) }}% match</span>
+                  <span class="text-gray-400"
+                    >{{ Math.round(match.similarity_score * 100) }}% match</span
+                  >
                 </div>
               </div>
             </div>
