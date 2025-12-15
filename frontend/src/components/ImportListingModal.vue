@@ -143,7 +143,7 @@ watch(
       form.value.volumes = data.volumes || 1;
       form.value.source_url = status.ebay_url || `https://www.ebay.com/itm/${currentItemId.value}`;
       form.value.binding_type = data.binding_type || data.binding || "";
-      form.value.condition_notes = data.condition_description || "";
+      form.value.condition_notes = data.condition_description || data.condition || "";
 
       // Set price
       if (data.price) {
@@ -437,6 +437,12 @@ function openSourceUrl() {
                     Math.round(extractedData.matches.author.similarity * 100)
                   }}%)
                 </p>
+                <p
+                  v-else-if="extractedData?.listing_data?.author"
+                  class="mt-1 text-xs text-amber-600"
+                >
+                  Extracted: "{{ extractedData.listing_data.author }}" (no match found - create new?)
+                </p>
               </div>
               <div>
                 <ComboboxWithAdd
@@ -447,6 +453,12 @@ function openSourceUrl() {
                 />
                 <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
                   Matched: {{ extractedData.matches.publisher.name }}
+                </p>
+                <p
+                  v-else-if="extractedData?.listing_data?.publisher"
+                  class="mt-1 text-xs text-amber-600"
+                >
+                  Extracted: "{{ extractedData.listing_data.publisher }}" (no match)
                 </p>
               </div>
             </div>
@@ -462,6 +474,12 @@ function openSourceUrl() {
                 />
                 <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
                   Matched: {{ extractedData.matches.binder.name }}
+                </p>
+                <p
+                  v-else-if="extractedData?.listing_data?.binder"
+                  class="mt-1 text-xs text-amber-600"
+                >
+                  Extracted: "{{ extractedData.listing_data.binder }}" (no match)
                 </p>
               </div>
               <div>
