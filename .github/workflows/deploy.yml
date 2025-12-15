@@ -93,8 +93,16 @@ jobs:
           echo "aws_account_id=$(jq -r '.aws_account_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "scraper_function_name=$(jq -r '.scraper.function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "scraper_ecr_repository=$(jq -r '.scraper.ecr_repository // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          # Scraper config - only output if enabled (default true for backwards compatibility)
+          SCRAPER_ENABLED=$(jq -r '.scraper.enabled // true' $CONFIG_FILE)
+          if [[ "$SCRAPER_ENABLED" == "true" ]]; then
+            echo "scraper_function_name=$(jq -r '.scraper.function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+            echo "scraper_ecr_repository=$(jq -r '.scraper.ecr_repository // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          else
+            echo "Scraper disabled in config"
+            echo "scraper_function_name=" >> $GITHUB_OUTPUT
+            echo "scraper_ecr_repository=" >> $GITHUB_OUTPUT
+          fi
           echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT

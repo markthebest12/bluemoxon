@@ -4,6 +4,12 @@ variable "cloudfront_distribution_arns" {
   default     = []
 }
 
+variable "ecr_repository_arns" {
+  type        = list(string)
+  description = "ECR repository ARNs for Docker image deployment"
+  default     = []
+}
+
 variable "frontend_bucket_arns" {
   type        = list(string)
   description = "S3 bucket ARNs for frontend deployment"

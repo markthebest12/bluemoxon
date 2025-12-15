@@ -29,10 +29,12 @@
   },
 
   "scraper": {
+    "enabled": false,
     "function_name": "bluemoxon-staging-scraper",
     "ecr_repository": "bluemoxon-staging-scraper",
     "memory_size": 1024,
-    "timeout": 120
+    "timeout": 120,
+    "_note": "Disabled: staging AWS account (652617421195) github-actions-deploy role lacks ECR permissions"
   },
 
   "s3": {

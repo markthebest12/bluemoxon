@@ -129,6 +129,33 @@ resource "aws_iam_role_policy" "deploy" {
           Resource = var.cloudfront_distribution_arns
         }
       ] : [],
+      # ECR permissions for Docker image deployment
+      length(var.ecr_repository_arns) > 0 ? [
+        {
+          Sid    = "ECRAuth"
+          Effect = "Allow"
+          Action = [
+            "ecr:GetAuthorizationToken"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "ECRPushPull"
+          Effect = "Allow"
+          Action = [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage",
+            "ecr:PutImage",
+            "ecr:InitiateLayerUpload",
+            "ecr:UploadLayerPart",
+            "ecr:CompleteLayerUpload",
+            "ecr:DescribeRepositories",
+            "ecr:DescribeImages"
+          ]
+          Resource = var.ecr_repository_arns
+        }
+      ] : [],
       # Terraform state access (cross-account for staging/prod state reading)
       var.terraform_state_bucket_arn != null ? [
         {
