@@ -8,6 +8,7 @@ from app.utils.markdown_parser import (
     _parse_market_analysis,
     _parse_structured_data,
     parse_analysis_markdown,
+    strip_structured_data,
 )
 
 SAMPLE_MARKDOWN = """# The Ethics of the Dust by John Ruskin (George Allen, 1883)
@@ -440,6 +441,40 @@ class TestParseBinderIdentification:
 """
         result = _parse_binder_identification(text)
         assert result is None or "name" not in result
+
+
+class TestStripStructuredData:
+    """Test strip_structured_data function."""
+
+    def test_strips_structured_data_block(self):
+        markdown = """---STRUCTURED-DATA---
+CONDITION_GRADE: VG+
+BINDER_IDENTIFIED: Zaehnsdorf
+---END-STRUCTURED-DATA---
+
+## Executive Summary
+
+A fine binding in excellent condition.
+"""
+        result = strip_structured_data(markdown)
+        assert "---STRUCTURED-DATA---" not in result
+        assert "---END-STRUCTURED-DATA---" not in result
+        assert "CONDITION_GRADE" not in result
+        assert "## Executive Summary" in result
+        assert "A fine binding" in result
+
+    def test_preserves_content_without_structured_data(self):
+        markdown = """## Executive Summary
+
+A fine binding in excellent condition.
+"""
+        result = strip_structured_data(markdown)
+        assert "## Executive Summary" in result
+        assert "A fine binding" in result
+
+    def test_handles_empty_string(self):
+        result = strip_structured_data("")
+        assert result == ""
 
 
 class TestV2Integration:
