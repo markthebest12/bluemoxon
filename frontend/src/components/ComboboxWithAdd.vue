@@ -11,6 +11,7 @@ const props = defineProps<{
   options: Option[];
   modelValue: number | null;
   placeholder?: string;
+  suggestedName?: string; // Pre-populate input when no match found
 }>();
 
 const emit = defineEmits<{
@@ -41,12 +42,15 @@ const showAddNew = computed(() => {
   return !props.options.some((o) => o.name.toLowerCase() === search);
 });
 
-// Update display when modelValue changes
+// Update display when modelValue or suggestedName changes
 watch(
-  () => props.modelValue,
+  [() => props.modelValue, () => props.suggestedName],
   () => {
     if (selectedOption.value) {
       searchText.value = selectedOption.value.name;
+    } else if (props.suggestedName && !searchText.value) {
+      // Pre-populate with suggested name when no match found
+      searchText.value = props.suggestedName;
     }
   },
   { immediate: true }
