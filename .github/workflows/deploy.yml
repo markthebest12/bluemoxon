@@ -94,7 +94,8 @@ jobs:
           echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           # Scraper config - only output if enabled (default true for backwards compatibility)
-          SCRAPER_ENABLED=$(jq -r '.scraper.enabled // true' $CONFIG_FILE)
+          # Note: Can't use // operator as it treats false same as null
+          SCRAPER_ENABLED=$(jq -r 'if .scraper.enabled == false then "false" else "true" end' $CONFIG_FILE)
           if [[ "$SCRAPER_ENABLED" == "true" ]]; then
             echo "scraper_function_name=$(jq -r '.scraper.function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
             echo "scraper_ecr_repository=$(jq -r '.scraper.ecr_repository // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
