@@ -149,7 +149,7 @@ def handler(event, context):
 
             # Check for rate limiting / access denied
             if "Access Denied" in html or "blocked" in html.lower():
-                browser.close()
+                # Skip explicit browser.close() - hangs in Lambda --single-process mode
                 return {
                     "statusCode": 429,
                     "body": json.dumps({"error": "Rate limited", "html": html}),
@@ -192,15 +192,11 @@ def handler(event, context):
                         response = page.request.get(img_url)
                         if response.ok:
                             body = response.body()
-                            content_type = response.headers.get(
-                                "content-type", "image/jpeg"
-                            )
+                            content_type = response.headers.get("content-type", "image/jpeg")
 
                             # Skip small images (likely icons/thumbnails)
                             if len(body) < MIN_IMAGE_SIZE:
-                                logger.info(
-                                    f"Skipping small image ({len(body)} bytes): {img_url}"
-                                )
+                                logger.info(f"Skipping small image ({len(body)} bytes): {img_url}")
                                 continue
 
                             # Determine file extension from content type
@@ -214,9 +210,7 @@ def handler(event, context):
                             s3_key = f"listings/{item_id}/image_{idx:02d}.{ext}"
                             if upload_to_s3(bucket_name, s3_key, body, content_type):
                                 s3_keys.append(s3_key)
-                                logger.info(
-                                    f"Uploaded image {idx}: {len(body)} bytes -> {s3_key}"
-                                )
+                                logger.info(f"Uploaded image {idx}: {len(body)} bytes -> {s3_key}")
                     except Exception as e:
                         logger.warning(f"Failed to process image {img_url}: {e}")
 
@@ -229,11 +223,11 @@ def handler(event, context):
                 except Exception as e:
                     logger.warning(f"Failed to upload HTML: {e}")
 
-            logger.info(f"Closing browser...")
-            page.close()
-            context.close()
-            browser.close()
             logger.info(f"Uploaded {len(s3_keys)} images to S3")
+
+            # Skip explicit browser.close() - it hangs indefinitely in Lambda's
+            # --single-process mode. Lambda sandbox cleanup handles process termination.
+            # All data is already safely uploaded to S3 by this point.
 
             return {
                 "statusCode": 200,
