@@ -89,6 +89,63 @@ const isValidEbayUrl = computed(() => {
   }
 });
 
+// Helper: Standardize name (capitalize words properly)
+function standardizeName(name: string | undefined): string {
+  if (!name) return "";
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+// Helper: Check if binding suggests custom/fine work (ornate, gilt, leather, morocco)
+function isOrnateBinding(bindingType: string | undefined): boolean {
+  if (!bindingType) return false;
+  const ornateTerms = [
+    "morocco",
+    "gilt",
+    "gilded",
+    "gold",
+    "tooled",
+    "tooling",
+    "ornate",
+    "decorated",
+    "inlaid",
+    "jeweled",
+    "jewelled",
+    "leather",
+    "calf",
+    "vellum",
+    "raised bands",
+  ];
+  const lower = bindingType.toLowerCase();
+  return ornateTerms.some((term) => lower.includes(term));
+}
+
+// Computed: Suggested author name (standardized extracted name when no match)
+const suggestedAuthorName = computed(() => {
+  if (extractedData.value?.matches?.author) return undefined; // Has match, no suggestion needed
+  return standardizeName(extractedData.value?.listing_data?.author);
+});
+
+// Computed: Suggested publisher name (standardized extracted name when no match)
+const suggestedPublisherName = computed(() => {
+  if (extractedData.value?.matches?.publisher) return undefined;
+  return standardizeName(extractedData.value?.listing_data?.publisher);
+});
+
+// Computed: Suggested binder name - extracted name, or "Custom" for ornate bindings
+const suggestedBinderName = computed(() => {
+  if (extractedData.value?.matches?.binder) return undefined; // Has match
+  const extractedBinder = extractedData.value?.listing_data?.binder;
+  if (extractedBinder) return standardizeName(extractedBinder);
+  // If binding is ornate but no binder identified, suggest "Custom"
+  const bindingType = extractedData.value?.listing_data?.binding_type;
+  if (isOrnateBinding(bindingType)) return "Custom";
+  return undefined;
+});
+
 async function handleExtract() {
   if (!isValidEbayUrl.value) {
     extractError.value = "Please enter a valid eBay listing URL";
@@ -427,6 +484,7 @@ function openSourceUrl() {
                   label="Author"
                   :options="refsStore.authors"
                   v-model="form.author_id"
+                  :suggested-name="suggestedAuthorName"
                   @create="handleCreateAuthor"
                 />
                 <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
@@ -450,6 +508,7 @@ function openSourceUrl() {
                   label="Publisher"
                   :options="refsStore.publishers"
                   v-model="form.publisher_id"
+                  :suggested-name="suggestedPublisherName"
                   @create="handleCreatePublisher"
                 />
                 <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
@@ -471,6 +530,7 @@ function openSourceUrl() {
                   label="Binder"
                   :options="refsStore.binders"
                   v-model="form.binder_id"
+                  :suggested-name="suggestedBinderName"
                   @create="handleCreateBinder"
                 />
                 <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
@@ -481,6 +541,9 @@ function openSourceUrl() {
                   class="mt-1 text-xs text-amber-600"
                 >
                   Extracted: "{{ extractedData.listing_data.binder }}" (no match)
+                </p>
+                <p v-else-if="suggestedBinderName === 'Custom'" class="mt-1 text-xs text-amber-600">
+                  Ornate binding detected - suggested "Custom" binder
                 </p>
               </div>
               <div>
