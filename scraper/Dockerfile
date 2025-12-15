@@ -1,5 +1,8 @@
 FROM mcr.microsoft.com/playwright/python:v1.40.0-focal
 
+# Accept VERSION as build argument (default to dev for local builds)
+ARG VERSION=0.0.0-dev
+
 WORKDIR /app
 
 # Install AWS Lambda Runtime Interface Client
@@ -8,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt awslambdaric
 
 # Copy handler
 COPY handler.py .
+
+# Bake VERSION into image for tracking
+RUN echo "$VERSION" > /app/VERSION
 
 # Install Chromium browser
 RUN playwright install chromium
