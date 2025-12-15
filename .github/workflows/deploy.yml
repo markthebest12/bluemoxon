@@ -230,17 +230,16 @@ jobs:
           echo "Building scraper image with VERSION=$IMAGE_TAG"
 
           # Build with version baked in (no provenance for Lambda compatibility)
+          # Note: Don't tag with 'latest' - ECR has tag immutability enabled
           docker build \
             --build-arg VERSION=$IMAGE_TAG \
             --provenance=false \
             --sbom=false \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             .
 
-          # Push both tags
+          # Push versioned tag only
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           echo "Pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
