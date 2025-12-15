@@ -441,7 +441,8 @@ function openSourceUrl() {
                   v-else-if="extractedData?.listing_data?.author"
                   class="mt-1 text-xs text-amber-600"
                 >
-                  Extracted: "{{ extractedData.listing_data.author }}" (no match found - create new?)
+                  Extracted: "{{ extractedData.listing_data.author }}" (no match found - create
+                  new?)
                 </p>
               </div>
               <div>
