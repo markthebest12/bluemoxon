@@ -542,10 +542,7 @@ function openSourceUrl() {
                 >
                   Extracted: "{{ extractedData.listing_data.binder }}" (no match)
                 </p>
-                <p
-                  v-else-if="suggestedBinderName === 'Custom'"
-                  class="mt-1 text-xs text-amber-600"
-                >
+                <p v-else-if="suggestedBinderName === 'Custom'" class="mt-1 text-xs text-amber-600">
                   Ornate binding detected - suggested "Custom" binder
                 </p>
               </div>
