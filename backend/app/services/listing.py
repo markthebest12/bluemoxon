@@ -212,7 +212,8 @@ def extract_relevant_html(html: str) -> str:
     """Extract relevant content from eBay HTML for Bedrock processing.
 
     Modern eBay pages have listing data buried deep in the HTML (500KB+).
-    This function extracts the key content: meta tags, title, price info.
+    This function extracts the key content: meta tags, title, price info,
+    and item specifics (publisher, author, binding, etc.).
     """
     parts = []
 
@@ -244,6 +245,38 @@ def extract_relevant_html(html: str) -> str:
         if price_match:
             parts.append(f"Price: {price_match.group(1)}")
             break
+
+    # Extract item specifics from <dl><dt><dd> structure
+    # eBay uses definition lists for structured data like Publisher, Author, Binding
+    item_specifics = []
+    dt_dd_pattern = re.compile(
+        r"<dt[^>]*>([^<]+)</dt>\s*<dd[^>]*>([^<]+)</dd>",
+        re.IGNORECASE | re.DOTALL,
+    )
+    for dt_match in dt_dd_pattern.finditer(html):
+        key = dt_match.group(1).strip()
+        value = dt_match.group(2).strip()
+        # Only include relevant book-related specifics
+        relevant_keys = {
+            "author",
+            "publisher",
+            "binding",
+            "year printed",
+            "publication year",
+            "original publication year",
+            "topic",
+            "subject",
+            "language",
+            "country/region of manufacture",
+            "era",
+            "features",
+            "special attributes",
+        }
+        if key.lower() in relevant_keys:
+            item_specifics.append(f"{key}: {value}")
+
+    if item_specifics:
+        parts.append("Item Specifics:\n" + "\n".join(item_specifics))
 
     # If we found meta tags, use them; otherwise fall back to truncation
     if parts:
