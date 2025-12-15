@@ -28,6 +28,7 @@ export interface ExtractedListing {
     binding_type?: string;
     binding?: string; // Alternative field name from API
     condition_description?: string;
+    condition?: string; // Alternative field name from API (Bedrock extraction uses this)
   };
   images: ImagePreview[];
   image_urls: string[]; // Original eBay image URLs (for reference)
