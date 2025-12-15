@@ -186,6 +186,18 @@ def _parse_market_analysis(text: str) -> dict:
     return result
 
 
+def strip_structured_data(markdown: str) -> str:
+    """Remove the structured data block from markdown for display.
+
+    Strips the entire block including markers:
+    ---STRUCTURED-DATA---
+    ...
+    ---END-STRUCTURED-DATA---
+    """
+    pattern = r"---STRUCTURED-DATA---\s*.*?\s*---END-STRUCTURED-DATA---\s*"
+    return re.sub(pattern, "", markdown, flags=re.DOTALL).strip()
+
+
 def _parse_structured_data(markdown: str) -> dict | None:
     """Extract structured data section from v2 format analysis.
 

@@ -1097,7 +1097,12 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{book_id}/analysis/raw")
 def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
-    """Get raw markdown analysis for a book."""
+    """Get raw markdown analysis for a book.
+
+    Returns the analysis with structured data block stripped for display.
+    """
+    from app.utils.markdown_parser import strip_structured_data
+
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1105,7 +1110,7 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
     if not book.analysis or not book.analysis.full_markdown:
         raise HTTPException(status_code=404, detail="No analysis available")
 
-    return book.analysis.full_markdown
+    return strip_structured_data(book.analysis.full_markdown)
 
 
 @router.put("/{book_id}/analysis")
