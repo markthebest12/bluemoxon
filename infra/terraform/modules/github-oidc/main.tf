@@ -129,16 +129,17 @@ resource "aws_iam_role_policy" "deploy" {
           Resource = var.cloudfront_distribution_arns
         }
       ] : [],
-      # ECR permissions for Docker image deployment
+      # ECR auth permission (global, needed for any ECR access)
       length(var.ecr_repository_arns) > 0 ? [
         {
-          Sid    = "ECRAuth"
-          Effect = "Allow"
-          Action = [
-            "ecr:GetAuthorizationToken"
-          ]
+          Sid      = "ECRAuth"
+          Effect   = "Allow"
+          Action   = ["ecr:GetAuthorizationToken"]
           Resource = "*"
-        },
+        }
+      ] : [],
+      # ECR push/pull permissions for specific repositories
+      length(var.ecr_repository_arns) > 0 ? [
         {
           Sid    = "ECRPushPull"
           Effect = "Allow"
