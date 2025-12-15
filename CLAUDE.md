@@ -20,13 +20,13 @@ curl -s https://api.example.com/health
 aws lambda get-function-configuration \
   --function-name my-function
 
-AWS_PROFILE=staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events'
+AWS_PROFILE=bmx-staging aws logs filter-log-events --start-time $(date +%s000) | jq '.events'
 
 # GOOD - simple single-line commands only:
 curl -s https://api.example.com/health
 aws lambda get-function-configuration --function-name my-function --query 'Environment'
-AWS_PROFILE=staging aws sts get-caller-identity
-AWS_PROFILE=staging aws logs filter-log-events --log-group-name /aws/lambda/my-func --limit 10
+AWS_PROFILE=bmx-staging aws sts get-caller-identity
+AWS_PROFILE=bmx-staging aws logs filter-log-events --log-group-name /aws/lambda/my-func --limit 10
 ```
 
 Use the command description field instead of inline comments.
@@ -68,7 +68,7 @@ When adding patterns to `~/.claude/settings.json`:
 
 2. **`VAR=:*` patterns don't work** - Must include part of the value
    - BAD: `Bash(AWS_PROFILE=:*)`
-   - GOOD: `Bash(AWS_PROFILE=staging:*)`, `Bash(AWS_PROFILE=prod:*)`
+   - GOOD: `Bash(AWS_PROFILE=bmx-staging:*)`, `Bash(AWS_PROFILE=bmx-prod:*)`
 
 3. **Patterns with `#` don't work reliably** - Avoid comment prefixes in commands
 
@@ -370,10 +370,10 @@ gh pr create --base main  # ❌ Skips staging!
 | Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
 
 ### AWS Profile
-Use `AWS_PROFILE=staging` for all staging AWS commands:
+Use `AWS_PROFILE=bmx-staging` for all staging AWS commands:
 ```bash
-AWS_PROFILE=staging aws lambda list-functions
-AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m
+AWS_PROFILE=bmx-staging aws lambda list-functions
+AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m
 ```
 
 ### Database Sync (Prod → Staging)
@@ -385,7 +385,7 @@ cat .tmp/sync-response.json | jq
 
 Watch sync progress:
 ```bash
-AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
+AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
 ```
 
 See [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) for full details.
@@ -404,13 +404,13 @@ Domain: bluemoxon-staging.auth.us-west-2.amazoncognito.com
 **Create/Reset a staging user:**
 ```bash
 # Create user (or skip if exists)
-AWS_PROFILE=staging aws cognito-idp admin-create-user --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
+AWS_PROFILE=bmx-staging aws cognito-idp admin-create-user --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
 
 # Set permanent password
-AWS_PROFILE=staging aws cognito-idp admin-set-user-password --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --password 'YourPassword123!' --permanent
+AWS_PROFILE=bmx-staging aws cognito-idp admin-set-user-password --user-pool-id us-west-2_xhoIfvlHv --username user@example.com --password 'YourPassword123!' --permanent
 
 # Map Cognito sub to database (run after creating user)
-AWS_PROFILE=staging aws lambda invoke --function-name bluemoxon-staging-db-sync --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
+AWS_PROFILE=bmx-staging aws lambda invoke --function-name bluemoxon-staging-db-sync --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
 ```
 
 **Troubleshooting login issues:**
@@ -699,9 +699,9 @@ If you MUST make a manual change (emergency fix):
 |------|---------|
 | Format | `terraform fmt -recursive` |
 | Validate | `terraform validate` |
-| Plan (staging) | `AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars -var="db_password=X"` |
-| Apply (staging) | `AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_password=X"` |
-| Check drift | `AWS_PROFILE=staging terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
+| Plan (staging) | `AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Apply (staging) | `AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_password=X"` |
+| Check drift | `AWS_PROFILE=bmx-staging terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
 | Import resource | `terraform import 'module.name.resource.name' <aws-id>` |
 | Show state | `terraform state list` |
 | Remove from state | `terraform state rm <resource>` |
@@ -719,17 +719,17 @@ If you MUST make a manual change (emergency fix):
 cd infra/terraform
 
 # 1. Create RDS snapshot (data protection)
-AWS_PROFILE=staging aws rds create-db-snapshot \
+AWS_PROFILE=bmx-staging aws rds create-db-snapshot \
   --db-instance-identifier bluemoxon-staging-db \
   --db-snapshot-identifier pre-terraform-test-$(date +%Y%m%d)
 
 # 2. Destroy staging infrastructure
-AWS_PROFILE=staging terraform destroy \
+AWS_PROFILE=bmx-staging terraform destroy \
   -var-file=envs/staging.tfvars \
   -var="db_password=$STAGING_DB_PASSWORD"
 
 # 3. Apply from scratch
-AWS_PROFILE=staging terraform apply \
+AWS_PROFILE=bmx-staging terraform apply \
   -var-file=envs/staging.tfvars \
   -var="db_password=$STAGING_DB_PASSWORD"
 
@@ -873,19 +873,19 @@ See `docs/PROD_MIGRATION_CHECKLIST.md` → "VPC Networking Requirements" section
 
 **Diagnosis:**
 ```bash
-AWS_PROFILE=staging aws s3 ls s3://bluemoxon-staging-images
+AWS_PROFILE=bmx-staging aws s3 ls s3://bluemoxon-staging-images
 ```
 If "NoSuchBucket" → bucket was deleted
 
 **Fix:**
 ```bash
-AWS_PROFILE=staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
+AWS_PROFILE=bmx-staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
 ```
 
 ### Debugging Steps
 
 1. Check simple health: `curl https://staging.api.bluemoxon.com/health`
-2. Check Lambda logs: `AWS_PROFILE=staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m`
+2. Check Lambda logs: `AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m`
 3. Look for "timeout" in logs → VPC networking issue
 4. Check VPC endpoints exist for S3/Cognito/Secrets Manager
 5. Check S3 bucket exists
