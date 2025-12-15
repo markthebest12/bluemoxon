@@ -23,7 +23,7 @@ def get_analysis_queue_url() -> str:
 
     Constructs URL from queue name environment variable.
     """
-    queue_name = os.environ.get("ANALYSIS_QUEUE_NAME")
+    queue_name = settings.analysis_queue_name
     if not queue_name:
         raise ValueError("ANALYSIS_QUEUE_NAME environment variable not set")
 
