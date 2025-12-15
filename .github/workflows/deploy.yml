@@ -53,8 +53,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.config.outputs.environment }}
+      aws_account_id: ${{ steps.config.outputs.aws_account_id }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
+      scraper_function_name: ${{ steps.config.outputs.scraper_function_name }}
+      scraper_ecr_repository: ${{ steps.config.outputs.scraper_ecr_repository }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
       api_url: ${{ steps.config.outputs.api_url }}
@@ -87,8 +90,20 @@ jobs:
 
           # Read all values from config file (single source of truth)
           echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "aws_account_id=$(jq -r '.aws_account_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          # Scraper config - only output if enabled (default true for backwards compatibility)
+          # Note: Can't use // operator as it treats false same as null
+          SCRAPER_ENABLED=$(jq -r 'if .scraper.enabled == false then "false" else "true" end' $CONFIG_FILE)
+          if [[ "$SCRAPER_ENABLED" == "true" ]]; then
+            echo "scraper_function_name=$(jq -r '.scraper.function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+            echo "scraper_ecr_repository=$(jq -r '.scraper.ecr_repository // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          else
+            echo "Scraper disabled in config"
+            echo "scraper_function_name=" >> $GITHUB_OUTPUT
+            echo "scraper_ecr_repository=" >> $GITHUB_OUTPUT
+          fi
           echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
@@ -180,6 +195,56 @@ jobs:
           retention-days: 1
 
   # ============================================
+  # Build Scraper (Docker)
+  # ============================================
+
+  build-scraper:
+    name: Build Scraper Image
+    runs-on: ubuntu-latest
+    needs: [ci, configure, generate-version]
+    if: needs.configure.outputs.scraper_function_name != ''
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push scraper image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ needs.configure.outputs.scraper_ecr_repository }}
+          IMAGE_TAG: ${{ needs.generate-version.outputs.version }}
+        working-directory: scraper
+        run: |
+          echo "Building scraper image with VERSION=$IMAGE_TAG"
+
+          # Build with version baked in (no provenance for Lambda compatibility)
+          docker build \
+            --build-arg VERSION=$IMAGE_TAG \
+            --provenance=false \
+            --sbom=false \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+
+          # Push both tags
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+          echo "Pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+  # ============================================
   # Build Frontend
   # ============================================
 
@@ -231,7 +296,13 @@ jobs:
   deploy:
     name: Deploy to ${{ needs.configure.outputs.environment }}
     runs-on: ubuntu-latest
-    needs: [configure, build-backend, build-frontend]
+    needs: [configure, generate-version, build-backend, build-frontend, build-scraper]
+    # Always run if build jobs succeed, even if build-scraper was skipped
+    if: |
+      always() &&
+      needs.build-backend.result == 'success' &&
+      needs.build-frontend.result == 'success' &&
+      (needs.build-scraper.result == 'success' || needs.build-scraper.result == 'skipped')
     environment: ${{ needs.configure.outputs.environment }}
 
     steps:
@@ -362,6 +433,48 @@ jobs:
           aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
           echo "Worker Lambda updated successfully"
 
+      # ---- Deploy Scraper Lambda (if configured) ----
+      - name: Update Scraper Lambda function
+        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+        run: |
+          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
+          ECR_REPOSITORY="${{ needs.configure.outputs.scraper_ecr_repository }}"
+          AWS_ACCOUNT="${{ needs.configure.outputs.aws_account_id }}"
+          IMAGE_TAG="${{ needs.generate-version.outputs.version }}"
+
+          IMAGE_URI="${AWS_ACCOUNT}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "Deploying scraper Lambda: $SCRAPER_FUNCTION"
+          echo "Image URI: $IMAGE_URI"
+
+          aws lambda update-function-code \
+            --function-name "$SCRAPER_FUNCTION" \
+            --image-uri "$IMAGE_URI"
+
+      - name: Wait for Scraper Lambda update
+        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+        run: |
+          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
+          echo "Waiting for Scraper Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$SCRAPER_FUNCTION"
+          echo "Scraper Lambda updated successfully"
+
+      - name: Publish Scraper Lambda version
+        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+        id: scraper-version
+        run: |
+          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
+          echo "Publishing new Scraper Lambda version..."
+
+          VERSION=$(aws lambda publish-version \
+            --function-name "$SCRAPER_FUNCTION" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published scraper version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       # ---- Run Database Migrations ----
       - name: Run database migrations
         run: |
@@ -450,9 +563,15 @@ jobs:
   smoke-test:
     name: Smoke Tests (${{ needs.configure.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [configure, deploy, generate-version]
+    needs: [configure, deploy, generate-version, build-scraper]
 
     steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+
       - name: Wait for deployment to propagate
         run: sleep 30
 
@@ -823,19 +942,70 @@ jobs:
             echo "INFO: No primary_image_url field in response"
           fi
 
+      - name: Test Scraper Lambda version
+        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+        run: |
+          echo "Testing Scraper Lambda version..."
+          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+
+          # Invoke Lambda with version check payload
+          response=$(aws lambda invoke \
+            --function-name "$SCRAPER_FUNCTION" \
+            --payload '{"version": true}' \
+            --cli-binary-format raw-in-base64-out \
+            /tmp/scraper-response.json \
+            --query 'StatusCode' \
+            --output text)
+
+          echo "Lambda invoke status: $response"
+
+          if [[ "$response" != "200" ]]; then
+            echo "ERROR: Scraper Lambda invocation failed with status $response"
+            exit 1
+          fi
+
+          # Parse response body
+          body=$(cat /tmp/scraper-response.json)
+          echo "Response body: $body"
+
+          # Extract version from response
+          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version: $actual_version"
+
+          if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: Scraper version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $actual_version"
+            exit 1
+          fi
+
+          echo "Scraper Lambda version check passed!"
+
       - name: Deployment summary
         run: |
           ENV="${{ needs.configure.outputs.environment }}"
           APP_URL="${{ steps.urls.outputs.app_url }}"
           API_BASE="${{ steps.urls.outputs.api_base }}"
+          VERSION="${{ needs.generate-version.outputs.version }}"
+          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
 
           echo "========================================"
           echo "Deployment to $ENV completed successfully!"
           echo "========================================"
           echo ""
+          echo "Version: $VERSION"
+          echo ""
           echo "URLs:"
           echo "  App: $APP_URL"
           echo "  API: $API_BASE"
+          echo ""
+          echo "Lambdas:"
+          echo "  API: ${{ needs.configure.outputs.lambda_function_name }}"
+          if [[ -n "$SCRAPER_FUNCTION" ]]; then
+            echo "  Scraper: $SCRAPER_FUNCTION"
+          fi
           echo ""
           echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Commit: ${{ github.sha }}"

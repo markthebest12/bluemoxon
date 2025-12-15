@@ -5,12 +5,17 @@ import logging
 import os
 import re
 import uuid
+from pathlib import Path
 
 import boto3
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# Read version from baked-in VERSION file
+VERSION_FILE = Path("/app/VERSION")
+SCRAPER_VERSION = VERSION_FILE.read_text().strip() if VERSION_FILE.exists() else "0.0.0-dev"
 
 # Max images per listing (eBay's limit is 24)
 MAX_IMAGES = 24
@@ -63,8 +68,12 @@ def handler(event, context):
     """
     # Handle warmup requests (from CloudWatch scheduled events)
     if event.get("warmup"):
-        logger.info("Warmup request - keeping Lambda warm")
-        return {"statusCode": 200, "body": json.dumps({"warmup": True})}
+        logger.info(f"Warmup request - keeping Lambda warm (version: {SCRAPER_VERSION})")
+        return {"statusCode": 200, "body": json.dumps({"warmup": True, "version": SCRAPER_VERSION})}
+
+    # Handle version check requests
+    if event.get("version"):
+        return {"statusCode": 200, "body": json.dumps({"version": SCRAPER_VERSION})}
 
     url = event.get("url")
     fetch_images = event.get("fetch_images", True)
