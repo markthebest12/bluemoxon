@@ -157,7 +157,20 @@ def handler(event, context):
             logger.info(f"Got HTML: {len(html)} chars")
 
             # Check for rate limiting / access denied
-            if "Access Denied" in html or "blocked" in html.lower():
+            # Use specific patterns to avoid false positives from "blocked" in unrelated content
+            rate_limit_patterns = [
+                "Access Denied",
+                "blocked by ebay",
+                "you've been blocked",
+                "please verify you are a human",
+                "unusual traffic",
+                "captcha",
+            ]
+            html_lower = html.lower()
+            is_rate_limited = any(pattern.lower() in html_lower for pattern in rate_limit_patterns)
+
+            if is_rate_limited:
+                logger.warning("Rate limiting detected in page content")
                 # Skip explicit browser.close() - hangs in Lambda --single-process mode
                 return {
                     "statusCode": 429,
