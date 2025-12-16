@@ -403,7 +403,11 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <!-- View Eval Runbook link -->
                 <button
-                  v-if="book.has_eval_runbook && !isEvalRunbookRunning(book.id) && !book.eval_runbook_job_status"
+                  v-if="
+                    book.has_eval_runbook &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
                   @click="openEvalRunbook(book)"
                   class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
                   title="View eval runbook"
@@ -418,7 +422,8 @@ async function handleArchiveSource(bookId: number) {
                   <span class="animate-spin">⏳</span>
                   <span>
                     {{
-                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) === "pending"
+                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) ===
+                      "pending"
                         ? "Queued..."
                         : "Generating runbook..."
                     }}
