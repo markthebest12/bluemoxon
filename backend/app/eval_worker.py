@@ -98,7 +98,9 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
             "description": book.condition_notes,  # Use condition notes as description context
         }
 
-        logger.info(f"Generating eval runbook for book {book_id} with full AI analysis and FMV lookup")
+        logger.info(
+            f"Generating eval runbook for book {book_id} with full AI analysis and FMV lookup"
+        )
 
         # Generate eval runbook with full analysis (AI + FMV)
         runbook = generate_eval_runbook(
