@@ -1,5 +1,9 @@
 """Book API tests."""
 
+from unittest.mock import MagicMock, patch
+
+from app.models import Book, BookImage
+
 
 class TestListBooks:
     """Tests for GET /api/v1/books."""
@@ -327,3 +331,152 @@ class TestAddTracking:
         data = response.json()
         # Should be normalized
         assert data["tracking_number"] == "1Z999AA10123456784"
+
+
+class TestCopyListingImagesToBook:
+    """Tests for _copy_listing_images_to_book function."""
+
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_copies_images_and_creates_records(self, mock_settings, mock_boto3, db):
+        """Test happy path: images are copied and BookImage records created."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        # Setup
+        mock_settings.images_bucket = "test-bucket"
+        mock_s3 = MagicMock()
+        mock_boto3.client.return_value = mock_s3
+
+        # Create a book to associate images with
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        listing_keys = ["listings/item123/image_0.jpg", "listings/item123/image_1.png"]
+
+        # Mock thumbnail generation to return success
+        with patch("app.api.v1.images.generate_thumbnail") as mock_thumb:
+            mock_thumb.return_value = (True, None)
+
+            _copy_listing_images_to_book(book.id, listing_keys, db)
+
+        # Verify S3 copy calls
+        assert mock_s3.copy_object.call_count == 2
+        mock_s3.copy_object.assert_any_call(
+            Bucket="test-bucket",
+            CopySource={"Bucket": "test-bucket", "Key": "listings/item123/image_0.jpg"},
+            Key=f"books/{book.id}/image_00.jpg",
+        )
+        mock_s3.copy_object.assert_any_call(
+            Bucket="test-bucket",
+            CopySource={"Bucket": "test-bucket", "Key": "listings/item123/image_1.png"},
+            Key=f"books/{book.id}/image_01.png",
+        )
+
+        # Verify BookImage records created
+        images = db.query(BookImage).filter(BookImage.book_id == book.id).all()
+        assert len(images) == 2
+        assert images[0].s3_key == f"{book.id}/image_00.jpg"
+        assert images[0].is_primary is True
+        assert images[0].display_order == 0
+        assert images[1].s3_key == f"{book.id}/image_01.png"
+        assert images[1].is_primary is False
+        assert images[1].display_order == 1
+
+    @patch("app.api.v1.books.settings")
+    def test_returns_early_if_bucket_not_configured(self, mock_settings, db):
+        """Test that function returns early when images_bucket is not set."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        mock_settings.images_bucket = ""
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Should not raise, just return early
+        _copy_listing_images_to_book(book.id, ["listings/item/img.jpg"], db)
+
+        # No images should be created
+        images = db.query(BookImage).filter(BookImage.book_id == book.id).all()
+        assert len(images) == 0
+
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_returns_early_if_no_listing_keys(self, mock_settings, mock_boto3, db):
+        """Test that function returns early when listing_s3_keys is empty."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        mock_settings.images_bucket = "test-bucket"
+        mock_s3 = MagicMock()
+        mock_boto3.client.return_value = mock_s3
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        _copy_listing_images_to_book(book.id, [], db)
+
+        # S3 should not be called
+        mock_s3.copy_object.assert_not_called()
+
+        # No images should be created
+        images = db.query(BookImage).filter(BookImage.book_id == book.id).all()
+        assert len(images) == 0
+
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_continues_on_s3_copy_failure(self, mock_settings, mock_boto3, db):
+        """Test that function continues with other images when one S3 copy fails."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        mock_settings.images_bucket = "test-bucket"
+        mock_s3 = MagicMock()
+        mock_boto3.client.return_value = mock_s3
+
+        # First copy fails, second succeeds
+        mock_s3.copy_object.side_effect = [Exception("S3 error"), None]
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        listing_keys = ["listings/item/fail.jpg", "listings/item/success.jpg"]
+
+        with patch("app.api.v1.images.generate_thumbnail") as mock_thumb:
+            mock_thumb.return_value = (True, None)
+            _copy_listing_images_to_book(book.id, listing_keys, db)
+
+        # Only second image should be created (first failed)
+        images = db.query(BookImage).filter(BookImage.book_id == book.id).all()
+        assert len(images) == 1
+        assert images[0].s3_key == f"{book.id}/image_01.jpg"
+
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_continues_on_thumbnail_failure(self, mock_settings, mock_boto3, db):
+        """Test that function continues when thumbnail generation fails."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        mock_settings.images_bucket = "test-bucket"
+        mock_s3 = MagicMock()
+        mock_boto3.client.return_value = mock_s3
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        listing_keys = ["listings/item/image.jpg"]
+
+        with patch("app.api.v1.images.generate_thumbnail") as mock_thumb:
+            # Thumbnail fails but copy succeeds
+            mock_thumb.return_value = (False, "Thumbnail error")
+            _copy_listing_images_to_book(book.id, listing_keys, db)
+
+        # Image record should still be created even if thumbnail failed
+        images = db.query(BookImage).filter(BookImage.book_id == book.id).all()
+        assert len(images) == 1
+        assert images[0].s3_key == f"{book.id}/image_00.jpg"
+
+        # Thumbnail upload should not have been called
+        mock_s3.upload_file.assert_not_called()
