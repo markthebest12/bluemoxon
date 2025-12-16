@@ -106,6 +106,22 @@ def get_api_base_url() -> str:
     return ""  # Relative URLs for local dev
 
 
+def _get_active_eval_runbook_job_status(book_id: int, db: Session) -> str | None:
+    """Get the status of an active eval runbook job for a book.
+
+    Returns 'pending' or 'running' if there's an active job, None otherwise.
+    """
+    active_job = (
+        db.query(EvalRunbookJob)
+        .filter(
+            EvalRunbookJob.book_id == book_id,
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    return active_job.status if active_job else None
+
+
 def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
     """Copy images from listing folder to book folder and create BookImage records.
 
@@ -308,11 +324,25 @@ def list_books(
 
     # Build response
     base_url = get_api_base_url()
+
+    # Batch fetch active eval runbook job statuses to avoid N+1 queries
+    book_ids = [book.id for book in books]
+    active_jobs = (
+        db.query(EvalRunbookJob.book_id, EvalRunbookJob.status)
+        .filter(
+            EvalRunbookJob.book_id.in_(book_ids),
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .all()
+    )
+    eval_job_status_map = {job.book_id: job.status for job in active_jobs}
+
     items = []
     for book in books:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
         book_dict["has_eval_runbook"] = book.eval_runbook is not None
+        book_dict["eval_runbook_job_status"] = eval_job_status_map.get(book.id)
         book_dict["image_count"] = len(book.images) if book.images else 0
 
         # Get primary image URL
@@ -358,6 +388,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -612,6 +643,7 @@ def update_book_status(
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)
@@ -760,6 +792,7 @@ def acquire_book(
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -840,6 +873,7 @@ def add_tracking(
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -890,6 +924,7 @@ async def archive_book_source(
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
         book_dict["has_eval_runbook"] = book.eval_runbook is not None
+        book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
         book_dict["image_count"] = len(book.images) if book.images else 0
         return BookResponse(**book_dict)
 
@@ -911,6 +946,7 @@ async def archive_book_source(
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)

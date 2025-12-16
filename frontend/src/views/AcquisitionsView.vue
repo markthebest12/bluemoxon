@@ -403,22 +403,22 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <!-- View Eval Runbook link -->
                 <button
-                  v-if="book.has_eval_runbook && !isEvalRunbookRunning(book.id)"
+                  v-if="book.has_eval_runbook && !isEvalRunbookRunning(book.id) && !book.eval_runbook_job_status"
                   @click="openEvalRunbook(book)"
                   class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
                   title="View eval runbook"
                 >
                   📋 Eval Runbook
                 </button>
-                <!-- Eval runbook job in progress indicator -->
+                <!-- Eval runbook job in progress indicator (check both in-memory and API status) -->
                 <div
-                  v-if="isEvalRunbookRunning(book.id)"
+                  v-if="isEvalRunbookRunning(book.id) || book.eval_runbook_job_status"
                   class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
                     {{
-                      getEvalRunbookJobStatus(book.id)?.status === "pending"
+                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) === "pending"
                         ? "Queued..."
                         : "Generating runbook..."
                     }}

@@ -21,6 +21,7 @@ export interface AcquisitionBook {
   primary_image_url?: string;
   has_analysis?: boolean;
   has_eval_runbook?: boolean;
+  eval_runbook_job_status?: "pending" | "running" | null;
   investment_grade?: number | null;
   strategic_fit?: number | null;
   collection_impact?: number | null;
