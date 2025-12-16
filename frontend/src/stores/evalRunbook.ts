@@ -67,6 +67,14 @@ export interface PriceHistoryEntry {
   changed_at: string;
 }
 
+export interface RefreshResponse {
+  status: "completed" | "failed";
+  score_before?: number;
+  score_after: number;
+  message: string;
+  runbook: EvalRunbook;
+}
+
 export const useEvalRunbookStore = defineStore("evalRunbook", () => {
   const currentRunbook = ref<EvalRunbook | null>(null);
   const priceHistory = ref<PriceHistoryEntry[]>([]);
@@ -121,6 +129,21 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
     }
   }
 
+  async function refreshRunbook(bookId: number): Promise<RefreshResponse> {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await api.post(`/books/${bookId}/eval-runbook/refresh`);
+      currentRunbook.value = response.data.runbook;
+      return response.data;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || e.message || "Failed to refresh analysis";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function clearRunbook() {
     currentRunbook.value = null;
     priceHistory.value = [];
@@ -135,6 +158,7 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
     fetchRunbook,
     updatePrice,
     fetchPriceHistory,
+    refreshRunbook,
     clearRunbook,
   };
 });

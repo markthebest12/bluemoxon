@@ -98,3 +98,13 @@ class EvalPriceHistoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EvalRunbookRefreshResponse(BaseModel):
+    """Response after refresh with full AI analysis."""
+
+    status: str  # "completed" or "failed"
+    score_before: int | None
+    score_after: int
+    message: str
+    runbook: EvalRunbookResponse

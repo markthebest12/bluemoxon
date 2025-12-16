@@ -14,8 +14,10 @@ from app.schemas.eval_runbook import (
     EvalPriceHistoryResponse,
     EvalRunbookPriceUpdate,
     EvalRunbookPriceUpdateResponse,
+    EvalRunbookRefreshResponse,
     EvalRunbookResponse,
 )
+from app.services.eval_generation import generate_eval_runbook
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -168,3 +170,63 @@ def get_price_history(
     )
 
     return history
+
+
+@router.post("/refresh", response_model=EvalRunbookRefreshResponse)
+def refresh_eval_runbook(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_editor),
+):
+    """Re-run full AI analysis and FMV lookup for an existing eval runbook.
+
+    This endpoint triggers the full evaluation process that was skipped during
+    quick import to stay under API Gateway's 29-second timeout limit.
+
+    Note: This may take 30-60 seconds to complete.
+    """
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    existing_runbook = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).first()
+    score_before = existing_runbook.total_score if existing_runbook else None
+
+    # Reconstruct listing_data from book attributes
+    listing_data = {
+        "price": float(book.purchase_price) if book.purchase_price else None,
+        "condition": book.condition_grade or book.condition_notes,
+        "title": book.title,
+    }
+
+    logger.info(f"Starting full AI analysis for book {book_id}: {book.title}")
+
+    try:
+        # Run full analysis with AI and FMV enabled
+        runbook = generate_eval_runbook(
+            book=book,
+            listing_data=listing_data,
+            db=db,
+            run_ai_analysis=True,
+            run_fmv_lookup=True,
+        )
+        db.refresh(runbook)
+
+        logger.info(
+            f"Completed full analysis for book {book_id}: score {score_before} -> {runbook.total_score}"
+        )
+
+        return EvalRunbookRefreshResponse(
+            status="completed",
+            score_before=score_before,
+            score_after=runbook.total_score,
+            message="Full AI analysis and FMV lookup completed successfully",
+            runbook=runbook,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to refresh eval runbook for book {book_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to run full analysis: {str(e)}",
+        ) from e
