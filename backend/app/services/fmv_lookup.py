@@ -198,7 +198,9 @@ def _extract_comparables_with_claude(
     Returns:
         List of comparable dicts with title, price, url, condition, sold_date
     """
-    logger.info(f"Extracting {source} comparables: HTML size={len(html)} chars, title='{book_title}'")
+    logger.info(
+        f"Extracting {source} comparables: HTML size={len(html)} chars, title='{book_title}'"
+    )
 
     prompt = f"""Extract the top {max_results} most relevant sold book listings from this {source} search results page.
 
