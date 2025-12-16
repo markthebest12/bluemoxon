@@ -270,3 +270,34 @@ AWS_PROFILE=staging aws dynamodb scan \
 | Elastic IP | ~$3.65/month (if unattached) |
 
 Total staging cost increase: ~$32/month (NAT Gateway was missing from original plan)
+
+### 10. Lambda Invoke Permission for Eval Runbook Worker
+
+**Date**: 2025-12-16
+**Problem**: Eval runbook worker Lambda cannot invoke scraper Lambda for eBay FMV lookup
+**Error**: `AccessDeniedException: User is not authorized to perform: lambda:InvokeFunction on resource: arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper`
+
+**Fix**: Added inline policy `lambda-invoke` to role `bluemoxon-staging-eval-runbook-worker-role`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper"
+    }
+  ]
+}
+```
+
+**Command**:
+```bash
+AWS_PROFILE=bmx-staging aws iam put-role-policy \
+  --role-name bluemoxon-staging-eval-runbook-worker-role \
+  --policy-name lambda-invoke \
+  --policy-document '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "lambda:InvokeFunction", "Resource": "arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper"}]}'
+```
+
+**Note**: This permission should be managed by Terraform via the `lambda_invoke_arns` variable in the eval-runbook-worker module, but the staging eval-runbook-worker appears to have been created manually (role name pattern differs from Terraform module).
