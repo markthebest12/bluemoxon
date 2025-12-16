@@ -12,6 +12,7 @@ import AddTrackingModal from "@/components/AddTrackingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
+import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -26,6 +27,8 @@ const showEditModal = ref(false);
 const editingBook = ref<AcquisitionBook | null>(null);
 const showAnalysisViewer = ref(false);
 const analysisBookId = ref<number | null>(null);
+const showEvalRunbook = ref(false);
+const evalRunbookBook = ref<AcquisitionBook | null>(null);
 const showTrackingModal = ref(false);
 const trackingBook = ref<AcquisitionBook | null>(null);
 
@@ -94,6 +97,16 @@ function openAnalysisViewer(bookId: number) {
 function closeAnalysisViewer() {
   showAnalysisViewer.value = false;
   analysisBookId.value = null;
+}
+
+function openEvalRunbook(book: AcquisitionBook) {
+  evalRunbookBook.value = book;
+  showEvalRunbook.value = true;
+}
+
+function closeEvalRunbook() {
+  showEvalRunbook.value = false;
+  evalRunbookBook.value = null;
 }
 
 function openTrackingModal(book: AcquisitionBook) {
@@ -361,6 +374,15 @@ async function handleArchiveSource(bookId: number) {
                   title="View analysis"
                 >
                   📄 View Analysis
+                </button>
+                <!-- View Eval Runbook link -->
+                <button
+                  v-if="book.has_eval_runbook"
+                  @click="openEvalRunbook(book)"
+                  class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
+                  title="View eval runbook"
+                >
+                  📋 Eval Runbook
                 </button>
                 <!-- Job in progress indicator -->
                 <div
@@ -640,6 +662,14 @@ async function handleArchiveSource(bookId: number) {
       :book-title="trackingBook.title"
       @close="closeTrackingModal"
       @added="handleTrackingAdded"
+    />
+
+    <!-- Eval Runbook Modal -->
+    <EvalRunbookModal
+      v-if="showEvalRunbook && evalRunbookBook"
+      :book-id="evalRunbookBook.id"
+      :book-title="evalRunbookBook.title"
+      @close="closeEvalRunbook"
     />
   </div>
 </template>
