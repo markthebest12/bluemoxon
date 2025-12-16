@@ -152,7 +152,16 @@ async function generateAnalysis() {
   }
 }
 
-// Pre-process markdown to wrap YAML summary in styled container
+// Strip machine-readable structured data blocks before rendering
+// NOTE: Napoleon v2 STRUCTURED-DATA blocks are stripped entirely (machine-only data)
+function stripStructuredData(markdown: string): string {
+  if (!markdown) return markdown;
+  // Remove Napoleon v2 structured data block (for machine parsing only)
+  return markdown.replace(/---STRUCTURED-DATA---[\s\S]*?---END-STRUCTURED-DATA---\s*/gi, "");
+}
+
+// Pre-process markdown to wrap legacy YAML summary in styled container
+// NOTE: This only applies to legacy YAML format (## SUMMARY), not Napoleon v2
 function preprocessYamlSummary(markdown: string): string {
   if (!markdown) return markdown;
 
@@ -175,8 +184,10 @@ function preprocessYamlSummary(markdown: string): string {
 // Render markdown to sanitized HTML
 function renderMarkdown(markdown: string): string {
   if (!markdown) return "";
-  // Pre-process to style YAML summary block
-  const processed = preprocessYamlSummary(markdown);
+  // First strip Napoleon v2 structured data blocks (machine-only data)
+  const stripped = stripStructuredData(markdown);
+  // Then style legacy YAML summary block (if present)
+  const processed = preprocessYamlSummary(stripped);
   const rawHtml = marked(processed) as string;
   return DOMPurify.sanitize(rawHtml);
 }

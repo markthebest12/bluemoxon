@@ -311,6 +311,7 @@ def list_books(
     for book in books:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
+        book_dict["has_eval_runbook"] = book.eval_runbook is not None
         book_dict["image_count"] = len(book.images) if book.images else 0
 
         # Get primary image URL
@@ -355,6 +356,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
 
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -591,6 +593,7 @@ def update_book_status(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)
@@ -738,6 +741,7 @@ def acquire_book(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -817,6 +821,7 @@ def add_tracking(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -866,6 +871,7 @@ async def archive_book_source(
     if book.archive_status == "success" and book.source_archived_url:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
+        book_dict["has_eval_runbook"] = book.eval_runbook is not None
         book_dict["image_count"] = len(book.images) if book.images else 0
         return BookResponse(**book_dict)
 
@@ -886,6 +892,7 @@ async def archive_book_source(
     # Build response
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)

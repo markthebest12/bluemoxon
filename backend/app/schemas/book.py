@@ -154,6 +154,7 @@ class BookResponse(BookBase):
     year_start: int | None = None
     year_end: int | None = None
     has_analysis: bool = False
+    has_eval_runbook: bool = False
     image_count: int = 0
     primary_image_url: str | None = None
     scoring_snapshot: dict | None = None

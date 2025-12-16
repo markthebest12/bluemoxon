@@ -42,6 +42,7 @@ export interface Book {
   notes: string | null;
   provenance: string | null;
   has_analysis: boolean;
+  has_eval_runbook: boolean;
   image_count: number;
   primary_image_url: string | null;
   investment_grade: number | null;
