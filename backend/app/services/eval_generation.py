@@ -366,14 +366,18 @@ def generate_eval_runbook(
         "fmv_notes": "",
     }
 
-    # Run FMV lookup if enabled
+    # Run FMV lookup if enabled (with error handling to not block import)
     if run_fmv_lookup:
-        logger.info(f"Looking up FMV for: {book.title}")
-        fmv_data = lookup_fmv(
-            title=book.title,
-            author=author_name,
-            max_per_source=5,
-        )
+        try:
+            logger.info(f"Looking up FMV for: {book.title}")
+            fmv_data = lookup_fmv(
+                title=book.title,
+                author=author_name,
+                max_per_source=5,
+            )
+        except Exception as e:
+            logger.warning(f"FMV lookup failed (continuing without FMV): {e}")
+            fmv_data["fmv_notes"] = "FMV lookup failed - can be retried later"
 
     # Use AI-assessed condition grade if available, otherwise fall back to book's grade
     condition_grade = ai_analysis.get("condition_grade") or book.condition_grade
