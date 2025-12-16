@@ -57,7 +57,7 @@ def _build_search_query(title: str, author: str | None = None) -> str:
     return urllib.parse.quote_plus(query)
 
 
-def _fetch_search_page(url: str, timeout: int = 15) -> str | None:
+def _fetch_search_page(url: str, timeout: int = 8) -> str | None:
     """Fetch search results page HTML.
 
     Args:

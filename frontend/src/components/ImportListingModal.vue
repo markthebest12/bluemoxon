@@ -58,6 +58,17 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
 
+// Saving progress steps
+const savingSteps = [
+  { id: "create", label: "Creating book record" },
+  { id: "images", label: "Copying images to library" },
+  { id: "analyze", label: "Analyzing images with AI" },
+  { id: "fmv", label: "Looking up comparable prices" },
+  { id: "runbook", label: "Generating evaluation runbook" },
+];
+const currentSavingStep = ref(0);
+let savingStepInterval: ReturnType<typeof setInterval> | null = null;
+
 // Lock body scroll when modal is open
 watch(
   () => true,
@@ -72,6 +83,11 @@ onUnmounted(() => {
   // Clean up any active extraction polling
   if (currentItemId.value) {
     listingsStore.clearExtraction(currentItemId.value);
+  }
+  // Clean up saving step interval
+  if (savingStepInterval) {
+    clearInterval(savingStepInterval);
+    savingStepInterval = null;
   }
 });
 
@@ -248,6 +264,14 @@ async function handleSubmit() {
   submitting.value = true;
   errorMessage.value = null;
   step.value = "saving";
+  currentSavingStep.value = 0;
+
+  // Animate through steps to show progress (since backend is synchronous)
+  savingStepInterval = setInterval(() => {
+    if (currentSavingStep.value < savingSteps.length - 1) {
+      currentSavingStep.value++;
+    }
+  }, 8000); // Move to next step every 8 seconds
 
   try {
     const payload = {
@@ -277,6 +301,10 @@ async function handleSubmit() {
     step.value = "review";
   } finally {
     submitting.value = false;
+    if (savingStepInterval) {
+      clearInterval(savingStepInterval);
+      savingStepInterval = null;
+    }
   }
 }
 
@@ -667,12 +695,61 @@ function openSourceUrl() {
           </form>
         </div>
 
-        <!-- Step 4: Saving -->
-        <div v-if="step === 'saving'" class="p-8 text-center">
-          <div
-            class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
-          ></div>
-          <p class="text-gray-600">Saving to watchlist...</p>
+        <!-- Step 4: Saving with progress steps -->
+        <div v-if="step === 'saving'" class="p-6">
+          <div class="flex items-center justify-center mb-6">
+            <div
+              class="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"
+            ></div>
+          </div>
+          <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
+
+          <!-- Progress steps -->
+          <div class="space-y-3 max-w-sm mx-auto">
+            <div
+              v-for="(stepItem, index) in savingSteps"
+              :key="stepItem.id"
+              class="flex items-center gap-3"
+            >
+              <!-- Step indicator -->
+              <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                <svg
+                  v-if="index < currentSavingStep"
+                  class="w-5 h-5 text-green-500"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <div
+                  v-else-if="index === currentSavingStep"
+                  class="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"
+                ></div>
+                <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
+              </div>
+              <!-- Step label -->
+              <span
+                :class="[
+                  'text-sm',
+                  index < currentSavingStep
+                    ? 'text-green-600'
+                    : index === currentSavingStep
+                      ? 'text-blue-600 font-medium'
+                      : 'text-gray-400',
+                ]"
+              >
+                {{ stepItem.label }}
+              </span>
+            </div>
+          </div>
+
+          <p class="text-center text-xs text-gray-400 mt-6">
+            This may take up to 60 seconds. Please wait.
+          </p>
         </div>
       </div>
     </div>
