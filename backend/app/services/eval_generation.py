@@ -476,7 +476,8 @@ def generate_eval_runbook(
     item_identification = {
         "Title": book.title,
         "Author": author_name or "Unknown",
-        "Publisher": listing_data.get("publisher") or (book.publisher.name if book.publisher else "Unknown"),
+        "Publisher": listing_data.get("publisher")
+        or (book.publisher.name if book.publisher else "Unknown"),
         "Year": str(book.year_start) if book.year_start else "Unknown",
         "Binder": book.binder.name if book.binder else None,
         "Volumes": book.volumes,

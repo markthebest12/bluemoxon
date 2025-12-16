@@ -170,7 +170,9 @@ HTML CONTENT:
         if json_match:
             comparables = json.loads(json_match.group())
             # Filter to high/medium relevance only
-            return [c for c in comparables if c.get("relevance") in ("high", "medium")][:max_results]
+            return [c for c in comparables if c.get("relevance") in ("high", "medium")][
+                :max_results
+            ]
 
         return []
 
