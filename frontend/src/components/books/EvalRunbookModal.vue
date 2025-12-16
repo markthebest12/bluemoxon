@@ -71,7 +71,9 @@ const scoreBadgeColor = computed(() => {
 
 const fmvRange = computed(() => {
   if (!runbook.value?.fmv_low || !runbook.value?.fmv_high) return null;
-  return `$${runbook.value.fmv_low.toFixed(0)}-$${runbook.value.fmv_high.toFixed(0)}`;
+  const low = Number(runbook.value.fmv_low);
+  const high = Number(runbook.value.fmv_high);
+  return `$${low.toFixed(0)}-$${high.toFixed(0)}`;
 });
 
 const priceDelta = computed(() => {
@@ -129,7 +131,7 @@ watch(
     // Simple estimate - real calculation happens on server
     const fmvMid =
       runbook.value.fmv_low && runbook.value.fmv_high
-        ? (runbook.value.fmv_low + runbook.value.fmv_high) / 2
+        ? (Number(runbook.value.fmv_low) + Number(runbook.value.fmv_high)) / 2
         : null;
 
     if (fmvMid) {
