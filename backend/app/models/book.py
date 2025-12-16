@@ -156,6 +156,13 @@ class Book(Base, TimestampMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    eval_runbook = relationship(
+        "EvalRunbook",
+        back_populates="book",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         Index("books_inventory_type_idx", "inventory_type"),
