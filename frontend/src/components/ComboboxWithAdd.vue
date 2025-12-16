@@ -64,9 +64,12 @@ watch(searchText, (newVal, oldVal) => {
   }
 });
 
-function handleFocus() {
+function handleFocus(event: FocusEvent) {
   isOpen.value = true;
-  searchText.value = "";
+  // Select text instead of clearing so user can type to replace
+  // but suggested name remains visible if they don't type
+  const input = event.target as HTMLInputElement;
+  input.select();
 }
 
 function handleBlur() {
@@ -75,6 +78,9 @@ function handleBlur() {
     isOpen.value = false;
     if (selectedOption.value) {
       searchText.value = selectedOption.value.name;
+    } else if (props.suggestedName && !searchText.value.trim()) {
+      // Restore suggested name if field is empty and no selection made
+      searchText.value = props.suggestedName;
     }
   }, 200);
 }
