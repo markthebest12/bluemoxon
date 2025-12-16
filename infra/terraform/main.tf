@@ -295,8 +295,8 @@ module "lambda" {
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
-  # Lambda invoke permissions (e.g., scraper Lambda)
-  lambda_invoke_arns = var.scraper_lambda_arn != null ? [var.scraper_lambda_arn] : []
+  # Lambda invoke permissions (e.g., scraper Lambda for eBay listing scraping)
+  lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
 
   # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(
@@ -509,6 +509,9 @@ module "eval_runbook_worker" {
     "anthropic.claude-3-5-haiku-*",
     "anthropic.claude-sonnet-4-5-*"
   ]
+
+  # Lambda invoke permissions (e.g., scraper Lambda for eBay FMV lookup)
+  lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
   api_lambda_role_name = local.api_lambda_role_name

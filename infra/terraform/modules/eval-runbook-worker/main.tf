@@ -232,6 +232,24 @@ resource "aws_iam_role_policy" "bedrock_access" {
   })
 }
 
+# Lambda invoke access (e.g., scraper Lambda for eBay FMV lookup)
+resource "aws_iam_role_policy" "lambda_invoke" {
+  count = length(var.lambda_invoke_arns) > 0 ? 1 : 0
+  name  = "lambda-invoke"
+  role  = aws_iam_role.worker_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = var.lambda_invoke_arns
+      }
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # CloudWatch Log Group
 # -----------------------------------------------------------------------------

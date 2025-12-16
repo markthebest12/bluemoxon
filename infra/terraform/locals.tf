@@ -66,6 +66,12 @@ locals {
   # Allows disabling scraper when using existing scraper (prod uses bluemoxon-production-scraper)
   scraper_enabled = coalesce(var.enable_scraper, var.enable_lambda)
 
+  # Scraper Lambda ARN - uses module output when Terraform-managed, otherwise variable
+  # This resolves to the correct ARN whether scraper is created by module or exists externally
+  scraper_lambda_arn = local.scraper_enabled ? (
+    try(module.scraper_lambda[0].function_arn, null)
+  ) : var.scraper_lambda_arn
+
   # Lambda role name for SQS permissions
   # Uses override when provided (required for import workflow), falls back to module output
   # For external Lambda, uses external_lambda_role_name
