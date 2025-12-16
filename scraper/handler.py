@@ -157,17 +157,20 @@ def handler(event, context):
             logger.info(f"Got HTML: {len(html)} chars")
 
             # Check for rate limiting / access denied
-            # Use specific patterns to avoid false positives from "blocked" in unrelated content
+            # Use specific patterns to avoid false positives (e.g., "captcha" appears in CSS)
+            # Look for actual challenge text, not CSS class names
             rate_limit_patterns = [
-                "Access Denied",
+                "access denied",
                 "blocked by ebay",
                 "you've been blocked",
                 "please verify you are a human",
                 "unusual traffic",
-                "captcha",
+                "complete the captcha",  # Actual captcha challenge text
+                "captcha-challenge",  # Actual captcha element
+                "security check required",
             ]
             html_lower = html.lower()
-            is_rate_limited = any(pattern.lower() in html_lower for pattern in rate_limit_patterns)
+            is_rate_limited = any(pattern in html_lower for pattern in rate_limit_patterns)
 
             if is_rate_limited:
                 logger.warning("Rate limiting detected in page content")
