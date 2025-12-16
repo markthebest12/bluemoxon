@@ -299,7 +299,12 @@ function formatCurrency(value: number | null | undefined): string {
               v-if="refreshError"
               class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center gap-2"
             >
-              <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-5 h-5 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
