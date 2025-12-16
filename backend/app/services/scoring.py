@@ -1,8 +1,17 @@
 """Scoring engine for book acquisition evaluation."""
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from app.models import Book
 
 
 @dataclass
@@ -552,3 +561,74 @@ def calculate_all_scores_with_breakdown(
             "collection_impact": collection.to_dict(),
         },
     }
+
+
+def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]:
+    """
+    Calculate and persist scores for a book.
+
+    This is a shared helper that can be called from API endpoints or background workers.
+
+    Args:
+        book: The book model to score (must have relationships loaded)
+        db: Database session
+
+    Returns:
+        Dict with investment_grade, strategic_fit, collection_impact, overall_score
+    """
+    # Import here to avoid circular imports
+    from app.models import Book as BookModel
+
+    author_priority = 0
+    publisher_tier = None
+    binder_tier = None
+    author_book_count = 0
+
+    if book.author:
+        author_priority = book.author.priority_score or 0
+        author_book_count = (
+            db.query(BookModel)
+            .filter(BookModel.author_id == book.author_id, BookModel.id != book.id)
+            .count()
+        )
+
+    if book.publisher:
+        publisher_tier = book.publisher.tier
+
+    if book.binder:
+        binder_tier = book.binder.tier
+
+    is_duplicate = False
+    if book.author_id:
+        other_books = (
+            db.query(BookModel)
+            .filter(BookModel.author_id == book.author_id, BookModel.id != book.id)
+            .all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                break
+
+    scores = calculate_all_scores(
+        purchase_price=book.purchase_price,
+        value_mid=book.value_mid,
+        publisher_tier=publisher_tier,
+        binder_tier=binder_tier,
+        year_start=book.year_start,
+        is_complete=book.is_complete,
+        condition_grade=book.condition_grade,
+        author_priority_score=author_priority,
+        author_book_count=author_book_count,
+        is_duplicate=is_duplicate,
+        completes_set=False,
+        volume_count=book.volumes or 1,
+    )
+
+    book.investment_grade = scores["investment_grade"]
+    book.strategic_fit = scores["strategic_fit"]
+    book.collection_impact = scores["collection_impact"]
+    book.overall_score = scores["overall_score"]
+    book.scores_calculated_at = datetime.now()
+
+    return scores

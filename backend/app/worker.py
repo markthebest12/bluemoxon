@@ -21,6 +21,7 @@ from app.services.bedrock import (
     invoke_bedrock,
 )
 from app.services.reference import get_or_create_binder
+from app.services.scoring import calculate_and_persist_book_scores
 from app.utils.markdown_parser import parse_analysis_markdown
 
 # Configure logging
@@ -197,6 +198,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                     f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
                 )
                 book.binder_id = binder.id
+
+        # Calculate and persist scores after analysis updates
+        logger.info(f"Calculating scores for book {book_id}")
+        scores = calculate_and_persist_book_scores(book, db)
+        logger.info(f"Scores calculated for book {book_id}: overall={scores['overall_score']}")
 
         # Mark job as completed
         job.status = "completed"
