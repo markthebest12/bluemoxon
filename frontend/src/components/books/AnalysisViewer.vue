@@ -152,10 +152,32 @@ async function generateAnalysis() {
   }
 }
 
+// Pre-process markdown to wrap YAML summary in styled container
+function preprocessYamlSummary(markdown: string): string {
+  if (!markdown) return markdown;
+
+  // Match YAML block: ## SUMMARY followed by --- ... ---
+  const pattern = /(##\s*SUMMARY\s*\n)(---\n)([\s\S]*?)(---)/i;
+  const match = markdown.match(pattern);
+
+  if (!match) return markdown;
+
+  // Extract the YAML content and format it as a code block
+  const yamlContent = match[3].trim();
+
+  // Replace the original block with a styled version
+  return markdown.replace(
+    pattern,
+    `$1<div class="yaml-summary"><pre><code>${yamlContent}</code></pre></div>\n\n`
+  );
+}
+
 // Render markdown to sanitized HTML
 function renderMarkdown(markdown: string): string {
   if (!markdown) return "";
-  const rawHtml = marked(markdown) as string;
+  // Pre-process to style YAML summary block
+  const processed = preprocessYamlSummary(markdown);
+  const rawHtml = marked(processed) as string;
   return DOMPurify.sanitize(rawHtml);
 }
 
@@ -692,6 +714,19 @@ Detailed condition notes...
 
 .analysis-content :deep(hr) {
   @apply my-6 border-gray-300;
+}
+
+/* YAML summary block styling - smaller, monospace, subtle background */
+.analysis-content :deep(.yaml-summary) {
+  @apply mb-6 rounded-lg bg-gray-50 border border-gray-200;
+}
+
+.analysis-content :deep(.yaml-summary pre) {
+  @apply m-0 p-3 bg-transparent text-xs leading-relaxed;
+}
+
+.analysis-content :deep(.yaml-summary code) {
+  @apply bg-transparent p-0 text-gray-600 text-xs;
 }
 
 .analysis-content :deep(a) {
