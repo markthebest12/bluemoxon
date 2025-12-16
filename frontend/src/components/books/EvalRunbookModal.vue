@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { useEvalRunbookStore, type EvalRunbook, type PriceUpdatePayload } from "@/stores/evalRunbook";
+import {
+  useEvalRunbookStore,
+  type EvalRunbook,
+  type PriceUpdatePayload,
+} from "@/stores/evalRunbook";
 
 const props = defineProps<{
   bookId: number;
@@ -107,9 +111,10 @@ watch(
       return;
     }
     // Simple estimate - real calculation happens on server
-    const fmvMid = runbook.value.fmv_low && runbook.value.fmv_high
-      ? (runbook.value.fmv_low + runbook.value.fmv_high) / 2
-      : null;
+    const fmvMid =
+      runbook.value.fmv_low && runbook.value.fmv_high
+        ? (runbook.value.fmv_low + runbook.value.fmv_high) / 2
+        : null;
 
     if (fmvMid) {
       const currentPricePoints = runbook.value.score_breakdown["Price vs FMV"]?.points || 0;
@@ -170,12 +175,14 @@ function formatCurrency(value: number | null | undefined): string {
             <h2 class="text-lg font-semibold text-gray-900">Eval Runbook</h2>
             <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
           </div>
-          <button
-            @click="handleClose"
-            class="text-gray-500 hover:text-gray-700"
-          >
+          <button @click="handleClose" class="text-gray-500 hover:text-gray-700">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -206,10 +213,7 @@ function formatCurrency(value: number | null | undefined): string {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-2xl font-bold">{{ runbook.total_score }} / 100</span>
-                <span
-                  :class="scoreBadgeColor"
-                  class="px-3 py-1 rounded-full text-sm font-medium"
-                >
+                <span :class="scoreBadgeColor" class="px-3 py-1 rounded-full text-sm font-medium">
                   {{ runbook.recommendation }}
                 </span>
               </div>
@@ -226,7 +230,12 @@ function formatCurrency(value: number | null | undefined): string {
                       title="Edit price"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -266,7 +275,12 @@ function formatCurrency(value: number | null | undefined): string {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
               <div v-if="isSectionOpen('identification')" class="p-3 pt-0 border-t border-gray-200">
@@ -288,7 +302,10 @@ function formatCurrency(value: number | null | undefined): string {
                 <span class="font-medium">Condition Assessment</span>
                 <span class="text-sm text-gray-500 mr-2">{{ runbook.condition_grade || "-" }}</span>
               </button>
-              <div v-if="isSectionOpen('condition')" class="p-3 pt-0 border-t border-gray-200 text-sm">
+              <div
+                v-if="isSectionOpen('condition')"
+                class="p-3 pt-0 border-t border-gray-200 text-sm"
+              >
                 <div v-if="runbook.condition_positives?.length" class="mb-2">
                   <div class="font-medium text-green-700 mb-1">Positives</div>
                   <ul class="list-disc list-inside text-gray-600">
@@ -323,9 +340,16 @@ function formatCurrency(value: number | null | undefined): string {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(item, key) in runbook.score_breakdown" :key="key" class="border-t border-gray-100">
+                    <tr
+                      v-for="(item, key) in runbook.score_breakdown"
+                      :key="key"
+                      class="border-t border-gray-100"
+                    >
                       <td class="py-2">{{ key }}</td>
-                      <td class="py-2 text-center" :class="item.points > 0 ? 'text-green-600 font-medium' : 'text-gray-400'">
+                      <td
+                        class="py-2 text-center"
+                        :class="item.points > 0 ? 'text-green-600 font-medium' : 'text-gray-400'"
+                      >
                         {{ item.points > 0 ? `+${item.points}` : item.points }}
                       </td>
                       <td class="py-2 text-gray-600">{{ item.notes }}</td>
@@ -351,7 +375,10 @@ function formatCurrency(value: number | null | undefined): string {
                 <span class="font-medium">FMV Pricing</span>
                 <span class="text-sm text-gray-500 mr-2">{{ fmvRange || "-" }}</span>
               </button>
-              <div v-if="isSectionOpen('fmv')" class="p-3 pt-0 border-t border-gray-200 text-sm space-y-3">
+              <div
+                v-if="isSectionOpen('fmv')"
+                class="p-3 pt-0 border-t border-gray-200 text-sm space-y-3"
+              >
                 <!-- eBay Sold -->
                 <div v-if="runbook.ebay_comparables?.length">
                   <div class="font-medium mb-1">eBay Sold (last 90 days)</div>
@@ -361,10 +388,14 @@ function formatCurrency(value: number | null | undefined): string {
                       :key="i"
                       class="flex justify-between text-gray-600"
                     >
-                      <span class="truncate mr-2">{{ comp.title }} - {{ comp.condition || "N/A" }}</span>
+                      <span class="truncate mr-2"
+                        >{{ comp.title }} - {{ comp.condition || "N/A" }}</span
+                      >
                       <span class="whitespace-nowrap">
                         {{ formatCurrency(comp.price) }}
-                        <span v-if="comp.days_ago" class="text-gray-400 text-xs">{{ comp.days_ago }}d</span>
+                        <span v-if="comp.days_ago" class="text-gray-400 text-xs"
+                          >{{ comp.days_ago }}d</span
+                        >
                       </span>
                     </div>
                   </div>
@@ -379,7 +410,9 @@ function formatCurrency(value: number | null | undefined): string {
                       :key="i"
                       class="flex justify-between text-gray-600"
                     >
-                      <span class="truncate mr-2">{{ comp.title }} - {{ comp.condition || "N/A" }}</span>
+                      <span class="truncate mr-2"
+                        >{{ comp.title }} - {{ comp.condition || "N/A" }}</span
+                      >
                       <span>{{ formatCurrency(comp.price) }}</span>
                     </div>
                   </div>
@@ -399,7 +432,10 @@ function formatCurrency(value: number | null | undefined): string {
                 </span>
               </button>
               <div v-if="isSectionOpen('issues')" class="p-3 pt-0 border-t border-gray-200 text-sm">
-                <ul v-if="runbook.critical_issues?.length" class="list-disc list-inside text-gray-600 space-y-1">
+                <ul
+                  v-if="runbook.critical_issues?.length"
+                  class="list-disc list-inside text-gray-600 space-y-1"
+                >
                   <li v-for="(issue, i) in runbook.critical_issues" :key="i">{{ issue }}</li>
                 </ul>
                 <p v-else class="text-gray-500">No critical issues identified.</p>
@@ -410,11 +446,18 @@ function formatCurrency(value: number | null | undefined): string {
             <div class="border-t border-gray-200 pt-4">
               <div class="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 Analysis Findings
               </div>
-              <div class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+              <div
+                class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto"
+              >
                 {{ runbook.analysis_narrative || "No analysis narrative available." }}
               </div>
             </div>
@@ -434,7 +477,12 @@ function formatCurrency(value: number | null | undefined): string {
           <h3 class="text-lg font-semibold">Update Asking Price</h3>
           <button @click="closePriceEdit" class="text-gray-500 hover:text-gray-700">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -485,10 +533,10 @@ function formatCurrency(value: number | null | undefined): string {
           <div v-if="priceUpdatePreview" class="bg-gray-50 rounded-lg p-3 text-sm">
             <div class="font-medium mb-1">Score Impact Preview</div>
             <div>
-              Current: {{ runbook?.total_score }} pts →
-              New: {{ priceUpdatePreview.newScore }} pts
+              Current: {{ runbook?.total_score }} pts → New: {{ priceUpdatePreview.newScore }} pts
               <span :class="priceUpdatePreview.scoreDelta >= 0 ? 'text-green-600' : 'text-red-600'">
-                ({{ priceUpdatePreview.scoreDelta >= 0 ? "+" : "" }}{{ priceUpdatePreview.scoreDelta }})
+                ({{ priceUpdatePreview.scoreDelta >= 0 ? "+" : ""
+                }}{{ priceUpdatePreview.scoreDelta }})
               </span>
             </div>
             <div class="text-gray-500">
