@@ -1,7 +1,6 @@
 """Books API endpoints."""
 
 import logging
-import os
 from datetime import datetime
 from typing import Literal
 
@@ -120,9 +119,9 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
 
     from app.api.v1.images import generate_thumbnail
 
-    bucket_name = os.environ.get("IMAGES_BUCKET", "")
+    bucket_name = settings.images_bucket
     if not bucket_name:
-        logger.warning("IMAGES_BUCKET not set, skipping image copy")
+        logger.warning("images_bucket not configured, skipping image copy")
         return
 
     if not listing_s3_keys:
