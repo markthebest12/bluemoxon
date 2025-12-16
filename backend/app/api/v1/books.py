@@ -475,8 +475,8 @@ def create_book(
                 "publisher": book.publisher.name if book.publisher else "Unknown",
                 "description": book.condition_notes,  # Pass seller notes for context
             }
-            # Full AI analysis + FMV lookup at import time
-            generate_eval_runbook(book, listing_data, db)
+            # Full AI analysis at import time (FMV lookup disabled to stay under API Gateway 29s limit)
+            generate_eval_runbook(book, listing_data, db, run_fmv_lookup=False)
             db.refresh(book)
             logger.info(f"Generated eval runbook for book {book.id} with AI analysis")
         except Exception as e:
