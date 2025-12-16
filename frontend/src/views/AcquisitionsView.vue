@@ -412,7 +412,7 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <!-- Eval runbook job in progress indicator -->
                 <div
-                  v-else-if="isEvalRunbookRunning(book.id)"
+                  v-if="isEvalRunbookRunning(book.id)"
                   class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
@@ -424,9 +424,9 @@ async function handleArchiveSource(bookId: number) {
                     }}
                   </span>
                 </div>
-                <!-- Job in progress indicator -->
+                <!-- Analysis job in progress indicator -->
                 <div
-                  v-else-if="isAnalysisRunning(book.id)"
+                  v-if="isAnalysisRunning(book.id)"
                   class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
@@ -436,15 +436,15 @@ async function handleArchiveSource(bookId: number) {
                 </div>
                 <!-- Job failed indicator -->
                 <div
-                  v-else-if="getJobStatus(book.id)?.status === 'failed'"
+                  v-if="getJobStatus(book.id)?.status === 'failed'"
                   class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
                 </div>
-                <!-- Generate Analysis button (admin only, when no analysis exists) -->
+                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
                 <button
-                  v-else-if="authStore.isAdmin"
+                  v-if="!book.has_analysis && authStore.isAdmin && !isAnalysisRunning(book.id)"
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
                   class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
