@@ -624,8 +624,10 @@ async function handleArchiveSource(bookId: number) {
     />
 
     <!-- Analysis Viewer -->
+    <!-- :key forces remount when bookId changes, ensuring fresh data load -->
     <AnalysisViewer
       v-if="analysisBookId"
+      :key="analysisBookId"
       :book-id="analysisBookId"
       :visible="showAnalysisViewer"
       @close="closeAnalysisViewer"
