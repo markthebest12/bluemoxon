@@ -1,7 +1,5 @@
 """Tests for analysis summary YAML parsing."""
 
-import pytest
-
 from app.services.analysis_summary import calculate_value_vs_cost, parse_analysis_summary
 
 
