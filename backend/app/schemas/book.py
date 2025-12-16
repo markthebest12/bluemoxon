@@ -27,6 +27,7 @@ class BookBase(BaseModel):
     value_mid: Decimal | None = None
     value_high: Decimal | None = None
     purchase_price: Decimal | None = None
+    acquisition_cost: Decimal | None = None  # Total paid incl. shipping/tax
     purchase_date: date | None = None
     purchase_source: str | None = None
     discount_pct: Decimal | None = None
@@ -97,6 +98,7 @@ class BookUpdate(BaseModel):
     value_mid: Decimal | None = None
     value_high: Decimal | None = None
     purchase_price: Decimal | None = None
+    acquisition_cost: Decimal | None = None  # Total paid incl. shipping/tax
     purchase_date: date | None = None
     purchase_source: str | None = None
     discount_pct: Decimal | None = None

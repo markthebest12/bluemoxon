@@ -33,6 +33,7 @@ export interface Book {
   value_mid: number | null;
   value_high: number | null;
   purchase_price: number | null;
+  acquisition_cost: number | null;
   purchase_date: string | null;
   purchase_source: string | null;
   discount_pct: number | null;

@@ -212,7 +212,8 @@ def extract_relevant_html(html: str) -> str:
     """Extract relevant content from eBay HTML for Bedrock processing.
 
     Modern eBay pages have listing data buried deep in the HTML (500KB+).
-    This function extracts the key content: meta tags, title, price info.
+    This function extracts the key content: meta tags, title, price info,
+    and item specifics (publisher, author, binding, etc.).
     """
     parts = []
 
@@ -244,6 +245,45 @@ def extract_relevant_html(html: str) -> str:
         if price_match:
             parts.append(f"Price: {price_match.group(1)}")
             break
+
+    # Extract item specifics from eBay's JSON structure embedded in HTML
+    # eBay stores Item Specifics in nested JSON like:
+    # "publisher":{"_type":"LabelsValues",...,"values":[{..."text":"David Bogue"}]}
+    item_specifics = []
+    relevant_keys = [
+        "author",
+        "publisher",
+        "binding",
+        "yearPrinted",
+        "publicationYear",
+        "originalPublicationYear",
+        "topic",
+        "subject",
+        "language",
+        "era",
+        "features",
+    ]
+
+    # Extract each key's value from the nested JSON structure
+    for key in relevant_keys:
+        # Find the key occurrence in the LabelsValues pattern
+        key_pattern = rf'"{key}":\{{"_type":"LabelsValues"'
+        key_match = re.search(key_pattern, html, re.IGNORECASE)
+        if key_match:
+            # Search for the value within a scope after the key (skip labels, find values)
+            scope = html[key_match.start() : key_match.start() + 500]
+            values_match = re.search(
+                r'"values":\[\{"_type":"TextualDisplay","textSpans":\[\{"_type":"TextSpan","text":"([^"]+)"',
+                scope,
+            )
+            if values_match:
+                value = values_match.group(1)
+                # Convert camelCase to readable format (yearPrinted -> Year Printed)
+                readable_key = re.sub(r"([a-z])([A-Z])", r"\1 \2", key).title()
+                item_specifics.append(f"{readable_key}: {value}")
+
+    if item_specifics:
+        parts.append("Item Specifics:\n" + "\n".join(item_specifics))
 
     # If we found meta tags, use them; otherwise fall back to truncation
     if parts:

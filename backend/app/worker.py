@@ -6,11 +6,14 @@ Processes SQS messages to generate book analysis asynchronously.
 import json
 import logging
 from datetime import UTC, datetime
-from decimal import Decimal
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis
+from app.services.analysis_summary import (
+    extract_book_updates_from_yaml,
+    parse_analysis_summary,
+)
 from app.services.bedrock import (
     build_bedrock_messages,
     fetch_book_images_for_bedrock,
@@ -18,6 +21,7 @@ from app.services.bedrock import (
     invoke_bedrock,
 )
 from app.services.reference import get_or_create_binder
+from app.services.scoring import calculate_and_persist_book_scores
 from app.utils.markdown_parser import parse_analysis_markdown
 
 # Configure logging
@@ -128,6 +132,10 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         # Parse markdown to extract structured fields
         parsed = parse_analysis_markdown(analysis_text)
 
+        # Parse YAML summary block to extract book field updates
+        yaml_data = parse_analysis_summary(analysis_text)
+        book_updates = extract_book_updates_from_yaml(yaml_data)
+
         # Delete existing analysis if present
         if book.analysis:
             db.delete(book.analysis)
@@ -145,18 +153,42 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         )
         db.add(analysis)
 
-        # Update book's FMV if valuation data is present in market_analysis
-        valuation = (parsed.market_analysis or {}).get("valuation", {})
-        fmv_low = valuation.get("low")
-        if fmv_low is not None:
-            new_fmv = Decimal(str(fmv_low))
-            if book.fair_market_value != new_fmv:
-                logger.info(
-                    f"Updating FMV for book {book_id}: {book.fair_market_value} -> {new_fmv}"
-                )
-                book.fair_market_value = new_fmv
-                book.fmv_updated_at = datetime.now(UTC)
-                book.fmv_source = "ai_analysis"
+        # Update book fields from YAML summary
+        if book_updates:
+            logger.info(
+                f"Updating book {book_id} with YAML summary data: {list(book_updates.keys())}"
+            )
+
+            # Update value fields
+            if "value_low" in book_updates:
+                book.value_low = book_updates["value_low"]
+            if "value_high" in book_updates:
+                book.value_high = book_updates["value_high"]
+            if "value_mid" in book_updates:
+                book.value_mid = book_updates["value_mid"]
+
+            # Update condition_grade
+            if "condition_grade" in book_updates:
+                book.condition_grade = book_updates["condition_grade"]
+
+            # Update acquisition_cost only if not already set by user
+            if "acquisition_cost" in book_updates and book.acquisition_cost is None:
+                book.acquisition_cost = book_updates["acquisition_cost"]
+            # If no acquisition_cost in YAML and book has none, use purchase_price
+            elif book.acquisition_cost is None and book.purchase_price is not None:
+                book.acquisition_cost = book.purchase_price
+
+            # Update provenance
+            if "provenance" in book_updates:
+                book.provenance = book_updates["provenance"]
+
+            # Update binding_type
+            if "binding_type" in book_updates:
+                book.binding_type = book_updates["binding_type"]
+
+            # Update edition
+            if "edition" in book_updates:
+                book.edition = book_updates["edition"]
 
         # Extract binder identification and associate with book
         if parsed.binder_identification:
@@ -166,6 +198,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                     f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
                 )
                 book.binder_id = binder.id
+
+        # Calculate and persist scores after analysis updates
+        logger.info(f"Calculating scores for book {book_id}")
+        scores = calculate_and_persist_book_scores(book, db)
+        logger.info(f"Scores calculated for book {book_id}: overall={scores['overall_score']}")
 
         # Mark job as completed
         job.status = "completed"

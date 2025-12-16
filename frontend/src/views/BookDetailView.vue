@@ -602,6 +602,13 @@ function getStatusColor(status: string): string {
                 {{ formatCurrency(booksStore.currentBook.purchase_price) }}
               </dd>
             </div>
+            <div v-if="booksStore.currentBook.acquisition_cost">
+              <dt class="text-sm text-gray-500">Acquisition Cost</dt>
+              <dd class="font-medium">
+                {{ formatCurrency(booksStore.currentBook.acquisition_cost) }}
+                <span class="text-xs text-gray-400">(incl. shipping/tax)</span>
+              </dd>
+            </div>
             <div v-if="booksStore.currentBook.discount_pct">
               <dt class="text-sm text-gray-500">Discount</dt>
               <dd class="font-medium text-green-600">{{ booksStore.currentBook.discount_pct }}%</dd>
