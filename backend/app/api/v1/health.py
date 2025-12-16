@@ -390,6 +390,48 @@ MIGRATION_L4567890MNOP_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS acquisition_cost NUMERIC(10,2)",
 ]
 
+# Migration SQL for m5678901qrst_add_eval_runbook
+MIGRATION_M5678901QRST_SQL = [
+    """CREATE TABLE IF NOT EXISTS eval_runbooks (
+        id SERIAL PRIMARY KEY,
+        book_id INTEGER NOT NULL UNIQUE REFERENCES books(id) ON DELETE CASCADE,
+        total_score INTEGER NOT NULL,
+        score_breakdown JSONB NOT NULL,
+        recommendation VARCHAR(20) NOT NULL,
+        original_asking_price NUMERIC(10,2),
+        current_asking_price NUMERIC(10,2),
+        discount_code VARCHAR(100),
+        price_notes TEXT,
+        fmv_low NUMERIC(10,2),
+        fmv_high NUMERIC(10,2),
+        recommended_price NUMERIC(10,2),
+        ebay_comparables JSONB,
+        abebooks_comparables JSONB,
+        condition_grade VARCHAR(20),
+        condition_positives JSONB,
+        condition_negatives JSONB,
+        critical_issues JSONB,
+        analysis_narrative TEXT,
+        item_identification JSONB,
+        generated_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_eval_runbooks_book_id ON eval_runbooks(book_id)",
+    """CREATE TABLE IF NOT EXISTS eval_price_history (
+        id SERIAL PRIMARY KEY,
+        eval_runbook_id INTEGER NOT NULL REFERENCES eval_runbooks(id) ON DELETE CASCADE,
+        previous_price NUMERIC(10,2),
+        new_price NUMERIC(10,2),
+        discount_code VARCHAR(100),
+        notes TEXT,
+        score_before INTEGER,
+        score_after INTEGER,
+        changed_at TIMESTAMP DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_eval_price_history_runbook_id ON eval_price_history(eval_runbook_id)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
@@ -398,6 +440,8 @@ TABLES_WITH_SEQUENCES = [
     "book_analyses",
     "book_images",
     "books",
+    "eval_price_history",
+    "eval_runbooks",
     "publishers",
     "users",
 ]
@@ -422,6 +466,7 @@ Migrations run in order:
 9. j2345678efgh - Add tracking fields (tracking_number, carrier, url)
 10. k3456789ijkl - Add ship_date and estimated_delivery_end fields
 11. l4567890mnop - Add acquisition_cost field for total cost tracking
+12. m5678901qrst - Add eval_runbooks and eval_price_history tables
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -453,9 +498,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("j2345678efgh", MIGRATION_J2345678EFGH_SQL),
         ("k3456789ijkl", MIGRATION_K3456789IJKL_SQL),
         ("l4567890mnop", MIGRATION_L4567890MNOP_SQL),
+        ("m5678901qrst", MIGRATION_M5678901QRST_SQL),
     ]
 
-    final_version = "l4567890mnop"
+    final_version = "m5678901qrst"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
