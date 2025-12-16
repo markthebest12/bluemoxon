@@ -135,6 +135,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_ANALYSIS_QUEUE_NAME", "ANALYSIS_QUEUE_NAME"),
     )
 
+    # Eval runbook worker queue
+    eval_runbook_queue_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BMX_EVAL_RUNBOOK_QUEUE_NAME", "EVAL_RUNBOOK_QUEUE_NAME"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

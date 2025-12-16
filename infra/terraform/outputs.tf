@@ -135,6 +135,21 @@ output "analysis_dlq_url" {
   value       = local.analysis_worker_enabled ? module.analysis_worker[0].dlq_url : null
 }
 
+output "eval_runbook_worker_function_name" {
+  description = "Eval runbook worker Lambda function name"
+  value       = local.eval_runbook_worker_enabled ? module.eval_runbook_worker[0].function_name : null
+}
+
+output "eval_runbook_queue_url" {
+  description = "SQS queue URL for eval runbook jobs"
+  value       = local.eval_runbook_worker_enabled ? module.eval_runbook_worker[0].queue_url : null
+}
+
+output "eval_runbook_dlq_url" {
+  description = "SQS dead letter queue URL for failed eval runbook jobs"
+  value       = local.eval_runbook_worker_enabled ? module.eval_runbook_worker[0].dlq_url : null
+}
+
 # =============================================================================
 # GitHub OIDC Outputs
 # =============================================================================

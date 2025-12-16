@@ -1,4 +1,4 @@
-"""SQS service for sending analysis job messages."""
+"""SQS service for sending job messages."""
 
 import json
 import logging
@@ -18,6 +18,24 @@ def get_sqs_client():
     return boto3.client("sqs", region_name=region)
 
 
+def _get_queue_url(queue_name: str) -> str:
+    """Get a queue URL from queue name.
+
+    Args:
+        queue_name: Name of the SQS queue
+
+    Returns:
+        Full queue URL
+    """
+    region = os.environ.get("AWS_REGION", settings.aws_region)
+
+    # Get account ID from STS
+    sts = boto3.client("sts", region_name=region)
+    account_id = sts.get_caller_identity()["Account"]
+
+    return f"https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}"
+
+
 def get_analysis_queue_url() -> str:
     """Get the analysis jobs queue URL.
 
@@ -27,13 +45,19 @@ def get_analysis_queue_url() -> str:
     if not queue_name:
         raise ValueError("ANALYSIS_QUEUE_NAME environment variable not set")
 
-    region = os.environ.get("AWS_REGION", settings.aws_region)
+    return _get_queue_url(queue_name)
 
-    # Get account ID from STS
-    sts = boto3.client("sts", region_name=region)
-    account_id = sts.get_caller_identity()["Account"]
 
-    return f"https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}"
+def get_eval_runbook_queue_url() -> str:
+    """Get the eval runbook jobs queue URL.
+
+    Constructs URL from queue name environment variable.
+    """
+    queue_name = settings.eval_runbook_queue_name
+    if not queue_name:
+        raise ValueError("EVAL_RUNBOOK_QUEUE_NAME environment variable not set")
+
+    return _get_queue_url(queue_name)
 
 
 def send_analysis_job(job_id: str, book_id: int, model: str) -> None:
@@ -64,3 +88,31 @@ def send_analysis_job(job_id: str, book_id: int, model: str) -> None:
     )
 
     logger.info(f"Analysis job sent, MessageId: {response['MessageId']}")
+
+
+def send_eval_runbook_job(job_id: str, book_id: int) -> None:
+    """Send an eval runbook job message to SQS.
+
+    Args:
+        job_id: UUID of the eval runbook job
+        book_id: ID of the book to evaluate
+
+    Raises:
+        Exception: If message send fails
+    """
+    sqs = get_sqs_client()
+    queue_url = get_eval_runbook_queue_url()
+
+    message = {
+        "job_id": str(job_id),
+        "book_id": book_id,
+    }
+
+    logger.info(f"Sending eval runbook job to SQS: {message}")
+
+    response = sqs.send_message(
+        QueueUrl=queue_url,
+        MessageBody=json.dumps(message),
+    )
+
+    logger.info(f"Eval runbook job sent, MessageId: {response['MessageId']}")
