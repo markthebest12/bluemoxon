@@ -33,6 +33,7 @@ const form = ref({
   value_mid: null as number | null,
   value_high: null as number | null,
   purchase_price: null as number | null,
+  acquisition_cost: null as number | null,
   purchase_date: "",
   purchase_source: "",
   status: "ON_HAND",
@@ -103,6 +104,7 @@ function populateForm(book: Book) {
     value_mid: book.value_mid,
     value_high: book.value_high,
     purchase_price: (book as any).purchase_price || null,
+    acquisition_cost: (book as any).acquisition_cost || null,
     purchase_date: (book as any).purchase_date || "",
     purchase_source: (book as any).purchase_source || "",
     status: book.status || "ON_HAND",
@@ -135,6 +137,7 @@ function prepareFormData() {
   if (form.value.value_mid !== null) data.value_mid = form.value.value_mid;
   if (form.value.value_high !== null) data.value_high = form.value.value_high;
   if (form.value.purchase_price !== null) data.purchase_price = form.value.purchase_price;
+  if (form.value.acquisition_cost !== null) data.acquisition_cost = form.value.acquisition_cost;
   if (form.value.purchase_date) data.purchase_date = form.value.purchase_date;
   if (form.value.purchase_source) data.purchase_source = form.value.purchase_source;
   if (form.value.notes) data.notes = form.value.notes;
@@ -419,6 +422,19 @@ function cancel() {
             min="0"
             class="input w-full"
           />
+          <p class="text-xs text-gray-500 mt-1">Listing price only</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Acquisition Cost ($)</label>
+          <input
+            v-model.number="form.acquisition_cost"
+            type="number"
+            step="0.01"
+            min="0"
+            class="input w-full"
+          />
+          <p class="text-xs text-gray-500 mt-1">Total incl. shipping & tax</p>
         </div>
 
         <div>
