@@ -154,7 +154,9 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
 
         # Update book fields from YAML summary
         if book_updates:
-            logger.info(f"Updating book {book_id} with YAML summary data: {list(book_updates.keys())}")
+            logger.info(
+                f"Updating book {book_id} with YAML summary data: {list(book_updates.keys())}"
+            )
 
             # Update value fields
             if "value_low" in book_updates:
