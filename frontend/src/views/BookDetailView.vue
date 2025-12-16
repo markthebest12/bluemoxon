@@ -9,6 +9,7 @@ import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
 import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
+import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 
 const route = useRoute();
@@ -32,6 +33,9 @@ const deleteImageError = ref<string | null>(null);
 // Analysis state
 const analysisVisible = ref(false);
 const hasAnalysis = ref(false);
+
+// Eval Runbook state
+const evalRunbookVisible = ref(false);
 
 // Delete confirmation state
 const deleteModalVisible = ref(false);
@@ -541,16 +545,48 @@ function getStatusColor(status: string): string {
           </div>
         </div>
 
-        <!-- Analysis Button -->
-        <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
-              <p class="text-sm text-gray-600 mt-1">
-                View the full Napoleon-style acquisition analysis for this book.
-              </p>
+        <!-- Eval Runbook and Analysis Buttons -->
+        <div class="space-y-4">
+          <!-- Eval Runbook Button -->
+          <div
+            v-if="booksStore.currentBook?.has_eval_runbook"
+            class="card bg-blue-50 border-blue-200"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-800">Eval Runbook</h2>
+                <p class="text-sm text-gray-600 mt-1">
+                  Quick strategic fit scoring and acquisition recommendation.
+                </p>
+              </div>
+              <button
+                @click="evalRunbookVisible = true"
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                View Runbook
+              </button>
             </div>
-            <button @click="openAnalysis" class="btn-primary">View Analysis</button>
+          </div>
+
+          <!-- Analysis Button -->
+          <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
+                <p class="text-sm text-gray-600 mt-1">
+                  View the full Napoleon-style acquisition analysis for this book.
+                </p>
+              </div>
+              <button @click="openAnalysis" class="btn-primary">View Analysis</button>
+            </div>
           </div>
         </div>
       </div>
@@ -741,6 +777,14 @@ function getStatusColor(status: string): string {
         </div>
       </div>
     </Teleport>
+
+    <!-- Eval Runbook Modal -->
+    <EvalRunbookModal
+      v-if="evalRunbookVisible && booksStore.currentBook"
+      :book-id="booksStore.currentBook.id"
+      :book-title="booksStore.currentBook.title"
+      @close="evalRunbookVisible = false"
+    />
 
     <!-- Analysis Viewer Modal -->
     <AnalysisViewer
