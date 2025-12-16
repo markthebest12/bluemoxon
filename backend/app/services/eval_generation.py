@@ -26,7 +26,15 @@ VICTORIAN_START = 1837
 VICTORIAN_END = 1901
 
 # Tier 1 binders (premium binding attribution)
-TIER_1_BINDERS = {"Rivière & Son", "Riviere", "Zaehnsdorf", "Sangorski & Sutcliffe", "Sangorski", "Cobden-Sanderson", "Bedford"}
+TIER_1_BINDERS = {
+    "Rivière & Son",
+    "Riviere",
+    "Zaehnsdorf",
+    "Sangorski & Sutcliffe",
+    "Sangorski",
+    "Cobden-Sanderson",
+    "Bedford",
+}
 
 
 def _calculate_publisher_score(book: Book) -> tuple[int, str]:
@@ -185,16 +193,24 @@ def generate_eval_runbook(
     # Build analysis narrative
     narrative_parts = []
     if total_score >= ACQUIRE_THRESHOLD:
-        narrative_parts.append(f"This book scores {total_score}/120, meeting the {ACQUIRE_THRESHOLD}-point acquisition threshold.")
+        narrative_parts.append(
+            f"This book scores {total_score}/120, meeting the {ACQUIRE_THRESHOLD}-point acquisition threshold."
+        )
     else:
         points_needed = ACQUIRE_THRESHOLD - total_score
-        narrative_parts.append(f"This book scores {total_score}/120, {points_needed} points below the acquisition threshold.")
+        narrative_parts.append(
+            f"This book scores {total_score}/120, {points_needed} points below the acquisition threshold."
+        )
 
     # Add key observations
     if binding_points >= 15:
-        narrative_parts.append(f"The {book.binder.name if book.binder else 'premium'} binding adds significant collector value.")
+        narrative_parts.append(
+            f"The {book.binder.name if book.binder else 'premium'} binding adds significant collector value."
+        )
     if victorian_points == 0 and book.year_start:
-        narrative_parts.append(f"Published in {book.year_start}, outside the Victorian era target range.")
+        narrative_parts.append(
+            f"Published in {book.year_start}, outside the Victorian era target range."
+        )
     if price_points == 0 and asking_price:
         narrative_parts.append("Current asking price is at or above fair market value.")
 
@@ -229,6 +245,8 @@ def generate_eval_runbook(
     db.commit()
     db.refresh(runbook)
 
-    logger.info(f"Created eval runbook {runbook.id} for book {book.id}, score={total_score}, recommendation={recommendation}")
+    logger.info(
+        f"Created eval runbook {runbook.id} for book {book.id}, score={total_score}, recommendation={recommendation}"
+    )
 
     return runbook
