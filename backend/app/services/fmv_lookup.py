@@ -198,6 +198,8 @@ def _extract_comparables_with_claude(
     Returns:
         List of comparable dicts with title, price, url, condition, sold_date
     """
+    logger.info(f"Extracting {source} comparables: HTML size={len(html)} chars, title='{book_title}'")
+
     prompt = f"""Extract the top {max_results} most relevant sold book listings from this {source} search results page.
 
 The book being evaluated is: "{book_title}"
@@ -247,15 +249,29 @@ HTML CONTENT:
         response_body = json.loads(response["body"].read())
         result_text = response_body["content"][0]["text"]
 
+        logger.info(f"Claude {source} extraction raw response: {result_text[:500]}")
+
         # Extract JSON from response (handle markdown code blocks)
         json_match = re.search(r"\[[\s\S]*\]", result_text)
         if json_match:
             comparables = json.loads(json_match.group())
+            logger.info(f"Claude found {len(comparables)} total {source} listings")
+
+            # Log relevance breakdown
+            relevance_counts = {}
+            for c in comparables:
+                rel = c.get("relevance", "unknown")
+                relevance_counts[rel] = relevance_counts.get(rel, 0) + 1
+            logger.info(f"Relevance breakdown: {relevance_counts}")
+
             # Filter to high/medium relevance only
-            return [c for c in comparables if c.get("relevance") in ("high", "medium")][
+            filtered = [c for c in comparables if c.get("relevance") in ("high", "medium")][
                 :max_results
             ]
+            logger.info(f"After relevance filtering: {len(filtered)} {source} comparables")
+            return filtered
 
+        logger.warning(f"No JSON array found in Claude response for {source}")
         return []
 
     except json.JSONDecodeError as e:
