@@ -432,6 +432,21 @@ MIGRATION_M5678901QRST_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_eval_price_history_runbook_id ON eval_price_history(eval_runbook_id)",
 ]
 
+# Migration SQL for n6789012uvwx_add_eval_runbook_jobs
+MIGRATION_N6789012UVWX_SQL = [
+    """CREATE TABLE IF NOT EXISTS eval_runbook_jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        error_message TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        completed_at TIMESTAMP WITH TIME ZONE
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_eval_runbook_jobs_book_id ON eval_runbook_jobs(book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_eval_runbook_jobs_status ON eval_runbook_jobs(status)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -467,6 +482,7 @@ Migrations run in order:
 10. k3456789ijkl - Add ship_date and estimated_delivery_end fields
 11. l4567890mnop - Add acquisition_cost field for total cost tracking
 12. m5678901qrst - Add eval_runbooks and eval_price_history tables
+13. n6789012uvwx - Add eval_runbook_jobs table for async eval runbook generation
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -499,9 +515,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("k3456789ijkl", MIGRATION_K3456789IJKL_SQL),
         ("l4567890mnop", MIGRATION_L4567890MNOP_SQL),
         ("m5678901qrst", MIGRATION_M5678901QRST_SQL),
+        ("n6789012uvwx", MIGRATION_N6789012UVWX_SQL),
     ]
 
-    final_version = "m5678901qrst"
+    final_version = "n6789012uvwx"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
