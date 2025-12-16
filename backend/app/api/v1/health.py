@@ -433,6 +433,8 @@ MIGRATION_M5678901QRST_SQL = [
 ]
 
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
+# Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
+# don't need sequence sync since they start fresh with id=1.
 TABLES_WITH_SEQUENCES = [
     "authors",
     "api_keys",
@@ -440,8 +442,6 @@ TABLES_WITH_SEQUENCES = [
     "book_analyses",
     "book_images",
     "books",
-    "eval_price_history",
-    "eval_runbooks",
     "publishers",
     "users",
 ]
