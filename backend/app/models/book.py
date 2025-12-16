@@ -72,6 +72,7 @@ class Book(Base, TimestampMixin):
 
     # Acquisition
     purchase_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    acquisition_cost: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))  # Total paid incl. shipping/tax
     purchase_date: Mapped[date | None] = mapped_column(Date)
     purchase_source: Mapped[str | None] = mapped_column(String(200))
     discount_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # Up to 9999.99%
