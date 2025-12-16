@@ -528,7 +528,7 @@ def delete_book(
 
             region = os.environ.get("AWS_REGION", settings.aws_region)
             s3 = boto3.client("s3", region_name=region)
-            bucket = os.environ.get("IMAGES_BUCKET", settings.images_bucket)
+            bucket = settings.images_bucket
 
             for image in book_images:
                 # Delete original and thumbnail from S3
