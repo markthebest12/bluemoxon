@@ -192,6 +192,13 @@ def refresh_eval_runbook(
     existing_runbook = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).first()
     score_before = existing_runbook.total_score if existing_runbook else None
 
+    # Delete existing runbook to avoid duplicate key constraint
+    # generate_eval_runbook creates a new record, so we need to remove the old one first
+    if existing_runbook:
+        logger.info(f"Deleting existing eval runbook for book {book_id} before refresh")
+        db.delete(existing_runbook)
+        db.flush()
+
     # Reconstruct listing_data from book attributes
     listing_data = {
         "price": float(book.purchase_price) if book.purchase_price else None,
