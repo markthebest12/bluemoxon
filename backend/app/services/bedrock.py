@@ -197,7 +197,7 @@ def fetch_book_images_for_bedrock(
 
     result = []
     s3 = get_s3_client()
-    bucket = os.environ.get("IMAGES_BUCKET", settings.images_bucket)
+    bucket = settings.images_bucket
 
     # Sort by display_order and take max_images
     sorted_images = sorted(images, key=lambda x: x.display_order)[:max_images]
