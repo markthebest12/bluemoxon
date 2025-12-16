@@ -38,7 +38,9 @@ def recalculate_score_for_price(
     Only the 'Price vs FMV' criterion changes.
     """
     breakdown = dict(runbook.score_breakdown)
-    fmv_mid = (runbook.fmv_low + runbook.fmv_high) / 2 if runbook.fmv_low and runbook.fmv_high else None
+    fmv_mid = (
+        (runbook.fmv_low + runbook.fmv_high) / 2 if runbook.fmv_low and runbook.fmv_high else None
+    )
 
     # Calculate price points
     price_points = 0
@@ -54,7 +56,7 @@ def recalculate_score_for_price(
             price_notes = f"{discount_pct:.0f}% below FMV (good)"
         elif discount_pct >= 0:
             price_points = 5
-            price_notes = f"At or near FMV"
+            price_notes = "At or near FMV"
         else:
             price_points = 0
             price_notes = f"{abs(discount_pct):.0f}% above FMV"
@@ -132,7 +134,9 @@ def update_eval_runbook_price(
     db.commit()
     db.refresh(runbook)
 
-    logger.info(f"Updated eval runbook price for book {book_id}: ${previous_price} -> ${price_update.new_price}, score {score_before} -> {new_score}")
+    logger.info(
+        f"Updated eval runbook price for book {book_id}: ${previous_price} -> ${price_update.new_price}, score {score_before} -> {new_score}"
+    )
 
     return EvalRunbookPriceUpdateResponse(
         previous_price=previous_price,

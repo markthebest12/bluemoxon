@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.auth import CurrentUser, get_current_user, require_admin, require_editor
+from app.auth import CurrentUser, require_admin, require_editor
 from app.db import get_db
 from app.main import app
 from app.models.base import Base

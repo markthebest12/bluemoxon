@@ -4,10 +4,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
@@ -69,9 +69,7 @@ class EvalPriceHistory(Base):
     __tablename__ = "eval_price_history"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    eval_runbook_id: Mapped[int] = mapped_column(
-        ForeignKey("eval_runbooks.id", ondelete="CASCADE")
-    )
+    eval_runbook_id: Mapped[int] = mapped_column(ForeignKey("eval_runbooks.id", ondelete="CASCADE"))
     previous_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     new_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     discount_code: Mapped[str | None] = mapped_column(String(100))
