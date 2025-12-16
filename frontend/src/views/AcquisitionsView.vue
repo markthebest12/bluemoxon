@@ -290,16 +290,31 @@ async function handleArchiveSource(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
             >
-              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+              <a
+                :href="`/books/${book.id}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="block hover:text-blue-600"
+              >
                 <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
                   {{ book.title }}
                 </h3>
-              </router-link>
+              </a>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
               <div class="mt-2 flex items-center justify-between text-xs">
                 <span class="text-gray-500">FMV: {{ formatPrice(book.value_mid) }}</span>
+                <a
+                  v-if="book.source_url"
+                  :href="book.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  title="View eBay listing"
+                >
+                  🛒 Listing
+                </a>
               </div>
 
               <!-- Score Card -->
@@ -430,11 +445,16 @@ async function handleArchiveSource(bookId: number) {
               :key="book.id"
               class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <router-link :to="`/books/${book.id}`" class="block hover:text-blue-600">
+              <a
+                :href="`/books/${book.id}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="block hover:text-blue-600"
+              >
                 <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
                   {{ book.title }}
                 </h3>
-              </router-link>
+              </a>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -443,6 +463,26 @@ async function handleArchiveSource(bookId: number) {
                 <span class="text-green-600 font-medium"
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
+              </div>
+              <!-- eBay Listing Link -->
+              <div v-if="book.source_url" class="mt-1">
+                <a
+                  :href="book.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                  title="View eBay listing"
+                >
+                  🛒 View Listing
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
               </div>
 
               <!-- Compact Score Card -->
@@ -522,10 +562,12 @@ async function handleArchiveSource(bookId: number) {
             </h2>
           </div>
           <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
-            <router-link
+            <a
               v-for="book in received"
               :key="book.id"
-              :to="`/books/${book.id}`"
+              :href="`/books/${book.id}`"
+              target="_blank"
+              rel="noopener noreferrer"
               class="block bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-green-300 transition-colors"
             >
               <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
@@ -543,7 +585,7 @@ async function handleArchiveSource(bookId: number) {
               <div class="mt-2">
                 <ScoreCard :overall-score="book.overall_score" compact />
               </div>
-            </router-link>
+            </a>
           </div>
         </div>
       </div>
