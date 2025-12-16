@@ -7,7 +7,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import require_editor
 from app.db import get_db
 from app.models import Book, EvalPriceHistory, EvalRunbook, User
 from app.schemas.eval_runbook import (
@@ -72,7 +72,7 @@ def recalculate_score_for_price(
 def get_eval_runbook(
     book_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
 ):
     """Get eval runbook for a book."""
     book = db.query(Book).filter(Book.id == book_id).first()
@@ -91,7 +91,7 @@ def update_eval_runbook_price(
     book_id: int,
     price_update: EvalRunbookPriceUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
 ):
     """Update asking price and recalculate score."""
     runbook = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).first()
@@ -149,7 +149,7 @@ def update_eval_runbook_price(
 def get_price_history(
     book_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
 ):
     """Get price change history for eval runbook."""
     runbook = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).first()
