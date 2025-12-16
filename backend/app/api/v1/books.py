@@ -477,7 +477,9 @@ def create_book(
             }
             # Quick runbook at import time (AI analysis + FMV disabled to stay under API Gateway 29s limit)
             # Full analysis can be triggered later via /eval-runbook/{id}/refresh endpoint
-            generate_eval_runbook(book, listing_data, db, run_ai_analysis=False, run_fmv_lookup=False)
+            generate_eval_runbook(
+                book, listing_data, db, run_ai_analysis=False, run_fmv_lookup=False
+            )
             db.refresh(book)
             logger.info(f"Generated quick eval runbook for book {book.id} (no AI analysis)")
         except Exception as e:
