@@ -156,6 +156,12 @@ variable "enable_analysis_worker" {
   default     = null # Defaults to enable_lambda value when null
 }
 
+variable "enable_eval_runbook_worker" {
+  type        = bool
+  description = "Enable eval runbook worker Lambda + SQS (can be enabled independently of main Lambda)"
+  default     = null # Defaults to enable_lambda value when null
+}
+
 variable "external_lambda_role_name" {
   type        = string
   description = "External Lambda IAM role name for SQS send permissions (used when enable_lambda=false)"

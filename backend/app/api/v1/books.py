@@ -13,7 +13,7 @@ from app.api.v1.images import get_cloudfront_url, is_production
 from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
-from app.models import Book
+from app.models import Book, EvalRunbookJob
 from app.models.image import BookImage
 from app.schemas.book import (
     AcquireRequest,
@@ -34,13 +34,13 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.eval_generation import generate_eval_runbook
 from app.services.scoring import (
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
     calculate_title_similarity,
     is_duplicate_title,
 )
+from app.services.sqs import send_eval_runbook_job
 
 logger = logging.getLogger(__name__)
 
@@ -462,29 +462,22 @@ def create_book(
     db.commit()
     db.refresh(book)
 
-    # Generate eval runbook for new books with source_url (imported from eBay)
+    # Queue async eval runbook job for new books with source_url (imported from eBay)
+    # This runs full AI analysis + FMV lookup in a background Lambda worker
     if book.source_url:
         try:
-            # Ensure images are loaded for Claude Vision analysis
-            _ = book.images  # Trigger lazy load
+            # Create eval runbook job for async processing
+            job = EvalRunbookJob(book_id=book.id)
+            db.add(job)
+            db.commit()
+            db.refresh(job)
 
-            # Build listing data from book_data for eval runbook
-            listing_data = {
-                "price": float(book_data.purchase_price) if book_data.purchase_price else None,
-                "author": book.author.name if book.author else "Unknown",
-                "publisher": book.publisher.name if book.publisher else "Unknown",
-                "description": book.condition_notes,  # Pass seller notes for context
-            }
-            # Quick runbook at import time (AI analysis + FMV disabled to stay under API Gateway 29s limit)
-            # Full analysis can be triggered later via /eval-runbook/{id}/refresh endpoint
-            generate_eval_runbook(
-                book, listing_data, db, run_ai_analysis=False, run_fmv_lookup=False
-            )
-            db.refresh(book)
-            logger.info(f"Generated quick eval runbook for book {book.id} (no AI analysis)")
+            # Send job to SQS queue for background processing
+            send_eval_runbook_job(job_id=str(job.id), book_id=book.id)
+            logger.info(f"Queued eval runbook job {job.id} for book {book.id}")
         except Exception as e:
-            # Log but don't fail book creation if eval runbook fails
-            logger.warning(f"Failed to generate eval runbook for book {book.id}: {e}")
+            # Log but don't fail book creation if job queuing fails
+            logger.warning(f"Failed to queue eval runbook job for book {book.id}: {e}")
 
     return BookResponse.model_validate(book)
 
@@ -1599,3 +1592,125 @@ def get_analysis_job_status(
             db.commit()
 
     return AnalysisJobResponse.from_orm_model(job)
+
+
+# Threshold for detecting stale "running" eval runbook jobs
+STALE_EVAL_JOB_THRESHOLD_MINUTES = 15
+
+
+@router.post("/{book_id}/eval-runbook/generate")
+def generate_eval_runbook_job(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_editor),
+):
+    """Start async eval runbook generation with full AI analysis and FMV lookup.
+
+    Returns immediately with job ID. Poll /eval-runbook/status for progress.
+    Requires editor role.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Check for existing active job
+    active_job = (
+        db.query(EvalRunbookJob)
+        .filter(
+            EvalRunbookJob.book_id == book_id,
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail="Eval runbook job already in progress for this book",
+        )
+
+    # Create job record
+    job = EvalRunbookJob(
+        book_id=book_id,
+        status="pending",
+    )
+
+    try:
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Eval runbook job already in progress for this book",
+        ) from None
+
+    # Send message to SQS
+    try:
+        send_eval_runbook_job(str(job.id), book_id)
+    except Exception as e:
+        # If SQS send fails, mark job as failed
+        job.status = "failed"
+        job.error_message = f"Failed to queue job: {e}"
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to queue eval runbook job: {e}",
+        ) from None
+
+    return EvalRunbookJobResponse.from_orm_model(job)
+
+
+@router.get("/{book_id}/eval-runbook/status")
+def get_eval_runbook_job_status(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_editor),
+):
+    """Get status of the latest eval runbook job for a book.
+
+    Requires editor role.
+
+    Automatically detects and marks stale jobs as failed. A job is considered
+    stale if it has been in "running" status for more than 15 minutes without
+    updates, indicating the worker likely crashed or timed out.
+    """
+    from datetime import UTC, timedelta
+
+    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get latest job for this book
+    job = (
+        db.query(EvalRunbookJob)
+        .filter(EvalRunbookJob.book_id == book_id)
+        .order_by(EvalRunbookJob.created_at.desc())
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404, detail="No eval runbook job found for this book")
+
+    # Detect and auto-fail stale "running" jobs
+    # This handles cases where the worker Lambda timed out or crashed
+    if job.status == "running":
+        stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_EVAL_JOB_THRESHOLD_MINUTES)
+        if job.updated_at < stale_threshold:
+            job.status = "failed"
+            job.error_message = (
+                f"Job timed out after {STALE_EVAL_JOB_THRESHOLD_MINUTES} minutes "
+                "(worker likely crashed or timed out)"
+            )
+            job.updated_at = datetime.now(UTC)
+            db.commit()
+
+    return EvalRunbookJobResponse.from_orm_model(job)

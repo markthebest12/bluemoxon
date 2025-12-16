@@ -23,6 +23,7 @@
   "lambda": {
     "function_name": "bluemoxon-staging-api",
     "worker_function_name": "bluemoxon-staging-analysis-worker",
+    "eval_runbook_worker_function_name": "bluemoxon-staging-eval-runbook-worker",
     "memory_size": 512,
     "timeout": 600,
     "provisioned_concurrency": 0

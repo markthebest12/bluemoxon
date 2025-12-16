@@ -187,6 +187,15 @@ function isAnalysisRunning(bookId: number) {
   return booksStore.hasActiveJob(bookId);
 }
 
+// Active eval runbook jobs for status tracking
+function getEvalRunbookJobStatus(bookId: number) {
+  return booksStore.getActiveEvalRunbookJob(bookId);
+}
+
+function isEvalRunbookRunning(bookId: number) {
+  return booksStore.hasActiveEvalRunbookJob(bookId);
+}
+
 async function handleGenerateAnalysis(bookId: number) {
   if (isAnalysisRunning(bookId) || startingAnalysis.value === bookId) return;
 
@@ -213,20 +222,37 @@ onMounted(() => {
 
   // Periodically check if any active jobs have completed and refresh
   jobCheckInterval.value = setInterval(async () => {
-    // Check all evaluating books for completed jobs
+    let needsRefresh = false;
+
+    // Check all evaluating books for completed analysis jobs
     for (const book of evaluating.value) {
       const job = getJobStatus(book.id);
       if (job?.status === "completed") {
-        // Refresh list to show updated has_analysis
-        await acquisitionsStore.fetchAll();
         // Clear the completed job
         booksStore.clearJob(book.id);
-        break;
+        needsRefresh = true;
       } else if (job?.status === "failed") {
         // Clear failed job so user can retry
         console.error(`Analysis job failed for book ${book.id}:`, job.error_message);
         booksStore.clearJob(book.id);
       }
+
+      // Check for completed eval runbook jobs
+      const evalJob = getEvalRunbookJobStatus(book.id);
+      if (evalJob?.status === "completed") {
+        // Clear the completed job
+        booksStore.clearEvalRunbookJob(book.id);
+        needsRefresh = true;
+      } else if (evalJob?.status === "failed") {
+        // Clear failed job so user can retry
+        console.error(`Eval runbook job failed for book ${book.id}:`, evalJob.error_message);
+        booksStore.clearEvalRunbookJob(book.id);
+      }
+    }
+
+    // Refresh list once if any jobs completed
+    if (needsRefresh) {
+      await acquisitionsStore.fetchAll();
     }
   }, 2000);
 });
@@ -377,13 +403,27 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <!-- View Eval Runbook link -->
                 <button
-                  v-if="book.has_eval_runbook"
+                  v-if="book.has_eval_runbook && !isEvalRunbookRunning(book.id)"
                   @click="openEvalRunbook(book)"
                   class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
                   title="View eval runbook"
                 >
                   📋 Eval Runbook
                 </button>
+                <!-- Eval runbook job in progress indicator -->
+                <div
+                  v-else-if="isEvalRunbookRunning(book.id)"
+                  class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      getEvalRunbookJobStatus(book.id)?.status === "pending"
+                        ? "Queued..."
+                        : "Generating runbook..."
+                    }}
+                  </span>
+                </div>
                 <!-- Job in progress indicator -->
                 <div
                   v-else-if="isAnalysisRunning(book.id)"
