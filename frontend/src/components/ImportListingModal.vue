@@ -58,13 +58,11 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
 
-// Saving progress steps
+// Saving progress steps (quick import - AI analysis happens later)
 const savingSteps = [
   { id: "create", label: "Creating book record" },
   { id: "images", label: "Copying images to library" },
-  { id: "analyze", label: "Analyzing images with AI" },
-  { id: "fmv", label: "Looking up comparable prices" },
-  { id: "runbook", label: "Generating evaluation runbook" },
+  { id: "runbook", label: "Generating quick evaluation" },
 ];
 const currentSavingStep = ref(0);
 let savingStepInterval: ReturnType<typeof setInterval> | null = null;
@@ -267,11 +265,12 @@ async function handleSubmit() {
   currentSavingStep.value = 0;
 
   // Animate through steps to show progress (since backend is synchronous)
+  // Quick import completes in ~5 seconds, so animate faster
   savingStepInterval = setInterval(() => {
     if (currentSavingStep.value < savingSteps.length - 1) {
       currentSavingStep.value++;
     }
-  }, 8000); // Move to next step every 8 seconds
+  }, 1500); // Move to next step every 1.5 seconds for quick import
 
   try {
     const payload = {
@@ -748,7 +747,7 @@ function openSourceUrl() {
           </div>
 
           <p class="text-center text-xs text-gray-400 mt-6">
-            This may take up to 60 seconds. Please wait.
+            This should only take a few seconds...
           </p>
         </div>
       </div>

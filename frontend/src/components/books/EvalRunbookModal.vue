@@ -32,6 +32,11 @@ const priceForm = ref<PriceUpdatePayload>({
 const priceUpdatePreview = ref<{ scoreDelta: number; newScore: number } | null>(null);
 const updatingPrice = ref(false);
 
+// Full analysis state
+const refreshing = ref(false);
+const refreshError = ref<string | null>(null);
+const refreshSuccess = ref(false);
+
 onMounted(async () => {
   document.body.style.overflow = "hidden";
   try {
@@ -72,6 +77,17 @@ const fmvRange = computed(() => {
 const priceDelta = computed(() => {
   if (!runbook.value?.current_asking_price || !runbook.value?.recommended_price) return null;
   return runbook.value.recommended_price - runbook.value.current_asking_price;
+});
+
+// Check if full AI analysis is needed (quick import creates runbook without analysis)
+const needsFullAnalysis = computed(() => {
+  if (!runbook.value) return false;
+  // If no analysis narrative and no FMV data, full analysis hasn't been run
+  return (
+    !runbook.value.analysis_narrative &&
+    !runbook.value.ebay_comparables?.length &&
+    !runbook.value.abebooks_comparables?.length
+  );
 });
 
 function toggleSection(section: string) {
@@ -147,6 +163,25 @@ async function submitPriceUpdate() {
   }
 }
 
+async function runFullAnalysis() {
+  refreshing.value = true;
+  refreshError.value = null;
+  refreshSuccess.value = false;
+  try {
+    const result = await store.refreshRunbook(props.bookId);
+    runbook.value = result.runbook;
+    refreshSuccess.value = true;
+    // Auto-hide success message after 3 seconds
+    setTimeout(() => {
+      refreshSuccess.value = false;
+    }, 3000);
+  } catch (e: any) {
+    refreshError.value = e.response?.data?.detail || e.message || "Failed to run full analysis";
+  } finally {
+    refreshing.value = false;
+  }
+}
+
 function handleClose() {
   emit("close");
 }
@@ -201,6 +236,101 @@ function formatCurrency(value: number | null | undefined): string {
 
           <!-- Runbook Content -->
           <div v-else class="space-y-4">
+            <!-- Run Full Analysis Banner (shows when quick import was used) -->
+            <div
+              v-if="needsFullAnalysis && !refreshing"
+              class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4"
+            >
+              <div class="flex items-start gap-3">
+                <svg
+                  class="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-sm text-amber-800 font-medium">Quick evaluation only</p>
+                  <p class="text-sm text-amber-700 mt-1">
+                    This runbook was created without AI image analysis or market price lookup. Run
+                    full analysis for detailed condition assessment and FMV comparables.
+                  </p>
+                  <button
+                    @click="runFullAnalysis"
+                    class="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    Run Full Analysis
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Refreshing state -->
+            <div v-if="refreshing" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div class="flex items-center gap-3">
+                <div
+                  class="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"
+                ></div>
+                <div>
+                  <p class="text-sm text-blue-800 font-medium">Running full analysis...</p>
+                  <p class="text-sm text-blue-600">
+                    Analyzing images and looking up market prices. This may take 30-60 seconds.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Refresh error -->
+            <div
+              v-if="refreshError"
+              class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center gap-2"
+            >
+              <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span class="text-sm text-red-700">{{ refreshError }}</span>
+            </div>
+
+            <!-- Refresh success -->
+            <div
+              v-if="refreshSuccess"
+              class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-2"
+            >
+              <svg
+                class="w-5 h-5 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span class="text-sm text-green-700">Full analysis completed successfully!</span>
+            </div>
+
             <!-- Score Summary -->
             <div class="bg-gray-50 rounded-lg p-4">
               <div class="text-sm font-medium text-gray-600 mb-2">Strategic Fit Score</div>
