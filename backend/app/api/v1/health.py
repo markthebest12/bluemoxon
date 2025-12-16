@@ -385,6 +385,11 @@ MIGRATION_K3456789IJKL_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS estimated_delivery_end DATE",
 ]
 
+# Migration SQL for l4567890mnop_add_acquisition_cost
+MIGRATION_L4567890MNOP_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS acquisition_cost NUMERIC(10,2)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 TABLES_WITH_SEQUENCES = [
     "authors",
@@ -416,6 +421,7 @@ Migrations run in order:
 8. i0123456abcd - Add binder tier column for scoring calculations
 9. j2345678efgh - Add tracking fields (tracking_number, carrier, url)
 10. k3456789ijkl - Add ship_date and estimated_delivery_end fields
+11. l4567890mnop - Add acquisition_cost field for total cost tracking
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -446,9 +452,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("i0123456abcd", MIGRATION_I0123456ABCD_SQL),
         ("j2345678efgh", MIGRATION_J2345678EFGH_SQL),
         ("k3456789ijkl", MIGRATION_K3456789IJKL_SQL),
+        ("l4567890mnop", MIGRATION_L4567890MNOP_SQL),
     ]
 
-    final_version = "k3456789ijkl"
+    final_version = "l4567890mnop"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
