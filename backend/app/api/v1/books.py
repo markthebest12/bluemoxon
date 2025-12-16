@@ -465,15 +465,20 @@ def create_book(
     # Generate eval runbook for new books with source_url (imported from eBay)
     if book.source_url:
         try:
+            # Ensure images are loaded for Claude Vision analysis
+            _ = book.images  # Trigger lazy load
+
             # Build listing data from book_data for eval runbook
             listing_data = {
                 "price": float(book_data.purchase_price) if book_data.purchase_price else None,
                 "author": book.author.name if book.author else "Unknown",
                 "publisher": book.publisher.name if book.publisher else "Unknown",
+                "description": book.condition_notes,  # Pass seller notes for context
             }
+            # Full AI analysis + FMV lookup at import time
             generate_eval_runbook(book, listing_data, db)
             db.refresh(book)
-            logger.info(f"Generated eval runbook for book {book.id}")
+            logger.info(f"Generated eval runbook for book {book.id} with AI analysis")
         except Exception as e:
             # Log but don't fail book creation if eval runbook fails
             logger.warning(f"Failed to generate eval runbook for book {book.id}: {e}")
