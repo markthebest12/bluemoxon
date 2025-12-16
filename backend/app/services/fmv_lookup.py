@@ -1,10 +1,12 @@
 """Fair Market Value lookup service for eBay and AbeBooks comparables.
 
 Uses web search and Claude extraction to find comparable sold listings.
+eBay requests use the scraper Lambda with Playwright for bot detection avoidance.
 """
 
 import json
 import logging
+import os
 import re
 import urllib.parse
 
@@ -13,6 +15,9 @@ import httpx
 from app.services.bedrock import get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
+
+# Scraper Lambda function name pattern
+SCRAPER_FUNCTION_NAME = "bluemoxon-{environment}-scraper"
 
 # Search URL templates
 EBAY_SOLD_SEARCH_URL = (
@@ -29,6 +34,76 @@ ABEBOOKS_SEARCH_URL = (
     "kn={query}&"
     "sortby=17"  # Sort by price descending
 )
+
+
+def _get_lambda_client():
+    """Get boto3 Lambda client."""
+    import boto3
+
+    return boto3.client("lambda")
+
+
+def _fetch_via_scraper_lambda(url: str) -> str | None:
+    """Fetch URL via scraper Lambda (Playwright browser).
+
+    Uses the scraper Lambda which runs a headless Chromium browser to avoid
+    bot detection. This is required for eBay which blocks simple HTTP requests.
+
+    Args:
+        url: URL to fetch
+
+    Returns:
+        HTML content or None if failed
+    """
+    try:
+        client = _get_lambda_client()
+        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
+
+        # fetch_images=False since we only need HTML for search results
+        payload = {"url": url, "fetch_images": False}
+
+        logger.info(f"Invoking scraper Lambda for FMV lookup: {url}")
+        response = client.invoke(
+            FunctionName=function_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload),
+        )
+
+        # Check for Lambda execution error
+        if response.get("FunctionError"):
+            error_payload = json.loads(response["Payload"].read())
+            error_msg = error_payload.get("errorMessage", "Unknown error")
+            logger.error(f"Scraper Lambda execution failed: {error_msg}")
+            return None
+
+        # Parse Lambda response
+        result = json.loads(response["Payload"].read())
+        status_code = result.get("statusCode", 500)
+        body = json.loads(result.get("body", "{}"))
+
+        if status_code == 429:
+            logger.warning("Rate limited by eBay via scraper Lambda")
+            return None
+
+        if status_code >= 400:
+            error_msg = body.get("error", "Scraping failed")
+            logger.error(f"Scraper Lambda error: {error_msg}")
+            return None
+
+        html = body.get("html", "")
+        logger.info(f"Scraper Lambda returned {len(html)} chars of HTML")
+
+        # Truncate to reasonable size for Claude
+        max_chars = 100000  # ~25k tokens
+        if len(html) > max_chars:
+            html = html[:max_chars]
+
+        return html
+
+    except Exception as e:
+        logger.error(f"Error invoking scraper Lambda: {e}")
+        return None
 
 
 def _build_search_query(title: str, author: str | None = None) -> str:
@@ -57,16 +132,23 @@ def _build_search_query(title: str, author: str | None = None) -> str:
     return urllib.parse.quote_plus(query)
 
 
-def _fetch_search_page(url: str, timeout: int = 45) -> str | None:
+def _fetch_search_page(url: str, timeout: int = 45, use_scraper_lambda: bool = False) -> str | None:
     """Fetch search results page HTML.
 
     Args:
         url: Search URL
-        timeout: Request timeout
+        timeout: Request timeout (only used for direct HTTP requests)
+        use_scraper_lambda: If True, use scraper Lambda with Playwright browser
+                           (required for eBay to avoid bot detection)
 
     Returns:
         HTML content or None if failed
     """
+    # Use scraper Lambda for eBay to avoid bot detection (HTTP 503)
+    if use_scraper_lambda:
+        return _fetch_via_scraper_lambda(url)
+
+    # Direct HTTP request for other sites (AbeBooks, etc.)
     try:
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             response = client.get(
@@ -191,6 +273,8 @@ def lookup_ebay_comparables(
 ) -> list[dict]:
     """Look up comparable sold listings on eBay.
 
+    Uses scraper Lambda with Playwright browser to avoid eBay bot detection.
+
     Args:
         title: Book title
         author: Optional author name
@@ -203,7 +287,8 @@ def lookup_ebay_comparables(
     url = EBAY_SOLD_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching eBay sold listings: {url}")
-    html = _fetch_search_page(url)
+    # Use scraper Lambda for eBay to avoid HTTP 503 bot detection
+    html = _fetch_search_page(url, use_scraper_lambda=True)
 
     if not html:
         logger.warning("Failed to fetch eBay search results")

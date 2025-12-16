@@ -31,6 +31,12 @@ variable "handler" {
   default     = "app.eval_worker.handler"
 }
 
+variable "lambda_invoke_arns" {
+  description = "Lambda function ARNs this worker can invoke (e.g., for scraper invocation)"
+  type        = list(string)
+  default     = []
+}
+
 variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
