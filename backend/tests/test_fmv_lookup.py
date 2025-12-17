@@ -149,3 +149,65 @@ class TestFilterListingsWithClaude:
         # Should return listings with medium relevance as fallback
         assert len(result) == 1
         assert result[0]["relevance"] == "medium"
+
+
+class TestCalculateWeightedFmv:
+    """Tests for _calculate_weighted_fmv function."""
+
+    def test_high_relevance_only(self):
+        """Uses only high relevance listings when sufficient."""
+        from app.services.fmv_lookup import _calculate_weighted_fmv
+
+        listings = [
+            {"price": 1000, "relevance": "high"},
+            {"price": 1200, "relevance": "high"},
+            {"price": 1400, "relevance": "high"},
+            {"price": 100, "relevance": "medium"},
+            {"price": 50, "relevance": "low"},
+        ]
+
+        result = _calculate_weighted_fmv(listings)
+
+        # Should use only high relevance (1000, 1200, 1400)
+        assert result["fmv_low"] == 1000
+        assert result["fmv_high"] == 1400
+        assert result["fmv_confidence"] == "high"
+
+    def test_falls_back_to_medium(self):
+        """Falls back to medium when insufficient high."""
+        from app.services.fmv_lookup import _calculate_weighted_fmv
+
+        listings = [
+            {"price": 1000, "relevance": "high"},
+            {"price": 300, "relevance": "medium"},
+            {"price": 400, "relevance": "medium"},
+            {"price": 500, "relevance": "medium"},
+        ]
+
+        result = _calculate_weighted_fmv(listings)
+
+        # Should include medium (only 1 high)
+        assert result["fmv_confidence"] == "medium"
+
+    def test_insufficient_data(self):
+        """Returns low confidence when insufficient data."""
+        from app.services.fmv_lookup import _calculate_weighted_fmv
+
+        listings = [
+            {"price": 1000, "relevance": "high"},
+        ]
+
+        result = _calculate_weighted_fmv(listings)
+
+        assert result["fmv_confidence"] == "low"
+        assert "Insufficient" in result["fmv_notes"]
+
+    def test_empty_listings(self):
+        """Handles empty listings gracefully."""
+        from app.services.fmv_lookup import _calculate_weighted_fmv
+
+        result = _calculate_weighted_fmv([])
+
+        assert result["fmv_low"] is None
+        assert result["fmv_high"] is None
+        assert result["fmv_confidence"] == "low"

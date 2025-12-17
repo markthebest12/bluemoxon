@@ -341,6 +341,68 @@ Return ONLY the JSON array, no other text."""
         return [{"relevance": "medium", **item} for item in listings]
 
 
+def _calculate_weighted_fmv(listings: list[dict]) -> dict:
+    """Calculate FMV range weighted by relevance tier.
+
+    Args:
+        listings: Listings with relevance scores
+
+    Returns:
+        Dict with fmv_low, fmv_high, fmv_confidence, fmv_notes
+    """
+    if not listings:
+        return {
+            "fmv_low": None,
+            "fmv_high": None,
+            "fmv_confidence": "low",
+            "fmv_notes": "No comparable listings found",
+        }
+
+    # Separate by relevance
+    high = [item for item in listings if item.get("relevance") == "high" and item.get("price")]
+    medium = [item for item in listings if item.get("relevance") == "medium" and item.get("price")]
+
+    # Determine which set to use
+    if len(high) >= 2:
+        use_listings = high
+        confidence = "high"
+        notes = f"Based on {len(high)} highly relevant comparables"
+    elif len(high) + len(medium) >= 3:
+        use_listings = high + medium
+        confidence = "medium"
+        notes = f"Based on {len(high)} high + {len(medium)} medium relevance comparables"
+    elif high or medium:
+        use_listings = high + medium
+        confidence = "low"
+        notes = f"Insufficient comparable data ({len(high)} high, {len(medium)} medium)"
+    else:
+        return {
+            "fmv_low": None,
+            "fmv_high": None,
+            "fmv_confidence": "low",
+            "fmv_notes": "No relevant comparables found",
+        }
+
+    # Extract and sort prices
+    prices = sorted([float(item["price"]) for item in use_listings])
+    n = len(prices)
+
+    # Calculate range (25th/75th percentile or min/max for small sets)
+    if n >= 4:
+        fmv_low = prices[n // 4]
+        fmv_high = prices[3 * n // 4]
+    else:
+        fmv_low = prices[0]
+        fmv_high = prices[-1]
+
+    return {
+        "fmv_low": fmv_low,
+        "fmv_high": fmv_high,
+        "fmv_confidence": confidence,
+        "fmv_notes": notes,
+    }
+
+
 def _fetch_search_page(url: str, timeout: int = 45, use_scraper_lambda: bool = False) -> str | None:
     """Fetch search results page HTML.
 
