@@ -1,6 +1,7 @@
 """Tests for FMV lookup service."""
 
 import urllib.parse
+from unittest.mock import MagicMock, patch
 
 from app.services.fmv_lookup import _build_context_aware_query
 
@@ -85,3 +86,66 @@ class TestBuildContextAwareQuery:
         assert "7 volumes" in decoded or "7 vol" in decoded
         assert "calf" in decoded
         assert "first edition" in decoded
+
+
+class TestFilterListingsWithClaude:
+    """Tests for _filter_listings_with_claude function."""
+
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_filters_by_relevance(self, mock_model_id, mock_client):
+        """Claude filters listings and adds relevance scores."""
+        from app.services.fmv_lookup import _filter_listings_with_claude
+
+        # Mock Claude response - returns only high/medium relevance
+        mock_response = MagicMock()
+        mock_response.__getitem__ = lambda self, key: {
+            "body": MagicMock(
+                read=lambda: b'{"content": [{"text": "[{\\"title\\": \\"7 vol set\\", \\"price\\": 1000, \\"relevance\\": \\"high\\"}]"}]}'
+            )
+        }[key]
+        mock_client.return_value.invoke_model.return_value = mock_response
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        listings = [
+            {"title": "7 vol set", "price": 1000},
+            {"title": "single vol", "price": 50},
+        ]
+        book_metadata = {
+            "title": "Life of Scott",
+            "author": "Lockhart",
+            "volumes": 7,
+        }
+
+        result = _filter_listings_with_claude(listings, book_metadata)
+
+        # Should only return high/medium relevance
+        assert len(result) == 1
+        assert result[0]["relevance"] == "high"
+
+    def test_handles_empty_listings(self):
+        """Returns empty list for empty input."""
+        from app.services.fmv_lookup import _filter_listings_with_claude
+
+        result = _filter_listings_with_claude([], {"title": "Test"})
+        assert result == []
+
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_fallback_on_error(self, mock_model_id, mock_client):
+        """Falls back to medium relevance on Claude error."""
+        from app.services.fmv_lookup import _filter_listings_with_claude
+
+        mock_client.return_value.invoke_model.side_effect = Exception("API error")
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        listings = [
+            {"title": "Test book", "price": 100},
+        ]
+        book_metadata = {"title": "Test book"}
+
+        result = _filter_listings_with_claude(listings, book_metadata)
+
+        # Should return listings with medium relevance as fallback
+        assert len(result) == 1
+        assert result[0]["relevance"] == "medium"

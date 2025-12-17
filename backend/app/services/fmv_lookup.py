@@ -256,6 +256,91 @@ def _build_context_aware_query(
     return urllib.parse.quote_plus(query)
 
 
+def _filter_listings_with_claude(
+    listings: list[dict],
+    book_metadata: dict,
+) -> list[dict]:
+    """Filter listings by relevance using Claude.
+
+    Args:
+        listings: Raw listings from scraper
+        book_metadata: Target book metadata for comparison
+
+    Returns:
+        Filtered listings with relevance scores (high/medium only)
+    """
+    if not listings:
+        return []
+
+    # Build metadata summary for prompt
+    meta_parts = [f"Title: {book_metadata.get('title', 'Unknown')}"]
+    if book_metadata.get("author"):
+        meta_parts.append(f"Author: {book_metadata['author']}")
+    if book_metadata.get("volumes", 1) > 1:
+        meta_parts.append(f"Volumes: {book_metadata['volumes']}")
+    if book_metadata.get("binding_type"):
+        meta_parts.append(f"Binding: {book_metadata['binding_type']}")
+    if book_metadata.get("binder"):
+        meta_parts.append(f"Binder: {book_metadata['binder']}")
+    if book_metadata.get("edition"):
+        meta_parts.append(f"Edition: {book_metadata['edition']}")
+
+    metadata_str = "\n".join(meta_parts)
+    listings_json = json.dumps(listings, indent=2)
+
+    prompt = f"""Target book:
+{metadata_str}
+
+Extracted listings:
+{listings_json}
+
+Task: Rate each listing's relevance to the target book as "high", "medium", or "low":
+- HIGH: Same work, matching volume count (within 1), similar binding quality
+- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding)
+- LOW: Different work entirely, or single volume from a multi-volume set
+
+Return a JSON array with all listings, adding a "relevance" field to each.
+Only include listings rated "high" or "medium" in your response.
+Return ONLY the JSON array, no other text."""
+
+    try:
+        client = get_bedrock_client()
+        model_id = get_model_id("sonnet")
+
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2000,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        )
+
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+
+        response_body = json.loads(response["body"].read())
+        result_text = response_body["content"][0]["text"]
+
+        # Extract JSON from response
+        json_match = re.search(r"\[[\s\S]*\]", result_text)
+        if json_match:
+            filtered = json.loads(json_match.group())
+            # Ensure only high/medium returned
+            return [item for item in filtered if item.get("relevance") in ("high", "medium")]
+
+        logger.warning("No JSON array found in Claude filtering response")
+        return []
+
+    except Exception as e:
+        logger.error(f"Claude filtering failed: {e}")
+        # Fall back to returning all listings with medium relevance
+        return [{"relevance": "medium", **item} for item in listings]
+
+
 def _fetch_search_page(url: str, timeout: int = 45, use_scraper_lambda: bool = False) -> str | None:
     """Fetch search results page HTML.
 
