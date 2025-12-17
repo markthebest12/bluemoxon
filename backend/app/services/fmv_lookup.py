@@ -473,7 +473,23 @@ def _extract_comparables_with_claude(
         f"Extracting {source} comparables: HTML size={len(html)} chars, title='{book_title}'"
     )
 
-    prompt = f"""Extract the top {max_results} most relevant sold book listings from this {source} search results page.
+    # Source-specific prompt text
+    if source == "ebay":
+        listing_type = "sold book listings"
+        listing_context = "Items shown have been sold."
+        price_label = "Sale price"
+        date_field = "sold_date"
+        date_desc = "When it sold"
+    else:  # abebooks
+        listing_type = "book listings currently for sale"
+        listing_context = "Items shown are available for purchase."
+        price_label = "Asking price"
+        date_field = "list_date"
+        date_desc = "When listed"
+
+    prompt = f"""Extract the top {max_results} most relevant {listing_type} from this {source} search results page.
+
+{listing_context}
 
 The book being evaluated is: "{book_title}"
 
@@ -482,15 +498,15 @@ Skip listings that are clearly different books.
 
 For each relevant listing, extract:
 - title: The listing title
-- price: Sale price in USD (number only, no currency symbol)
+- price: {price_label} in USD (number only, no currency symbol)
 - url: Full URL to the listing (if available)
 - condition: Condition description if stated
-- sold_date: When it sold (if available, format: YYYY-MM-DD or "recent" if not specific)
+- {date_field}: {date_desc} (if available, format: YYYY-MM-DD or "recent" if not specific)
 - relevance: "high", "medium", or "low" based on how closely it matches the target book
 
 Return JSON array only, no other text:
 [
-  {{"title": "...", "price": 150.00, "url": "...", "condition": "...", "sold_date": "...", "relevance": "high"}},
+  {{"title": "...", "price": 150.00, "url": "...", "condition": "...", "{date_field}": "...", "relevance": "high"}},
   ...
 ]
 
