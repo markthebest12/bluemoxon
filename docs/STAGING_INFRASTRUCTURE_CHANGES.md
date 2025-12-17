@@ -289,18 +289,25 @@ AWS_PROFILE=staging aws dynamodb scan \
 **API Lambda role addition**:
 - Added `sqs-send-eval-runbook-jobs` policy to `bluemoxon-staging-api-exec-role` for SendMessage to jobs queue
 
-**Import commands** (for Terraform):
-```bash
-cd infra/terraform
-AWS_PROFILE=bmx-staging terraform init -backend-config=backends/staging.hcl -reconfigure
+**Terraform Import Status**: ✅ COMPLETE (2025-12-17)
 
-terraform import 'module.eval_runbook_worker.aws_sqs_queue.dlq' https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-eval-runbook-jobs-dlq
-terraform import 'module.eval_runbook_worker.aws_sqs_queue.jobs' https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-eval-runbook-jobs
-terraform import 'module.eval_runbook_worker.aws_iam_role.worker_exec' bluemoxon-staging-eval-runbook-worker-exec-role
-terraform import 'module.eval_runbook_worker.aws_lambda_function.worker' bluemoxon-staging-eval-runbook-worker
-terraform import 'module.eval_runbook_worker.aws_cloudwatch_log_group.worker' /aws/lambda/bluemoxon-staging-eval-runbook-worker
-terraform import 'module.eval_runbook_worker.aws_lambda_event_source_mapping.sqs_trigger' ef7b6ea3-63af-43da-ab37-68d383dee24b
+All 15 resources successfully imported to Terraform state:
+- Core resources: SQS queues, IAM role, Lambda, CloudWatch log group, event source mapping
+- Managed policies: AWSLambdaBasicExecutionRole, AWSLambdaVPCAccessExecutionRole, AWSXRayDaemonWriteAccess
+- Inline policies: sqs-access, secrets-access, bedrock-access, s3-access, lambda-invoke, api_sqs_send
+
+**Bootstrap values** added to `staging.tfvars` to break Terraform count dependencies:
+```hcl
+enable_scraper = false
+scraper_lambda_arn = "arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper"
+external_lambda_security_group_id = "sg-050fb5268bcd06443"
+lambda_iam_role_name_override = "bluemoxon-staging-api-exec-role"
 ```
+
+**Known drift** (expected, will be applied on next `terraform apply`):
+- Tags: Adding standard tags (Application, Environment, ManagedBy)
+- Lambda memory: 512 → 256 (Terraform default)
+- SQS settings: message size and retry configuration normalization
 
 ## Estimated Monthly Cost Impact
 
