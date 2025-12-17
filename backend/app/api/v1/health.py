@@ -447,6 +447,12 @@ MIGRATION_N6789012UVWX_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_eval_runbook_jobs_status ON eval_runbook_jobs(status)",
 ]
 
+# Migration SQL for o7890123wxyz_add_fmv_notes_and_confidence
+MIGRATION_O7890123WXYZ_SQL = [
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS fmv_notes TEXT",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS fmv_confidence VARCHAR(20)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -483,6 +489,7 @@ Migrations run in order:
 11. l4567890mnop - Add acquisition_cost field for total cost tracking
 12. m5678901qrst - Add eval_runbooks and eval_price_history tables
 13. n6789012uvwx - Add eval_runbook_jobs table for async eval runbook generation
+14. o7890123wxyz - Add fmv_notes and fmv_confidence to eval_runbooks
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -516,9 +523,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("l4567890mnop", MIGRATION_L4567890MNOP_SQL),
         ("m5678901qrst", MIGRATION_M5678901QRST_SQL),
         ("n6789012uvwx", MIGRATION_N6789012UVWX_SQL),
+        ("o7890123wxyz", MIGRATION_O7890123WXYZ_SQL),
     ]
 
-    final_version = "n6789012uvwx"
+    final_version = "o7890123wxyz"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
