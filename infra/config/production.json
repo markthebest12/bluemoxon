@@ -42,8 +42,8 @@
   },
 
   "cloudfront": {
-    "frontend_distribution_id": "E16BJX90QWQNQO",
-    "images_distribution_id": "E2IUCDBKX8CLOH"
+    "frontend_distribution_id": "EEDJ1I6OLG43J",
+    "images_distribution_id": "E1VE5JPXXGIJ25"
   },
 
   "database": {
