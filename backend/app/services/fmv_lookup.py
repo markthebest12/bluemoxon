@@ -746,8 +746,16 @@ def lookup_fmv(
         binder=binder,
         edition=edition,
     )
-    # AbeBooks still uses simple query for now
-    abebooks = lookup_abebooks_comparables(title, author, max_per_source)
+    # AbeBooks now uses context-aware query like eBay
+    abebooks = lookup_abebooks_comparables(
+        title=title,
+        author=author,
+        max_results=max_per_source,
+        volumes=volumes,
+        binding_type=binding_type,
+        binder=binder,
+        edition=edition,
+    )
 
     # Calculate weighted FMV from relevance-scored comparables
     all_listings = ebay + abebooks
