@@ -363,6 +363,7 @@ def generate_eval_runbook(
         "abebooks_comparables": [],
         "fmv_low": None,
         "fmv_high": None,
+        "fmv_confidence": None,
         "fmv_notes": "",
     }
 
@@ -370,10 +371,16 @@ def generate_eval_runbook(
     if run_fmv_lookup:
         try:
             logger.info(f"Looking up FMV for: {book.title}")
+            # Get binder name from relationship if available
+            binder_name = book.binder.name if book.binder else None
             fmv_data = lookup_fmv(
                 title=book.title,
                 author=author_name,
                 max_per_source=5,
+                volumes=book.volumes or 1,
+                binding_type=book.binding_type,
+                binder=binder_name,
+                edition=book.edition,
             )
         except Exception as e:
             logger.warning(f"FMV lookup failed (continuing without FMV): {e}")
@@ -509,6 +516,8 @@ def generate_eval_runbook(
         current_asking_price=Decimal(str(asking_price)) if asking_price else None,
         fmv_low=Decimal(str(fmv_low)) if fmv_low else None,
         fmv_high=Decimal(str(fmv_high)) if fmv_high else None,
+        fmv_notes=fmv_data.get("fmv_notes"),
+        fmv_confidence=fmv_data.get("fmv_confidence"),
         condition_grade=condition_grade,
         condition_positives=ai_analysis.get("condition_positives") or [],
         condition_negatives=ai_analysis.get("condition_negatives") or [],
