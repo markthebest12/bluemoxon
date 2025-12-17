@@ -1,5 +1,6 @@
 """Tests for FMV lookup service."""
 
+import json
 import urllib.parse
 from unittest.mock import MagicMock, patch
 
@@ -211,3 +212,50 @@ class TestCalculateWeightedFmv:
         assert result["fmv_low"] is None
         assert result["fmv_high"] is None
         assert result["fmv_confidence"] == "low"
+
+
+class TestExtractComparablesPrompt:
+    """Tests for _extract_comparables_with_claude prompt variations."""
+
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_ebay_prompt_says_sold_listings(self, mock_model_id, mock_client):
+        """eBay extraction prompt asks for sold listings."""
+        from app.services.fmv_lookup import _extract_comparables_with_claude
+
+        mock_response = MagicMock()
+        mock_response.__getitem__ = lambda self, key: {
+            "body": MagicMock(read=lambda: b'{"content": [{"text": "[]"}]}')
+        }[key]
+        mock_client.return_value.invoke_model.return_value = mock_response
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        _extract_comparables_with_claude("<html></html>", "ebay", "Test Book")
+
+        # Check the prompt sent to Claude
+        call_args = mock_client.return_value.invoke_model.call_args
+        body = json.loads(call_args.kwargs["body"])
+        prompt = body["messages"][0]["content"]
+        assert "sold book listings" in prompt.lower()
+
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_abebooks_prompt_says_active_listings(self, mock_model_id, mock_client):
+        """AbeBooks extraction prompt asks for active/for-sale listings."""
+        from app.services.fmv_lookup import _extract_comparables_with_claude
+
+        mock_response = MagicMock()
+        mock_response.__getitem__ = lambda self, key: {
+            "body": MagicMock(read=lambda: b'{"content": [{"text": "[]"}]}')
+        }[key]
+        mock_client.return_value.invoke_model.return_value = mock_response
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        _extract_comparables_with_claude("<html></html>", "abebooks", "Test Book")
+
+        # Check the prompt sent to Claude
+        call_args = mock_client.return_value.invoke_model.call_args
+        body = json.loads(call_args.kwargs["body"])
+        prompt = body["messages"][0]["content"]
+        assert "for sale" in prompt.lower() or "currently available" in prompt.lower()
+        assert "sold" not in prompt.lower()
