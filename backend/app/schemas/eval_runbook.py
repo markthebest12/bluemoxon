@@ -36,6 +36,8 @@ class EvalRunbookBase(BaseModel):
     price_notes: str | None = None
     fmv_low: Decimal | None = None
     fmv_high: Decimal | None = None
+    fmv_notes: str | None = None
+    fmv_confidence: str | None = None  # "high", "medium", "low"
     recommended_price: Decimal | None = None
 
     # Comparables
