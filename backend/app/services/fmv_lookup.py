@@ -704,8 +704,16 @@ def lookup_abebooks_comparables(
         return []
 
     comparables = _extract_comparables_with_claude(html, "abebooks", title, max_results)
-    logger.info(f"Found {len(comparables)} AbeBooks comparables")
-    return comparables
+
+    # Filter out comparables without prices (same as eBay path)
+    valid_comparables = [c for c in comparables if c.get("price")]
+    if len(valid_comparables) < len(comparables):
+        logger.info(
+            f"Filtered out {len(comparables) - len(valid_comparables)} AbeBooks comparables without prices"
+        )
+
+    logger.info(f"Found {len(valid_comparables)} AbeBooks comparables")
+    return valid_comparables
 
 
 def lookup_fmv(
