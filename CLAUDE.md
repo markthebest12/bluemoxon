@@ -9,6 +9,9 @@
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
 - `||` or `&&` chaining (even simple chaining breaks auto-approve)
+- `!` in quoted strings (bash history expansion corrupts values like passwords)
+  - BAD: `--password 'Test1234!'` → `!` gets expanded/corrupted
+  - GOOD: `--password 'Test@1234'` → use `@`, `#`, `$` instead of `!`
 
 **ENFORCEMENT**: If you catch yourself about to use `&&`, STOP. Make separate sequential Bash tool calls instead. The permission dialog toil from `&&` is enormous - one prompt per chained command.
 
