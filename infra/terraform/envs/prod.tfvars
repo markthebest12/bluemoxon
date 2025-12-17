@@ -28,23 +28,25 @@ db_allocated_storage = 50
 # CloudFront: Uses OAC (Origin Access Control), module uses OAI
 # Database: Aurora Serverless managed externally (different module needed)
 # Cognito: Existing pool with production users, managed externally
-enable_cloudfront         = false
-enable_cognito            = false
-enable_lambda             = true  # Lambda imported into Terraform (#225 Phase 3)
-enable_lambda_vpc         = true  # Lambda needs VPC for Aurora connectivity
-enable_api_gateway        = false # API Gateway managed externally (import in future phase)
-enable_database           = false
-enable_nat_gateway        = false
-enable_waf                = true
-enable_scraper            = false # Existing scraper (bluemoxon-production-scraper) managed externally
-skip_s3_cloudfront_policy = true  # Prod uses OAC (not OAI) - bucket policy managed externally
+enable_cloudfront             = true  # CRITICAL: Must be enabled - CloudFront serves frontend
+cloudfront_origin_access_type = "oac" # Prod uses OAC (modern) not OAI (legacy)
+enable_cognito                = false
+enable_lambda                 = true  # Lambda imported into Terraform (#225 Phase 3)
+enable_lambda_vpc             = true  # Lambda needs VPC for Aurora connectivity
+enable_api_gateway            = false # API Gateway managed externally (import in future phase)
+enable_database               = false
+enable_nat_gateway            = false
+enable_waf                    = true
+enable_scraper                = false # Existing scraper (bluemoxon-production-scraper) managed externally
+skip_s3_cloudfront_policy     = true  # Prod uses OAC (not OAI) - bucket policy managed externally
 
 # =============================================================================
 # Analysis Worker Configuration
 # =============================================================================
 # Enabled independently of main Lambda - creates SQS queue + worker Lambda
 # for async Bedrock analysis generation.
-enable_analysis_worker = true
+enable_analysis_worker     = true
+enable_eval_runbook_worker = false # Temporarily disabled - need lambda.zip built by deploy workflow
 
 # Lambda VPC configuration (for Aurora connectivity)
 # These are NOT used for external_lambda (which is disabled) but for VPC config
@@ -85,8 +87,8 @@ cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:use
 # Scraper Lambda (for eBay listing scraping)
 scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-production-scraper"
 
-# Images CDN URL (CloudFront managed externally)
-images_cdn_url_override = "https://app.bluemoxon.com/book-images"
+# Images CDN URL (separate CloudFront distribution after recovery)
+images_cdn_url_override = "https://d1yejmcspwgw9x.cloudfront.net"
 
 # Environment name override (prod uses "production" for scraper function naming)
 environment_name_override = "production"
@@ -171,7 +173,8 @@ github_oidc_frontend_bucket_arns = [
 ]
 github_oidc_images_bucket_arns = ["arn:aws:s3:::bluemoxon-images"]
 github_oidc_cloudfront_distribution_arns = [
-  "arn:aws:cloudfront::266672885920:distribution/E16BJX90QWQNQO",
+  "arn:aws:cloudfront::266672885920:distribution/EEDJ1I6OLG43J",
+  "arn:aws:cloudfront::266672885920:distribution/E1VE5JPXXGIJ25",
   "arn:aws:cloudfront::266672885920:distribution/ES60BQB34DNYS"
 ]
 
@@ -187,7 +190,7 @@ enable_dns = true
 landing_cloudfront_domain_name = "dui69hltsg2ds.cloudfront.net"
 
 # Frontend app CloudFront (app.bluemoxon.com)
-app_cloudfront_domain_name = "d2yd5bvqaomg54.cloudfront.net"
+app_cloudfront_domain_name = "dhs3g62dkd451.cloudfront.net"
 
 # API Gateway custom domain (api.bluemoxon.com)
 api_gateway_domain_name    = "d-2bb05h3tf4.execute-api.us-west-2.amazonaws.com"
