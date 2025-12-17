@@ -422,7 +422,7 @@ async function handleArchiveSource(bookId: number) {
                   <span class="animate-spin">⏳</span>
                   <span>
                     {{
-                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) ===
+                      (getEvalRunbookJobStatus(book.id)?.status || book.eval_runbook_job_status) ===
                       "pending"
                         ? "Queued..."
                         : "Generating runbook..."
