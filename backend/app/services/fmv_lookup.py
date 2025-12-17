@@ -473,7 +473,23 @@ def _extract_comparables_with_claude(
         f"Extracting {source} comparables: HTML size={len(html)} chars, title='{book_title}'"
     )
 
-    prompt = f"""Extract the top {max_results} most relevant sold book listings from this {source} search results page.
+    # Source-specific prompt text
+    if source == "ebay":
+        listing_type = "sold book listings"
+        listing_context = "Items shown have been sold."
+        price_label = "Sale price"
+        date_field = "sold_date"
+        date_desc = "When it sold"
+    else:  # abebooks
+        listing_type = "book listings currently for sale"
+        listing_context = "Items shown are available for purchase."
+        price_label = "Asking price"
+        date_field = "list_date"
+        date_desc = "When listed"
+
+    prompt = f"""Extract the top {max_results} most relevant {listing_type} from this {source} search results page.
+
+{listing_context}
 
 The book being evaluated is: "{book_title}"
 
@@ -482,15 +498,15 @@ Skip listings that are clearly different books.
 
 For each relevant listing, extract:
 - title: The listing title
-- price: Sale price in USD (number only, no currency symbol)
+- price: {price_label} in USD (number only, no currency symbol)
 - url: Full URL to the listing (if available)
 - condition: Condition description if stated
-- sold_date: When it sold (if available, format: YYYY-MM-DD or "recent" if not specific)
+- {date_field}: {date_desc} (if available, format: YYYY-MM-DD or "recent" if not specific)
 - relevance: "high", "medium", or "low" based on how closely it matches the target book
 
 Return JSON array only, no other text:
 [
-  {{"title": "...", "price": 150.00, "url": "...", "condition": "...", "sold_date": "...", "relevance": "high"}},
+  {{"title": "...", "price": 150.00, "url": "...", "condition": "...", "{date_field}": "...", "relevance": "high"}},
   ...
 ]
 
@@ -647,6 +663,10 @@ def lookup_abebooks_comparables(
     title: str,
     author: str | None = None,
     max_results: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> list[dict]:
     """Look up comparable listings on AbeBooks.
 
@@ -654,11 +674,26 @@ def lookup_abebooks_comparables(
         title: Book title
         author: Optional author name
         max_results: Maximum comparables to return
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
         List of comparable dicts with title, price, url, condition
     """
-    query = _build_search_query(title, author)
+    # Use context-aware query if we have metadata beyond title/author
+    if volumes > 1 or binding_type or binder or edition:
+        query = _build_context_aware_query(
+            title=title,
+            author=author,
+            volumes=volumes,
+            binding_type=binding_type,
+            binder=binder,
+            edition=edition,
+        )
+    else:
+        query = _build_search_query(title, author)
     url = ABEBOOKS_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching AbeBooks: {url}")
@@ -711,8 +746,16 @@ def lookup_fmv(
         binder=binder,
         edition=edition,
     )
-    # AbeBooks still uses simple query for now
-    abebooks = lookup_abebooks_comparables(title, author, max_per_source)
+    # AbeBooks now uses context-aware query like eBay
+    abebooks = lookup_abebooks_comparables(
+        title=title,
+        author=author,
+        max_results=max_per_source,
+        volumes=volumes,
+        binding_type=binding_type,
+        binder=binder,
+        edition=edition,
+    )
 
     # Calculate weighted FMV from relevance-scored comparables
     all_listings = ebay + abebooks
