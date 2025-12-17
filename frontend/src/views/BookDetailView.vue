@@ -32,7 +32,7 @@ const deleteImageError = ref<string | null>(null);
 
 // Analysis state
 const analysisVisible = ref(false);
-const hasAnalysis = ref(false);
+const hasAnalysis = computed(() => booksStore.currentBook?.has_analysis ?? false);
 
 // Eval Runbook state
 const evalRunbookVisible = ref(false);
@@ -79,11 +79,6 @@ onMounted(async () => {
     images.value = response.data;
   } catch {
     images.value = [];
-  }
-
-  // Check if analysis exists
-  if (booksStore.currentBook?.has_analysis) {
-    hasAnalysis.value = true;
   }
 });
 
