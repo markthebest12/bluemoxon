@@ -30,6 +30,8 @@
   },
 
   "scraper": {
+    "enabled": false,
+    "_comment": "Scraper exists but is managed externally - deploy workflow skips ECR build (#389)",
     "function_name": "bluemoxon-production-scraper",
     "ecr_repository": "bluemoxon-scraper",
     "memory_size": 1024,
