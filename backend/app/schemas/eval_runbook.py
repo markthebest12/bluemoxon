@@ -17,7 +17,7 @@ class FMVComparable(BaseModel):
     """A comparable listing for FMV calculation."""
 
     title: str
-    price: Decimal
+    price: Decimal | None = None  # Can be None if extraction failed
     condition: str | None = None
     days_ago: int | None = None  # For eBay sold
 
