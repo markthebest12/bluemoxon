@@ -262,6 +262,46 @@ AWS_PROFILE=staging aws dynamodb scan \
 
 **Alternative**: Enable github-oidc Terraform module and import existing role (requires IAM import permissions).
 
+### 10. Eval Runbook Worker (Issue #368) - 2025-12-17
+
+**Problem**: Eval runbook worker Lambda needed correct IAM role naming for Terraform compatibility
+**Fix**: Recreated all resources with correct naming convention (`-exec-role` suffix)
+
+| Resource | ID/Name |
+|----------|---------|
+| SQS DLQ | `bluemoxon-staging-eval-runbook-jobs-dlq` |
+| SQS Queue | `bluemoxon-staging-eval-runbook-jobs` |
+| IAM Role | `bluemoxon-staging-eval-runbook-worker-exec-role` |
+| Lambda | `bluemoxon-staging-eval-runbook-worker` |
+| CloudWatch Log Group | `/aws/lambda/bluemoxon-staging-eval-runbook-worker` |
+| Event Source Mapping | `ef7b6ea3-63af-43da-ab37-68d383dee24b` |
+
+**IAM Policies on worker role**:
+- `AWSLambdaBasicExecutionRole` (managed)
+- `AWSLambdaVPCAccessExecutionRole` (managed)
+- `AWSXRayDaemonWriteAccess` (managed)
+- `sqs-access` (inline) - Receive/Delete from jobs queue, Send to DLQ
+- `secrets-access` (inline) - GetSecretValue for `bluemoxon-staging-db-credentials`
+- `bedrock-access` (inline) - InvokeModel on Claude models
+- `s3-access` (inline) - GetObject on `bluemoxon-images-staging`
+- `lambda-invoke` (inline) - InvokeFunction on scraper Lambda
+
+**API Lambda role addition**:
+- Added `sqs-send-eval-runbook-jobs` policy to `bluemoxon-staging-api-exec-role` for SendMessage to jobs queue
+
+**Import commands** (for Terraform):
+```bash
+cd infra/terraform
+AWS_PROFILE=bmx-staging terraform init -backend-config=backends/staging.hcl -reconfigure
+
+terraform import 'module.eval_runbook_worker.aws_sqs_queue.dlq' https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-eval-runbook-jobs-dlq
+terraform import 'module.eval_runbook_worker.aws_sqs_queue.jobs' https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-eval-runbook-jobs
+terraform import 'module.eval_runbook_worker.aws_iam_role.worker_exec' bluemoxon-staging-eval-runbook-worker-exec-role
+terraform import 'module.eval_runbook_worker.aws_lambda_function.worker' bluemoxon-staging-eval-runbook-worker
+terraform import 'module.eval_runbook_worker.aws_cloudwatch_log_group.worker' /aws/lambda/bluemoxon-staging-eval-runbook-worker
+terraform import 'module.eval_runbook_worker.aws_lambda_event_source_mapping.sqs_trigger' ef7b6ea3-63af-43da-ab37-68d383dee24b
+```
+
 ## Estimated Monthly Cost Impact
 
 | Resource | Cost |
