@@ -296,7 +296,9 @@ module "lambda" {
   ]
 
   # Lambda invoke permissions (e.g., scraper Lambda for eBay listing scraping)
-  lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
+  # When scraper is Terraform-managed, scraper module creates the invoke policy
+  # Only pass ARN when scraper is external (not managed by Terraform)
+  lambda_invoke_arns = local.scraper_enabled ? [] : (local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : [])
 
   # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(

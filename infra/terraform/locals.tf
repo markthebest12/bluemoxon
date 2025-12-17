@@ -68,8 +68,9 @@ locals {
 
   # Scraper Lambda ARN - uses module output when Terraform-managed, otherwise variable
   # This resolves to the correct ARN whether scraper is created by module or exists externally
+  # Uses var.scraper_lambda_arn as fallback during import (before module is in state)
   scraper_lambda_arn = local.scraper_enabled ? (
-    try(module.scraper_lambda[0].function_arn, null)
+    coalesce(try(module.scraper_lambda[0].function_arn, null), var.scraper_lambda_arn)
   ) : var.scraper_lambda_arn
 
   # Lambda role name for SQS permissions

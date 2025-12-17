@@ -68,8 +68,8 @@ cognito_endpoint_subnet_ids = [
 # These values allow Terraform to determine counts without requiring
 # cross-module references. Needed until all resources are imported into state.
 
-# Disable scraper module to use explicit ARN (scraper exists but managed externally during bootstrap)
-enable_scraper = false
+# Scraper module - container-based Lambda for eBay scraping
+enable_scraper = true
 
 # Scraper Lambda ARN (used by lambda and eval_runbook_worker for invoke permissions)
 scraper_lambda_arn = "arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper"
