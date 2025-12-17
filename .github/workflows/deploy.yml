@@ -56,6 +56,7 @@ jobs:
       aws_account_id: ${{ steps.config.outputs.aws_account_id }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
+      eval_runbook_worker_function_name: ${{ steps.config.outputs.eval_runbook_worker_function_name }}
       scraper_function_name: ${{ steps.config.outputs.scraper_function_name }}
       scraper_ecr_repository: ${{ steps.config.outputs.scraper_ecr_repository }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
@@ -93,6 +94,7 @@ jobs:
           echo "aws_account_id=$(jq -r '.aws_account_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "eval_runbook_worker_function_name=$(jq -r '.lambda.eval_runbook_worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
           # Scraper config - only output if enabled (default true for backwards compatibility)
           # Note: Can't use // operator as it treats false same as null
           SCRAPER_ENABLED=$(jq -r 'if .scraper.enabled == false then "false" else "true" end' $CONFIG_FILE)
@@ -431,6 +433,58 @@ jobs:
           echo "Waiting for Worker Lambda to be ready..."
           aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
           echo "Worker Lambda updated successfully"
+
+      - name: Publish Worker Lambda version
+        if: needs.configure.outputs.worker_function_name != ''
+        id: worker-version
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          echo "Publishing new Worker Lambda version..."
+
+          VERSION=$(aws lambda publish-version \
+            --function-name "$WORKER_FUNCTION" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published worker version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ---- Deploy Eval Runbook Worker Lambda (if configured) ----
+      - name: Update Eval Runbook Worker Lambda function
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          echo "Deploying eval runbook worker Lambda: $EVAL_RUNBOOK_FUNCTION"
+
+          aws lambda update-function-code \
+            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/bluemoxon-api.zip
+
+      - name: Wait for Eval Runbook Worker Lambda update
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          echo "Waiting for Eval Runbook Worker Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
+          echo "Eval Runbook Worker Lambda updated successfully"
+
+      - name: Publish Eval Runbook Worker Lambda version
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        id: eval-runbook-version
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          echo "Publishing new Eval Runbook Worker Lambda version..."
+
+          VERSION=$(aws lambda publish-version \
+            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published eval runbook worker version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Deploy Scraper Lambda (if configured) ----
       - name: Update Scraper Lambda function
@@ -982,6 +1036,69 @@ jobs:
 
           echo "Scraper Lambda version check passed!"
 
+      - name: Test Analysis Worker Lambda configuration
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          echo "Verifying Analysis Worker Lambda configuration..."
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
+
+          # Get function configuration
+          CONFIG=$(aws lambda get-function-configuration \
+            --function-name "$WORKER_FUNCTION" \
+            --query '{Runtime: Runtime, Handler: Handler, State: State, LastUpdateStatus: LastUpdateStatus}' \
+            --output json)
+
+          echo "Worker Lambda configuration:"
+          echo "$CONFIG" | jq '.'
+
+          # Verify function is active and up to date
+          STATE=$(echo "$CONFIG" | jq -r '.State')
+          UPDATE_STATUS=$(echo "$CONFIG" | jq -r '.LastUpdateStatus')
+
+          if [[ "$STATE" != "Active" ]]; then
+            echo "ERROR: Worker Lambda state is $STATE, expected Active"
+            exit 1
+          fi
+
+          if [[ "$UPDATE_STATUS" != "Successful" ]]; then
+            echo "ERROR: Worker Lambda last update status is $UPDATE_STATUS, expected Successful"
+            exit 1
+          fi
+
+          echo "Analysis Worker Lambda configuration verified!"
+
+      - name: Test Eval Runbook Worker Lambda configuration
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          echo "Verifying Eval Runbook Worker Lambda configuration..."
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+
+          # Get function configuration
+          CONFIG=$(aws lambda get-function-configuration \
+            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --query '{Runtime: Runtime, Handler: Handler, State: State, LastUpdateStatus: LastUpdateStatus}' \
+            --output json)
+
+          echo "Eval Runbook Worker Lambda configuration:"
+          echo "$CONFIG" | jq '.'
+
+          # Verify function is active and up to date
+          STATE=$(echo "$CONFIG" | jq -r '.State')
+          UPDATE_STATUS=$(echo "$CONFIG" | jq -r '.LastUpdateStatus')
+
+          if [[ "$STATE" != "Active" ]]; then
+            echo "ERROR: Eval Runbook Worker Lambda state is $STATE, expected Active"
+            exit 1
+          fi
+
+          if [[ "$UPDATE_STATUS" != "Successful" ]]; then
+            echo "ERROR: Eval Runbook Worker Lambda last update status is $UPDATE_STATUS, expected Successful"
+            exit 1
+          fi
+
+          echo "Eval Runbook Worker Lambda configuration verified!"
+
       - name: Deployment summary
         run: |
           ENV="${{ needs.configure.outputs.environment }}"
@@ -989,6 +1106,8 @@ jobs:
           API_BASE="${{ steps.urls.outputs.api_base }}"
           VERSION="${{ needs.generate-version.outputs.version }}"
           SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
 
           echo "========================================"
           echo "Deployment to $ENV completed successfully!"
@@ -1002,6 +1121,12 @@ jobs:
           echo ""
           echo "Lambdas:"
           echo "  API: ${{ needs.configure.outputs.lambda_function_name }}"
+          if [[ -n "$WORKER_FUNCTION" ]]; then
+            echo "  Analysis Worker: $WORKER_FUNCTION"
+          fi
+          if [[ -n "$EVAL_RUNBOOK_FUNCTION" ]]; then
+            echo "  Eval Runbook Worker: $EVAL_RUNBOOK_FUNCTION"
+          fi
           if [[ -n "$SCRAPER_FUNCTION" ]]; then
             echo "  Scraper: $SCRAPER_FUNCTION"
           fi

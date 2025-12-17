@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
@@ -7,6 +9,11 @@ from mangum import Mangum
 from app.api.v1 import router as api_router
 from app.config import get_settings
 from app.version import get_version
+
+# Configure logging for Lambda - set level on root logger directly
+# (basicConfig doesn't work because Lambda pre-configures handlers)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 settings = get_settings()
 app_version = get_version()

@@ -1,6 +1,93 @@
-"""Tests for analysis summary YAML parsing."""
+"""Tests for analysis summary parsing.
+
+Tests both Napoleon v2 STRUCTURED-DATA format and legacy YAML format.
+"""
 
 from app.services.analysis_summary import calculate_value_vs_cost, parse_analysis_summary
+
+
+class TestParseNapoleonV2Format:
+    """Tests for parsing Napoleon v2 STRUCTURED-DATA format."""
+
+    def test_parse_structured_data_block(self):
+        """Test extracting Napoleon v2 structured data from analysis."""
+        analysis = """---STRUCTURED-DATA---
+CONDITION_GRADE: VG+
+BINDER_IDENTIFIED: Rivière & Son
+BINDER_CONFIDENCE: HIGH
+BINDING_TYPE: Full Morocco
+VALUATION_LOW: 400
+VALUATION_MID: 525
+VALUATION_HIGH: 650
+ERA_PERIOD: Victorian
+PUBLICATION_YEAR: 1882
+---END-STRUCTURED-DATA---
+
+# Executive Summary
+
+This is the full analysis content...
+"""
+        result = parse_analysis_summary(analysis)
+
+        assert result is not None
+        assert result["condition_grade"] == "VG+"
+        assert result["binder_identified"] == "Rivière & Son"
+        assert result["binder_confidence"] == "HIGH"
+        assert result["binding_type"] == "Full Morocco"
+        assert result["valuation_low"] == 400
+        assert result["valuation_mid"] == 525
+        assert result["valuation_high"] == 650
+        assert result["era_period"] == "Victorian"
+        assert result["publication_year"] == 1882
+
+    def test_parse_structured_data_with_dollar_signs(self):
+        """Test parsing valuation fields with dollar signs."""
+        analysis = """---STRUCTURED-DATA---
+VALUATION_LOW: $400
+VALUATION_MID: $525
+VALUATION_HIGH: $650
+CONDITION_GRADE: Good
+---END-STRUCTURED-DATA---
+
+# Analysis
+"""
+        result = parse_analysis_summary(analysis)
+
+        assert result is not None
+        assert result["valuation_low"] == 400
+        assert result["valuation_mid"] == 525
+        assert result["valuation_high"] == 650
+
+    def test_parse_structured_data_skips_placeholder_values(self):
+        """Test that placeholder values like [Fine] are skipped."""
+        analysis = """---STRUCTURED-DATA---
+CONDITION_GRADE: Good
+BINDER_IDENTIFIED: UNKNOWN
+VALUATION_LOW: 100
+VALUATION_HIGH: 200
+---END-STRUCTURED-DATA---
+"""
+        result = parse_analysis_summary(analysis)
+
+        assert result is not None
+        assert result["condition_grade"] == "Good"
+        assert "binder_identified" not in result  # UNKNOWN should be skipped
+        assert result["valuation_low"] == 100
+
+    def test_parse_structured_data_case_insensitive(self):
+        """Test that parsing works regardless of case."""
+        analysis = """---structured-data---
+condition_grade: VG
+valuation_low: 100
+VALUATION_HIGH: 200
+---end-structured-data---
+"""
+        result = parse_analysis_summary(analysis)
+
+        assert result is not None
+        assert result["condition_grade"] == "VG"
+        assert result["valuation_low"] == 100
+        assert result["valuation_high"] == 200
 
 
 class TestParseAnalysisSummary:
@@ -253,3 +340,94 @@ class TestExtractBookUpdates:
 
         updates = extract_book_updates_from_yaml(None)
         assert updates == {}
+
+
+class TestExtractNapoleonV2Updates:
+    """Tests for extracting book updates from Napoleon v2 format."""
+
+    def test_extract_valuation_fields(self):
+        """Test that valuation_* fields map to value_* book fields."""
+        from decimal import Decimal
+
+        from app.services.analysis_summary import extract_book_updates_from_yaml
+
+        # Napoleon v2 uses valuation_low/mid/high, not estimated_value_*
+        yaml_data = {
+            "valuation_low": 400,
+            "valuation_mid": 525,
+            "valuation_high": 650,
+            "condition_grade": "Good",
+            "binding_type": "Full Morocco",
+        }
+
+        updates = extract_book_updates_from_yaml(yaml_data)
+
+        assert updates["value_low"] == Decimal("400")
+        assert updates["value_mid"] == Decimal("525")
+        assert updates["value_high"] == Decimal("650")
+        assert updates["condition_grade"] == "Good"
+        assert updates["binding_type"] == "Full Morocco"
+
+    def test_extract_calculates_mid_when_missing(self):
+        """Test that value_mid is calculated if not provided."""
+        from decimal import Decimal
+
+        from app.services.analysis_summary import extract_book_updates_from_yaml
+
+        yaml_data = {
+            "valuation_low": 400,
+            "valuation_high": 600,
+            # valuation_mid not provided
+        }
+
+        updates = extract_book_updates_from_yaml(yaml_data)
+
+        assert updates["value_low"] == Decimal("400")
+        assert updates["value_high"] == Decimal("600")
+        assert updates["value_mid"] == Decimal("500")  # Calculated
+
+    def test_extract_prefers_explicit_mid(self):
+        """Test that explicit valuation_mid is used over calculated."""
+        from decimal import Decimal
+
+        from app.services.analysis_summary import extract_book_updates_from_yaml
+
+        yaml_data = {
+            "valuation_low": 400,
+            "valuation_mid": 600,  # Explicit, different from (400+800)/2 = 600
+            "valuation_high": 800,
+        }
+
+        updates = extract_book_updates_from_yaml(yaml_data)
+
+        assert updates["value_mid"] == Decimal("600")  # Uses explicit value
+
+    def test_extract_full_napoleon_v2_workflow(self):
+        """Integration test: parse Napoleon v2 and extract book updates."""
+        from decimal import Decimal
+
+        from app.services.analysis_summary import (
+            extract_book_updates_from_yaml,
+            parse_analysis_summary,
+        )
+
+        analysis = """---STRUCTURED-DATA---
+CONDITION_GRADE: VG+
+BINDING_TYPE: Full Morocco
+VALUATION_LOW: 400
+VALUATION_MID: 525
+VALUATION_HIGH: 650
+---END-STRUCTURED-DATA---
+
+# Executive Summary
+
+Darwin's Descent of Man analysis...
+"""
+        parsed = parse_analysis_summary(analysis)
+        updates = extract_book_updates_from_yaml(parsed)
+
+        assert updates["value_low"] == Decimal("400")
+        assert updates["value_mid"] == Decimal("525")
+        assert updates["value_high"] == Decimal("650")
+        assert updates["condition_grade"] == "VG+"
+        assert updates["binding_type"] == "Full Morocco"

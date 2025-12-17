@@ -12,6 +12,7 @@ import AddTrackingModal from "@/components/AddTrackingModal.vue";
 import ScoreCard from "@/components/ScoreCard.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
+import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -26,6 +27,8 @@ const showEditModal = ref(false);
 const editingBook = ref<AcquisitionBook | null>(null);
 const showAnalysisViewer = ref(false);
 const analysisBookId = ref<number | null>(null);
+const showEvalRunbook = ref(false);
+const evalRunbookBook = ref<AcquisitionBook | null>(null);
 const showTrackingModal = ref(false);
 const trackingBook = ref<AcquisitionBook | null>(null);
 
@@ -94,6 +97,16 @@ function openAnalysisViewer(bookId: number) {
 function closeAnalysisViewer() {
   showAnalysisViewer.value = false;
   analysisBookId.value = null;
+}
+
+function openEvalRunbook(book: AcquisitionBook) {
+  evalRunbookBook.value = book;
+  showEvalRunbook.value = true;
+}
+
+function closeEvalRunbook() {
+  showEvalRunbook.value = false;
+  evalRunbookBook.value = null;
 }
 
 function openTrackingModal(book: AcquisitionBook) {
@@ -174,6 +187,15 @@ function isAnalysisRunning(bookId: number) {
   return booksStore.hasActiveJob(bookId);
 }
 
+// Active eval runbook jobs for status tracking
+function getEvalRunbookJobStatus(bookId: number) {
+  return booksStore.getActiveEvalRunbookJob(bookId);
+}
+
+function isEvalRunbookRunning(bookId: number) {
+  return booksStore.hasActiveEvalRunbookJob(bookId);
+}
+
 async function handleGenerateAnalysis(bookId: number) {
   if (isAnalysisRunning(bookId) || startingAnalysis.value === bookId) return;
 
@@ -200,20 +222,37 @@ onMounted(() => {
 
   // Periodically check if any active jobs have completed and refresh
   jobCheckInterval.value = setInterval(async () => {
-    // Check all evaluating books for completed jobs
+    let needsRefresh = false;
+
+    // Check all evaluating books for completed analysis jobs
     for (const book of evaluating.value) {
       const job = getJobStatus(book.id);
       if (job?.status === "completed") {
-        // Refresh list to show updated has_analysis
-        await acquisitionsStore.fetchAll();
         // Clear the completed job
         booksStore.clearJob(book.id);
-        break;
+        needsRefresh = true;
       } else if (job?.status === "failed") {
         // Clear failed job so user can retry
         console.error(`Analysis job failed for book ${book.id}:`, job.error_message);
         booksStore.clearJob(book.id);
       }
+
+      // Check for completed eval runbook jobs
+      const evalJob = getEvalRunbookJobStatus(book.id);
+      if (evalJob?.status === "completed") {
+        // Clear the completed job
+        booksStore.clearEvalRunbookJob(book.id);
+        needsRefresh = true;
+      } else if (evalJob?.status === "failed") {
+        // Clear failed job so user can retry
+        console.error(`Eval runbook job failed for book ${book.id}:`, evalJob.error_message);
+        booksStore.clearEvalRunbookJob(book.id);
+      }
+    }
+
+    // Refresh list once if any jobs completed
+    if (needsRefresh) {
+      await acquisitionsStore.fetchAll();
     }
   }, 2000);
 });
@@ -362,9 +401,37 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
-                <!-- Job in progress indicator -->
+                <!-- View Eval Runbook link -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="openEvalRunbook(book)"
+                  class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
+                  title="View eval runbook"
+                >
+                  📋 Eval Runbook
+                </button>
+                <!-- Eval runbook job in progress indicator (check both in-memory and API status) -->
                 <div
-                  v-else-if="isAnalysisRunning(book.id)"
+                  v-if="isEvalRunbookRunning(book.id) || book.eval_runbook_job_status"
+                  class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) ===
+                      "pending"
+                        ? "Queued..."
+                        : "Generating runbook..."
+                    }}
+                  </span>
+                </div>
+                <!-- Analysis job in progress indicator -->
+                <div
+                  v-if="isAnalysisRunning(book.id)"
                   class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
@@ -374,15 +441,15 @@ async function handleArchiveSource(bookId: number) {
                 </div>
                 <!-- Job failed indicator -->
                 <div
-                  v-else-if="getJobStatus(book.id)?.status === 'failed'"
+                  v-if="getJobStatus(book.id)?.status === 'failed'"
                   class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
                 </div>
-                <!-- Generate Analysis button (admin only, when no analysis exists) -->
+                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
                 <button
-                  v-else-if="authStore.isAdmin"
+                  v-if="!book.has_analysis && authStore.isAdmin && !isAnalysisRunning(book.id)"
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
                   class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
@@ -624,8 +691,10 @@ async function handleArchiveSource(bookId: number) {
     />
 
     <!-- Analysis Viewer -->
+    <!-- :key forces remount when bookId changes, ensuring fresh data load -->
     <AnalysisViewer
       v-if="analysisBookId"
+      :key="analysisBookId"
       :book-id="analysisBookId"
       :visible="showAnalysisViewer"
       @close="closeAnalysisViewer"
@@ -638,6 +707,14 @@ async function handleArchiveSource(bookId: number) {
       :book-title="trackingBook.title"
       @close="closeTrackingModal"
       @added="handleTrackingAdded"
+    />
+
+    <!-- Eval Runbook Modal -->
+    <EvalRunbookModal
+      v-if="showEvalRunbook && evalRunbookBook"
+      :book-id="evalRunbookBook.id"
+      :book-title="evalRunbookBook.title"
+      @close="closeEvalRunbook"
     />
   </div>
 </template>

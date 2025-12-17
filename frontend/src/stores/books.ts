@@ -13,6 +13,16 @@ export interface AnalysisJob {
   completed_at: string | null;
 }
 
+export interface EvalRunbookJob {
+  job_id: string;
+  book_id: number;
+  status: "pending" | "running" | "completed" | "failed";
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
 export interface Book {
   id: number;
   title: string;
@@ -42,6 +52,7 @@ export interface Book {
   notes: string | null;
   provenance: string | null;
   has_analysis: boolean;
+  has_eval_runbook: boolean;
   image_count: number;
   primary_image_url: string | null;
   investment_grade: number | null;
@@ -88,6 +99,10 @@ export const useBooksStore = defineStore("books", () => {
   // Analysis job tracking (book_id -> job)
   const activeAnalysisJobs = ref<Map<number, AnalysisJob>>(new Map());
   const analysisJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
+
+  // Eval runbook job tracking (book_id -> job)
+  const activeEvalRunbookJobs = ref<Map<number, EvalRunbookJob>>(new Map());
+  const evalRunbookJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   const page = ref(1);
   const perPage = ref(20);
@@ -331,6 +346,101 @@ export const useBooksStore = defineStore("books", () => {
     stopJobPoller(bookId);
   }
 
+  // ============ Eval Runbook Job Functions ============
+
+  /**
+   * Start async eval runbook generation job.
+   * Returns immediately with job info, poll status for completion.
+   */
+  async function generateEvalRunbookAsync(bookId: number): Promise<EvalRunbookJob> {
+    const response = await api.post(`/books/${bookId}/eval-runbook/generate`);
+    const job = response.data as EvalRunbookJob;
+
+    // Track the job
+    activeEvalRunbookJobs.value.set(bookId, job);
+
+    // Start polling for status
+    startEvalRunbookJobPoller(bookId);
+
+    return job;
+  }
+
+  /**
+   * Get latest eval runbook job status for a book.
+   */
+  async function fetchEvalRunbookJobStatus(bookId: number): Promise<EvalRunbookJob> {
+    const response = await api.get(`/books/${bookId}/eval-runbook/status`);
+    const job = response.data as EvalRunbookJob;
+
+    // Update tracked job
+    activeEvalRunbookJobs.value.set(bookId, job);
+
+    return job;
+  }
+
+  /**
+   * Start polling for eval runbook job status updates.
+   */
+  function startEvalRunbookJobPoller(bookId: number, intervalMs: number = 5000) {
+    // Clear any existing poller for this book
+    stopEvalRunbookJobPoller(bookId);
+
+    const poller = setInterval(async () => {
+      try {
+        const job = await fetchEvalRunbookJobStatus(bookId);
+
+        if (job.status === "completed" || job.status === "failed") {
+          stopEvalRunbookJobPoller(bookId);
+
+          // Update book's has_eval_runbook flag if completed
+          if (job.status === "completed" && currentBook.value?.id === bookId) {
+            currentBook.value.has_eval_runbook = true;
+          }
+        }
+      } catch (e) {
+        console.error(`Failed to poll eval runbook job status for book ${bookId}:`, e);
+        // Stop polling on error (job might not exist)
+        stopEvalRunbookJobPoller(bookId);
+      }
+    }, intervalMs);
+
+    evalRunbookJobPollers.value.set(bookId, poller);
+  }
+
+  /**
+   * Stop polling for a book's eval runbook job status.
+   */
+  function stopEvalRunbookJobPoller(bookId: number) {
+    const existingPoller = evalRunbookJobPollers.value.get(bookId);
+    if (existingPoller) {
+      clearInterval(existingPoller);
+      evalRunbookJobPollers.value.delete(bookId);
+    }
+  }
+
+  /**
+   * Get active eval runbook job for a book (if any).
+   */
+  function getActiveEvalRunbookJob(bookId: number): EvalRunbookJob | undefined {
+    return activeEvalRunbookJobs.value.get(bookId);
+  }
+
+  /**
+   * Check if a book has an active (pending/running) eval runbook job.
+   */
+  function hasActiveEvalRunbookJob(bookId: number): boolean {
+    const job = activeEvalRunbookJobs.value.get(bookId);
+    return !!job && (job.status === "pending" || job.status === "running");
+  }
+
+  /**
+   * Clear completed/failed eval runbook job from tracking.
+   */
+  function clearEvalRunbookJob(bookId: number) {
+    activeEvalRunbookJobs.value.delete(bookId);
+    stopEvalRunbookJobPoller(bookId);
+  }
+
   async function calculateScores(bookId: number) {
     const response = await api.post(`/books/${bookId}/scores/calculate`);
     return response.data;
@@ -380,6 +490,7 @@ export const useBooksStore = defineStore("books", () => {
     sortBy,
     sortOrder,
     activeAnalysisJobs,
+    activeEvalRunbookJobs,
     fetchBooks,
     fetchBook,
     createBook,
@@ -393,6 +504,12 @@ export const useBooksStore = defineStore("books", () => {
     getActiveJob,
     hasActiveJob,
     clearJob,
+    // Eval runbook job functions
+    generateEvalRunbookAsync,
+    fetchEvalRunbookJobStatus,
+    getActiveEvalRunbookJob,
+    hasActiveEvalRunbookJob,
+    clearEvalRunbookJob,
     calculateScores,
     fetchScoreBreakdown,
     archiveSource,

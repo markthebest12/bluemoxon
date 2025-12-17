@@ -23,6 +23,9 @@ MAX_IMAGES = 24
 # Min image size to filter out icons/thumbnails
 MIN_IMAGE_SIZE = 10000  # 10KB
 
+# Max listings to extract for FMV search
+MAX_LISTINGS = 20
+
 
 def extract_item_id(url: str) -> str:
     """Extract eBay item ID from URL."""
@@ -33,6 +36,88 @@ def extract_item_id(url: str) -> str:
     if match:
         return match.group(1)
     return str(uuid.uuid4())[:8]
+
+
+# JavaScript to extract listings from eBay search results page
+EXTRACT_LISTINGS_JS = """
+() => {
+    const listings = [];
+
+    // Try multiple selectors for different eBay search result layouts
+    // Modern layout uses s-card, older uses s-item
+    const cardSelectors = [
+        '.s-card',           // Modern search results
+        '.srp-results .s-item',  // Older search results
+        '[data-viewport]'    // Data-driven results
+    ];
+
+    let cards = [];
+    for (const sel of cardSelectors) {
+        const found = document.querySelectorAll(sel);
+        if (found.length > 0) {
+            cards = found;
+            break;
+        }
+    }
+
+    cards.forEach(card => {
+        try {
+            // Extract title - try multiple selectors
+            const titleEl = card.querySelector('.s-card__title, .s-item__title, h3');
+            const title = titleEl?.textContent?.trim() || '';
+
+            // Skip non-listing cards (ads, placeholders)
+            if (!title || title.toLowerCase().includes('shop on ebay')) return;
+
+            // Extract price - look for the bold price element
+            const priceEl = card.querySelector('.s-card__price, .s-item__price, [class*="price"]');
+            let priceText = priceEl?.textContent?.trim() || '';
+            // Extract numeric price
+            const priceMatch = priceText.match(/[$£€]([\\d,]+\\.?\\d*)/);
+            const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : null;
+
+            // Extract URL
+            const linkEl = card.querySelector('a.s-card__link, .s-item__link, a[href*="/itm/"]');
+            const url = linkEl?.href || '';
+
+            // Extract condition from subtitle or attribute rows
+            const conditionEl = card.querySelector('.s-card__subtitle, .SECONDARY_INFO, [class*="condition"]');
+            const condition = conditionEl?.textContent?.trim() || '';
+
+            // Check for SOLD indicator (completed listings)
+            const isSold = card.textContent?.toLowerCase().includes('sold') ||
+                          card.querySelector('.s-item__purchaseOptions-decorator, .positive')?.textContent?.toLowerCase().includes('sold');
+
+            // Extract sold date if available
+            const dateEl = card.querySelector('.s-item__title--tag, .s-card__attribute-row');
+            let soldDate = null;
+            if (dateEl) {
+                const dateText = dateEl.textContent || '';
+                // Look for date patterns like "Dec 15" or "Sold Dec 15, 2024"
+                const dateMatch = dateText.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2}/i);
+                if (dateMatch) {
+                    soldDate = dateMatch[0];
+                }
+            }
+
+            if (title && (price || url)) {
+                listings.push({
+                    title,
+                    price,
+                    url,
+                    condition,
+                    sold_date: soldDate,
+                    is_sold: isSold
+                });
+            }
+        } catch (e) {
+            // Skip problematic cards
+        }
+    });
+
+    return listings;
+}
+"""
 
 
 def upload_to_s3(bucket: str, key: str, data: bytes, content_type: str) -> bool:
@@ -77,6 +162,7 @@ def handler(event, context):
 
     url = event.get("url")
     fetch_images = event.get("fetch_images", True)
+    extract_listings = event.get("extract_listings", False)
 
     if not url:
         return {"statusCode": 400, "body": json.dumps({"error": "URL required"})}
@@ -157,11 +243,48 @@ def handler(event, context):
             logger.info(f"Got HTML: {len(html)} chars")
 
             # Check for rate limiting / access denied
-            if "Access Denied" in html or "blocked" in html.lower():
+            # Use specific patterns to avoid false positives (e.g., "captcha" appears in CSS)
+            # Look for actual challenge text, not CSS class names
+            rate_limit_patterns = [
+                "access denied",
+                "blocked by ebay",
+                "you've been blocked",
+                "please verify you are a human",
+                "unusual traffic",
+                "complete the captcha",  # Actual captcha challenge text
+                "captcha-challenge",  # Actual captcha element
+                "security check required",
+            ]
+            html_lower = html.lower()
+            is_rate_limited = any(pattern in html_lower for pattern in rate_limit_patterns)
+
+            if is_rate_limited:
+                logger.warning("Rate limiting detected in page content")
                 # Skip explicit browser.close() - hangs in Lambda --single-process mode
                 return {
                     "statusCode": 429,
                     "body": json.dumps({"error": "Rate limited", "html": html}),
+                }
+
+            # Handle extract_listings mode (for FMV search results)
+            if extract_listings:
+                logger.info("Extracting listings from search results page")
+                listings = page.evaluate(EXTRACT_LISTINGS_JS)
+                logger.info(f"Extracted {len(listings)} listings from page")
+
+                # Limit to MAX_LISTINGS
+                listings = listings[:MAX_LISTINGS]
+
+                # Skip explicit browser.close() - hangs in Lambda --single-process mode
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps(
+                        {
+                            "listings": listings,
+                            "listing_count": len(listings),
+                            "html_size": len(html),
+                        }
+                    ),
                 }
 
             # Extract image URLs

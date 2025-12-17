@@ -79,3 +79,15 @@ variable "images_bucket_name" {
   description = "Name of the S3 bucket for storing scraped images"
   default     = null
 }
+
+variable "enable_warmup_rule" {
+  type        = bool
+  description = "Enable EventBridge rule to keep Lambda warm"
+  default     = true
+}
+
+variable "warmup_schedule" {
+  type        = string
+  description = "Schedule expression for warmup rule (e.g., rate(5 minutes))"
+  default     = "rate(5 minutes)"
+}

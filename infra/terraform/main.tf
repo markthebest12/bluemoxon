@@ -295,8 +295,10 @@ module "lambda" {
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
-  # Lambda invoke permissions (e.g., scraper Lambda)
-  lambda_invoke_arns = var.scraper_lambda_arn != null ? [var.scraper_lambda_arn] : []
+  # Lambda invoke permissions (e.g., scraper Lambda for eBay listing scraping)
+  # When scraper is Terraform-managed, scraper module creates the invoke policy
+  # Only pass ARN when scraper is external (not managed by Terraform)
+  lambda_invoke_arns = local.scraper_enabled ? [] : (local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : [])
 
   # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(
@@ -310,8 +312,9 @@ module "lambda" {
       BMX_ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       BMX_MAINTENANCE_MODE      = var.maintenance_mode
       BMX_ENVIRONMENT           = coalesce(var.environment_name_override, var.environment)
-      # Analysis worker queue name (URL constructed at runtime)
-      BMX_ANALYSIS_QUEUE_NAME = "${local.name_prefix}-analysis-jobs"
+      # Worker queue names (URLs constructed at runtime)
+      BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
+      BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
     },
     var.enable_database ? {
       BMX_DATABASE_SECRET_NAME = "${local.name_prefix}/database"
@@ -439,6 +442,78 @@ module "analysis_worker" {
     "anthropic.claude-sonnet-4-5-*",
     "anthropic.claude-opus-4-5-*"
   ]
+
+  # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
+  api_lambda_role_name = local.api_lambda_role_name
+
+  # Environment variables
+  environment_variables = merge(
+    {
+      IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      IMAGES_BUCKET     = module.images_bucket.bucket_name
+    },
+    var.enable_database ? {
+      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
+    } : {},
+    # For prod with external Lambda, use the secret ARN directly (prod uses ARN, not name)
+    local.is_prod && !var.enable_database ? {
+      DATABASE_SECRET_ARN = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials-Firmtl"
+    } : {}
+  )
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# Eval Runbook Worker (async eval runbook generation with SQS)
+# =============================================================================
+# Can be enabled independently of main Lambda using enable_eval_runbook_worker.
+# When enable_lambda=false, uses external_lambda_role_name and
+# external_lambda_security_group_id for permissions and VPC config.
+
+module "eval_runbook_worker" {
+  count  = local.eval_runbook_worker_enabled ? 1 : 0
+  source = "./modules/eval-runbook-worker"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  package_path     = var.lambda_package_path
+  source_code_hash = var.lambda_source_code_hash
+  runtime          = var.lambda_runtime
+
+  # Match API Lambda timeout + buffer for SQS visibility
+  timeout              = 600
+  visibility_timeout   = 660
+  memory_size          = 256
+  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
+
+  # VPC configuration - use external security group if Lambda is managed externally
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # Secrets Manager access - use prod secret ARN pattern for external Lambda
+  secrets_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+    ] : (
+    # For prod with external Lambda, use the secret ARN pattern directly
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
+
+  # S3 bucket access
+  s3_bucket_arns = [module.images_bucket.bucket_arn]
+
+  # Bedrock model access (wildcards to cover all versions)
+  # Uses Haiku for fast attribute extraction in eval runbook
+  bedrock_model_ids = [
+    "anthropic.claude-3-5-haiku-*",
+    "anthropic.claude-sonnet-4-5-*"
+  ]
+
+  # Lambda invoke permissions (e.g., scraper Lambda for eBay FMV lookup)
+  lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
   api_lambda_role_name = local.api_lambda_role_name

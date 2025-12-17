@@ -13,7 +13,7 @@ from app.api.v1.images import get_cloudfront_url, is_production
 from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
-from app.models import Book
+from app.models import Book, EvalRunbookJob
 from app.models.image import BookImage
 from app.schemas.book import (
     AcquireRequest,
@@ -40,6 +40,7 @@ from app.services.scoring import (
     calculate_title_similarity,
     is_duplicate_title,
 )
+from app.services.sqs import send_eval_runbook_job
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,22 @@ def get_api_base_url() -> str:
     if settings.database_secret_arn is not None:  # Production check
         return "https://api.bluemoxon.com"
     return ""  # Relative URLs for local dev
+
+
+def _get_active_eval_runbook_job_status(book_id: int, db: Session) -> str | None:
+    """Get the status of an active eval runbook job for a book.
+
+    Returns 'pending' or 'running' if there's an active job, None otherwise.
+    """
+    active_job = (
+        db.query(EvalRunbookJob)
+        .filter(
+            EvalRunbookJob.book_id == book_id,
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    return active_job.status if active_job else None
 
 
 def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
@@ -307,10 +324,25 @@ def list_books(
 
     # Build response
     base_url = get_api_base_url()
+
+    # Batch fetch active eval runbook job statuses to avoid N+1 queries
+    book_ids = [book.id for book in books]
+    active_jobs = (
+        db.query(EvalRunbookJob.book_id, EvalRunbookJob.status)
+        .filter(
+            EvalRunbookJob.book_id.in_(book_ids),
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .all()
+    )
+    eval_job_status_map = {job.book_id: job.status for job in active_jobs}
+
     items = []
     for book in books:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
+        book_dict["has_eval_runbook"] = book.eval_runbook is not None
+        book_dict["eval_runbook_job_status"] = eval_job_status_map.get(book.id)
         book_dict["image_count"] = len(book.images) if book.images else 0
 
         # Get primary image URL
@@ -355,6 +387,8 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
 
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -458,6 +492,23 @@ def create_book(
     _calculate_and_persist_scores(book, db)
     db.commit()
     db.refresh(book)
+
+    # Queue async eval runbook job for new books with source_url (imported from eBay)
+    # This runs full AI analysis + FMV lookup in a background Lambda worker
+    if book.source_url:
+        try:
+            # Create eval runbook job for async processing
+            job = EvalRunbookJob(book_id=book.id)
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+
+            # Send job to SQS queue for background processing
+            send_eval_runbook_job(job_id=str(job.id), book_id=book.id)
+            logger.info(f"Queued eval runbook job {job.id} for book {book.id}")
+        except Exception as e:
+            # Log but don't fail book creation if job queuing fails
+            logger.warning(f"Failed to queue eval runbook job for book {book.id}: {e}")
 
     return BookResponse.model_validate(book)
 
@@ -591,6 +642,8 @@ def update_book_status(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)
@@ -738,6 +791,8 @@ def acquire_book(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -817,6 +872,8 @@ def add_tracking(
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
@@ -866,6 +923,8 @@ async def archive_book_source(
     if book.archive_status == "success" and book.source_archived_url:
         book_dict = BookResponse.model_validate(book).model_dump()
         book_dict["has_analysis"] = book.analysis is not None
+        book_dict["has_eval_runbook"] = book.eval_runbook is not None
+        book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
         book_dict["image_count"] = len(book.images) if book.images else 0
         return BookResponse(**book_dict)
 
@@ -886,6 +945,8 @@ async def archive_book_source(
     # Build response
     book_dict = BookResponse.model_validate(book).model_dump()
     book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     return BookResponse(**book_dict)
@@ -1567,3 +1628,125 @@ def get_analysis_job_status(
             db.commit()
 
     return AnalysisJobResponse.from_orm_model(job)
+
+
+# Threshold for detecting stale "running" eval runbook jobs
+STALE_EVAL_JOB_THRESHOLD_MINUTES = 15
+
+
+@router.post("/{book_id}/eval-runbook/generate")
+def generate_eval_runbook_job(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_editor),
+):
+    """Start async eval runbook generation with full AI analysis and FMV lookup.
+
+    Returns immediately with job ID. Poll /eval-runbook/status for progress.
+    Requires editor role.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Check for existing active job
+    active_job = (
+        db.query(EvalRunbookJob)
+        .filter(
+            EvalRunbookJob.book_id == book_id,
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail="Eval runbook job already in progress for this book",
+        )
+
+    # Create job record
+    job = EvalRunbookJob(
+        book_id=book_id,
+        status="pending",
+    )
+
+    try:
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Eval runbook job already in progress for this book",
+        ) from None
+
+    # Send message to SQS
+    try:
+        send_eval_runbook_job(str(job.id), book_id)
+    except Exception as e:
+        # If SQS send fails, mark job as failed
+        job.status = "failed"
+        job.error_message = f"Failed to queue job: {e}"
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to queue eval runbook job: {e}",
+        ) from None
+
+    return EvalRunbookJobResponse.from_orm_model(job)
+
+
+@router.get("/{book_id}/eval-runbook/status")
+def get_eval_runbook_job_status(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_editor),
+):
+    """Get status of the latest eval runbook job for a book.
+
+    Requires editor role.
+
+    Automatically detects and marks stale jobs as failed. A job is considered
+    stale if it has been in "running" status for more than 15 minutes without
+    updates, indicating the worker likely crashed or timed out.
+    """
+    from datetime import UTC, timedelta
+
+    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
+
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # Get latest job for this book
+    job = (
+        db.query(EvalRunbookJob)
+        .filter(EvalRunbookJob.book_id == book_id)
+        .order_by(EvalRunbookJob.created_at.desc())
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404, detail="No eval runbook job found for this book")
+
+    # Detect and auto-fail stale "running" jobs
+    # This handles cases where the worker Lambda timed out or crashed
+    if job.status == "running":
+        stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_EVAL_JOB_THRESHOLD_MINUTES)
+        if job.updated_at < stale_threshold:
+            job.status = "failed"
+            job.error_message = (
+                f"Job timed out after {STALE_EVAL_JOB_THRESHOLD_MINUTES} minutes "
+                "(worker likely crashed or timed out)"
+            )
+            job.updated_at = datetime.now(UTC)
+            db.commit()
+
+    return EvalRunbookJobResponse.from_orm_model(job)

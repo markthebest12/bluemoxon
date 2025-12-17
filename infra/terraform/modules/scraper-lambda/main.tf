@@ -225,3 +225,36 @@ resource "aws_iam_role_policy" "api_invoke_scraper" {
     ]
   })
 }
+
+# -----------------------------------------------------------------------------
+# EventBridge Warmup Rule (keeps Lambda container warm)
+# -----------------------------------------------------------------------------
+
+resource "aws_cloudwatch_event_rule" "warmup" {
+  count               = var.enable_warmup_rule ? 1 : 0
+  name                = "${var.name_prefix}-scraper-warmup"
+  description         = "Keep scraper Lambda warm to avoid cold starts"
+  schedule_expression = var.warmup_schedule
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_event_target" "warmup" {
+  count     = var.enable_warmup_rule ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.warmup[0].name
+  target_id = "scraper-warmup"
+  arn       = aws_lambda_function.scraper.arn
+
+  input = jsonencode({
+    warmup = true
+  })
+}
+
+resource "aws_lambda_permission" "warmup" {
+  count         = var.enable_warmup_rule ? 1 : 0
+  statement_id  = "warmup-scheduled-event"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.scraper.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.warmup[0].arn
+}

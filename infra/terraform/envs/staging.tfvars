@@ -61,3 +61,21 @@ cognito_endpoint_subnet_ids = [
   "subnet-0ceb0276fa36428f2",
   "subnet-09eeb023cb49a83d5"
 ]
+
+# =============================================================================
+# Bootstrap values (explicit ARNs to break Terraform count dependencies)
+# =============================================================================
+# These values allow Terraform to determine counts without requiring
+# cross-module references. Needed until all resources are imported into state.
+
+# Scraper module - container-based Lambda for eBay scraping
+enable_scraper = true
+
+# Scraper Lambda ARN (used by lambda and eval_runbook_worker for invoke permissions)
+scraper_lambda_arn = "arn:aws:lambda:us-west-2:652617421195:function:bluemoxon-staging-scraper"
+
+# API Lambda security group (used by workers for VPC config)
+external_lambda_security_group_id = "sg-050fb5268bcd06443"
+
+# API Lambda role name (used by workers for SQS send permissions)
+lambda_iam_role_name_override = "bluemoxon-staging-api-exec-role"
