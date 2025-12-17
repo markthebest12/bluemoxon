@@ -259,3 +259,38 @@ class TestExtractComparablesPrompt:
         prompt = body["messages"][0]["content"]
         assert "for sale" in prompt.lower() or "currently available" in prompt.lower()
         assert "sold" not in prompt.lower()
+
+
+class TestLookupFmvIntegration:
+    """Integration tests for full FMV lookup flow."""
+
+    @patch("app.services.fmv_lookup._fetch_listings_via_scraper_lambda")
+    @patch("app.services.fmv_lookup._fetch_search_page")
+    @patch("app.services.fmv_lookup._filter_listings_with_claude")
+    @patch("app.services.fmv_lookup._extract_comparables_with_claude")
+    def test_abebooks_receives_context_aware_params(
+        self, mock_extract, mock_filter, mock_fetch_page, mock_fetch_lambda
+    ):
+        """AbeBooks lookup receives volume and binding parameters."""
+        from app.services.fmv_lookup import lookup_fmv
+
+        # Mock eBay (scraper Lambda)
+        mock_fetch_lambda.return_value = []
+        mock_filter.return_value = []
+
+        # Mock AbeBooks (direct HTTP)
+        mock_fetch_page.return_value = "<html>test</html>"
+        mock_extract.return_value = []
+
+        lookup_fmv(
+            title="Life of Scott",
+            author="Lockhart",
+            volumes=7,
+            binding_type="Full calf",
+        )
+
+        # Verify AbeBooks fetch was called
+        assert mock_fetch_page.called
+        # Check the URL contains context-aware terms
+        call_url = mock_fetch_page.call_args[0][0]
+        assert "7" in call_url and "volume" in call_url.lower()
