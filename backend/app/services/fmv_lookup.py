@@ -196,6 +196,213 @@ def _build_search_query(title: str, author: str | None = None) -> str:
     return urllib.parse.quote_plus(query)
 
 
+def _build_context_aware_query(
+    title: str,
+    author: str | None = None,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
+) -> str:
+    """Build a context-aware search query from book metadata.
+
+    Args:
+        title: Book title
+        author: Author name
+        volumes: Number of volumes (adds "N volumes" if > 1)
+        binding_type: Binding type (adds "morocco", "calf", etc.)
+        binder: Binder name (adds binder name)
+        edition: Edition info (adds "first edition" if contains "first")
+
+    Returns:
+        URL-encoded search query with context
+    """
+    # Clean title - remove common noise words
+    title_clean = re.sub(r"\b(the|a|an|and|or|of|in|to|for)\b", " ", title.lower())
+    title_clean = re.sub(r"[^\w\s]", " ", title_clean)
+    title_words = title_clean.split()[:5]  # First 5 significant words
+
+    query_parts = title_words
+
+    # Add author last name
+    if author:
+        author_parts = author.split()
+        if author_parts:
+            query_parts.append(author_parts[-1].lower())
+
+    # Add volume count for multi-volume sets
+    if volumes > 1:
+        query_parts.append(f"{volumes} volumes")
+
+    # Add binding type keywords
+    if binding_type:
+        binding_lower = binding_type.lower()
+        if "morocco" in binding_lower:
+            query_parts.append("morocco")
+        elif "calf" in binding_lower:
+            query_parts.append("calf")
+        elif "vellum" in binding_lower:
+            query_parts.append("vellum")
+
+    # Add binder name
+    if binder:
+        query_parts.append(binder.lower())
+
+    # Add edition info
+    if edition and "first" in edition.lower():
+        query_parts.append("first edition")
+
+    query = " ".join(query_parts)
+    return urllib.parse.quote_plus(query)
+
+
+def _filter_listings_with_claude(
+    listings: list[dict],
+    book_metadata: dict,
+) -> list[dict]:
+    """Filter listings by relevance using Claude.
+
+    Args:
+        listings: Raw listings from scraper
+        book_metadata: Target book metadata for comparison
+
+    Returns:
+        Filtered listings with relevance scores (high/medium only)
+    """
+    if not listings:
+        return []
+
+    # Build metadata summary for prompt
+    meta_parts = [f"Title: {book_metadata.get('title', 'Unknown')}"]
+    if book_metadata.get("author"):
+        meta_parts.append(f"Author: {book_metadata['author']}")
+    if book_metadata.get("volumes", 1) > 1:
+        meta_parts.append(f"Volumes: {book_metadata['volumes']}")
+    if book_metadata.get("binding_type"):
+        meta_parts.append(f"Binding: {book_metadata['binding_type']}")
+    if book_metadata.get("binder"):
+        meta_parts.append(f"Binder: {book_metadata['binder']}")
+    if book_metadata.get("edition"):
+        meta_parts.append(f"Edition: {book_metadata['edition']}")
+
+    metadata_str = "\n".join(meta_parts)
+    listings_json = json.dumps(listings, indent=2)
+
+    prompt = f"""Target book:
+{metadata_str}
+
+Extracted listings:
+{listings_json}
+
+Task: Rate each listing's relevance to the target book as "high", "medium", or "low":
+- HIGH: Same work, matching volume count (within 1), similar binding quality
+- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding)
+- LOW: Different work entirely, or single volume from a multi-volume set
+
+Return a JSON array with all listings, adding a "relevance" field to each.
+Only include listings rated "high" or "medium" in your response.
+Return ONLY the JSON array, no other text."""
+
+    try:
+        client = get_bedrock_client()
+        model_id = get_model_id("sonnet")
+
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2000,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        )
+
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+
+        response_body = json.loads(response["body"].read())
+        result_text = response_body["content"][0]["text"]
+
+        # Extract JSON from response
+        json_match = re.search(r"\[[\s\S]*\]", result_text)
+        if json_match:
+            filtered = json.loads(json_match.group())
+            # Ensure only high/medium returned
+            return [item for item in filtered if item.get("relevance") in ("high", "medium")]
+
+        logger.warning("No JSON array found in Claude filtering response")
+        return []
+
+    except Exception as e:
+        logger.error(f"Claude filtering failed: {e}")
+        # Fall back to returning all listings with medium relevance
+        return [{"relevance": "medium", **item} for item in listings]
+
+
+def _calculate_weighted_fmv(listings: list[dict]) -> dict:
+    """Calculate FMV range weighted by relevance tier.
+
+    Args:
+        listings: Listings with relevance scores
+
+    Returns:
+        Dict with fmv_low, fmv_high, fmv_confidence, fmv_notes
+    """
+    if not listings:
+        return {
+            "fmv_low": None,
+            "fmv_high": None,
+            "fmv_confidence": "low",
+            "fmv_notes": "No comparable listings found",
+        }
+
+    # Separate by relevance
+    high = [item for item in listings if item.get("relevance") == "high" and item.get("price")]
+    medium = [item for item in listings if item.get("relevance") == "medium" and item.get("price")]
+
+    # Determine which set to use
+    if len(high) >= 2:
+        use_listings = high
+        confidence = "high"
+        notes = f"Based on {len(high)} highly relevant comparables"
+    elif len(high) + len(medium) >= 3:
+        use_listings = high + medium
+        confidence = "medium"
+        notes = f"Based on {len(high)} high + {len(medium)} medium relevance comparables"
+    elif high or medium:
+        use_listings = high + medium
+        confidence = "low"
+        notes = f"Insufficient comparable data ({len(high)} high, {len(medium)} medium)"
+    else:
+        return {
+            "fmv_low": None,
+            "fmv_high": None,
+            "fmv_confidence": "low",
+            "fmv_notes": "No relevant comparables found",
+        }
+
+    # Extract and sort prices
+    prices = sorted([float(item["price"]) for item in use_listings])
+    n = len(prices)
+
+    # Calculate range (25th/75th percentile or min/max for small sets)
+    if n >= 4:
+        fmv_low = prices[n // 4]
+        fmv_high = prices[3 * n // 4]
+    else:
+        fmv_low = prices[0]
+        fmv_high = prices[-1]
+
+    return {
+        "fmv_low": fmv_low,
+        "fmv_high": fmv_high,
+        "fmv_confidence": confidence,
+        "fmv_notes": notes,
+    }
+
+
 def _fetch_search_page(url: str, timeout: int = 45, use_scraper_lambda: bool = False) -> str | None:
     """Fetch search results page HTML.
 
@@ -352,6 +559,10 @@ def lookup_ebay_comparables(
     title: str,
     author: str | None = None,
     max_results: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> list[dict]:
     """Look up comparable sold listings on eBay.
 
@@ -363,11 +574,27 @@ def lookup_ebay_comparables(
         title: Book title
         author: Optional author name
         max_results: Maximum comparables to return
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
-        List of comparable dicts with title, price, url, condition, sold_date
+        List of comparable dicts with title, price, url, condition, sold_date, relevance
     """
-    query = _build_search_query(title, author)
+    # Use context-aware query if we have metadata beyond title/author
+    if volumes > 1 or binding_type or binder or edition:
+        query = _build_context_aware_query(
+            title=title,
+            author=author,
+            volumes=volumes,
+            binding_type=binding_type,
+            binder=binder,
+            edition=edition,
+        )
+    else:
+        query = _build_search_query(title, author)
+
     url = EBAY_SOLD_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching eBay sold listings: {url}")
@@ -385,24 +612,32 @@ def lookup_ebay_comparables(
 
     logger.info(f"Scraper returned {len(listings)} raw eBay listings")
 
-    # Filter listings with valid prices and mark as sold
+    # Filter listings with valid prices
     valid_listings = []
     for listing in listings:
-        # Skip listings without prices
         if not listing.get("price"):
             continue
-
-        # Add default relevance (all are from search results matching query)
-        listing["relevance"] = "medium"
-
-        # Ensure sold_date has a value
         if not listing.get("sold_date"):
             listing["sold_date"] = "recent"
-
         valid_listings.append(listing)
 
+    if not valid_listings:
+        logger.info("No valid eBay listings (all missing prices)")
+        return []
+
+    # Use Claude to filter by relevance
+    book_metadata = {
+        "title": title,
+        "author": author,
+        "volumes": volumes,
+        "binding_type": binding_type,
+        "binder": binder,
+        "edition": edition,
+    }
+    filtered_listings = _filter_listings_with_claude(valid_listings, book_metadata)
+
     # Limit to max_results
-    comparables = valid_listings[:max_results]
+    comparables = filtered_listings[:max_results]
 
     logger.info(f"Found {len(comparables)} eBay comparables (from {len(listings)} raw)")
     return comparables
@@ -442,6 +677,10 @@ def lookup_fmv(
     title: str,
     author: str | None = None,
     max_per_source: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> dict:
     """Look up Fair Market Value from multiple sources.
 
@@ -449,6 +688,10 @@ def lookup_fmv(
         title: Book title
         author: Optional author name
         max_per_source: Maximum comparables per source
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
         Dict with:
@@ -456,35 +699,36 @@ def lookup_fmv(
             - abebooks_comparables: List of AbeBooks listings
             - fmv_low: Low estimate based on comparables
             - fmv_high: High estimate based on comparables
+            - fmv_confidence: Confidence level (high/medium/low)
             - fmv_notes: Summary of FMV analysis
     """
-    ebay = lookup_ebay_comparables(title, author, max_per_source)
+    ebay = lookup_ebay_comparables(
+        title=title,
+        author=author,
+        max_results=max_per_source,
+        volumes=volumes,
+        binding_type=binding_type,
+        binder=binder,
+        edition=edition,
+    )
+    # AbeBooks still uses simple query for now
     abebooks = lookup_abebooks_comparables(title, author, max_per_source)
 
-    # Calculate FMV range from comparables
-    all_prices = []
-    for comp in ebay + abebooks:
-        if comp.get("price") and isinstance(comp["price"], (int, float)):
-            all_prices.append(float(comp["price"]))
+    # Calculate weighted FMV from relevance-scored comparables
+    all_listings = ebay + abebooks
+    fmv_result = _calculate_weighted_fmv(all_listings)
 
-    fmv_low = None
-    fmv_high = None
-    fmv_notes = ""
-
-    if all_prices:
-        all_prices.sort()
-        # Use 25th and 75th percentile for range
-        n = len(all_prices)
-        fmv_low = all_prices[max(0, n // 4)]
-        fmv_high = all_prices[min(n - 1, 3 * n // 4)]
-        fmv_notes = f"Based on {len(ebay)} eBay sold and {len(abebooks)} AbeBooks listings"
-    else:
-        fmv_notes = "No comparable listings found"
+    # Update notes to include source counts
+    if ebay or abebooks:
+        fmv_result["fmv_notes"] = (
+            f"{fmv_result['fmv_notes']} ({len(ebay)} eBay, {len(abebooks)} AbeBooks)"
+        )
 
     return {
         "ebay_comparables": ebay,
         "abebooks_comparables": abebooks,
-        "fmv_low": fmv_low,
-        "fmv_high": fmv_high,
-        "fmv_notes": fmv_notes,
+        "fmv_low": fmv_result["fmv_low"],
+        "fmv_high": fmv_result["fmv_high"],
+        "fmv_confidence": fmv_result["fmv_confidence"],
+        "fmv_notes": fmv_result["fmv_notes"],
     }
