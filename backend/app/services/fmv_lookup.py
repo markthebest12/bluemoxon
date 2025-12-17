@@ -559,6 +559,10 @@ def lookup_ebay_comparables(
     title: str,
     author: str | None = None,
     max_results: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> list[dict]:
     """Look up comparable sold listings on eBay.
 
@@ -570,11 +574,27 @@ def lookup_ebay_comparables(
         title: Book title
         author: Optional author name
         max_results: Maximum comparables to return
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
-        List of comparable dicts with title, price, url, condition, sold_date
+        List of comparable dicts with title, price, url, condition, sold_date, relevance
     """
-    query = _build_search_query(title, author)
+    # Use context-aware query if we have metadata beyond title/author
+    if volumes > 1 or binding_type or binder or edition:
+        query = _build_context_aware_query(
+            title=title,
+            author=author,
+            volumes=volumes,
+            binding_type=binding_type,
+            binder=binder,
+            edition=edition,
+        )
+    else:
+        query = _build_search_query(title, author)
+
     url = EBAY_SOLD_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching eBay sold listings: {url}")
@@ -592,24 +612,32 @@ def lookup_ebay_comparables(
 
     logger.info(f"Scraper returned {len(listings)} raw eBay listings")
 
-    # Filter listings with valid prices and mark as sold
+    # Filter listings with valid prices
     valid_listings = []
     for listing in listings:
-        # Skip listings without prices
         if not listing.get("price"):
             continue
-
-        # Add default relevance (all are from search results matching query)
-        listing["relevance"] = "medium"
-
-        # Ensure sold_date has a value
         if not listing.get("sold_date"):
             listing["sold_date"] = "recent"
-
         valid_listings.append(listing)
 
+    if not valid_listings:
+        logger.info("No valid eBay listings (all missing prices)")
+        return []
+
+    # Use Claude to filter by relevance
+    book_metadata = {
+        "title": title,
+        "author": author,
+        "volumes": volumes,
+        "binding_type": binding_type,
+        "binder": binder,
+        "edition": edition,
+    }
+    filtered_listings = _filter_listings_with_claude(valid_listings, book_metadata)
+
     # Limit to max_results
-    comparables = valid_listings[:max_results]
+    comparables = filtered_listings[:max_results]
 
     logger.info(f"Found {len(comparables)} eBay comparables (from {len(listings)} raw)")
     return comparables
@@ -649,6 +677,10 @@ def lookup_fmv(
     title: str,
     author: str | None = None,
     max_per_source: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> dict:
     """Look up Fair Market Value from multiple sources.
 
@@ -656,6 +688,10 @@ def lookup_fmv(
         title: Book title
         author: Optional author name
         max_per_source: Maximum comparables per source
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
         Dict with:
@@ -663,35 +699,37 @@ def lookup_fmv(
             - abebooks_comparables: List of AbeBooks listings
             - fmv_low: Low estimate based on comparables
             - fmv_high: High estimate based on comparables
+            - fmv_confidence: Confidence level (high/medium/low)
             - fmv_notes: Summary of FMV analysis
     """
-    ebay = lookup_ebay_comparables(title, author, max_per_source)
+    ebay = lookup_ebay_comparables(
+        title=title,
+        author=author,
+        max_results=max_per_source,
+        volumes=volumes,
+        binding_type=binding_type,
+        binder=binder,
+        edition=edition,
+    )
+    # AbeBooks still uses simple query for now
     abebooks = lookup_abebooks_comparables(title, author, max_per_source)
 
-    # Calculate FMV range from comparables
-    all_prices = []
-    for comp in ebay + abebooks:
-        if comp.get("price") and isinstance(comp["price"], (int, float)):
-            all_prices.append(float(comp["price"]))
+    # Calculate weighted FMV from relevance-scored comparables
+    all_listings = ebay + abebooks
+    fmv_result = _calculate_weighted_fmv(all_listings)
 
-    fmv_low = None
-    fmv_high = None
-    fmv_notes = ""
-
-    if all_prices:
-        all_prices.sort()
-        # Use 25th and 75th percentile for range
-        n = len(all_prices)
-        fmv_low = all_prices[max(0, n // 4)]
-        fmv_high = all_prices[min(n - 1, 3 * n // 4)]
-        fmv_notes = f"Based on {len(ebay)} eBay sold and {len(abebooks)} AbeBooks listings"
-    else:
-        fmv_notes = "No comparable listings found"
+    # Update notes to include source counts
+    if ebay or abebooks:
+        fmv_result["fmv_notes"] = (
+            f"{fmv_result['fmv_notes']} "
+            f"({len(ebay)} eBay, {len(abebooks)} AbeBooks)"
+        )
 
     return {
         "ebay_comparables": ebay,
         "abebooks_comparables": abebooks,
-        "fmv_low": fmv_low,
-        "fmv_high": fmv_high,
-        "fmv_notes": fmv_notes,
+        "fmv_low": fmv_result["fmv_low"],
+        "fmv_high": fmv_result["fmv_high"],
+        "fmv_confidence": fmv_result["fmv_confidence"],
+        "fmv_notes": fmv_result["fmv_notes"],
     }
