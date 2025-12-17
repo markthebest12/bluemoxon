@@ -106,6 +106,70 @@ def _fetch_via_scraper_lambda(url: str) -> str | None:
         return None
 
 
+def _fetch_listings_via_scraper_lambda(url: str) -> list[dict] | None:
+    """Fetch and extract listings via scraper Lambda (Playwright browser).
+
+    Uses the scraper Lambda's extract_listings mode which extracts structured
+    listing data directly via JavaScript in the browser. This avoids the
+    truncation issue where raw HTML was too large for Claude processing.
+
+    Args:
+        url: eBay search results URL
+
+    Returns:
+        List of listing dicts or None if failed
+    """
+    try:
+        client = _get_lambda_client()
+        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
+
+        # Use extract_listings mode to get structured data directly
+        payload = {"url": url, "fetch_images": False, "extract_listings": True}
+
+        logger.info(f"Invoking scraper Lambda for listing extraction: {url}")
+        response = client.invoke(
+            FunctionName=function_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload),
+        )
+
+        # Check for Lambda execution error
+        if response.get("FunctionError"):
+            error_payload = json.loads(response["Payload"].read())
+            error_msg = error_payload.get("errorMessage", "Unknown error")
+            logger.error(f"Scraper Lambda execution failed: {error_msg}")
+            return None
+
+        # Parse Lambda response
+        result = json.loads(response["Payload"].read())
+        status_code = result.get("statusCode", 500)
+        body = json.loads(result.get("body", "{}"))
+
+        if status_code == 429:
+            logger.warning("Rate limited by eBay via scraper Lambda")
+            return None
+
+        if status_code >= 400:
+            error_msg = body.get("error", "Scraping failed")
+            logger.error(f"Scraper Lambda error: {error_msg}")
+            return None
+
+        listings = body.get("listings", [])
+        listing_count = body.get("listing_count", len(listings))
+        html_size = body.get("html_size", 0)
+
+        logger.info(
+            f"Scraper Lambda extracted {listing_count} listings from {html_size} chars of HTML"
+        )
+
+        return listings
+
+    except Exception as e:
+        logger.error(f"Error invoking scraper Lambda for listing extraction: {e}")
+        return None
+
+
 def _build_search_query(title: str, author: str | None = None) -> str:
     """Build a search query from book metadata.
 
@@ -292,6 +356,8 @@ def lookup_ebay_comparables(
     """Look up comparable sold listings on eBay.
 
     Uses scraper Lambda with Playwright browser to avoid eBay bot detection.
+    The scraper extracts listings directly via JavaScript, avoiding the
+    truncation issue where raw HTML was too large for processing.
 
     Args:
         title: Book title
@@ -305,15 +371,40 @@ def lookup_ebay_comparables(
     url = EBAY_SOLD_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching eBay sold listings: {url}")
-    # Use scraper Lambda for eBay to avoid HTTP 503 bot detection
-    html = _fetch_search_page(url, use_scraper_lambda=True)
 
-    if not html:
-        logger.warning("Failed to fetch eBay search results")
+    # Use extract_listings mode for direct structured data extraction
+    listings = _fetch_listings_via_scraper_lambda(url)
+
+    if listings is None:
+        logger.warning("Failed to fetch eBay search results via scraper")
         return []
 
-    comparables = _extract_comparables_with_claude(html, "ebay", title, max_results)
-    logger.info(f"Found {len(comparables)} eBay comparables")
+    if not listings:
+        logger.info("No eBay listings found in search results")
+        return []
+
+    logger.info(f"Scraper returned {len(listings)} raw eBay listings")
+
+    # Filter listings with valid prices and mark as sold
+    valid_listings = []
+    for listing in listings:
+        # Skip listings without prices
+        if not listing.get("price"):
+            continue
+
+        # Add default relevance (all are from search results matching query)
+        listing["relevance"] = "medium"
+
+        # Ensure sold_date has a value
+        if not listing.get("sold_date"):
+            listing["sold_date"] = "recent"
+
+        valid_listings.append(listing)
+
+    # Limit to max_results
+    comparables = valid_listings[:max_results]
+
+    logger.info(f"Found {len(comparables)} eBay comparables (from {len(listings)} raw)")
     return comparables
 
 
