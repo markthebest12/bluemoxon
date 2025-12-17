@@ -23,7 +23,7 @@
   "lambda": {
     "function_name": "bluemoxon-api",
     "worker_function_name": "bluemoxon-prod-analysis-worker",
-    "eval_runbook_worker_function_name": "bluemoxon-prod-eval-runbook-worker",
+    "_comment_eval_runbook": "eval_runbook_worker disabled until Lambda created in prod via Terraform (#389)",
     "memory_size": 512,
     "timeout": 30,
     "provisioned_concurrency": 1
