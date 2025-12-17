@@ -23,13 +23,15 @@
   "lambda": {
     "function_name": "bluemoxon-api",
     "worker_function_name": "bluemoxon-prod-analysis-worker",
-    "_comment_eval_runbook": "eval_runbook_worker disabled until Lambda created in prod via Terraform (#389)",
+    "eval_runbook_worker_function_name": "bluemoxon-prod-eval-runbook-worker",
     "memory_size": 512,
     "timeout": 30,
     "provisioned_concurrency": 1
   },
 
   "scraper": {
+    "enabled": false,
+    "_comment": "Scraper exists but is managed externally - deploy workflow skips ECR build (#389)",
     "function_name": "bluemoxon-production-scraper",
     "ecr_repository": "bluemoxon-scraper",
     "memory_size": 1024,
@@ -42,8 +44,8 @@
   },
 
   "cloudfront": {
-    "frontend_distribution_id": "E16BJX90QWQNQO",
-    "images_distribution_id": "E2IUCDBKX8CLOH"
+    "frontend_distribution_id": "EEDJ1I6OLG43J",
+    "images_distribution_id": "E1VE5JPXXGIJ25"
   },
 
   "database": {
