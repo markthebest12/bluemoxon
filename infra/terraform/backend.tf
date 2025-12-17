@@ -1,16 +1,20 @@
-# Backend configuration
-# Initialize with: terraform init -backend-config="key=bluemoxon/${ENV}/terraform.tfstate"
+# Backend configuration (partial - values provided via backend config files)
 #
-# Example:
-#   terraform init -backend-config="key=bluemoxon/staging/terraform.tfstate"
-#   terraform init -backend-config="key=bluemoxon/prod/terraform.tfstate"
+# Each environment has its own S3 bucket and DynamoDB table for complete isolation:
+#   - Staging: bluemoxon-terraform-state-staging (account 652617421195)
+#   - Production: bluemoxon-terraform-state (account 266672885920)
+#
+# Initialize with environment-specific backend config:
+#   AWS_PROFILE=bmx-staging terraform init -backend-config=backends/staging.hcl -reconfigure
+#   AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.hcl -reconfigure
+#
+# Then run plan/apply:
+#   AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
+#   AWS_PROFILE=bmx-prod terraform plan -var-file=envs/prod.tfvars
 
 terraform {
   backend "s3" {
-    bucket         = "bluemoxon-terraform-state"
-    region         = "us-west-2"
-    encrypt        = true
-    dynamodb_table = "bluemoxon-terraform-locks"
-    # key is set via -backend-config during init
+    # All values provided via -backend-config flag at init time
+    # See backends/staging.hcl and backends/prod.hcl
   }
 }
