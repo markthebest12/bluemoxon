@@ -261,8 +261,8 @@ export const useBooksStore = defineStore("books", () => {
     const response = await api.post(`/books/${bookId}/analysis/generate-async`, { model });
     const job = response.data as AnalysisJob;
 
-    // Track the job
-    activeAnalysisJobs.value.set(bookId, job);
+    // Track the job (create new Map to trigger Vue reactivity)
+    activeAnalysisJobs.value = new Map(activeAnalysisJobs.value).set(bookId, job);
 
     // Start polling for status
     startJobPoller(bookId);
@@ -277,8 +277,8 @@ export const useBooksStore = defineStore("books", () => {
     const response = await api.get(`/books/${bookId}/analysis/status`);
     const job = response.data as AnalysisJob;
 
-    // Update tracked job
-    activeAnalysisJobs.value.set(bookId, job);
+    // Update tracked job (create new Map to trigger Vue reactivity)
+    activeAnalysisJobs.value = new Map(activeAnalysisJobs.value).set(bookId, job);
 
     return job;
   }
@@ -356,8 +356,8 @@ export const useBooksStore = defineStore("books", () => {
     const response = await api.post(`/books/${bookId}/eval-runbook/generate`);
     const job = response.data as EvalRunbookJob;
 
-    // Track the job
-    activeEvalRunbookJobs.value.set(bookId, job);
+    // Track the job (create new Map to trigger Vue reactivity)
+    activeEvalRunbookJobs.value = new Map(activeEvalRunbookJobs.value).set(bookId, job);
 
     // Start polling for status
     startEvalRunbookJobPoller(bookId);
@@ -372,8 +372,8 @@ export const useBooksStore = defineStore("books", () => {
     const response = await api.get(`/books/${bookId}/eval-runbook/status`);
     const job = response.data as EvalRunbookJob;
 
-    // Update tracked job
-    activeEvalRunbookJobs.value.set(bookId, job);
+    // Update tracked job (create new Map to trigger Vue reactivity)
+    activeEvalRunbookJobs.value = new Map(activeEvalRunbookJobs.value).set(bookId, job);
 
     return job;
   }
