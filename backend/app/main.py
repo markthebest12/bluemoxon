@@ -10,11 +10,10 @@ from app.api.v1 import router as api_router
 from app.config import get_settings
 from app.version import get_version
 
-# Configure logging for Lambda - must set level explicitly since Lambda default is WARNING
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Configure logging for Lambda - set level on root logger directly
+# (basicConfig doesn't work because Lambda pre-configures handlers)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 settings = get_settings()
 app_version = get_version()
