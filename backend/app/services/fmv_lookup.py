@@ -196,6 +196,66 @@ def _build_search_query(title: str, author: str | None = None) -> str:
     return urllib.parse.quote_plus(query)
 
 
+def _build_context_aware_query(
+    title: str,
+    author: str | None = None,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
+) -> str:
+    """Build a context-aware search query from book metadata.
+
+    Args:
+        title: Book title
+        author: Author name
+        volumes: Number of volumes (adds "N volumes" if > 1)
+        binding_type: Binding type (adds "morocco", "calf", etc.)
+        binder: Binder name (adds binder name)
+        edition: Edition info (adds "first edition" if contains "first")
+
+    Returns:
+        URL-encoded search query with context
+    """
+    # Clean title - remove common noise words
+    title_clean = re.sub(r"\b(the|a|an|and|or|of|in|to|for)\b", " ", title.lower())
+    title_clean = re.sub(r"[^\w\s]", " ", title_clean)
+    title_words = title_clean.split()[:5]  # First 5 significant words
+
+    query_parts = title_words
+
+    # Add author last name
+    if author:
+        author_parts = author.split()
+        if author_parts:
+            query_parts.append(author_parts[-1].lower())
+
+    # Add volume count for multi-volume sets
+    if volumes > 1:
+        query_parts.append(f"{volumes} volumes")
+
+    # Add binding type keywords
+    if binding_type:
+        binding_lower = binding_type.lower()
+        if "morocco" in binding_lower:
+            query_parts.append("morocco")
+        elif "calf" in binding_lower:
+            query_parts.append("calf")
+        elif "vellum" in binding_lower:
+            query_parts.append("vellum")
+
+    # Add binder name
+    if binder:
+        query_parts.append(binder.lower())
+
+    # Add edition info
+    if edition and "first" in edition.lower():
+        query_parts.append("first edition")
+
+    query = " ".join(query_parts)
+    return urllib.parse.quote_plus(query)
+
+
 def _fetch_search_page(url: str, timeout: int = 45, use_scraper_lambda: bool = False) -> str | None:
     """Fetch search results page HTML.
 
