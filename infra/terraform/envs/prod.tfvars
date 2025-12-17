@@ -28,25 +28,25 @@ db_allocated_storage = 50
 # CloudFront: Uses OAC (Origin Access Control), module uses OAI
 # Database: Aurora Serverless managed externally (different module needed)
 # Cognito: Existing pool with production users, managed externally
-enable_cloudfront         = true  # CRITICAL: Must be enabled - CloudFront serves frontend
-cloudfront_origin_access_type = "oac"  # Prod uses OAC (modern) not OAI (legacy)
-enable_cognito            = false
-enable_lambda             = true  # Lambda imported into Terraform (#225 Phase 3)
-enable_lambda_vpc         = true  # Lambda needs VPC for Aurora connectivity
-enable_api_gateway        = false # API Gateway managed externally (import in future phase)
-enable_database           = false
-enable_nat_gateway        = false
-enable_waf                = true
-enable_scraper            = false # Existing scraper (bluemoxon-production-scraper) managed externally
-skip_s3_cloudfront_policy = true  # Prod uses OAC (not OAI) - bucket policy managed externally
+enable_cloudfront             = true  # CRITICAL: Must be enabled - CloudFront serves frontend
+cloudfront_origin_access_type = "oac" # Prod uses OAC (modern) not OAI (legacy)
+enable_cognito                = false
+enable_lambda                 = true  # Lambda imported into Terraform (#225 Phase 3)
+enable_lambda_vpc             = true  # Lambda needs VPC for Aurora connectivity
+enable_api_gateway            = false # API Gateway managed externally (import in future phase)
+enable_database               = false
+enable_nat_gateway            = false
+enable_waf                    = true
+enable_scraper                = false # Existing scraper (bluemoxon-production-scraper) managed externally
+skip_s3_cloudfront_policy     = true  # Prod uses OAC (not OAI) - bucket policy managed externally
 
 # =============================================================================
 # Analysis Worker Configuration
 # =============================================================================
 # Enabled independently of main Lambda - creates SQS queue + worker Lambda
 # for async Bedrock analysis generation.
-enable_analysis_worker = true
-enable_eval_runbook_worker = false  # Temporarily disabled - need lambda.zip built by deploy workflow
+enable_analysis_worker     = true
+enable_eval_runbook_worker = false # Temporarily disabled - need lambda.zip built by deploy workflow
 
 # Lambda VPC configuration (for Aurora connectivity)
 # These are NOT used for external_lambda (which is disabled) but for VPC config
