@@ -721,8 +721,7 @@ def lookup_fmv(
     # Update notes to include source counts
     if ebay or abebooks:
         fmv_result["fmv_notes"] = (
-            f"{fmv_result['fmv_notes']} "
-            f"({len(ebay)} eBay, {len(abebooks)} AbeBooks)"
+            f"{fmv_result['fmv_notes']} ({len(ebay)} eBay, {len(abebooks)} AbeBooks)"
         )
 
     return {
