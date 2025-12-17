@@ -663,6 +663,10 @@ def lookup_abebooks_comparables(
     title: str,
     author: str | None = None,
     max_results: int = 5,
+    volumes: int = 1,
+    binding_type: str | None = None,
+    binder: str | None = None,
+    edition: str | None = None,
 ) -> list[dict]:
     """Look up comparable listings on AbeBooks.
 
@@ -670,11 +674,26 @@ def lookup_abebooks_comparables(
         title: Book title
         author: Optional author name
         max_results: Maximum comparables to return
+        volumes: Number of volumes (for context-aware query)
+        binding_type: Binding type (for context-aware query)
+        binder: Binder name (for context-aware query)
+        edition: Edition info (for context-aware query)
 
     Returns:
         List of comparable dicts with title, price, url, condition
     """
-    query = _build_search_query(title, author)
+    # Use context-aware query if we have metadata beyond title/author
+    if volumes > 1 or binding_type or binder or edition:
+        query = _build_context_aware_query(
+            title=title,
+            author=author,
+            volumes=volumes,
+            binding_type=binding_type,
+            binder=binder,
+            edition=edition,
+        )
+    else:
+        query = _build_search_query(title, author)
     url = ABEBOOKS_SEARCH_URL.format(query=query)
 
     logger.info(f"Searching AbeBooks: {url}")
