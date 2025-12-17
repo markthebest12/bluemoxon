@@ -381,6 +381,7 @@ def generate_eval_runbook(
                 binding_type=book.binding_type,
                 binder=binder_name,
                 edition=book.edition,
+                publication_year=book.year_start,
             )
         except Exception as e:
             logger.warning(f"FMV lookup failed (continuing without FMV): {e}")
