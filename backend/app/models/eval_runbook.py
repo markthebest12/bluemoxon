@@ -40,6 +40,8 @@ class EvalRunbook(Base, TimestampMixin):
     price_notes: Mapped[str | None] = mapped_column(Text)
     fmv_low: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     fmv_high: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    fmv_notes: Mapped[str | None] = mapped_column(Text)
+    fmv_confidence: Mapped[str | None] = mapped_column(String(20))
     recommended_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
 
     # FMV Comparables
