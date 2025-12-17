@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
+import { useBooksStore } from "@/stores/books";
 
 const props = defineProps<{
   book: AcquisitionBook;
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>();
 
 const acquisitionsStore = useAcquisitionsStore();
+const booksStore = useBooksStore();
 
 const form = ref({
   value_low: props.book.value_low ?? null,
@@ -20,7 +22,11 @@ const form = ref({
   source_url: props.book.source_url ?? "",
   volumes: props.book.volumes ?? 1,
   is_complete: props.book.is_complete ?? true,
+  purchase_price: props.book.purchase_price ?? null,
 });
+
+// Track if price changed for eval runbook refresh
+const originalPrice = props.book.purchase_price ?? null;
 
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
@@ -50,9 +56,20 @@ async function handleSubmit() {
       source_url: form.value.source_url || undefined,
       volumes: form.value.volumes || 1,
       is_complete: form.value.is_complete,
+      purchase_price: form.value.purchase_price ?? undefined,
     };
 
     await acquisitionsStore.updateWatchlistItem(props.book.id, payload);
+
+    // If price changed and book has eval runbook, trigger refresh
+    const priceChanged = form.value.purchase_price !== originalPrice;
+    if (priceChanged && props.book.has_eval_runbook) {
+      // Trigger async eval runbook regeneration (don't await - let it run in background)
+      booksStore.generateEvalRunbookAsync(props.book.id).catch((e) => {
+        console.error("Failed to trigger eval runbook refresh:", e);
+      });
+    }
+
     emit("updated");
     emit("close");
   } catch (e: any) {
@@ -116,6 +133,25 @@ function openSourceUrl() {
             <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <p class="text-gray-900 font-medium">{{ book.title }}</p>
             <p class="text-sm text-gray-500">{{ book.author?.name || "Unknown author" }}</p>
+          </div>
+
+          <!-- Asking Price -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Asking Price</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-gray-500">$</span>
+              <input
+                v-model.number="form.purchase_price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              Changing this will refresh the eval runbook if one exists
+            </p>
           </div>
 
           <!-- FMV Section -->
