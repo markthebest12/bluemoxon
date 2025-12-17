@@ -46,7 +46,7 @@ skip_s3_cloudfront_policy     = true  # Prod uses OAC (not OAI) - bucket policy 
 # Enabled independently of main Lambda - creates SQS queue + worker Lambda
 # for async Bedrock analysis generation.
 enable_analysis_worker     = true
-enable_eval_runbook_worker = false # Temporarily disabled - need lambda.zip built by deploy workflow
+enable_eval_runbook_worker = true # Enabled for prod eval runbook generation
 
 # Lambda VPC configuration (for Aurora connectivity)
 # These are NOT used for external_lambda (which is disabled) but for VPC config
