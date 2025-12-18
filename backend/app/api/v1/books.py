@@ -538,7 +538,15 @@ def create_book(
             # Log but don't fail book creation if job queuing fails
             logger.warning(f"Failed to queue eval runbook job for book {book.id}: {e}")
 
-    return BookResponse.model_validate(book)
+    # Build response with job status (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
+    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    return BookResponse(**book_dict)
 
 
 @router.put("/{book_id}", response_model=BookResponse)

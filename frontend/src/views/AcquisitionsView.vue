@@ -57,9 +57,10 @@ function closeWatchlistModal() {
   showWatchlistModal.value = false;
 }
 
-function handleWatchlistAdded() {
+async function handleWatchlistAdded() {
   showWatchlistModal.value = false;
-  acquisitionsStore.fetchAll();
+  await acquisitionsStore.fetchAll();
+  syncBackendJobPolling(); // Start polling for any running jobs on the new book
 }
 
 function openImportModal() {
@@ -70,9 +71,10 @@ function closeImportModal() {
   showImportModal.value = false;
 }
 
-function handleImportAdded() {
+async function handleImportAdded() {
   showImportModal.value = false;
-  acquisitionsStore.fetchAll();
+  await acquisitionsStore.fetchAll();
+  syncBackendJobPolling(); // Start polling for any running jobs on the new book
 }
 
 function openEditModal(book: AcquisitionBook) {
