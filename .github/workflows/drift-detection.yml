@@ -70,10 +70,12 @@ jobs:
         continue-on-error: true
         run: |
           # Run plan with detailed exit code
+          # db_password is a dummy value - drift detection only reads state, doesn't apply changes
           set +e
           terraform plan \
             -detailed-exitcode \
             -var-file=envs/${{ matrix.environment == 'production' && 'prod' || 'staging' }}.tfvars \
+            -var="db_password=drift-detection-dummy" \
             -out=drift-plan.tfplan \
             -no-color 2>&1 | tee plan-output.txt
 
