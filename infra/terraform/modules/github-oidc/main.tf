@@ -240,7 +240,8 @@ resource "aws_iam_role_policy" "deploy" {
             "s3:GetEncryptionConfiguration",
             "s3:GetLifecycleConfiguration",
             "s3:GetAccelerateConfiguration",
-            "s3:GetReplicationConfiguration"
+            "s3:GetReplicationConfiguration",
+            "s3:GetBucketRequestPayment"
           ]
           Resource = "*"
         },
@@ -307,7 +308,8 @@ resource "aws_iam_role_policy" "deploy" {
             "cloudfront:ListTagsForResource",
             "cloudfront:GetOriginAccessControl",
             "cloudfront:GetCachePolicy",
-            "cloudfront:GetResponseHeadersPolicy"
+            "cloudfront:GetResponseHeadersPolicy",
+            "cloudfront:GetCloudFrontOriginAccessIdentity"
           ]
           Resource = "*"
         },
