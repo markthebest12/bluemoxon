@@ -241,7 +241,8 @@ resource "aws_iam_role_policy" "deploy" {
             "s3:GetLifecycleConfiguration",
             "s3:GetAccelerateConfiguration",
             "s3:GetReplicationConfiguration",
-            "s3:GetBucketRequestPayment"
+            "s3:GetBucketRequestPayment",
+            "s3:GetBucketObjectLockConfiguration"
           ]
           Resource = "*"
         },
