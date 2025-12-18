@@ -64,10 +64,12 @@ async function handleSubmit() {
     // If price changed and book has eval runbook, trigger refresh
     const priceChanged = form.value.purchase_price !== originalPrice;
     if (priceChanged && props.book.has_eval_runbook) {
-      // Trigger async eval runbook regeneration (don't await - let it run in background)
-      booksStore.generateEvalRunbookAsync(props.book.id).catch((e) => {
+      // Trigger async eval runbook regeneration - await so job is registered before emit
+      try {
+        await booksStore.generateEvalRunbookAsync(props.book.id);
+      } catch (e) {
         console.error("Failed to trigger eval runbook refresh:", e);
-      });
+      }
     }
 
     emit("updated");

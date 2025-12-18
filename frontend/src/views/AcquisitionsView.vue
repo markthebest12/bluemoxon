@@ -254,7 +254,7 @@ onMounted(async () => {
 
   // Periodically check if any active jobs have completed and refresh
   jobCheckInterval.value = setInterval(async () => {
-    let needsRefresh = false;
+    const booksToRefresh: number[] = [];
 
     // Check all evaluating books for completed analysis jobs
     for (const book of evaluating.value) {
@@ -262,7 +262,7 @@ onMounted(async () => {
       if (job?.status === "completed") {
         // Clear the completed job
         booksStore.clearJob(book.id);
-        needsRefresh = true;
+        booksToRefresh.push(book.id);
       } else if (job?.status === "failed") {
         // Clear failed job so user can retry
         console.error(`Analysis job failed for book ${book.id}:`, job.error_message);
@@ -274,7 +274,9 @@ onMounted(async () => {
       if (evalJob?.status === "completed") {
         // Clear the completed job
         booksStore.clearEvalRunbookJob(book.id);
-        needsRefresh = true;
+        if (!booksToRefresh.includes(book.id)) {
+          booksToRefresh.push(book.id);
+        }
       } else if (evalJob?.status === "failed") {
         // Clear failed job so user can retry
         console.error(`Eval runbook job failed for book ${book.id}:`, evalJob.error_message);
@@ -282,11 +284,9 @@ onMounted(async () => {
       }
     }
 
-    // Refresh list once if any jobs completed
-    if (needsRefresh) {
-      await acquisitionsStore.fetchAll();
-      // After refresh, check for any new running jobs from backend
-      syncBackendJobPolling();
+    // Refresh only the specific books that completed (no jarring full refresh)
+    for (const bookId of booksToRefresh) {
+      await acquisitionsStore.refreshBook(bookId);
     }
   }, 2000);
 });

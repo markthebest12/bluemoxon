@@ -220,6 +220,35 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     return response.data;
   }
 
+  async function refreshBook(bookId: number) {
+    // Fetch single book and update it in the appropriate list
+    const response = await api.get(`/books/${bookId}`);
+    const book = response.data;
+
+    // Update in evaluating list
+    const evalIndex = evaluating.value.findIndex((b) => b.id === bookId);
+    if (evalIndex >= 0) {
+      evaluating.value[evalIndex] = book;
+      return book;
+    }
+
+    // Update in inTransit list
+    const transitIndex = inTransit.value.findIndex((b) => b.id === bookId);
+    if (transitIndex >= 0) {
+      inTransit.value[transitIndex] = book;
+      return book;
+    }
+
+    // Update in received list
+    const receivedIndex = received.value.findIndex((b) => b.id === bookId);
+    if (receivedIndex >= 0) {
+      received.value[receivedIndex] = book;
+      return book;
+    }
+
+    return book;
+  }
+
   return {
     // State
     evaluating,
@@ -241,5 +270,6 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     updateWatchlistItem,
     archiveSource,
     addTracking,
+    refreshBook,
   };
 });
