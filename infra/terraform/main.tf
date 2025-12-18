@@ -376,6 +376,11 @@ module "scraper_lambda" {
   name_prefix = local.name_prefix
   environment = var.environment
 
+  # Name overrides for legacy naming (prod uses different pattern)
+  ecr_repository_name_override = var.scraper_ecr_repository_name_override
+  function_name_override       = var.scraper_function_name_override
+  iam_role_name_override       = var.scraper_iam_role_name_override
+
   # Allow API Lambda to invoke scraper
   api_lambda_role_name = module.lambda[0].role_name
   api_lambda_role_arn  = module.lambda[0].role_arn
@@ -387,10 +392,11 @@ module "scraper_lambda" {
   # Scraper settings
   image_tag   = "v1.0.7"
   memory_size = 1024 # Playwright needs significant memory
-  timeout     = 90   # Allow more time for S3 uploads (24 images)
+  timeout     = 120  # Production uses 120s (Playwright + S3 uploads)
 
+  # Override ENVIRONMENT for prod (uses "production" not "prod")
   environment_variables = {
-    ENVIRONMENT = var.environment
+    ENVIRONMENT = coalesce(var.environment_name_override, var.environment)
   }
 
   tags = local.common_tags

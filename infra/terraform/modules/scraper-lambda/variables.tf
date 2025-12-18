@@ -91,3 +91,25 @@ variable "warmup_schedule" {
   description = "Schedule expression for warmup rule (e.g., rate(5 minutes))"
   default     = "rate(5 minutes)"
 }
+
+# =============================================================================
+# Name Overrides (for importing existing resources with legacy naming)
+# =============================================================================
+
+variable "ecr_repository_name_override" {
+  type        = string
+  description = "Override ECR repository name (default: {name_prefix}-scraper)"
+  default     = null
+}
+
+variable "function_name_override" {
+  type        = string
+  description = "Override Lambda function name (default: {name_prefix}-scraper)"
+  default     = null
+}
+
+variable "iam_role_name_override" {
+  type        = string
+  description = "Override IAM role name (default: {name_prefix}-scraper-exec-role)"
+  default     = null
+}

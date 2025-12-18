@@ -150,6 +150,24 @@ variable "enable_scraper" {
   default     = null # Defaults to enable_lambda value when null
 }
 
+variable "scraper_ecr_repository_name_override" {
+  type        = string
+  description = "Override scraper ECR repository name (for legacy naming)"
+  default     = null
+}
+
+variable "scraper_function_name_override" {
+  type        = string
+  description = "Override scraper Lambda function name (for legacy naming)"
+  default     = null
+}
+
+variable "scraper_iam_role_name_override" {
+  type        = string
+  description = "Override scraper IAM role name (for legacy naming)"
+  default     = null
+}
+
 variable "enable_analysis_worker" {
   type        = bool
   description = "Enable analysis worker Lambda + SQS (can be enabled independently of main Lambda)"
