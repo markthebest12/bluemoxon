@@ -21,7 +21,7 @@
   },
 
   "lambda": {
-    "function_name": "bluemoxon-api",
+    "function_name": "bluemoxon-prod-api",
     "worker_function_name": "bluemoxon-prod-analysis-worker",
     "eval_runbook_worker_function_name": "bluemoxon-prod-eval-runbook-worker",
     "memory_size": 512,

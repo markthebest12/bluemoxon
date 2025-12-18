@@ -22,7 +22,7 @@ locals {
 
   # Lambda function name - use override if provided (for legacy prod naming)
   # Default: bluemoxon-staging-api
-  # Prod override: bluemoxon-api
+  # Prod override: bluemoxon-prod-api
   lambda_function_name = coalesce(var.lambda_function_name_override, "${var.app_name}-${var.environment}-api")
 
   # API Gateway name - use override if provided

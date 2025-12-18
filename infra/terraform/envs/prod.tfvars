@@ -155,7 +155,7 @@ EOT
 
 frontend_bucket_name_override   = "bluemoxon-frontend"
 images_bucket_name_override     = "bluemoxon-images"
-lambda_function_name_override   = "bluemoxon-api"
+lambda_function_name_override   = "bluemoxon-prod-api"
 lambda_iam_role_name_override   = "bluemoxon-lambda-role"
 api_gateway_name_override       = "bluemoxon-api"
 cognito_user_pool_name_override = "bluemoxon-users"
