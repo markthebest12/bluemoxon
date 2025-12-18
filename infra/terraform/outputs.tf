@@ -180,7 +180,7 @@ output "scraper_function_arn" {
 
 output "scraper_ecr_repository" {
   description = "Scraper ECR repository name (without registry URL prefix)"
-  value       = local.scraper_enabled ? "${local.name_prefix}-scraper" : null
+  value       = local.scraper_enabled ? module.scraper_lambda[0].ecr_repository_name : null
 }
 
 output "scraper_ecr_repository_url" {
