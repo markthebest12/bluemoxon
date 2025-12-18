@@ -21,6 +21,11 @@ output "aws_region" {
 output "cognito_client_id" {
   description = "Cognito app client ID"
   value       = var.enable_cognito ? module.cognito[0].client_id : var.cognito_client_id_external
+
+  precondition {
+    condition     = var.enable_cognito || (var.cognito_client_id_external != null && var.cognito_client_id_external != "")
+    error_message = "cognito_client_id_external must be set when enable_cognito is false"
+  }
 }
 
 output "cognito_domain" {
@@ -30,11 +35,21 @@ output "cognito_domain" {
     ) : (
     var.cognito_domain_override != null ? "${var.cognito_domain_override}.auth.${data.aws_region.current.name}.amazoncognito.com" : null
   )
+
+  precondition {
+    condition     = var.enable_cognito || (var.cognito_domain_override != null && var.cognito_domain_override != "")
+    error_message = "cognito_domain_override must be set when enable_cognito is false"
+  }
 }
 
 output "cognito_user_pool_id" {
   description = "Cognito user pool ID"
   value       = var.enable_cognito ? module.cognito[0].user_pool_id : var.cognito_user_pool_id_external
+
+  precondition {
+    condition     = var.enable_cognito || (var.cognito_user_pool_id_external != null && var.cognito_user_pool_id_external != "")
+    error_message = "cognito_user_pool_id_external must be set when enable_cognito is false"
+  }
 }
 
 output "environment" {
@@ -79,6 +94,11 @@ output "images_cdn_domain" {
 output "lambda_function_name" {
   description = "Lambda function name"
   value       = var.enable_lambda ? module.lambda[0].function_name : var.lambda_function_name_external
+
+  precondition {
+    condition     = var.enable_lambda || (var.lambda_function_name_external != null && var.lambda_function_name_external != "")
+    error_message = "lambda_function_name_external must be set when enable_lambda is false"
+  }
 }
 
 output "lambda_function_arn" {
@@ -89,6 +109,11 @@ output "lambda_function_arn" {
 output "lambda_invoke_arn" {
   description = "Lambda invoke ARN"
   value       = var.enable_lambda ? module.lambda[0].invoke_arn : var.lambda_invoke_arn_external
+
+  precondition {
+    condition     = var.enable_lambda || (var.lambda_invoke_arn_external != null && var.lambda_invoke_arn_external != "")
+    error_message = "lambda_invoke_arn_external must be set when enable_lambda is false"
+  }
 }
 
 # =============================================================================
