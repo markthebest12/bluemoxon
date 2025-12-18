@@ -18,6 +18,8 @@ const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisitionsStore);
+// Destructure reactive Maps from booksStore so Vue tracks changes
+const { activeAnalysisJobs, activeEvalRunbookJobs } = storeToRefs(booksStore);
 
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
@@ -178,22 +180,24 @@ async function handleDelete(bookId: number) {
   }
 }
 
-// Active analysis jobs for status tracking
+// Active analysis jobs for status tracking (access reactive Maps directly for Vue reactivity)
 function getJobStatus(bookId: number) {
-  return booksStore.getActiveJob(bookId);
+  return activeAnalysisJobs.value.get(bookId);
 }
 
 function isAnalysisRunning(bookId: number) {
-  return booksStore.hasActiveJob(bookId);
+  const job = activeAnalysisJobs.value.get(bookId);
+  return !!job && (job.status === "pending" || job.status === "running");
 }
 
-// Active eval runbook jobs for status tracking
+// Active eval runbook jobs for status tracking (access reactive Maps directly for Vue reactivity)
 function getEvalRunbookJobStatus(bookId: number) {
-  return booksStore.getActiveEvalRunbookJob(bookId);
+  return activeEvalRunbookJobs.value.get(bookId);
 }
 
 function isEvalRunbookRunning(bookId: number) {
-  return booksStore.hasActiveEvalRunbookJob(bookId);
+  const job = activeEvalRunbookJobs.value.get(bookId);
+  return !!job && (job.status === "pending" || job.status === "running");
 }
 
 async function handleGenerateAnalysis(bookId: number) {
@@ -422,7 +426,7 @@ async function handleArchiveSource(bookId: number) {
                   <span class="animate-spin">⏳</span>
                   <span>
                     {{
-                      (book.eval_runbook_job_status || getEvalRunbookJobStatus(book.id)?.status) ===
+                      (getEvalRunbookJobStatus(book.id)?.status || book.eval_runbook_job_status) ===
                       "pending"
                         ? "Queued..."
                         : "Generating runbook..."

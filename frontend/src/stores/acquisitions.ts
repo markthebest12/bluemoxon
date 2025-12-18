@@ -67,6 +67,7 @@ export interface UpdateWatchlistPayload {
   volumes?: number;
   is_complete?: boolean;
   source_url?: string;
+  purchase_price?: number; // Asking price - updating this triggers eval runbook refresh
 }
 
 export interface TrackingPayload {

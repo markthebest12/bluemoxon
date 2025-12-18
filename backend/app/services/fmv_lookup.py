@@ -276,6 +276,8 @@ def _filter_listings_with_claude(
     meta_parts = [f"Title: {book_metadata.get('title', 'Unknown')}"]
     if book_metadata.get("author"):
         meta_parts.append(f"Author: {book_metadata['author']}")
+    if book_metadata.get("publication_year"):
+        meta_parts.append(f"Publication Year: {book_metadata['publication_year']}")
     if book_metadata.get("volumes", 1) > 1:
         meta_parts.append(f"Volumes: {book_metadata['volumes']}")
     if book_metadata.get("binding_type"):
@@ -288,6 +290,15 @@ def _filter_listings_with_claude(
     metadata_str = "\n".join(meta_parts)
     listings_json = json.dumps(listings, indent=2)
 
+    # Build era guidance if we have a publication year
+    pub_year = book_metadata.get("publication_year")
+    era_guidance = ""
+    if pub_year:
+        era_guidance = f"""
+CRITICAL: The target book was published in {pub_year}. Modern reprints, facsimiles, or later editions
+from different eras are NOT comparable. A listing must be from a similar era (within ~50 years)
+to be rated HIGH. Modern reprints (post-1950) of antique books should be rated LOW."""
+
     prompt = f"""Target book:
 {metadata_str}
 
@@ -295,10 +306,10 @@ Extracted listings:
 {listings_json}
 
 Task: Rate each listing's relevance to the target book as "high", "medium", or "low":
-- HIGH: Same work, matching volume count (within 1), similar binding quality
-- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding)
-- LOW: Different work entirely, or single volume from a multi-volume set
-
+- HIGH: Same work, same era/edition type, matching volume count (within 1), similar binding quality
+- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding) but from similar era
+- LOW: Different work entirely, single volume from a multi-volume set, OR modern reprint/later edition of an antique book
+{era_guidance}
 Return a JSON array with all listings, adding a "relevance" field to each.
 Only include listings rated "high" or "medium" in your response.
 Return ONLY the JSON array, no other text."""
@@ -457,6 +468,7 @@ def _extract_comparables_with_claude(
     source: str,
     book_title: str,
     max_results: int = 5,
+    publication_year: int | None = None,
 ) -> list[dict]:
     """Use Claude to extract comparable listings from search results HTML.
 
@@ -465,6 +477,7 @@ def _extract_comparables_with_claude(
         source: Source name ("ebay" or "abebooks")
         book_title: Original book title for relevance filtering
         max_results: Maximum comparables to return
+        publication_year: Publication year for era-aware filtering
 
     Returns:
         List of comparable dicts with title, price, url, condition, sold_date
@@ -487,22 +500,33 @@ def _extract_comparables_with_claude(
         date_field = "list_date"
         date_desc = "When listed"
 
+    # Build era guidance if we have a publication year
+    era_guidance = ""
+    if publication_year:
+        era_guidance = f"""
+CRITICAL ERA FILTERING: The target book was published in {publication_year}.
+- Modern reprints, facsimiles, or later editions from different eras are NOT comparable.
+- A listing must be from a similar era (within ~50 years) to be rated "high".
+- Modern reprints (post-1950) of antique books should be rated "low" and excluded.
+- Look for clues like: publication dates in titles, ISBN numbers (indicates modern), "reprint", "facsimile", etc.
+"""
+
     prompt = f"""Extract the top {max_results} most relevant {listing_type} from this {source} search results page.
 
 {listing_context}
 
-The book being evaluated is: "{book_title}"
+The book being evaluated is: "{book_title}" (published {publication_year if publication_year else "unknown year"})
 
-Only include listings that appear to be the SAME book or very similar editions.
-Skip listings that are clearly different books.
-
+Only include listings that appear to be the SAME book or very similar editions FROM THE SAME ERA.
+Skip listings that are clearly different books or modern reprints of antique works.
+{era_guidance}
 For each relevant listing, extract:
 - title: The listing title
 - price: {price_label} in USD (number only, no currency symbol)
 - url: Full URL to the listing (if available)
 - condition: Condition description if stated
 - {date_field}: {date_desc} (if available, format: YYYY-MM-DD or "recent" if not specific)
-- relevance: "high", "medium", or "low" based on how closely it matches the target book
+- relevance: "high", "medium", or "low" based on how closely it matches the target book (including era match)
 
 Return JSON array only, no other text:
 [
@@ -579,6 +603,7 @@ def lookup_ebay_comparables(
     binding_type: str | None = None,
     binder: str | None = None,
     edition: str | None = None,
+    publication_year: int | None = None,
 ) -> list[dict]:
     """Look up comparable sold listings on eBay.
 
@@ -594,6 +619,7 @@ def lookup_ebay_comparables(
         binding_type: Binding type (for context-aware query)
         binder: Binder name (for context-aware query)
         edition: Edition info (for context-aware query)
+        publication_year: Publication year (for era-aware filtering)
 
     Returns:
         List of comparable dicts with title, price, url, condition, sold_date, relevance
@@ -645,6 +671,7 @@ def lookup_ebay_comparables(
     book_metadata = {
         "title": title,
         "author": author,
+        "publication_year": publication_year,
         "volumes": volumes,
         "binding_type": binding_type,
         "binder": binder,
@@ -667,6 +694,7 @@ def lookup_abebooks_comparables(
     binding_type: str | None = None,
     binder: str | None = None,
     edition: str | None = None,
+    publication_year: int | None = None,
 ) -> list[dict]:
     """Look up comparable listings on AbeBooks.
 
@@ -678,6 +706,7 @@ def lookup_abebooks_comparables(
         binding_type: Binding type (for context-aware query)
         binder: Binder name (for context-aware query)
         edition: Edition info (for context-aware query)
+        publication_year: Publication year (for era-aware filtering)
 
     Returns:
         List of comparable dicts with title, price, url, condition
@@ -703,7 +732,9 @@ def lookup_abebooks_comparables(
         logger.warning("Failed to fetch AbeBooks search results")
         return []
 
-    comparables = _extract_comparables_with_claude(html, "abebooks", title, max_results)
+    comparables = _extract_comparables_with_claude(
+        html, "abebooks", title, max_results, publication_year
+    )
 
     # Filter out comparables without prices (same as eBay path)
     valid_comparables = [c for c in comparables if c.get("price")]
@@ -724,6 +755,7 @@ def lookup_fmv(
     binding_type: str | None = None,
     binder: str | None = None,
     edition: str | None = None,
+    publication_year: int | None = None,
 ) -> dict:
     """Look up Fair Market Value from multiple sources.
 
@@ -735,6 +767,7 @@ def lookup_fmv(
         binding_type: Binding type (for context-aware query)
         binder: Binder name (for context-aware query)
         edition: Edition info (for context-aware query)
+        publication_year: Publication year (for era-aware filtering)
 
     Returns:
         Dict with:
@@ -753,6 +786,7 @@ def lookup_fmv(
         binding_type=binding_type,
         binder=binder,
         edition=edition,
+        publication_year=publication_year,
     )
     # AbeBooks now uses context-aware query like eBay
     abebooks = lookup_abebooks_comparables(
@@ -763,6 +797,7 @@ def lookup_fmv(
         binding_type=binding_type,
         binder=binder,
         edition=edition,
+        publication_year=publication_year,
     )
 
     # Calculate weighted FMV from relevance-scored comparables

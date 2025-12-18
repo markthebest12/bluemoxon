@@ -1,8 +1,9 @@
 # Tiered Recommendations Design - Eval Runbook Parity with Prompting Approach
 
 **Date:** 2025-12-16
-**Status:** DRAFT
-**Depends on:** #384 (FMV Accuracy Design)
+**Status:** APPROVED
+**Issue:** #388
+**Prerequisite:** #384 (FMV Accuracy Design) - **IMPLEMENTED**
 
 ---
 
@@ -151,18 +152,15 @@ class EvalRunbookResponse(BaseModel):
 
 ## Section 5: Dependencies & Sequencing
 
-**This enhancement depends on #384 (FMV Accuracy Design):**
+**Prerequisite #384 (FMV Accuracy Design) is now implemented:**
 
-The tiered recommendation system requires reliable FMV data with confidence levels. Without #384:
-- FMV range may be based on irrelevant comparables (single volumes vs sets)
-- No `fmv_confidence` field to know when to skip offer calculation
-- Price position calculation would be unreliable
+The `fmv_lookup.py` service now provides:
+- `_build_context_aware_query()` - context-aware search queries
+- `_filter_listings_with_claude()` - relevance filtering (high/medium/low)
+- `_calculate_weighted_fmv()` - weighted FMV with confidence levels
+- `fmv_confidence` field in response (high/medium/low)
 
-**Recommended sequence:**
-1. **#384** - Implement context-aware FMV lookup (prerequisite)
-2. **This issue** - Add tiered recommendations, offer prices, reasoning
-
-Can be developed in parallel if #384 is in progress - this issue's logic just needs the FMV response shape defined.
+**This issue (#388) is ready for implementation.** No blockers remain.
 
 ---
 
