@@ -121,6 +121,34 @@ resource "aws_cloudfront_distribution" "this" {
     max_ttl     = var.max_ttl
   }
 
+  dynamic "ordered_cache_behavior" {
+    for_each = var.secondary_origin_path_pattern != null ? [1] : []
+    content {
+      path_pattern           = var.secondary_origin_path_pattern
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      target_origin_id       = "S3-${var.secondary_origin_bucket_name}"
+      viewer_protocol_policy = "redirect-to-https"
+      compress               = true
+
+      forwarded_values {
+        query_string = false
+        cookies {
+          forward = "none"
+        }
+      }
+
+      min_ttl     = 0
+      default_ttl = var.secondary_origin_ttl
+      max_ttl     = var.max_ttl
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.path_rewrite[0].arn
+      }
+    }
+  }
+
   # SPA routing: serve index.html for 404s
   custom_error_response {
     error_code         = 404
