@@ -70,57 +70,123 @@ jobs:
       - uses: actions/checkout@v6
         with:
           sparse-checkout: |
+            infra/terraform
             infra/config
           sparse-checkout-cone-mode: false
 
-      - name: Load environment configuration
-        id: config
+      - name: Determine environment
+        id: env
         run: |
-          # Determine config file based on branch
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            CONFIG_FILE="infra/config/production.json"
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "tf_backend_bucket=bluemoxon-terraform-state" >> $GITHUB_OUTPUT
+            echo "tf_backend_key=bluemoxon/prod/terraform.tfstate" >> $GITHUB_OUTPUT
+            echo "tf_dynamodb_table=bluemoxon-terraform-locks" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
-            CONFIG_FILE="infra/config/staging.json"
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "tf_backend_bucket=bluemoxon-terraform-state-staging" >> $GITHUB_OUTPUT
+            echo "tf_backend_key=bluemoxon/staging/terraform.tfstate" >> $GITHUB_OUTPUT
+            echo "tf_dynamodb_table=bluemoxon-terraform-locks" >> $GITHUB_OUTPUT
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
           fi
 
-          echo "Loading configuration from: $CONFIG_FILE"
-          cat "$CONFIG_FILE"
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ steps.env.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-          # Read all values from config file (single source of truth)
-          echo "environment=$(jq -r '.environment' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "aws_account_id=$(jq -r '.aws_account_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "lambda_function_name=$(jq -r '.lambda.function_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "worker_function_name=$(jq -r '.lambda.worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "eval_runbook_worker_function_name=$(jq -r '.lambda.eval_runbook_worker_function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          # Scraper config - only output if enabled (default true for backwards compatibility)
-          # Note: Can't use // operator as it treats false same as null
-          SCRAPER_ENABLED=$(jq -r 'if .scraper.enabled == false then "false" else "true" end' $CONFIG_FILE)
-          if [[ "$SCRAPER_ENABLED" == "true" ]]; then
-            echo "scraper_function_name=$(jq -r '.scraper.function_name // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-            echo "scraper_ecr_repository=$(jq -r '.scraper.ecr_repository // empty' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          else
-            echo "Scraper disabled in config"
-            echo "scraper_function_name=" >> $GITHUB_OUTPUT
-            echo "scraper_ecr_repository=" >> $GITHUB_OUTPUT
-          fi
-          echo "s3_frontend_bucket=$(jq -r '.s3.frontend_bucket' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "api_url=$(jq -r '.urls.api' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "app_url=$(jq -r '.urls.app' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "cognito_user_pool_id=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "cognito_client_id=$(jq -r '.cognito.app_client_id' $CONFIG_FILE)" >> $GITHUB_OUTPUT
-          echo "cognito_domain=$(jq -r '.cognito.domain' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
-          # CloudFront distribution ID: use config file value, fall back to GitHub variable for staging
-          CF_DIST_ID=$(jq -r '.cloudfront.frontend_distribution_id' $CONFIG_FILE)
-          if [[ "$CF_DIST_ID" == *'${'* ]]; then
-            # Config has placeholder, use GitHub variable
-            echo "cloudfront_distribution_id=${{ vars.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
+      - name: Initialize Terraform
+        working-directory: infra/terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ steps.env.outputs.tf_backend_bucket }}" \
+            -backend-config="key=${{ steps.env.outputs.tf_backend_key }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ steps.env.outputs.tf_dynamodb_table }}"
+
+      - name: Read Terraform outputs
+        id: config
+        working-directory: infra/terraform
+        run: |
+          echo "Reading configuration from Terraform state..."
+
+          # Environment info
+          echo "environment=$(terraform output -raw environment)" >> $GITHUB_OUTPUT
+          echo "aws_account_id=$(terraform output -raw aws_account_id)" >> $GITHUB_OUTPUT
+
+          # Lambda functions
+          echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
+          echo "worker_function_name=$(terraform output -raw analysis_worker_function_name)" >> $GITHUB_OUTPUT
+          echo "eval_runbook_worker_function_name=$(terraform output -raw eval_runbook_worker_function_name)" >> $GITHUB_OUTPUT
+
+          # Scraper (may not exist in all envs)
+          echo "scraper_function_name=$(terraform output -raw scraper_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "scraper_ecr_repository=$(terraform output -raw scraper_ecr_repository 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
+          # S3 and CloudFront
+          echo "s3_frontend_bucket=$(terraform output -raw frontend_bucket_name)" >> $GITHUB_OUTPUT
+          echo "cloudfront_distribution_id=$(terraform output -raw frontend_cdn_distribution_id)" >> $GITHUB_OUTPUT
+
+          # URLs
+          echo "api_url=$(terraform output -raw api_url)" >> $GITHUB_OUTPUT
+          echo "app_url=$(terraform output -raw app_url)" >> $GITHUB_OUTPUT
+
+          # Cognito
+          echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
+          echo "cognito_client_id=$(terraform output -raw cognito_client_id)" >> $GITHUB_OUTPUT
+          echo "cognito_domain=$(terraform output -raw cognito_domain)" >> $GITHUB_OUTPUT
+
+          echo "Configuration loaded from Terraform state"
+
+      - name: Validate config consistency
+        working-directory: infra/terraform
+        run: |
+          # Compare against static config files (warn only, don't fail)
+          if [[ "${{ steps.env.outputs.environment }}" == "production" ]]; then
+            CONFIG_FILE="../config/production.json"
           else
-            echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
+            CONFIG_FILE="../config/staging.json"
           fi
+
+          echo "Validating against static config: $CONFIG_FILE"
+
+          # Compare key values
+          STATIC_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_POOL_ID="${{ steps.config.outputs.cognito_user_pool_id }}"
+
+          if [[ -n "$STATIC_POOL_ID" && "$STATIC_POOL_ID" != "$TF_POOL_ID" ]]; then
+            echo "::warning::Config drift detected: cognito_user_pool_id"
+            echo "  Static: $STATIC_POOL_ID"
+            echo "  Terraform: $TF_POOL_ID"
+          fi
+
+          STATIC_CLIENT_ID=$(jq -r '.cognito.app_client_id' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_CLIENT_ID="${{ steps.config.outputs.cognito_client_id }}"
+
+          if [[ -n "$STATIC_CLIENT_ID" && "$STATIC_CLIENT_ID" != "$TF_CLIENT_ID" ]]; then
+            echo "::warning::Config drift detected: cognito_client_id"
+            echo "  Static: $STATIC_CLIENT_ID"
+            echo "  Terraform: $TF_CLIENT_ID"
+          fi
+
+          STATIC_LAMBDA=$(jq -r '.lambda.function_name' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_LAMBDA="${{ steps.config.outputs.lambda_function_name }}"
+
+          if [[ -n "$STATIC_LAMBDA" && "$STATIC_LAMBDA" != "$TF_LAMBDA" ]]; then
+            echo "::warning::Config drift detected: lambda_function_name"
+            echo "  Static: $STATIC_LAMBDA"
+            echo "  Terraform: $TF_LAMBDA"
+          fi
+
+          echo "Validation complete - using Terraform values as source of truth"
 
   # ============================================
   # Generate Version (auto-generated, no manual maintenance)

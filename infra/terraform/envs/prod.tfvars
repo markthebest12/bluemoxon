@@ -37,7 +37,12 @@ enable_api_gateway            = false # API Gateway managed externally (import i
 enable_database               = false
 enable_nat_gateway            = false
 enable_waf                    = true
-enable_scraper                = false # Existing scraper (bluemoxon-production-scraper) managed externally
+enable_scraper = true # Scraper now managed by Terraform (imported in #412)
+
+# Scraper name overrides - production uses inconsistent legacy naming
+scraper_ecr_repository_name_override = "bluemoxon-scraper"
+scraper_function_name_override       = "bluemoxon-production-scraper"
+scraper_iam_role_name_override       = "bluemoxon-scraper-exec-role"
 skip_s3_cloudfront_policy     = true  # Prod uses OAC (not OAI) - bucket policy managed externally
 
 # =============================================================================
@@ -84,8 +89,8 @@ cognito_user_pool_id_external  = "us-west-2_PvdIpXVKF"
 cognito_client_id_external     = "3ndaok3psd2ncqfjrdb57825he"
 cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:userpool/us-west-2_PvdIpXVKF"
 
-# Scraper Lambda (for eBay listing scraping)
-scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-production-scraper"
+# Scraper Lambda (now managed by Terraform - see enable_scraper above)
+# scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-production-scraper"
 
 # Images CDN URL (separate CloudFront distribution after recovery)
 images_cdn_url_override = "https://d1yejmcspwgw9x.cloudfront.net"

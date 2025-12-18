@@ -5,12 +5,19 @@
 # Uses Docker/ECR instead of zip packages for browser automation support.
 # =============================================================================
 
+locals {
+  # Resource naming - use overrides if provided (for legacy naming)
+  ecr_repository_name = coalesce(var.ecr_repository_name_override, "${var.name_prefix}-scraper")
+  function_name       = coalesce(var.function_name_override, "${var.name_prefix}-scraper")
+  iam_role_name       = coalesce(var.iam_role_name_override, "${var.name_prefix}-scraper-exec-role")
+}
+
 # -----------------------------------------------------------------------------
 # ECR Repository
 # -----------------------------------------------------------------------------
 
 resource "aws_ecr_repository" "scraper" {
-  name                 = "${var.name_prefix}-scraper"
+  name                 = local.ecr_repository_name
   image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
@@ -50,7 +57,7 @@ resource "aws_ecr_lifecycle_policy" "scraper" {
 # -----------------------------------------------------------------------------
 
 resource "aws_lambda_function" "scraper" {
-  function_name = "${var.name_prefix}-scraper"
+  function_name = local.function_name
   role          = aws_iam_role.scraper_exec.arn
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.scraper.repository_url}:${var.image_tag}"
@@ -107,7 +114,7 @@ resource "aws_lambda_provisioned_concurrency_config" "scraper" {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "scraper_exec" {
-  name = "${var.name_prefix}-scraper-exec-role"
+  name = local.iam_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -189,7 +196,7 @@ resource "aws_iam_role_policy" "s3_access" {
 # -----------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "scraper" {
-  name              = "/aws/lambda/${var.name_prefix}-scraper"
+  name              = "/aws/lambda/${local.function_name}"
   retention_in_days = var.log_retention_days
 
   tags = var.tags
@@ -232,7 +239,7 @@ resource "aws_iam_role_policy" "api_invoke_scraper" {
 
 resource "aws_cloudwatch_event_rule" "warmup" {
   count               = var.enable_warmup_rule ? 1 : 0
-  name                = "${var.name_prefix}-scraper-warmup"
+  name                = "${local.function_name}-warmup"
   description         = "Keep scraper Lambda warm to avoid cold starts"
   schedule_expression = var.warmup_schedule
 
