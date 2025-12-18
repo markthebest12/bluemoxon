@@ -20,7 +20,7 @@
   "dependencies": {
     "@aws-amplify/ui-vue": "^4.2.0",
     "@types/dompurify": "^3.2.0",
-    "aws-amplify": "^6.0.0",
+    "aws-amplify": "^6.15.9",
     "axios": "^1.6.0",
     "chart.js": "^4.5.1",
     "dompurify": "^3.3.1",
