@@ -190,7 +190,7 @@ jobs:
           ls -lh ${{ github.workspace }}/lambda-package.zip
 
       - name: Upload Lambda artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lambda-package
           path: lambda-package.zip
@@ -283,7 +283,7 @@ jobs:
         run: npm run build
 
       - name: Upload frontend artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
           path: frontend/dist
@@ -317,13 +317,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Lambda artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: lambda-package
           path: .
 
       - name: Download frontend artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: frontend-dist
           path: frontend-dist

@@ -206,9 +206,9 @@ async function handleGenerateAnalysis(bookId: number) {
   startingAnalysis.value = bookId;
   try {
     // Use async endpoint - queues job to SQS for background processing
+    // The job is added to activeAnalysisJobs Map which triggers reactivity
     await booksStore.generateAnalysisAsync(bookId);
-    // Refresh books to show analysis job started
-    await acquisitionsStore.fetchAll();
+    // No need to fetchAll() - UI updates reactively when job is added to Map
   } catch (e: any) {
     console.error("Failed to start analysis:", e);
     const message = e.response?.data?.detail || e.message || "Failed to start analysis";
@@ -221,8 +221,36 @@ async function handleGenerateAnalysis(bookId: number) {
 // Watch for job completions to refresh the list
 const jobCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
-onMounted(() => {
-  acquisitionsStore.fetchAll();
+/**
+ * Sync backend job status with frontend polling.
+ * Called after fetchAll to start polling for any running jobs from other sessions.
+ * This handles the case where a job was started in a previous browser session.
+ */
+function syncBackendJobPolling() {
+  for (const book of evaluating.value) {
+    // Sync eval runbook jobs - if backend shows running but frontend isn't tracking
+    if (
+      (book.eval_runbook_job_status === "running" || book.eval_runbook_job_status === "pending") &&
+      !activeEvalRunbookJobs.value.has(book.id)
+    ) {
+      booksStore.startEvalRunbookJobPoller(book.id);
+    }
+
+    // Sync analysis jobs - if backend shows running but frontend isn't tracking
+    if (
+      (book.analysis_job_status === "running" || book.analysis_job_status === "pending") &&
+      !activeAnalysisJobs.value.has(book.id)
+    ) {
+      booksStore.startJobPoller(book.id);
+    }
+  }
+}
+
+onMounted(async () => {
+  await acquisitionsStore.fetchAll();
+
+  // Start polling for any jobs that are running on backend but not tracked locally
+  syncBackendJobPolling();
 
   // Periodically check if any active jobs have completed and refresh
   jobCheckInterval.value = setInterval(async () => {
@@ -257,6 +285,8 @@ onMounted(() => {
     // Refresh list once if any jobs completed
     if (needsRefresh) {
       await acquisitionsStore.fetchAll();
+      // After refresh, check for any new running jobs from backend
+      syncBackendJobPolling();
     }
   }, 2000);
 });
@@ -405,6 +435,65 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <!-- Analysis job in progress indicator (check both in-memory and API status) -->
+                <div
+                  v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
+                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (getJobStatus(book.id)?.status || book.analysis_job_status) === "pending"
+                        ? "Queued..."
+                        : "Analyzing..."
+                    }}
+                  </span>
+                </div>
+                <!-- Analysis job failed indicator -->
+                <div
+                  v-if="getJobStatus(book.id)?.status === 'failed'"
+                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
+                >
+                  ❌ Failed - click to retry
+                </div>
+                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
+                <button
+                  v-if="
+                    !book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  title="Generate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
+                </button>
+                <!-- Regenerate button (admin only, when analysis exists and not running) -->
+                <button
+                  v-if="
+                    book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  title="Regenerate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
+              </div>
+
+              <!-- Eval Runbook Section (separate row for clarity) -->
+              <div class="mt-1 flex items-center gap-2">
                 <!-- View Eval Runbook link -->
                 <button
                   v-if="
@@ -433,51 +522,6 @@ async function handleArchiveSource(bookId: number) {
                     }}
                   </span>
                 </div>
-                <!-- Analysis job in progress indicator -->
-                <div
-                  v-if="isAnalysisRunning(book.id)"
-                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
-                >
-                  <span class="animate-spin">⏳</span>
-                  <span>
-                    {{ getJobStatus(book.id)?.status === "pending" ? "Queued..." : "Analyzing..." }}
-                  </span>
-                </div>
-                <!-- Job failed indicator -->
-                <div
-                  v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
-                  :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
-                >
-                  ❌ Failed - click to retry
-                </div>
-                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
-                <button
-                  v-if="!book.has_analysis && authStore.isAdmin && !isAnalysisRunning(book.id)"
-                  @click="handleGenerateAnalysis(book.id)"
-                  :disabled="startingAnalysis === book.id"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
-                  title="Generate analysis"
-                >
-                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
-                  <span v-else>⚡</span>
-                  {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
-                </button>
-                <!-- Regenerate button (admin only, when analysis exists) -->
-                <button
-                  v-if="book.has_analysis && authStore.isAdmin"
-                  @click="handleGenerateAnalysis(book.id)"
-                  :disabled="isAnalysisRunning(book.id) || startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                  title="Regenerate analysis"
-                >
-                  <span
-                    v-if="isAnalysisRunning(book.id) || startingAnalysis === book.id"
-                    class="animate-spin"
-                    >⏳</span
-                  >
-                  <span v-else>🔄</span>
-                </button>
               </div>
             </div>
 
