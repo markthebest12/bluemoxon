@@ -468,6 +468,80 @@ TABLES_WITH_SEQUENCES = [
 ]
 
 
+# SQL to clean up orphaned records (no matching book_id in books table)
+CLEANUP_ORPHANS_SQL = [
+    # Delete orphaned analyses
+    """DELETE FROM book_analyses
+       WHERE book_id NOT IN (SELECT id FROM books)""",
+    # Delete orphaned eval runbooks
+    """DELETE FROM eval_runbooks
+       WHERE book_id NOT IN (SELECT id FROM books)""",
+    # Delete orphaned book images
+    """DELETE FROM book_images
+       WHERE book_id NOT IN (SELECT id FROM books)""",
+    # Delete orphaned analysis jobs
+    """DELETE FROM analysis_jobs
+       WHERE book_id NOT IN (SELECT id FROM books)""",
+    # Delete orphaned eval runbook jobs
+    """DELETE FROM eval_runbook_jobs
+       WHERE book_id NOT IN (SELECT id FROM books)""",
+]
+
+
+@router.post(
+    "/cleanup-orphans",
+    summary="Clean up orphaned database records",
+    description="""
+Delete orphaned records where book_id references a non-existent book.
+This can happen when CASCADE deletes fail or after database migrations.
+
+Cleans up:
+- book_analyses
+- eval_runbooks
+- book_images
+- analysis_jobs
+- eval_runbook_jobs
+
+Returns count of deleted records from each table.
+    """,
+    response_description="Cleanup results",
+    tags=["health"],
+)
+async def cleanup_orphans(db: Session = Depends(get_db)):
+    """Clean up orphaned database records that reference non-existent books."""
+    results = []
+    errors = []
+    total_deleted = 0
+
+    for sql in CLEANUP_ORPHANS_SQL:
+        try:
+            result = db.execute(text(sql))
+            rows_deleted = result.rowcount
+            total_deleted += rows_deleted
+            # Extract table name from SQL for reporting
+            table_name = sql.split("FROM ")[1].split()[0]
+            results.append({"table": table_name, "deleted": rows_deleted, "status": "success"})
+        except Exception as e:
+            errors.append({"sql": sql[:50] + "...", "error": str(e)})
+
+    try:
+        db.commit()
+    except Exception as e:
+        errors.append({"operation": "COMMIT", "error": str(e)})
+        return {
+            "status": "failed",
+            "results": results,
+            "errors": errors,
+        }
+
+    return {
+        "status": "success" if not errors else "partial",
+        "total_deleted": total_deleted,
+        "results": results,
+        "errors": errors if errors else None,
+    }
+
+
 @router.post(
     "/migrate",
     summary="Run database migrations",
