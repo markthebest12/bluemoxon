@@ -142,7 +142,7 @@ def check_config() -> dict[str, Any]:
     """Validate critical configuration is present."""
     issues = []
 
-    if not settings.database_url and not settings.database_secret_arn:
+    if not settings.database_url and not settings.database_secret_arn and not settings.database_secret_name:
         issues.append("No database configuration")
 
     if not settings.images_bucket:
