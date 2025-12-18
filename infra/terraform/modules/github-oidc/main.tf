@@ -202,7 +202,9 @@ resource "aws_iam_role_policy" "deploy" {
             "ec2:DescribeVpcEndpoints",
             "ec2:DescribeVpcEndpointServices",
             "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeAddresses"
+            "ec2:DescribeAddresses",
+            "ec2:DescribeAddressesAttribute",
+            "ec2:DescribePrefixLists"
           ]
           Resource = "*"
         },
@@ -272,6 +274,7 @@ resource "aws_iam_role_policy" "deploy" {
           Action = [
             "logs:DescribeLogGroups",
             "logs:ListTagsLogGroup",
+            "logs:ListTagsForResource",
             "logs:DescribeResourcePolicies"
           ]
           Resource = "*"
@@ -332,7 +335,8 @@ resource "aws_iam_role_policy" "deploy" {
           Effect = "Allow"
           Action = [
             "secretsmanager:DescribeSecret",
-            "secretsmanager:GetResourcePolicy"
+            "secretsmanager:GetResourcePolicy",
+            "secretsmanager:GetSecretValue"
           ]
           Resource = "*"
         },
