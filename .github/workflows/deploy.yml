@@ -30,10 +30,11 @@ env:
   # Auto-generated version: YYYY.MM.DD-<short-sha>
   APP_VERSION: ""  # Set dynamically in generate-version job
 
-# Required for AWS OIDC authentication and release tagging
+# Required for AWS OIDC authentication, release tagging, and drift issues
 permissions:
   id-token: write
   contents: write  # Required for creating release tags
+  issues: write    # Required for creating/updating drift issues
 
 jobs:
   # ============================================
@@ -137,6 +138,9 @@ jobs:
 
             echo "::warning::Infrastructure drift detected in $ENV: +$ADDS ~$CHANGES -$DESTROYS resources"
             echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "adds=$ADDS" >> $GITHUB_OUTPUT
+            echo "changes=$CHANGES" >> $GITHUB_OUTPUT
+            echo "destroys=$DESTROYS" >> $GITHUB_OUTPUT
             echo ""
             echo "⚠️  DRIFT DETECTED - Deployment will continue (warn-only mode)"
             echo "   Resources to add:     $ADDS"
@@ -151,6 +155,100 @@ jobs:
           fi
 
           rm -f plan-output.txt
+
+      - name: Create or update drift issue
+        if: steps.drift.outputs.drift_detected == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const env = '${{ steps.env.outputs.environment }}';
+            const adds = '${{ steps.drift.outputs.adds }}' || '0';
+            const changes = '${{ steps.drift.outputs.changes }}' || '0';
+            const destroys = '${{ steps.drift.outputs.destroys }}' || '0';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const commitSha = '${{ github.sha }}';
+            const commitMsg = `${{ github.event.head_commit.message }}`.split('\n')[0];
+            const branch = '${{ github.ref_name }}';
+
+            // Check for existing open drift issue
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'drift,infra',
+              per_page: 10
+            });
+
+            const existingDriftIssue = existingIssues.data.find(
+              issue => issue.title.includes(`[${env}]`) && issue.title.includes('Infrastructure Drift')
+            );
+
+            if (existingDriftIssue) {
+              // Update existing issue with new detection
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingDriftIssue.number,
+                body: `## Drift Still Present - Pre-Deploy Check
+
+            **Detected during:** Deploy to ${env}
+            **Branch:** \`${branch}\`
+            **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
+            **Date:** ${new Date().toISOString().split('T')[0]}
+
+            | Metric | Count |
+            |--------|-------|
+            | Resources to add | ${adds} |
+            | Resources to change | ${changes} |
+            | Resources to destroy | ${destroys} |
+
+            [View workflow run](${runUrl})
+
+            ---
+            ⚠️ Deployment continued (warn-only mode)`
+              });
+              console.log(`Updated existing drift issue #${existingDriftIssue.number}`);
+            } else {
+              // Create new issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[${env}] Infrastructure Drift Detected (Pre-Deploy)`,
+                labels: ['drift', 'infra', 'priority:high'],
+                body: `## Infrastructure Drift Detected During Deployment
+
+            **Environment:** ${env}
+            **Detected:** ${new Date().toISOString()}
+            **Branch:** \`${branch}\`
+            **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
+
+            ### Summary
+            | Metric | Count |
+            |--------|-------|
+            | Resources to add | ${adds} |
+            | Resources to change | ${changes} |
+            | Resources to destroy | ${destroys} |
+
+            ### What Happened
+            Pre-deploy drift check detected infrastructure differences. Deployment continued in **warn-only mode**.
+
+            ### Next Steps
+            1. Review the [workflow run](${runUrl}) for details
+            2. Either:
+               - Apply Terraform to fix drift: \`terraform apply -var-file=envs/${env === 'production' ? 'prod' : 'staging'}.tfvars\`
+               - Import manual resources: \`terraform import\`
+               - Document exception in \`docs/MANUAL_CHANGES.md\`
+
+            ### Root Cause Investigation
+            - [ ] Was this a manual AWS console change?
+            - [ ] Was this a CLI change without Terraform?
+            - [ ] Is this expected (pending Terraform PR)?
+
+            ---
+            Related: #235 (Pre-deploy drift check feature)`
+              });
+              console.log(`Created drift issue #${issue.data.number}`);
+            }
 
       - name: Read Terraform outputs
         id: config
