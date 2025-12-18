@@ -52,7 +52,7 @@ jobs:
     name: Configure Environment
     runs-on: ubuntu-latest
     outputs:
-      environment: ${{ steps.config.outputs.environment }}
+      environment: ${{ steps.env.outputs.environment }}
       aws_account_id: ${{ steps.config.outputs.aws_account_id }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
