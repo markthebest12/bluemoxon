@@ -32,6 +32,30 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
+# -----------------------------------------------------------------------------
+# CloudFront Function for Path Rewriting (Secondary Origin)
+# -----------------------------------------------------------------------------
+
+resource "aws_cloudfront_function" "path_rewrite" {
+  count   = var.secondary_origin_path_pattern != null ? 1 : 0
+  name    = "${var.s3_bucket_name}-path-rewrite"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOF
+function handler(event) {
+    var request = event.request;
+    var uri = request.uri;
+
+    // Strip /book-images prefix
+    if (uri.startsWith('/book-images/')) {
+        request.uri = uri.substring(12);
+    }
+
+    return request;
+}
+EOF
+}
+
 # When using CloudFront default certificate (no ACM), AWS doesn't allow setting minimum_protocol_version.
 # Production deployments should always use ACM certificates (set in tfvars).
 # nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
