@@ -117,14 +117,18 @@ jobs:
       - name: Check for infrastructure drift
         id: drift
         working-directory: infra/terraform
+        env:
+          # Dummy password for plan-only drift check (not applied)
+          TF_VAR_db_password: "drift-check-dummy-not-applied"
         run: |
           echo "Running pre-deploy drift check..."
           ENV="${{ steps.env.outputs.environment }}"
           TFVARS_FILE="envs/${{ steps.env.outputs.environment == 'production' && 'prod' || 'staging' }}.tfvars"
 
           set +e
+          set -o pipefail
           terraform plan -detailed-exitcode -var-file="$TFVARS_FILE" -no-color 2>&1 | tee plan-output.txt
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
           set -e
 
           if [ $EXIT_CODE -eq 0 ]; then
