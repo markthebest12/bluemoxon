@@ -617,6 +617,9 @@ module "github_oidc" {
     var.enable_cloudfront ? [module.frontend_cdn[0].distribution_arn] : []
   )
 
+  # ECR permissions for scraper deployment
+  ecr_repository_arns = local.scraper_enabled ? [module.scraper_lambda[0].ecr_repository_arn] : []
+
   # Terraform state access (cross-account for staging to read prod state)
   terraform_state_bucket_arn         = var.terraform_state_bucket_arn
   terraform_state_dynamodb_table_arn = var.terraform_state_dynamodb_table_arn
