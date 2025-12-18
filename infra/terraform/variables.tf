@@ -614,3 +614,31 @@ variable "staging_app_cloudfront_domain_name" {
   description = "CloudFront distribution domain name for staging.app.{domain}"
   default     = null
 }
+
+# =============================================================================
+# Secondary Origin (Images Bucket) Configuration
+# =============================================================================
+
+variable "secondary_origin_bucket_name" {
+  type        = string
+  description = "Name of secondary S3 bucket for images (optional)"
+  default     = null
+}
+
+variable "secondary_origin_bucket_domain_name" {
+  type        = string
+  description = "Regional domain name of secondary S3 bucket"
+  default     = null
+}
+
+variable "secondary_origin_path_pattern" {
+  type        = string
+  description = "Path pattern for secondary origin (e.g., '/book-images/*')"
+  default     = null
+}
+
+variable "secondary_origin_ttl" {
+  type        = number
+  description = "Default TTL for secondary origin cache behavior in seconds"
+  default     = 604800
+}
