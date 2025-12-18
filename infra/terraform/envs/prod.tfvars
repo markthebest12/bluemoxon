@@ -92,8 +92,9 @@ cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:use
 # Scraper Lambda (now managed by Terraform - see enable_scraper above)
 # scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-prod-scraper"
 
-# Images CDN URL (path-based routing on app CloudFront)
-images_cdn_url_override = "https://app.bluemoxon.com/book-images"
+# Images CDN URL - direct CloudFront domain (path-based routing not yet implemented)
+# TODO: #430 - implement /book-images/* cache behavior on app CloudFront
+images_cdn_url_override = "https://d1yejmcspwgw9x.cloudfront.net"
 
 # Environment name override (prod uses "production" for scraper function naming)
 environment_name_override = "production"
