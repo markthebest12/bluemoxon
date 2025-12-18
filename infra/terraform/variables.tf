@@ -168,6 +168,12 @@ variable "scraper_iam_role_name_override" {
   default     = null
 }
 
+variable "scraper_memory_size" {
+  type        = number
+  description = "Scraper Lambda memory in MB. Playwright/Chromium needs 2048+ for complex pages."
+  default     = 2048
+}
+
 variable "enable_analysis_worker" {
   type        = bool
   description = "Enable analysis worker Lambda + SQS (can be enabled independently of main Lambda)"
