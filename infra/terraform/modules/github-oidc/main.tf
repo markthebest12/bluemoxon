@@ -184,6 +184,208 @@ resource "aws_iam_role_policy" "deploy" {
           ]
           Resource = var.terraform_state_dynamodb_table_arn
         }
+      ] : [],
+      # Terraform drift detection - read-only access to all managed resources
+      var.enable_terraform_drift_detection ? [
+        {
+          Sid    = "TerraformDriftDetectionVPC"
+          Effect = "Allow"
+          Action = [
+            "ec2:DescribeVpcs",
+            "ec2:DescribeVpcAttribute",
+            "ec2:DescribeSubnets",
+            "ec2:DescribeSecurityGroups",
+            "ec2:DescribeSecurityGroupRules",
+            "ec2:DescribeRouteTables",
+            "ec2:DescribeInternetGateways",
+            "ec2:DescribeNatGateways",
+            "ec2:DescribeVpcEndpoints",
+            "ec2:DescribeVpcEndpointServices",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeAddresses",
+            "ec2:DescribeAddressesAttribute",
+            "ec2:DescribePrefixLists"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionIAM"
+          Effect = "Allow"
+          Action = [
+            "iam:GetRole",
+            "iam:GetRolePolicy",
+            "iam:GetPolicy",
+            "iam:GetPolicyVersion",
+            "iam:ListRolePolicies",
+            "iam:ListAttachedRolePolicies",
+            "iam:GetOpenIDConnectProvider",
+            "iam:ListInstanceProfilesForRole"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionS3"
+          Effect = "Allow"
+          Action = [
+            "s3:GetBucketPolicy",
+            "s3:GetBucketAcl",
+            "s3:GetBucketCors",
+            "s3:GetBucketWebsite",
+            "s3:GetBucketVersioning",
+            "s3:GetBucketLogging",
+            "s3:GetBucketTagging",
+            "s3:GetBucketLocation",
+            "s3:GetBucketPublicAccessBlock",
+            "s3:GetBucketOwnershipControls",
+            "s3:GetEncryptionConfiguration",
+            "s3:GetLifecycleConfiguration",
+            "s3:GetAccelerateConfiguration",
+            "s3:GetReplicationConfiguration",
+            "s3:GetBucketRequestPayment",
+            "s3:GetBucketObjectLockConfiguration"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionLambda"
+          Effect = "Allow"
+          Action = [
+            "lambda:GetFunction",
+            "lambda:GetFunctionConfiguration",
+            "lambda:GetFunctionCodeSigningConfig",
+            "lambda:GetPolicy",
+            "lambda:ListVersionsByFunction",
+            "lambda:GetAlias",
+            "lambda:ListAliases",
+            "lambda:GetEventSourceMapping",
+            "lambda:ListTags"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionSQS"
+          Effect = "Allow"
+          Action = [
+            "sqs:GetQueueAttributes",
+            "sqs:GetQueueUrl",
+            "sqs:ListQueueTags"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionCloudWatch"
+          Effect = "Allow"
+          Action = [
+            "logs:DescribeLogGroups",
+            "logs:ListTagsLogGroup",
+            "logs:ListTagsForResource",
+            "logs:DescribeResourcePolicies"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionCognito"
+          Effect = "Allow"
+          Action = [
+            "cognito-idp:DescribeUserPool",
+            "cognito-idp:DescribeUserPoolClient",
+            "cognito-idp:DescribeUserPoolDomain",
+            "cognito-idp:GetUserPoolMfaConfig"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionAPIGateway"
+          Effect = "Allow"
+          Action = [
+            "apigateway:GET"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionCloudFront"
+          Effect = "Allow"
+          Action = [
+            "cloudfront:GetDistribution",
+            "cloudfront:GetDistributionConfig",
+            "cloudfront:ListTagsForResource",
+            "cloudfront:GetOriginAccessControl",
+            "cloudfront:GetCachePolicy",
+            "cloudfront:GetResponseHeadersPolicy",
+            "cloudfront:GetCloudFrontOriginAccessIdentity"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionACM"
+          Effect = "Allow"
+          Action = [
+            "acm:DescribeCertificate",
+            "acm:ListTagsForCertificate"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionRoute53"
+          Effect = "Allow"
+          Action = [
+            "route53:GetHostedZone",
+            "route53:ListResourceRecordSets",
+            "route53:ListTagsForResource"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionSecretsManager"
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:DescribeSecret",
+            "secretsmanager:GetResourcePolicy",
+            "secretsmanager:GetSecretValue"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionWAF"
+          Effect = "Allow"
+          Action = [
+            "wafv2:GetWebACL",
+            "wafv2:GetWebACLForResource",
+            "wafv2:ListTagsForResource"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionRDS"
+          Effect = "Allow"
+          Action = [
+            "rds:DescribeDBInstances",
+            "rds:DescribeDBSubnetGroups",
+            "rds:ListTagsForResource"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionECR"
+          Effect = "Allow"
+          Action = [
+            "ecr:DescribeRepositories",
+            "ecr:GetRepositoryPolicy",
+            "ecr:GetLifecyclePolicy",
+            "ecr:ListTagsForResource"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "TerraformDriftDetectionEventBridge"
+          Effect = "Allow"
+          Action = [
+            "events:DescribeRule",
+            "events:ListTargetsByRule",
+            "events:ListTagsForResource"
+          ]
+          Resource = "*"
+        }
       ] : []
     )
   })

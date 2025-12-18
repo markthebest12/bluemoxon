@@ -61,3 +61,9 @@ variable "terraform_state_dynamodb_table_arn" {
   description = "ARN of the Terraform state DynamoDB lock table (for cross-account access)"
   default     = null
 }
+
+variable "enable_terraform_drift_detection" {
+  type        = bool
+  description = "Enable read-only permissions for Terraform drift detection during deploys"
+  default     = false
+}

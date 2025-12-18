@@ -20,17 +20,21 @@ output "aws_region" {
 
 output "cognito_client_id" {
   description = "Cognito app client ID"
-  value       = var.enable_cognito ? module.cognito[0].client_id : null
+  value       = var.enable_cognito ? module.cognito[0].client_id : var.cognito_client_id_external
 }
 
 output "cognito_domain" {
   description = "Cognito domain (full auth domain)"
-  value       = var.enable_cognito ? (module.cognito[0].domain != null ? "${module.cognito[0].domain}.auth.${data.aws_region.current.name}.amazoncognito.com" : null) : null
+  value = var.enable_cognito ? (
+    module.cognito[0].domain != null ? "${module.cognito[0].domain}.auth.${data.aws_region.current.name}.amazoncognito.com" : null
+    ) : (
+    var.cognito_domain_override != null ? "${var.cognito_domain_override}.auth.${data.aws_region.current.name}.amazoncognito.com" : null
+  )
 }
 
 output "cognito_user_pool_id" {
   description = "Cognito user pool ID"
-  value       = var.enable_cognito ? module.cognito[0].user_pool_id : null
+  value       = var.enable_cognito ? module.cognito[0].user_pool_id : var.cognito_user_pool_id_external
 }
 
 output "environment" {
