@@ -603,15 +603,11 @@ def delete_book(
         # Defense-in-depth: Explicitly delete all related records before deleting book
         # This prevents orphaned records even if CASCADE deletes are misconfigured
         jobs_deleted = db.query(AnalysisJob).filter(AnalysisJob.book_id == book_id).delete()
-        eval_jobs_deleted = db.query(EvalRunbookJob).filter(
-            EvalRunbookJob.book_id == book_id
-        ).delete()
-        analyses_deleted = db.query(BookAnalysis).filter(
-            BookAnalysis.book_id == book_id
-        ).delete()
-        runbooks_deleted = db.query(EvalRunbook).filter(
-            EvalRunbook.book_id == book_id
-        ).delete()
+        eval_jobs_deleted = (
+            db.query(EvalRunbookJob).filter(EvalRunbookJob.book_id == book_id).delete()
+        )
+        analyses_deleted = db.query(BookAnalysis).filter(BookAnalysis.book_id == book_id).delete()
+        runbooks_deleted = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).delete()
         images_deleted = db.query(BookImage).filter(BookImage.book_id == book_id).delete()
         logger.info(
             "Pre-delete cleanup for book %s: %d jobs, %d eval_jobs, %d analyses, "
