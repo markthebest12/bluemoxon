@@ -156,6 +156,7 @@ class BookResponse(BookBase):
     has_analysis: bool = False
     has_eval_runbook: bool = False
     eval_runbook_job_status: str | None = None  # pending, running, or None
+    analysis_job_status: str | None = None  # pending, running, or None
     image_count: int = 0
     primary_image_url: str | None = None
     scoring_snapshot: dict | None = None

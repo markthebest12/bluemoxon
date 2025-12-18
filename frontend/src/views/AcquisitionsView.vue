@@ -235,6 +235,14 @@ function syncBackendJobPolling() {
     ) {
       booksStore.startEvalRunbookJobPoller(book.id);
     }
+
+    // Sync analysis jobs - if backend shows running but frontend isn't tracking
+    if (
+      (book.analysis_job_status === "running" || book.analysis_job_status === "pending") &&
+      !activeAnalysisJobs.value.has(book.id)
+    ) {
+      booksStore.startJobPoller(book.id);
+    }
   }
 }
 
@@ -427,14 +435,18 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
-                <!-- Analysis job in progress indicator -->
+                <!-- Analysis job in progress indicator (check both in-memory and API status) -->
                 <div
-                  v-if="isAnalysisRunning(book.id)"
+                  v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
                   class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
-                    {{ getJobStatus(book.id)?.status === "pending" ? "Queued..." : "Analyzing..." }}
+                    {{
+                      (getJobStatus(book.id)?.status || book.analysis_job_status) === "pending"
+                        ? "Queued..."
+                        : "Analyzing..."
+                    }}
                   </span>
                 </div>
                 <!-- Analysis job failed indicator -->
@@ -447,7 +459,12 @@ async function handleArchiveSource(bookId: number) {
                 </div>
                 <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
                 <button
-                  v-if="!book.has_analysis && authStore.isAdmin && !isAnalysisRunning(book.id)"
+                  v-if="
+                    !book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
                   class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
@@ -457,9 +474,14 @@ async function handleArchiveSource(bookId: number) {
                   <span v-else>⚡</span>
                   {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
                 </button>
-                <!-- Regenerate button (admin only, when analysis exists) -->
+                <!-- Regenerate button (admin only, when analysis exists and not running) -->
                 <button
-                  v-if="book.has_analysis && authStore.isAdmin && !isAnalysisRunning(book.id)"
+                  v-if="
+                    book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
                   class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
