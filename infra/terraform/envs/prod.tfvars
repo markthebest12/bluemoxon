@@ -41,7 +41,7 @@ enable_scraper                = true # Scraper now managed by Terraform (importe
 
 # Scraper name overrides - production uses inconsistent legacy naming
 scraper_ecr_repository_name_override = "bluemoxon-scraper"
-scraper_function_name_override       = "bluemoxon-production-scraper"
+scraper_function_name_override       = "bluemoxon-prod-scraper"
 scraper_iam_role_name_override       = "bluemoxon-scraper-exec-role"
 skip_s3_cloudfront_policy            = true # Prod uses OAC (not OAI) - bucket policy managed externally
 
@@ -90,7 +90,7 @@ cognito_client_id_external     = "3ndaok3psd2ncqfjrdb57825he"
 cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:userpool/us-west-2_PvdIpXVKF"
 
 # Scraper Lambda (now managed by Terraform - see enable_scraper above)
-# scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-production-scraper"
+# scraper_lambda_arn = "arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-prod-scraper"
 
 # Images CDN URL (path-based routing on app CloudFront)
 images_cdn_url_override = "https://app.bluemoxon.com/book-images"

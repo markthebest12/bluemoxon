@@ -63,7 +63,7 @@ locals {
   eval_runbook_worker_enabled = coalesce(var.enable_eval_runbook_worker, var.enable_lambda)
 
   # Scraper Lambda enabled - defaults to enable_lambda if not explicitly set
-  # Allows disabling scraper when using existing scraper (prod uses bluemoxon-production-scraper)
+  # Allows disabling scraper when using existing scraper (prod uses bluemoxon-prod-scraper)
   scraper_enabled = coalesce(var.enable_scraper, var.enable_lambda)
 
   # Scraper Lambda ARN - uses module output when Terraform-managed, otherwise variable
