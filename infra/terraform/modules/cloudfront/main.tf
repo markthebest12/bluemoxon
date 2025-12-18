@@ -56,6 +56,19 @@ function handler(event) {
 EOF
 }
 
+# -----------------------------------------------------------------------------
+# Origin Access Control (OAC) for Secondary Origin
+# -----------------------------------------------------------------------------
+
+resource "aws_cloudfront_origin_access_control" "secondary" {
+  count                             = var.secondary_origin_bucket_name != null ? 1 : 0
+  name                              = "${var.secondary_origin_bucket_name}-oac"
+  description                       = "OAC for secondary S3 bucket access"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 # When using CloudFront default certificate (no ACM), AWS doesn't allow setting minimum_protocol_version.
 # Production deployments should always use ACM certificates (set in tfvars).
 # nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
