@@ -86,7 +86,7 @@ jobs:
             echo "environment=staging" >> $GITHUB_OUTPUT
             echo "tf_backend_bucket=bluemoxon-terraform-state-staging" >> $GITHUB_OUTPUT
             echo "tf_backend_key=bluemoxon/staging/terraform.tfstate" >> $GITHUB_OUTPUT
-            echo "tf_dynamodb_table=bluemoxon-terraform-locks-staging" >> $GITHUB_OUTPUT
+            echo "tf_dynamodb_table=bluemoxon-terraform-locks" >> $GITHUB_OUTPUT
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
