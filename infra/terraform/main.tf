@@ -97,12 +97,11 @@ module "frontend_cdn" {
   oac_name              = "${local.frontend_bucket_name}-oac"
   comment               = "BlueMoxon Frontend - ${var.environment}"
 
-  # Multi-origin support (production uses this for images)
-  secondary_origin_bucket_name        = var.cloudfront_multi_origin_enabled ? module.images_bucket.bucket_name : null
-  secondary_origin_bucket_domain_name = var.cloudfront_multi_origin_enabled ? module.images_bucket.bucket_regional_domain_name : null
-  secondary_origin_path_pattern       = var.cloudfront_multi_origin_enabled ? var.cloudfront_images_path_pattern : null
-  secondary_origin_oac_id             = var.cloudfront_multi_origin_enabled && var.cloudfront_images_oac_id != null ? var.cloudfront_images_oac_id : null
-  cloudfront_function_arn             = var.cloudfront_function_arn
+  # Secondary origin for images (enables /book-images/* routing)
+  secondary_origin_bucket_name        = var.secondary_origin_bucket_name
+  secondary_origin_bucket_domain_name = var.secondary_origin_bucket_domain_name
+  secondary_origin_path_pattern       = var.secondary_origin_path_pattern
+  secondary_origin_ttl                = var.secondary_origin_ttl
 
   tags = local.common_tags
 }
