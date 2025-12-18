@@ -624,6 +624,9 @@ module "github_oidc" {
   terraform_state_bucket_arn         = var.terraform_state_bucket_arn
   terraform_state_dynamodb_table_arn = var.terraform_state_dynamodb_table_arn
 
+  # Enable read-only permissions for Terraform drift detection during deploys
+  enable_terraform_drift_detection = var.enable_github_oidc_drift_detection
+
   tags = local.common_tags
 }
 

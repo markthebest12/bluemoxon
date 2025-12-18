@@ -32,7 +32,8 @@ db_allocated_storage = 20
 enable_cloudfront = true
 enable_waf        = false
 # GitHub OIDC - manages GitHub Actions deployment role
-enable_github_oidc = true
+enable_github_oidc                 = true
+enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check
 
 # Terraform state access for GitHub Actions deploy workflow
 # Points to staging state bucket in same account (for reading terraform outputs during deploy)

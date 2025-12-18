@@ -367,6 +367,12 @@ variable "enable_github_oidc" {
   default     = true
 }
 
+variable "enable_github_oidc_drift_detection" {
+  type        = bool
+  description = "Enable read-only permissions for Terraform drift detection during deploys"
+  default     = false
+}
+
 variable "github_oidc_cloudfront_distribution_arns" {
   type        = list(string)
   description = "CloudFront distribution ARNs for GitHub Actions deployment (override for legacy resources)"
