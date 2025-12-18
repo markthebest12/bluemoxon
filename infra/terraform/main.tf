@@ -391,8 +391,8 @@ module "scraper_lambda" {
 
   # Scraper settings
   image_tag   = "v1.0.7"
-  memory_size = 1024 # Playwright needs significant memory
-  timeout     = 120  # Production uses 120s (Playwright + S3 uploads)
+  memory_size = var.scraper_memory_size
+  timeout     = 120 # Production uses 120s (Playwright + S3 uploads)
 
   # Override ENVIRONMENT for prod (uses "production" not "prod")
   environment_variables = {
