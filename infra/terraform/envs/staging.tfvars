@@ -31,11 +31,8 @@ db_allocated_storage = 20
 # Feature flags
 enable_cloudfront = true
 enable_waf        = false
-# GitHub OIDC disabled - exists in AWS but cannot be imported with current IAM permissions
-# Re-enable after importing with admin credentials using:
-#   terraform import 'module.github_oidc[0].aws_iam_openid_connect_provider.github' 'arn:aws:iam::652617421195:oidc-provider/token.actions.githubusercontent.com'
-#   terraform import 'module.github_oidc[0].aws_iam_role.github_actions' 'github-actions-deploy'
-enable_github_oidc = false
+# GitHub OIDC - manages GitHub Actions deployment role
+enable_github_oidc = true
 
 # Terraform state access (cross-account to prod state bucket for terraform output reading)
 terraform_state_bucket_arn         = "arn:aws:s3:::bluemoxon-terraform-state"
