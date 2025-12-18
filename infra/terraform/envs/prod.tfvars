@@ -37,13 +37,13 @@ enable_api_gateway            = false # API Gateway managed externally (import i
 enable_database               = false
 enable_nat_gateway            = false
 enable_waf                    = true
-enable_scraper = true # Scraper now managed by Terraform (imported in #412)
+enable_scraper                = true # Scraper now managed by Terraform (imported in #412)
 
 # Scraper name overrides - production uses inconsistent legacy naming
 scraper_ecr_repository_name_override = "bluemoxon-scraper"
 scraper_function_name_override       = "bluemoxon-production-scraper"
 scraper_iam_role_name_override       = "bluemoxon-scraper-exec-role"
-skip_s3_cloudfront_policy     = true  # Prod uses OAC (not OAI) - bucket policy managed externally
+skip_s3_cloudfront_policy            = true # Prod uses OAC (not OAI) - bucket policy managed externally
 
 # =============================================================================
 # Analysis Worker Configuration
