@@ -584,6 +584,10 @@ def delete_book(
     import traceback
 
     from app.models import BookImage
+    from app.models.analysis import BookAnalysis
+    from app.models.analysis_job import AnalysisJob
+    from app.models.eval_runbook import EvalRunbook
+    from app.models.eval_runbook_job import EvalRunbookJob
 
     logger = logging.getLogger(__name__)
 
@@ -595,6 +599,26 @@ def delete_book(
         # Get all images for this book before deleting
         book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
         logger.info("Deleting book %s with %d images", book_id, len(book_images))
+
+        # Defense-in-depth: Explicitly delete all related records before deleting book
+        # This prevents orphaned records even if CASCADE deletes are misconfigured
+        jobs_deleted = db.query(AnalysisJob).filter(AnalysisJob.book_id == book_id).delete()
+        eval_jobs_deleted = (
+            db.query(EvalRunbookJob).filter(EvalRunbookJob.book_id == book_id).delete()
+        )
+        analyses_deleted = db.query(BookAnalysis).filter(BookAnalysis.book_id == book_id).delete()
+        runbooks_deleted = db.query(EvalRunbook).filter(EvalRunbook.book_id == book_id).delete()
+        images_deleted = db.query(BookImage).filter(BookImage.book_id == book_id).delete()
+        logger.info(
+            "Pre-delete cleanup for book %s: %d jobs, %d eval_jobs, %d analyses, "
+            "%d runbooks, %d images",
+            book_id,
+            jobs_deleted,
+            eval_jobs_deleted,
+            analyses_deleted,
+            runbooks_deleted,
+            images_deleted,
+        )
 
         # Delete physical image files from S3 (production uses S3)
         if settings.database_secret_arn is not None:
@@ -628,7 +652,7 @@ def delete_book(
                     if file_path.exists():
                         file_path.unlink()
 
-        # Delete book (cascades to images and analysis in database)
+        # Delete book (related records already explicitly deleted above)
         logger.info("Deleting book %s from database", book_id)
         db.delete(book)
         db.commit()
