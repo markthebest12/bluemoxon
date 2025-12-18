@@ -340,9 +340,12 @@ export const useBooksStore = defineStore("books", () => {
 
   /**
    * Clear completed/failed job from tracking.
+   * Creates new Map to trigger Vue reactivity.
    */
   function clearJob(bookId: number) {
-    activeAnalysisJobs.value.delete(bookId);
+    const newMap = new Map(activeAnalysisJobs.value);
+    newMap.delete(bookId);
+    activeAnalysisJobs.value = newMap;
     stopJobPoller(bookId);
   }
 
@@ -435,9 +438,12 @@ export const useBooksStore = defineStore("books", () => {
 
   /**
    * Clear completed/failed eval runbook job from tracking.
+   * Creates new Map to trigger Vue reactivity.
    */
   function clearEvalRunbookJob(bookId: number) {
-    activeEvalRunbookJobs.value.delete(bookId);
+    const newMap = new Map(activeEvalRunbookJobs.value);
+    newMap.delete(bookId);
+    activeEvalRunbookJobs.value = newMap;
     stopEvalRunbookJobPoller(bookId);
   }
 
@@ -510,6 +516,9 @@ export const useBooksStore = defineStore("books", () => {
     getActiveEvalRunbookJob,
     hasActiveEvalRunbookJob,
     clearEvalRunbookJob,
+    // Polling functions (for syncing with backend jobs from other sessions)
+    startJobPoller,
+    startEvalRunbookJobPoller,
     calculateScores,
     fetchScoreBreakdown,
     archiveSource,
