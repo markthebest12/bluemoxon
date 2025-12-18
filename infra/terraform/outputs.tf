@@ -165,6 +165,30 @@ output "github_oidc_provider_arn" {
 }
 
 # =============================================================================
+# Scraper Outputs (when enabled)
+# =============================================================================
+
+output "scraper_function_name" {
+  description = "Scraper Lambda function name"
+  value       = local.scraper_enabled ? module.scraper_lambda[0].function_name : null
+}
+
+output "scraper_function_arn" {
+  description = "Scraper Lambda function ARN"
+  value       = local.scraper_enabled ? module.scraper_lambda[0].function_arn : null
+}
+
+output "scraper_ecr_repository" {
+  description = "Scraper ECR repository name (without registry URL prefix)"
+  value       = local.scraper_enabled ? "${local.name_prefix}-scraper" : null
+}
+
+output "scraper_ecr_repository_url" {
+  description = "Scraper ECR repository full URL"
+  value       = local.scraper_enabled ? module.scraper_lambda[0].ecr_repository_url : null
+}
+
+# =============================================================================
 # Full URLs (for deploy workflow)
 # =============================================================================
 
