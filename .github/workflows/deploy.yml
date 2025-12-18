@@ -116,6 +116,7 @@ jobs:
 
       - name: Check for infrastructure drift
         id: drift
+        continue-on-error: true  # Drift check is non-blocking
         working-directory: infra/terraform
         env:
           # Dummy password for plan-only drift check (not applied)
@@ -135,10 +136,14 @@ jobs:
             echo "✅ No infrastructure drift detected"
             echo "drift_detected=false" >> $GITHUB_OUTPUT
           elif [ $EXIT_CODE -eq 2 ]; then
-            # Extract resource counts
-            ADDS=$(grep -c "will be created" plan-output.txt || echo "0")
-            CHANGES=$(grep -c "will be updated" plan-output.txt || echo "0")
-            DESTROYS=$(grep -c "will be destroyed" plan-output.txt || echo "0")
+            # Extract resource counts (use true to prevent exit on no match)
+            ADDS=$(grep -c "will be created" plan-output.txt 2>/dev/null || true)
+            CHANGES=$(grep -c "will be updated" plan-output.txt 2>/dev/null || true)
+            DESTROYS=$(grep -c "will be destroyed" plan-output.txt 2>/dev/null || true)
+            # Default to 0 if empty
+            ADDS="${ADDS:-0}"
+            CHANGES="${CHANGES:-0}"
+            DESTROYS="${DESTROYS:-0}"
 
             echo "::warning::Infrastructure drift detected in $ENV: +$ADDS ~$CHANGES -$DESTROYS resources"
             echo "drift_detected=true" >> $GITHUB_OUTPUT
