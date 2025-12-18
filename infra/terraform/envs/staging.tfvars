@@ -85,7 +85,7 @@ images_cdn_url_override = "https://d2zwmzka4w6cws.cloudfront.net"
 # =============================================================================
 # Secondary Origin (Images Bucket) for /book-images/* routing
 # =============================================================================
-secondary_origin_bucket_name        = "bluemoxon-staging-images"
-secondary_origin_bucket_domain_name = "bluemoxon-staging-images.s3.us-west-2.amazonaws.com"
+secondary_origin_bucket_name        = "bluemoxon-images-staging"
+secondary_origin_bucket_domain_name = "bluemoxon-images-staging.s3.us-west-2.amazonaws.com"
 secondary_origin_path_pattern       = "/book-images/*"
 secondary_origin_ttl                = 604800

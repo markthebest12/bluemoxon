@@ -59,6 +59,9 @@ module "images_bucket" {
   enable_cloudfront_policy = var.enable_cloudfront && !var.skip_s3_cloudfront_policy
   cloudfront_oai_arn       = var.enable_cloudfront && !var.skip_s3_cloudfront_policy ? module.images_cdn[0].oai_arn : null
 
+  # Allow frontend CDN to access images via secondary origin (/book-images/*)
+  secondary_cloudfront_distribution_arns = var.secondary_origin_bucket_name != null ? [module.frontend_cdn[0].distribution_arn] : []
+
   cors_allowed_origins = [
     "https://${local.app_domain}",
     "https://${local.api_domain}"
