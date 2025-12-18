@@ -96,6 +96,14 @@ cognito_user_pool_arn_external = "arn:aws:cognito-idp:us-west-2:266672885920:use
 # TODO: #430 - implement /book-images/* cache behavior on app CloudFront
 images_cdn_url_override = "https://d1yejmcspwgw9x.cloudfront.net"
 
+# =============================================================================
+# Secondary Origin (Images Bucket) for /book-images/* routing
+# =============================================================================
+secondary_origin_bucket_name        = "bluemoxon-images"
+secondary_origin_bucket_domain_name = "bluemoxon-images.s3.us-west-2.amazonaws.com"
+secondary_origin_path_pattern       = "/book-images/*"
+secondary_origin_ttl                = 604800
+
 # Environment name override (prod uses "production" for scraper function naming)
 environment_name_override = "production"
 
