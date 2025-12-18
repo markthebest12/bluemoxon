@@ -22,7 +22,7 @@ locals {
 
   # Lambda function name - use override if provided (for legacy prod naming)
   # Default: bluemoxon-staging-api
-  # Prod override: bluemoxon-api
+  # Prod override: bluemoxon-prod-api
   lambda_function_name = coalesce(var.lambda_function_name_override, "${var.app_name}-${var.environment}-api")
 
   # API Gateway name - use override if provided
@@ -63,7 +63,7 @@ locals {
   eval_runbook_worker_enabled = coalesce(var.enable_eval_runbook_worker, var.enable_lambda)
 
   # Scraper Lambda enabled - defaults to enable_lambda if not explicitly set
-  # Allows disabling scraper when using existing scraper (prod uses bluemoxon-production-scraper)
+  # Allows disabling scraper when using existing scraper (prod uses bluemoxon-prod-scraper)
   scraper_enabled = coalesce(var.enable_scraper, var.enable_lambda)
 
   # Scraper Lambda ARN - uses module output when Terraform-managed, otherwise variable

@@ -553,14 +553,14 @@ jobs:
       - name: Upload Lambda to S3
         run: |
           aws s3 cp lambda-package.zip \
-            s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/bluemoxon-api.zip
+            s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
 
       - name: Update Lambda function
         run: |
           aws lambda update-function-code \
             --function-name ${{ needs.configure.outputs.lambda_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
-            --s3-key lambda/bluemoxon-api.zip
+            --s3-key lambda/backend.zip
 
       - name: Wait for Lambda update
         run: |
@@ -645,7 +645,7 @@ jobs:
           aws lambda update-function-code \
             --function-name "$WORKER_FUNCTION" \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
-            --s3-key lambda/bluemoxon-api.zip
+            --s3-key lambda/backend.zip
 
       - name: Wait for Worker Lambda update
         if: needs.configure.outputs.worker_function_name != ''
@@ -681,7 +681,7 @@ jobs:
           aws lambda update-function-code \
             --function-name "$EVAL_RUNBOOK_FUNCTION" \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
-            --s3-key lambda/bluemoxon-api.zip
+            --s3-key lambda/backend.zip
 
       - name: Wait for Eval Runbook Worker Lambda update
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''

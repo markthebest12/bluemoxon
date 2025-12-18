@@ -316,12 +316,12 @@ module "lambda" {
       BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
       BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
     },
+    # Database secret ARN (use module output for staging, explicit ARN for prod)
     var.enable_database ? {
-      BMX_DATABASE_SECRET_NAME = "${local.name_prefix}/database"
-    } : {},
-    var.database_secret_arn != null ? {
-      BMX_DATABASE_SECRET_ARN = var.database_secret_arn
-    } : {}
+      BMX_DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        BMX_DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
   )
 
   tags = local.common_tags
@@ -458,13 +458,12 @@ module "analysis_worker" {
       IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
       IMAGES_BUCKET     = module.images_bucket.bucket_name
     },
+    # Database secret ARN (use module output for staging, explicit ARN for prod)
     var.enable_database ? {
-      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
-    } : {},
-    # For prod with external Lambda, use the secret ARN directly (prod uses ARN, not name)
-    local.is_prod && !var.enable_database ? {
-      DATABASE_SECRET_ARN = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials-Firmtl"
-    } : {}
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
   )
 
   tags = local.common_tags
@@ -530,13 +529,12 @@ module "eval_runbook_worker" {
       IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
       IMAGES_BUCKET     = module.images_bucket.bucket_name
     },
+    # Database secret ARN (use module output for staging, explicit ARN for prod)
     var.enable_database ? {
-      DATABASE_SECRET_NAME = "${local.name_prefix}/database"
-    } : {},
-    # For prod with external Lambda, use the secret ARN directly (prod uses ARN, not name)
-    local.is_prod && !var.enable_database ? {
-      DATABASE_SECRET_ARN = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials-Firmtl"
-    } : {}
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
   )
 
   tags = local.common_tags

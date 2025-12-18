@@ -101,7 +101,9 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
 def get_api_base_url() -> str:
     """Get the API base URL for constructing absolute URLs."""
-    if settings.database_secret_arn is not None:  # Production check
+    if (
+        settings.database_secret_arn is not None or settings.database_secret_name is not None
+    ):  # Production check
         return "https://api.bluemoxon.com"
     return ""  # Relative URLs for local dev
 
@@ -629,7 +631,7 @@ def delete_book(
         )
 
         # Delete physical image files from S3 (production uses S3)
-        if settings.database_secret_arn is not None:
+        if settings.database_secret_arn is not None or settings.database_secret_name is not None:
             # In production, delete from S3
             import os
 

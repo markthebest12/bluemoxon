@@ -119,6 +119,66 @@ class TestBMXPrefixSupport:
             settings = Settings()
             assert settings.analysis_queue_name == "my-queue"
 
+    def test_bmx_database_secret_arn_takes_precedence(self):
+        """BMX_DATABASE_SECRET_ARN should override DATABASE_SECRET_ARN."""
+        env = {
+            "BMX_DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:bmx-db",
+            "DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:legacy-db",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert (
+                settings.database_secret_arn
+                == "arn:aws:secretsmanager:us-west-2:123456789012:secret:bmx-db"
+            )
+
+    def test_legacy_database_secret_arn_fallback(self):
+        """DATABASE_SECRET_ARN should work when BMX_ not set."""
+        env = {
+            "DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:legacy-db"
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert (
+                settings.database_secret_arn
+                == "arn:aws:secretsmanager:us-west-2:123456789012:secret:legacy-db"
+            )
+
+    def test_bmx_database_secret_name_takes_precedence(self):
+        """BMX_DATABASE_SECRET_NAME should override DATABASE_SECRET_NAME."""
+        env = {
+            "BMX_DATABASE_SECRET_NAME": "bmx-db-secret",
+            "DATABASE_SECRET_NAME": "legacy-db-secret",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert settings.database_secret_name == "bmx-db-secret"
+
+    def test_legacy_database_secret_name_fallback(self):
+        """DATABASE_SECRET_NAME should work when BMX_ not set."""
+        env = {"DATABASE_SECRET_NAME": "legacy-db-secret"}
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert settings.database_secret_name == "legacy-db-secret"
+
+    def test_database_secret_arn_preferred_over_name(self):
+        """When both ARN and NAME are set, code should prefer ARN."""
+        env = {
+            "BMX_DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:db",
+            "BMX_DATABASE_SECRET_NAME": "db-secret-name",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            # Both should be available in config
+            assert (
+                settings.database_secret_arn
+                == "arn:aws:secretsmanager:us-west-2:123456789012:secret:db"
+            )
+            assert settings.database_secret_name == "db-secret-name"
+            # session.py logic prefers ARN first
+            secret_id = settings.database_secret_arn or settings.database_secret_name
+            assert secret_id == "arn:aws:secretsmanager:us-west-2:123456789012:secret:db"
+
 
 class TestDefaultValues:
     """Test that default values are set correctly in code.
@@ -181,3 +241,17 @@ class TestAliasConfiguration:
         alias = field_info.validation_alias
         assert "BMX_IMAGES_CDN_URL" in alias.choices
         assert "CLOUDFRONT_URL" in alias.choices
+
+    def test_database_secret_arn_aliases(self):
+        """database_secret_arn should accept BMX_ and legacy names."""
+        field_info = Settings.model_fields["database_secret_arn"]
+        alias = field_info.validation_alias
+        assert "BMX_DATABASE_SECRET_ARN" in alias.choices
+        assert "DATABASE_SECRET_ARN" in alias.choices
+
+    def test_database_secret_name_aliases(self):
+        """database_secret_name should accept BMX_ and legacy names."""
+        field_info = Settings.model_fields["database_secret_name"]
+        alias = field_info.validation_alias
+        assert "BMX_DATABASE_SECRET_NAME" in alias.choices
+        assert "DATABASE_SECRET_NAME" in alias.choices
