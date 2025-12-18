@@ -257,7 +257,8 @@ resource "aws_iam_role_policy" "deploy" {
             "lambda:ListVersionsByFunction",
             "lambda:GetAlias",
             "lambda:ListAliases",
-            "lambda:GetEventSourceMapping"
+            "lambda:GetEventSourceMapping",
+            "lambda:ListTags"
           ]
           Resource = "*"
         },
