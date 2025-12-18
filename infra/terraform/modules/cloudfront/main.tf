@@ -93,6 +93,15 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  dynamic "origin" {
+    for_each = var.secondary_origin_bucket_name != null ? [1] : []
+    content {
+      domain_name              = var.secondary_origin_bucket_domain_name
+      origin_id                = "S3-${var.secondary_origin_bucket_name}"
+      origin_access_control_id = aws_cloudfront_origin_access_control.secondary[0].id
+    }
+  }
+
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
