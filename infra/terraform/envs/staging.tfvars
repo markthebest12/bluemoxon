@@ -78,3 +78,6 @@ external_lambda_security_group_id = "sg-050fb5268bcd06443"
 
 # API Lambda role name (used by workers for SQS send permissions)
 lambda_iam_role_name_override = "bluemoxon-staging-api-exec-role"
+
+# Images CDN URL - direct CloudFront domain
+images_cdn_url_override = "https://d2zwmzka4w6cws.cloudfront.net"
