@@ -210,3 +210,217 @@ def calculate_combined_score(
     """
     combined = (quality_score * QUALITY_WEIGHT) + (strategic_fit_score * STRATEGIC_FIT_WEIGHT)
     return int(round(combined))
+
+
+# Floor thresholds for recommendations
+STRATEGIC_FIT_FLOOR = 30
+QUALITY_FLOOR = 40
+
+# Recommendation tier constants
+STRONG_BUY = "STRONG_BUY"
+BUY = "BUY"
+CONDITIONAL = "CONDITIONAL"
+PASS = "PASS"
+
+
+def determine_recommendation_tier(
+    combined_score: int,
+    price_position: str | None,
+    quality_score: int,
+    strategic_fit_score: int,
+) -> str:
+    """Determine recommendation tier based on scores and price position.
+
+    Uses a matrix approach with floor rules to prevent "great deal, wrong book"
+    recommendations.
+
+    Floor rules (cap at CONDITIONAL regardless of matrix):
+    - Strategic Fit < 30: Wrong book for collection strategy
+    - Quality < 40: Book doesn't meet quality standards
+
+    Matrix (combined score × price position):
+    | Combined Score | EXCELLENT   | GOOD        | FAIR        | POOR        |
+    |----------------|-------------|-------------|-------------|-------------|
+    | ≥ 80           | STRONG_BUY  | STRONG_BUY  | BUY         | CONDITIONAL |
+    | 60-79          | STRONG_BUY  | BUY         | CONDITIONAL | PASS        |
+    | 40-59          | BUY         | CONDITIONAL | PASS        | PASS        |
+    | < 40           | CONDITIONAL | PASS        | PASS        | PASS        |
+
+    Args:
+        combined_score: Combined score (0-100)
+        price_position: EXCELLENT, GOOD, FAIR, POOR, or None
+        quality_score: Quality score (0-100) for floor check
+        strategic_fit_score: Strategic fit score (0-100) for floor check
+
+    Returns:
+        STRONG_BUY, BUY, CONDITIONAL, or PASS
+    """
+    # Apply floor rules - check if we need to cap at CONDITIONAL
+    floor_triggered = (
+        strategic_fit_score < STRATEGIC_FIT_FLOOR or quality_score < QUALITY_FLOOR
+    )
+
+    # Treat missing price position as FAIR
+    effective_price = price_position if price_position else "FAIR"
+
+    # Recommendation matrix lookup
+    if combined_score >= 80:
+        matrix_row = {
+            "EXCELLENT": STRONG_BUY,
+            "GOOD": STRONG_BUY,
+            "FAIR": BUY,
+            "POOR": CONDITIONAL,
+        }
+    elif combined_score >= 60:
+        matrix_row = {
+            "EXCELLENT": STRONG_BUY,
+            "GOOD": BUY,
+            "FAIR": CONDITIONAL,
+            "POOR": PASS,
+        }
+    elif combined_score >= 40:
+        matrix_row = {
+            "EXCELLENT": BUY,
+            "GOOD": CONDITIONAL,
+            "FAIR": PASS,
+            "POOR": PASS,
+        }
+    else:
+        matrix_row = {
+            "EXCELLENT": CONDITIONAL,
+            "GOOD": PASS,
+            "FAIR": PASS,
+            "POOR": PASS,
+        }
+
+    tier = matrix_row.get(effective_price, PASS)
+
+    # Apply floor cap - downgrade to CONDITIONAL if floor triggered
+    # but only if the matrix gave us something better than CONDITIONAL
+    if floor_triggered and tier in (STRONG_BUY, BUY):
+        return CONDITIONAL
+
+    return tier
+
+
+# Target discount rates by combined score
+OFFER_DISCOUNTS = {
+    (70, 79): Decimal("0.15"),  # 15% below FMV
+    (60, 69): Decimal("0.25"),  # 25% below FMV
+    (50, 59): Decimal("0.35"),  # 35% below FMV
+    (40, 49): Decimal("0.45"),  # 45% below FMV
+    (0, 39): Decimal("0.55"),  # 55% below FMV
+}
+
+# Floor-triggered discount rates
+STRATEGIC_FLOOR_DISCOUNT = Decimal("0.40")  # 40% below FMV
+QUALITY_FLOOR_DISCOUNT = Decimal("0.50")  # 50% below FMV
+
+
+def calculate_suggested_offer(
+    combined_score: int,
+    fmv_mid: Decimal | None,
+    strategic_floor_applied: bool,
+    quality_floor_applied: bool,
+) -> Decimal | None:
+    """Calculate suggested offer price for CONDITIONAL recommendations.
+
+    Args:
+        combined_score: Weighted combined score
+        fmv_mid: Midpoint of FMV range
+        strategic_floor_applied: True if strategic fit floor was triggered
+        quality_floor_applied: True if quality floor was triggered
+
+    Returns:
+        Suggested offer price, or None if FMV unknown
+    """
+    if fmv_mid is None:
+        return None
+
+    # Floor-triggered discounts take precedence
+    if quality_floor_applied:
+        discount = QUALITY_FLOOR_DISCOUNT
+    elif strategic_floor_applied:
+        discount = STRATEGIC_FLOOR_DISCOUNT
+    else:
+        # Find discount by combined score
+        discount = Decimal("0.55")  # Default to maximum discount
+        for (min_score, max_score), disc in OFFER_DISCOUNTS.items():
+            if min_score <= combined_score <= max_score:
+                discount = disc
+                break
+
+    return (fmv_mid * (1 - discount)).quantize(Decimal("1"))
+
+
+def generate_reasoning(
+    recommendation_tier: str,
+    quality_score: int,
+    strategic_fit_score: int,
+    price_position: str | None,
+    discount_percent: int,
+    publisher_name: str | None,
+    binder_name: str | None,
+    author_name: str | None,
+    strategic_floor_applied: bool,
+    quality_floor_applied: bool,
+    suggested_offer: Decimal | None = None,
+) -> str:
+    """Generate templated reasoning for recommendation.
+
+    Args:
+        recommendation_tier: STRONG_BUY, BUY, CONDITIONAL, or PASS
+        quality_score: Quality score (0-100)
+        strategic_fit_score: Strategic fit score (0-100)
+        price_position: EXCELLENT, GOOD, FAIR, POOR
+        discount_percent: Discount from FMV (negative if overpriced)
+        publisher_name: Publisher name if available
+        binder_name: Binder name if available
+        author_name: Author name if available
+        strategic_floor_applied: True if strategic floor triggered
+        quality_floor_applied: True if quality floor triggered
+        suggested_offer: Suggested offer for CONDITIONAL
+
+    Returns:
+        1-2 sentence reasoning text
+    """
+    # Build quality driver description
+    quality_drivers = []
+    if publisher_name:
+        quality_drivers.append(f"Tier 1 publisher ({publisher_name})")
+    if binder_name:
+        quality_drivers.append(f"premium binding ({binder_name})")
+
+    quality_driver = quality_drivers[0] if quality_drivers else "quality attributes"
+
+    # Generate based on tier
+    if recommendation_tier == STRONG_BUY:
+        if discount_percent >= 30:
+            return f"Excellent {quality_driver} at {discount_percent}% below FMV. Strong acquisition opportunity."
+        else:
+            return f"High-quality book with strong strategic fit. {quality_driver} justifies acquisition."
+
+    elif recommendation_tier == BUY:
+        if discount_percent >= 15:
+            return f"{quality_driver.capitalize()} at {discount_percent}% below FMV. Good value for collection."
+        else:
+            return f"Solid strategic fit with acceptable pricing. {quality_driver.capitalize()} adds value."
+
+    elif recommendation_tier == CONDITIONAL:
+        if strategic_floor_applied:
+            offer_text = f" Consider at ${suggested_offer} or below." if suggested_offer else ""
+            return f"Quality binding/condition but wrong publisher for {author_name or 'author'} collection priority.{offer_text}"
+        elif quality_floor_applied:
+            offer_text = f" Only acquire at ${suggested_offer} or below." if suggested_offer else ""
+            return f"Strategic fit but condition issues limit value.{offer_text}"
+        else:
+            offer_text = f" Offer ${suggested_offer} for acceptable margin." if suggested_offer else ""
+            return f"Asking price at or above FMV.{offer_text}"
+
+    else:  # PASS
+        if discount_percent < 0:
+            return f"Priced {abs(discount_percent)}% above FMV with limited collection value."
+        elif quality_score < 40:
+            return "Low quality score with poor strategic fit. Does not meet acquisition criteria."
+        else:
+            return "Does not meet acquisition criteria at current price point."
