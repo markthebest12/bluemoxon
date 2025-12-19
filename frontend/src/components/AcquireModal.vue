@@ -59,9 +59,16 @@ const priceInUsd = computed(() => {
   }
 });
 
+// Safely convert valueMid to number (API may return string)
+const valueMidNumeric = computed(() => {
+  if (props.valueMid == null) return null;
+  const num = Number(props.valueMid);
+  return isNaN(num) ? null : num;
+});
+
 const estimatedDiscount = computed(() => {
-  if (!props.valueMid || !priceInUsd.value) return null;
-  const discount = ((props.valueMid - priceInUsd.value) / props.valueMid) * 100;
+  if (!valueMidNumeric.value || !priceInUsd.value) return null;
+  const discount = ((valueMidNumeric.value - priceInUsd.value) / valueMidNumeric.value) * 100;
   return discount.toFixed(1);
 });
 
@@ -241,7 +248,7 @@ function handlePasteApply(data: any) {
               >
             </div>
             <p v-if="estimatedDiscount" class="mt-1 text-sm text-green-600">
-              {{ estimatedDiscount }}% discount from FMV (${{ valueMid?.toFixed(2) }})
+              {{ estimatedDiscount }}% discount from FMV (${{ valueMidNumeric?.toFixed(2) }})
             </p>
           </div>
 
