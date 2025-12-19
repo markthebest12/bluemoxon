@@ -457,6 +457,12 @@ MIGRATION_O7890123WXYZ_SQL = [
     "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS fmv_confidence VARCHAR(20)",
 ]
 
+# Migration SQL for p8901234yzab_add_tracking_status_fields
+MIGRATION_P8901234YZAB_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_status VARCHAR(100)",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_last_checked TIMESTAMP WITH TIME ZONE",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -568,6 +574,7 @@ Migrations run in order:
 12. m5678901qrst - Add eval_runbooks and eval_price_history tables
 13. n6789012uvwx - Add eval_runbook_jobs table for async eval runbook generation
 14. o7890123wxyz - Add fmv_notes and fmv_confidence to eval_runbooks
+15. p8901234yzab - Add tracking_status and tracking_last_checked fields
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -602,9 +609,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("m5678901qrst", MIGRATION_M5678901QRST_SQL),
         ("n6789012uvwx", MIGRATION_N6789012UVWX_SQL),
         ("o7890123wxyz", MIGRATION_O7890123WXYZ_SQL),
+        ("p8901234yzab", MIGRATION_P8901234YZAB_SQL),
     ]
 
-    final_version = "o7890123wxyz"
+    final_version = "p8901234yzab"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

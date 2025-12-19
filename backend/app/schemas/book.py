@@ -48,17 +48,9 @@ class BookBase(BaseModel):
     tracking_number: str | None = None
     tracking_carrier: str | None = None
     tracking_url: str | None = None
+    tracking_status: str | None = None
+    tracking_last_checked: datetime | None = None
     ship_date: date | None = None
-
-    # Shipment tracking
-    tracking_number: str | None = None
-    tracking_carrier: str | None = None
-    tracking_url: str | None = None
-
-    # Shipment tracking
-    tracking_number: str | None = None
-    tracking_carrier: str | None = None
-    tracking_url: str | None = None
 
     # Archive tracking
     source_archived_url: str | None = None

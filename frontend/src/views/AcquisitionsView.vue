@@ -315,6 +315,19 @@ async function handleRecalculateScore(bookId: number) {
 const archivingBook = ref<number | null>(null);
 const deletingBook = ref<number | null>(null);
 const startingAnalysis = ref<number | null>(null);
+const refreshingTracking = ref<number | null>(null);
+
+async function handleRefreshTracking(bookId: number) {
+  if (refreshingTracking.value) return;
+  refreshingTracking.value = bookId;
+  try {
+    await acquisitionsStore.refreshTracking(bookId);
+  } catch (e: unknown) {
+    console.error("Failed to refresh tracking:", e);
+  } finally {
+    refreshingTracking.value = null;
+  }
+}
 
 async function handleArchiveSource(bookId: number) {
   if (archivingBook.value) return;
@@ -607,9 +620,36 @@ async function handleArchiveSource(bookId: number) {
                 <ScoreCard :overall-score="book.overall_score" compact />
               </div>
 
-              <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500">
-                Est. Delivery:
-                {{ formatDateRange(book.estimated_delivery, book.estimated_delivery_end) }}
+              <div
+                v-if="book.estimated_delivery"
+                class="mt-1 text-xs text-gray-500 flex items-center gap-2"
+              >
+                <span>
+                  Est. Delivery:
+                  {{ formatDateRange(book.estimated_delivery, book.estimated_delivery_end) }}
+                </span>
+                <button
+                  v-if="book.tracking_number && book.tracking_carrier"
+                  @click="handleRefreshTracking(book.id)"
+                  :disabled="refreshingTracking === book.id"
+                  class="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                  title="Refresh tracking info"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    :class="{ 'animate-spin': refreshingTracking === book.id }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
               </div>
 
               <!-- Tracking Info -->

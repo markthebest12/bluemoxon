@@ -94,10 +94,21 @@ onMounted(() => {
 });
 
 // Computed: Is the URL a valid eBay URL?
+// Accepts both standard ebay.com/itm/... URLs and ebay.us short URLs
 const isValidEbayUrl = computed(() => {
   try {
     const url = new URL(urlInput.value);
-    return url.hostname.includes("ebay.com") && url.pathname.includes("/itm/");
+    const hostname = url.hostname.toLowerCase();
+
+    // Accept ebay.us short URLs (they redirect to full URLs on the backend)
+    if (hostname === "ebay.us" || hostname === "www.ebay.us") {
+      return url.pathname.length > 1; // Must have some path
+    }
+
+    // Standard eBay URLs must have /itm/ pattern
+    const isEbayHost =
+      hostname === "ebay.com" || hostname === "www.ebay.com" || hostname === "m.ebay.com";
+    return isEbayHost && url.pathname.includes("/itm/");
   } catch {
     return false;
   }
@@ -409,13 +420,13 @@ function openSourceUrl() {
             <input
               v-model="urlInput"
               type="url"
-              placeholder="https://www.ebay.com/itm/..."
+              placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               :class="{ 'border-red-500': extractError }"
               @keyup.enter="handleExtract"
             />
             <p class="mt-1 text-sm text-gray-500">
-              Paste an eBay listing URL to automatically extract book details
+              Paste an eBay listing URL (including short URLs like ebay.us/xxx)
             </p>
           </div>
 

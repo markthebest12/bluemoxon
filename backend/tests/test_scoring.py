@@ -136,13 +136,21 @@ class TestInvestmentGrade:
         assert calculate_investment_grade(Decimal("100"), None) == 0
         assert calculate_investment_grade(None, None) == 0
 
-    def test_negative_discount_returns_five(self):
-        """Overpaying (negative discount) should score 5."""
+    def test_negative_discount_returns_zero(self):
+        """Overpaying (negative discount) should score 0."""
         score = calculate_investment_grade(
             purchase_price=Decimal("1200"),
-            value_mid=Decimal("1000"),  # -20% "discount"
+            value_mid=Decimal("1000"),  # -20% "discount" (overpaying)
         )
-        assert score == 5
+        assert score == 0
+
+    def test_severely_overpriced_returns_zero(self):
+        """Severely overpriced (-88% discount) should score 0, not 5."""
+        score = calculate_investment_grade(
+            purchase_price=Decimal("528"),
+            value_mid=Decimal("281"),  # -88% "discount" - paying nearly double
+        )
+        assert score == 0
 
 
 class TestStrategicFit:
