@@ -134,16 +134,14 @@ trigger_analyses() {
 # Function to display metrics
 display_metrics() {
     clear
-    echo -e "${BOLD}╔══════════════════════════════════════════════════════════════╗${NC}"
     ENV_UPPER=$(echo "$ENV" | tr '[:lower:]' '[:upper:]')
-    echo -e "${BOLD}║         BlueMoxon Capacity Monitor - ${ENV_UPPER}                  ║${NC}"
-    echo -e "${BOLD}╚══════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
+    echo -e "${BOLD}BlueMoxon Capacity Monitor - ${ENV_UPPER}${NC}"
     echo -e "${CYAN}Last updated: $(date '+%H:%M:%S')  |  Refresh: ${INTERVAL}s  |  Ctrl+C to exit${NC}"
     echo ""
 
     # Lambda Metrics
-    echo -e "${BOLD}┌─── Lambda ───────────────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}Lambda${NC}"
+    echo "────────────────────────────────────────────────────────────"
 
     # API Lambda
     api_concurrent=$(get_metric "AWS/Lambda" "ConcurrentExecutions" "Name=FunctionName,Value=$LAMBDA_API")
@@ -151,7 +149,7 @@ display_metrics() {
     api_errors=$(get_metric "AWS/Lambda" "Errors" "Name=FunctionName,Value=$LAMBDA_API" "Sum")
     api_throttles=$(get_metric "AWS/Lambda" "Throttles" "Name=FunctionName,Value=$LAMBDA_API" "Sum")
 
-    printf "│ %-20s Concurrent: ${BOLD}%3.0f${NC}  Invocations: %5.0f  Errors: %3.0f  Throttles: %3.0f │\n" \
+    printf "  %-16s Concurrent: ${BOLD}%3.0f${NC}  Invocations: %4.0f  Errors: %2.0f  Throttles: %2.0f\n" \
         "API Lambda" "$api_concurrent" "$api_invocations" "$api_errors" "$api_throttles"
 
     # Worker Lambda
@@ -160,14 +158,13 @@ display_metrics() {
     worker_errors=$(get_metric "AWS/Lambda" "Errors" "Name=FunctionName,Value=$LAMBDA_WORKER" "Sum")
     worker_throttles=$(get_metric "AWS/Lambda" "Throttles" "Name=FunctionName,Value=$LAMBDA_WORKER" "Sum")
 
-    printf "│ %-20s Concurrent: ${BOLD}%3.0f${NC}  Invocations: %5.0f  Errors: %3.0f  Throttles: %3.0f │\n" \
+    printf "  %-16s Concurrent: ${BOLD}%3.0f${NC}  Invocations: %4.0f  Errors: %2.0f  Throttles: %2.0f\n" \
         "Analysis Worker" "$worker_concurrent" "$worker_invocations" "$worker_errors" "$worker_throttles"
-
-    echo -e "${BOLD}└──────────────────────────────────────────────────────────────┘${NC}"
     echo ""
 
     # Database Metrics
-    echo -e "${BOLD}┌─── Aurora Database ──────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}Aurora Database${NC}"
+    echo "────────────────────────────────────────────────────────────"
 
     db_connections=$(get_metric "AWS/RDS" "DatabaseConnections" "Name=DBClusterIdentifier,Value=$DB_ID" "Maximum")
     db_cpu=$(get_metric "AWS/RDS" "CPUUtilization" "Name=DBClusterIdentifier,Value=$DB_ID" "Average")
@@ -190,16 +187,13 @@ display_metrics() {
         cpu_color=$GREEN
     fi
 
-    printf "│ Connections: ${conn_color}${BOLD}%3.0f${NC}     CPU: ${cpu_color}%5.1f%%${NC}     ACU Utilization: %5.1f%%         │\n" \
-        "$db_connections" "$db_cpu" "$db_acu"
-
-    echo -e "${BOLD}└──────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  Connections: ${conn_color}${BOLD}$(printf '%3.0f' "$db_connections")${NC}    CPU: ${cpu_color}$(printf '%5.1f' "$db_cpu")%${NC}    ACU: $(printf '%5.1f' "$db_acu")%"
     echo ""
 
     # Bedrock Metrics
-    echo -e "${BOLD}┌─── Bedrock AI ───────────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}Bedrock AI${NC}"
+    echo "────────────────────────────────────────────────────────────"
 
-    # Note: Bedrock metrics use different namespace
     bedrock_invocations=$(get_metric "AWS/Bedrock" "Invocations" "Name=ModelId,Value=us.anthropic.claude-sonnet-4-5-20250929-v1:0" "Sum")
     bedrock_throttles=$(get_metric "AWS/Bedrock" "InvocationThrottles" "Name=ModelId,Value=us.anthropic.claude-sonnet-4-5-20250929-v1:0" "Sum")
     bedrock_latency=$(get_metric "AWS/Bedrock" "InvocationLatency" "Name=ModelId,Value=us.anthropic.claude-sonnet-4-5-20250929-v1:0" "Average")
@@ -210,14 +204,12 @@ display_metrics() {
         throttle_color=$GREEN
     fi
 
-    printf "│ Invocations (2min): ${BOLD}%3.0f${NC}  Throttles: ${throttle_color}${BOLD}%3.0f${NC}  Latency: %6.0f ms       │\n" \
-        "$bedrock_invocations" "$bedrock_throttles" "$bedrock_latency"
-
-    echo -e "${BOLD}└──────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  Invocations: ${BOLD}$(printf '%3.0f' "$bedrock_invocations")${NC}    Throttles: ${throttle_color}${BOLD}$(printf '%3.0f' "$bedrock_throttles")${NC}    Latency: $(printf '%6.0f' "$bedrock_latency") ms"
     echo ""
 
     # Active Analysis Jobs
-    echo -e "${BOLD}┌─── Analysis Jobs ────────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}Analysis Jobs${NC}"
+    echo "────────────────────────────────────────────────────────────"
 
     # Get books with analysis job status
     books_response=$(curl -s "${API_URL}/api/v1/books?limit=100" \
@@ -241,10 +233,7 @@ display_metrics() {
         pending_color=$NC
     fi
 
-    printf "│ Pending: ${pending_color}${BOLD}%2s${NC} %-18s Running: ${running_color}${BOLD}%2s${NC} %-15s │\n" \
-        "$pending_count" "[${pending_ids:-none}]" "$running_count" "[${running_ids:-none}]"
-
-    echo -e "${BOLD}└──────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  Pending: ${pending_color}${BOLD}${pending_count}${NC} [${pending_ids:-none}]    Running: ${running_color}${BOLD}${running_count}${NC} [${running_ids:-none}]"
 }
 
 # Main execution
