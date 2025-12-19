@@ -21,6 +21,7 @@ const authStore = useAuthStore();
 
 const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
+const extractionStatus = ref<string | null>(null); // "success", "degraded", "failed", or null (legacy)
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
@@ -65,10 +66,20 @@ watch(
 async function loadAnalysis() {
   loading.value = true;
   error.value = null;
+  extractionStatus.value = null;
   try {
-    const response = await api.get(`/books/${props.bookId}/analysis/raw`);
-    analysis.value = response.data;
-    editedAnalysis.value = response.data || "";
+    // Fetch raw markdown for display
+    const rawResponse = await api.get(`/books/${props.bookId}/analysis/raw`);
+    analysis.value = rawResponse.data;
+    editedAnalysis.value = rawResponse.data || "";
+
+    // Fetch metadata for extraction status indicator
+    try {
+      const metaResponse = await api.get(`/books/${props.bookId}/analysis`);
+      extractionStatus.value = metaResponse.data.extraction_status || null;
+    } catch {
+      // Metadata fetch failed, continue without extraction status
+    }
   } catch (e: any) {
     if (e.response?.status === 404) {
       // No analysis yet - allow creating one if editor
@@ -154,10 +165,16 @@ async function generateAnalysis() {
 
 // Strip machine-readable structured data blocks before rendering
 // NOTE: Napoleon v2 STRUCTURED-DATA blocks are stripped entirely (machine-only data)
+// Also strips empty STRUCTURED DATA SECTION from Napoleon output (AI doesn't fill it)
 function stripStructuredData(markdown: string): string {
   if (!markdown) return markdown;
+  let result = markdown;
   // Remove Napoleon v2 structured data block (for machine parsing only)
-  return markdown.replace(/---STRUCTURED-DATA---[\s\S]*?---END-STRUCTURED-DATA---\s*/gi, "");
+  result = result.replace(/---STRUCTURED-DATA---[\s\S]*?---END-STRUCTURED-DATA---\s*/gi, "");
+  // Remove empty STRUCTURED DATA SECTION (header + empty code block + hr)
+  // Matches: ## STRUCTURED DATA SECTION\n\n```\n```\n\n---
+  result = result.replace(/##\s*STRUCTURED DATA SECTION\s*\n+```\s*```\s*\n+---\s*\n*/gi, "");
+  return result;
 }
 
 // Pre-process markdown to wrap legacy YAML summary in styled container
@@ -484,6 +501,30 @@ function handleKeydown(e: KeyboardEvent) {
                 </svg>
               </button>
             </div>
+          </div>
+
+          <!-- Extraction status warning banner -->
+          <div
+            v-if="extractionStatus === 'degraded'"
+            class="px-4 sm:px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-sm flex items-center gap-2"
+          >
+            <svg
+              class="w-4 h-4 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span>
+              <strong>Degraded extraction:</strong> Structured data was extracted using fallback
+              parsing due to AI service throttling. Values may be less accurate.
+            </span>
           </div>
 
           <!-- Delete confirmation modal -->

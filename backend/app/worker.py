@@ -164,6 +164,8 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         parsed = parse_analysis_markdown(analysis_text)
 
         # Prefer Stage 2 extraction, fall back to parsing analysis text
+        # Track extraction status for UI indicator
+        extraction_status = None  # Will be set based on extraction path
         if extracted_data:
             # Map extracted fields to book update format
             book_updates = {}
@@ -192,11 +194,13 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                 book_updates["is_first_edition"] = extracted_data["is_first_edition"]
 
             logger.info(f"Using extracted data for book {book_id}: {list(book_updates.keys())}")
+            extraction_status = "success"
         else:
             # Fall back to parsing analysis text directly
             yaml_data = parse_analysis_summary(analysis_text)
             book_updates = extract_book_updates_from_yaml(yaml_data)
             logger.info(f"Fell back to YAML parsing for book {book_id}")
+            extraction_status = "degraded"
 
         # Delete existing analysis if present
         if book.analysis:
@@ -212,6 +216,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             condition_assessment=parsed.condition_assessment,
             market_analysis=parsed.market_analysis,
             recommendations=parsed.recommendations,
+            extraction_status=extraction_status,
         )
         db.add(analysis)
 

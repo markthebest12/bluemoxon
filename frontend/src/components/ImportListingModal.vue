@@ -114,6 +114,17 @@ const isValidEbayUrl = computed(() => {
   }
 });
 
+// Helper: Check if URL is an ebay.us short URL (needs sync extraction)
+function isEbayShortUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === "ebay.us" || hostname === "www.ebay.us";
+  } catch {
+    return false;
+  }
+}
+
 // Helper: Standardize name (capitalize words properly)
 function standardizeName(name: string | undefined): string {
   if (!name) return "";
@@ -181,7 +192,51 @@ async function handleExtract() {
   extractError.value = null;
 
   try {
-    // Start async extraction
+    // Short URLs (ebay.us) must use sync extraction - async doesn't support them
+    if (isEbayShortUrl(urlInput.value)) {
+      step.value = "extracting"; // Show loading state
+      const result = await listingsStore.extractListing(urlInput.value);
+
+      // Populate extractedData from sync result
+      extractedData.value = {
+        listing_data: result.listing_data,
+        images: result.images,
+        image_urls: result.image_urls,
+        matches: result.matches,
+        ebay_url: result.ebay_url,
+        ebay_item_id: result.ebay_item_id,
+      };
+
+      // Populate form with extracted data
+      const data = result.listing_data;
+      form.value.title = data.title || "";
+      form.value.publication_date = data.publication_date || "";
+      form.value.volumes = data.volumes || 1;
+      form.value.source_url = result.ebay_url;
+      form.value.binding_type = data.binding_type || data.binding || "";
+      form.value.condition_notes = data.condition_description || data.condition || "";
+
+      if (data.price) {
+        form.value.purchase_price = data.price;
+      }
+
+      // Apply matched references
+      if (result.matches.author) {
+        form.value.author_id = result.matches.author.id;
+      }
+      if (result.matches.binder) {
+        form.value.binder_id = result.matches.binder.id;
+      }
+      if (result.matches.publisher) {
+        form.value.publisher_id = result.matches.publisher.id;
+      }
+
+      extracting.value = false;
+      step.value = "review";
+      return;
+    }
+
+    // Standard URLs use async extraction with polling
     const job = await listingsStore.extractListingAsync(urlInput.value);
     currentItemId.value = job.item_id;
 
@@ -196,6 +251,7 @@ async function handleExtract() {
       extractError.value = e.message || "Failed to start extraction";
     }
     extracting.value = false;
+    step.value = "url";
   }
 }
 

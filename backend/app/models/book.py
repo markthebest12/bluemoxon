@@ -57,7 +57,7 @@ class Book(Base, TimestampMixin):
     inventory_type: Mapped[str] = mapped_column(String(20), default="PRIMARY")
 
     # Binding
-    binding_type: Mapped[str | None] = mapped_column(String(50))
+    binding_type: Mapped[str | None] = mapped_column(String(100))
     binding_authenticated: Mapped[bool] = mapped_column(Boolean, default=False)
     binding_description: Mapped[str | None] = mapped_column(Text)
 

@@ -1302,6 +1302,7 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
         "recommendations": book.analysis.recommendations,
         "risk_factors": book.analysis.risk_factors,
         "source_filename": book.analysis.source_filename,
+        "extraction_status": book.analysis.extraction_status,
     }
 
 

@@ -12,7 +12,7 @@ class Binder(Base):
     __tablename__ = "binders"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     tier: Mapped[str | None] = mapped_column(String(20))  # TIER_1, TIER_2, or null
     full_name: Mapped[str | None] = mapped_column(String(200))
     authentication_markers: Mapped[str | None] = mapped_column(Text)

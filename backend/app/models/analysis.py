@@ -30,6 +30,11 @@ class BookAnalysis(Base, TimestampMixin):
     full_markdown: Mapped[str | None] = mapped_column(Text)
     source_filename: Mapped[str | None] = mapped_column(String(500))
 
+    # Extraction status tracking (Stage 2 two-stage extraction)
+    # Values: "success" (Stage 2 worked), "degraded" (fell back to YAML parsing),
+    #         "failed" (extraction error, no structured data), null (legacy/unknown)
+    extraction_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Full-text search (PostgreSQL only, nullable for SQLite tests)
     search_vector: Mapped[str | None] = mapped_column(Text, nullable=True)
 

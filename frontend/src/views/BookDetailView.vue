@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
+import { onMounted, onUnmounted, ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
@@ -33,6 +33,55 @@ const deleteImageError = ref<string | null>(null);
 // Analysis state
 const analysisVisible = ref(false);
 const hasAnalysis = computed(() => booksStore.currentBook?.has_analysis ?? false);
+
+// Analysis polling state
+let analysisPollingInterval: ReturnType<typeof setInterval> | null = null;
+const ANALYSIS_POLL_INTERVAL = 5000; // 5 seconds
+
+function startAnalysisPolling() {
+  if (analysisPollingInterval) return; // Already polling
+
+  analysisPollingInterval = setInterval(async () => {
+    const book = booksStore.currentBook;
+    if (!book) return;
+
+    // Only poll if there's an active job
+    const status = book.analysis_job_status;
+    if (status !== "running" && status !== "pending") {
+      stopAnalysisPolling();
+      return;
+    }
+
+    // Refresh book data
+    await booksStore.fetchBook(book.id);
+
+    // Check if job completed (status becomes null) or failed
+    const newStatus = booksStore.currentBook?.analysis_job_status;
+    if (newStatus !== "running" && newStatus !== "pending") {
+      stopAnalysisPolling();
+    }
+  }, ANALYSIS_POLL_INTERVAL);
+}
+
+function stopAnalysisPolling() {
+  if (analysisPollingInterval) {
+    clearInterval(analysisPollingInterval);
+    analysisPollingInterval = null;
+  }
+}
+
+// Watch for analysis job status changes to start/stop polling
+watch(
+  () => booksStore.currentBook?.analysis_job_status,
+  (newStatus) => {
+    if (newStatus === "running" || newStatus === "pending") {
+      startAnalysisPolling();
+    } else {
+      stopAnalysisPolling();
+    }
+  },
+  { immediate: true }
+);
 
 // Analysis generation state
 const startingAnalysis = ref(false);
@@ -88,6 +137,11 @@ onMounted(async () => {
   } catch {
     images.value = [];
   }
+});
+
+// Cleanup polling on unmount
+onUnmounted(() => {
+  stopAnalysisPolling();
 });
 
 function formatCurrency(value: number | null): string {

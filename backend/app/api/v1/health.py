@@ -473,6 +473,44 @@ MIGRATION_Q0123456CDEF_SQL = [
     "CREATE INDEX IF NOT EXISTS books_provenance_tier_idx ON books (provenance_tier)",
 ]
 
+# Migration SQL for r1234567ghij_add_extraction_status
+MIGRATION_R1234567GHIJ_SQL = [
+    "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS extraction_status VARCHAR(20)",
+]
+
+# Migration SQL for s2345678klmn_expand_binding_type
+MIGRATION_S2345678KLMN_SQL = [
+    "ALTER TABLE books ALTER COLUMN binding_type TYPE VARCHAR(100)",
+]
+
+# Migration SQL for t3456789lmno_expand_binder_name
+MIGRATION_T3456789LMNO_SQL = [
+    "ALTER TABLE binders ALTER COLUMN name TYPE VARCHAR(100)",
+]
+
+# Migration SQL for 6e90a0c87832_add_tiered_recommendation_fields
+MIGRATION_6E90A0C87832_SQL = [
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS recommendation_tier VARCHAR(20)",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS quality_score INTEGER",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS strategic_fit_score INTEGER",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS combined_score INTEGER",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS price_position VARCHAR(20)",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS suggested_offer NUMERIC(10,2)",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS recommendation_reasoning VARCHAR(500)",
+    """ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS strategic_floor_applied
+        BOOLEAN NOT NULL DEFAULT FALSE""",
+    """ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS quality_floor_applied
+        BOOLEAN NOT NULL DEFAULT FALSE""",
+    """ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS scoring_version
+        VARCHAR(20) NOT NULL DEFAULT '2025-01'""",
+    """ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS score_source
+        VARCHAR(20) NOT NULL DEFAULT 'eval_runbook'""",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS last_scored_price NUMERIC(10,2)",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS napoleon_recommendation VARCHAR(20)",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS napoleon_reasoning TEXT",
+    "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS napoleon_analyzed_at TIMESTAMP",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -586,6 +624,10 @@ Migrations run in order:
 14. o7890123wxyz - Add fmv_notes and fmv_confidence to eval_runbooks
 15. p8901234yzab - Add tracking_status and tracking_last_checked fields
 16. q0123456cdef - Add provenance and first edition fields (is_first_edition, has_provenance, provenance_tier)
+17. r1234567ghij - Add extraction_status field to book_analyses
+18. s2345678klmn - Expand binding_type column to varchar(100)
+19. t3456789lmno - Expand binders.name column to varchar(100)
+20. 6e90a0c87832 - Add tiered recommendation fields to eval_runbooks
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -622,9 +664,13 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("o7890123wxyz", MIGRATION_O7890123WXYZ_SQL),
         ("p8901234yzab", MIGRATION_P8901234YZAB_SQL),
         ("q0123456cdef", MIGRATION_Q0123456CDEF_SQL),
+        ("r1234567ghij", MIGRATION_R1234567GHIJ_SQL),
+        ("s2345678klmn", MIGRATION_S2345678KLMN_SQL),
+        ("t3456789lmno", MIGRATION_T3456789LMNO_SQL),
+        ("6e90a0c87832", MIGRATION_6E90A0C87832_SQL),
     ]
 
-    final_version = "q0123456cdef"
+    final_version = "6e90a0c87832"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
