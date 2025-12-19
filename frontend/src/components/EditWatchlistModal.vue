@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
+import { api } from "@/services/api";
 
 const props = defineProps<{
   book: AcquisitionBook;
@@ -14,6 +15,47 @@ const emit = defineEmits<{
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
+
+// Currency conversion state
+type Currency = "USD" | "GBP" | "EUR";
+const selectedCurrency = ref<Currency>("USD");
+const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
+const loadingRates = ref(false);
+
+const currencySymbol = computed(() => {
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return "£";
+    case "EUR":
+      return "€";
+    default:
+      return "$";
+  }
+});
+
+const priceInUsd = computed(() => {
+  if (!form.value.purchase_price) return 0;
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
+    case "EUR":
+      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
+    default:
+      return form.value.purchase_price;
+  }
+});
+
+async function loadExchangeRates() {
+  loadingRates.value = true;
+  try {
+    const res = await api.get("/admin/config");
+    exchangeRates.value = res.data;
+  } catch (e) {
+    console.error("Failed to load exchange rates:", e);
+  } finally {
+    loadingRates.value = false;
+  }
+}
 
 const form = ref({
   value_low: props.book.value_low ?? null,
@@ -40,6 +82,10 @@ watch(
   { immediate: true }
 );
 
+onMounted(() => {
+  loadExchangeRates();
+});
+
 onUnmounted(() => {
   document.body.style.overflow = "";
 });
@@ -49,6 +95,9 @@ async function handleSubmit() {
   errorMessage.value = null;
 
   try {
+    // Convert price to USD before submitting
+    const priceToSubmit = form.value.purchase_price ? priceInUsd.value : undefined;
+
     const payload = {
       value_low: form.value.value_low ?? undefined,
       value_mid: form.value.value_mid ?? undefined,
@@ -56,13 +105,14 @@ async function handleSubmit() {
       source_url: form.value.source_url || undefined,
       volumes: form.value.volumes || 1,
       is_complete: form.value.is_complete,
-      purchase_price: form.value.purchase_price ?? undefined,
+      purchase_price: priceToSubmit,
     };
 
     await acquisitionsStore.updateWatchlistItem(props.book.id, payload);
 
     // If price changed and book has eval runbook, trigger refresh
-    const priceChanged = form.value.purchase_price !== originalPrice;
+    // Compare USD values since originalPrice was in USD
+    const priceChanged = priceToSubmit !== originalPrice;
     if (priceChanged && props.book.has_eval_runbook) {
       // Trigger async eval runbook regeneration - await so job is registered before emit
       try {
@@ -137,19 +187,43 @@ function openSourceUrl() {
             <p class="text-sm text-gray-500">{{ book.author?.name || "Unknown author" }}</p>
           </div>
 
-          <!-- Asking Price -->
+          <!-- Asking Price with Currency Selector -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Asking Price</label>
-            <div class="relative">
-              <span class="absolute left-3 top-2.5 text-gray-500">$</span>
-              <input
-                v-model.number="form.purchase_price"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div class="flex gap-2">
+              <select
+                v-model="selectedCurrency"
+                class="w-24 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="USD">USD $</option>
+                <option value="GBP">GBP £</option>
+                <option value="EUR">EUR €</option>
+              </select>
+              <div class="relative flex-1">
+                <span class="absolute left-3 top-2.5 text-gray-500">{{ currencySymbol }}</span>
+                <input
+                  v-model.number="form.purchase_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div
+              v-if="selectedCurrency !== 'USD' && form.purchase_price"
+              class="mt-1 text-sm text-gray-600"
+            >
+              ≈ ${{ priceInUsd.toFixed(2) }} USD
+              <span class="text-gray-400"
+                >(rate:
+                {{
+                  selectedCurrency === "GBP"
+                    ? exchangeRates.gbp_to_usd_rate
+                    : exchangeRates.eur_to_usd_rate
+                }})</span
+              >
             </div>
             <p class="text-xs text-gray-500 mt-1">
               Changing this will refresh the eval runbook if one exists
