@@ -85,3 +85,8 @@ output "origin_access_type" {
   description = "The type of origin access being used (oai or oac)"
   value       = var.origin_access_type
 }
+
+output "secondary_oac_id" {
+  description = "ID of the secondary Origin Access Control (for images bucket policy)"
+  value       = length(aws_cloudfront_origin_access_control.secondary) > 0 ? aws_cloudfront_origin_access_control.secondary[0].id : null
+}
