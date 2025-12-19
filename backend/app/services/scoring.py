@@ -58,7 +58,8 @@ def calculate_investment_grade(
     - 40-49%: 55
     - 30-39%: 35
     - 20-29%: 20
-    - <20%: 5
+    - 0-19%: 5
+    - Overpriced (negative discount): 0
     - No data: 0
     """
     if purchase_price is None or value_mid is None:
@@ -81,8 +82,11 @@ def calculate_investment_grade(
         return 35
     elif discount_pct >= 20:
         return 20
-    else:
+    elif discount_pct >= 0:
         return 5
+    else:
+        # Overpriced - negative discount (paying more than market value)
+        return 0
 
 
 def calculate_strategic_fit(
