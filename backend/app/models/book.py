@@ -95,17 +95,9 @@ class Book(Base, TimestampMixin):
     tracking_number: Mapped[str | None] = mapped_column(String(100))
     tracking_carrier: Mapped[str | None] = mapped_column(String(50))
     tracking_url: Mapped[str | None] = mapped_column(String(500))
+    tracking_status: Mapped[str | None] = mapped_column(String(100))
+    tracking_last_checked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ship_date: Mapped[date | None] = mapped_column(Date)
-
-    # Shipment tracking
-    tracking_number: Mapped[str | None] = mapped_column(String(100))
-    tracking_carrier: Mapped[str | None] = mapped_column(String(50))
-    tracking_url: Mapped[str | None] = mapped_column(String(500))
-
-    # Shipment tracking
-    tracking_number: Mapped[str | None] = mapped_column(String(100))
-    tracking_carrier: Mapped[str | None] = mapped_column(String(50))
-    tracking_url: Mapped[str | None] = mapped_column(String(500))
 
     # Acquisition scoring (captured at purchase time)
     scoring_snapshot: Mapped[dict | None] = mapped_column(JSON)

@@ -963,6 +963,82 @@ def add_tracking(
     return BookResponse(**book_dict)
 
 
+@router.post("/{book_id}/tracking/refresh", response_model=BookResponse)
+def refresh_tracking(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Refresh tracking status from carrier API.
+
+    Fetches the latest tracking status and updates estimated delivery date
+    if available from the carrier.
+    """
+    from app.services.tracking import fetch_tracking_status
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if book.status != "IN_TRANSIT":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only refresh tracking for IN_TRANSIT books. Current status: {book.status}",
+        )
+
+    if not book.tracking_number or not book.tracking_carrier:
+        raise HTTPException(
+            status_code=400,
+            detail="Book has no tracking number or carrier set",
+        )
+
+    # Fetch tracking status from carrier
+    tracking_info = fetch_tracking_status(book.tracking_number, book.tracking_carrier)
+
+    # Update book with tracking info
+    if tracking_info.status:
+        book.tracking_status = tracking_info.status
+    if tracking_info.estimated_delivery:
+        book.estimated_delivery = tracking_info.estimated_delivery
+    if tracking_info.estimated_delivery_end:
+        book.estimated_delivery_end = tracking_info.estimated_delivery_end
+    if tracking_info.last_checked:
+        book.tracking_last_checked = tracking_info.last_checked
+
+    db.commit()
+    db.refresh(book)
+
+    # Build response with image info (matching get_book pattern)
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
+    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
+
+
 @router.post("/{book_id}/archive-source", response_model=BookResponse)
 async def archive_book_source(
     book_id: int,

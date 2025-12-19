@@ -37,6 +37,8 @@ export interface AcquisitionBook {
   tracking_number?: string | null;
   tracking_carrier?: string | null;
   tracking_url?: string | null;
+  tracking_status?: string | null;
+  tracking_last_checked?: string | null;
   ship_date?: string | null;
 }
 
@@ -220,6 +222,16 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     return response.data;
   }
 
+  async function refreshTracking(bookId: number) {
+    const response = await api.post(`/books/${bookId}/tracking/refresh`);
+    // Update the book in inTransit list
+    const index = inTransit.value.findIndex((b) => b.id === bookId);
+    if (index >= 0) {
+      inTransit.value[index] = response.data;
+    }
+    return response.data;
+  }
+
   async function refreshBook(bookId: number) {
     // Fetch single book and update it in the appropriate list
     const response = await api.get(`/books/${bookId}`);
@@ -270,6 +282,7 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
     updateWatchlistItem,
     archiveSource,
     addTracking,
+    refreshTracking,
     refreshBook,
   };
 });
