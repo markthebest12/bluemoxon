@@ -220,6 +220,19 @@ async function handleGenerateAnalysis(bookId: number) {
   }
 }
 
+async function handleGenerateEvalRunbook(bookId: number) {
+  if (isEvalRunbookRunning(bookId) || startingEvalRunbook.value === bookId) return;
+
+  startingEvalRunbook.value = bookId;
+  try {
+    await booksStore.generateEvalRunbookAsync(bookId);
+  } catch (err) {
+    console.error("Failed to start eval runbook generation:", err);
+  } finally {
+    startingEvalRunbook.value = null;
+  }
+}
+
 // Watch for job completions to refresh the list
 const jobCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
@@ -315,6 +328,7 @@ async function handleRecalculateScore(bookId: number) {
 const archivingBook = ref<number | null>(null);
 const deletingBook = ref<number | null>(null);
 const startingAnalysis = ref<number | null>(null);
+const startingEvalRunbook = ref<number | null>(null);
 const refreshingTracking = ref<number | null>(null);
 
 async function handleRefreshTracking(bookId: number) {
