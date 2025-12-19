@@ -264,7 +264,14 @@ def build_bedrock_messages(
     if book_data.get("binding_type"):
         text_parts.append(f"- Binding Type: {book_data['binding_type']}")
     if book_data.get("binder"):
-        text_parts.append(f"- Binder: {book_data['binder']} (authenticated)")
+        binder_line = f"- Binder: {book_data['binder']}"
+        if book_data.get("binder_tier"):
+            binder_line += f" (Tier: {book_data['binder_tier']})"
+        text_parts.append(binder_line)
+        if book_data.get("binder_authentication_markers"):
+            text_parts.append(
+                f"- Authentication Markers: {book_data['binder_authentication_markers']}"
+            )
     if book_data.get("condition_notes"):
         text_parts.append(f"- Condition Notes: {book_data['condition_notes']}")
     if book_data.get("purchase_price"):

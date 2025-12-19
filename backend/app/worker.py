@@ -125,6 +125,10 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             "volumes": book.volumes,
             "binding_type": book.binding_type,
             "binder": book.binder.name if book.binder else None,
+            "binder_tier": book.binder.tier if book.binder else None,
+            "binder_authentication_markers": book.binder.authentication_markers
+            if book.binder
+            else None,
             "condition_notes": book.condition_notes,
             "purchase_price": float(book.purchase_price) if book.purchase_price else None,
         }
