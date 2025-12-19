@@ -6,6 +6,7 @@ Processes SQS messages to generate book analysis asynchronously.
 import json
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -17,6 +18,7 @@ from app.services.analysis_summary import (
 )
 from app.services.bedrock import (
     build_bedrock_messages,
+    extract_structured_data,
     fetch_book_images_for_bedrock,
     fetch_source_url_content,
     invoke_bedrock,
@@ -150,12 +152,49 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         analysis_text = invoke_bedrock(messages, model=model)
         logger.info(f"Bedrock returned {len(analysis_text)} chars for book {book_id}")
 
+        # Stage 2: Extract structured data with focused prompt
+        logger.info(f"Extracting structured data for book {book_id}")
+        extracted_data = extract_structured_data(analysis_text, model="sonnet")
+        if extracted_data:
+            logger.info(f"Extracted {len(extracted_data)} fields for book {book_id}")
+        else:
+            logger.warning(f"No structured data extracted for book {book_id}")
+
         # Parse markdown to extract structured fields
         parsed = parse_analysis_markdown(analysis_text)
 
-        # Parse YAML summary block to extract book field updates
-        yaml_data = parse_analysis_summary(analysis_text)
-        book_updates = extract_book_updates_from_yaml(yaml_data)
+        # Prefer Stage 2 extraction, fall back to parsing analysis text
+        if extracted_data:
+            # Map extracted fields to book update format
+            book_updates = {}
+            if extracted_data.get("valuation_low"):
+                book_updates["value_low"] = Decimal(str(extracted_data["valuation_low"]))
+            if extracted_data.get("valuation_high"):
+                book_updates["value_high"] = Decimal(str(extracted_data["valuation_high"]))
+            if extracted_data.get("valuation_mid"):
+                book_updates["value_mid"] = Decimal(str(extracted_data["valuation_mid"]))
+            elif "value_low" in book_updates and "value_high" in book_updates:
+                book_updates["value_mid"] = (
+                    book_updates["value_low"] + book_updates["value_high"]
+                ) / 2
+            if extracted_data.get("condition_grade"):
+                book_updates["condition_grade"] = extracted_data["condition_grade"]
+            if extracted_data.get("binding_type"):
+                book_updates["binding_type"] = extracted_data["binding_type"]
+            # Provenance fields
+            if extracted_data.get("has_provenance") is True:
+                book_updates["has_provenance"] = True
+            if extracted_data.get("provenance_tier"):
+                book_updates["provenance_tier"] = extracted_data["provenance_tier"]
+            if extracted_data.get("is_first_edition") is not None:
+                book_updates["is_first_edition"] = extracted_data["is_first_edition"]
+
+            logger.info(f"Using extracted data for book {book_id}: {list(book_updates.keys())}")
+        else:
+            # Fall back to parsing analysis text directly
+            yaml_data = parse_analysis_summary(analysis_text)
+            book_updates = extract_book_updates_from_yaml(yaml_data)
+            logger.info(f"Fell back to YAML parsing for book {book_id}")
 
         # Delete existing analysis if present
         if book.analysis:
@@ -219,6 +258,14 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             # Update edition
             if "edition" in book_updates:
                 book.edition = book_updates["edition"]
+
+            # Update provenance fields (from two-stage extraction)
+            if "has_provenance" in book_updates:
+                book.has_provenance = book_updates["has_provenance"]
+            if "provenance_tier" in book_updates:
+                book.provenance_tier = book_updates["provenance_tier"]
+            if "is_first_edition" in book_updates:
+                book.is_first_edition = book_updates["is_first_edition"]
 
         # Extract binder identification and associate with book
         if parsed.binder_identification:
