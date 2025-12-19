@@ -346,9 +346,27 @@ async function handleArchiveSource(bookId: number) {
   <div class="min-h-screen bg-gray-50 p-6">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
-        <p class="text-gray-600">Track books from watchlist through delivery</p>
+      <div class="mb-6 flex items-start justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
+          <p class="text-gray-600">Track books from watchlist through delivery</p>
+        </div>
+        <div class="flex gap-2">
+          <button
+            data-testid="import-from-ebay"
+            @click="openImportModal"
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            🔗 Import from eBay
+          </button>
+          <button
+            data-testid="add-to-watchlist"
+            @click="openWatchlistModal"
+            class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 flex items-center gap-2"
+          >
+            + Add Manually
+          </button>
+        </div>
       </div>
 
       <!-- Error State -->
@@ -539,24 +557,6 @@ async function handleArchiveSource(bookId: number) {
                 </div>
               </div>
             </div>
-
-            <!-- Add Item Buttons -->
-            <div class="space-y-2">
-              <button
-                data-testid="import-from-ebay"
-                @click="openImportModal"
-                class="block w-full p-3 border-2 border-dashed border-blue-300 rounded-lg text-center text-sm text-blue-600 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50"
-              >
-                🔗 Import from eBay
-              </button>
-              <button
-                data-testid="add-to-watchlist"
-                @click="openWatchlistModal"
-                class="block w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
-              >
-                + Add Manually
-              </button>
-            </div>
           </div>
         </div>
 
@@ -705,6 +705,73 @@ async function handleArchiveSource(bookId: number) {
                   Mark Received
                 </button>
               </div>
+              <!-- Analysis Section -->
+              <div class="mt-2 flex items-center gap-2">
+                <!-- View Analysis link (visible to all when analysis exists) -->
+                <button
+                  v-if="book.has_analysis"
+                  @click="openAnalysisViewer(book.id)"
+                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  title="View analysis"
+                >
+                  📄 View Analysis
+                </button>
+                <!-- Analysis job in progress indicator -->
+                <div
+                  v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
+                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (getJobStatus(book.id)?.status || book.analysis_job_status) === "pending"
+                        ? "Queued..."
+                        : "Analyzing..."
+                    }}
+                  </span>
+                </div>
+                <!-- Analysis job failed indicator -->
+                <div
+                  v-if="getJobStatus(book.id)?.status === 'failed'"
+                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
+                >
+                  ❌ Failed - click to retry
+                </div>
+                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
+                <button
+                  v-if="
+                    !book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  title="Generate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
+                </button>
+                <!-- Regenerate button (admin only, when analysis exists and not running) -->
+                <button
+                  v-if="
+                    book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  title="Regenerate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -719,15 +786,21 @@ async function handleArchiveSource(bookId: number) {
             </h2>
           </div>
           <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
-            <a
+            <div
               v-for="book in received"
               :key="book.id"
-              :href="`/books/${book.id}`"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="block bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-green-300 transition-colors"
+              class="bg-gray-50 rounded-lg p-3 border border-gray-200"
             >
-              <h3 class="font-medium text-gray-900 text-sm truncate">{{ book.title }}</h3>
+              <a
+                :href="`/books/${book.id}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="block hover:text-blue-600"
+              >
+                <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
+                  {{ book.title }}
+                </h3>
+              </a>
               <p class="text-xs text-gray-600 truncate">
                 {{ book.author?.name || "Unknown author" }}
               </p>
@@ -737,12 +810,99 @@ async function handleArchiveSource(bookId: number) {
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
               </div>
+              <!-- eBay Listing Link -->
+              <div v-if="book.source_url" class="mt-1">
+                <a
+                  :href="book.source_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                  title="View eBay listing"
+                >
+                  🛒 View Listing
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              </div>
 
               <!-- Compact Score Card -->
               <div class="mt-2">
                 <ScoreCard :overall-score="book.overall_score" compact />
               </div>
-            </a>
+              <!-- Analysis Section -->
+              <div class="mt-2 flex items-center gap-2">
+                <!-- View Analysis link (visible to all when analysis exists) -->
+                <button
+                  v-if="book.has_analysis"
+                  @click="openAnalysisViewer(book.id)"
+                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  title="View analysis"
+                >
+                  📄 View Analysis
+                </button>
+                <!-- Analysis job in progress indicator -->
+                <div
+                  v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
+                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (getJobStatus(book.id)?.status || book.analysis_job_status) === "pending"
+                        ? "Queued..."
+                        : "Analyzing..."
+                    }}
+                  </span>
+                </div>
+                <!-- Analysis job failed indicator -->
+                <div
+                  v-if="getJobStatus(book.id)?.status === 'failed'"
+                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
+                >
+                  ❌ Failed - click to retry
+                </div>
+                <!-- Generate Analysis button (admin only, when no analysis exists and not running) -->
+                <button
+                  v-if="
+                    !book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  title="Generate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingAnalysis === book.id ? "Starting..." : "Generate Analysis" }}
+                </button>
+                <!-- Regenerate button (admin only, when analysis exists and not running) -->
+                <button
+                  v-if="
+                    book.has_analysis &&
+                    authStore.isAdmin &&
+                    !isAnalysisRunning(book.id) &&
+                    !book.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis(book.id)"
+                  :disabled="startingAnalysis === book.id"
+                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  title="Regenerate analysis"
+                >
+                  <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
