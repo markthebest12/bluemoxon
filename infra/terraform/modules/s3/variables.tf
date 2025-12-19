@@ -63,6 +63,12 @@ variable "enable_website" {
   default     = false
 }
 
+variable "secondary_cloudfront_distribution_arns" {
+  type        = list(string)
+  description = "Additional CloudFront distribution ARNs that need OAC access to this bucket"
+  default     = []
+}
+
 variable "tags" {
   type        = map(string)
   description = "Resource tags"

@@ -70,7 +70,7 @@ resource "aws_s3_bucket_cors_configuration" "this" {
 }
 
 # =============================================================================
-# Bucket Policy for CloudFront OAI (optional)
+# Bucket Policy for CloudFront (OAI + optional secondary OAC access)
 # =============================================================================
 
 resource "aws_s3_bucket_policy" "cloudfront" {
@@ -79,16 +79,34 @@ resource "aws_s3_bucket_policy" "cloudfront" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontAccess"
+    Statement = concat(
+      # Primary CloudFront OAI access
+      var.cloudfront_oai_arn != null ? [
+        {
+          Sid    = "AllowCloudFrontAccess"
+          Effect = "Allow"
+          Principal = {
+            AWS = var.cloudfront_oai_arn
+          }
+          Action   = "s3:GetObject"
+          Resource = "${aws_s3_bucket.this.arn}/*"
+        }
+      ] : [],
+      # Secondary CloudFront distributions via OAC
+      [for idx, dist_arn in var.secondary_cloudfront_distribution_arns : {
+        Sid    = "AllowCloudFrontOACAccess${idx}"
         Effect = "Allow"
         Principal = {
-          AWS = var.cloudfront_oai_arn
+          Service = "cloudfront.amazonaws.com"
         }
         Action   = "s3:GetObject"
         Resource = "${aws_s3_bucket.this.arn}/*"
-      }
-    ]
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = dist_arn
+          }
+        }
+      }]
+    )
   })
 }
