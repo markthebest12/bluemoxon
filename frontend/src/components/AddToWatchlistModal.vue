@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted } from "vue";
+import { ref, computed, onMounted, watch, onUnmounted } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
+import { api } from "@/services/api";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 
 const emit = defineEmits<{
@@ -12,6 +13,38 @@ const emit = defineEmits<{
 const refsStore = useReferencesStore();
 const acquisitionsStore = useAcquisitionsStore();
 
+// Currency support
+type Currency = "USD" | "GBP" | "EUR";
+const selectedCurrency = ref<Currency>("USD");
+const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
+
+const currencySymbol = computed(() => {
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return "£";
+    case "EUR":
+      return "€";
+    default:
+      return "$";
+  }
+});
+
+const priceInUsd = computed(() => {
+  if (!form.value.purchase_price) return null;
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return (
+        Math.round(form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate * 100) / 100
+      );
+    case "EUR":
+      return (
+        Math.round(form.value.purchase_price * exchangeRates.value.eur_to_usd_rate * 100) / 100
+      );
+    default:
+      return form.value.purchase_price;
+  }
+});
+
 const form = ref({
   title: "",
   author_id: null as number | null,
@@ -20,7 +53,7 @@ const form = ref({
   publication_date: "",
   volumes: 1,
   source_url: "",
-  purchase_price: null as number | null, // Asking price
+  purchase_price: null as number | null, // Asking price in selected currency
 });
 
 const submitting = ref(false);
@@ -40,8 +73,18 @@ onUnmounted(() => {
   document.body.style.overflow = "";
 });
 
+async function loadExchangeRates() {
+  try {
+    const res = await api.get("/admin/config");
+    exchangeRates.value = res.data;
+  } catch (e) {
+    console.error("Failed to load exchange rates:", e);
+  }
+}
+
 onMounted(() => {
   refsStore.fetchAll();
+  loadExchangeRates();
 });
 
 function validate(): boolean {
@@ -72,7 +115,7 @@ async function handleSubmit() {
       publication_date: form.value.publication_date || undefined,
       volumes: form.value.volumes || 1,
       source_url: form.value.source_url || undefined,
-      purchase_price: form.value.purchase_price || undefined,
+      purchase_price: priceInUsd.value || undefined, // Always store in USD
     };
 
     await acquisitionsStore.addToWatchlist(payload);
@@ -230,17 +273,33 @@ function openSourceUrl() {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
-              <div class="relative">
-                <span class="absolute left-3 top-2 text-gray-500">$</span>
-                <input
-                  v-model.number="form.purchase_price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Optional"
-                  class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div class="flex gap-2">
+                <select
+                  v-model="selectedCurrency"
+                  class="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="USD">USD $</option>
+                  <option value="GBP">GBP £</option>
+                  <option value="EUR">EUR €</option>
+                </select>
+                <div class="relative flex-1">
+                  <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+                  <input
+                    v-model.number="form.purchase_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Optional"
+                    class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
+              <p
+                v-if="form.purchase_price && selectedCurrency !== 'USD'"
+                class="mt-1 text-xs text-gray-500"
+              >
+                ≈ ${{ priceInUsd?.toFixed(2) }} USD
+              </p>
             </div>
           </div>
 
