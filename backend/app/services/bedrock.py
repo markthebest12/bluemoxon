@@ -300,19 +300,25 @@ def invoke_bedrock(
     messages: list[dict],
     model: str = "sonnet",
     max_tokens: int = 16000,
+    max_retries: int = 3,
+    base_delay: float = 5.0,
 ) -> str:
     """Invoke Bedrock Claude model and return response text.
+
+    Implements exponential backoff retry for throttling errors (tokens per minute limits).
 
     Args:
         messages: Messages array for Claude
         model: Model name ("sonnet" or "opus")
         max_tokens: Maximum tokens in response
+        max_retries: Maximum number of retry attempts (default 3)
+        base_delay: Base delay in seconds for exponential backoff (default 5.0)
 
     Returns:
         Generated text response
 
     Raises:
-        Exception: If Bedrock invocation fails
+        Exception: If Bedrock invocation fails after all retries
     """
     client = get_bedrock_client()
     model_id = get_model_id(model)
@@ -327,20 +333,42 @@ def invoke_bedrock(
         }
     )
 
-    logger.info(f"Invoking Bedrock model {model_id}")
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                # Exponential backoff with jitter: base * 2^attempt + random(0-1)
+                delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                logger.info(f"Bedrock retry attempt {attempt}/{max_retries} after {delay:.1f}s delay")
+                time.sleep(delay)
 
-    response = client.invoke_model(
-        modelId=model_id,
-        body=body,
-        contentType="application/json",
-        accept="application/json",
-    )
+            logger.info(f"Invoking Bedrock model {model_id}")
 
-    response_body = json.loads(response["body"].read())
-    result_text = response_body["content"][0]["text"]
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
 
-    logger.info(f"Bedrock returned {len(result_text)} chars")
-    return result_text
+            response_body = json.loads(response["body"].read())
+            result_text = response_body["content"][0]["text"]
+
+            logger.info(f"Bedrock returned {len(result_text)} chars")
+            return result_text
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException" and attempt < max_retries:
+                logger.warning(f"Bedrock throttled (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                last_error = e
+                continue
+            else:
+                # Non-throttling error or retries exhausted, re-raise
+                raise
+
+    # All retries exhausted (shouldn't reach here, but just in case)
+    raise last_error
 
 
 # ============================================================================

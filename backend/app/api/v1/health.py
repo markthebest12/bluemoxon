@@ -478,6 +478,11 @@ MIGRATION_R1234567GHIJ_SQL = [
     "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS extraction_status VARCHAR(20)",
 ]
 
+# Migration SQL for s2345678klmn_expand_binding_type
+MIGRATION_S2345678KLMN_SQL = [
+    "ALTER TABLE books ALTER COLUMN binding_type TYPE VARCHAR(100)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -629,9 +634,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("p8901234yzab", MIGRATION_P8901234YZAB_SQL),
         ("q0123456cdef", MIGRATION_Q0123456CDEF_SQL),
         ("r1234567ghij", MIGRATION_R1234567GHIJ_SQL),
+        ("s2345678klmn", MIGRATION_S2345678KLMN_SQL),
     ]
 
-    final_version = "r1234567ghij"
+    final_version = "s2345678klmn"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
