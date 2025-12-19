@@ -374,9 +374,10 @@ def load_extraction_prompt() -> str:
 
     current_time = time.time()
 
-    if _extraction_prompt_cache["prompt"] and (
-        current_time - _extraction_prompt_cache["timestamp"]
-    ) < PROMPT_CACHE_TTL:
+    if (
+        _extraction_prompt_cache["prompt"]
+        and (current_time - _extraction_prompt_cache["timestamp"]) < PROMPT_CACHE_TTL
+    ):
         logger.debug("Using cached extraction prompt")
         return _extraction_prompt_cache["prompt"]
 
@@ -417,11 +418,13 @@ def extract_structured_data(analysis_text: str | None, model: str = "sonnet") ->
         # Build simple message with analysis appended
         user_message = f"{extraction_prompt}\n\n{analysis_text}\n```"
 
-        body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,  # JSON output is small
-            "messages": [{"role": "user", "content": user_message}],
-        })
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,  # JSON output is small
+                "messages": [{"role": "user", "content": user_message}],
+            }
+        )
 
         logger.info("Invoking Bedrock for structured data extraction")
 

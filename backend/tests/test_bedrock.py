@@ -197,9 +197,7 @@ class TestExtractStructuredData:
 
     @patch("app.services.bedrock.get_bedrock_client")
     @patch("app.services.bedrock.load_extraction_prompt")
-    def test_extract_structured_data_parses_json(
-        self, mock_load_prompt, mock_get_client
-    ):
+    def test_extract_structured_data_parses_json(self, mock_load_prompt, mock_get_client):
         """Test that extract_structured_data correctly parses JSON response."""
         from app.services.bedrock import extract_structured_data
 
@@ -208,9 +206,7 @@ class TestExtractStructuredData:
 
         # Mock Bedrock response with JSON
         mock_response_json = {
-            "content": [
-                {"text": '{"condition_grade": "VG+", "valuation_low": 450}'}
-            ]
+            "content": [{"text": '{"condition_grade": "VG+", "valuation_low": 450}'}]
         }
         mock_client = MagicMock()
         mock_client.invoke_model.return_value = {
@@ -224,9 +220,7 @@ class TestExtractStructuredData:
 
     @patch("app.services.bedrock.get_bedrock_client")
     @patch("app.services.bedrock.load_extraction_prompt")
-    def test_extract_structured_data_handles_code_blocks(
-        self, mock_load_prompt, mock_get_client
-    ):
+    def test_extract_structured_data_handles_code_blocks(self, mock_load_prompt, mock_get_client):
         """Test that extract_structured_data strips markdown code blocks."""
         from app.services.bedrock import extract_structured_data
 
@@ -234,11 +228,7 @@ class TestExtractStructuredData:
 
         # Response with markdown code block
         mock_response_json = {
-            "content": [
-                {
-                    "text": '```json\n{"condition_grade": "Fine", "valuation_mid": 750}\n```'
-                }
-            ]
+            "content": [{"text": '```json\n{"condition_grade": "Fine", "valuation_mid": 750}\n```'}]
         }
         mock_client = MagicMock()
         mock_client.invoke_model.return_value = {
@@ -262,9 +252,7 @@ class TestExtractStructuredData:
 
     @patch("app.services.bedrock.get_bedrock_client")
     @patch("app.services.bedrock.load_extraction_prompt")
-    def test_extract_structured_data_handles_invalid_json(
-        self, mock_load_prompt, mock_get_client
-    ):
+    def test_extract_structured_data_handles_invalid_json(self, mock_load_prompt, mock_get_client):
         """Test that extract_structured_data handles invalid JSON gracefully."""
         from app.services.bedrock import extract_structured_data
 
