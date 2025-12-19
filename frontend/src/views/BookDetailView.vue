@@ -434,6 +434,49 @@ function getStatusColor(status: string): string {
                 <span v-if="booksStore.currentBook.publisher?.tier" class="text-xs text-moxon-600">
                   ({{ booksStore.currentBook.publisher.tier }})
                 </span>
+                <!-- First Edition Badge -->
+                <span
+                  v-if="booksStore.currentBook.is_first_edition"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                >
+                  1st Edition
+                </span>
+                <!-- Provenance Badges -->
+                <span
+                  v-if="
+                    booksStore.currentBook.has_provenance &&
+                    booksStore.currentBook.provenance_tier === 'Tier 1'
+                  "
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                >
+                  Tier 1 Provenance
+                </span>
+                <span
+                  v-if="
+                    booksStore.currentBook.has_provenance &&
+                    booksStore.currentBook.provenance_tier === 'Tier 2'
+                  "
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800"
+                >
+                  Tier 2 Provenance
+                </span>
+                <span
+                  v-if="
+                    booksStore.currentBook.has_provenance &&
+                    booksStore.currentBook.provenance_tier === 'Tier 3'
+                  "
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800"
+                >
+                  Tier 3 Provenance
+                </span>
+                <span
+                  v-if="
+                    booksStore.currentBook.has_provenance && !booksStore.currentBook.provenance_tier
+                  "
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600"
+                >
+                  Has Provenance
+                </span>
               </dd>
             </div>
             <div>

@@ -340,3 +340,118 @@ def invoke_bedrock(
 
     logger.info(f"Bedrock returned {len(result_text)} chars")
     return result_text
+
+
+# ============================================================================
+# Two-Stage Extraction (Stage 2)
+# ============================================================================
+
+# Extraction prompt configuration
+EXTRACTION_PROMPT_KEY = "prompts/extraction/structured-data.md"
+_extraction_prompt_cache: dict = {"prompt": None, "timestamp": 0}
+
+# Fallback extraction prompt if S3 unavailable
+FALLBACK_EXTRACTION_PROMPT = """Extract structured data from the analysis. Output ONLY valid JSON:
+{
+  "condition_grade": "Fine|VG+|VG|VG-|Good+|Good|Fair|Poor or null",
+  "binder_identified": "name or null",
+  "binder_confidence": "HIGH|MEDIUM|LOW|NONE",
+  "binding_type": "type or null",
+  "valuation_low": number,
+  "valuation_mid": number,
+  "valuation_high": number,
+  "era_period": "Victorian|Romantic|Georgian|Edwardian|Modern or null",
+  "publication_year": number or null,
+  "is_first_edition": true|false|null,
+  "has_provenance": true|false,
+  "provenance_tier": "Tier 1|Tier 2|Tier 3" or null
+}"""
+
+
+def load_extraction_prompt() -> str:
+    """Load extraction prompt from S3 with caching."""
+    global _extraction_prompt_cache
+
+    current_time = time.time()
+
+    if (
+        _extraction_prompt_cache["prompt"]
+        and (current_time - _extraction_prompt_cache["timestamp"]) < PROMPT_CACHE_TTL
+    ):
+        logger.debug("Using cached extraction prompt")
+        return _extraction_prompt_cache["prompt"]
+
+    try:
+        s3 = get_s3_client()
+        response = s3.get_object(Bucket=PROMPTS_BUCKET, Key=EXTRACTION_PROMPT_KEY)
+        prompt = response["Body"].read().decode("utf-8")
+        logger.info(f"Loaded extraction prompt from s3://{PROMPTS_BUCKET}/{EXTRACTION_PROMPT_KEY}")
+        _extraction_prompt_cache = {"prompt": prompt, "timestamp": current_time}
+        return prompt
+
+    except Exception as e:
+        logger.warning(f"Failed to load extraction prompt: {e}")
+        return FALLBACK_EXTRACTION_PROMPT
+
+
+def extract_structured_data(analysis_text: str | None, model: str = "sonnet") -> dict | None:
+    """Extract structured data from analysis using a focused Bedrock call.
+
+    Stage 2 of two-stage approach: takes completed analysis and extracts
+    machine-readable values via a separate, focused prompt.
+
+    Args:
+        analysis_text: The full analysis markdown text
+        model: Model to use (default sonnet for speed)
+
+    Returns:
+        Dict with extracted values, or None if extraction fails
+    """
+    if not analysis_text:
+        return None
+
+    try:
+        client = get_bedrock_client()
+        model_id = get_model_id(model)
+        extraction_prompt = load_extraction_prompt()
+
+        # Build simple message with analysis appended
+        user_message = f"{extraction_prompt}\n\n{analysis_text}\n```"
+
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,  # JSON output is small
+                "messages": [{"role": "user", "content": user_message}],
+            }
+        )
+
+        logger.info("Invoking Bedrock for structured data extraction")
+
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+
+        response_body = json.loads(response["body"].read())
+        result_text = response_body["content"][0]["text"].strip()
+
+        # Parse JSON from response (handle potential markdown code blocks)
+        json_text = result_text
+        if "```json" in json_text:
+            json_text = json_text.split("```json")[1].split("```")[0]
+        elif "```" in json_text:
+            json_text = json_text.split("```")[1].split("```")[0]
+
+        extracted = json.loads(json_text.strip())
+        logger.info(f"Extracted structured data: {list(extracted.keys())}")
+        return extracted
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse extraction JSON: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Extraction failed: {e}")
+        return None

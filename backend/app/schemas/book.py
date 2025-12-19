@@ -35,6 +35,9 @@ class BookBase(BaseModel):
     status: str = "ON_HAND"
     notes: str | None = None
     provenance: str | None = None
+    is_first_edition: bool | None = None
+    has_provenance: bool = False
+    provenance_tier: str | None = None
 
     # Source tracking
     source_url: str | None = None
@@ -98,6 +101,9 @@ class BookUpdate(BaseModel):
     status: str | None = None
     notes: str | None = None
     provenance: str | None = None
+    is_first_edition: bool | None = None
+    has_provenance: bool | None = None
+    provenance_tier: str | None = None
     source_url: str | None = None
     source_item_id: str | None = None
     estimated_delivery: date | None = None
@@ -149,6 +155,7 @@ class BookResponse(BookBase):
     has_eval_runbook: bool = False
     eval_runbook_job_status: str | None = None  # pending, running, or None
     analysis_job_status: str | None = None  # pending, running, or None
+    # Note: is_first_edition, has_provenance, provenance_tier inherited from BookBase
     image_count: int = 0
     primary_image_url: str | None = None
     scoring_snapshot: dict | None = None

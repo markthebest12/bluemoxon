@@ -1,5 +1,6 @@
 """Bedrock service tests."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 
@@ -189,3 +190,81 @@ class TestBedrockInvoke:
 
         assert "# Analysis" in result
         mock_client.invoke_model.assert_called_once()
+
+
+class TestExtractStructuredData:
+    """Tests for two-stage structured data extraction."""
+
+    @patch("app.services.bedrock.get_bedrock_client")
+    @patch("app.services.bedrock.load_extraction_prompt")
+    def test_extract_structured_data_parses_json(self, mock_load_prompt, mock_get_client):
+        """Test that extract_structured_data correctly parses JSON response."""
+        from app.services.bedrock import extract_structured_data
+
+        # Mock extraction prompt
+        mock_load_prompt.return_value = "Extract:"
+
+        # Mock Bedrock response with JSON
+        mock_response_json = {
+            "content": [{"text": '{"condition_grade": "VG+", "valuation_low": 450}'}]
+        }
+        mock_client = MagicMock()
+        mock_client.invoke_model.return_value = {
+            "body": MagicMock(read=lambda: json.dumps(mock_response_json).encode())
+        }
+        mock_get_client.return_value = mock_client
+
+        result = extract_structured_data("Some analysis text")
+
+        assert result == {"condition_grade": "VG+", "valuation_low": 450}
+
+    @patch("app.services.bedrock.get_bedrock_client")
+    @patch("app.services.bedrock.load_extraction_prompt")
+    def test_extract_structured_data_handles_code_blocks(self, mock_load_prompt, mock_get_client):
+        """Test that extract_structured_data strips markdown code blocks."""
+        from app.services.bedrock import extract_structured_data
+
+        mock_load_prompt.return_value = "Extract:"
+
+        # Response with markdown code block
+        mock_response_json = {
+            "content": [{"text": '```json\n{"condition_grade": "Fine", "valuation_mid": 750}\n```'}]
+        }
+        mock_client = MagicMock()
+        mock_client.invoke_model.return_value = {
+            "body": MagicMock(read=lambda: json.dumps(mock_response_json).encode())
+        }
+        mock_get_client.return_value = mock_client
+
+        result = extract_structured_data("Some analysis text")
+
+        assert result == {"condition_grade": "Fine", "valuation_mid": 750}
+
+    def test_extract_structured_data_returns_none_for_empty(self):
+        """Test that extract_structured_data returns None for empty input."""
+        from app.services.bedrock import extract_structured_data
+
+        result = extract_structured_data("")
+        assert result is None
+
+        result = extract_structured_data(None)
+        assert result is None
+
+    @patch("app.services.bedrock.get_bedrock_client")
+    @patch("app.services.bedrock.load_extraction_prompt")
+    def test_extract_structured_data_handles_invalid_json(self, mock_load_prompt, mock_get_client):
+        """Test that extract_structured_data handles invalid JSON gracefully."""
+        from app.services.bedrock import extract_structured_data
+
+        mock_load_prompt.return_value = "Extract:"
+
+        # Invalid JSON in response
+        mock_response_json = {"content": [{"text": "not valid json {"}]}
+        mock_client = MagicMock()
+        mock_client.invoke_model.return_value = {
+            "body": MagicMock(read=lambda: json.dumps(mock_response_json).encode())
+        }
+        mock_get_client.return_value = mock_client
+
+        result = extract_structured_data("Some analysis text")
+        assert result is None
