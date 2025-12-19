@@ -8,6 +8,8 @@ See docs/plans/2025-12-19-tiered-recommendations-design.md for full design.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 # Quality score point values
 QUALITY_TIER_1_PUBLISHER = 25
 QUALITY_TIER_2_PUBLISHER = 10
@@ -153,3 +155,58 @@ def calculate_strategic_fit_score(
 
     # Floor at 0, cap at 100
     return max(0, min(100, score))
+
+
+# Price position thresholds
+PRICE_EXCELLENT_THRESHOLD = Decimal("0.70")  # < 70% of FMV
+PRICE_GOOD_THRESHOLD = Decimal("0.85")  # 70-85% of FMV
+PRICE_FAIR_THRESHOLD = Decimal("1.00")  # 85-100% of FMV
+
+# Combined score weights
+QUALITY_WEIGHT = 0.6
+STRATEGIC_FIT_WEIGHT = 0.4
+
+
+def calculate_price_position(
+    asking_price: Decimal | None,
+    fmv_mid: Decimal | None,
+) -> str | None:
+    """Determine price position relative to FMV.
+
+    Args:
+        asking_price: Current asking price
+        fmv_mid: Midpoint of FMV range
+
+    Returns:
+        EXCELLENT, GOOD, FAIR, POOR, or None if FMV unknown
+    """
+    if fmv_mid is None or asking_price is None or fmv_mid <= 0:
+        return None
+
+    ratio = asking_price / fmv_mid
+
+    if ratio < PRICE_EXCELLENT_THRESHOLD:
+        return "EXCELLENT"
+    elif ratio < PRICE_GOOD_THRESHOLD:
+        return "GOOD"
+    elif ratio <= PRICE_FAIR_THRESHOLD:
+        return "FAIR"
+    else:
+        return "POOR"
+
+
+def calculate_combined_score(
+    quality_score: int,
+    strategic_fit_score: int,
+) -> int:
+    """Calculate combined score with weighted average.
+
+    Args:
+        quality_score: Quality score (0-100)
+        strategic_fit_score: Strategic fit score (0-100)
+
+    Returns:
+        Combined score (0-100)
+    """
+    combined = (quality_score * QUALITY_WEIGHT) + (strategic_fit_score * STRATEGIC_FIT_WEIGHT)
+    return int(round(combined))
