@@ -332,3 +332,87 @@ class TestStrategicFitScore:
             completes_set=False,
         )
         assert score == 0
+
+
+class TestPricePosition:
+    """Tests for price position calculation."""
+
+    def test_excellent_price_under_70_percent(self):
+        """Price < 70% FMV should be EXCELLENT."""
+        from app.services.tiered_scoring import calculate_price_position
+
+        position = calculate_price_position(
+            asking_price=Decimal("60"),
+            fmv_mid=Decimal("100"),
+        )
+        assert position == "EXCELLENT"
+
+    def test_good_price_70_to_85_percent(self):
+        """Price 70-85% FMV should be GOOD."""
+        from app.services.tiered_scoring import calculate_price_position
+
+        position = calculate_price_position(
+            asking_price=Decimal("75"),
+            fmv_mid=Decimal("100"),
+        )
+        assert position == "GOOD"
+
+    def test_fair_price_85_to_100_percent(self):
+        """Price 85-100% FMV should be FAIR."""
+        from app.services.tiered_scoring import calculate_price_position
+
+        position = calculate_price_position(
+            asking_price=Decimal("95"),
+            fmv_mid=Decimal("100"),
+        )
+        assert position == "FAIR"
+
+    def test_poor_price_over_100_percent(self):
+        """Price > 100% FMV should be POOR."""
+        from app.services.tiered_scoring import calculate_price_position
+
+        position = calculate_price_position(
+            asking_price=Decimal("120"),
+            fmv_mid=Decimal("100"),
+        )
+        assert position == "POOR"
+
+    def test_no_fmv_returns_none(self):
+        """Missing FMV should return None."""
+        from app.services.tiered_scoring import calculate_price_position
+
+        position = calculate_price_position(
+            asking_price=Decimal("100"),
+            fmv_mid=None,
+        )
+        assert position is None
+
+
+class TestCombinedScore:
+    """Tests for combined score calculation."""
+
+    def test_combined_score_weights(self):
+        """Combined score should weight quality 60%, strategic fit 40%."""
+        from app.services.tiered_scoring import calculate_combined_score
+
+        combined = calculate_combined_score(
+            quality_score=100,
+            strategic_fit_score=0,
+        )
+        assert combined == 60  # 100 * 0.6 + 0 * 0.4
+
+        combined = calculate_combined_score(
+            quality_score=0,
+            strategic_fit_score=100,
+        )
+        assert combined == 40  # 0 * 0.6 + 100 * 0.4
+
+    def test_combined_score_balanced(self):
+        """Balanced scores should average correctly."""
+        from app.services.tiered_scoring import calculate_combined_score
+
+        combined = calculate_combined_score(
+            quality_score=80,
+            strategic_fit_score=80,
+        )
+        assert combined == 80  # 80 * 0.6 + 80 * 0.4
