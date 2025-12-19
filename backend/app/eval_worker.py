@@ -132,6 +132,25 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
             f"score={runbook.total_score}, recommendation={runbook.recommendation}"
         )
 
+        # Update book fields from eval runbook data (similar to analysis worker)
+        # This ensures the book's value fields reflect the FMV analysis
+        updates_applied = []
+        if runbook.fmv_low is not None:
+            book.value_low = runbook.fmv_low
+            updates_applied.append("value_low")
+        if runbook.fmv_high is not None:
+            book.value_high = runbook.fmv_high
+            updates_applied.append("value_high")
+        if runbook.fmv_low is not None and runbook.fmv_high is not None:
+            book.value_mid = (runbook.fmv_low + runbook.fmv_high) / 2
+            updates_applied.append("value_mid")
+        if runbook.condition_grade:
+            book.condition_grade = runbook.condition_grade
+            updates_applied.append("condition_grade")
+
+        if updates_applied:
+            logger.info(f"Updated book {book_id} fields from eval runbook: {updates_applied}")
+
         # Mark job as completed
         job.status = "completed"
         job.completed_at = datetime.now(UTC)
