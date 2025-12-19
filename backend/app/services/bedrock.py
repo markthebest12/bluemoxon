@@ -339,7 +339,9 @@ def invoke_bedrock(
             if attempt > 0:
                 # Exponential backoff with jitter: base * 2^attempt + random(0-1)
                 delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Bedrock retry attempt {attempt}/{max_retries} after {delay:.1f}s delay")
+                logger.info(
+                    f"Bedrock retry attempt {attempt}/{max_retries} after {delay:.1f}s delay"
+                )
                 time.sleep(delay)
 
             logger.info(f"Invoking Bedrock model {model_id}")
