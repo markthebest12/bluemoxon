@@ -107,9 +107,7 @@ const isValidEbayUrl = computed(() => {
 
     // Standard eBay URLs must have /itm/ pattern
     const isEbayHost =
-      hostname === "ebay.com" ||
-      hostname === "www.ebay.com" ||
-      hostname === "m.ebay.com";
+      hostname === "ebay.com" || hostname === "www.ebay.com" || hostname === "m.ebay.com";
     return isEbayHost && url.pathname.includes("/itm/");
   } catch {
     return false;
