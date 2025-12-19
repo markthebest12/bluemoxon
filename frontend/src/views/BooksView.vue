@@ -28,6 +28,7 @@ const sortOptions = [
 
 // Filter options
 const publisherTiers = ["Tier 1", "Tier 2", "Tier 3"];
+const provenanceTiers = ["Tier 1", "Tier 2", "Tier 3"];
 const bindingTypes = [
   "Full leather",
   "Half leather",
@@ -51,6 +52,8 @@ const activeFilterCount = computed(() => {
   if (f.has_images !== undefined) count++;
   if (f.has_analysis !== undefined) count++;
   if (f.has_provenance !== undefined) count++;
+  if (f.provenance_tier) count++;
+  if (f.is_first_edition !== undefined) count++;
   if (f.status) count++;
   if (f.category) count++;
   if (f.min_value !== undefined || f.max_value !== undefined) count++;
@@ -438,6 +441,30 @@ function closeCarousel() {
           </select>
         </div>
 
+        <!-- Provenance Tier Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Provenance Tier</label>
+          <select v-model="booksStore.filters.provenance_tier" class="input text-sm">
+            <option :value="undefined">Any</option>
+            <option v-for="tier in provenanceTiers" :key="tier" :value="tier">
+              {{ tier }}
+            </option>
+          </select>
+        </div>
+
+        <!-- First Edition Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">First Edition</label>
+          <select v-model="booksStore.filters.is_first_edition" class="input text-sm">
+            <option :value="undefined">Any</option>
+            <option :value="true">First Editions Only</option>
+            <option :value="false">Not First Edition</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Row 3: Year Range and Value Range -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
         <!-- Year Range -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Year Range</label>

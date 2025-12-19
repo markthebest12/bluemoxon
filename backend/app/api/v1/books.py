@@ -249,6 +249,8 @@ def list_books(
     has_images: bool | None = None,
     has_analysis: bool | None = None,
     has_provenance: bool | None = None,
+    provenance_tier: str | None = None,
+    is_first_edition: bool | None = None,
     sort_by: str = "title",
     sort_order: str = "asc",
     db: Session = Depends(get_db),
@@ -320,12 +322,17 @@ def list_books(
         else:
             query = query.filter(~analysis_exists)
 
-    # Filter by has_provenance
+    # Filter by has_provenance (boolean field)
     if has_provenance is not None:
-        if has_provenance:
-            query = query.filter(Book.provenance.isnot(None), Book.provenance != "")
-        else:
-            query = query.filter((Book.provenance.is_(None)) | (Book.provenance == ""))
+        query = query.filter(Book.has_provenance == has_provenance)
+
+    # Filter by provenance_tier
+    if provenance_tier:
+        query = query.filter(Book.provenance_tier == provenance_tier)
+
+    # Filter by is_first_edition
+    if is_first_edition is not None:
+        query = query.filter(Book.is_first_edition == is_first_edition)
 
     # Get total count
     total = query.count()

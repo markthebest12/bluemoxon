@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis
+from app.services.analysis_parser import apply_metadata_to_book, extract_analysis_metadata
 from app.services.analysis_summary import (
     extract_book_updates_from_yaml,
     parse_analysis_summary,
@@ -172,6 +173,15 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             recommendations=parsed.recommendations,
         )
         db.add(analysis)
+
+        # Extract and apply metadata (provenance, first edition)
+        metadata = extract_analysis_metadata(analysis_text)
+        if metadata:
+            updated_fields = apply_metadata_to_book(book, metadata)
+            if updated_fields:
+                logger.info(
+                    f"Applied analysis metadata to book {book_id}: {', '.join(updated_fields)}"
+                )
 
         # Update book fields from YAML summary
         if book_updates:

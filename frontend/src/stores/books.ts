@@ -51,6 +51,9 @@ export interface Book {
   status: string;
   notes: string | null;
   provenance: string | null;
+  is_first_edition: boolean | null;
+  has_provenance: boolean;
+  provenance_tier: string | null;
   has_analysis: boolean;
   has_eval_runbook: boolean;
   analysis_job_status?: "pending" | "running" | null;
@@ -90,6 +93,8 @@ interface Filters {
   has_images?: boolean;
   has_analysis?: boolean;
   has_provenance?: boolean;
+  provenance_tier?: string;
+  is_first_edition?: boolean;
 }
 
 export const useBooksStore = defineStore("books", () => {
