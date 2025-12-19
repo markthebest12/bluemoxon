@@ -643,7 +643,9 @@ function getStatusColor(status: string): string {
                   Generate a Napoleon-style acquisition analysis for this book.
                 </p>
                 <!-- State: No analysis (viewer - no action available) -->
-                <p v-else class="text-sm text-gray-500 mt-1">No analysis available for this book.</p>
+                <p v-else class="text-sm text-gray-500 mt-1">
+                  No analysis available for this book.
+                </p>
               </div>
 
               <!-- Action buttons -->
