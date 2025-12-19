@@ -30,6 +30,7 @@ class AnalysisResponse(AnalysisBase):
     book_id: int
     full_markdown: str | None = None
     source_filename: str | None = None
+    extraction_status: str | None = None  # "success", "degraded", "failed", or null (legacy)
     created_at: datetime
     updated_at: datetime
 

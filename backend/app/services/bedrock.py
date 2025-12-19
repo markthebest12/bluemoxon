@@ -4,6 +4,7 @@ import base64
 import json  # Used in invoke_bedrock() (Task 4)
 import logging
 import os
+import random
 import time
 
 import boto3
@@ -394,15 +395,24 @@ def load_extraction_prompt() -> str:
         return FALLBACK_EXTRACTION_PROMPT
 
 
-def extract_structured_data(analysis_text: str | None, model: str = "sonnet") -> dict | None:
+def extract_structured_data(
+    analysis_text: str | None,
+    model: str = "sonnet",
+    max_retries: int = 3,
+    base_delay: float = 2.0,
+) -> dict | None:
     """Extract structured data from analysis using a focused Bedrock call.
 
     Stage 2 of two-stage approach: takes completed analysis and extracts
     machine-readable values via a separate, focused prompt.
 
+    Implements exponential backoff retry for throttling errors (tokens per minute limits).
+
     Args:
         analysis_text: The full analysis markdown text
         model: Model to use (default sonnet for speed)
+        max_retries: Maximum number of retry attempts (default 3)
+        base_delay: Base delay in seconds for exponential backoff (default 2.0)
 
     Returns:
         Dict with extracted values, or None if extraction fails
@@ -410,48 +420,72 @@ def extract_structured_data(analysis_text: str | None, model: str = "sonnet") ->
     if not analysis_text:
         return None
 
-    try:
-        client = get_bedrock_client()
-        model_id = get_model_id(model)
-        extraction_prompt = load_extraction_prompt()
+    client = get_bedrock_client()
+    model_id = get_model_id(model)
+    extraction_prompt = load_extraction_prompt()
 
-        # Build simple message with analysis appended
-        user_message = f"{extraction_prompt}\n\n{analysis_text}\n```"
+    # Build simple message with analysis appended
+    user_message = f"{extraction_prompt}\n\n{analysis_text}\n```"
 
-        body = json.dumps(
-            {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1000,  # JSON output is small
-                "messages": [{"role": "user", "content": user_message}],
-            }
-        )
+    body = json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1000,  # JSON output is small
+            "messages": [{"role": "user", "content": user_message}],
+        }
+    )
 
-        logger.info("Invoking Bedrock for structured data extraction")
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                # Exponential backoff with jitter: base * 2^attempt + random(0-1)
+                delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                logger.info(f"Retry attempt {attempt}/{max_retries} after {delay:.1f}s delay")
+                time.sleep(delay)
 
-        response = client.invoke_model(
-            modelId=model_id,
-            body=body,
-            contentType="application/json",
-            accept="application/json",
-        )
+            logger.info("Invoking Bedrock for structured data extraction")
 
-        response_body = json.loads(response["body"].read())
-        result_text = response_body["content"][0]["text"].strip()
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
 
-        # Parse JSON from response (handle potential markdown code blocks)
-        json_text = result_text
-        if "```json" in json_text:
-            json_text = json_text.split("```json")[1].split("```")[0]
-        elif "```" in json_text:
-            json_text = json_text.split("```")[1].split("```")[0]
+            response_body = json.loads(response["body"].read())
+            result_text = response_body["content"][0]["text"].strip()
 
-        extracted = json.loads(json_text.strip())
-        logger.info(f"Extracted structured data: {list(extracted.keys())}")
-        return extracted
+            # Parse JSON from response (handle potential markdown code blocks)
+            json_text = result_text
+            if "```json" in json_text:
+                json_text = json_text.split("```json")[1].split("```")[0]
+            elif "```" in json_text:
+                json_text = json_text.split("```")[1].split("```")[0]
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse extraction JSON: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Extraction failed: {e}")
-        return None
+            extracted = json.loads(json_text.strip())
+            logger.info(f"Extracted structured data: {list(extracted.keys())}")
+            return extracted
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException" and attempt < max_retries:
+                logger.warning(f"Bedrock throttled (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                last_error = e
+                continue
+            else:
+                logger.error(f"Bedrock ClientError: {e}")
+                return None
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse extraction JSON: {e}")
+            return None
+
+        except Exception as e:
+            # For unexpected errors, don't retry
+            logger.error(f"Extraction failed: {e}")
+            return None
+
+    # All retries exhausted
+    logger.error(f"Extraction failed after {max_retries + 1} attempts: {last_error}")
+    return None
