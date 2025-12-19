@@ -256,9 +256,7 @@ def determine_recommendation_tier(
         STRONG_BUY, BUY, CONDITIONAL, or PASS
     """
     # Apply floor rules - check if we need to cap at CONDITIONAL
-    floor_triggered = (
-        strategic_fit_score < STRATEGIC_FIT_FLOOR or quality_score < QUALITY_FLOOR
-    )
+    floor_triggered = strategic_fit_score < STRATEGIC_FIT_FLOOR or quality_score < QUALITY_FLOOR
 
     # Treat missing price position as FAIR
     effective_price = price_position if price_position else "FAIR"
@@ -414,7 +412,9 @@ def generate_reasoning(
             offer_text = f" Only acquire at ${suggested_offer} or below." if suggested_offer else ""
             return f"Strategic fit but condition issues limit value.{offer_text}"
         else:
-            offer_text = f" Offer ${suggested_offer} for acceptable margin." if suggested_offer else ""
+            offer_text = (
+                f" Offer ${suggested_offer} for acceptable margin." if suggested_offer else ""
+            )
             return f"Asking price at or above FMV.{offer_text}"
 
     else:  # PASS
