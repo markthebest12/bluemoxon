@@ -34,6 +34,14 @@ const deleteImageError = ref<string | null>(null);
 const analysisVisible = ref(false);
 const hasAnalysis = computed(() => booksStore.currentBook?.has_analysis ?? false);
 
+// Analysis generation state
+const startingAnalysis = ref(false);
+const selectedModel = ref<"sonnet" | "opus">("sonnet");
+const modelOptions = [
+  { value: "sonnet", label: "Sonnet 4.5" },
+  { value: "opus", label: "Opus 4.5" },
+];
+
 // Eval Runbook state
 const evalRunbookVisible = ref(false);
 
@@ -167,6 +175,34 @@ function openAnalysis() {
 
 function closeAnalysis() {
   analysisVisible.value = false;
+}
+
+// Analysis job tracking
+function isAnalysisRunning(): boolean {
+  if (!booksStore.currentBook) return false;
+  return booksStore.hasActiveJob(booksStore.currentBook.id);
+}
+
+function getJobStatus() {
+  if (!booksStore.currentBook) return null;
+  return booksStore.getActiveJob(booksStore.currentBook.id);
+}
+
+async function handleGenerateAnalysis() {
+  const book = booksStore.currentBook;
+  if (!book || isAnalysisRunning() || startingAnalysis.value) return;
+
+  startingAnalysis.value = true;
+  try {
+    await booksStore.generateAnalysisAsync(book.id, selectedModel.value);
+  } catch (e: unknown) {
+    console.error("Failed to start analysis:", e);
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    const message = err.response?.data?.detail || err.message || "Failed to start analysis";
+    alert(message);
+  } finally {
+    startingAnalysis.value = false;
+  }
 }
 
 function openDeleteModal() {
@@ -571,16 +607,111 @@ function getStatusColor(status: string): string {
             </div>
           </div>
 
-          <!-- Analysis Button -->
-          <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
+          <!-- Analysis Card -->
+          <div class="card bg-victorian-cream border-victorian-burgundy/20">
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
-                <p class="text-sm text-gray-600 mt-1">
+                <!-- State: Job running -->
+                <div
+                  v-if="isAnalysisRunning() || booksStore.currentBook?.analysis_job_status"
+                  class="text-sm text-blue-600 mt-1 flex items-center gap-1"
+                >
+                  <span class="animate-spin">&#8987;</span>
+                  <span>
+                    {{
+                      (getJobStatus()?.status || booksStore.currentBook?.analysis_job_status) ===
+                      "pending"
+                        ? "Queued..."
+                        : "Analyzing..."
+                    }}
+                  </span>
+                </div>
+                <!-- State: Job failed -->
+                <p
+                  v-else-if="getJobStatus()?.status === 'failed'"
+                  class="text-sm text-red-600 mt-1"
+                >
+                  Analysis failed. Please try again.
+                </p>
+                <!-- State: Has analysis -->
+                <p v-else-if="hasAnalysis" class="text-sm text-gray-600 mt-1">
                   View the full Napoleon-style acquisition analysis for this book.
                 </p>
+                <!-- State: No analysis (editor/admin can generate) -->
+                <p v-else-if="authStore.isEditor" class="text-sm text-gray-600 mt-1">
+                  Generate a Napoleon-style acquisition analysis for this book.
+                </p>
+                <!-- State: No analysis (viewer - no action available) -->
+                <p v-else class="text-sm text-gray-500 mt-1">No analysis available for this book.</p>
               </div>
-              <button @click="openAnalysis" class="btn-primary">View Analysis</button>
+
+              <!-- Action buttons -->
+              <div class="flex items-center gap-2">
+                <!-- View Analysis button (all users, when analysis exists) -->
+                <button
+                  v-if="
+                    hasAnalysis &&
+                    !isAnalysisRunning() &&
+                    !booksStore.currentBook?.analysis_job_status
+                  "
+                  @click="openAnalysis"
+                  class="btn-primary"
+                >
+                  View Analysis
+                </button>
+
+                <!-- Model selector (editor/admin only, when not running) -->
+                <select
+                  v-if="
+                    authStore.isEditor &&
+                    !isAnalysisRunning() &&
+                    !booksStore.currentBook?.analysis_job_status
+                  "
+                  v-model="selectedModel"
+                  class="text-sm border border-gray-300 rounded px-2 py-1.5"
+                  :disabled="startingAnalysis"
+                >
+                  <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+
+                <!-- Generate button (editor/admin, no analysis exists) -->
+                <button
+                  v-if="
+                    !hasAnalysis &&
+                    authStore.isEditor &&
+                    !isAnalysisRunning() &&
+                    !booksStore.currentBook?.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis"
+                  :disabled="startingAnalysis"
+                  class="btn-primary flex items-center gap-1 disabled:opacity-50"
+                >
+                  <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
+                  <span v-else>&#9889;</span>
+                  {{ startingAnalysis ? "Starting..." : "Generate Analysis" }}
+                </button>
+
+                <!-- Regenerate button (editor/admin, analysis exists) -->
+                <button
+                  v-if="
+                    hasAnalysis &&
+                    authStore.isEditor &&
+                    !isAnalysisRunning() &&
+                    !booksStore.currentBook?.analysis_job_status
+                  "
+                  @click="handleGenerateAnalysis"
+                  :disabled="startingAnalysis"
+                  class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
+                  title="Regenerate analysis with selected model"
+                >
+                  <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
+                  <span v-else>&#128260;</span>
+                  {{ startingAnalysis ? "Starting..." : "Regenerate" }}
+                </button>
+              </div>
             </div>
           </div>
         </div>

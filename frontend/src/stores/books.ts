@@ -53,6 +53,8 @@ export interface Book {
   provenance: string | null;
   has_analysis: boolean;
   has_eval_runbook: boolean;
+  analysis_job_status?: "pending" | "running" | null;
+  eval_runbook_job_status?: "pending" | "running" | null;
   image_count: number;
   primary_image_url: string | null;
   investment_grade: number | null;

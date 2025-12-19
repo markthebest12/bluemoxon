@@ -23,7 +23,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 │ Generate a Napoleon-style acquisition       │
 │ analysis for this book.                     │
 │                                             │
-│ [⚡ Generate Analysis]                      │
+│ Model: [Sonnet 4.5 ▼]  [⚡ Generate Analysis]│
 └─────────────────────────────────────────────┘
 ```
 
@@ -42,7 +42,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 │ View the full Napoleon-style acquisition    │
 │ analysis for this book.                     │
 │                                             │
-│ [View Analysis]  [🔄 Regenerate Analysis]   │
+│ [View Analysis] Model: [▼] [🔄 Regenerate]  │
 └─────────────────────────────────────────────┘
 ```
 
@@ -78,6 +78,12 @@ const { activeAnalysisJobs } = storeToRefs(booksStore);
 **State:**
 ```typescript
 const startingAnalysis = ref(false);
+const selectedModel = ref<"sonnet" | "opus">("sonnet");
+
+const modelOptions = [
+  { value: "sonnet", label: "Sonnet 4.5" },
+  { value: "opus", label: "Opus 4.5" },
+];
 ```
 
 **Functions:**
@@ -98,7 +104,7 @@ async function handleGenerateAnalysis() {
 
   startingAnalysis.value = true;
   try {
-    await booksStore.generateAnalysisAsync(book.id);
+    await booksStore.generateAnalysisAsync(book.id, selectedModel.value);
   } catch (e: any) {
     alert(e.response?.data?.detail || "Failed to start analysis");
   } finally {
