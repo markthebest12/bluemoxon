@@ -303,6 +303,9 @@ export const useBooksStore = defineStore("books", () => {
           if (job.status === "completed" && currentBook.value?.id === bookId) {
             currentBook.value.has_analysis = true;
           }
+
+          // Clear job from tracking to trigger UI update
+          clearJob(bookId);
         }
       } catch (e) {
         console.error(`Failed to poll job status for book ${bookId}:`, e);
@@ -401,6 +404,9 @@ export const useBooksStore = defineStore("books", () => {
           if (job.status === "completed" && currentBook.value?.id === bookId) {
             currentBook.value.has_eval_runbook = true;
           }
+
+          // Clear job from tracking to trigger UI update
+          clearEvalRunbookJob(bookId);
         }
       } catch (e) {
         console.error(`Failed to poll eval runbook job status for book ${bookId}:`, e);
