@@ -40,6 +40,25 @@ class EvalRunbookBase(BaseModel):
     fmv_confidence: str | None = None  # "high", "medium", "low"
     recommended_price: Decimal | None = None
 
+    # Tiered recommendation fields
+    recommendation_tier: str | None = None  # STRONG_BUY, BUY, CONDITIONAL, PASS
+    quality_score: int | None = None  # 0-100
+    strategic_fit_score: int | None = None  # 0-100
+    combined_score: int | None = None  # Weighted average
+    price_position: str | None = None  # EXCELLENT, GOOD, FAIR, POOR
+    suggested_offer: Decimal | None = None  # For CONDITIONAL recommendations
+    recommendation_reasoning: str | None = None  # 1-2 sentence explanation
+    strategic_floor_applied: bool = False
+    quality_floor_applied: bool = False
+    scoring_version: str = "2025-01"
+    score_source: str = "eval_runbook"  # "eval_runbook" or "napoleon"
+    last_scored_price: Decimal | None = None
+
+    # Napoleon Analysis override fields
+    napoleon_recommendation: str | None = None
+    napoleon_reasoning: str | None = None
+    napoleon_analyzed_at: datetime | None = None
+
     # Comparables
     ebay_comparables: list[FMVComparable] | None = None
     abebooks_comparables: list[FMVComparable] | None = None

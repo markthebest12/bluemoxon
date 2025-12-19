@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -43,6 +44,25 @@ class EvalRunbook(Base, TimestampMixin):
     fmv_notes: Mapped[str | None] = mapped_column(Text)
     fmv_confidence: Mapped[str | None] = mapped_column(String(20))
     recommended_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+
+    # Tiered recommendation fields
+    recommendation_tier: Mapped[str | None] = mapped_column(String(20))
+    quality_score: Mapped[int | None] = mapped_column(Integer)
+    strategic_fit_score: Mapped[int | None] = mapped_column(Integer)
+    combined_score: Mapped[int | None] = mapped_column(Integer)
+    price_position: Mapped[str | None] = mapped_column(String(20))
+    suggested_offer: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    recommendation_reasoning: Mapped[str | None] = mapped_column(String(500))
+    strategic_floor_applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    quality_floor_applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    scoring_version: Mapped[str] = mapped_column(String(20), default="2025-01")
+    score_source: Mapped[str] = mapped_column(String(20), default="eval_runbook")
+    last_scored_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+
+    # Napoleon Analysis override fields
+    napoleon_recommendation: Mapped[str | None] = mapped_column(String(20))
+    napoleon_reasoning: Mapped[str | None] = mapped_column(Text)
+    napoleon_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # FMV Comparables
     ebay_comparables: Mapped[list | None] = mapped_column(JSON)
