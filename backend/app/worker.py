@@ -23,6 +23,7 @@ from app.services.bedrock import (
 from app.services.reference import get_or_create_binder
 from app.services.scoring import calculate_and_persist_book_scores
 from app.utils.markdown_parser import parse_analysis_markdown
+from app.version import get_version
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -34,13 +35,28 @@ settings = get_settings()
 def handler(event: dict, context) -> dict:
     """Lambda handler for SQS analysis job messages.
 
+    Also supports version check via {"version": true} payload.
+
     Args:
-        event: SQS event containing batch of messages
+        event: SQS event containing batch of messages, or version check payload
         context: Lambda context
 
     Returns:
-        Dict with batch item failures for partial batch response
+        Dict with batch item failures for partial batch response,
+        or version info if version check requested
     """
+    # Handle version check (for smoke tests)
+    if event.get("version"):
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "version": get_version(),
+                    "worker": "analysis",
+                }
+            ),
+        }
+
     batch_item_failures = []
 
     for record in event.get("Records", []):

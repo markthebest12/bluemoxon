@@ -526,6 +526,11 @@ jobs:
       needs.build-frontend.result == 'success' &&
       (needs.build-scraper.result == 'success' || needs.build-scraper.result == 'skipped')
     environment: ${{ needs.configure.outputs.environment }}
+    outputs:
+      api_lambda_version: ${{ steps.lambda-version.outputs.version }}
+      worker_lambda_version: ${{ steps.worker-version.outputs.version }}
+      eval_worker_lambda_version: ${{ steps.eval-runbook-version.outputs.version }}
+      scraper_lambda_version: ${{ steps.scraper-version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1257,68 +1262,93 @@ jobs:
 
           echo "Scraper Lambda version check passed!"
 
-      - name: Test Analysis Worker Lambda configuration
+      - name: Test Analysis Worker Lambda version
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          echo "Verifying Analysis Worker Lambda configuration..."
+          echo "Testing Analysis Worker Lambda version..."
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
 
-          # Get function configuration
-          CONFIG=$(aws lambda get-function-configuration \
+          # Invoke Lambda with version check payload
+          response=$(aws lambda invoke \
             --function-name "$WORKER_FUNCTION" \
-            --query '{Runtime: Runtime, Handler: Handler, State: State, LastUpdateStatus: LastUpdateStatus}' \
-            --output json)
+            --payload '{"version": true}' \
+            --cli-binary-format raw-in-base64-out \
+            /tmp/worker-response.json \
+            --query 'StatusCode' \
+            --output text)
 
-          echo "Worker Lambda configuration:"
-          echo "$CONFIG" | jq '.'
+          echo "Lambda invoke status: $response"
 
-          # Verify function is active and up to date
-          STATE=$(echo "$CONFIG" | jq -r '.State')
-          UPDATE_STATUS=$(echo "$CONFIG" | jq -r '.LastUpdateStatus')
-
-          if [[ "$STATE" != "Active" ]]; then
-            echo "ERROR: Worker Lambda state is $STATE, expected Active"
+          if [[ "$response" != "200" ]]; then
+            echo "ERROR: Worker Lambda invocation failed with status $response"
             exit 1
           fi
 
-          if [[ "$UPDATE_STATUS" != "Successful" ]]; then
-            echo "ERROR: Worker Lambda last update status is $UPDATE_STATUS, expected Successful"
+          # Parse response body
+          body=$(cat /tmp/worker-response.json)
+          echo "Response body: $body"
+
+          # Extract version from response (body is JSON string containing JSON)
+          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
+          worker_type=$(echo "$body" | jq -r '.body' | jq -r '.worker')
+
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version: $actual_version"
+          echo "Worker type: $worker_type"
+
+          if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: Worker version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $actual_version"
             exit 1
           fi
 
-          echo "Analysis Worker Lambda configuration verified!"
+          echo "Analysis Worker Lambda version check passed!"
 
-      - name: Test Eval Runbook Worker Lambda configuration
+      - name: Test Eval Runbook Worker Lambda version
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
-          echo "Verifying Eval Runbook Worker Lambda configuration..."
+          echo "Testing Eval Runbook Worker Lambda version..."
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
 
-          # Get function configuration
-          CONFIG=$(aws lambda get-function-configuration \
+          # Invoke Lambda with version check payload
+          response=$(aws lambda invoke \
             --function-name "$EVAL_RUNBOOK_FUNCTION" \
-            --query '{Runtime: Runtime, Handler: Handler, State: State, LastUpdateStatus: LastUpdateStatus}' \
-            --output json)
+            --payload '{"version": true}' \
+            --cli-binary-format raw-in-base64-out \
+            /tmp/eval-worker-response.json \
+            --query 'StatusCode' \
+            --output text)
 
-          echo "Eval Runbook Worker Lambda configuration:"
-          echo "$CONFIG" | jq '.'
+          echo "Lambda invoke status: $response"
 
-          # Verify function is active and up to date
-          STATE=$(echo "$CONFIG" | jq -r '.State')
-          UPDATE_STATUS=$(echo "$CONFIG" | jq -r '.LastUpdateStatus')
-
-          if [[ "$STATE" != "Active" ]]; then
-            echo "ERROR: Eval Runbook Worker Lambda state is $STATE, expected Active"
+          if [[ "$response" != "200" ]]; then
+            echo "ERROR: Eval Runbook Worker Lambda invocation failed with status $response"
             exit 1
           fi
 
-          if [[ "$UPDATE_STATUS" != "Successful" ]]; then
-            echo "ERROR: Eval Runbook Worker Lambda last update status is $UPDATE_STATUS, expected Successful"
+          # Parse response body
+          body=$(cat /tmp/eval-worker-response.json)
+          echo "Response body: $body"
+
+          # Extract version from response (body is JSON string containing JSON)
+          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
+          worker_type=$(echo "$body" | jq -r '.body' | jq -r '.worker')
+
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version: $actual_version"
+          echo "Worker type: $worker_type"
+
+          if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
+            echo "ERROR: Eval Runbook Worker version mismatch!"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $actual_version"
             exit 1
           fi
 
-          echo "Eval Runbook Worker Lambda configuration verified!"
+          echo "Eval Runbook Worker Lambda version check passed!"
 
       - name: Deployment summary
         run: |
@@ -1331,11 +1361,17 @@ jobs:
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
 
+          # Lambda published versions from deploy job
+          API_LAMBDA_VER="${{ needs.deploy.outputs.api_lambda_version }}"
+          WORKER_LAMBDA_VER="${{ needs.deploy.outputs.worker_lambda_version }}"
+          EVAL_WORKER_LAMBDA_VER="${{ needs.deploy.outputs.eval_worker_lambda_version }}"
+          SCRAPER_LAMBDA_VER="${{ needs.deploy.outputs.scraper_lambda_version }}"
+
           echo "========================================"
           echo "Deployment to $ENV completed successfully!"
           echo "========================================"
           echo ""
-          echo "Version: $VERSION"
+          echo "App Version: $VERSION"
           if [[ "$DRIFT_STATUS" == "true" ]]; then
             echo "Drift: ⚠️  DETECTED (warn-only)"
           elif [[ "$DRIFT_STATUS" == "error" ]]; then
@@ -1348,16 +1384,16 @@ jobs:
           echo "  App: $APP_URL"
           echo "  API: $API_BASE"
           echo ""
-          echo "Lambdas:"
-          echo "  API: ${{ needs.configure.outputs.lambda_function_name }}"
-          if [[ -n "$WORKER_FUNCTION" ]]; then
-            echo "  Analysis Worker: $WORKER_FUNCTION"
+          echo "Lambda Functions (published versions):"
+          echo "  API: ${{ needs.configure.outputs.lambda_function_name }} (v$API_LAMBDA_VER)"
+          if [[ -n "$WORKER_FUNCTION" && -n "$WORKER_LAMBDA_VER" ]]; then
+            echo "  Analysis Worker: $WORKER_FUNCTION (v$WORKER_LAMBDA_VER)"
           fi
-          if [[ -n "$EVAL_RUNBOOK_FUNCTION" ]]; then
-            echo "  Eval Runbook Worker: $EVAL_RUNBOOK_FUNCTION"
+          if [[ -n "$EVAL_RUNBOOK_FUNCTION" && -n "$EVAL_WORKER_LAMBDA_VER" ]]; then
+            echo "  Eval Runbook Worker: $EVAL_RUNBOOK_FUNCTION (v$EVAL_WORKER_LAMBDA_VER)"
           fi
-          if [[ -n "$SCRAPER_FUNCTION" ]]; then
-            echo "  Scraper: $SCRAPER_FUNCTION"
+          if [[ -n "$SCRAPER_FUNCTION" && -n "$SCRAPER_LAMBDA_VER" ]]; then
+            echo "  Scraper: $SCRAPER_FUNCTION (v$SCRAPER_LAMBDA_VER)"
           fi
           echo ""
           echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
