@@ -117,6 +117,11 @@ class Book(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
     provenance: Mapped[str | None] = mapped_column(Text)
 
+    # Searchable provenance/edition fields (auto-populated by analysis)
+    is_first_edition: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
+    has_provenance: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    provenance_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+
     # Legacy reference (for migration)
     legacy_row: Mapped[int | None] = mapped_column(Integer)
 
