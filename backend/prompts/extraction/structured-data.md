@@ -17,7 +17,8 @@ Extract the following fields from the book analysis below. Output ONLY valid JSO
   "publication_year": 0,
   "is_first_edition": true|false|null,
   "has_provenance": true|false,
-  "provenance_tier": "Tier 1|Tier 2|Tier 3|null"
+  "provenance_tier": "Tier 1|Tier 2|Tier 3|null",
+  "provenance_description": "Brief description of provenance (inscriptions, bookplates, stamps, ownership marks) or null"
 }
 ```
 

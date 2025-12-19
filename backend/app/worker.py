@@ -186,6 +186,8 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                 book_updates["has_provenance"] = True
             if extracted_data.get("provenance_tier"):
                 book_updates["provenance_tier"] = extracted_data["provenance_tier"]
+            if extracted_data.get("provenance_description"):
+                book_updates["provenance"] = extracted_data["provenance_description"]
             if extracted_data.get("is_first_edition") is not None:
                 book_updates["is_first_edition"] = extracted_data["is_first_edition"]
 
