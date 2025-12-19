@@ -107,3 +107,49 @@ def calculate_quality_score(
 
     # Floor at 0, cap at 100
     return max(0, min(100, score))
+
+
+# Strategic fit point values
+STRATEGIC_PUBLISHER_MATCH = 40
+STRATEGIC_NEW_AUTHOR = 30
+STRATEGIC_SECOND_WORK = 15
+STRATEGIC_COMPLETES_SET = 25
+
+
+def calculate_strategic_fit_score(
+    publisher_matches_author_requirement: bool,
+    author_book_count: int,
+    completes_set: bool,
+) -> int:
+    """Calculate strategic fit score (0-100) measuring collection alignment.
+
+    This score measures how well the book fits the collection strategy,
+    independent of intrinsic quality or price.
+
+    Args:
+        publisher_matches_author_requirement: True if publisher matches
+            the required publisher for this author (e.g., Collins → Bentley)
+        author_book_count: Number of books by this author already in collection
+        completes_set: True if this book completes an incomplete set
+
+    Returns:
+        Strategic fit score 0-100
+    """
+    score = 0
+
+    # Publisher matches author requirement (e.g., Collins + Bentley)
+    if publisher_matches_author_requirement:
+        score += STRATEGIC_PUBLISHER_MATCH
+
+    # Author presence bonus
+    if author_book_count == 0:
+        score += STRATEGIC_NEW_AUTHOR
+    elif author_book_count == 1:
+        score += STRATEGIC_SECOND_WORK
+
+    # Set completion bonus
+    if completes_set:
+        score += STRATEGIC_COMPLETES_SET
+
+    # Floor at 0, cap at 100
+    return max(0, min(100, score))
