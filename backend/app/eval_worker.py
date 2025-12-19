@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from app.db import SessionLocal
 from app.models import Book, EvalRunbookJob
 from app.services.eval_generation import generate_eval_runbook
+from app.version import get_version
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -20,13 +21,28 @@ logger.setLevel(logging.INFO)
 def handler(event: dict, context) -> dict:
     """Lambda handler for SQS eval runbook job messages.
 
+    Also supports version check via {"version": true} payload.
+
     Args:
-        event: SQS event containing batch of messages
+        event: SQS event containing batch of messages, or version check payload
         context: Lambda context
 
     Returns:
-        Dict with batch item failures for partial batch response
+        Dict with batch item failures for partial batch response,
+        or version info if version check requested
     """
+    # Handle version check (for smoke tests)
+    if event.get("version"):
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "version": get_version(),
+                    "worker": "eval_runbook",
+                }
+            ),
+        }
+
     batch_item_failures = []
 
     for record in event.get("Records", []):
