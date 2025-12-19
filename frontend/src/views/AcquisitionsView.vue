@@ -472,12 +472,12 @@ async function handleArchiveSource(bookId: number) {
                 </button>
               </div>
               <!-- Analysis Section -->
-              <div class="mt-2 flex items-center gap-2">
+              <div class="mt-2 flex items-center justify-start gap-3">
                 <!-- View Analysis link (visible to all when analysis exists) -->
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -485,7 +485,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator (check both in-memory and API status) -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                  class="text-xs text-blue-600 flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -499,7 +499,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  class="text-xs text-red-600 flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
@@ -514,7 +514,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -540,7 +540,7 @@ async function handleArchiveSource(bookId: number) {
               </div>
 
               <!-- Eval Runbook Section (separate row for clarity) -->
-              <div class="mt-1 flex items-center gap-2">
+              <div class="mt-1 flex items-center justify-start gap-3">
                 <!-- View Eval Runbook link -->
                 <button
                   v-if="
@@ -549,7 +549,7 @@ async function handleArchiveSource(bookId: number) {
                     !book.eval_runbook_job_status
                   "
                   @click="openEvalRunbook(book)"
-                  class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
+                  class="text-xs text-purple-700 hover:text-purple-900 flex items-center gap-1"
                   title="View eval runbook"
                 >
                   📋 Eval Runbook
@@ -557,7 +557,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Eval runbook job in progress indicator (check both in-memory and API status) -->
                 <div
                   v-if="isEvalRunbookRunning(book.id) || book.eval_runbook_job_status"
-                  class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
+                  class="text-xs text-purple-600 flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -569,6 +569,39 @@ async function handleArchiveSource(bookId: number) {
                     }}
                   </span>
                 </div>
+                <!-- Generate Eval Runbook button (admin only, when no runbook exists and not running) -->
+                <button
+                  v-if="
+                    !book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 disabled:opacity-50"
+                  title="Generate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingEvalRunbook === book.id ? "Starting..." : "Generate Runbook" }}
+                </button>
+                <!-- Regenerate Eval Runbook button (admin only, when runbook exists and not running) -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                  title="Regenerate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
               </div>
             </div>
           </div>
@@ -720,12 +753,12 @@ async function handleArchiveSource(bookId: number) {
                 </button>
               </div>
               <!-- Analysis Section -->
-              <div class="mt-2 flex items-center gap-2">
+              <div class="mt-2 flex items-center justify-start gap-3">
                 <!-- View Analysis link (visible to all when analysis exists) -->
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -733,7 +766,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                  class="text-xs text-blue-600 flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -747,7 +780,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  class="text-xs text-red-600 flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
@@ -762,7 +795,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -783,6 +816,71 @@ async function handleArchiveSource(bookId: number) {
                   title="Regenerate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
+              </div>
+
+              <!-- Eval Runbook Section -->
+              <div class="mt-1 flex items-center justify-start gap-3">
+                <!-- View Eval Runbook link -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="openEvalRunbook(book)"
+                  class="text-xs text-purple-700 hover:text-purple-900 flex items-center gap-1"
+                  title="View eval runbook"
+                >
+                  📋 Eval Runbook
+                </button>
+                <!-- Eval runbook job in progress indicator -->
+                <div
+                  v-if="isEvalRunbookRunning(book.id) || book.eval_runbook_job_status"
+                  class="text-xs text-purple-600 flex items-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (getEvalRunbookJobStatus(book.id)?.status || book.eval_runbook_job_status) ===
+                      "pending"
+                        ? "Queued..."
+                        : "Generating runbook..."
+                    }}
+                  </span>
+                </div>
+                <!-- Generate Eval Runbook button (admin only) -->
+                <button
+                  v-if="
+                    !book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 disabled:opacity-50"
+                  title="Generate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingEvalRunbook === book.id ? "Starting..." : "Generate Runbook" }}
+                </button>
+                <!-- Regenerate Eval Runbook button (admin only) -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                  title="Regenerate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
                   <span v-else>🔄</span>
                 </button>
               </div>
@@ -850,12 +948,12 @@ async function handleArchiveSource(bookId: number) {
                 <ScoreCard :overall-score="book.overall_score" compact />
               </div>
               <!-- Analysis Section -->
-              <div class="mt-2 flex items-center gap-2">
+              <div class="mt-2 flex items-center justify-start gap-3">
                 <!-- View Analysis link (visible to all when analysis exists) -->
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
+                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -863,7 +961,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
+                  class="text-xs text-blue-600 flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -877,7 +975,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
+                  class="text-xs text-red-600 flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
@@ -892,7 +990,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
+                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -913,6 +1011,71 @@ async function handleArchiveSource(bookId: number) {
                   title="Regenerate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
+                  <span v-else>🔄</span>
+                </button>
+              </div>
+
+              <!-- Eval Runbook Section -->
+              <div class="mt-1 flex items-center justify-start gap-3">
+                <!-- View Eval Runbook link -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="openEvalRunbook(book)"
+                  class="text-xs text-purple-700 hover:text-purple-900 flex items-center gap-1"
+                  title="View eval runbook"
+                >
+                  📋 Eval Runbook
+                </button>
+                <!-- Eval runbook job in progress indicator -->
+                <div
+                  v-if="isEvalRunbookRunning(book.id) || book.eval_runbook_job_status"
+                  class="text-xs text-purple-600 flex items-center gap-1"
+                >
+                  <span class="animate-spin">⏳</span>
+                  <span>
+                    {{
+                      (getEvalRunbookJobStatus(book.id)?.status || book.eval_runbook_job_status) ===
+                      "pending"
+                        ? "Queued..."
+                        : "Generating runbook..."
+                    }}
+                  </span>
+                </div>
+                <!-- Generate Eval Runbook button (admin only) -->
+                <button
+                  v-if="
+                    !book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 disabled:opacity-50"
+                  title="Generate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
+                  <span v-else>⚡</span>
+                  {{ startingEvalRunbook === book.id ? "Starting..." : "Generate Runbook" }}
+                </button>
+                <!-- Regenerate Eval Runbook button (admin only) -->
+                <button
+                  v-if="
+                    book.has_eval_runbook &&
+                    authStore.isAdmin &&
+                    !isEvalRunbookRunning(book.id) &&
+                    !book.eval_runbook_job_status
+                  "
+                  @click="handleGenerateEvalRunbook(book.id)"
+                  :disabled="startingEvalRunbook === book.id"
+                  class="text-xs text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                  title="Regenerate eval runbook"
+                >
+                  <span v-if="startingEvalRunbook === book.id" class="animate-spin">⏳</span>
                   <span v-else>🔄</span>
                 </button>
               </div>
