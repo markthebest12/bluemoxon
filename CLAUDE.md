@@ -587,6 +587,65 @@ poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 ```
 
+## CRITICAL: NEVER Deploy Frontend Locally
+
+**NEVER build and deploy the frontend locally to S3.** This has caused repeated authentication outages.
+
+### Why This Is Dangerous
+Local builds use whatever `VITE_COGNITO_*` environment variables are set in your shell. These are often:
+- Stale (from a previous session)
+- Wrong environment (pointing to prod when deploying to staging)
+- Missing entirely (causing authentication to fail silently)
+
+### Symptoms of Wrong Cognito Config
+- "Invalid email or password" (user exists but wrong pool)
+- "Invalid code received for user" (MFA token for different pool)
+- Silent authentication failures
+- Users locked out of staging or production
+
+### The Only Safe Way to Deploy Frontend
+**Use the CI/CD pipeline.** It reads Cognito config from Terraform outputs, ensuring it's always correct.
+
+```bash
+# CORRECT: Let CI/CD deploy frontend
+git push origin feature-branch
+gh pr create --base staging
+# Merge PR → CI builds with correct config → Deploys
+
+# WRONG: Building and deploying locally
+npm run build
+aws s3 sync dist/ s3://bluemoxon-frontend-staging  # DON'T DO THIS
+```
+
+### Build-Time Validation
+The `build:validate` script checks Cognito config against `infra/config/{env}.json`:
+```bash
+# This will FAIL if env vars don't match config
+VITE_API_URL=https://staging.api.bluemoxon.com npm run build:validate
+```
+
+### Emergency Local Deploy (LAST RESORT)
+If you absolutely must deploy locally (CI is broken), read config from Terraform:
+```bash
+cd /Users/mark/projects/bluemoxon/infra/terraform
+AWS_PROFILE=bmx-staging terraform output -json | jq '{
+  pool_id: .cognito_user_pool_id.value,
+  client_id: .cognito_client_id.value,
+  domain: .cognito_domain.value
+}'
+
+# Then set ALL vars and use build:validate
+cd /Users/mark/projects/bluemoxon/frontend
+VITE_COGNITO_USER_POOL_ID=<pool_id> \
+VITE_COGNITO_APP_CLIENT_ID=<client_id> \
+VITE_COGNITO_DOMAIN=<domain> \
+VITE_API_URL=https://staging.api.bluemoxon.com \
+npm run build:validate
+
+# Verify the built config before deploying
+grep -r "us-west-2_" dist/  # Should show ONLY the correct pool ID
+```
+
 ## Project Structure
 
 ```

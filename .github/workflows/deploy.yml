@@ -501,7 +501,7 @@ jobs:
           VITE_COGNITO_USER_POOL_ID: ${{ needs.configure.outputs.cognito_user_pool_id }}
           VITE_COGNITO_APP_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
           VITE_COGNITO_DOMAIN: ${{ needs.configure.outputs.cognito_domain }}
-        run: npm run build
+        run: npm run build:validate
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v6
