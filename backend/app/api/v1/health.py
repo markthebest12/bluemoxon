@@ -473,6 +473,11 @@ MIGRATION_Q0123456CDEF_SQL = [
     "CREATE INDEX IF NOT EXISTS books_provenance_tier_idx ON books (provenance_tier)",
 ]
 
+# Migration SQL for r1234567ghij_add_extraction_status
+MIGRATION_R1234567GHIJ_SQL = [
+    "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS extraction_status VARCHAR(20)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -586,6 +591,7 @@ Migrations run in order:
 14. o7890123wxyz - Add fmv_notes and fmv_confidence to eval_runbooks
 15. p8901234yzab - Add tracking_status and tracking_last_checked fields
 16. q0123456cdef - Add provenance and first edition fields (is_first_edition, has_provenance, provenance_tier)
+17. r1234567ghij - Add extraction_status field to book_analyses
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -622,9 +628,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("o7890123wxyz", MIGRATION_O7890123WXYZ_SQL),
         ("p8901234yzab", MIGRATION_P8901234YZAB_SQL),
         ("q0123456cdef", MIGRATION_Q0123456CDEF_SQL),
+        ("r1234567ghij", MIGRATION_R1234567GHIJ_SQL),
     ]
 
-    final_version = "q0123456cdef"
+    final_version = "r1234567ghij"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
