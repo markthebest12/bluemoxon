@@ -135,7 +135,8 @@ trigger_analyses() {
 display_metrics() {
     clear
     echo -e "${BOLD}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}║         BlueMoxon Capacity Monitor - ${ENV^^}                  ║${NC}"
+    ENV_UPPER=$(echo "$ENV" | tr '[:lower:]' '[:upper:]')
+    echo -e "${BOLD}║         BlueMoxon Capacity Monitor - ${ENV_UPPER}                  ║${NC}"
     echo -e "${BOLD}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}Last updated: $(date '+%H:%M:%S')  |  Refresh: ${INTERVAL}s  |  Ctrl+C to exit${NC}"
