@@ -528,3 +528,77 @@ This volume was bound by Sangorski & Sutcliffe in their distinctive style.
         assert result.market_analysis is not None
         # structured_data should be None for v1 format
         assert result.structured_data is None
+
+    def test_napoleon_v2_detailed_headers(self):
+        """Test parsing Napoleon v2 format with 'Detailed' and 'Comprehensive' headers.
+
+        The Napoleon v2 prompt generates headers like:
+        - '## 2. Detailed Condition Assessment' (not just 'Condition Assessment')
+        - '## 3. Comprehensive Market Analysis' (not just 'Market Analysis')
+        """
+        markdown = """## 1. Executive Summary
+
+A comprehensive analysis of a Victorian book.
+
+---
+
+## 2. Detailed Condition Assessment
+
+**Type:** Half Morocco
+**Grade:** Good+
+**Notes:** Moderate wear, structurally sound
+
+### Spine Examination
+The spine shows gilt lettering in good condition.
+
+---
+
+## 3. Comprehensive Market Analysis
+
+### Recent Comparable Sales
+
+| Estimate | Value |
+|----------|-------|
+| Low | $250 |
+| Mid | $375 |
+| High | $550 |
+
+---
+
+## 5. Binding/Publisher Historical Context
+
+### Publisher History
+D. Appleton and Company was founded in 1831.
+
+---
+
+## 12. Conclusions and Recommendations
+
+### Strategic Summary
+This set represents a solid mid-range collectible.
+"""
+        result = parse_analysis_markdown(markdown)
+
+        # Should parse executive summary
+        assert result.executive_summary is not None
+        assert "comprehensive analysis" in result.executive_summary.lower()
+
+        # Should parse "Detailed Condition Assessment"
+        assert result.condition_assessment is not None
+        assert result.condition_assessment["binding_type"] == "Half Morocco"
+        assert result.condition_assessment["condition_grade"] == "Good+"
+        assert "Spine Examination" in result.condition_assessment["raw_text"]
+
+        # Should parse "Comprehensive Market Analysis"
+        assert result.market_analysis is not None
+        assert result.market_analysis["valuation"]["low"] == 250
+        assert result.market_analysis["valuation"]["mid"] == 375
+        assert result.market_analysis["valuation"]["high"] == 550
+
+        # Should parse historical context
+        assert result.historical_significance is not None
+        assert "Appleton" in result.historical_significance
+
+        # Should parse "Conclusions and Recommendations"
+        assert result.recommendations is not None
+        assert "mid-range collectible" in result.recommendations

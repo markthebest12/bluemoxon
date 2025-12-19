@@ -24,6 +24,7 @@ _OPT_PREFIX = r"(?:[^\w\s]*\s*)?(?:\d+\.\s*)?(?:[IVX]+\.?\s*)?"
 
 # Section header patterns to database field mappings
 # Supports both # and ## header levels for flexibility
+# Note: Order matters - more specific patterns should come first
 SECTION_MAPPINGS = {
     # Executive Summary variations
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Executive\s+Summary\s*$": "executive_summary",
@@ -33,17 +34,24 @@ SECTION_MAPPINGS = {
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Summary\s*$": "executive_summary",
     # Historical Significance
     rf"^#{{1,2}}\s*{_OPT_PREFIX}HISTORICAL\s*[&]\s*CULTURAL\s+SIGNIFICANCE\s*$": "historical_significance",
-    rf"^#{{1,2}}\s*{_OPT_PREFIX}Historical\s+Significance\s*$": "historical_significance",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Historical\s+(?:Context|Significance)\s*$": "historical_significance",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Binding[/]?Publisher\s+Historical\s+Context\s*$": "historical_significance",
     # Condition Assessment / Physical Description / Binding
+    # Napoleon v2 format uses "Detailed Condition Assessment"
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Detailed\s+Condition\s+Assessment\s*$": "condition_assessment",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}PHYSICAL\s+DESCRIPTION\s*$": "condition_assessment",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}BINDING\s*[&]\s*CONDITION\s*$": "condition_assessment",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Condition\s+Assessment\s*$": "condition_assessment",
     # Market Analysis / Valuation
+    # Napoleon v2 format uses "Comprehensive Market Analysis"
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Comprehensive\s+Market\s+Analysis\s*$": "market_analysis",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}MARKET\s+ANALYSIS\s*$": "market_analysis",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}COMPARATIVE\s+MARKET\s+ANALYSIS\s*$": "market_analysis",
-    rf"^#{{1,2}}\s*{_OPT_PREFIX}Market\s+Analysis\s*$": "market_analysis",
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Market\s+(?:Analysis|Positioning)\s*$": "market_analysis",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Valuation\s*$": "market_analysis",
     # Recommendations / Collection Integration
+    # Napoleon v2 format may use "Conclusions and Recommendations"
+    rf"^#{{1,2}}\s*{_OPT_PREFIX}Conclusions?\s+and\s+Recommendations?\s*$": "recommendations",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}RECOMMENDATIONS?\s*$": "recommendations",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Recommendations?\s*$": "recommendations",
     rf"^#{{1,2}}\s*{_OPT_PREFIX}Collection\s+Integration\s*$": "recommendations",
