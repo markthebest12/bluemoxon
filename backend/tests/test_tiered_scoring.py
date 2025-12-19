@@ -250,3 +250,85 @@ class TestQualityScore:
             is_duplicate=True,  # -30
         )
         assert score == 0
+
+
+class TestStrategicFitScore:
+    """Tests for strategic fit score calculation (0-100)."""
+
+    def test_publisher_matches_author_requirement_adds_40(self):
+        """Right publisher for author should add 40 points."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=True,
+            author_book_count=5,
+            completes_set=False,
+        )
+        assert score == 40
+
+    def test_new_author_adds_30(self):
+        """New author to collection should add 30 points."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=False,
+            author_book_count=0,
+            completes_set=False,
+        )
+        assert score == 30
+
+    def test_second_author_work_adds_15(self):
+        """Second work by author should add 15 points."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=False,
+            author_book_count=1,
+            completes_set=False,
+        )
+        assert score == 15
+
+    def test_completes_set_adds_25(self):
+        """Completing a set should add 25 points."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=False,
+            author_book_count=5,
+            completes_set=True,
+        )
+        assert score == 25
+
+    def test_combined_strategic_factors(self):
+        """All strategic factors should combine."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=True,  # +40
+            author_book_count=0,  # +30
+            completes_set=True,  # +25
+        )
+        assert score == 95  # 40 + 30 + 25
+
+    def test_strategic_fit_caps_at_100(self):
+        """Strategic fit should cap at 100."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        # Even with maximum factors, cap at 100
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=True,  # +40
+            author_book_count=0,  # +30
+            completes_set=True,  # +25
+        )
+        assert score <= 100
+
+    def test_strategic_fit_floors_at_zero(self):
+        """Strategic fit should not go below 0."""
+        from app.services.tiered_scoring import calculate_strategic_fit_score
+
+        score = calculate_strategic_fit_score(
+            publisher_matches_author_requirement=False,
+            author_book_count=10,  # No bonus
+            completes_set=False,
+        )
+        assert score == 0
