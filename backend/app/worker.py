@@ -49,10 +49,12 @@ def handler(event: dict, context) -> dict:
     if event.get("version"):
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "version": get_version(),
-                "worker": "analysis",
-            }),
+            "body": json.dumps(
+                {
+                    "version": get_version(),
+                    "worker": "analysis",
+                }
+            ),
         }
 
     batch_item_failures = []
