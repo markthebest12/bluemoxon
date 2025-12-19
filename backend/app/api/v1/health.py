@@ -463,6 +463,16 @@ MIGRATION_P8901234YZAB_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_last_checked TIMESTAMP WITH TIME ZONE",
 ]
 
+# Migration SQL for q0123456cdef_add_provenance_first_edition
+MIGRATION_Q0123456CDEF_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS is_first_edition BOOLEAN",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS has_provenance BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS provenance_tier VARCHAR(20)",
+    "CREATE INDEX IF NOT EXISTS books_is_first_edition_idx ON books (is_first_edition)",
+    "CREATE INDEX IF NOT EXISTS books_has_provenance_idx ON books (has_provenance)",
+    "CREATE INDEX IF NOT EXISTS books_provenance_tier_idx ON books (provenance_tier)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -575,6 +585,7 @@ Migrations run in order:
 13. n6789012uvwx - Add eval_runbook_jobs table for async eval runbook generation
 14. o7890123wxyz - Add fmv_notes and fmv_confidence to eval_runbooks
 15. p8901234yzab - Add tracking_status and tracking_last_checked fields
+16. q0123456cdef - Add provenance and first edition fields (is_first_edition, has_provenance, provenance_tier)
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -610,9 +621,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("n6789012uvwx", MIGRATION_N6789012UVWX_SQL),
         ("o7890123wxyz", MIGRATION_O7890123WXYZ_SQL),
         ("p8901234yzab", MIGRATION_P8901234YZAB_SQL),
+        ("q0123456cdef", MIGRATION_Q0123456CDEF_SQL),
     ]
 
-    final_version = "p8901234yzab"
+    final_version = "q0123456cdef"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
