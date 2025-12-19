@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
+import { api } from "@/services/api";
 
 const props = defineProps<{
   bookId?: number;
@@ -11,6 +12,55 @@ const props = defineProps<{
 const router = useRouter();
 const booksStore = useBooksStore();
 const refsStore = useReferencesStore();
+
+// Currency conversion for acquisition fields
+type Currency = "USD" | "GBP" | "EUR";
+const selectedCurrency = ref<Currency>("USD");
+const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
+
+const currencySymbol = computed(() => {
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return "£";
+    case "EUR":
+      return "€";
+    default:
+      return "$";
+  }
+});
+
+const purchasePriceInUsd = computed(() => {
+  if (!form.value.purchase_price) return 0;
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
+    case "EUR":
+      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
+    default:
+      return form.value.purchase_price;
+  }
+});
+
+const acquisitionCostInUsd = computed(() => {
+  if (!form.value.acquisition_cost) return 0;
+  switch (selectedCurrency.value) {
+    case "GBP":
+      return form.value.acquisition_cost * exchangeRates.value.gbp_to_usd_rate;
+    case "EUR":
+      return form.value.acquisition_cost * exchangeRates.value.eur_to_usd_rate;
+    default:
+      return form.value.acquisition_cost;
+  }
+});
+
+async function loadExchangeRates() {
+  try {
+    const res = await api.get("/admin/config");
+    exchangeRates.value = res.data;
+  } catch (e) {
+    console.error("Failed to load exchange rates:", e);
+  }
+}
 
 const isEditing = computed(() => !!props.bookId);
 
@@ -73,8 +123,8 @@ const categories = [
 const statuses = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
 
 onMounted(async () => {
-  // Fetch reference data for dropdowns
-  await refsStore.fetchAll();
+  // Fetch reference data for dropdowns and exchange rates
+  await Promise.all([refsStore.fetchAll(), loadExchangeRates()]);
 
   // If editing, load the book data
   if (props.bookId) {
@@ -136,8 +186,9 @@ function prepareFormData() {
   if (form.value.value_low !== null) data.value_low = form.value.value_low;
   if (form.value.value_mid !== null) data.value_mid = form.value.value_mid;
   if (form.value.value_high !== null) data.value_high = form.value.value_high;
-  if (form.value.purchase_price !== null) data.purchase_price = form.value.purchase_price;
-  if (form.value.acquisition_cost !== null) data.acquisition_cost = form.value.acquisition_cost;
+  // Convert acquisition prices to USD before saving
+  if (form.value.purchase_price !== null) data.purchase_price = purchasePriceInUsd.value;
+  if (form.value.acquisition_cost !== null) data.acquisition_cost = acquisitionCostInUsd.value;
   if (form.value.purchase_date) data.purchase_date = form.value.purchase_date;
   if (form.value.purchase_source) data.purchase_source = form.value.purchase_source;
   if (form.value.notes) data.notes = form.value.notes;
@@ -411,30 +462,65 @@ function cancel() {
 
     <!-- Acquisition -->
     <div class="card">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">Acquisition</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800">Acquisition</h2>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600">Currency:</label>
+          <select
+            v-model="selectedCurrency"
+            class="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="USD">USD $</option>
+            <option value="GBP">GBP £</option>
+            <option value="EUR">EUR €</option>
+          </select>
+        </div>
+      </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Price ($)</label>
-          <input
-            v-model.number="form.purchase_price"
-            type="number"
-            step="0.01"
-            min="0"
-            class="input w-full"
-          />
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Purchase Price ({{ currencySymbol }})</label
+          >
+          <div class="relative">
+            <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+            <input
+              v-model.number="form.purchase_price"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input w-full pl-7"
+            />
+          </div>
           <p class="text-xs text-gray-500 mt-1">Listing price only</p>
+          <p
+            v-if="selectedCurrency !== 'USD' && form.purchase_price"
+            class="text-xs text-blue-600 mt-1"
+          >
+            ≈ ${{ purchasePriceInUsd.toFixed(2) }} USD
+          </p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Acquisition Cost ($)</label>
-          <input
-            v-model.number="form.acquisition_cost"
-            type="number"
-            step="0.01"
-            min="0"
-            class="input w-full"
-          />
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Acquisition Cost ({{ currencySymbol }})</label
+          >
+          <div class="relative">
+            <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+            <input
+              v-model.number="form.acquisition_cost"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input w-full pl-7"
+            />
+          </div>
           <p class="text-xs text-gray-500 mt-1">Total incl. shipping & tax</p>
+          <p
+            v-if="selectedCurrency !== 'USD' && form.acquisition_cost"
+            class="text-xs text-blue-600 mt-1"
+          >
+            ≈ ${{ acquisitionCostInUsd.toFixed(2) }} USD
+          </p>
         </div>
 
         <div>
