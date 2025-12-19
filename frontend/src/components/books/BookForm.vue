@@ -89,6 +89,9 @@ const form = ref({
   status: "ON_HAND",
   notes: "",
   provenance: "",
+  is_first_edition: null as boolean | null,
+  has_provenance: false,
+  provenance_tier: null as string | null,
 });
 
 const saving = ref(false);
@@ -160,6 +163,9 @@ function populateForm(book: Book) {
     status: book.status || "ON_HAND",
     notes: book.notes || "",
     provenance: (book as any).provenance || "",
+    is_first_edition: book.is_first_edition ?? null,
+    has_provenance: book.has_provenance ?? false,
+    provenance_tier: book.provenance_tier ?? null,
   };
 }
 
@@ -193,6 +199,10 @@ function prepareFormData() {
   if (form.value.purchase_source) data.purchase_source = form.value.purchase_source;
   if (form.value.notes) data.notes = form.value.notes;
   if (form.value.provenance) data.provenance = form.value.provenance;
+  // Always include these fields (even if null/false, they're explicit metadata)
+  data.is_first_edition = form.value.is_first_edition;
+  data.has_provenance = form.value.has_provenance;
+  data.provenance_tier = form.value.provenance_tier;
 
   return data;
 }
@@ -562,6 +572,35 @@ function cancel() {
             class="input w-full"
             placeholder="Ownership history, bookplates, inscriptions..."
           />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Edition</label>
+            <select v-model="form.is_first_edition" class="input w-full">
+              <option :value="null">Unknown</option>
+              <option :value="true">Yes</option>
+              <option :value="false">No</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Has Provenance</label>
+            <select v-model="form.has_provenance" class="input w-full">
+              <option :value="false">No</option>
+              <option :value="true">Yes</option>
+            </select>
+          </div>
+
+          <div v-if="form.has_provenance">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Provenance Tier</label>
+            <select v-model="form.provenance_tier" class="input w-full">
+              <option :value="null">Not Classified</option>
+              <option value="Tier 1">Tier 1</option>
+              <option value="Tier 2">Tier 2</option>
+              <option value="Tier 3">Tier 3</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
