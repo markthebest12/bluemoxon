@@ -2,8 +2,6 @@
 
 from decimal import Decimal
 
-import pytest
-
 
 class TestQualityScore:
     """Tests for quality score calculation (0-100)."""
