@@ -620,7 +620,10 @@ async function handleArchiveSource(bookId: number) {
                 <ScoreCard :overall-score="book.overall_score" compact />
               </div>
 
-              <div v-if="book.estimated_delivery" class="mt-1 text-xs text-gray-500 flex items-center gap-2">
+              <div
+                v-if="book.estimated_delivery"
+                class="mt-1 text-xs text-gray-500 flex items-center gap-2"
+              >
                 <span>
                   Est. Delivery:
                   {{ formatDateRange(book.estimated_delivery, book.estimated_delivery_end) }}
