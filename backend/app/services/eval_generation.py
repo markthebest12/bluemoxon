@@ -226,6 +226,8 @@ def _analyze_images_with_claude(
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     # Load images for Bedrock
@@ -240,6 +242,8 @@ def _analyze_images_with_claude(
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     # Build the analysis prompt
@@ -344,6 +348,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     except json.JSONDecodeError as e:
@@ -355,6 +361,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
     except Exception as e:
         logger.error(f"Claude Vision analysis failed: {e}")
@@ -365,6 +373,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
 
