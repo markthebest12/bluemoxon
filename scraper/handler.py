@@ -375,6 +375,11 @@ def handler(event, context):
                                 logger.info(f"Skipping small image ({len(body)} bytes): {img_url}")
                                 continue
 
+                            # Skip likely seller banners (wide images at end of carousel)
+                            if is_likely_banner(body, idx, len(image_urls)):
+                                logger.info(f"Skipping suspected seller banner: {img_url}")
+                                continue
+
                             # Determine file extension from content type
                             ext = "jpg"
                             if "webp" in content_type:
