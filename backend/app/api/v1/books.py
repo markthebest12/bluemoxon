@@ -584,6 +584,14 @@ def update_book(
     if "binder_id" in update_data:
         book.binding_authenticated = book.binder_id is not None
 
+    # Auto-set has_provenance when provenance text is set/cleared
+    # Only auto-derive if has_provenance wasn't explicitly set in this update
+    if "provenance" in update_data and "has_provenance" not in update_data:
+        book.has_provenance = bool(book.provenance and book.provenance.strip())
+        # Clear tier if provenance is now empty
+        if not book.has_provenance:
+            book.provenance_tier = None
+
     db.commit()
     db.refresh(book)
 
@@ -1337,10 +1345,15 @@ def update_book_analysis(
     Automatically parses markdown to extract structured fields.
     If valuation data is found, updates book's FMV and recalculates scores.
     If binder is identified, associates binder with book.
+    If metadata block is present, extracts provenance and first edition info.
     """
     from decimal import Decimal
 
     from app.models import BookAnalysis
+    from app.services.analysis_parser import (
+        apply_metadata_to_book,
+        extract_analysis_metadata,
+    )
     from app.services.reference import get_or_create_binder
     from app.utils.markdown_parser import parse_analysis_markdown
 
@@ -1350,6 +1363,12 @@ def update_book_analysis(
 
     # Parse markdown to extract structured fields
     parsed = parse_analysis_markdown(full_markdown)
+
+    # Extract and apply metadata (provenance, first edition) from metadata block
+    metadata_updated = []
+    metadata = extract_analysis_metadata(full_markdown)
+    if metadata:
+        metadata_updated = apply_metadata_to_book(book, metadata)
 
     # Extract binder identification and associate with book
     binder_updated = False
@@ -1407,6 +1426,7 @@ def update_book_analysis(
         "message": "Analysis updated",
         "values_updated": values_changed,
         "binder_updated": binder_updated,
+        "metadata_updated": metadata_updated,
         "scores_recalculated": True,
     }
 
