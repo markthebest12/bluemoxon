@@ -259,6 +259,17 @@ Examine all images carefully and provide a detailed condition assessment. Look f
 - Completeness (plates, maps, bookplates)
 - Notable features (gilt edges, marbled endpapers, raised bands)
 
+IMAGE RELEVANCE: For each image, determine if it shows the actual book being sold.
+Mark as UNRELATED any images that are:
+- Seller store logos or banners
+- "Visit My Store" promotional images
+- Completely different books (different titles, authors, or editions)
+- Generic stock photos not of this specific item
+- Seller contact/shipping information graphics
+
+Return the 0-based index of each unrelated image in the unrelated_images array.
+If ALL images show the book being sold, return an empty array.
+
 Provide your analysis as JSON:
 {{
     "condition_grade": "Fine|Very Good|Good|Fair|Poor",
@@ -281,7 +292,12 @@ Provide your analysis as JSON:
         "binder_signature": "Name if visible, or null",
         "illustrations": "Description if present"
     }},
-    "binding_analysis": "Detailed paragraph about the binding quality and attribution"
+    "binding_analysis": "Detailed paragraph about the binding quality and attribution",
+    "unrelated_images": [17, 18, 19],
+    "unrelated_reasons": {{
+        "17": "Brief reason why image 17 is unrelated",
+        "18": "Brief reason why image 18 is unrelated"
+    }}
 }}
 
 Return ONLY valid JSON, no other text."""
