@@ -45,6 +45,43 @@ def extract_item_id(url: str) -> str:
     return str(uuid.uuid4())[:8]
 
 
+def is_likely_banner(image_data: bytes, position: int, total_images: int) -> bool:
+    """Detect if image is likely a seller banner based on aspect ratio and position.
+
+    Seller banners (e.g., "Visit My Store!") typically:
+    - Appear at the end of the image carousel
+    - Have wide aspect ratios (banner-shaped, not book-shaped)
+
+    Args:
+        image_data: Raw image bytes
+        position: Zero-based index in the image list
+        total_images: Total number of images in the listing
+
+    Returns:
+        True if image should be filtered out as a likely banner
+    """
+    # Only check images in the last N positions
+    if position < total_images - BANNER_POSITION_WINDOW:
+        return False
+
+    try:
+        img = Image.open(io.BytesIO(image_data))
+        width, height = img.size
+        if height <= 0:
+            return False
+        aspect_ratio = width / height
+        is_banner = aspect_ratio > BANNER_ASPECT_RATIO_THRESHOLD
+        if is_banner:
+            logger.info(
+                f"Detected likely banner: position {position}/{total_images}, "
+                f"aspect ratio {aspect_ratio:.2f} (threshold: {BANNER_ASPECT_RATIO_THRESHOLD})"
+            )
+        return is_banner
+    except Exception as e:
+        logger.warning(f"Could not check banner status: {e}")
+        return False  # Fail open - include image if can't read dimensions
+
+
 # JavaScript to extract listings from eBay search results page
 EXTRACT_LISTINGS_JS = """
 () => {
