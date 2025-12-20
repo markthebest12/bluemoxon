@@ -436,8 +436,7 @@ def generate_eval_runbook(
                 db=db,
             )
             logger.info(
-                f"Cleaned up {cleanup_result['deleted_count']} unrelated images "
-                f"from book {book.id}"
+                f"Cleaned up {cleanup_result['deleted_count']} unrelated images from book {book.id}"
             )
 
     # Initialize FMV data

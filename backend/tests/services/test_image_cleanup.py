@@ -146,8 +146,7 @@ class TestDeleteUnrelatedImages:
         # Create mock S3 client that raises exception
         mock_s3 = MagicMock()
         mock_s3.delete_object.side_effect = ClientError(
-            {"Error": {"Code": "NoSuchKey", "Message": "Key not found"}},
-            "DeleteObject"
+            {"Error": {"Code": "NoSuchKey", "Message": "Key not found"}}, "DeleteObject"
         )
         mock_boto_client.return_value = mock_s3
 
@@ -294,10 +293,7 @@ class TestDeleteUnrelatedImages:
 
         # Verify remaining images have sequential display_order
         remaining = (
-            db.query(BookImage)
-            .filter_by(book_id=book.id)
-            .order_by(BookImage.display_order)
-            .all()
+            db.query(BookImage).filter_by(book_id=book.id).order_by(BookImage.display_order).all()
         )
         assert len(remaining) == 3
         assert remaining[0].display_order == 0
