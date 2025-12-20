@@ -367,7 +367,9 @@ def handler(event, context):
             # Upload images first, then HTML (so status endpoint knows upload is complete)
             s3_keys = []
             if fetch_images and bucket_name:
-                for idx, img_url in enumerate(image_urls[:MAX_IMAGES]):
+                images_to_process = image_urls[:MAX_IMAGES]
+                total_images = len(images_to_process)
+                for idx, img_url in enumerate(images_to_process):
                     try:
                         response = page.request.get(img_url)
                         if response.ok:
@@ -380,7 +382,7 @@ def handler(event, context):
                                 continue
 
                             # Skip likely seller banners (wide images at end of carousel)
-                            if is_likely_banner(body, idx, len(image_urls)):
+                            if is_likely_banner(body, idx, total_images):
                                 logger.info(f"Skipping suspected seller banner: {img_url}")
                                 continue
 
