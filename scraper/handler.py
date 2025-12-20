@@ -1,5 +1,6 @@
 """Playwright-based scraper Lambda for eBay listings."""
 
+import io
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import uuid
 from pathlib import Path
 
 import boto3
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger()
@@ -25,6 +27,11 @@ MIN_IMAGE_SIZE = 10000  # 10KB
 
 # Max listings to extract for FMV search
 MAX_LISTINGS = 20
+
+# Banner detection thresholds
+# Images in the last N positions with wide aspect ratio are likely seller banners
+BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
+BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
 
 
 def extract_item_id(url: str) -> str:
