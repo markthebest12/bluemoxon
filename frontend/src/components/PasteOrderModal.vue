@@ -114,9 +114,9 @@ function handleClose() {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="handleClose"
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <h2 class="text-lg font-semibold text-gray-900">
             {{ extractedData ? "Extracted Order Details" : "Paste Order Details" }}
           </h2>
@@ -137,7 +137,7 @@ function handleClose() {
         </div>
 
         <!-- Input State -->
-        <div v-if="!extractedData" class="p-4 space-y-4">
+        <div v-if="!extractedData" class="p-4 space-y-4 overflow-y-auto flex-1">
           <p class="text-sm text-gray-600">Paste your eBay order confirmation email text below.</p>
           <textarea
             v-model="pastedText"
@@ -164,7 +164,7 @@ function handleClose() {
         </div>
 
         <!-- Results State -->
-        <div v-else class="p-4 space-y-4">
+        <div v-else class="p-4 space-y-4 overflow-y-auto flex-1">
           <div
             v-if="extractedData.used_llm"
             class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block"
