@@ -22,6 +22,7 @@ from app.services.bedrock import (
     get_model_id,
 )
 from app.services.fmv_lookup import lookup_fmv
+from app.services.image_cleanup import delete_unrelated_images
 from app.services.tiered_scoring import (
     QUALITY_FLOOR,
     STRATEGIC_FIT_FLOOR,
@@ -424,6 +425,20 @@ def generate_eval_runbook(
             book_title=book.title,
             listing_description=listing_data.get("description"),
         )
+
+        # Delete any unrelated images identified by AI
+        unrelated_indices = ai_analysis.get("unrelated_images", [])
+        if unrelated_indices:
+            cleanup_result = delete_unrelated_images(
+                book_id=book.id,
+                unrelated_indices=unrelated_indices,
+                unrelated_reasons=ai_analysis.get("unrelated_reasons", {}),
+                db=db,
+            )
+            logger.info(
+                f"Cleaned up {cleanup_result['deleted_count']} unrelated images "
+                f"from book {book.id}"
+            )
 
     # Initialize FMV data
     fmv_data = {
