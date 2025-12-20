@@ -60,6 +60,10 @@ def is_likely_banner(image_data: bytes, position: int, total_images: int) -> boo
     Returns:
         True if image should be filtered out as a likely banner
     """
+    # Never filter single-image listings (nothing would remain)
+    if total_images <= 1:
+        return False
+
     # Only check images in the last N positions
     if position < total_images - BANNER_POSITION_WINDOW:
         return False
