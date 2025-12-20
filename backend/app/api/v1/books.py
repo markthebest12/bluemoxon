@@ -1766,9 +1766,7 @@ def re_extract_all_degraded(
 
     # Find all degraded analyses
     degraded_analyses = (
-        db.query(BookAnalysis)
-        .filter(BookAnalysis.extraction_status == "degraded")
-        .all()
+        db.query(BookAnalysis).filter(BookAnalysis.extraction_status == "degraded").all()
     )
 
     if not degraded_analyses:
@@ -1787,11 +1785,13 @@ def re_extract_all_degraded(
     for analysis in degraded_analyses:
         book = analysis.book
         if not book or not analysis.full_markdown:
-            results.append({
-                "book_id": analysis.book_id,
-                "status": "skipped",
-                "reason": "No book or analysis text",
-            })
+            results.append(
+                {
+                    "book_id": analysis.book_id,
+                    "status": "skipped",
+                    "reason": "No book or analysis text",
+                }
+            )
             continue
 
         # Run Stage 2 extraction
@@ -1799,12 +1799,14 @@ def re_extract_all_degraded(
 
         if not extracted_data:
             failed += 1
-            results.append({
-                "book_id": analysis.book_id,
-                "title": book.title[:50] if book.title else None,
-                "status": "failed",
-                "reason": "Extraction returned no data (likely throttled)",
-            })
+            results.append(
+                {
+                    "book_id": analysis.book_id,
+                    "title": book.title[:50] if book.title else None,
+                    "status": "failed",
+                    "reason": "Extraction returned no data (likely throttled)",
+                }
+            )
             continue
 
         # Map extracted fields to book
@@ -1848,12 +1850,14 @@ def re_extract_all_degraded(
         _calculate_and_persist_scores(book, db)
 
         succeeded += 1
-        results.append({
-            "book_id": analysis.book_id,
-            "title": book.title[:50] if book.title else None,
-            "status": "success",
-            "fields_updated": fields_updated,
-        })
+        results.append(
+            {
+                "book_id": analysis.book_id,
+                "title": book.title[:50] if book.title else None,
+                "status": "success",
+                "fields_updated": fields_updated,
+            }
+        )
 
         # Commit after each successful extraction to save progress
         db.commit()
