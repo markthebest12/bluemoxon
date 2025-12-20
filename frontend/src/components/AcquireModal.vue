@@ -158,9 +158,9 @@ function handlePasteApply(data: any) {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="handleClose"
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <div>
             <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
             <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
@@ -200,7 +200,7 @@ function handlePasteApply(data: any) {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4">
+        <form @submit.prevent="handleSubmit" class="p-4 space-y-4 overflow-y-auto flex-1">
           <!-- Error Message -->
           <div
             v-if="errorMessage"
