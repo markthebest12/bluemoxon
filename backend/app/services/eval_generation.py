@@ -480,9 +480,7 @@ def generate_eval_runbook(
     author_book_count = 0
     if book.author_id:
         author_book_count = (
-            db.query(Book)
-            .filter(Book.author_id == book.author_id, Book.id != book.id)
-            .count()
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
         )
 
     # Check for duplicates
@@ -491,9 +489,7 @@ def generate_eval_runbook(
         from app.services.scoring import is_duplicate_title
 
         other_books = (
-            db.query(Book)
-            .filter(Book.author_id == book.author_id, Book.id != book.id)
-            .all()
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
         )
         for other in other_books:
             if is_duplicate_title(book.title, other.title):
@@ -520,7 +516,9 @@ def generate_eval_runbook(
     )
 
     # Calculate combined score and price position
-    tiered_combined_score = calculate_combined_score(tiered_quality_score, tiered_strategic_fit_score)
+    tiered_combined_score = calculate_combined_score(
+        tiered_quality_score, tiered_strategic_fit_score
+    )
     fmv_mid = None
     if fmv_low and fmv_high:
         fmv_mid = (Decimal(str(fmv_low)) + Decimal(str(fmv_high))) / 2
