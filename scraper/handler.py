@@ -1,5 +1,6 @@
 """Playwright-based scraper Lambda for eBay listings."""
 
+import io
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import uuid
 from pathlib import Path
 
 import boto3
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger()
@@ -26,6 +28,11 @@ MIN_IMAGE_SIZE = 10000  # 10KB
 # Max listings to extract for FMV search
 MAX_LISTINGS = 20
 
+# Banner detection thresholds
+# Images in the last N positions with wide aspect ratio are likely seller banners
+BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
+BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
+
 
 def extract_item_id(url: str) -> str:
     """Extract eBay item ID from URL."""
@@ -36,6 +43,47 @@ def extract_item_id(url: str) -> str:
     if match:
         return match.group(1)
     return str(uuid.uuid4())[:8]
+
+
+def is_likely_banner(image_data: bytes, position: int, total_images: int) -> bool:
+    """Detect if image is likely a seller banner based on aspect ratio and position.
+
+    Seller banners (e.g., "Visit My Store!") typically:
+    - Appear at the end of the image carousel
+    - Have wide aspect ratios (banner-shaped, not book-shaped)
+
+    Args:
+        image_data: Raw image bytes
+        position: Zero-based index in the image list
+        total_images: Total number of images in the listing
+
+    Returns:
+        True if image should be filtered out as a likely banner
+    """
+    # Never filter single-image listings (nothing would remain)
+    if total_images <= 1:
+        return False
+
+    # Only check images in the last N positions
+    if position < total_images - BANNER_POSITION_WINDOW:
+        return False
+
+    try:
+        img = Image.open(io.BytesIO(image_data))
+        width, height = img.size
+        if height <= 0:
+            return False
+        aspect_ratio = width / height
+        is_banner = aspect_ratio > BANNER_ASPECT_RATIO_THRESHOLD
+        if is_banner:
+            logger.info(
+                f"Detected likely banner: position {position}/{total_images}, "
+                f"aspect ratio {aspect_ratio:.2f} (threshold: {BANNER_ASPECT_RATIO_THRESHOLD})"
+            )
+        return is_banner
+    except Exception as e:
+        logger.warning(f"Could not check banner status: {e}")
+        return False  # Fail open - include image if can't read dimensions
 
 
 # JavaScript to extract listings from eBay search results page
@@ -319,7 +367,9 @@ def handler(event, context):
             # Upload images first, then HTML (so status endpoint knows upload is complete)
             s3_keys = []
             if fetch_images and bucket_name:
-                for idx, img_url in enumerate(image_urls[:MAX_IMAGES]):
+                images_to_process = image_urls[:MAX_IMAGES]
+                total_images = len(images_to_process)
+                for idx, img_url in enumerate(images_to_process):
                     try:
                         response = page.request.get(img_url)
                         if response.ok:
@@ -329,6 +379,11 @@ def handler(event, context):
                             # Skip small images (likely icons/thumbnails)
                             if len(body) < MIN_IMAGE_SIZE:
                                 logger.info(f"Skipping small image ({len(body)} bytes): {img_url}")
+                                continue
+
+                            # Skip likely seller banners (wide images at end of carousel)
+                            if is_likely_banner(body, idx, total_images):
+                                logger.info(f"Skipping suspected seller banner: {img_url}")
                                 continue
 
                             # Determine file extension from content type

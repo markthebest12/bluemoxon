@@ -22,6 +22,7 @@ from app.services.bedrock import (
     get_model_id,
 )
 from app.services.fmv_lookup import lookup_fmv
+from app.services.image_cleanup import delete_unrelated_images
 from app.services.tiered_scoring import (
     QUALITY_FLOOR,
     STRATEGIC_FIT_FLOOR,
@@ -226,6 +227,8 @@ def _analyze_images_with_claude(
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     # Load images for Bedrock
@@ -240,6 +243,8 @@ def _analyze_images_with_claude(
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     # Build the analysis prompt
@@ -258,6 +263,17 @@ Examine all images carefully and provide a detailed condition assessment. Look f
 - Any repairs or restoration
 - Completeness (plates, maps, bookplates)
 - Notable features (gilt edges, marbled endpapers, raised bands)
+
+IMAGE RELEVANCE: For each image, determine if it shows the actual book being sold.
+Mark as UNRELATED any images that are:
+- Seller store logos or banners
+- "Visit My Store" promotional images
+- Completely different books (different titles, authors, or editions)
+- Generic stock photos not of this specific item
+- Seller contact/shipping information graphics
+
+Return the 0-based index of each unrelated image in the unrelated_images array.
+If ALL images show the book being sold, return an empty array.
 
 Provide your analysis as JSON:
 {{
@@ -281,7 +297,12 @@ Provide your analysis as JSON:
         "binder_signature": "Name if visible, or null",
         "illustrations": "Description if present"
     }},
-    "binding_analysis": "Detailed paragraph about the binding quality and attribution"
+    "binding_analysis": "Detailed paragraph about the binding quality and attribution",
+    "unrelated_images": [17, 18, 19],
+    "unrelated_reasons": {{
+        "17": "Brief reason why image 17 is unrelated",
+        "18": "Brief reason why image 18 is unrelated"
+    }}
 }}
 
 Return ONLY valid JSON, no other text."""
@@ -328,6 +349,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
     except json.JSONDecodeError as e:
@@ -339,6 +362,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
     except Exception as e:
         logger.error(f"Claude Vision analysis failed: {e}")
@@ -349,6 +374,8 @@ Return ONLY valid JSON, no other text."""
             "critical_issues": [],
             "item_identification": {},
             "binding_analysis": None,
+            "unrelated_images": [],
+            "unrelated_reasons": {},
         }
 
 
@@ -398,6 +425,19 @@ def generate_eval_runbook(
             book_title=book.title,
             listing_description=listing_data.get("description"),
         )
+
+        # Delete any unrelated images identified by AI
+        unrelated_indices = ai_analysis.get("unrelated_images", [])
+        if unrelated_indices:
+            cleanup_result = delete_unrelated_images(
+                book_id=book.id,
+                unrelated_indices=unrelated_indices,
+                unrelated_reasons=ai_analysis.get("unrelated_reasons", {}),
+                db=db,
+            )
+            logger.info(
+                f"Cleaned up {cleanup_result['deleted_count']} unrelated images from book {book.id}"
+            )
 
     # Initialize FMV data
     fmv_data = {
