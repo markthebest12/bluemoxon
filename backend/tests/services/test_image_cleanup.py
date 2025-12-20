@@ -23,7 +23,12 @@ class TestDeleteUnrelatedImages:
 
     @patch("app.services.image_cleanup.boto3.client")
     def test_deletes_images_from_s3_and_db(self, mock_boto_client, db):
-        """Should delete images from both S3 and database."""
+        """Should delete images from both S3 and database.
+
+        Database stores s3_key WITHOUT 'books/' prefix (e.g., '123/image_00.jpg')
+        but S3 stores files WITH prefix (e.g., 'books/123/image_00.jpg').
+        The cleanup function must add the prefix when calling S3.
+        """
         # Create mock S3 client
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
@@ -33,11 +38,11 @@ class TestDeleteUnrelatedImages:
         db.add(book)
         db.commit()
 
-        # Add test images to book
+        # Add test images - s3_key in DB does NOT have 'books/' prefix
         for i in range(5):
             img = BookImage(
                 book_id=book.id,
-                s3_key=f"books/{book.id}/image_{i:02d}.jpg",
+                s3_key=f"{book.id}/image_{i:02d}.jpg",  # Real DB format: no prefix
                 display_order=i,
             )
             db.add(img)
@@ -53,12 +58,19 @@ class TestDeleteUnrelatedImages:
 
         assert result["deleted_count"] == 2
         assert len(result["deleted_keys"]) == 2
+        # Result should contain FULL S3 paths (with books/ prefix)
         assert f"books/{book.id}/image_03.jpg" in result["deleted_keys"]
         assert f"books/{book.id}/image_04.jpg" in result["deleted_keys"]
         assert result["errors"] == []
 
-        # Verify S3 delete was called
-        assert mock_s3.delete_object.call_count == 2
+        # Verify S3 delete was called with CORRECT paths (with books/ prefix)
+        # Should delete both image and thumbnail for each
+        assert mock_s3.delete_object.call_count == 4  # 2 images + 2 thumbnails
+        call_args = [call[1]["Key"] for call in mock_s3.delete_object.call_args_list]
+        assert f"books/{book.id}/image_03.jpg" in call_args
+        assert f"books/thumb_{book.id}/image_03.jpg" in call_args
+        assert f"books/{book.id}/image_04.jpg" in call_args
+        assert f"books/thumb_{book.id}/image_04.jpg" in call_args
 
         # Verify database state - should have 3 remaining images
         remaining = db.query(BookImage).filter_by(book_id=book.id).all()
@@ -82,10 +94,10 @@ class TestDeleteUnrelatedImages:
         db.add(book)
         db.commit()
 
-        # Add one test image
+        # Add one test image - s3_key in DB does NOT have 'books/' prefix
         img = BookImage(
             book_id=book.id,
-            s3_key=f"books/{book.id}/image_00.jpg",
+            s3_key=f"{book.id}/image_00.jpg",  # Real DB format: no prefix
             display_order=0,
         )
         db.add(img)
@@ -157,7 +169,7 @@ class TestDeleteUnrelatedImages:
 
         img = BookImage(
             book_id=book.id,
-            s3_key=f"books/{book.id}/image_00.jpg",
+            s3_key=f"{book.id}/image_00.jpg",  # Real DB format: no prefix
             display_order=0,
         )
         db.add(img)
@@ -177,7 +189,7 @@ class TestDeleteUnrelatedImages:
         assert len(result["errors"]) == 1
         assert "Failed to delete S3 object" in result["errors"][0]
 
-        # Verify S3 delete was attempted
+        # Verify S3 delete was attempted (image only, not thumbnail, since image failed)
         assert mock_s3.delete_object.call_count == 1
 
         # Verify image still exists in database (not deleted because S3 failed)
@@ -199,7 +211,7 @@ class TestDeleteUnrelatedImages:
         for i in range(3):
             img = BookImage(
                 book_id=book.id,
-                s3_key=f"books/{book.id}/image_{i:02d}.jpg",
+                s3_key=f"{book.id}/image_{i:02d}.jpg",  # Real DB format: no prefix
                 display_order=i,
             )
             db.add(img)
@@ -220,8 +232,8 @@ class TestDeleteUnrelatedImages:
         assert len(result["errors"]) == 1
         assert "Invalid index 99" in result["errors"][0]
 
-        # Verify S3 delete was called once (for valid index)
-        assert mock_s3.delete_object.call_count == 1
+        # Verify S3 delete was called twice (image + thumbnail for valid index)
+        assert mock_s3.delete_object.call_count == 2
 
         # Verify 2 images remain
         remaining = db.query(BookImage).filter_by(book_id=book.id).all()
@@ -241,7 +253,7 @@ class TestDeleteUnrelatedImages:
 
         img = BookImage(
             book_id=book.id,
-            s3_key=f"books/{book.id}/image_00.jpg",
+            s3_key=f"{book.id}/image_00.jpg",  # Real DB format: no prefix
             display_order=0,
         )
         db.add(img)
@@ -274,7 +286,7 @@ class TestDeleteUnrelatedImages:
         for i in range(5):
             img = BookImage(
                 book_id=book.id,
-                s3_key=f"books/{book.id}/image_{i:02d}.jpg",
+                s3_key=f"{book.id}/image_{i:02d}.jpg",  # Real DB format: no prefix
                 display_order=i,
             )
             db.add(img)
@@ -301,6 +313,7 @@ class TestDeleteUnrelatedImages:
         assert remaining[2].display_order == 2
 
         # Verify the correct images remain (original indices 0, 2, 4)
-        assert remaining[0].s3_key == f"books/{book.id}/image_00.jpg"
-        assert remaining[1].s3_key == f"books/{book.id}/image_02.jpg"
-        assert remaining[2].s3_key == f"books/{book.id}/image_04.jpg"
+        # DB s3_key does NOT have 'books/' prefix
+        assert remaining[0].s3_key == f"{book.id}/image_00.jpg"
+        assert remaining[1].s3_key == f"{book.id}/image_02.jpg"
+        assert remaining[2].s3_key == f"{book.id}/image_04.jpg"

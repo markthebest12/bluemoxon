@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+# S3 prefix for book images (duplicated from images.py to avoid circular import)
+S3_IMAGES_PREFIX = "books/"
+
+
+def get_thumbnail_key(s3_key: str) -> str:
+    """Get the S3 key for a thumbnail from the original image key.
+
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    """
+    return f"thumb_{s3_key}"
+
 
 def delete_unrelated_images(
     book_id: int,
@@ -74,14 +85,28 @@ def delete_unrelated_images(
 
         logger.info(f"Deleting image {image.id} (index {idx}) from book {book_id}: {reason}")
 
-        # Delete from S3
+        # Delete from S3 (both image and thumbnail)
         if image.s3_key:
+            # Database stores s3_key without prefix (e.g., "515/image_00.webp")
+            # S3 stores with prefix (e.g., "books/515/image_00.webp")
+            full_s3_key = f"{S3_IMAGES_PREFIX}{image.s3_key}"
+            thumbnail_key = f"{S3_IMAGES_PREFIX}{get_thumbnail_key(image.s3_key)}"
+
             try:
-                s3.delete_object(Bucket=bucket, Key=image.s3_key)
-                deleted_keys.append(image.s3_key)
-                logger.info(f"Deleted S3 object: {image.s3_key}")
+                # Delete the main image
+                s3.delete_object(Bucket=bucket, Key=full_s3_key)
+                logger.info(f"Deleted S3 object: {full_s3_key}")
+
+                # Delete the thumbnail (best effort, don't fail if missing)
+                try:
+                    s3.delete_object(Bucket=bucket, Key=thumbnail_key)
+                    logger.info(f"Deleted S3 thumbnail: {thumbnail_key}")
+                except ClientError as thumb_err:
+                    logger.warning(f"Failed to delete thumbnail {thumbnail_key}: {thumb_err}")
+
+                deleted_keys.append(full_s3_key)
             except ClientError as e:
-                error_msg = f"Failed to delete S3 object {image.s3_key}: {e}"
+                error_msg = f"Failed to delete S3 object {full_s3_key}: {e}"
                 logger.error(error_msg)
                 errors.append(error_msg)
                 continue  # Don't delete DB record if S3 delete failed
