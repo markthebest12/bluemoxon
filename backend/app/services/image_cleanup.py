@@ -6,13 +6,23 @@ import boto3
 from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
-from app.api.v1.images import S3_IMAGES_PREFIX, get_thumbnail_key
 from app.config import get_settings
 from app.models import BookImage
 
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+# S3 prefix for book images (duplicated from images.py to avoid circular import)
+S3_IMAGES_PREFIX = "books/"
+
+
+def get_thumbnail_key(s3_key: str) -> str:
+    """Get the S3 key for a thumbnail from the original image key.
+
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    """
+    return f"thumb_{s3_key}"
 
 
 def delete_unrelated_images(
