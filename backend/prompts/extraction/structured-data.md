@@ -28,6 +28,7 @@ Extract the following fields from the book analysis below. Output ONLY valid JSO
 2. For numeric fields, use integers only (no $ or commas)
 3. If a field cannot be determined, use null
 4. Output ONLY the JSON object, nothing else
+5. **BINDER RULE**: Only set `binder_identified` if the analysis explicitly states a visible signature or stamp was found. Style inference, institutional provenance, or quality assessment is NOT sufficient. If no signature visible, set to null with `binder_confidence: "NONE"`
 
 ## Analysis to Extract From
 

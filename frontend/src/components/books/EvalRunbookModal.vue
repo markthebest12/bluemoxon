@@ -62,11 +62,30 @@ const scoreColor = computed(() => {
   return "bg-red-500";
 });
 
-const scoreBadgeColor = computed(() => {
-  if (!runbook.value) return "";
-  return runbook.value.recommendation === "ACQUIRE"
-    ? "bg-green-100 text-green-800"
-    : "bg-yellow-100 text-yellow-800";
+const tierBadgeConfig = computed(() => {
+  if (!runbook.value?.recommendation_tier) {
+    // Fallback to legacy recommendation
+    return runbook.value?.recommendation === "ACQUIRE"
+      ? { bg: "bg-green-100", text: "text-green-800", label: "ACQUIRE", icon: "" }
+      : { bg: "bg-yellow-100", text: "text-yellow-800", label: "PASS", icon: "" };
+  }
+
+  const configs: Record<string, { bg: string; text: string; icon: string }> = {
+    STRONG_BUY: { bg: "bg-green-500", text: "text-white", icon: "✓✓" },
+    BUY: { bg: "bg-green-100", text: "text-green-800", icon: "✓" },
+    CONDITIONAL: { bg: "bg-amber-100", text: "text-amber-800", icon: "⚠" },
+    PASS: { bg: "bg-gray-100", text: "text-gray-800", icon: "✗" },
+  };
+
+  const config = configs[runbook.value.recommendation_tier] || configs.PASS;
+  return { ...config, label: runbook.value.recommendation_tier };
+});
+
+const hasNapoleonOverride = computed(() => {
+  return (
+    runbook.value?.napoleon_recommendation &&
+    runbook.value.napoleon_recommendation !== runbook.value.recommendation_tier
+  );
 });
 
 const fmvRange = computed(() => {
@@ -340,19 +359,129 @@ function formatCurrency(value: number | null | undefined): string {
 
             <!-- Score Summary -->
             <div class="bg-gray-50 rounded-lg p-4">
-              <div class="text-sm font-medium text-gray-600 mb-2">Strategic Fit Score</div>
-              <div class="relative h-4 bg-gray-200 rounded-full overflow-hidden mb-2">
-                <div
-                  :class="scoreColor"
-                  class="absolute h-full transition-all duration-300"
-                  :style="{ width: `${runbook.total_score}%` }"
-                ></div>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-2xl font-bold">{{ runbook.total_score }} / 100</span>
-                <span :class="scoreBadgeColor" class="px-3 py-1 rounded-full text-sm font-medium">
-                  {{ runbook.recommendation }}
+              <!-- Tiered Recommendation Badge -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <span
+                    :class="[tierBadgeConfig.bg, tierBadgeConfig.text]"
+                    class="px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1"
+                  >
+                    <span v-if="tierBadgeConfig.icon">{{ tierBadgeConfig.icon }}</span>
+                    {{ tierBadgeConfig.label }}
+                  </span>
+                  <!-- Napoleon Override Indicator -->
+                  <span
+                    v-if="hasNapoleonOverride"
+                    class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded"
+                  >
+                    Napoleon: {{ runbook.napoleon_recommendation }}
+                  </span>
+                </div>
+                <span class="text-sm text-gray-500">
+                  v{{ runbook.scoring_version || "legacy" }}
                 </span>
+              </div>
+
+              <!-- Score Bars -->
+              <div class="space-y-3">
+                <!-- Quality Score -->
+                <div v-if="runbook.quality_score !== undefined">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600">Quality</span>
+                    <span class="font-medium">{{ runbook.quality_score }}/100</span>
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-blue-500"
+                      :style="{ width: `${runbook.quality_score}%` }"
+                    ></div>
+                  </div>
+                  <div v-if="runbook.quality_floor_applied" class="text-xs text-red-500 mt-1">
+                    ⚠ Below quality threshold
+                  </div>
+                </div>
+
+                <!-- Strategic Fit Score -->
+                <div v-if="runbook.strategic_fit_score !== undefined">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600">Strategic Fit</span>
+                    <span class="font-medium">{{ runbook.strategic_fit_score }}/100</span>
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full"
+                      :class="runbook.strategic_fit_score < 30 ? 'bg-red-400' : 'bg-green-500'"
+                      :style="{ width: `${runbook.strategic_fit_score}%` }"
+                    ></div>
+                  </div>
+                  <div v-if="runbook.strategic_floor_applied" class="text-xs text-red-500 mt-1">
+                    ⚠ Below strategic fit threshold
+                  </div>
+                </div>
+
+                <!-- Combined Score (legacy fallback) -->
+                <div v-else-if="runbook.combined_score !== undefined">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600">Combined Score</span>
+                    <span class="font-medium">{{ runbook.combined_score }}/100</span>
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full"
+                      :class="scoreColor"
+                      :style="{ width: `${runbook.combined_score}%` }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Legacy total_score fallback -->
+                <div v-else>
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600">Total Score</span>
+                    <span class="font-medium">{{ runbook.total_score }}/100</span>
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full"
+                      :class="scoreColor"
+                      :style="{ width: `${runbook.total_score}%` }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Price Position -->
+                <div v-if="runbook.price_position" class="flex items-center gap-2 text-sm">
+                  <span class="text-gray-600">Price Position:</span>
+                  <span
+                    :class="{
+                      'text-green-600 font-medium': runbook.price_position === 'EXCELLENT',
+                      'text-green-500': runbook.price_position === 'GOOD',
+                      'text-amber-500': runbook.price_position === 'FAIR',
+                      'text-red-500': runbook.price_position === 'POOR',
+                    }"
+                  >
+                    {{ runbook.price_position }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Reasoning -->
+              <div
+                v-if="runbook.recommendation_reasoning"
+                class="mt-4 p-3 bg-white rounded border text-sm text-gray-700"
+              >
+                {{ runbook.recommendation_reasoning }}
+              </div>
+
+              <!-- Suggested Offer (for CONDITIONAL) -->
+              <div
+                v-if="runbook.recommendation_tier === 'CONDITIONAL' && runbook.suggested_offer"
+                class="mt-4 p-3 bg-amber-50 rounded border border-amber-200"
+              >
+                <div class="text-sm font-medium text-amber-800">Suggested Offer</div>
+                <div class="text-lg font-bold text-amber-900">
+                  {{ formatCurrency(runbook.suggested_offer) }}
+                </div>
               </div>
 
               <!-- Pricing Row -->

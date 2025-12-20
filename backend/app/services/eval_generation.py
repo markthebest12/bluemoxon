@@ -22,6 +22,17 @@ from app.services.bedrock import (
     get_model_id,
 )
 from app.services.fmv_lookup import lookup_fmv
+from app.services.tiered_scoring import (
+    QUALITY_FLOOR,
+    STRATEGIC_FIT_FLOOR,
+    calculate_combined_score,
+    calculate_price_position,
+    calculate_quality_score,
+    calculate_strategic_fit_score,
+    calculate_suggested_offer,
+    determine_recommendation_tier,
+    generate_reasoning,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +52,23 @@ TIER_1_BINDERS = {
     "Cobden-Sanderson",
     "Bedford",
 }
+
+# Author-publisher requirements (author_name -> required_publisher_name)
+AUTHOR_PUBLISHER_REQUIREMENTS = {
+    "Wilkie Collins": "Bentley",
+    "Charles Dickens": "Chapman",
+    # Add more as needed
+}
+
+
+def _check_publisher_matches_author(author_name: str | None, publisher_name: str | None) -> bool:
+    """Check if publisher matches the required publisher for this author."""
+    if not author_name or not publisher_name:
+        return False
+    required = AUTHOR_PUBLISHER_REQUIREMENTS.get(author_name)
+    if not required:
+        return True  # No requirement = matches
+    return required.lower() in publisher_name.lower()
 
 
 def _calculate_publisher_score(book: Book) -> tuple[int, str]:
@@ -111,14 +139,28 @@ def _calculate_condition_score(book: Book) -> tuple[int, str]:
 
 
 def _calculate_binding_score(book: Book) -> tuple[int, str]:
-    """Calculate Premium Binding score (max 15 points)."""
+    """Calculate Premium Binding score (max 15 points).
+
+    Premium binder points (15 for Tier 1, 10 for Tier 2) are only awarded
+    when binding_authenticated is True, indicating the binder attribution
+    has been confirmed via visible signature or stamp.
+    """
     if book.binder:
         binder_name = book.binder.name
+        is_authenticated = getattr(book, "binding_authenticated", False) or False
+
         # Check if Tier 1 binder
         if any(tier1 in binder_name for tier1 in TIER_1_BINDERS):
-            return 15, f"✓ {binder_name} (premium binder)"
+            if is_authenticated:
+                return 15, f"✓ {binder_name} (premium binder, authenticated)"
+            else:
+                # Binder identified but not authenticated - no premium points
+                return 5, f"{binder_name} (unconfirmed attribution)"
         elif hasattr(book.binder, "tier") and book.binder.tier == "TIER_2":
-            return 10, f"{binder_name} (Tier 2 binder)"
+            if is_authenticated:
+                return 10, f"{binder_name} (Tier 2 binder, authenticated)"
+            else:
+                return 5, f"{binder_name} (unconfirmed attribution)"
         else:
             return 5, f"{binder_name}"
     elif book.binding_type:
@@ -426,7 +468,110 @@ def generate_eval_runbook(
     }
 
     total_score = sum(item["points"] for item in score_breakdown.values())
-    recommendation = "ACQUIRE" if total_score >= ACQUIRE_THRESHOLD else "PASS"
+
+    # Calculate tiered recommendation scores
+    publisher_name = book.publisher.name if book.publisher else None
+    binder_name = book.binder.name if book.binder else None
+
+    # Check if publisher matches author requirement
+    publisher_matches = _check_publisher_matches_author(author_name, publisher_name)
+
+    # Count author's books in collection
+    author_book_count = 0
+    if book.author_id:
+        author_book_count = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+        )
+
+    # Check for duplicates
+    is_duplicate = False
+    if book.author_id:
+        from app.services.scoring import is_duplicate_title
+
+        other_books = (
+            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+        )
+        for other in other_books:
+            if is_duplicate_title(book.title, other.title):
+                is_duplicate = True
+                break
+
+    # Calculate quality score
+    tiered_quality_score = calculate_quality_score(
+        publisher_tier=book.publisher.tier if book.publisher else None,
+        binder_tier=book.binder.tier if book.binder else None,
+        year_start=book.year_start,
+        condition_grade=condition_grade,
+        is_complete=book.is_complete,
+        author_priority_score=book.author.priority_score if book.author else 0,
+        volume_count=book.volumes or 1,
+        is_duplicate=is_duplicate,
+    )
+
+    # Calculate strategic fit score
+    tiered_strategic_fit_score = calculate_strategic_fit_score(
+        publisher_matches_author_requirement=publisher_matches,
+        author_book_count=author_book_count,
+        completes_set=False,  # TODO: Implement set completion detection
+    )
+
+    # Calculate combined score and price position
+    tiered_combined_score = calculate_combined_score(
+        tiered_quality_score, tiered_strategic_fit_score
+    )
+    fmv_mid = None
+    if fmv_low and fmv_high:
+        fmv_mid = (Decimal(str(fmv_low)) + Decimal(str(fmv_high))) / 2
+
+    tiered_price_position = calculate_price_position(
+        asking_price=Decimal(str(asking_price)) if asking_price else None,
+        fmv_mid=fmv_mid,
+    )
+
+    # Check floor conditions
+    strategic_floor_applied = tiered_strategic_fit_score < STRATEGIC_FIT_FLOOR
+    quality_floor_applied = tiered_quality_score < QUALITY_FLOOR
+
+    # Determine recommendation tier
+    recommendation_tier = determine_recommendation_tier(
+        combined_score=tiered_combined_score,
+        price_position=tiered_price_position,
+        quality_score=tiered_quality_score,
+        strategic_fit_score=tiered_strategic_fit_score,
+    )
+
+    # Calculate suggested offer for CONDITIONAL
+    suggested_offer = None
+    if recommendation_tier == "CONDITIONAL" and fmv_mid:
+        suggested_offer = calculate_suggested_offer(
+            combined_score=tiered_combined_score,
+            fmv_mid=fmv_mid,
+            strategic_floor_applied=strategic_floor_applied,
+            quality_floor_applied=quality_floor_applied,
+        )
+
+    # Calculate discount percent for reasoning
+    discount_percent = 0
+    if asking_price and fmv_mid:
+        discount_percent = int(((float(fmv_mid) - asking_price) / float(fmv_mid)) * 100)
+
+    # Generate reasoning
+    recommendation_reasoning = generate_reasoning(
+        recommendation_tier=recommendation_tier,
+        quality_score=tiered_quality_score,
+        strategic_fit_score=tiered_strategic_fit_score,
+        price_position=tiered_price_position,
+        discount_percent=discount_percent,
+        publisher_name=publisher_name,
+        binder_name=binder_name,
+        author_name=author_name,
+        strategic_floor_applied=strategic_floor_applied,
+        quality_floor_applied=quality_floor_applied,
+        suggested_offer=suggested_offer,
+    )
+
+    # Map tier to legacy recommendation for backward compatibility
+    recommendation = "ACQUIRE" if recommendation_tier in ("STRONG_BUY", "BUY") else "PASS"
 
     # Build comprehensive analysis narrative
     narrative_parts = []
@@ -513,18 +658,35 @@ def generate_eval_runbook(
         total_score=total_score,
         score_breakdown=score_breakdown,
         recommendation=recommendation,
+        # Tiered recommendation fields
+        recommendation_tier=recommendation_tier,
+        quality_score=tiered_quality_score,
+        strategic_fit_score=tiered_strategic_fit_score,
+        combined_score=tiered_combined_score,
+        price_position=tiered_price_position,
+        suggested_offer=suggested_offer,
+        recommendation_reasoning=recommendation_reasoning,
+        strategic_floor_applied=strategic_floor_applied,
+        quality_floor_applied=quality_floor_applied,
+        scoring_version="2025-01",
+        score_source="eval_runbook",
+        last_scored_price=Decimal(str(asking_price)) if asking_price else None,
+        # Pricing and FMV
         original_asking_price=Decimal(str(asking_price)) if asking_price else None,
         current_asking_price=Decimal(str(asking_price)) if asking_price else None,
         fmv_low=Decimal(str(fmv_low)) if fmv_low else None,
         fmv_high=Decimal(str(fmv_high)) if fmv_high else None,
         fmv_notes=fmv_data.get("fmv_notes"),
         fmv_confidence=fmv_data.get("fmv_confidence"),
+        # Condition assessment
         condition_grade=condition_grade,
         condition_positives=ai_analysis.get("condition_positives") or [],
         condition_negatives=ai_analysis.get("condition_negatives") or [],
         critical_issues=ai_analysis.get("critical_issues") or [],
+        # Comparables
         ebay_comparables=fmv_data.get("ebay_comparables") or [],
         abebooks_comparables=fmv_data.get("abebooks_comparables") or [],
+        # Identification and narrative
         item_identification=item_identification,
         analysis_narrative=analysis_narrative,
         generated_at=datetime.utcnow(),
@@ -536,7 +698,8 @@ def generate_eval_runbook(
 
     logger.info(
         f"Created eval runbook {runbook.id} for book {book.id}, "
-        f"score={total_score}, recommendation={recommendation}, "
+        f"score={total_score}, tier={recommendation_tier}, recommendation={recommendation}, "
+        f"quality={tiered_quality_score}, strategic={tiered_strategic_fit_score}, "
         f"ai_analysis={'yes' if run_ai_analysis else 'no'}, "
         f"fmv_lookup={'yes' if run_fmv_lookup else 'no'}"
     )

@@ -38,6 +38,25 @@ export interface EvalRunbook {
   generated_at: string;
   created_at: string;
   updated_at: string;
+
+  // Tiered recommendation fields
+  recommendation_tier?: "STRONG_BUY" | "BUY" | "CONDITIONAL" | "PASS";
+  quality_score?: number;
+  strategic_fit_score?: number;
+  combined_score?: number;
+  price_position?: "EXCELLENT" | "GOOD" | "FAIR" | "POOR";
+  suggested_offer?: number;
+  recommendation_reasoning?: string;
+  strategic_floor_applied?: boolean;
+  quality_floor_applied?: boolean;
+  scoring_version?: string;
+  score_source?: "eval_runbook" | "napoleon";
+  last_scored_price?: number;
+
+  // Napoleon override fields
+  napoleon_recommendation?: string;
+  napoleon_reasoning?: string;
+  napoleon_analyzed_at?: string;
 }
 
 export interface PriceUpdatePayload {
