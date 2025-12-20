@@ -400,6 +400,74 @@ In the Analysis Viewer panel, editors/admins will see a trash icon button next t
 
 ---
 
+### Re-extract Structured Data (Single Book)
+```
+POST /books/{book_id}/re-extract
+```
+
+Re-runs Stage 2 structured data extraction for a book using its existing analysis text. Does NOT regenerate the full analysis - only re-extracts the structured fields (valuations, condition, binding type, provenance, etc.).
+
+Useful for fixing 'degraded' extractions that occurred due to AI service throttling.
+
+**Requires:** Editor role
+
+Example:
+```bash
+curl -X POST "http://localhost:8000/api/v1/books/407/re-extract" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response (success):
+```json
+{
+  "message": "Extraction successful",
+  "book_id": 407,
+  "fields_updated": ["value_low", "value_mid", "value_high", "condition_grade", "binding_type"],
+  "extraction_status": "success"
+}
+```
+
+Error Responses:
+- 401 Unauthorized - Not authenticated
+- 403 Forbidden - User does not have editor role
+- 404 Not Found - Book not found or no analysis exists
+- 503 Service Unavailable - AI service throttled, try again later
+
+---
+
+### Re-extract All Degraded (Bulk)
+```
+POST /books/re-extract-degraded
+```
+
+Re-runs Stage 2 extraction for ALL books with `extraction_status = 'degraded'`. Processes books sequentially to avoid overwhelming the AI service quota.
+
+**Requires:** Admin role
+
+Example:
+```bash
+curl -X POST "http://localhost:8000/api/v1/books/re-extract-degraded" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+```json
+{
+  "message": "Re-extracted 15/20 degraded analyses",
+  "total": 20,
+  "succeeded": 15,
+  "failed": 5,
+  "results": [
+    {"book_id": 407, "title": "The Virginians", "status": "success", "fields_updated": ["value_low", "value_mid"]},
+    {"book_id": 412, "title": "Vanity Fair", "status": "failed", "reason": "Extraction returned no data (likely throttled)"}
+  ]
+}
+```
+
+**Note:** This endpoint saves progress after each successful extraction, so partial results are preserved if the operation is interrupted.
+
+---
+
 ## Images API
 
 ### List Book Images
