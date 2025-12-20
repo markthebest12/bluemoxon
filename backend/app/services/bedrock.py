@@ -1,6 +1,7 @@
 """AWS Bedrock service for AI-powered analysis generation."""
 
 import base64
+import io
 import json  # Used in invoke_bedrock() (Task 4)
 import logging
 import os
@@ -10,9 +11,15 @@ import time
 import boto3
 import httpx
 from botocore.exceptions import ClientError
+from PIL import Image
 
 from app.config import get_settings
 from app.models import BookImage
+
+# Claude's maximum image size limit (base64 encoded) is 5MB
+# Base64 adds ~33% overhead, so raw limit is ~3.75MB
+CLAUDE_MAX_IMAGE_BYTES = 5_242_880  # 5MB in bytes
+CLAUDE_SAFE_RAW_BYTES = 3_500_000  # Leave margin for base64 overhead
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -160,6 +167,68 @@ def fetch_source_url_content(url: str | None, timeout: int = 15) -> str | None:
         return None
 
 
+def resize_image_for_bedrock(image_data: bytes, media_type: str) -> tuple[bytes, str]:
+    """Resize image if it would exceed Claude's base64 size limit.
+
+    Claude has a 5MB limit per base64-encoded image. This function checks if
+    the image would exceed that limit and progressively resizes it until it fits.
+
+    Args:
+        image_data: Raw image bytes
+        media_type: MIME type (e.g., "image/jpeg")
+
+    Returns:
+        Tuple of (possibly resized image bytes, media type)
+    """
+    # Check if resize is needed (base64 adds ~33% overhead)
+    if len(image_data) <= CLAUDE_SAFE_RAW_BYTES:
+        return image_data, media_type
+
+    logger.info(f"Image size {len(image_data):,} bytes exceeds safe limit, resizing...")
+
+    try:
+        img = Image.open(io.BytesIO(image_data))
+        original_size = img.size
+
+        # Convert to RGB if needed (RGBA, palette modes can't save as JPEG)
+        if img.mode in ("RGBA", "P", "LA"):
+            img = img.convert("RGB")
+
+        # Progressively reduce size until it fits
+        scale = 0.9
+        output_format = "JPEG"
+        output_media_type = "image/jpeg"
+
+        for _ in range(10):  # Max 10 resize attempts
+            new_size = (int(img.size[0] * scale), int(img.size[1] * scale))
+            resized = img.resize(new_size, Image.Resampling.LANCZOS)
+
+            # Save to bytes with quality optimization
+            buffer = io.BytesIO()
+            resized.save(buffer, format=output_format, quality=85, optimize=True)
+            resized_data = buffer.getvalue()
+
+            if len(resized_data) <= CLAUDE_SAFE_RAW_BYTES:
+                logger.info(
+                    f"Resized image from {original_size} to {new_size}, "
+                    f"size reduced from {len(image_data):,} to {len(resized_data):,} bytes"
+                )
+                return resized_data, output_media_type
+
+            scale *= 0.8  # More aggressive reduction each iteration
+
+        # If still too large after max attempts, return last attempt
+        logger.warning(
+            f"Could not resize image below limit after max attempts, "
+            f"using {len(resized_data):,} bytes"
+        )
+        return resized_data, output_media_type
+
+    except Exception as e:
+        logger.warning(f"Failed to resize image: {e}, using original")
+        return image_data, media_type
+
+
 def format_image_for_bedrock(image_data: bytes, media_type: str) -> dict:
     """Format image data for Bedrock Claude message API.
 
@@ -220,6 +289,9 @@ def fetch_book_images_for_bedrock(
                     content_type = "image/jpeg"
                 else:
                     content_type = "image/jpeg"  # Default
+
+            # Resize if needed to fit Claude's 5MB base64 limit
+            image_data, content_type = resize_image_for_bedrock(image_data, content_type)
 
             result.append(format_image_for_bedrock(image_data, content_type))
             logger.debug(f"Loaded image {img.s3_key} for Bedrock")
