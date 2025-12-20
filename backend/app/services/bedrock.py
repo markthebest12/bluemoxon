@@ -269,10 +269,29 @@ def fetch_book_images_for_bedrock(
     s3 = get_s3_client()
     bucket = settings.images_bucket
 
-    # Sort by display_order and take max_images
-    sorted_images = sorted(images, key=lambda x: x.display_order)[:max_images]
+    # Sort by display_order
+    sorted_images = sorted(images, key=lambda x: x.display_order)
 
-    for img in sorted_images:
+    # Take first AND last images to catch seller ads at end of listings
+    # Seller promotional images tend to be at the end, so we need both
+    if len(sorted_images) <= max_images:
+        selected_images = sorted_images
+    else:
+        # Split: take first portion and last portion
+        first_count = max_images - (max_images // 3)  # ~67% from start
+        last_count = max_images // 3  # ~33% from end
+        first_images = sorted_images[:first_count]
+        last_images = sorted_images[-last_count:]
+        # Combine and dedupe (in case of overlap)
+        selected_indices = {img.display_order for img in first_images}
+        selected_images = list(first_images)
+        for img in last_images:
+            if img.display_order not in selected_indices:
+                selected_images.append(img)
+        # Re-sort by display_order for consistent output
+        selected_images = sorted(selected_images, key=lambda x: x.display_order)
+
+    for img in selected_images:
         try:
             # Fetch from S3
             s3_key = f"books/{img.s3_key}"
