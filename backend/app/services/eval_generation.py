@@ -139,14 +139,28 @@ def _calculate_condition_score(book: Book) -> tuple[int, str]:
 
 
 def _calculate_binding_score(book: Book) -> tuple[int, str]:
-    """Calculate Premium Binding score (max 15 points)."""
+    """Calculate Premium Binding score (max 15 points).
+
+    Premium binder points (15 for Tier 1, 10 for Tier 2) are only awarded
+    when binding_authenticated is True, indicating the binder attribution
+    has been confirmed via visible signature or stamp.
+    """
     if book.binder:
         binder_name = book.binder.name
+        is_authenticated = getattr(book, "binding_authenticated", False) or False
+
         # Check if Tier 1 binder
         if any(tier1 in binder_name for tier1 in TIER_1_BINDERS):
-            return 15, f"✓ {binder_name} (premium binder)"
+            if is_authenticated:
+                return 15, f"✓ {binder_name} (premium binder, authenticated)"
+            else:
+                # Binder identified but not authenticated - no premium points
+                return 5, f"{binder_name} (unconfirmed attribution)"
         elif hasattr(book.binder, "tier") and book.binder.tier == "TIER_2":
-            return 10, f"{binder_name} (Tier 2 binder)"
+            if is_authenticated:
+                return 10, f"{binder_name} (Tier 2 binder, authenticated)"
+            else:
+                return 5, f"{binder_name} (unconfirmed attribution)"
         else:
             return 5, f"{binder_name}"
     elif book.binding_type:
