@@ -29,6 +29,7 @@ from app.schemas.book import (
 from app.services.archive import archive_url
 from app.services.bedrock import (
     build_bedrock_messages,
+    extract_structured_data,
     fetch_book_images_for_bedrock,
     fetch_source_url_content,
     get_model_id,
@@ -1665,6 +1666,209 @@ def reparse_all_analyses(
 
     db.commit()
     return {"message": f"Re-parsed {len(results)} analyses", "results": results}
+
+
+@router.post("/{book_id}/re-extract")
+def re_extract_structured_data(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """Re-run Stage 2 structured data extraction for a book.
+
+    Uses existing analysis text without regenerating the full analysis.
+    Useful for fixing 'degraded' extractions after throttling issues resolve.
+    """
+    from decimal import Decimal
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not book.analysis or not book.analysis.full_markdown:
+        raise HTTPException(status_code=404, detail="Book has no analysis to re-extract")
+
+    analysis = book.analysis
+    analysis_text = analysis.full_markdown
+
+    # Run Stage 2 extraction
+    extracted_data = extract_structured_data(analysis_text, model="sonnet")
+
+    if not extracted_data:
+        raise HTTPException(
+            status_code=503,
+            detail="Extraction failed - AI service may be throttled. Try again later.",
+        )
+
+    # Map extracted fields to book update format
+    fields_updated = []
+
+    if extracted_data.get("valuation_low"):
+        book.value_low = Decimal(str(extracted_data["valuation_low"]))
+        fields_updated.append("value_low")
+    if extracted_data.get("valuation_high"):
+        book.value_high = Decimal(str(extracted_data["valuation_high"]))
+        fields_updated.append("value_high")
+    if extracted_data.get("valuation_mid"):
+        book.value_mid = Decimal(str(extracted_data["valuation_mid"]))
+        fields_updated.append("value_mid")
+    elif "value_low" in fields_updated and "value_high" in fields_updated:
+        book.value_mid = (book.value_low + book.value_high) / 2
+        fields_updated.append("value_mid")
+    if extracted_data.get("condition_grade"):
+        book.condition_grade = extracted_data["condition_grade"]
+        fields_updated.append("condition_grade")
+    if extracted_data.get("binding_type"):
+        book.binding_type = extracted_data["binding_type"]
+        fields_updated.append("binding_type")
+    if extracted_data.get("has_provenance") is True:
+        book.has_provenance = True
+        fields_updated.append("has_provenance")
+    if extracted_data.get("provenance_tier"):
+        book.provenance_tier = extracted_data["provenance_tier"]
+        fields_updated.append("provenance_tier")
+    if extracted_data.get("provenance_description"):
+        book.provenance = extracted_data["provenance_description"]
+        fields_updated.append("provenance")
+    if extracted_data.get("is_first_edition") is not None:
+        book.is_first_edition = extracted_data["is_first_edition"]
+        fields_updated.append("is_first_edition")
+
+    # Update extraction status
+    analysis.extraction_status = "success"
+
+    # Recalculate scores with new values
+    _calculate_and_persist_scores(book, db)
+
+    db.commit()
+
+    return {
+        "message": "Extraction successful",
+        "book_id": book_id,
+        "fields_updated": fields_updated,
+        "extraction_status": "success",
+    }
+
+
+@router.post("/re-extract-degraded")
+def re_extract_all_degraded(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Re-run Stage 2 extraction for all books with degraded status.
+
+    Processes books one at a time to avoid overwhelming Bedrock quota.
+    Returns summary of successes and failures.
+    """
+    from decimal import Decimal
+
+    from app.models import BookAnalysis
+
+    # Find all degraded analyses
+    degraded_analyses = (
+        db.query(BookAnalysis).filter(BookAnalysis.extraction_status == "degraded").all()
+    )
+
+    if not degraded_analyses:
+        return {
+            "message": "No degraded extractions found",
+            "total": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "results": [],
+        }
+
+    results = []
+    succeeded = 0
+    failed = 0
+
+    for analysis in degraded_analyses:
+        book = analysis.book
+        if not book or not analysis.full_markdown:
+            results.append(
+                {
+                    "book_id": analysis.book_id,
+                    "status": "skipped",
+                    "reason": "No book or analysis text",
+                }
+            )
+            continue
+
+        # Run Stage 2 extraction
+        extracted_data = extract_structured_data(analysis.full_markdown, model="sonnet")
+
+        if not extracted_data:
+            failed += 1
+            results.append(
+                {
+                    "book_id": analysis.book_id,
+                    "title": book.title[:50] if book.title else None,
+                    "status": "failed",
+                    "reason": "Extraction returned no data (likely throttled)",
+                }
+            )
+            continue
+
+        # Map extracted fields to book
+        fields_updated = []
+
+        if extracted_data.get("valuation_low"):
+            book.value_low = Decimal(str(extracted_data["valuation_low"]))
+            fields_updated.append("value_low")
+        if extracted_data.get("valuation_high"):
+            book.value_high = Decimal(str(extracted_data["valuation_high"]))
+            fields_updated.append("value_high")
+        if extracted_data.get("valuation_mid"):
+            book.value_mid = Decimal(str(extracted_data["valuation_mid"]))
+            fields_updated.append("value_mid")
+        elif "value_low" in fields_updated and "value_high" in fields_updated:
+            book.value_mid = (book.value_low + book.value_high) / 2
+            fields_updated.append("value_mid")
+        if extracted_data.get("condition_grade"):
+            book.condition_grade = extracted_data["condition_grade"]
+            fields_updated.append("condition_grade")
+        if extracted_data.get("binding_type"):
+            book.binding_type = extracted_data["binding_type"]
+            fields_updated.append("binding_type")
+        if extracted_data.get("has_provenance") is True:
+            book.has_provenance = True
+            fields_updated.append("has_provenance")
+        if extracted_data.get("provenance_tier"):
+            book.provenance_tier = extracted_data["provenance_tier"]
+            fields_updated.append("provenance_tier")
+        if extracted_data.get("provenance_description"):
+            book.provenance = extracted_data["provenance_description"]
+            fields_updated.append("provenance")
+        if extracted_data.get("is_first_edition") is not None:
+            book.is_first_edition = extracted_data["is_first_edition"]
+            fields_updated.append("is_first_edition")
+
+        # Update extraction status
+        analysis.extraction_status = "success"
+
+        # Recalculate scores
+        _calculate_and_persist_scores(book, db)
+
+        succeeded += 1
+        results.append(
+            {
+                "book_id": analysis.book_id,
+                "title": book.title[:50] if book.title else None,
+                "status": "success",
+                "fields_updated": fields_updated,
+            }
+        )
+
+        # Commit after each successful extraction to save progress
+        db.commit()
+
+    return {
+        "message": f"Re-extracted {succeeded}/{len(degraded_analyses)} degraded analyses",
+        "total": len(degraded_analyses),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    }
 
 
 # =============================================================================
