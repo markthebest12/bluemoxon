@@ -92,6 +92,21 @@ class TestExtractListingData:
         result = extract_listing_data("<html>...</html>")
         assert result["currency"] == "USD"
 
+    @patch("app.services.listing.invoke_bedrock_extraction")
+    def test_extracts_multi_volume_set(self, mock_bedrock):
+        """Test that volume count is correctly extracted for multi-volume sets."""
+        mock_bedrock.return_value = {
+            "title": "The Poetical Works of William Wordsworth",
+            "author": "William Wordsworth",
+            "publisher": "Edward Moxon",
+            "price": 750.00,
+            "currency": "USD",
+            "volumes": 6,
+        }
+
+        result = extract_listing_data("<html>6 volumes complete set</html>")
+        assert result["volumes"] == 6
+
     @patch("app.services.listing.get_bedrock_client")
     def test_truncates_long_html(self, mock_get_client):
         from app.services.listing import invoke_bedrock_extraction

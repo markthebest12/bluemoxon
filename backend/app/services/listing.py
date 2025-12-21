@@ -239,7 +239,7 @@ EXTRACTION_PROMPT = """Extract book listing details as JSON. Return ONLY valid J
   "price": 165.00,
   "currency": "USD or GBP or EUR",
   "publication_date": "year or date string",
-  "volumes": 1,
+  "volumes": "number of volumes in set (default 1 if single volume or not mentioned)",
   "condition": "condition notes",
   "binding_type": "binding material and coverage ONLY (e.g., 'Full calf', 'Half morocco', 'Full morocco', 'Quarter leather', 'Tree calf', 'Vellum', 'Cloth')"
 }}
