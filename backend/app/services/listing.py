@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 EBAY_HOSTS = {"ebay.com", "www.ebay.com", "m.ebay.com", "ebay.us", "www.ebay.us"}
 EBAY_ITEM_PATTERN = re.compile(r"/itm/(?:[^/]+/)?(\d+)")
+# Pattern to detect alphanumeric short IDs (must contain at least one letter)
+# Examples: /itm/946e590b, /itm/abc123, /itm/xYz
+EBAY_SHORT_ID_PATTERN = re.compile(r"/itm/([a-zA-Z0-9]*[a-zA-Z][a-zA-Z0-9]*)(?:\?|$)")
 
 
 def is_valid_ebay_url(url: str) -> bool:
@@ -30,8 +33,8 @@ def is_valid_ebay_url(url: str) -> bool:
             # Accept any ebay.us URL with a path (e.g., /m/9R8Zfd)
             return bool(parsed.path and len(parsed.path) > 1)
 
-        # Standard eBay URLs must have /itm/ pattern
-        return bool(EBAY_ITEM_PATTERN.search(parsed.path))
+        # Standard eBay URLs must have /itm/ pattern (numeric or alphanumeric short ID)
+        return bool(EBAY_ITEM_PATTERN.search(parsed.path) or EBAY_SHORT_ID_PATTERN.search(parsed.path))
     except Exception:
         return False
 
@@ -40,6 +43,7 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
     """Normalize eBay URL and extract item ID.
 
     For ebay.us short URLs, follows the redirect to get the canonical URL.
+    For ebay.com/itm/ALPHANUMERIC short IDs, follows the redirect to get the full item ID.
 
     Returns:
         Tuple of (normalized_url, item_id)
@@ -92,9 +96,43 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
             logger.error(f"Failed to resolve ebay.us short URL {url}: {e}")
             raise ValueError(f"Failed to resolve short URL: {e}") from e
     else:
-        # Standard eBay URL - extract item_id directly
-        match = EBAY_ITEM_PATTERN.search(parsed.path)
-        item_id = match.group(1)
+        # Check if URL has alphanumeric short ID (e.g., /itm/946e590b)
+        short_id_match = EBAY_SHORT_ID_PATTERN.search(parsed.path)
+        if short_id_match:
+            # Alphanumeric short ID - follow redirect to get full item ID
+            try:
+                import httpx
+
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                with httpx.Client(
+                    follow_redirects=True, timeout=15.0, max_redirects=10, headers=headers
+                ) as client:
+                    response = client.get(url)
+                    final_url = str(response.url)
+                    logger.info(f"Resolved alphanumeric short ID: {url} -> {final_url}")
+
+                # Extract item_id from final URL
+                match = EBAY_ITEM_PATTERN.search(final_url)
+                if not match:
+                    raise ValueError(f"Could not extract item ID from redirected URL: {final_url}")
+                item_id = match.group(1)
+            except httpx.TooManyRedirects:
+                logger.error(f"Too many redirects for short ID URL {url}")
+                raise ValueError(
+                    "Short URL has expired or is invalid. Please use the full eBay listing URL."
+                ) from None
+            except ValueError:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to resolve short ID URL {url}: {e}")
+                raise ValueError(f"Failed to resolve short URL: {e}") from e
+        else:
+            # Standard eBay URL with numeric item ID - extract directly
+            match = EBAY_ITEM_PATTERN.search(parsed.path)
+            item_id = match.group(1)
 
     # Build canonical URL
     normalized = f"https://www.ebay.com/itm/{item_id}"

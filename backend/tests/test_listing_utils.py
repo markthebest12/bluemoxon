@@ -98,3 +98,38 @@ class TestEbayUrlParsing:
 
             with pytest.raises(ValueError, match="Short URL has expired or is invalid"):
                 normalize_ebay_url("https://ebay.us/m/looping123")
+
+    def test_mobile_ebay_com_short_url_validation(self):
+        """Test that mobile eBay URLs with alphanumeric short IDs are recognized as valid."""
+        # Mobile eBay URLs can have alphanumeric short IDs instead of numeric item IDs
+        assert is_valid_ebay_url("https://www.ebay.com/itm/946e590b") is True
+        assert is_valid_ebay_url("https://m.ebay.com/itm/abc123def") is True
+        assert is_valid_ebay_url("https://ebay.com/itm/946e590b") is True
+
+    def test_mobile_ebay_com_short_url_normalization(self):
+        """Test that mobile eBay URLs with alphanumeric short IDs resolve to canonical URLs.
+
+        Mobile eBay often generates short alphanumeric IDs (e.g., 946e590b) instead of
+        the full numeric item ID. These need to be resolved by following redirects.
+        """
+        from unittest.mock import MagicMock, patch
+
+        # Mock httpx to simulate the redirect from short ID to full item ID
+        mock_response = MagicMock()
+        mock_response.url = "https://www.ebay.com/itm/287023271679"
+
+        with patch("httpx.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_instance.get.return_value = mock_response
+            mock_client.return_value = mock_instance
+
+            url = "https://www.ebay.com/itm/946e590b"
+            normalized, item_id = normalize_ebay_url(url)
+
+            # Should resolve to the canonical eBay URL with full numeric item ID
+            assert normalized == "https://www.ebay.com/itm/287023271679"
+            assert item_id == "287023271679"
+            assert item_id.isdigit()
+            assert len(item_id) > 5
