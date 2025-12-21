@@ -115,7 +115,7 @@ async function handleSubmit() {
       publication_date: form.value.publication_date || undefined,
       volumes: form.value.volumes || 1,
       source_url: form.value.source_url || undefined,
-      purchase_price: priceInUsd.value || undefined, // Always store in USD
+      purchase_price: priceInUsd.value ?? undefined, // Use ?? to preserve 0, only convert null/undefined
     };
 
     await acquisitionsStore.addToWatchlist(payload);

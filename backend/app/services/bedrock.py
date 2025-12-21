@@ -251,13 +251,21 @@ def format_image_for_bedrock(image_data: bytes, media_type: str) -> dict:
 
 def fetch_book_images_for_bedrock(
     images: list[BookImage],
-    max_images: int = 10,
+    max_images: int = 20,
 ) -> list[dict]:
     """Fetch book images from S3 and format for Bedrock.
 
+    Uses a selection algorithm that takes first ~67% and last ~33% of images
+    by display_order. This catches both main book content and any seller
+    promotional images at the end. Default of 20 images ensures middle
+    content (like provenance markers on endpapers) isn't skipped.
+
+    Note: Eval runbook removes advertisement images before this runs,
+    so increasing max_images won't waste tokens on ads.
+
     Args:
         images: List of BookImage objects
-        max_images: Maximum number of images to include
+        max_images: Maximum number of images to include (default 20)
 
     Returns:
         List of Bedrock-formatted image content blocks
