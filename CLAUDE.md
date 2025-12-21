@@ -166,51 +166,9 @@ git tag -a v1.0.0 -m "Release description"
 git push origin v1.0.0
 ```
 
-### Deploy Configuration (Terraform-based)
+### Deploy Configuration
 
-**Deploy configuration is auto-synced from Terraform outputs** - no manual updates needed.
-
-The deploy workflow reads configuration values directly from Terraform state instead of static config files:
-
-```yaml
-# .github/workflows/deploy.yml configure job:
-1. Initialize Terraform with environment-specific backend
-2. Read outputs from Terraform state (terraform output -raw)
-3. Validate against static config files (warns on drift)
-4. Use Terraform values for deployment
-```
-
-**Key outputs read from Terraform:**
-- `environment` - staging or production
-- `lambda_function_name` - Main API Lambda
-- `analysis_worker_function_name` - Async analysis worker Lambda
-- `frontend_bucket_name` - S3 bucket for frontend
-- `frontend_cdn_distribution_id` - CloudFront distribution ID
-- `cognito_user_pool_id` - Cognito user pool
-- `cognito_client_id` - Cognito app client
-- `cognito_domain` - Full Cognito auth domain
-- `api_url` - Full API URL with /api/v1 prefix
-- `app_url` - Full app URL
-
-**Static config files remain for:**
-- Documentation/reference
-- Local development context
-- Quick lookups without Terraform
-
-**Validation:**
-The deploy workflow compares Terraform outputs against `infra/config/{environment}.json` and warns if drift is detected, but continues deployment using Terraform values as the source of truth.
-
-**Benefits:**
-- Eliminates manual config updates after Terraform changes
-- Prevents deployment failures from stale config (e.g., #280, #287)
-- Terraform state is single source of truth
-- Config drift is automatically detected and logged
-
-**When adding new infrastructure:**
-1. Add resource to Terraform
-2. Export values via `infra/terraform/outputs.tf`
-3. Update deploy workflow to read the new output
-4. Update static config files for documentation (optional)
+**Deploy configuration is auto-synced from Terraform outputs** - no manual updates needed. The deploy workflow reads values directly from Terraform state (see [docs/CI_CD.md](docs/CI_CD.md) for details).
 
 ## CRITICAL: Staging-First Workflow
 
@@ -365,79 +323,18 @@ gh pr create --base main  # ❌ Skips staging!
 
 ## Staging Environment
 
-### URLs
 | Service | URL |
 |---------|-----|
 | Frontend | https://staging.app.bluemoxon.com |
 | API | https://staging.api.bluemoxon.com |
 | Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
 
-### AWS Profile
-Use `AWS_PROFILE=bmx-staging` for all staging AWS commands:
-```bash
-AWS_PROFILE=bmx-staging aws lambda list-functions
-AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m
-```
+**AWS Profile:** Use `AWS_PROFILE=bmx-staging` for all staging AWS commands.
 
-### Database Sync (Prod → Staging)
-Sync production data to staging via Lambda:
-```bash
-aws lambda invoke --function-name bluemoxon-staging-db-sync --profile staging --payload '{}' .tmp/sync-response.json
-cat .tmp/sync-response.json | jq
-```
-
-Watch sync progress:
-```bash
-AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-db-sync --follow
-```
-
-See [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) for full details.
-
-### Staging Authentication (Separate Cognito Pool)
-
-Staging uses its own Cognito user pool, separate from production. This provides full isolation but requires manual user management.
-
-**Get current Cognito config from Terraform (always use this - hardcoded values go stale):**
-```bash
-cd /Users/mark/projects/bluemoxon/infra/terraform
-AWS_PROFILE=bmx-staging terraform output -json | jq '{pool_id: .cognito_user_pool_id.value, client_id: .cognito_client_id.value, domain: .cognito_domain.value}'
-```
-
-**Create/Reset a staging user:**
-```bash
-cd /Users/mark/projects/bluemoxon/infra/terraform
-POOL_ID=$(AWS_PROFILE=bmx-staging terraform output -raw cognito_user_pool_id)
-
-# Create user (or skip if exists)
-AWS_PROFILE=bmx-staging aws cognito-idp admin-create-user --user-pool-id $POOL_ID --username user@example.com --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
-
-# Set permanent password
-AWS_PROFILE=bmx-staging aws cognito-idp admin-set-user-password --user-pool-id $POOL_ID --username user@example.com --password 'YourPassword123!' --permanent
-
-# Map Cognito sub to database (run after creating user)
-AWS_PROFILE=bmx-staging aws lambda invoke --function-name bluemoxon-staging-db-sync --payload '{"cognito_only": true}' --cli-binary-format raw-in-base64-out .tmp/sync.json
-```
-
-**Reset MFA for a user (if TOTP stops working after Cognito pool recreation):**
-```bash
-cd /Users/mark/projects/bluemoxon/infra/terraform
-POOL_ID=$(AWS_PROFILE=bmx-staging terraform output -raw cognito_user_pool_id)
-# Get user's sub (username in Cognito)
-AWS_PROFILE=bmx-staging aws cognito-idp list-users --user-pool-id $POOL_ID --query 'Users[*].[Username,Attributes[?Name==`email`].Value]'
-# Reset MFA using the sub
-AWS_PROFILE=bmx-staging aws cognito-idp admin-set-user-mfa-preference --user-pool-id $POOL_ID --username <USER_SUB> --software-token-mfa-settings Enabled=false,PreferredMfa=false
-```
-
-**Troubleshooting login issues:**
-1. **"Invalid email or password"** - Clear browser localStorage, retry with fresh session
-2. **"Invalid code received for user"** - MFA token is stale (pool was recreated); reset MFA above
-3. **User not in API response** - Run `cognito_only` sync to map Cognito sub to DB
-4. **Case sensitivity** - Staging Cognito is case-sensitive; use exact email case
-
-### Related Documentation
-- [docs/STAGING_ENVIRONMENT_PLAN.md](docs/STAGING_ENVIRONMENT_PLAN.md) - Architecture and setup
-- [docs/DATABASE_SYNC.md](docs/DATABASE_SYNC.md) - Data sync procedures
-- [docs/STAGING_INFRASTRUCTURE_CHANGES.md](docs/STAGING_INFRASTRUCTURE_CHANGES.md) - Manual changes to terraformize
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for:
+- Database sync (prod → staging)
+- User management (create/reset staging users)
+- Authentication troubleshooting
 
 ## Version System
 
@@ -461,100 +358,31 @@ Version is **auto-generated at deploy time** - no manual maintenance required.
 
 ### Running Database Migrations
 
-Since Aurora is in a private VPC with no bastion host, run migrations via the `/health/migrate` endpoint:
-
-```bash
-# Run migrations in staging
-curl -X POST https://staging.api.bluemoxon.com/api/v1/health/migrate
-
-# Run migrations in production (CAUTION: verify in staging first!)
-curl -X POST https://api.bluemoxon.com/api/v1/health/migrate
-```
-
-This endpoint:
-- Runs all pending Alembic migrations
-- Returns success/failure status with details
-- Is idempotent (safe to run multiple times)
-
-**When to use:**
-- After deploying code that includes new migrations
-- If you see "duplicate key" or sequence-related errors
-- After manual database operations
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for migration procedures via `/health/migrate` endpoint.
 
 ## Token-Saving Guidelines
 
-### CRITICAL: Use Scripts Instead of Claude for These Tasks
+**Use scripts, not Claude, for repetitive tasks:**
 
 ```bash
-# Full workflow - validates, commits, creates PR, waits for CI, merges
-./scripts/validate-and-push.sh "fix: description here"
-
-# Setup pre-commit hooks (run once)
-./scripts/setup-dev.sh
+./scripts/validate-and-push.sh "fix: description"  # Full workflow: lint, commit, PR, CI, merge
+./scripts/setup-dev.sh                              # Setup pre-commit hooks (once)
 ```
 
-### DO NOT use Claude tokens for:
-| Task | Use Instead |
-|------|-------------|
+| Don't Use Claude For | Use Instead |
+|---------------------|-------------|
 | Running linters | `pre-commit run --all-files` |
 | Waiting for CI | `gh pr checks <n> --watch` |
-| Checking PR status | `gh pr checks <n>` |
-| Formatting code | `poetry run ruff format .` or `npm run lint` |
-| Validating before push | `./scripts/validate-and-push.sh` |
-| Checking deploy status | `gh run list --workflow Deploy` |
+| Formatting code | `poetry run ruff format .` |
+| Checking deploy | `gh run list --workflow Deploy` |
 
-### Pre-commit Hooks (run automatically on commit)
-- `ruff check --fix` (Python linting with auto-fix)
-- `ruff format` (Python formatting)
-- `npm run lint` (Frontend linting)
-- `npm run type-check` (TypeScript checking)
-
-### Use Claude for:
-- Writing new code/features
-- Debugging complex issues
-- Architecture decisions
-- Code review insights
-- AWS infrastructure changes
-
-### One-Command Workflow
-After making changes, run:
-```bash
-./scripts/validate-and-push.sh "type: description"
-```
-This script:
-1. Runs all linters/formatters locally
-2. Commits and pushes to branch
-3. Creates PR
-4. Waits for CI to pass
-5. Merges to main automatically
-
-**Claude should NOT manually run these steps - the script handles them.**
+**Use Claude for:** Writing code, debugging, architecture decisions, code review insights.
 
 ## Temporary Files
 
-**MUST use `.tmp/` for all temporary files** - NEVER use `/tmp`:
-```bash
-.tmp/                  # Project-local temp directory (gitignored)
-```
+**MUST use `.tmp/` for all temporary files** - NEVER use `/tmp`.
 
-**ENFORCEMENT**: Using `/tmp` triggers permission prompts. `.tmp/` is pre-approved. Always use `.tmp/`.
-
-Benefits:
-- No permission prompts (covered by project permissions)
-- Stays with project context
-- Auto-cleaned on project deletion
-
-Examples:
-```bash
-# Download files
-curl -o .tmp/response.json https://api.example.com/data
-
-# Script outputs
-python script.py > .tmp/output.txt
-
-# Temporary processing
-aws lambda invoke --payload '{}' .tmp/result.json
-```
+Using `/tmp` triggers permission prompts. `.tmp/` is pre-approved, stays with project context, and auto-cleans on deletion.
 
 ## Local Development Strategy
 
@@ -591,60 +419,16 @@ poetry run uvicorn app.main:app --reload
 
 **NEVER build and deploy the frontend locally to S3.** This has caused repeated authentication outages.
 
-### Why This Is Dangerous
-Local builds use whatever `VITE_COGNITO_*` environment variables are set in your shell. These are often:
-- Stale (from a previous session)
-- Wrong environment (pointing to prod when deploying to staging)
-- Missing entirely (causing authentication to fail silently)
+**Why:** Local builds use stale/wrong `VITE_COGNITO_*` environment variables, causing auth to silently fail.
 
-### Symptoms of Wrong Cognito Config
-- "Invalid email or password" (user exists but wrong pool)
-- "Invalid code received for user" (MFA token for different pool)
-- Silent authentication failures
-- Users locked out of staging or production
+**The only safe way:** Use the CI/CD pipeline - it reads Cognito config from Terraform outputs.
 
-### The Only Safe Way to Deploy Frontend
-**Use the CI/CD pipeline.** It reads Cognito config from Terraform outputs, ensuring it's always correct.
-
+**Emergency local deploy (LAST RESORT):** Read config from Terraform first:
 ```bash
-# CORRECT: Let CI/CD deploy frontend
-git push origin feature-branch
-gh pr create --base staging
-# Merge PR → CI builds with correct config → Deploys
-
-# WRONG: Building and deploying locally
-npm run build
-aws s3 sync dist/ s3://bluemoxon-frontend-staging  # DON'T DO THIS
+cd infra/terraform
+AWS_PROFILE=bmx-staging terraform output -json | jq '{pool_id: .cognito_user_pool_id.value, client_id: .cognito_client_id.value}'
 ```
-
-### Build-Time Validation
-The `build:validate` script checks Cognito config against `infra/config/{env}.json`:
-```bash
-# This will FAIL if env vars don't match config
-VITE_API_URL=https://staging.api.bluemoxon.com npm run build:validate
-```
-
-### Emergency Local Deploy (LAST RESORT)
-If you absolutely must deploy locally (CI is broken), read config from Terraform:
-```bash
-cd /Users/mark/projects/bluemoxon/infra/terraform
-AWS_PROFILE=bmx-staging terraform output -json | jq '{
-  pool_id: .cognito_user_pool_id.value,
-  client_id: .cognito_client_id.value,
-  domain: .cognito_domain.value
-}'
-
-# Then set ALL vars and use build:validate
-cd /Users/mark/projects/bluemoxon/frontend
-VITE_COGNITO_USER_POOL_ID=<pool_id> \
-VITE_COGNITO_APP_CLIENT_ID=<client_id> \
-VITE_COGNITO_DOMAIN=<domain> \
-VITE_API_URL=https://staging.api.bluemoxon.com \
-npm run build:validate
-
-# Verify the built config before deploying
-grep -r "us-west-2_" dist/  # Should show ONLY the correct pool ID
-```
+Then set all `VITE_*` vars and use `npm run build:validate` before deploying.
 
 ## Project Structure
 
@@ -702,268 +486,40 @@ Packages like `pydantic` contain compiled binary extensions (`pydantic_core._pyd
 [ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'pydantic_core._pydantic_core'
 ```
 
-## CRITICAL: Infrastructure as Code (Terraform)
+## Infrastructure as Code (Terraform)
 
 **ALL infrastructure MUST be managed via Terraform.** No manual AWS console changes.
 
-### Why This Matters
-- Manual changes create drift that's impossible to track
-- Manual changes get lost when resources are recreated
-- Other team members don't know about manual changes
-- Rollbacks become impossible
-- Staging/prod parity breaks
+See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for:
+- Detailed Terraform style requirements and workflows
+- Module structure and design principles
+- Validation testing (destroy/apply)
+- Pipeline enforcement and drift detection
 
-### The Rule
-1. **NEVER** create/modify AWS resources manually (console or CLI)
+### Essential Rules
+
+1. **NEVER** create/modify AWS resources manually
 2. **ALWAYS** add infrastructure changes to `infra/terraform/`
-3. **DOCUMENT** any temporary manual fixes immediately in docs and create a ticket to terraformize
+3. **DOCUMENT** any emergency manual fixes and create issue to terraformize
 
-### Workflow for Infrastructure Changes
-```bash
-cd infra/terraform
-
-# 1. Make changes to .tf files
-# 2. Plan (always review!)
-terraform plan -var-file=envs/staging.tfvars
-
-# 3. Apply
-terraform apply -var-file=envs/staging.tfvars
-
-# 4. Commit the .tf changes (run as separate commands)
-git add .
-git commit -m "infra: Add/change X resource"
-```
-
-### Import Existing Resources
-If a resource was created manually, import it before making changes:
-```bash
-terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
-```
-
-### Current State
-- **Staging:** Terraform state in `s3://bluemoxon-terraform-state-staging`
-- **Prod:** Migration in progress (see `docs/PROD_MIGRATION_CHECKLIST.md`)
-
-### Exception Process (Emergency Fixes ONLY)
-
-If you MUST make a manual change (emergency fix):
-
-1. **Document BEFORE making the change:**
-   - Create entry in `docs/STAGING_INFRASTRUCTURE_CHANGES.md` or `docs/PROD_INFRASTRUCTURE_CHANGES.md`
-   - Include: resource type, ID, what changed, why
-
-2. **Make the change** with AWS CLI (auditable) not console:
-   ```bash
-   # Good: auditable command
-   aws lambda update-function-configuration --function-name X --environment ...
-
-   # Bad: console clicks (no record)
-   ```
-
-3. **Immediately create follow-up issue:**
-   - Create GitHub issue: "infra: Terraformize [resource]"
-   - Link to the documentation entry
-
-4. **Notify team** in PR or Slack
-
-**Manual change without documentation = grounds for revert.**
-
-### Terraform Quick Reference
-
-| Task | Command |
-|------|---------|
-| Format | `terraform fmt -recursive` |
-| Validate | `terraform validate` |
-| Plan (staging) | `AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars -var="db_password=X"` |
-| Apply (staging) | `AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_password=X"` |
-| Check drift | `AWS_PROFILE=bmx-staging terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
-| Import resource | `terraform import 'module.name.resource.name' <aws-id>` |
-| Show state | `terraform state list` |
-| Remove from state | `terraform state rm <resource>` |
-
-**Exit codes for drift detection:**
-- `0` = No changes (infrastructure matches config)
-- `1` = Error
-- `2` = Changes detected (drift!)
-
-### Terraform Validation Testing (Destroy/Apply)
-
-**For significant infrastructure changes, validate with destroy/apply cycle in staging:**
+### Quick Commands
 
 ```bash
 cd infra/terraform
+terraform fmt -recursive                                         # Format
+terraform validate                                                # Validate
+AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars   # Plan
+AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars  # Apply
+```
 
-# 1. Create RDS snapshot (data protection)
-AWS_PROFILE=bmx-staging aws rds create-db-snapshot \
-  --db-instance-identifier bluemoxon-staging-db \
-  --db-snapshot-identifier pre-terraform-test-$(date +%Y%m%d)
+## Troubleshooting
 
-# 2. Destroy staging infrastructure
-AWS_PROFILE=bmx-staging terraform destroy \
-  -var-file=envs/staging.tfvars \
-  -var="db_password=$STAGING_DB_PASSWORD"
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for full troubleshooting runbook.
 
-# 3. Apply from scratch
-AWS_PROFILE=bmx-staging terraform apply \
-  -var-file=envs/staging.tfvars \
-  -var="db_password=$STAGING_DB_PASSWORD"
-
-# 4. Validate services
+**Quick diagnostic:**
+```bash
 curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
-curl -s https://staging.app.bluemoxon.com | head -20
 ```
-
-**When to use destroy/apply testing:**
-- Adding new Terraform modules
-- Changing VPC networking (endpoints, NAT gateway)
-- Major IAM policy changes
-- Before migrating configuration to production
-- After significant module refactoring
-
-**What survives destroy/apply (external to Terraform):**
-- ACM certificates (passed as ARNs)
-- Route53 records (in prod account)
-- RDS snapshots (manual backup)
-- S3 bucket data (if buckets not destroyed)
-
-### Pipeline Enforcement (Automated Drift Prevention)
-
-The following automated checks enforce infrastructure discipline:
-
-| Mechanism | When | Action |
-|-----------|------|--------|
-| **Drift Detection** | Daily 6 AM UTC | `terraform plan -detailed-exitcode` on both environments. Creates GitHub issue if drift found. |
-| **CODEOWNERS** | On PR | Requires owner review for `/infra/`, `/infra/terraform/`, `/.github/workflows/` |
-| **Terraform Validation** | On PR to infra/ | Runs `fmt`, `validate`, `tflint`, `tfsec`, `checkov` |
-| **PR Plan Comments** | On PR to infra/ | Posts Terraform plan output as PR comment |
-
-**Workflow Files:**
-- `.github/workflows/drift-detection.yml` - Scheduled drift checks
-- `.github/workflows/terraform.yml` - PR validation
-- `.github/CODEOWNERS` - Review requirements
-
-**Manual Drift Check:**
-```bash
-# Trigger drift detection manually
-gh workflow run drift-detection.yml -f environment=staging
-
-# Watch results
-gh run list --workflow drift-detection.yml --limit 1
-gh run watch <run-id>
-```
-
-**Future Enhancement (after Terraform parity complete):**
-Once all production resources are imported (#224-#226), add pre-deploy drift check to `deploy.yml` that warns/blocks if Terraform state doesn't match AWS.
-
-## CRITICAL: Terraform Style Requirements
-
-**STRICTLY follow HashiCorp's official guidelines:**
-- Style Guide: https://developer.hashicorp.com/terraform/language/style
-- Module Pattern: https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation
-
-### File Organization (REQUIRED)
-```
-modules/<module-name>/
-├── main.tf          # Resources and data sources
-├── variables.tf     # Input variables (ALPHABETICAL order)
-├── outputs.tf       # Output values (ALPHABETICAL order)
-├── versions.tf      # Provider version constraints (if needed)
-└── README.md        # Module documentation
-```
-
-### Variable Definitions (REQUIRED for ALL variables)
-```hcl
-variable "example_name" {
-  type        = string
-  description = "Human-readable description of what this variable controls"
-  default     = "sensible-default"  # Optional variables MUST have defaults
-
-  validation {  # Add validation where appropriate
-    condition     = length(var.example_name) > 0
-    error_message = "Example name cannot be empty."
-  }
-}
-```
-
-### Naming Conventions
-- **Resources**: Use descriptive nouns, underscore-separated: `aws_lambda_function`, NOT `aws-lambda-function`
-- **Variables**: Underscore-separated, descriptive: `db_instance_class`, NOT `dbInstanceClass`
-- **Do NOT include resource type in name**: `name = "api"`, NOT `name = "lambda-api"`
-
-### Resource Organization Order
-1. `count` or `for_each` meta-arguments
-2. Resource-specific non-block parameters
-3. Resource-specific block parameters
-4. `lifecycle` blocks (if needed)
-5. `depends_on` (if required)
-
-### Module Design Principles
-1. **Single Purpose**: Each module does ONE thing well
-2. **80% Use Case**: Design for common cases, avoid edge case complexity
-3. **Expose Common Args**: Only expose frequently-modified arguments
-4. **Output Everything**: Export all useful values even if not immediately needed
-5. **Sensible Defaults**: Required inputs have no default; optional inputs have good defaults
-
-### Before Committing ANY Terraform Changes
-```bash
-cd infra/terraform
-terraform fmt -recursive      # Format all files
-terraform validate            # Validate syntax
-terraform plan -var-file=envs/staging.tfvars  # Review changes
-```
-
-### Environment Separation (CRITICAL for Prod/Staging)
-- Use `envs/staging.tfvars` and `envs/prod.tfvars` for environment-specific values
-- NEVER hardcode environment-specific values in modules
-- Use variables with environment passed from tfvars
-- State files are separate: `bluemoxon/staging/terraform.tfstate` vs `bluemoxon/prod/terraform.tfstate`
-
-## Troubleshooting: Deep Health Check Failures
-
-**ALWAYS check `/api/v1/health/deep` first when debugging API issues.** This endpoint validates all dependencies.
-
-### Common Failure: "Service Unavailable" (503) with Lambda Timeout
-
-**Symptom:** Deep health times out at 30 seconds, returns `{"message": "Service Unavailable"}`
-
-**Root Cause:** Lambda in VPC cannot reach AWS services (S3, Cognito, Secrets Manager)
-
-**Diagnosis:**
-```bash
-curl -s "https://staging.api.bluemoxon.com/api/v1/health/deep"
-curl -s "https://staging.api.bluemoxon.com/api/v1/books?limit=1"
-```
-If books works but deep health times out → VPC endpoint issue
-
-**Fix:** Ensure VPC has required endpoints:
-- `com.amazonaws.us-west-2.secretsmanager` (Interface) - for DB credentials
-- `com.amazonaws.us-west-2.s3` (Gateway) - for images bucket
-- `com.amazonaws.us-west-2.cognito-idp` (Interface) - for Cognito API
-
-See `docs/PROD_MIGRATION_CHECKLIST.md` → "VPC Networking Requirements" section.
-
-### Common Failure: S3 Bucket Deleted
-
-**Symptom:** Deep health check hangs on S3 check
-
-**Diagnosis:**
-```bash
-AWS_PROFILE=bmx-staging aws s3 ls s3://bluemoxon-staging-images
-```
-If "NoSuchBucket" → bucket was deleted
-
-**Fix:**
-```bash
-AWS_PROFILE=bmx-staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
-```
-
-### Debugging Steps
-
-1. Check simple health: `curl https://staging.api.bluemoxon.com/health`
-2. Check Lambda logs: `AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 5m`
-3. Look for "timeout" in logs → VPC networking issue
-4. Check VPC endpoints exist for S3/Cognito/Secrets Manager
-5. Check S3 bucket exists
 
 ## Quick Commands
 
