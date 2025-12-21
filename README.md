@@ -73,7 +73,7 @@ BlueMoxon is a web application for managing a Victorian book collection with:
 - **Backend:** Python FastAPI + SQLAlchemy + Alembic
 - **Database:** PostgreSQL (Aurora Serverless v2)
 - **Auth:** AWS Cognito with MFA
-- **Infrastructure:** AWS CDK (Python)
+- **Infrastructure:** Terraform (AWS)
 - **CI/CD:** GitHub Actions
 
 ## Project Structure
@@ -82,7 +82,7 @@ BlueMoxon is a web application for managing a Victorian book collection with:
 bluemoxon/
 ├── frontend/          # Vue 3 SPA
 ├── backend/           # FastAPI application
-├── infra/             # AWS CDK infrastructure
+├── infra/             # Terraform infrastructure
 ├── scripts/           # Migration and utility scripts
 ├── .github/workflows/ # GitHub Actions CI/CD
 └── docs/              # Documentation
@@ -134,21 +134,21 @@ poetry run uvicorn app.main:app --reload
 ### Infrastructure Deployment
 
 ```bash
-cd infra
-poetry install
-cdk bootstrap
-cdk deploy --all
+cd infra/terraform
+terraform init
+terraform plan -var-file=envs/staging.tfvars
+terraform apply -var-file=envs/staging.tfvars
 ```
 
 ## Documentation
 
+- [Documentation Index](docs/INDEX.md) - **Start here** for navigation
 - [Architecture](docs/ARCHITECTURE.md) - System design and decisions
-- [API](docs/API.md) - API endpoint documentation
+- [API Reference](docs/API_REFERENCE.md) - API endpoint documentation
 - [Database](docs/DATABASE.md) - Schema and migrations
-- [Deployment](docs/DEPLOYMENT.md) - AWS setup guide
+- [Infrastructure](docs/INFRASTRUCTURE.md) - Terraform and AWS setup
+- [Operations](docs/OPERATIONS.md) - Runbook for common tasks
 - [Development](docs/DEVELOPMENT.md) - Local dev setup
-- [Migration](docs/MIGRATION.md) - Data migration from legacy system
-- [Validation](docs/VALIDATION.md) - CI/CD validation blueprint
 
 ## Contributing
 
