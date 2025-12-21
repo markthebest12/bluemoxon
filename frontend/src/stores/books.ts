@@ -316,6 +316,9 @@ export const useBooksStore = defineStore("books", () => {
         console.error(`Failed to poll job status for book ${bookId}:`, e);
         // Stop polling on error (job might not exist)
         stopJobPoller(bookId);
+        // Clear job from tracking so UI doesn't show stuck "Analyzing..." state
+        // Issue #499: This was missing, causing jobs to stay stuck in Map forever
+        clearJob(bookId);
       }
     }, intervalMs);
 
@@ -417,6 +420,9 @@ export const useBooksStore = defineStore("books", () => {
         console.error(`Failed to poll eval runbook job status for book ${bookId}:`, e);
         // Stop polling on error (job might not exist)
         stopEvalRunbookJobPoller(bookId);
+        // Clear job from tracking so UI doesn't show stuck state
+        // Issue #499: This was missing, causing jobs to stay stuck in Map forever
+        clearEvalRunbookJob(bookId);
       }
     }, intervalMs);
 
