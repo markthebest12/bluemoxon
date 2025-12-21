@@ -244,6 +244,11 @@ function handleKeydown(e: KeyboardEvent) {
     }
   }
 }
+
+// Print function
+function printAnalysis() {
+  window.print();
+}
 </script>
 
 <template>
@@ -485,10 +490,26 @@ function handleKeydown(e: KeyboardEvent) {
                   </div>
                 </template>
               </template>
+              <!-- Print button - visible in view mode when analysis exists -->
+              <button
+                v-if="!editMode && analysis"
+                @click="printAnalysis"
+                class="no-print p-2 text-victorian-ink-muted hover:text-victorian-ink-dark hover:bg-victorian-paper-cream rounded-full transition-colors"
+                title="Print analysis"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                  />
+                </svg>
+              </button>
               <!-- Close button - always visible and prominent -->
               <button
                 @click="emit('close')"
-                class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors ml-1 sm:ml-2"
+                class="no-print p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors ml-1 sm:ml-2"
                 title="Close"
               >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -804,5 +825,55 @@ Detailed condition notes...
 
 .analysis-content :deep(tr:nth-child(even)) {
   @apply bg-gray-50;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* Make the slide panel full width for print */
+  .fixed {
+    position: static !important;
+  }
+
+  .absolute {
+    display: none !important;
+  }
+
+  .relative {
+    position: static !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide header bar (close button, edit buttons) */
+  .border-b.bg-victorian-cream {
+    display: none !important;
+  }
+
+  /* Make content area printable */
+  .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Ensure analysis content prints well */
+  .analysis-content {
+    max-width: 100% !important;
+  }
+
+  .analysis-content :deep(table) {
+    page-break-inside: avoid;
+  }
+
+  .analysis-content :deep(h1),
+  .analysis-content :deep(h2),
+  .analysis-content :deep(h3) {
+    page-break-after: avoid;
+  }
 }
 </style>

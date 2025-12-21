@@ -339,6 +339,11 @@ function getStatusColor(status: string): string {
       return "bg-gray-100 text-gray-800";
   }
 }
+
+// Print function
+function printPage() {
+  window.print();
+}
 </script>
 
 <template>
@@ -356,16 +361,34 @@ function getStatusColor(status: string): string {
         >
           &larr; Back to Collection
         </RouterLink>
-        <div v-if="authStore.isEditor" class="flex gap-2">
-          <RouterLink
-            :to="`/books/${booksStore.currentBook.id}/edit`"
-            class="btn-secondary text-sm sm:text-base px-3 sm:px-4"
+        <div class="flex gap-2">
+          <!-- Print button (visible to all users) -->
+          <button
+            @click="printPage"
+            class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded hover:bg-victorian-paper-cream transition-colors"
+            title="Print this page"
           >
-            Edit Book
-          </RouterLink>
-          <button @click="openDeleteModal" class="btn-danger text-sm sm:text-base px-3 sm:px-4">
-            Delete
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+              />
+            </svg>
           </button>
+          <!-- Editor-only actions -->
+          <template v-if="authStore.isEditor">
+            <RouterLink
+              :to="`/books/${booksStore.currentBook.id}/edit`"
+              class="btn-secondary text-sm sm:text-base px-3 sm:px-4 no-print"
+            >
+              Edit Book
+            </RouterLink>
+            <button @click="openDeleteModal" class="btn-danger text-sm sm:text-base px-3 sm:px-4 no-print">
+              Delete
+            </button>
+          </template>
         </div>
       </div>
       <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mt-4">
@@ -1058,3 +1081,39 @@ function getStatusColor(status: string): string {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* Optimize layout for print */
+  .max-w-5xl {
+    max-width: none !important;
+  }
+
+  .card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Hide interactive elements */
+  select,
+  button {
+    display: none !important;
+  }
+
+  /* Show status as text instead of dropdown */
+  .card dd span {
+    display: inline !important;
+  }
+
+  /* Ensure images print */
+  img {
+    max-width: 100% !important;
+  }
+}
+</style>
