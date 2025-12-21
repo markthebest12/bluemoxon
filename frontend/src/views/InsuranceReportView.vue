@@ -266,25 +266,25 @@ const exportCSV = () => {
 <template>
   <div class="max-w-6xl mx-auto p-8 font-display">
     <!-- Action buttons (hidden when printing) -->
-    <div
-      class="no-print flex justify-between items-center flex-wrap gap-4 mb-8 pb-4 border-b border-victorian-paper-antique"
-    >
-      <router-link to="/books" class="btn-secondary"> ← Back to Collection </router-link>
+    <div class="no-print flex items-center gap-4 mb-8 pb-4 border-b border-victorian-paper-antique">
+      <router-link to="/books" class="btn-secondary shrink-0"> ← Back to Collection </router-link>
 
       <!-- Report Type Selector -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <label for="reportType" class="font-semibold text-victorian-ink-dark">Report Type:</label>
+      <div class="flex items-center gap-2 flex-1">
+        <label for="reportType" class="font-semibold text-victorian-ink-dark whitespace-nowrap"
+          >Report Type:</label
+        >
         <select id="reportType" v-model="reportType" :disabled="loading" class="select">
           <option v-for="opt in reportTypeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </select>
-        <span class="text-sm text-victorian-ink-muted italic">{{
+        <span class="text-sm text-victorian-ink-muted italic whitespace-nowrap">{{
           reportTypeOptions.find((o) => o.value === reportType)?.description
         }}</span>
       </div>
 
-      <div class="flex gap-4">
+      <div class="flex gap-2 shrink-0">
         <button @click="exportCSV" class="btn-secondary" :disabled="loading">Export CSV</button>
         <button @click="printReport" class="btn-primary" :disabled="loading">Print Report</button>
       </div>
