@@ -34,7 +34,9 @@ def is_valid_ebay_url(url: str) -> bool:
             return bool(parsed.path and len(parsed.path) > 1)
 
         # Standard eBay URLs must have /itm/ pattern (numeric or alphanumeric short ID)
-        return bool(EBAY_ITEM_PATTERN.search(parsed.path) or EBAY_SHORT_ID_PATTERN.search(parsed.path))
+        return bool(
+            EBAY_ITEM_PATTERN.search(parsed.path) or EBAY_SHORT_ID_PATTERN.search(parsed.path)
+        )
     except Exception:
         return False
 
