@@ -294,20 +294,30 @@ def _parse_binder_identification(text: str) -> dict | None:
     ]
 
     if "name" not in result:
-        # Try to find binder name mentioned in text
+        # Try to find binder name mentioned with EXPLICIT signature/stamp evidence.
+        # Issue #502: Only match patterns that indicate physical signature/stamp,
+        # NOT style descriptions like "bound by X" or "X binding".
+        # Per Napoleon Framework v3 prompt: Only identify binders with confirmed
+        # visible signatures or stamps.
         for binder in known_binders:
-            # Look for patterns like "bound by Zaehnsdorf" or "Zaehnsdorf binding"
+            # Patterns requiring explicit physical evidence (signature/stamp)
             patterns = [
-                rf"bound by\s+{re.escape(binder)}",
-                rf"{re.escape(binder)}\s+bind(?:ing|er)",
-                rf"signed\s+(?:by\s+)?{re.escape(binder)}",
-                rf"{re.escape(binder)}\s+signed",
+                # "X signature visible on turn-in" or "X signature on front turn-in"
+                rf"{re.escape(binder)}\s+signature\s+(?:visible\s+)?(?:on|in)",
+                # "signature of X" or "signed X visible"
+                rf"signature\s+(?:of\s+)?{re.escape(binder)}",
+                # "X stamped in gilt" or "X stamp visible"
+                rf"{re.escape(binder)}\s+stamp(?:ed)?\s+(?:in\s+gilt|visible|on)",
+                # "stamp of X" or "X's stamp"
+                rf"stamp\s+(?:of\s+)?{re.escape(binder)}",
+                # "signed by X on turn-in" (requires location context)
+                rf"signed\s+(?:by\s+)?{re.escape(binder)}\s+(?:on|in)",
             ]
             for pattern in patterns:
                 if re.search(pattern, text, re.IGNORECASE):
                     result["name"] = binder
                     if "confidence" not in result:
-                        result["confidence"] = "MEDIUM"
+                        result["confidence"] = "HIGH"  # Physical evidence = HIGH confidence
                     break
             if "name" in result:
                 break
