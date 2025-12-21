@@ -403,24 +403,19 @@ class TestParseBinderIdentification:
         assert "Signed in gilt" in result["evidence"]
         assert "endpapers" in result["authentication_notes"]
 
-    def test_extracts_binder_from_text_patterns(self):
-        text = "This volume was bound by Zaehnsdorf in their characteristic style."
-        result = _parse_binder_identification(text)
-        assert result is not None
-        assert result["name"] == "Zaehnsdorf"
-        assert result["confidence"] == "MEDIUM"
-
-    def test_extracts_riviere_binding(self):
-        text = "A fine Rivière binding with exceptional gilt work."
-        result = _parse_binder_identification(text)
-        assert result is not None
-        assert "Rivière" in result["name"] or "Riviere" in result["name"]
-
     def test_extracts_signed_binder(self):
+        """Explicit signature mention SHOULD identify binder."""
         text = "Signed by Bayntun on the front turn-in."
         result = _parse_binder_identification(text)
         assert result is not None
         assert result["name"] == "Bayntun"
+
+    def test_extracts_stamped_binder(self):
+        """Explicit stamp mention SHOULD identify binder."""
+        text = "Zaehnsdorf stamped in gilt on turn-in."
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert result["name"] == "Zaehnsdorf"
 
     def test_returns_none_for_no_binder(self):
         text = "A standard publisher's cloth binding in good condition."
@@ -441,6 +436,75 @@ class TestParseBinderIdentification:
 """
         result = _parse_binder_identification(text)
         assert result is None or "name" not in result
+
+    # Issue #502: Tests for correct binder detection behavior
+    # These tests enforce that style mentions do NOT trigger binder identification
+    # Only explicit signature/stamp evidence should identify a binder
+
+    def test_style_mention_does_not_identify_binder(self):
+        """Style mentions like 'Rivière-style' should NOT identify binder.
+
+        Issue #502: The AI correctly says BINDER_IDENTIFIED: UNKNOWN for style
+        mentions, but fallback patterns were overriding this. Style observations
+        belong in binding description, NOT in binder identification.
+        """
+        text = "A fine Rivière-style binding with exceptional gilt work."
+        result = _parse_binder_identification(text)
+        # Should NOT identify a binder from style mention alone
+        assert result is None or "name" not in result
+
+    def test_bound_by_without_signature_does_not_identify_binder(self):
+        """'Bound by' without signature evidence should NOT identify binder.
+
+        Issue #502: 'bound by Zaehnsdorf' could mean style description,
+        not attribution with signature evidence.
+        """
+        text = "This volume was bound by Zaehnsdorf in their characteristic style."
+        result = _parse_binder_identification(text)
+        # Should NOT identify without signature evidence
+        assert result is None or "name" not in result
+
+    def test_binding_type_mention_does_not_identify_binder(self):
+        """'Rivière binding' style description should NOT identify binder.
+
+        Issue #502: 'A fine Rivière binding' describes the style, not
+        confirmed attribution with signature.
+        """
+        text = "A fine Rivière binding with exceptional gilt work."
+        result = _parse_binder_identification(text)
+        # Should NOT identify from style description
+        assert result is None or "name" not in result
+
+    def test_structured_unknown_not_overridden_by_text_mention(self):
+        """When structured data says UNKNOWN, text patterns should NOT override.
+
+        Issue #502: AI correctly identifies BINDER_IDENTIFIED: UNKNOWN, but
+        if text mentions 'Rivière-style', fallback should NOT set binder.
+        """
+        text = """---STRUCTURED-DATA---
+BINDER_IDENTIFIED: UNKNOWN
+BINDER_CONFIDENCE: NONE
+---END-STRUCTURED-DATA---
+
+The binding exhibits Rivière-style tooling and design elements,
+suggesting influence from that workshop tradition.
+"""
+        # When parsing the full markdown, binder should stay UNKNOWN
+        from app.utils.markdown_parser import parse_analysis_markdown
+
+        result = parse_analysis_markdown(text)
+        # Binder identification should be None (UNKNOWN in structured data)
+        assert result.binder_identification is None or "name" not in result.binder_identification
+
+    def test_signature_on_turn_in_identifies_binder(self):
+        """Explicit signature statement SHOULD identify binder.
+
+        This is the CORRECT case - signature evidence justifies identification.
+        """
+        text = "Rivière & Son signature visible on front turn-in."
+        result = _parse_binder_identification(text)
+        assert result is not None
+        assert "Rivière" in result.get("name", "")
 
 
 class TestStripStructuredData:
@@ -510,15 +574,20 @@ A magnificent Rivière binding in fine condition.
         assert result.binder_identification["name"] == "Rivière & Son"
         assert result.binder_identification["confidence"] == "HIGH"
 
-    def test_fallback_to_text_pattern_binder(self):
-        # Even without explicit block, should find binder from text patterns
+    def test_style_description_does_not_identify_binder(self):
+        """Issue #502: 'bound by X' style descriptions should NOT identify binder.
+
+        Only explicit signature/stamp evidence should trigger identification.
+        The Napoleon Framework prompt explicitly states: 'Only identify binders
+        with confirmed visible signatures or stamps.'
+        """
         markdown = """## Executive Summary
 
 This volume was bound by Sangorski & Sutcliffe in their distinctive style.
 """
         result = parse_analysis_markdown(markdown)
-        assert result.binder_identification is not None
-        assert result.binder_identification["name"] == "Sangorski & Sutcliffe"
+        # Style description should NOT identify binder
+        assert result.binder_identification is None or "name" not in result.binder_identification
 
     def test_v1_format_still_works(self):
         # Ensure backward compatibility with v1 format (no structured data)
