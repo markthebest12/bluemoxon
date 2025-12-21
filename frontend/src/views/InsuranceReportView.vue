@@ -264,154 +264,213 @@ const exportCSV = () => {
 </script>
 
 <template>
-  <div class="insurance-report">
+  <div class="max-w-6xl mx-auto p-8 font-display">
     <!-- Action buttons (hidden when printing) -->
-    <div class="actions no-print">
-      <router-link to="/books" class="btn btn-secondary"> ← Back to Collection </router-link>
+    <div
+      class="no-print flex justify-between items-center flex-wrap gap-4 mb-8 pb-4 border-b border-victorian-paper-antique"
+    >
+      <router-link to="/books" class="btn-secondary"> ← Back to Collection </router-link>
 
       <!-- Report Type Selector -->
-      <div class="report-type-selector">
-        <label for="reportType">Report Type:</label>
-        <select id="reportType" v-model="reportType" :disabled="loading">
+      <div class="flex items-center gap-2 flex-wrap">
+        <label for="reportType" class="font-semibold text-victorian-ink-dark">Report Type:</label>
+        <select id="reportType" v-model="reportType" :disabled="loading" class="select">
           <option v-for="opt in reportTypeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </select>
-        <span class="report-type-desc">{{
+        <span class="text-sm text-victorian-ink-muted italic">{{
           reportTypeOptions.find((o) => o.value === reportType)?.description
         }}</span>
       </div>
 
-      <div class="action-buttons">
-        <button @click="exportCSV" class="btn btn-secondary" :disabled="loading">Export CSV</button>
-        <button @click="printReport" class="btn btn-primary" :disabled="loading">
-          Print Report
-        </button>
+      <div class="flex gap-4">
+        <button @click="exportCSV" class="btn-secondary" :disabled="loading">Export CSV</button>
+        <button @click="printReport" class="btn-primary" :disabled="loading">Print Report</button>
       </div>
     </div>
 
     <!-- Loading state -->
-    <div v-if="loading" class="loading">Loading collection data...</div>
+    <div v-if="loading" class="text-center p-12 text-lg text-victorian-ink-muted">
+      Loading collection data...
+    </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="error">{{ error }}</div>
+    <div v-else-if="error" class="text-center p-12 text-lg text-victorian-burgundy">
+      {{ error }}
+    </div>
 
     <!-- Report content -->
     <template v-else>
       <!-- Report Header -->
-      <header class="report-header">
-        <h1>Victorian Book Collection</h1>
-        <h2>{{ reportTitle }}</h2>
-        <p class="report-date">Generated: {{ reportDate }}</p>
+      <header class="text-center mb-8 pb-4 border-b-2 border-victorian-hunter-800">
+        <h1 class="text-3xl text-victorian-hunter-900 mb-1 font-display">
+          Victorian Book Collection
+        </h1>
+        <h2 class="text-xl text-victorian-ink-dark font-normal mb-2">{{ reportTitle }}</h2>
+        <p class="text-victorian-ink-muted text-sm">Generated: {{ reportDate }}</p>
       </header>
 
       <!-- Collection Summary -->
-      <section class="summary">
-        <h3>Collection Summary ({{ summaryLabel }})</h3>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="label">Collections</span>
-            <span class="value">{{ stats.totalItems }}</span>
+      <section class="card-static mb-8">
+        <h3 class="mt-0 mb-4 text-victorian-ink-dark font-display text-lg">
+          Collection Summary ({{ summaryLabel }})
+        </h3>
+        <div class="grid grid-cols-4 gap-4 mb-4 max-md:grid-cols-2">
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">Collections</span>
+            <span class="block text-2xl font-bold">{{ stats.totalItems }}</span>
           </div>
-          <div class="summary-item">
-            <span class="label">Volumes</span>
-            <span class="value">{{ stats.totalVolumes }}</span>
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">Volumes</span>
+            <span class="block text-2xl font-bold">{{ stats.totalVolumes }}</span>
           </div>
-          <div class="summary-item">
-            <span class="label">Authenticated Bindings</span>
-            <span class="value">{{ stats.authenticatedBindings }}</span>
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">Authenticated Bindings</span>
+            <span class="block text-2xl font-bold">{{ stats.authenticatedBindings }}</span>
           </div>
-          <div class="summary-item">
-            <span class="label">Total Cost</span>
-            <span class="value">{{ formatCurrency(stats.totalPurchaseCost) }}</span>
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">Total Cost</span>
+            <span class="block text-2xl font-bold">{{
+              formatCurrency(stats.totalPurchaseCost)
+            }}</span>
           </div>
-          <div class="summary-item highlight">
-            <span class="label">Low Estimate</span>
-            <span class="value">{{ formatCurrency(stats.totalValueLow) }}</span>
+          <div
+            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">Low Estimate</span>
+            <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueLow) }}</span>
           </div>
-          <div class="summary-item highlight primary">
-            <span class="label">Mid Estimate</span>
-            <span class="value">{{ formatCurrency(stats.totalValueMid) }}</span>
+          <div
+            class="bg-victorian-hunter-800 text-white p-4 rounded text-center border border-victorian-hunter-800"
+          >
+            <span class="block text-xs text-victorian-paper-cream mb-1">Mid Estimate</span>
+            <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueMid) }}</span>
           </div>
-          <div class="summary-item highlight">
-            <span class="label">High Estimate</span>
-            <span class="value">{{ formatCurrency(stats.totalValueHigh) }}</span>
+          <div
+            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+          >
+            <span class="block text-xs text-victorian-ink-muted mb-1">High Estimate</span>
+            <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueHigh) }}</span>
           </div>
         </div>
         <!-- Insurance recommendation only for insurance report -->
-        <p v-if="isInsuranceReport" class="recommendation">
+        <p
+          v-if="isInsuranceReport"
+          class="bg-green-100 p-4 rounded text-center m-0 border border-green-300"
+        >
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
-          <span class="note">(High estimate + 10% buffer)</span>
+          <span class="text-sm text-green-800">(High estimate + 10% buffer)</span>
         </p>
       </section>
 
       <!-- Itemized List -->
-      <section class="itemized-list">
-        <h3>Itemized Collection ({{ sortedBooks.length }} items, sorted by value)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="col-title">Title</th>
-              <th class="col-author">Author</th>
-              <th class="col-publisher">Publisher</th>
-              <th class="col-year">Year</th>
-              <th class="col-vols">Vols</th>
-              <th class="col-binder">Binder</th>
-              <th class="col-condition">Condition</th>
-              <th class="col-value">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="book in sortedBooks"
-              :key="book.id"
-              :class="{ authenticated: book.binding_authenticated }"
-            >
-              <td class="col-title">{{ book.title }}</td>
-              <td class="col-author">{{ book.author?.name || "-" }}</td>
-              <td class="col-publisher">
-                {{ book.publisher?.name || "-" }}
-                <span v-if="book.publisher?.tier" class="tier-badge">{{
-                  book.publisher.tier
-                }}</span>
-              </td>
-              <td class="col-year">{{ formatDate(book.publication_date) }}</td>
-              <td class="col-vols">{{ book.volumes || 1 }}</td>
-              <td class="col-binder">
-                <span v-if="book.binding_authenticated" class="auth-badge">★</span>
-                {{ book.binder?.name || "-" }}
-              </td>
-              <td class="col-condition">{{ book.condition_grade || "-" }}</td>
-              <td class="col-value">{{ formatCurrency(book.value_mid) }}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr class="total-row">
-              <td colspan="4"><strong>TOTAL</strong></td>
-              <td>
-                <strong>{{ stats.totalVolumes }}</strong>
-              </td>
-              <td colspan="2"></td>
-              <td>
-                <strong>{{ formatCurrency(stats.totalValueMid) }}</strong>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+      <section class="mb-8">
+        <h3 class="mb-4 text-victorian-ink-dark font-display text-lg">
+          Itemized Collection ({{ sortedBooks.length }} items, sorted by value)
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-1/4">
+                  Title
+                </th>
+                <th
+                  class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[12%] max-md:hidden"
+                >
+                  Author
+                </th>
+                <th
+                  class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[15%] max-md:hidden"
+                >
+                  Publisher
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">
+                  Year
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[5%]">
+                  Vols
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[14%]">
+                  Binder
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">
+                  Condition
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-right w-[13%]">
+                  Value
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="book in sortedBooks"
+                :key="book.id"
+                :class="[
+                  book.binding_authenticated
+                    ? 'bg-victorian-gold-muted/10 border-b border-victorian-gold-muted'
+                    : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique',
+                ]"
+              >
+                <td class="p-2">{{ book.title }}</td>
+                <td class="p-2 max-md:hidden">{{ book.author?.name || "-" }}</td>
+                <td class="p-2 max-md:hidden">
+                  {{ book.publisher?.name || "-" }}
+                  <span
+                    v-if="book.publisher?.tier"
+                    class="text-xs bg-victorian-paper-aged px-1 py-0.5 rounded ml-1 text-victorian-ink-dark"
+                    >{{ book.publisher.tier }}</span
+                  >
+                </td>
+                <td class="p-2 text-center">{{ formatDate(book.publication_date) }}</td>
+                <td class="p-2 text-center">{{ book.volumes || 1 }}</td>
+                <td class="p-2">
+                  <span v-if="book.binding_authenticated" class="text-victorian-gold-dark">★</span>
+                  {{ book.binder?.name || "-" }}
+                </td>
+                <td class="p-2 text-center">{{ book.condition_grade || "-" }}</td>
+                <td class="p-2 text-right">{{ formatCurrency(book.value_mid) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="bg-victorian-hunter-800 text-white">
+                <td colspan="4" class="p-3 border-0"><strong>TOTAL</strong></td>
+                <td class="p-3 border-0 text-center">
+                  <strong>{{ stats.totalVolumes }}</strong>
+                </td>
+                <td colspan="2" class="p-3 border-0"></td>
+                <td class="p-3 border-0 text-right">
+                  <strong>{{ formatCurrency(stats.totalValueMid) }}</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </section>
 
       <!-- Footer -->
-      <footer class="report-footer">
+      <footer
+        class="text-center text-victorian-ink-muted text-sm pt-4 border-t border-victorian-paper-antique"
+      >
         <p v-if="isInsuranceReport">
           This report is for insurance valuation purposes. Values are estimates based on current
           market conditions.
         </p>
         <p v-else>Inventory export generated from BlueMoxon collection database.</p>
-        <p class="note">
+        <p class="italic">
           ★ = Authenticated premium binding (Rivière, Zaehnsdorf, Sangorski & Sutcliffe, Bayntun)
         </p>
-        <p class="note">
+        <p class="italic">
           Tier 1 publishers: Smith Elder, Moxon, Macmillan, John Murray, Chapman & Hall
         </p>
       </footer>
@@ -420,361 +479,26 @@ const exportCSV = () => {
 </template>
 
 <style scoped>
-.insurance-report {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: "Georgia", serif;
-}
-
-/* Loading/Error states */
-.loading,
-.error {
-  text-align: center;
-  padding: 3rem;
-  font-size: 1.1rem;
-}
-
-.error {
-  color: #c53030;
-}
-
-/* Action buttons */
-.actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #ddd;
-}
-
-/* Report type selector */
-.report-type-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.report-type-selector label {
-  font-weight: 600;
-  color: #4a5568;
-}
-
-.report-type-selector select {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
-  background: white;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.report-type-selector select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.report-type-desc {
-  font-size: 0.8rem;
-  color: #718096;
-  font-style: italic;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #2c5282;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1a365d;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #2d3748;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #cbd5e0;
-}
-
-/* Report Header */
-.report-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #2c5282;
-}
-
-.report-header h1 {
-  font-size: 2rem;
-  color: #1a365d;
-  margin-bottom: 0.25rem;
-}
-
-.report-header h2 {
-  font-size: 1.25rem;
-  color: #4a5568;
-  font-weight: normal;
-  margin-bottom: 0.5rem;
-}
-
-.report-date {
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-/* Summary Section */
-.summary {
-  background: #f7fafc;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-
-.summary h3 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: #2d3748;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.summary-item {
-  background: white;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-  border: 1px solid #e2e8f0;
-}
-
-.summary-item.highlight {
-  background: #ebf8ff;
-  border-color: #90cdf4;
-}
-
-.summary-item.primary {
-  background: #2c5282;
-  color: white;
-  border-color: #2c5282;
-}
-
-.summary-item .label {
-  display: block;
-  font-size: 0.8rem;
-  color: #718096;
-  margin-bottom: 0.25rem;
-}
-
-.summary-item.primary .label {
-  color: #bee3f8;
-}
-
-.summary-item .value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.recommendation {
-  background: #c6f6d5;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-  margin: 0;
-}
-
-.recommendation .note {
-  font-size: 0.85rem;
-  color: #276749;
-}
-
-/* Table */
-.itemized-list {
-  margin-bottom: 2rem;
-}
-
-.itemized-list h3 {
-  margin-bottom: 1rem;
-  color: #2d3748;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-th,
-td {
-  padding: 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-th {
-  background: #2c5282;
-  color: white;
-  font-weight: 600;
-}
-
-tr:nth-child(even) {
-  background: #f7fafc;
-}
-
-tr.authenticated {
-  background: #fffaf0;
-}
-
-tr.authenticated td {
-  border-bottom-color: #f6ad55;
-}
-
-.auth-badge {
-  color: #dd6b20;
-}
-
-.tier-badge {
-  font-size: 0.7rem;
-  background: #e2e8f0;
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  margin-left: 0.25rem;
-  color: #4a5568;
-}
-
-.total-row {
-  background: #2c5282 !important;
-  color: white;
-}
-
-.total-row td {
-  border-bottom: none;
-  padding: 0.75rem 0.5rem;
-}
-
-/* Column widths */
-.col-title {
-  width: 25%;
-}
-.col-author {
-  width: 12%;
-}
-.col-publisher {
-  width: 15%;
-}
-.col-year {
-  width: 8%;
-  text-align: center;
-}
-.col-vols {
-  width: 5%;
-  text-align: center;
-}
-.col-binder {
-  width: 14%;
-}
-.col-condition {
-  width: 8%;
-  text-align: center;
-}
-.col-value {
-  width: 13%;
-  text-align: right;
-}
-
-td.col-year,
-td.col-vols,
-td.col-condition {
-  text-align: center;
-}
-td.col-value {
-  text-align: right;
-}
-
-/* Footer */
-.report-footer {
-  text-align: center;
-  color: #718096;
-  font-size: 0.85rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-.report-footer .note {
-  font-style: italic;
-}
-
-/* Print styles */
+/* Print styles only - all other styling uses Tailwind classes */
 @media print {
   .no-print {
     display: none !important;
   }
 
-  .insurance-report {
-    padding: 0;
-    max-width: none;
+  /* Override Tailwind for print optimization */
+  .max-w-6xl {
+    max-width: none !important;
+    padding: 0 !important;
   }
 
-  .report-header {
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-  }
-
-  .summary {
-    padding: 1rem;
-    margin-bottom: 1rem;
-    break-inside: avoid;
-  }
-
-  .summary-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
-  }
-
-  .summary-item {
-    padding: 0.5rem;
-  }
-
-  .summary-item .value {
-    font-size: 1.1rem;
-  }
-
+  /* Ensure tables and content fit on pages */
   table {
-    font-size: 0.7rem;
+    font-size: 0.7rem !important;
   }
 
   th,
   td {
-    padding: 0.25rem 0.4rem;
+    padding: 0.25rem 0.4rem !important;
   }
 
   tr {
@@ -789,66 +513,41 @@ td.col-value {
     display: table-footer-group;
   }
 
-  .report-footer {
+  /* Force black text for readability */
+  .bg-victorian-hunter-800 {
+    background-color: white !important;
+    color: black !important;
+    border: 2px solid #1a3a2f !important;
+  }
+
+  .text-white {
+    color: black !important;
+  }
+
+  .text-victorian-paper-cream {
+    color: #4a5568 !important;
+  }
+
+  /* Ensure summary cards print correctly */
+  .card-static {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    break-inside: avoid;
+  }
+
+  /* Footer spacing */
+  footer {
     margin-top: 1rem;
     font-size: 0.7rem;
   }
 
-  .summary-item.highlight,
-  .summary-item.primary {
-    background: white !important;
-    color: black !important;
-    border: 2px solid #2c5282 !important;
+  /* Authenticated rows should still be visible */
+  .bg-victorian-gold-muted\/10 {
+    background-color: #fff8f0 !important;
   }
 
-  .summary-item.primary .label {
-    color: #4a5568 !important;
-  }
-
-  .recommendation {
-    background: white !important;
-    border: 2px solid #276749;
-  }
-
-  tr.authenticated {
-    background: #fff8f0 !important;
-  }
-
-  tr:nth-child(even) {
-    background: #f5f5f5 !important;
-  }
-
-  .tier-badge {
-    border: 1px solid #999;
-  }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .report-type-selector {
-    justify-content: center;
-  }
-
-  .action-buttons {
-    justify-content: center;
-  }
-
-  table {
-    font-size: 0.75rem;
-  }
-
-  .col-author,
-  .col-publisher {
-    display: none;
+  .even\:bg-victorian-paper-cream:nth-child(even) {
+    background-color: #f5f5f5 !important;
   }
 }
 </style>
