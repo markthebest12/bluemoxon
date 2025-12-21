@@ -13,6 +13,56 @@ BlueMoxon is deployed on AWS using a serverless architecture optimized for low-t
 
 **Domain:** bluemoxon.com (production), staging.*.bluemoxon.com (staging)
 
+```mermaid
+flowchart TB
+    subgraph Internet
+        User[User Browser]
+    end
+
+    subgraph AWS["AWS (us-west-2)"]
+        subgraph Edge
+            CF1[CloudFront<br/>Frontend CDN]
+            CF2[CloudFront<br/>Images CDN]
+        end
+
+        subgraph Compute
+            APIGW[API Gateway]
+            Lambda[API Lambda]
+            Worker[Analysis Worker]
+            Scraper[Scraper Lambda]
+        end
+
+        subgraph Async
+            SQS[SQS Queue]
+        end
+
+        subgraph Data
+            Aurora[(Aurora<br/>Serverless v2)]
+            S3F[S3<br/>Frontend]
+            S3I[S3<br/>Images]
+        end
+
+        subgraph Auth
+            Cognito[Cognito<br/>User Pool]
+        end
+
+        subgraph AI
+            Bedrock[Bedrock<br/>Claude]
+        end
+    end
+
+    User --> CF1 --> S3F
+    User --> CF2 --> S3I
+    User --> APIGW --> Lambda
+    Lambda --> Aurora
+    Lambda --> S3I
+    Lambda --> Cognito
+    Lambda --> SQS --> Worker
+    Worker --> Aurora
+    Worker --> Bedrock
+    Lambda --> Scraper
+```
+
 ## Infrastructure as Code
 
 All infrastructure is managed via Terraform in `infra/terraform/`:
@@ -42,23 +92,130 @@ infra/terraform/
 
 ### Terraform Commands
 
+| Task | Command |
+|------|---------|
+| Format | `terraform fmt -recursive` |
+| Validate | `terraform validate` |
+| Plan (staging) | `AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars` |
+| Apply (staging) | `AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars` |
+| Plan (production) | `AWS_PROFILE=bmx-prod terraform plan -var-file=envs/prod.tfvars` |
+| Apply (production) | `AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars` |
+| Check drift | `terraform plan -detailed-exitcode -var-file=envs/staging.tfvars` |
+| Import resource | `terraform import 'module.name.resource.name' <aws-id>` |
+| Show state | `terraform state list` |
+
+**Drift detection exit codes:** `0` = no changes, `1` = error, `2` = drift detected
+
+### Why Infrastructure as Code Matters
+
+- Manual changes create drift that's impossible to track
+- Manual changes get lost when resources are recreated
+- Rollbacks become impossible
+- Staging/prod parity breaks
+
+**The Rule:**
+1. **NEVER** create/modify AWS resources manually (console or CLI)
+2. **ALWAYS** add infrastructure changes to `infra/terraform/`
+3. **DOCUMENT** any temporary manual fixes immediately and create a ticket to terraformize
+
+### Exception Process (Emergency Fixes ONLY)
+
+If you MUST make a manual change:
+
+1. **Document BEFORE making the change** in `docs/STAGING_INFRASTRUCTURE_CHANGES.md` or `docs/PROD_INFRASTRUCTURE_CHANGES.md`
+2. **Use AWS CLI** (auditable) not console clicks
+3. **Create follow-up issue:** "infra: Terraformize [resource]"
+4. **Notify team** in PR or Slack
+
+### Terraform Style Requirements
+
+**STRICTLY follow HashiCorp's official guidelines:**
+- [Style Guide](https://developer.hashicorp.com/terraform/language/style)
+- [Module Pattern](https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation)
+
+#### File Organization (REQUIRED)
+```
+modules/<module-name>/
+├── main.tf          # Resources and data sources
+├── variables.tf     # Input variables (ALPHABETICAL order)
+├── outputs.tf       # Output values (ALPHABETICAL order)
+├── versions.tf      # Provider version constraints (if needed)
+└── README.md        # Module documentation
+```
+
+#### Variable Definitions (REQUIRED for ALL variables)
+```hcl
+variable "example_name" {
+  type        = string
+  description = "Human-readable description of what this variable controls"
+  default     = "sensible-default"  # Optional variables MUST have defaults
+
+  validation {  # Add validation where appropriate
+    condition     = length(var.example_name) > 0
+    error_message = "Example name cannot be empty."
+  }
+}
+```
+
+#### Naming Conventions
+- **Resources**: Underscore-separated: `aws_lambda_function`, NOT `aws-lambda-function`
+- **Variables**: Underscore-separated: `db_instance_class`, NOT `dbInstanceClass`
+- **Do NOT include resource type in name**: `name = "api"`, NOT `name = "lambda-api"`
+
+#### Resource Organization Order
+1. `count` or `for_each` meta-arguments
+2. Resource-specific non-block parameters
+3. Resource-specific block parameters
+4. `lifecycle` blocks (if needed)
+5. `depends_on` (if required)
+
+#### Module Design Principles
+1. **Single Purpose**: Each module does ONE thing well
+2. **80% Use Case**: Design for common cases, avoid edge case complexity
+3. **Expose Common Args**: Only expose frequently-modified arguments
+4. **Output Everything**: Export all useful values even if not immediately needed
+5. **Sensible Defaults**: Required inputs have no default; optional inputs have good defaults
+
+### Validation Testing (Destroy/Apply)
+
+For significant infrastructure changes, validate with destroy/apply cycle in staging:
+
 ```bash
 cd infra/terraform
 
-# Plan changes (staging)
-AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars
+# 1. Create RDS snapshot (data protection)
+AWS_PROFILE=bmx-staging aws rds create-db-snapshot --db-instance-identifier bluemoxon-staging-db --db-snapshot-identifier pre-terraform-test-YYYYMMDD
 
-# Apply changes (staging)
-AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars
+# 2. Destroy staging infrastructure
+AWS_PROFILE=bmx-staging terraform destroy -var-file=envs/staging.tfvars
 
-# Plan changes (production)
-terraform plan -var-file=envs/prod.tfvars
+# 3. Apply from scratch
+AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
 
-# Apply changes (production)
-terraform apply -var-file=envs/prod.tfvars
+# 4. Validate services
+curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
 ```
 
-See [CLAUDE.md](../CLAUDE.md) for detailed Terraform style requirements and workflows.
+**When to use destroy/apply testing:**
+- Adding new Terraform modules
+- Changing VPC networking (endpoints, NAT gateway)
+- Major IAM policy changes
+- Before migrating configuration to production
+
+### Pipeline Enforcement (Automated)
+
+| Mechanism | When | Action |
+|-----------|------|--------|
+| **Drift Detection** | Daily 6 AM UTC | `terraform plan -detailed-exitcode`. Creates issue if drift found. |
+| **CODEOWNERS** | On PR | Requires owner review for `/infra/` |
+| **Terraform Validation** | On PR | Runs `fmt`, `validate`, `tflint`, `tfsec`, `checkov` |
+| **PR Plan Comments** | On PR | Posts Terraform plan output as PR comment |
+
+### Environment Separation
+
+- Use `envs/staging.tfvars` and `envs/prod.tfvars` for environment-specific values
+- NEVER hardcode environment-specific values in modules
+- State files are separate: `bluemoxon/staging/terraform.tfstate` vs `bluemoxon/prod/terraform.tfstate`
 
 ## Architecture Diagram
 
