@@ -357,7 +357,7 @@ function printPage() {
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0">
         <RouterLink
           :to="backToCollectionLink"
-          class="text-moxon-600 hover:text-moxon-800 inline-block"
+          class="text-moxon-600 hover:text-moxon-800 inline-block no-print"
         >
           &larr; Back to Collection
         </RouterLink>
@@ -409,7 +409,7 @@ function printPage() {
         <div class="card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800">Images</h2>
-            <div v-if="authStore.isEditor" class="flex items-center gap-3">
+            <div v-if="authStore.isEditor" class="flex items-center gap-3 no-print">
               <button
                 @click="openUploadModal"
                 class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
@@ -481,7 +481,7 @@ function printPage() {
               <button
                 v-if="authStore.isEditor"
                 @click.stop="openDeleteImageModal(img)"
-                class="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                class="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 no-print"
                 title="Delete image"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -591,7 +591,7 @@ function printPage() {
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                   :disabled="updatingStatus"
                   :class="[
-                    'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer',
+                    'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer no-print',
                     getStatusColor(booksStore.currentBook.status),
                     updatingStatus ? 'opacity-50' : '',
                   ]"
@@ -600,6 +600,16 @@ function printPage() {
                     {{ status.replace("_", " ") }}
                   </option>
                 </select>
+                <!-- Print-only status text for editors -->
+                <span
+                  v-if="authStore.isEditor"
+                  :class="[
+                    'hidden print-only px-2 py-1 rounded text-sm font-medium',
+                    getStatusColor(booksStore.currentBook.status),
+                  ]"
+                >
+                  {{ booksStore.currentBook.status.replace("_", " ") }}
+                </span>
                 <!-- Viewers see read-only badge -->
                 <span
                   v-else
@@ -1088,10 +1098,6 @@ function printPage() {
 <style scoped>
 /* Print styles */
 @media print {
-  .no-print {
-    display: none !important;
-  }
-
   /* Optimize layout for print */
   .max-w-5xl {
     max-width: none !important;
@@ -1103,20 +1109,26 @@ function printPage() {
     border: 1px solid #ddd !important;
   }
 
-  /* Hide interactive elements */
-  select,
-  button {
+  /* Hide select dropdowns - use no-print class for buttons */
+  select {
     display: none !important;
   }
 
-  /* Show status as text instead of dropdown */
-  .card dd span {
+  /* Show print-only status text */
+  .print-only {
     display: inline !important;
+  }
+
+  /* Hide image hover overlays */
+  .group > button > div {
+    display: none !important;
   }
 
   /* Ensure images print */
   img {
     max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 </style>

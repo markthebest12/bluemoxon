@@ -245,9 +245,14 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-// Print function
+// Print function - adds class to hide background page during print
 function printAnalysis() {
+  document.body.classList.add("printing-analysis");
   window.print();
+  // Remove class after print dialog closes
+  setTimeout(() => {
+    document.body.classList.remove("printing-analysis");
+  }, 100);
 }
 </script>
 
@@ -257,6 +262,7 @@ function printAnalysis() {
       <div
         v-if="visible"
         class="fixed inset-0 z-50 flex"
+        data-analysis-viewer
         @click="handleBackdropClick"
         @keydown="handleKeydown"
       >
@@ -829,25 +835,24 @@ Detailed condition notes...
 
 /* Print styles */
 @media print {
-  .no-print {
-    display: none !important;
-  }
-
-  /* Make the slide panel full width for print */
+  /* Make the modal container static and full width */
   .fixed {
     position: static !important;
   }
 
+  /* Hide the backdrop overlay */
   .absolute {
     display: none !important;
   }
 
+  /* Make panel full width for print */
   .relative {
     position: static !important;
     max-width: none !important;
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+    box-shadow: none !important;
   }
 
   /* Hide header bar (close button, edit buttons) */
@@ -864,6 +869,7 @@ Detailed condition notes...
   /* Ensure analysis content prints well */
   .analysis-content {
     max-width: 100% !important;
+    padding: 0 !important;
   }
 
   .analysis-content :deep(table) {
