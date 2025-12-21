@@ -4,7 +4,6 @@ Bug #498: Eval runbooks need the asking price to calculate discount percentages
 and make accurate acquisition recommendations.
 """
 
-import pytest
 from app.models import Book, EvalRunbook
 
 
