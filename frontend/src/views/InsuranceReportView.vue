@@ -266,18 +266,15 @@ const exportCSV = () => {
 <template>
   <div class="max-w-6xl mx-auto p-8 font-display">
     <!-- Action buttons (hidden when printing) -->
-    <div class="no-print flex justify-between items-center flex-wrap gap-4 mb-8 pb-4 border-b border-victorian-paper-antique">
+    <div
+      class="no-print flex justify-between items-center flex-wrap gap-4 mb-8 pb-4 border-b border-victorian-paper-antique"
+    >
       <router-link to="/books" class="btn-secondary"> ← Back to Collection </router-link>
 
       <!-- Report Type Selector -->
       <div class="flex items-center gap-2 flex-wrap">
         <label for="reportType" class="font-semibold text-victorian-ink-dark">Report Type:</label>
-        <select
-          id="reportType"
-          v-model="reportType"
-          :disabled="loading"
-          class="select"
-        >
+        <select id="reportType" v-model="reportType" :disabled="loading" class="select">
           <option v-for="opt in reportTypeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
@@ -289,62 +286,87 @@ const exportCSV = () => {
 
       <div class="flex gap-4">
         <button @click="exportCSV" class="btn-secondary" :disabled="loading">Export CSV</button>
-        <button @click="printReport" class="btn-primary" :disabled="loading">
-          Print Report
-        </button>
+        <button @click="printReport" class="btn-primary" :disabled="loading">Print Report</button>
       </div>
     </div>
 
     <!-- Loading state -->
-    <div v-if="loading" class="text-center p-12 text-lg text-victorian-ink-muted">Loading collection data...</div>
+    <div v-if="loading" class="text-center p-12 text-lg text-victorian-ink-muted">
+      Loading collection data...
+    </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="text-center p-12 text-lg text-victorian-burgundy">{{ error }}</div>
+    <div v-else-if="error" class="text-center p-12 text-lg text-victorian-burgundy">
+      {{ error }}
+    </div>
 
     <!-- Report content -->
     <template v-else>
       <!-- Report Header -->
       <header class="text-center mb-8 pb-4 border-b-2 border-victorian-hunter-800">
-        <h1 class="text-3xl text-victorian-hunter-900 mb-1 font-display">Victorian Book Collection</h1>
+        <h1 class="text-3xl text-victorian-hunter-900 mb-1 font-display">
+          Victorian Book Collection
+        </h1>
         <h2 class="text-xl text-victorian-ink-dark font-normal mb-2">{{ reportTitle }}</h2>
         <p class="text-victorian-ink-muted text-sm">Generated: {{ reportDate }}</p>
       </header>
 
       <!-- Collection Summary -->
       <section class="card-static mb-8">
-        <h3 class="mt-0 mb-4 text-victorian-ink-dark font-display text-lg">Collection Summary ({{ summaryLabel }})</h3>
+        <h3 class="mt-0 mb-4 text-victorian-ink-dark font-display text-lg">
+          Collection Summary ({{ summaryLabel }})
+        </h3>
         <div class="grid grid-cols-4 gap-4 mb-4 max-md:grid-cols-2">
-          <div class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique">
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">Collections</span>
             <span class="block text-2xl font-bold">{{ stats.totalItems }}</span>
           </div>
-          <div class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique">
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">Volumes</span>
             <span class="block text-2xl font-bold">{{ stats.totalVolumes }}</span>
           </div>
-          <div class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique">
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">Authenticated Bindings</span>
             <span class="block text-2xl font-bold">{{ stats.authenticatedBindings }}</span>
           </div>
-          <div class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique">
+          <div
+            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">Total Cost</span>
-            <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalPurchaseCost) }}</span>
+            <span class="block text-2xl font-bold">{{
+              formatCurrency(stats.totalPurchaseCost)
+            }}</span>
           </div>
-          <div class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted">
+          <div
+            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">Low Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueLow) }}</span>
           </div>
-          <div class="bg-victorian-hunter-800 text-white p-4 rounded text-center border border-victorian-hunter-800">
+          <div
+            class="bg-victorian-hunter-800 text-white p-4 rounded text-center border border-victorian-hunter-800"
+          >
             <span class="block text-xs text-victorian-paper-cream mb-1">Mid Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueMid) }}</span>
           </div>
-          <div class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted">
+          <div
+            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+          >
             <span class="block text-xs text-victorian-ink-muted mb-1">High Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueHigh) }}</span>
           </div>
         </div>
         <!-- Insurance recommendation only for insurance report -->
-        <p v-if="isInsuranceReport" class="bg-green-100 p-4 rounded text-center m-0 border border-green-300">
+        <p
+          v-if="isInsuranceReport"
+          class="bg-green-100 p-4 rounded text-center m-0 border border-green-300"
+        >
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
           <span class="text-sm text-green-800">(High estimate + 10% buffer)</span>
@@ -353,19 +375,41 @@ const exportCSV = () => {
 
       <!-- Itemized List -->
       <section class="mb-8">
-        <h3 class="mb-4 text-victorian-ink-dark font-display text-lg">Itemized Collection ({{ sortedBooks.length }} items, sorted by value)</h3>
+        <h3 class="mb-4 text-victorian-ink-dark font-display text-lg">
+          Itemized Collection ({{ sortedBooks.length }} items, sorted by value)
+        </h3>
         <div class="overflow-x-auto">
           <table class="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-1/4">Title</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[12%] max-md:hidden">Author</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[15%] max-md:hidden">Publisher</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">Year</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[5%]">Vols</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[14%]">Binder</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">Condition</th>
-                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-right w-[13%]">Value</th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-1/4">
+                  Title
+                </th>
+                <th
+                  class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[12%] max-md:hidden"
+                >
+                  Author
+                </th>
+                <th
+                  class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[15%] max-md:hidden"
+                >
+                  Publisher
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">
+                  Year
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[5%]">
+                  Vols
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-left w-[14%]">
+                  Binder
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-center w-[8%]">
+                  Condition
+                </th>
+                <th class="bg-victorian-hunter-800 text-white font-semibold p-2 text-right w-[13%]">
+                  Value
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -373,16 +417,20 @@ const exportCSV = () => {
                 v-for="book in sortedBooks"
                 :key="book.id"
                 :class="[
-                  book.binding_authenticated ? 'bg-victorian-gold-muted/10 border-b border-victorian-gold-muted' : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique'
+                  book.binding_authenticated
+                    ? 'bg-victorian-gold-muted/10 border-b border-victorian-gold-muted'
+                    : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique',
                 ]"
               >
                 <td class="p-2">{{ book.title }}</td>
                 <td class="p-2 max-md:hidden">{{ book.author?.name || "-" }}</td>
                 <td class="p-2 max-md:hidden">
                   {{ book.publisher?.name || "-" }}
-                  <span v-if="book.publisher?.tier" class="text-xs bg-victorian-paper-aged px-1 py-0.5 rounded ml-1 text-victorian-ink-dark">{{
-                    book.publisher.tier
-                  }}</span>
+                  <span
+                    v-if="book.publisher?.tier"
+                    class="text-xs bg-victorian-paper-aged px-1 py-0.5 rounded ml-1 text-victorian-ink-dark"
+                    >{{ book.publisher.tier }}</span
+                  >
                 </td>
                 <td class="p-2 text-center">{{ formatDate(book.publication_date) }}</td>
                 <td class="p-2 text-center">{{ book.volumes || 1 }}</td>
@@ -411,7 +459,9 @@ const exportCSV = () => {
       </section>
 
       <!-- Footer -->
-      <footer class="text-center text-victorian-ink-muted text-sm pt-4 border-t border-victorian-paper-antique">
+      <footer
+        class="text-center text-victorian-ink-muted text-sm pt-4 border-t border-victorian-paper-antique"
+      >
         <p v-if="isInsuranceReport">
           This report is for insurance valuation purposes. Values are estimates based on current
           market conditions.

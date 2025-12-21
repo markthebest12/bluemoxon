@@ -385,7 +385,10 @@ function printPage() {
             >
               Edit Book
             </RouterLink>
-            <button @click="openDeleteModal" class="btn-danger text-sm sm:text-base px-3 sm:px-4 no-print">
+            <button
+              @click="openDeleteModal"
+              class="btn-danger text-sm sm:text-base px-3 sm:px-4 no-print"
+            >
               Delete
             </button>
           </template>
