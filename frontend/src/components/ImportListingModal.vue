@@ -349,7 +349,7 @@ async function handleSubmit() {
       volumes: form.value.volumes || 1,
       source_url: form.value.source_url || undefined,
       source_item_id: extractedData.value?.ebay_item_id,
-      purchase_price: form.value.purchase_price || undefined,
+      purchase_price: form.value.purchase_price ?? undefined,
       binding_type: form.value.binding_type || undefined,
       condition_notes: form.value.condition_notes || undefined,
       // Pass S3 keys so backend can copy images
