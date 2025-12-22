@@ -78,7 +78,7 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
             .filter(
                 Book.author_id == book.author_id,
                 Book.id != book.id,
-                Book.acquisition_status.in_(["in_transit", "on_hand"]),
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
             )
             .all()
         )
@@ -1194,7 +1194,7 @@ def get_book_score_breakdown(
             .filter(
                 Book.author_id == book.author_id,
                 Book.id != book.id,
-                Book.acquisition_status.in_(["in_transit", "on_hand"]),
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
             )
             .all()
         )

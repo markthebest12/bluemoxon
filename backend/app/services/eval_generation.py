@@ -536,7 +536,7 @@ def generate_eval_runbook(
             .filter(
                 Book.author_id == book.author_id,
                 Book.id != book.id,
-                Book.acquisition_status.in_(["in_transit", "on_hand"]),
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
             )
             .all()
         )

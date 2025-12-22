@@ -637,7 +637,7 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
             .filter(
                 BookModel.author_id == book.author_id,
                 BookModel.id != book.id,
-                BookModel.acquisition_status.in_(["in_transit", "on_hand"]),
+                BookModel.status.in_(["IN_TRANSIT", "ON_HAND"]),
             )
             .all()
         )
