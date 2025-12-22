@@ -167,7 +167,7 @@ jobs:
 
       - name: Create or update drift issue
         if: steps.drift.outputs.drift_detected == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           DEPLOY_ENV: ${{ steps.env.outputs.environment }}
           DRIFT_ADDS: ${{ steps.drift.outputs.adds }}
