@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, watch } from "vue";
+import { onMounted, ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
+import { useJobPolling } from "@/composables/useJobPolling";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
@@ -34,50 +35,20 @@ const deleteImageError = ref<string | null>(null);
 const analysisVisible = ref(false);
 const hasAnalysis = computed(() => booksStore.currentBook?.has_analysis ?? false);
 
-// Analysis polling state
-let analysisPollingInterval: ReturnType<typeof setInterval> | null = null;
-const ANALYSIS_POLL_INTERVAL = 5000; // 5 seconds
-
-function startAnalysisPolling() {
-  if (analysisPollingInterval) return; // Already polling
-
-  analysisPollingInterval = setInterval(async () => {
-    const book = booksStore.currentBook;
-    if (!book) return;
-
-    // Only poll if there's an active job
-    const status = book.analysis_job_status;
-    if (status !== "running" && status !== "pending") {
-      stopAnalysisPolling();
-      return;
-    }
-
-    // Refresh book data
-    await booksStore.fetchBook(book.id);
-
-    // Check if job completed (status becomes null) or failed
-    const newStatus = booksStore.currentBook?.analysis_job_status;
-    if (newStatus !== "running" && newStatus !== "pending") {
-      stopAnalysisPolling();
-    }
-  }, ANALYSIS_POLL_INTERVAL);
-}
-
-function stopAnalysisPolling() {
-  if (analysisPollingInterval) {
-    clearInterval(analysisPollingInterval);
-    analysisPollingInterval = null;
-  }
-}
+// Analysis polling via composable (auto-cleanup on unmount)
+const analysisPoller = useJobPolling("analysis");
 
 // Watch for analysis job status changes to start/stop polling
 watch(
   () => booksStore.currentBook?.analysis_job_status,
   (newStatus) => {
+    const book = booksStore.currentBook;
+    if (!book) return;
+
     if (newStatus === "running" || newStatus === "pending") {
-      startAnalysisPolling();
+      analysisPoller.start(book.id);
     } else {
-      stopAnalysisPolling();
+      analysisPoller.stop();
     }
   },
   { immediate: true }
@@ -140,9 +111,7 @@ onMounted(async () => {
 });
 
 // Cleanup polling on unmount
-onUnmounted(() => {
-  stopAnalysisPolling();
-});
+// Note: analysisPoller auto-cleanup on unmount via composable
 
 function formatCurrency(value: number | null): string {
   if (value === null) return "-";
