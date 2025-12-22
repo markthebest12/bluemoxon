@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21
 **Issue:** [#529](https://github.com/markthebest12/bluemoxon/issues/529)
-**Status:** Design complete, ready for implementation
+**Status:** Implementation in progress (Tasks 1-3 complete, Task 4 in progress)
 
 ---
 
@@ -14,40 +14,66 @@ Expand `/admin/config` from currency rates editor to comprehensive admin dashboa
 - **Scoring Config tab** - All tiered_scoring.py constants
 - **Entity Tiers tab** - Authors/Publishers/Binders by tier (1-3)
 
-## Key Decisions (via brainstorming)
+## Implementation Progress
 
-| Decision | Choice |
-|----------|--------|
-| Page structure | Tabbed interface (4 tabs) |
-| Data refresh | Manual only (button) |
-| Entity display | Three separate tables, 3-column grid |
-| Scoring detail | Full breakdown with key tunables highlighted |
-| System status | Health + versions + models (no Lambda metrics) |
-| API design | Single aggregate endpoint |
-| Error handling | Alert banner + inline status badges |
-| Cold start | Show indicator when detected |
+| Task | Description | Status |
+|------|-------------|--------|
+| 1 | Add cold start detection to main.py | ✅ Complete |
+| 2 | Add /admin/system-info endpoint | ✅ Complete |
+| 3 | Add endpoint tests | ✅ Complete |
+| 4 | Add requiresEditor router guard | 🔄 In progress |
+| 5 | Add Config menu item to NavBar | ⏳ Pending |
+| 6 | Add TypeScript types | ⏳ Pending |
+| 7 | Refactor AdminConfigView to tabbed interface | ⏳ Pending |
+| 8 | Run integration tests | ⏳ Pending |
+| 9 | Create PR | ⏳ Pending |
 
-## Navigation Change
+## Commits Made
 
-Profile dropdown menu:
-```
-Profile
-Config          <- NEW (editors + admins)
-Admin Settings  (admins only)
-Sign Out
-```
+1. `feat: add cold start detection for Lambda` - Added `backend/app/cold_start.py` module + middleware
+2. `feat: add /admin/system-info endpoint for dashboard` - Full system info with health, scoring, tiers
+3. `test: add tests for /admin/system-info endpoint` - 6 passing tests
 
-## Files
+## Key Implementation Notes
 
-- **Design:** `docs/plans/2025-12-21-admin-config-dashboard-design.md`
-- **Issue:** #529
+- **Circular import fix:** Extracted cold start logic to `app/cold_start.py` to avoid circular import between `main.py` and `admin.py`
+- **Author tier dependency:** Waited for #528 (author tier scoring) to merge to staging before continuing
+- **Backend tests:** All 533 tests passing
+
+## Worktree
+
+- **Location:** `/Users/mark/projects/bluemoxon/.worktrees/admin-config-dashboard`
+- **Branch:** `feat/admin-config-dashboard`
+- **Plan:** `docs/plans/2025-12-21-admin-config-dashboard-implementation.md`
+
+## Skills in Use
+
+- **superpowers:executing-plans** - Following 9-task implementation plan
+- **superpowers:verification-before-completion** - Required before PR
+- **superpowers:finishing-a-development-branch** - Required after all tasks
+
+## CRITICAL Bash Rules
+
+**NEVER use:**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
+
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls
+- `bmx-api` for all BlueMoxon API calls
 
 ## Next Steps
 
-1. Use superpowers:using-git-worktrees to create isolated workspace
-2. Use superpowers:writing-plans to create detailed implementation plan
-3. Use superpowers:subagent-driven-development to execute
+1. Complete Task 4: Change `/admin/config` route meta to `requiresEditor: true`
+2. Continue with Tasks 5-6 (NavBar, TypeScript types)
+3. Complete Task 7 (AdminConfigView tabbed interface refactor)
+4. Run integration tests (Task 8)
+5. Create PR targeting `staging` (Task 9)
 
 ---
 
-*Last updated: 2025-12-21 (Design complete)*
+*Last updated: 2025-12-21 (Implementation in progress)*
