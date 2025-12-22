@@ -1162,7 +1162,7 @@ def get_book_score_breakdown(
     duplicate_title = None
 
     if book.author:
-        author_priority = book.author.priority_score or 0
+        author_priority = author_tier_to_score(book.author.tier)
         author_name = book.author.name
         author_tier = book.author.tier
         author_book_count = (
