@@ -134,6 +134,23 @@ function groupByTier(entities: { name: string; tier: string }[]) {
 function formatTierLabel(tier: string) {
   return tier.replace("TIER_", "Tier ");
 }
+
+function formatDeployTime(isoString: string | undefined): string {
+  if (!isoString || isoString === "unknown") return "N/A";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  } catch {
+    return isoString;
+  }
+}
 </script>
 
 <template>
@@ -268,7 +285,7 @@ function formatTierLabel(tier: string) {
             </div>
             <div>
               <dt class="text-gray-500">Deploy Time</dt>
-              <dd class="font-mono">{{ systemInfo.system.deploy_time || "N/A" }}</dd>
+              <dd class="font-mono">{{ formatDeployTime(systemInfo.system.deploy_time) }}</dd>
             </div>
             <div>
               <dt class="text-gray-500">Environment</dt>
