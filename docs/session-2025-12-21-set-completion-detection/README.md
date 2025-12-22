@@ -2,64 +2,64 @@
 
 **Date:** 2025-12-21
 **Issue:** [#517](https://github.com/markthebest12/bluemoxon/issues/517)
-**Status:** Task 8 of 8 - Final Verification and PR
+**Status:** MERGED TO STAGING - Deploy in progress
 
 ---
 
-## Quick Summary
+## Summary
 
-Implement set completion detection for multi-volume books. When a new book would complete an incomplete set in the collection, award +25 bonus points.
+Implemented set completion detection for multi-volume Victorian books. When acquiring a book that completes an incomplete set, awards +25 STRATEGIC_COMPLETES_SET bonus points.
 
-**Problem:** `completes_set=False` was hardcoded in:
-- `eval_generation.py:555` - NOW FIXED
-- `scoring.py:628` - NOW FIXED
-
-**Solution:** New service `set_detection.py` with:
-1. `roman_to_int()` - Roman numeral conversion (I-XII)
-2. `extract_volume_number()` - Parse Vol. 1, Volume VIII, Part 2
-3. `normalize_title()` - Strip volume indicators for matching
-4. `titles_match()` - Compare normalized titles
-5. `detect_set_completion()` - Main detection with DB integration
+**PR:** https://github.com/markthebest12/bluemoxon/pull/523 (MERGED to staging)
 
 ---
 
-## Current Progress
+## What Was Built
 
-| Task | Status | Commit |
-|------|--------|--------|
-| Task 1: Roman numeral conversion | COMPLETE | `085c495` |
-| Task 2: Volume extraction | COMPLETE | `33109a8` |
-| Task 3: Title normalization | COMPLETE | `d057071` |
-| Task 4: Title matching | COMPLETE | `ba11975` |
-| Task 5: Main detection function | COMPLETE | `1c8e395` |
-| Task 6: Integrate eval_generation.py | COMPLETE | `5bca53e` |
-| Task 7: Integrate scoring.py | COMPLETE | `d6d82f9` |
-| Task 8: Final verification and PR | **NEXT** | - |
+New service `backend/app/services/set_detection.py`:
+- `roman_to_int()` - Convert Roman numerals I-XII
+- `extract_volume_number()` - Parse Vol. 1, Volume VIII, Part 2
+- `normalize_title()` - Strip volume indicators for matching
+- `titles_match()` - Compare normalized titles
+- `detect_set_completion()` - Main detection with DB integration
 
-**Test Status:** 524 passed, 1 skipped (40 new tests for set detection)
+**Tests:** 40 new tests in `backend/tests/services/test_set_detection.py`
+
+**Integrations:**
+- `eval_generation.py:556` - Dynamic detection (was hardcoded False)
+- `scoring.py:630` - Dynamic detection (was hardcoded False)
 
 ---
 
-## Next Step: Task 8 - Final Verification and PR
+## All Tasks Complete
 
-Continue with **superpowers:verification-before-completion** then **superpowers:finishing-a-development-branch**:
+| Task | Status |
+|------|--------|
+| Task 1: Roman numeral conversion | COMPLETE |
+| Task 2: Volume extraction | COMPLETE |
+| Task 3: Title normalization | COMPLETE |
+| Task 4: Title matching | COMPLETE |
+| Task 5: Main detection function | COMPLETE |
+| Task 6: Integrate eval_generation.py | COMPLETE |
+| Task 7: Integrate scoring.py | COMPLETE |
+| Task 8: Final verification and PR | COMPLETE |
 
-1. Run full test suite one more time
-2. Run linting checks
-3. Create PR targeting `staging` branch
-4. Follow finishing-a-development-branch skill
+---
+
+## Current State
+
+- **PR #523:** Merged to staging
+- **Deploy:** Run 20419632431 completed successfully
+- **Next:** Promote staging→main for production
 
 ---
 
 ## CRITICAL: Superpowers Skills (MANDATORY)
 
-**Currently using:** `superpowers:subagent-driven-development`
-
-**For Task 8, use:**
-- `superpowers:verification-before-completion` - Verify all tests pass
-- `superpowers:finishing-a-development-branch` - Complete the work
-
-**Always invoke skills with the Skill tool before any task.**
+**Always use skills before any task:**
+- Check if a skill applies
+- Use the Skill tool to invoke it
+- Follow the skill exactly
 
 ---
 
@@ -79,24 +79,13 @@ Continue with **superpowers:verification-before-completion** then **superpowers:
 
 ---
 
-## Files Created/Modified
+## Key Files
 
-**Created:**
-- `backend/app/services/set_detection.py` - New service (247 lines)
-- `backend/tests/services/test_set_detection.py` - New tests (40 tests)
-
-**Modified:**
-- `backend/app/services/eval_generation.py` - Added integration
-- `backend/app/services/scoring.py` - Added integration
-
----
-
-## Worktree Info
-
-- **Directory:** `/Users/mark/projects/bluemoxon/.worktrees/feat-set-completion`
-- **Branch:** `feat/set-completion-517`
+- **Service:** `backend/app/services/set_detection.py`
+- **Tests:** `backend/tests/services/test_set_detection.py`
 - **Plan:** `docs/plans/2025-12-21-set-completion-detection.md`
+- **Design:** `docs/session-2025-12-21-set-completion-detection/design.md`
 
 ---
 
-*Last updated: 2025-12-21 (Task 7 complete, Task 8 pending)*
+*Last updated: 2025-12-21 (PR merged, promoting to production)*
