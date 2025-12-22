@@ -23,6 +23,7 @@ from app.services.bedrock import (
 )
 from app.services.fmv_lookup import lookup_fmv
 from app.services.image_cleanup import delete_unrelated_images
+from app.services.set_detection import detect_set_completion
 from app.services.tiered_scoring import (
     QUALITY_FLOOR,
     STRATEGIC_FIT_FLOOR,
@@ -552,7 +553,13 @@ def generate_eval_runbook(
     tiered_strategic_fit_score = calculate_strategic_fit_score(
         publisher_matches_author_requirement=publisher_matches,
         author_book_count=author_book_count,
-        completes_set=False,  # TODO: Implement set completion detection
+        completes_set=detect_set_completion(
+            db=db,
+            author_id=book.author_id,
+            title=book.title,
+            volumes=book.volumes or 1,
+            book_id=book.id,
+        ),
     )
 
     # Calculate combined score and price position
