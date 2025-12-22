@@ -22,6 +22,7 @@ const authStore = useAuthStore();
 const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
 const extractionStatus = ref<string | null>(null); // "success", "degraded", "failed", or null (legacy)
+const generatedAt = ref<string | null>(null); // Analysis generation timestamp
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
@@ -73,10 +74,11 @@ async function loadAnalysis() {
     analysis.value = rawResponse.data;
     editedAnalysis.value = rawResponse.data || "";
 
-    // Fetch metadata for extraction status indicator
+    // Fetch metadata for extraction status indicator and generation timestamp
     try {
       const metaResponse = await api.get(`/books/${props.bookId}/analysis`);
       extractionStatus.value = metaResponse.data.extraction_status || null;
+      generatedAt.value = metaResponse.data.generated_at || null;
     } catch {
       // Metadata fetch failed, continue without extraction status
     }
@@ -253,6 +255,21 @@ function printAnalysis() {
   setTimeout(() => {
     document.body.classList.remove("printing-analysis");
   }, 100);
+}
+
+// Format timestamp in Pacific timezone for display
+function formatPacificTime(isoString: string): string {
+  const date = new Date(isoString);
+  const formatted = date.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${formatted} Pacific`;
 }
 </script>
 
@@ -690,6 +707,13 @@ Detailed condition notes...
             <!-- View Mode - Analysis content -->
             <div v-else-if="analysis" class="h-full overflow-y-auto p-6">
               <article class="analysis-content" v-html="formattedAnalysis" />
+              <!-- Generation timestamp footer -->
+              <p
+                v-if="generatedAt"
+                class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500 italic"
+              >
+                Analysis generated: {{ formatPacificTime(generatedAt) }}
+              </p>
             </div>
 
             <!-- No analysis but can create -->
