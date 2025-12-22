@@ -96,7 +96,7 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 ## Worktree
 
 - **Location:** `/Users/mark/projects/bluemoxon/.worktrees/admin-config-dashboard`
-- **Current Branch:** `feat/admin-cost-tab` from `origin/staging`
+- **Current Branch:** `staging` (feature branch deleted after PR merge)
 
 ---
 
@@ -109,8 +109,8 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 | superpowers:brainstorming | Design refinement | ✅ Complete |
 | superpowers:writing-plans | Create implementation plan | ✅ Complete |
 | superpowers:executing-plans | Execute tasks in batches | ✅ Complete |
-| superpowers:verification-before-completion | Verify before claiming done | ⏳ After Terraform |
-| superpowers:finishing-a-development-branch | Complete branch workflow | ⏳ After verification |
+| superpowers:verification-before-completion | Verify before claiming done | ✅ Complete |
+| superpowers:finishing-a-development-branch | Complete branch workflow | ✅ Complete |
 
 ---
 
@@ -159,6 +159,36 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 
 - Promote staging to production via PR `staging → main`
 
+### Terraform State Issue (Resolved)
+
+**Issue:** S3/DynamoDB checksum mismatch blocked CI and local terraform operations.
+
+**Root Cause:** Local `terraform apply` updated S3 state file, but DynamoDB still had old checksum.
+
+**Fix:** Updated DynamoDB digest in BOTH tables:
+```bash
+# Local backend uses this table
+AWS_PROFILE=bmx-staging aws dynamodb update-item \
+  --table-name bluemoxon-terraform-lock-staging \
+  --key '{"LockID": {"S": "bluemoxon-terraform-state-staging/bluemoxon/staging/terraform.tfstate-md5"}}' \
+  --update-expression "SET Digest = :d" \
+  --expression-attribute-values '{":d": {"S": "<new-checksum>"}}' \
+  --region us-west-2
+
+# CI uses this table (different name!)
+AWS_PROFILE=bmx-staging aws dynamodb update-item \
+  --table-name bluemoxon-terraform-locks \
+  --key '{"LockID": {"S": "bluemoxon-terraform-state-staging/bluemoxon/staging/terraform.tfstate-md5"}}' \
+  --update-expression "SET Digest = :d" \
+  --expression-attribute-values '{":d": {"S": "<new-checksum>"}}' \
+  --region us-west-2
+```
+
+**Note:** There are 3 DynamoDB tables for terraform locks - ensure you update the right one(s):
+- `bluemoxon-terraform-lock-staging` - local backend config
+- `bluemoxon-terraform-locks` - CI workflow config
+- `bluemoxon-staging-terraform-locks` - (unused?)
+
 ---
 
-*Last updated: 2025-12-22 16:42 UTC (Complete - PR merged, deployed, verified)*
+*Last updated: 2025-12-22 16:45 UTC (Complete - PR merged, deployed, verified)*
