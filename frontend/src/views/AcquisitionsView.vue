@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
+import { useJobPolling } from "@/composables/useJobPolling";
+import { api } from "@/services/api";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
@@ -18,8 +20,31 @@ const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 const { evaluating, inTransit, received, loading, error } = storeToRefs(acquisitionsStore);
-// Destructure reactive Maps from booksStore so Vue tracks changes
-const { activeAnalysisJobs, activeEvalRunbookJobs } = storeToRefs(booksStore);
+
+// Job polling instances per book - store the composable return type directly
+type JobPoller = ReturnType<typeof useJobPolling>;
+const analysisPollers = new Map<number, JobPoller>();
+const evalRunbookPollers = new Map<number, JobPoller>();
+
+function getOrCreateAnalysisPoller(bookId: number) {
+  if (!analysisPollers.has(bookId)) {
+    const poller = useJobPolling("analysis", {
+      onComplete: () => acquisitionsStore.refreshBook(bookId),
+    });
+    analysisPollers.set(bookId, poller);
+  }
+  return analysisPollers.get(bookId)!;
+}
+
+function getOrCreateEvalRunbookPoller(bookId: number) {
+  if (!evalRunbookPollers.has(bookId)) {
+    const poller = useJobPolling("eval-runbook", {
+      onComplete: () => acquisitionsStore.refreshBook(bookId),
+    });
+    evalRunbookPollers.set(bookId, poller);
+  }
+  return evalRunbookPollers.get(bookId)!;
+}
 
 const showAcquireModal = ref(false);
 const selectedBookId = ref<number | null>(null);
@@ -182,24 +207,25 @@ async function handleDelete(bookId: number) {
   }
 }
 
-// Active analysis jobs for status tracking (access reactive Maps directly for Vue reactivity)
+// Job status tracking using composable-based polling
 function getJobStatus(bookId: number) {
-  return activeAnalysisJobs.value.get(bookId);
+  const poller = analysisPollers.get(bookId);
+  return poller ? { status: poller.status.value, error_message: poller.error.value } : null;
 }
 
 function isAnalysisRunning(bookId: number) {
-  const job = activeAnalysisJobs.value.get(bookId);
-  return !!job && (job.status === "pending" || job.status === "running");
+  const poller = analysisPollers.get(bookId);
+  return poller?.isActive.value ?? false;
 }
 
-// Active eval runbook jobs for status tracking (access reactive Maps directly for Vue reactivity)
 function getEvalRunbookJobStatus(bookId: number) {
-  return activeEvalRunbookJobs.value.get(bookId);
+  const poller = evalRunbookPollers.get(bookId);
+  return poller ? { status: poller.status.value, error_message: poller.error.value } : null;
 }
 
 function isEvalRunbookRunning(bookId: number) {
-  const job = activeEvalRunbookJobs.value.get(bookId);
-  return !!job && (job.status === "pending" || job.status === "running");
+  const poller = evalRunbookPollers.get(bookId);
+  return poller?.isActive.value ?? false;
 }
 
 async function handleGenerateAnalysis(bookId: number) {
@@ -207,10 +233,9 @@ async function handleGenerateAnalysis(bookId: number) {
 
   startingAnalysis.value = bookId;
   try {
-    // Use async endpoint - queues job to SQS for background processing
-    // The job is added to activeAnalysisJobs Map which triggers reactivity
-    await booksStore.generateAnalysisAsync(bookId);
-    // No need to fetchAll() - UI updates reactively when job is added to Map
+    await api.post(`/books/${bookId}/analysis/generate-async`, { model: "sonnet" });
+    const poller = getOrCreateAnalysisPoller(bookId);
+    poller.start(bookId);
   } catch (e: any) {
     console.error("Failed to start analysis:", e);
     const message = e.response?.data?.detail || e.message || "Failed to start analysis";
@@ -225,16 +250,15 @@ async function handleGenerateEvalRunbook(bookId: number) {
 
   startingEvalRunbook.value = bookId;
   try {
-    await booksStore.generateEvalRunbookAsync(bookId);
+    await api.post(`/books/${bookId}/eval-runbook/generate`);
+    const poller = getOrCreateEvalRunbookPoller(bookId);
+    poller.start(bookId);
   } catch (err) {
     console.error("Failed to start eval runbook generation:", err);
   } finally {
     startingEvalRunbook.value = null;
   }
 }
-
-// Watch for job completions to refresh the list
-const jobCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
 /**
  * Sync backend job status with frontend polling.
@@ -243,20 +267,22 @@ const jobCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
  */
 function syncBackendJobPolling() {
   for (const book of evaluating.value) {
-    // Sync eval runbook jobs - if backend shows running but frontend isn't tracking
+    // Start polling for any running eval runbook jobs
     if (
       (book.eval_runbook_job_status === "running" || book.eval_runbook_job_status === "pending") &&
-      !activeEvalRunbookJobs.value.has(book.id)
+      !isEvalRunbookRunning(book.id)
     ) {
-      booksStore.startEvalRunbookJobPoller(book.id);
+      const poller = getOrCreateEvalRunbookPoller(book.id);
+      poller.start(book.id);
     }
 
-    // Sync analysis jobs - if backend shows running but frontend isn't tracking
+    // Start polling for any running analysis jobs
     if (
       (book.analysis_job_status === "running" || book.analysis_job_status === "pending") &&
-      !activeAnalysisJobs.value.has(book.id)
+      !isAnalysisRunning(book.id)
     ) {
-      booksStore.startJobPoller(book.id);
+      const poller = getOrCreateAnalysisPoller(book.id);
+      poller.start(book.id);
     }
   }
 }
@@ -266,50 +292,6 @@ onMounted(async () => {
 
   // Start polling for any jobs that are running on backend but not tracked locally
   syncBackendJobPolling();
-
-  // Periodically check if any active jobs have completed and refresh
-  jobCheckInterval.value = setInterval(async () => {
-    const booksToRefresh: number[] = [];
-
-    // Check all evaluating books for completed analysis jobs
-    for (const book of evaluating.value) {
-      const job = getJobStatus(book.id);
-      if (job?.status === "completed") {
-        // Clear the completed job
-        booksStore.clearJob(book.id);
-        booksToRefresh.push(book.id);
-      } else if (job?.status === "failed") {
-        // Clear failed job so user can retry
-        console.error(`Analysis job failed for book ${book.id}:`, job.error_message);
-        booksStore.clearJob(book.id);
-      }
-
-      // Check for completed eval runbook jobs
-      const evalJob = getEvalRunbookJobStatus(book.id);
-      if (evalJob?.status === "completed") {
-        // Clear the completed job
-        booksStore.clearEvalRunbookJob(book.id);
-        if (!booksToRefresh.includes(book.id)) {
-          booksToRefresh.push(book.id);
-        }
-      } else if (evalJob?.status === "failed") {
-        // Clear failed job so user can retry
-        console.error(`Eval runbook job failed for book ${book.id}:`, evalJob.error_message);
-        booksStore.clearEvalRunbookJob(book.id);
-      }
-    }
-
-    // Refresh only the specific books that completed (no jarring full refresh)
-    for (const bookId of booksToRefresh) {
-      await acquisitionsStore.refreshBook(bookId);
-    }
-  }, 2000);
-});
-
-onUnmounted(() => {
-  if (jobCheckInterval.value) {
-    clearInterval(jobCheckInterval.value);
-  }
 });
 
 const recalculatingScore = ref<number | null>(null);

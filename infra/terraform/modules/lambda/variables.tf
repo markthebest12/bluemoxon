@@ -10,6 +10,12 @@ variable "bedrock_model_ids" {
   default     = []
 }
 
+variable "enable_cost_explorer_access" {
+  type        = bool
+  description = "Enable AWS Cost Explorer access for admin cost monitoring dashboard"
+  default     = false
+}
+
 variable "lambda_invoke_arns" {
   type        = list(string)
   description = "Lambda function ARNs this function can invoke (e.g., for scraper invocation)"
