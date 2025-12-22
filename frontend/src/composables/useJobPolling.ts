@@ -1,95 +1,95 @@
-import { ref, readonly, onUnmounted } from 'vue'
-import { api } from '@/services/api'
-import { useBooksStore } from '@/stores/books'
+import { ref, readonly, onUnmounted } from "vue";
+import { api } from "@/services/api";
+import { useBooksStore } from "@/stores/books";
 
-export type JobType = 'analysis' | 'eval-runbook'
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | null
+export type JobType = "analysis" | "eval-runbook";
+export type JobStatus = "pending" | "running" | "completed" | "failed" | null;
 
 export interface UseJobPollingOptions {
-  onComplete?: (bookId: number) => void
-  onError?: (bookId: number, error: string) => void
+  onComplete?: (bookId: number) => void;
+  onError?: (bookId: number, error: string) => void;
 }
 
 const POLL_INTERVALS: Record<JobType, number> = {
-  'analysis': 5000,
-  'eval-runbook': 3000,
-}
+  analysis: 5000,
+  "eval-runbook": 3000,
+};
 
 const STATUS_ENDPOINTS: Record<JobType, (bookId: number) => string> = {
-  'analysis': (bookId) => `/books/${bookId}/analysis/status`,
-  'eval-runbook': (bookId) => `/books/${bookId}/eval-runbook/status`,
-}
+  analysis: (bookId) => `/books/${bookId}/analysis/status`,
+  "eval-runbook": (bookId) => `/books/${bookId}/eval-runbook/status`,
+};
 
 export function useJobPolling(jobType: JobType, options: UseJobPollingOptions = {}) {
-  const booksStore = useBooksStore()
+  const booksStore = useBooksStore();
 
-  const isActive = ref(false)
-  const status = ref<JobStatus>(null)
-  const error = ref<string | null>(null)
-  const pollInterval = POLL_INTERVALS[jobType]
+  const isActive = ref(false);
+  const status = ref<JobStatus>(null);
+  const error = ref<string | null>(null);
+  const pollInterval = POLL_INTERVALS[jobType];
 
-  let intervalId: ReturnType<typeof setInterval> | null = null
-  let currentBookId: number | null = null
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let currentBookId: number | null = null;
 
   async function poll() {
-    if (!currentBookId) return
+    if (!currentBookId) return;
 
     try {
-      const endpoint = STATUS_ENDPOINTS[jobType](currentBookId)
-      const response = await api.get(endpoint)
-      status.value = response.data.status
+      const endpoint = STATUS_ENDPOINTS[jobType](currentBookId);
+      const response = await api.get(endpoint);
+      status.value = response.data.status;
 
       if (response.data.error_message) {
-        error.value = response.data.error_message
+        error.value = response.data.error_message;
       }
 
       // Check for terminal states
-      if (response.data.status === 'completed') {
-        const bookId = currentBookId
-        stop()
+      if (response.data.status === "completed") {
+        const bookId = currentBookId;
+        stop();
 
         // Refetch book data to update has_analysis/has_eval_runbook flags
-        await booksStore.fetchBook(bookId)
+        await booksStore.fetchBook(bookId);
 
-        options.onComplete?.(bookId)
-      } else if (response.data.status === 'failed') {
-        const bookId = currentBookId
-        stop()
-        options.onError?.(bookId, error.value || 'Job failed')
+        options.onComplete?.(bookId);
+      } else if (response.data.status === "failed") {
+        const bookId = currentBookId;
+        stop();
+        options.onError?.(bookId, error.value || "Job failed");
       }
     } catch (e: unknown) {
-      console.error(`Failed to poll ${jobType} status:`, e)
-      const err = e as { message?: string }
-      error.value = err.message || 'Failed to fetch status'
+      console.error(`Failed to poll ${jobType} status:`, e);
+      const err = e as { message?: string };
+      error.value = err.message || "Failed to fetch status";
       // Stop polling on error (job might not exist)
-      stop()
+      stop();
     }
   }
 
   function start(bookId: number) {
-    stop() // Clear any existing poller
+    stop(); // Clear any existing poller
 
-    currentBookId = bookId
-    isActive.value = true
-    status.value = 'pending' // Assume pending until first poll
-    error.value = null
+    currentBookId = bookId;
+    isActive.value = true;
+    status.value = "pending"; // Assume pending until first poll
+    error.value = null;
 
-    intervalId = setInterval(poll, pollInterval)
+    intervalId = setInterval(poll, pollInterval);
   }
 
   function stop() {
     if (intervalId) {
-      clearInterval(intervalId)
-      intervalId = null
+      clearInterval(intervalId);
+      intervalId = null;
     }
-    isActive.value = false
-    currentBookId = null
+    isActive.value = false;
+    currentBookId = null;
   }
 
   // Auto-cleanup on unmount
   onUnmounted(() => {
-    stop()
-  })
+    stop();
+  });
 
   return {
     isActive: readonly(isActive),
@@ -98,5 +98,5 @@ export function useJobPolling(jobType: JobType, options: UseJobPollingOptions = 
     pollInterval,
     start,
     stop,
-  }
+  };
 }
