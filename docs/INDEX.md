@@ -14,6 +14,7 @@ Start here to find what you need.
 
 | Document | Purpose |
 |----------|---------|
+| [Operations Runbook](OPERATIONS.md) | Health checks, migrations, troubleshooting |
 | [Deployment Guide](DEPLOYMENT.md) | Deploy procedures |
 | [Rollback Procedures](ROLLBACK.md) | Rollback Lambda, S3, database |
 | [Database Sync](DATABASE_SYNC.md) | Prod → Staging data sync |
@@ -26,7 +27,9 @@ Start here to find what you need.
 |----------|---------|
 | [API Reference](API_REFERENCE.md) | Endpoint documentation |
 | [Database Schema](DATABASE.md) | Tables, indexes, migrations |
+| [Data Migration](MIGRATION.md) | Legacy data import scripts |
 | [Bedrock Integration](BEDROCK.md) | Claude AI analysis |
+| [Performance](PERFORMANCE.md) | Core Web Vitals, optimization |
 | [Infrastructure](INFRASTRUCTURE.md) | AWS resources and Terraform |
 
 ## Reference

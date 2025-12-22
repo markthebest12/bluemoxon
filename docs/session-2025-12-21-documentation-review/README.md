@@ -28,6 +28,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 - [feature-audit.md](./feature-audit.md) - Code features and documentation gaps
 - [gap-analysis.md](./gap-analysis.md) - Analysis and consolidation plan
 - [issues-created.md](./issues-created.md) - GitHub issues created during review
+- [issues-516-517-summary.md](./issues-516-517-summary.md) - Work summary for #516 and #517
 - [consolidation-log.md](./consolidation-log.md) - Record of moves/merges/deletions
 
 ## Key Decisions
