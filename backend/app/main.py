@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.api.v1 import router as api_router
+from app.cold_start import clear_cold_start, get_cold_start_status
 from app.config import get_settings
 from app.version import get_version
 
@@ -93,6 +94,16 @@ async def add_version_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-App-Version"] = app_version
     response.headers["X-Environment"] = settings.environment
+    return response
+
+
+@app.middleware("http")
+async def cold_start_middleware(request: Request, call_next):
+    """Track cold start status in response headers."""
+    is_cold = get_cold_start_status()
+    response = await call_next(request)
+    response.headers["X-Cold-Start"] = str(is_cold)
+    clear_cold_start()
     return response
 
 
