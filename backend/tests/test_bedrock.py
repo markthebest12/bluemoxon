@@ -17,6 +17,28 @@ class TestPromptLoader:
         assert len(prompt) > 100
         assert "Napoleon" in prompt or "analysis" in prompt.lower()
 
+    def test_prompt_v3_content_loaded(self):
+        """Test that v3.md specific content is loaded (not fallback).
+
+        v3.md contains STRUCTURED-DATA format requirements that are NOT
+        in the fallback prompt. This verifies S3 loading works.
+        """
+        from app.services.bedrock import clear_prompt_cache, load_napoleon_prompt
+
+        # Clear cache to force fresh load
+        clear_prompt_cache()
+
+        prompt = load_napoleon_prompt()
+
+        # v3.md has these unique markers not in fallback
+        assert "---STRUCTURED-DATA---" in prompt, "Prompt should contain v3.md STRUCTURED-DATA marker"
+        assert "Napoleon Framework Analysis Generator v3" in prompt, "Should load v3 version"
+
+        # Verify it's substantial (v3.md is ~14KB)
+        assert len(prompt) > 10000, f"Expected v3.md (~14KB), got {len(prompt)} bytes"
+
+        clear_prompt_cache()
+
     def test_prompt_cache(self):
         """Test that prompt is cached for 5 minutes."""
         from app.services.bedrock import clear_prompt_cache, load_napoleon_prompt
