@@ -16,7 +16,13 @@ from app.models.author import Author
 from app.models.binder import Binder
 from app.models.publisher import Publisher
 from app.services import tiered_scoring
-from app.services.bedrock import MODEL_IDS, MODEL_USAGE
+from app.services.bedrock import (
+    CLAUDE_MAX_IMAGE_BYTES,
+    CLAUDE_SAFE_RAW_BYTES,
+    MODEL_IDS,
+    MODEL_USAGE,
+    PROMPT_CACHE_TTL,
+)
 from app.version import get_version_info
 
 router = APIRouter()
@@ -95,6 +101,57 @@ class ModelInfo(BaseModel):
     usage: str
 
 
+class InfrastructureConfig(BaseModel):
+    """AWS infrastructure configuration."""
+
+    aws_region: str
+    images_bucket: str
+    backup_bucket: str
+    images_cdn_url: str | None = None
+    analysis_queue: str | None = None
+    eval_runbook_queue: str | None = None
+
+
+class LimitsConfig(BaseModel):
+    """System limits and timeouts."""
+
+    bedrock_read_timeout_sec: int
+    bedrock_connect_timeout_sec: int
+    image_max_bytes: int
+    image_safe_bytes: int
+    prompt_cache_ttl_sec: int
+    presigned_url_expiry_sec: int
+
+
+class BedrockModelCost(BaseModel):
+    """Cost for a single Bedrock model."""
+
+    model_name: str
+    usage: str
+    mtd_cost: float
+
+
+class DailyCost(BaseModel):
+    """Daily cost data point."""
+
+    date: str
+    cost: float
+
+
+class CostResponse(BaseModel):
+    """Cost data response."""
+
+    period_start: str
+    period_end: str
+    bedrock_models: list[BedrockModelCost]
+    bedrock_total: float
+    daily_trend: list[DailyCost]
+    other_costs: dict[str, float]
+    total_aws_cost: float
+    cached_at: str
+    error: str | None = None
+
+
 class SystemInfoResponse(BaseModel):
     """Complete system info response."""
 
@@ -103,6 +160,8 @@ class SystemInfoResponse(BaseModel):
     system: SystemInfo
     health: HealthInfo
     models: dict[str, ModelInfo]
+    infrastructure: InfrastructureConfig
+    limits: LimitsConfig
     scoring_config: dict
     entity_tiers: EntityTiers
 
@@ -189,11 +248,14 @@ def update_config(
 def get_system_info(db: Session = Depends(get_db)):
     """Get comprehensive system information for admin dashboard.
 
-    Returns version info, health checks, scoring configuration,
-    and tiered entities (authors, publishers, binders).
+    Returns version info, health checks, infrastructure config,
+    limits, scoring configuration, and tiered entities.
     """
     import time
 
+    from app.config import get_settings
+
+    settings = get_settings()
     start = time.time()
 
     # Get cold start status
@@ -262,6 +324,22 @@ def get_system_info(db: Session = Depends(get_db)):
             name: ModelInfo(model_id=model_id, usage=MODEL_USAGE.get(name, ""))
             for name, model_id in MODEL_IDS.items()
         },
+        infrastructure=InfrastructureConfig(
+            aws_region=settings.aws_region,
+            images_bucket=settings.images_bucket,
+            backup_bucket=settings.backup_bucket,
+            images_cdn_url=settings.images_cdn_url,
+            analysis_queue=settings.analysis_queue_name,
+            eval_runbook_queue=settings.eval_runbook_queue_name,
+        ),
+        limits=LimitsConfig(
+            bedrock_read_timeout_sec=540,
+            bedrock_connect_timeout_sec=10,
+            image_max_bytes=CLAUDE_MAX_IMAGE_BYTES,
+            image_safe_bytes=CLAUDE_SAFE_RAW_BYTES,
+            prompt_cache_ttl_sec=PROMPT_CACHE_TTL,
+            presigned_url_expiry_sec=3600,
+        ),
         scoring_config=get_scoring_config(),
         entity_tiers=EntityTiers(
             authors=[EntityTier(name=a.name, tier=a.tier) for a in authors],
@@ -269,3 +347,16 @@ def get_system_info(db: Session = Depends(get_db)):
             binders=[EntityTier(name=b.name, tier=b.tier) for b in binders],
         ),
     )
+
+
+@router.get("/costs", response_model=CostResponse)
+def get_costs():
+    """Get AWS cost data for admin dashboard.
+
+    Returns Bedrock model costs with usage descriptions,
+    daily trend, and other AWS service costs.
+    Cached for 1 hour.
+    """
+    from app.services.cost_explorer import get_costs as fetch_costs
+
+    return CostResponse(**fetch_costs())
