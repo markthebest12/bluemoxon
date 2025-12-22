@@ -48,3 +48,52 @@ class TestRomanToInt:
         from app.services.set_detection import roman_to_int
 
         assert roman_to_int("XIII") is None
+
+
+class TestExtractVolumeNumber:
+    """Tests for extracting volume number from title."""
+
+    def test_vol_dot_arabic(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Works Vol. 3") == 3
+
+    def test_vol_no_dot_arabic(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Works Vol 12") == 12
+
+    def test_volume_arabic(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Complete Works Volume 2") == 2
+
+    def test_volume_roman(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Works Volume VIII") == 8
+
+    def test_vol_dot_roman(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Works Vol. IV") == 4
+
+    def test_part_arabic(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("History Part 2") == 2
+
+    def test_no_volume_returns_none(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Complete Works") is None
+
+    def test_case_insensitive(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("works VOLUME viii") == 8
+
+    def test_volume_at_end(self):
+        from app.services.set_detection import extract_volume_number
+
+        assert extract_volume_number("Byron Poetical Works, Vol. 5") == 5

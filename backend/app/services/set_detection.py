@@ -9,6 +9,7 @@ See docs/session-2025-12-21-set-completion-detection/design.md for design.
 from __future__ import annotations
 
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -47,3 +48,42 @@ def roman_to_int(s: str) -> int | None:
         return None
 
     return result
+
+
+# Patterns to extract volume numbers from titles
+VOLUME_PATTERNS = [
+    # Vol. 3, Vol 12, Vol. IV (both digits and roman)
+    re.compile(r"\bVol\.?\s*(\w+)\b", re.IGNORECASE),
+    # Volume 2, Volume VIII
+    re.compile(r"\bVolume\s+(\w+)\b", re.IGNORECASE),
+    # Part 1, Part 2
+    re.compile(r"\bPart\s+(\d+)\b", re.IGNORECASE),
+]
+
+
+def extract_volume_number(title: str) -> int | None:
+    """Extract volume number from a book title.
+
+    Supports patterns:
+    - Vol. 3, Vol 12
+    - Volume 2, Volume VIII (Roman numerals)
+    - Part 1, Part 2
+
+    Args:
+        title: Book title string
+
+    Returns:
+        Volume number as integer, or None if not found
+    """
+    for pattern in VOLUME_PATTERNS:
+        match = pattern.search(title)
+        if match:
+            value = match.group(1)
+            # Try as integer first
+            if value.isdigit():
+                return int(value)
+            # Try as Roman numeral
+            roman_value = roman_to_int(value)
+            if roman_value is not None:
+                return roman_value
+    return None
