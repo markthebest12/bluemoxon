@@ -16,7 +16,7 @@ from app.models.author import Author
 from app.models.binder import Binder
 from app.models.publisher import Publisher
 from app.services import tiered_scoring
-from app.services.bedrock import MODEL_IDS
+from app.services.bedrock import MODEL_IDS, MODEL_USAGE
 from app.version import get_version_info
 
 router = APIRouter()
@@ -88,6 +88,13 @@ class EntityTiers(BaseModel):
     binders: list[EntityTier]
 
 
+class ModelInfo(BaseModel):
+    """AI model information."""
+
+    model_id: str
+    usage: str
+
+
 class SystemInfoResponse(BaseModel):
     """Complete system info response."""
 
@@ -95,7 +102,7 @@ class SystemInfoResponse(BaseModel):
     timestamp: str
     system: SystemInfo
     health: HealthInfo
-    models: dict[str, str]
+    models: dict[str, ModelInfo]
     scoring_config: dict
     entity_tiers: EntityTiers
 
@@ -239,7 +246,7 @@ def get_system_info(db: Session = Depends(get_db)):
         system=SystemInfo(
             version=version_info.get("version", "unknown"),
             git_sha=version_info.get("git_sha"),
-            deploy_time=version_info.get("deploy_time"),
+            deploy_time=version_info.get("deployed_at"),
             environment=version_info.get("environment", "unknown"),
         ),
         health=HealthInfo(
@@ -251,7 +258,10 @@ def get_system_info(db: Session = Depends(get_db)):
                 cognito=HealthCheck(**cognito_health),
             ),
         ),
-        models=MODEL_IDS,
+        models={
+            name: ModelInfo(model_id=model_id, usage=MODEL_USAGE.get(name, ""))
+            for name, model_id in MODEL_IDS.items()
+        },
         scoring_config=get_scoring_config(),
         entity_tiers=EntityTiers(
             authors=[EntityTier(name=a.name, tier=a.tier) for a in authors],

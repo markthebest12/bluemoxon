@@ -335,10 +335,17 @@ function formatTierLabel(tier: string) {
         <!-- Bedrock Models -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold mb-4">Bedrock Models</h3>
-          <dl class="space-y-2 text-sm">
-            <div v-for="(model, key) in systemInfo.models" :key="key" class="flex gap-2">
-              <dt class="text-gray-500 w-20">{{ key }}:</dt>
-              <dd class="font-mono text-xs">{{ model }}</dd>
+          <dl class="space-y-3 text-sm">
+            <div
+              v-for="(model, key) in systemInfo.models"
+              :key="key"
+              class="border-b border-gray-100 pb-2 last:border-0"
+            >
+              <dt class="font-medium text-gray-900">{{ key }}</dt>
+              <dd class="text-gray-500 text-xs">{{ model.usage }}</dd>
+              <dd class="font-mono text-xs text-gray-400 mt-0.5">
+                {{ model.model_id }}
+              </dd>
             </div>
           </dl>
         </div>

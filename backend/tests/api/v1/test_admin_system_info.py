@@ -80,11 +80,17 @@ def test_get_system_info_entity_tiers(client: TestClient):
 
 
 def test_get_system_info_models(client: TestClient):
-    """Test models section has bedrock model IDs."""
+    """Test models section has bedrock model IDs and usage descriptions."""
     response = client.get("/api/v1/admin/system-info")
     data = response.json()
 
     models = data["models"]
     assert "sonnet" in models
     assert "opus" in models
-    assert "claude" in models["sonnet"].lower()
+    assert "haiku" in models
+
+    # Each model should have model_id and usage
+    for model_name in ["sonnet", "opus", "haiku"]:
+        assert "model_id" in models[model_name]
+        assert "usage" in models[model_name]
+        assert "claude" in models[model_name]["model_id"].lower()
