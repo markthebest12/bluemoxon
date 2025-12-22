@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21 / 2025-12-22
 **Issue:** [#529](https://github.com/markthebest12/bluemoxon/issues/529)
-**Status:** PR #546 Created - Awaiting CI + Terraform Apply
+**Status:** ✅ Complete - PR #546 Merged to Staging
 
 ---
 
@@ -14,6 +14,7 @@
 | #538 | Fix version_info.json embedding for git_sha/deploy_time | ✅ Merged |
 | #539 | Human-readable deploy time with browser timezone | ✅ Merged |
 | #540 | Infrastructure and limits config sections | ✅ Merged to staging |
+| #546 | Cost tab with Bedrock costs and daily trend | ✅ Merged to staging |
 
 ---
 
@@ -25,7 +26,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 ### PR
 - **PR #546**: [feat: Add Cost tab to Admin Config Dashboard](https://github.com/markthebest12/bluemoxon/pull/546)
 - **Base:** staging
-- **Status:** Awaiting CI pass
+- **Status:** ✅ Merged
 
 ### Design Documents
 - Design: `docs/plans/2025-12-22-admin-cost-tab-design.md`
@@ -52,7 +53,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 | 5 | Add TypeScript types | ✅ Committed |
 | 6 | Add Cost tab to frontend | ✅ Committed |
 | 7 | Validation and PR | ✅ PR #546 Created |
-| 8 | Terraform apply and verify | ⏳ Needs elevated permissions |
+| 8 | Terraform apply and verify | ✅ Complete |
 
 ### Commits Made (on feat/admin-cost-tab)
 ```
@@ -129,36 +130,35 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 
 ---
 
-## Next Steps (for resume)
+## Completion Summary
 
-### Immediate Next Steps
+### What Was Done
 
-1. **Wait for CI** to pass on PR #546
-   ```bash
-   gh pr checks 546 --watch
-   ```
+1. ✅ Terraform applied - Added `ce:GetCostAndUsage` permission to API Lambda
+2. ✅ PR #546 merged to staging
+3. ✅ Staging deploy succeeded (run 20437942695)
+4. ✅ Endpoint verified working: `bmx-api GET /admin/costs`
 
-2. **Apply Terraform** (requires elevated permissions):
-   ```bash
-   cd infra/terraform
-   AWS_PROFILE=bmx-staging terraform init
-   AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
-   AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
-   ```
+### Verified Response
 
-3. **Merge PR** after CI passes and Terraform is applied:
-   ```bash
-   gh pr merge 546 --squash --delete-branch
-   ```
+```json
+{
+  "period_start": "2025-12-01",
+  "period_end": "2025-12-23",
+  "bedrock_models": [
+    {"model_name": "Sonnet 4.5", "mtd_cost": 52.53},
+    {"model_name": "Opus 4.5", "mtd_cost": 1.43},
+    ...
+  ],
+  "bedrock_total": 55.74,
+  "total_aws_cost": 92.6
+}
+```
 
-4. **Verify endpoint** after deploy:
-   ```bash
-   bmx-api GET /admin/costs
-   ```
+### Remaining Work
 
-### Terraform Note
-The `claude-admin` IAM user doesn't have permission to access the Terraform state bucket. Someone with elevated permissions needs to apply the Terraform changes before the Cost tab will work.
+- Promote staging to production via PR `staging → main`
 
 ---
 
-*Last updated: 2025-12-22 07:15 UTC (All code committed, PR #546 created, awaiting CI + Terraform)*
+*Last updated: 2025-12-22 16:42 UTC (Complete - PR merged, deployed, verified)*
