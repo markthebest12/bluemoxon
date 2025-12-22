@@ -1,6 +1,5 @@
 """Quick test to verify tier labels work correctly."""
 
-import pytest
 from app.services.scoring import calculate_strategic_fit_breakdown
 
 
@@ -24,9 +23,9 @@ class TestTierLabels:
         )
         factors_dict = {f.name: f for f in breakdown.factors}
         assert "author_priority" in factors_dict
-        assert "Tier 1" in factors_dict['author_priority'].reason
-        assert "+15" in factors_dict['author_priority'].reason
-        assert "Charles Darwin" in factors_dict['author_priority'].reason
+        assert "Tier 1" in factors_dict["author_priority"].reason
+        assert "+15" in factors_dict["author_priority"].reason
+        assert "Charles Darwin" in factors_dict["author_priority"].reason
 
     def test_tier_2_label_shows_correctly(self):
         """Tier 2 authors should show 'Tier 2 author (+10)'."""
@@ -45,9 +44,9 @@ class TestTierLabels:
         )
         factors_dict = {f.name: f for f in breakdown.factors}
         assert "author_priority" in factors_dict
-        assert "Tier 2" in factors_dict['author_priority'].reason
-        assert "+10" in factors_dict['author_priority'].reason
-        assert "Charles Dickens" in factors_dict['author_priority'].reason
+        assert "Tier 2" in factors_dict["author_priority"].reason
+        assert "+10" in factors_dict["author_priority"].reason
+        assert "Charles Dickens" in factors_dict["author_priority"].reason
 
     def test_tier_3_label_shows_correctly(self):
         """Tier 3 authors should show 'Tier 3 author (+5)'."""
@@ -66,9 +65,9 @@ class TestTierLabels:
         )
         factors_dict = {f.name: f for f in breakdown.factors}
         assert "author_priority" in factors_dict
-        assert "Tier 3" in factors_dict['author_priority'].reason
-        assert "+5" in factors_dict['author_priority'].reason
-        assert "John Ruskin" in factors_dict['author_priority'].reason
+        assert "Tier 3" in factors_dict["author_priority"].reason
+        assert "+5" in factors_dict["author_priority"].reason
+        assert "John Ruskin" in factors_dict["author_priority"].reason
 
     def test_non_priority_author_label(self):
         """Non-priority authors should show 'not a priority author'."""
@@ -87,5 +86,5 @@ class TestTierLabels:
         )
         factors_dict = {f.name: f for f in breakdown.factors}
         assert "author_priority" in factors_dict
-        assert "not a priority author" in factors_dict['author_priority'].reason
-        assert "Unknown Author" in factors_dict['author_priority'].reason
+        assert "not a priority author" in factors_dict["author_priority"].reason
+        assert "Unknown Author" in factors_dict["author_priority"].reason

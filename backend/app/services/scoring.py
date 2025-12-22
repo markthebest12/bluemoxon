@@ -457,7 +457,9 @@ def calculate_strategic_fit_breakdown(
     # Author priority
     if author_priority_score > 0:
         score += author_priority_score
-        tier_label = {"TIER_1": "Tier 1", "TIER_2": "Tier 2", "TIER_3": "Tier 3"}.get(author_tier, "Priority")
+        tier_label = {"TIER_1": "Tier 1", "TIER_2": "Tier 2", "TIER_3": "Tier 3"}.get(
+            author_tier, "Priority"
+        )
         breakdown.add(
             "author_priority",
             author_priority_score,

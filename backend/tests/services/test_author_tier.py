@@ -1,6 +1,5 @@
 """Tests for author tier scoring."""
 
-import pytest
 from app.services.scoring import author_tier_to_score
 
 
