@@ -353,6 +353,7 @@ def calculate_strategic_fit_breakdown(
     author_name: str | None = None,
     publisher_name: str | None = None,
     binder_name: str | None = None,
+    author_tier: str | None = None,
 ) -> ScoreBreakdown:
     """Calculate strategic fit with detailed breakdown."""
     score = 0
@@ -456,10 +457,11 @@ def calculate_strategic_fit_breakdown(
     # Author priority
     if author_priority_score > 0:
         score += author_priority_score
+        tier_label = {"TIER_1": "Tier 1", "TIER_2": "Tier 2", "TIER_3": "Tier 3"}.get(author_tier, "Priority")
         breakdown.add(
             "author_priority",
             author_priority_score,
-            f"Priority author{f' ({author_name})' if author_name else ''} - score {author_priority_score}",
+            f"{author_name} - {tier_label} author (+{author_priority_score})",
         )
     elif author_name:
         breakdown.add("author_priority", 0, f"{author_name} - not a priority author")
@@ -541,6 +543,7 @@ def calculate_all_scores_with_breakdown(
     publisher_name: str | None = None,
     binder_name: str | None = None,
     duplicate_title: str | None = None,
+    author_tier: str | None = None,
 ) -> dict:
     """
     Calculate all scores with detailed breakdowns.
@@ -560,6 +563,7 @@ def calculate_all_scores_with_breakdown(
         author_name,
         publisher_name,
         binder_name,
+        author_tier,
     )
     collection = calculate_collection_impact_breakdown(
         author_book_count,
