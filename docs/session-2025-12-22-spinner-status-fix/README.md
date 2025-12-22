@@ -126,10 +126,19 @@ User clicks "Generate"
 | Decision | Choice | Why |
 |----------|--------|-----|
 | **Source of truth** | Composable state only | Eliminates dual-source bugs |
-| **Poll interval** | 3 seconds | Fast enough for <1min jobs |
+| **Poll interval** | Job-type specific | Analysis: 5s (jobs ~5min), Eval: 3s (jobs <1min) |
 | **On completion** | Refetch book data | Guarantees `has_*` flags update |
 | **Scope** | Per-book, per-job-type | Multiple books can poll independently |
 | **Cleanup** | Auto on unmount | No memory leaks |
+
+### Poll Intervals
+
+```typescript
+const POLL_INTERVALS = {
+  'analysis': 5000,      // 5 seconds (60 polls over 5 min)
+  'eval-runbook': 3000,  // 3 seconds (20 polls over 1 min)
+}
+```
 
 ### Files to Change
 
@@ -199,9 +208,8 @@ From `AcquisitionsView.vue`:
 
 ## Next Steps
 
-1. Use `superpowers:writing-plans` to create detailed implementation tasks
-2. Use `superpowers:test-driven-development` - write composable tests first
-3. Implement composable
-4. Integrate into views
-5. Clean up old code
-6. Test and deploy
+**Plan created:** `docs/plans/2025-12-22-job-polling-composable.md`
+
+1. ~~Use `superpowers:writing-plans` to create detailed implementation tasks~~ DONE
+2. Use `superpowers:executing-plans` to implement the plan
+3. Test on staging and deploy
