@@ -38,7 +38,7 @@ PROMPT_CACHE_TTL = 300  # 5 minutes
 
 # S3 prompt location
 PROMPTS_BUCKET = os.environ.get("PROMPTS_BUCKET", settings.images_bucket)
-PROMPT_KEY = "prompts/napoleon-framework/v2.md"
+PROMPT_KEY = "prompts/napoleon-framework/v3.md"
 
 # Fallback prompt if S3 unavailable
 FALLBACK_PROMPT = """You are an expert antiquarian book appraiser generating a Napoleon framework analysis.

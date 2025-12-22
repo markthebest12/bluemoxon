@@ -394,4 +394,14 @@ To stay within budget:
 
 ---
 
+## Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [Eval Runbook Scaling](EVAL_RUNBOOK_SCALING.md) | Multi-tenant scaling roadmap |
+| [Architecture](ARCHITECTURE.md) | Current system design |
+| [Features](FEATURES.md) | Implemented features catalog |
+
+---
+
 **Last Updated:** 2025-12-02

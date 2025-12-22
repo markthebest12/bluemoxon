@@ -196,8 +196,12 @@ After deployment, automated smoke tests verify:
 
 1. **API Health** - `GET /api/v1/health/deep` returns 200
 2. **Books API** - `GET /api/v1/books` returns valid pagination
-3. **Frontend** - App loads with expected content
-4. **Images** - Image URLs return proper `Content-Type: image/*`
+3. **API Schema Validation** - Required fields exist on book responses (`id`, `title`, `status`, `inventory_type`)
+4. **Data Integrity** - Validates data quality:
+   - `source_url` format (must be full HTTP URL with item ID, not short alphanumeric - see #497)
+   - `purchase_price` values (warns on `$0` prices - see #498)
+5. **Frontend** - App loads with expected content
+6. **Images** - Image URLs return proper `Content-Type: image/*`
 
 If smoke tests fail:
 - The workflow is marked as failed
@@ -278,6 +282,16 @@ npm run dev
 2. Check API health: `curl https://api.bluemoxon.com/api/v1/health/deep | jq`
 3. Check Lambda logs in CloudWatch
 4. Verify database connectivity
+
+---
+
+## Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [Validation Blueprint](VALIDATION.md) | Detailed linting, testing, formatting rules |
+| [Deployment Guide](DEPLOYMENT.md) | Manual deploy procedures |
+| [Infrastructure](INFRASTRUCTURE.md) | AWS resources |
 
 ---
 

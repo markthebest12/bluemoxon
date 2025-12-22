@@ -14,8 +14,8 @@ After modifying a prompt, deploy to S3:
 
 ```bash
 # Deploy to staging first
-AWS_PROFILE=bmx-staging aws s3 cp backend/prompts/napoleon-framework/v2.md \
-  s3://bluemoxon-images-staging/prompts/napoleon-framework/v2.md
+AWS_PROFILE=bmx-staging aws s3 cp backend/prompts/napoleon-framework/v3.md \
+  s3://bluemoxon-images-staging/prompts/napoleon-framework/v3.md
 
 # Test in staging (regenerate a book analysis)
 bmx-api POST /books/493/analysis/generate
@@ -24,15 +24,15 @@ bmx-api POST /books/493/analysis/generate
 bmx-api GET /books/493/analysis/raw | head -30
 
 # If successful, deploy to production
-AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md \
-  s3://bluemoxon-images/prompts/napoleon-framework/v2.md
+AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v3.md \
+  s3://bluemoxon-images/prompts/napoleon-framework/v3.md
 ```
 
 **Note**: Lambda caches prompts for 5 minutes. Wait or invoke a different book to bypass cache.
 
 ## Napoleon Framework Prompts
 
-### `napoleon-framework/v2.md` (Current)
+### `napoleon-framework/v3.md` (Current)
 
 The main prompt for generating book valuation analyses. Produces structured output with:
 
