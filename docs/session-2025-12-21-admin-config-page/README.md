@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21 / 2025-12-22
 **Issue:** [#529](https://github.com/markthebest12/bluemoxon/issues/529)
-**Status:** In Progress - Cost tab implementation (Tasks 1-4 committed, Tasks 5-8 pending)
+**Status:** PR #546 Created - Awaiting CI + Terraform Apply
 
 ---
 
@@ -21,6 +21,11 @@
 
 ### Goal
 Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by model with usage descriptions.
+
+### PR
+- **PR #546**: [feat: Add Cost tab to Admin Config Dashboard](https://github.com/markthebest12/bluemoxon/pull/546)
+- **Base:** staging
+- **Status:** Awaiting CI pass
 
 ### Design Documents
 - Design: `docs/plans/2025-12-22-admin-cost-tab-design.md`
@@ -44,17 +49,23 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 | 2 | Enable for API Lambda in main.tf | ✅ Committed |
 | 3 | Create cost_explorer service | ✅ Committed |
 | 4 | Add /admin/costs endpoint | ✅ Committed |
-| 5 | Add TypeScript types | ⏳ Pending |
-| 6 | Add Cost tab to frontend | ⏳ Pending |
-| 7 | Validation and PR | ⏳ Pending |
-| 8 | Terraform apply and verify | ⏳ Pending |
+| 5 | Add TypeScript types | ✅ Committed |
+| 6 | Add Cost tab to frontend | ✅ Committed |
+| 7 | Validation and PR | ✅ PR #546 Created |
+| 8 | Terraform apply and verify | ⏳ Needs elevated permissions |
 
 ### Commits Made (on feat/admin-cost-tab)
 ```
-b924166 feat: add Cost Explorer IAM permission to Lambda module
-fa10368 feat: enable Cost Explorer access for API Lambda
-1fa690d feat: add Cost Explorer service for Bedrock cost tracking
+89fcc75 style: format AdminConfigView.vue with Prettier
+af7e668 style: format cost_explorer.py with ruff
+05c5629 feat: add Cost tab to admin dashboard frontend
+cff9822 feat: add TypeScript types for cost response
+8c186bf docs: update session log with cost tab progress
 c9ea1f8 feat: add /admin/costs endpoint for cost dashboard
+1fa690d feat: add Cost Explorer service for Bedrock cost tracking
+fa10368 feat: enable Cost Explorer access for API Lambda
+b924166 feat: add Cost Explorer IAM permission to Lambda module
+3a30847 docs: add cost tab design and implementation plan
 ```
 
 ### Files Modified/Created
@@ -68,9 +79,9 @@ c9ea1f8 feat: add /admin/costs endpoint for cost dashboard
 - `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with 1-hour caching
 - `backend/app/api/v1/admin.py` - Added /costs endpoint and Pydantic models
 
-**Frontend (pending):**
-- `frontend/src/types/admin.ts` - Add cost response types
-- `frontend/src/views/AdminConfigView.vue` - Add Cost tab
+**Frontend (committed):**
+- `frontend/src/types/admin.ts` - Added BedrockModelCost, DailyCost, CostResponse interfaces
+- `frontend/src/views/AdminConfigView.vue` - Added Cost tab with full UI
 
 ### Key Technical Details
 - AWS Cost Explorer API (boto3, region us-east-1)
@@ -96,9 +107,9 @@ c9ea1f8 feat: add /admin/costs endpoint for cost dashboard
 |-------|---------|--------|
 | superpowers:brainstorming | Design refinement | ✅ Complete |
 | superpowers:writing-plans | Create implementation plan | ✅ Complete |
-| superpowers:executing-plans | Execute tasks in batches | 🔄 In Progress (Batch 2) |
-| superpowers:verification-before-completion | Verify before claiming done | ⏳ Before PR |
-| superpowers:finishing-a-development-branch | Complete branch workflow | ⏳ After all tasks |
+| superpowers:executing-plans | Execute tasks in batches | ✅ Complete |
+| superpowers:verification-before-completion | Verify before claiming done | ⏳ After Terraform |
+| superpowers:finishing-a-development-branch | Complete branch workflow | ⏳ After verification |
 
 ---
 
@@ -116,65 +127,38 @@ c9ea1f8 feat: add /admin/costs endpoint for cost dashboard
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (pre-approved, no prompts)
 
-**Example - WRONG:**
-```bash
-# Check status
-git status && git diff
-```
-
-**Example - CORRECT:**
-```bash
-git status
-```
-(Then make a separate Bash tool call for `git diff`)
-
----
-
-## Resume Instructions
-
-To resume this work:
-
-1. Navigate to worktree:
-   ```bash
-   cd /Users/mark/projects/bluemoxon/.worktrees/admin-config-dashboard
-   ```
-
-2. Check branch and status:
-   ```bash
-   git branch
-   git status
-   git log --oneline -5
-   ```
-
-3. **IMPORTANT:** Tell Claude to use superpowers:executing-plans:
-   > "Use superpowers:executing-plans to continue implementing docs/plans/2025-12-22-admin-cost-tab-implementation.md. Tasks 1-4 are committed. Continue with Tasks 5-6 (frontend)."
-
-4. **Remind Claude of bash rules:**
-   > "Remember: No #, \, $(...), &&, or ! in bash commands. Use simple single-line commands and separate Bash tool calls."
-
 ---
 
 ## Next Steps (for resume)
 
-1. **Task 5:** Add TypeScript types to `frontend/src/types/admin.ts`
-   - BedrockModelCost, DailyCost, CostResponse interfaces
+### Immediate Next Steps
 
-2. **Task 6:** Add Cost tab to `frontend/src/views/AdminConfigView.vue`
-   - Add costData ref and fetchCostData function
-   - Add formatCurrency, formatDate, getBarWidth helpers
-   - Add Cost tab button
-   - Add Cost tab content (table, daily trend, other costs)
-   - Add CSS styles
+1. **Wait for CI** to pass on PR #546
+   ```bash
+   gh pr checks 546 --watch
+   ```
 
-3. **Task 7:** Run validation and create PR
-   - `poetry run ruff check backend/`
-   - `npm run lint` and `npm run type-check`
-   - `gh pr create --base staging`
+2. **Apply Terraform** (requires elevated permissions):
+   ```bash
+   cd infra/terraform
+   AWS_PROFILE=bmx-staging terraform init
+   AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
+   AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
+   ```
 
-4. **Task 8:** Terraform apply and verify
-   - Apply Terraform to add IAM policy
-   - Test endpoint: `bmx-api GET /admin/costs`
+3. **Merge PR** after CI passes and Terraform is applied:
+   ```bash
+   gh pr merge 546 --squash --delete-branch
+   ```
+
+4. **Verify endpoint** after deploy:
+   ```bash
+   bmx-api GET /admin/costs
+   ```
+
+### Terraform Note
+The `claude-admin` IAM user doesn't have permission to access the Terraform state bucket. Someone with elevated permissions needs to apply the Terraform changes before the Cost tab will work.
 
 ---
 
-*Last updated: 2025-12-22 06:50 UTC (Tasks 1-4 committed, Tasks 5-8 pending)*
+*Last updated: 2025-12-22 07:15 UTC (All code committed, PR #546 created, awaiting CI + Terraform)*
