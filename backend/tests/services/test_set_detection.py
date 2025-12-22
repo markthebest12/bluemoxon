@@ -140,4 +140,41 @@ class TestNormalizeTitle:
     def test_preserves_internal_structure(self):
         from app.services.set_detection import normalize_title
 
-        assert normalize_title("Lord Byron's Complete Poetical Works Vol. 5") == "Lord Byron's Complete Poetical Works"
+        assert (
+            normalize_title("Lord Byron's Complete Poetical Works Vol. 5")
+            == "Lord Byron's Complete Poetical Works"
+        )
+
+
+class TestTitlesMatch:
+    """Tests for checking if two normalized titles represent the same work."""
+
+    def test_exact_match(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("Byron Works", "Byron Works") is True
+
+    def test_case_insensitive(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("Byron Works", "byron works") is True
+
+    def test_subset_a_in_b(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("Byron Works", "Byron Works Complete") is True
+
+    def test_subset_b_in_a(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("Byron Works Complete", "Byron Works") is True
+
+    def test_no_match(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("Byron Works", "Shelley Poems") is False
+
+    def test_whitespace_handling(self):
+        from app.services.set_detection import titles_match
+
+        assert titles_match("  Byron Works  ", "Byron Works") is True

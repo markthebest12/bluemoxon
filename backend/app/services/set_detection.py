@@ -111,3 +111,26 @@ def normalize_title(title: str) -> str:
     for pattern in NORMALIZE_PATTERNS:
         result = pattern.sub("", result)
     return result.strip()
+
+
+def titles_match(title_a: str, title_b: str) -> bool:
+    """Check if two normalized titles represent the same work.
+
+    Uses exact match or substring containment (for variant titles).
+
+    Args:
+        title_a: First normalized title
+        title_b: Second normalized title
+
+    Returns:
+        True if titles match
+    """
+    a = title_a.lower().strip()
+    b = title_b.lower().strip()
+
+    if a == b:
+        return True
+    if a in b or b in a:
+        return True
+
+    return False
