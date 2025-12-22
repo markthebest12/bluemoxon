@@ -97,3 +97,47 @@ class TestExtractVolumeNumber:
         from app.services.set_detection import extract_volume_number
 
         assert extract_volume_number("Byron Poetical Works, Vol. 5") == 5
+
+
+class TestNormalizeTitle:
+    """Tests for stripping volume indicators from titles."""
+
+    def test_strips_vol_dot_arabic(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Byron Works Vol. 8") == "Byron Works"
+
+    def test_strips_vol_arabic(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Works Vol 3") == "Works"
+
+    def test_strips_volume_roman(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Works, Volume III") == "Works"
+
+    def test_strips_part(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("History Part 2") == "History"
+
+    def test_strips_parenthetical_vols(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Works (in 3 vols)") == "Works"
+
+    def test_no_volume_unchanged(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Complete Works") == "Complete Works"
+
+    def test_strips_trailing_whitespace(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Works Vol. 1  ") == "Works"
+
+    def test_preserves_internal_structure(self):
+        from app.services.set_detection import normalize_title
+
+        assert normalize_title("Lord Byron's Complete Poetical Works Vol. 5") == "Lord Byron's Complete Poetical Works"

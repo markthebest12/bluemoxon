@@ -87,3 +87,27 @@ def extract_volume_number(title: str) -> int | None:
             if roman_value is not None:
                 return roman_value
     return None
+
+
+# Patterns to strip volume indicators for title matching
+NORMALIZE_PATTERNS = [
+    re.compile(r"\s*,?\s*Vol\.?\s*\d+", re.IGNORECASE),  # Vol. 1, Vol 2
+    re.compile(r"\s*,?\s*Volume\s+\w+", re.IGNORECASE),  # Volume III
+    re.compile(r"\s*,?\s*Part\s+\d+", re.IGNORECASE),  # Part 1
+    re.compile(r"\s*\([^)]*vol[^)]*\)", re.IGNORECASE),  # (in 3 vols)
+]
+
+
+def normalize_title(title: str) -> str:
+    """Strip volume indicators from title for matching.
+
+    Args:
+        title: Full book title
+
+    Returns:
+        Title with volume indicators removed
+    """
+    result = title
+    for pattern in NORMALIZE_PATTERNS:
+        result = pattern.sub("", result)
+    return result.strip()
