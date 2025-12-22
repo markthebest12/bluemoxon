@@ -297,13 +297,13 @@ module "lambda" {
     "anthropic.claude-opus-4-5-20251101-v1:0"
   ]
 
-  # Cost Explorer access for admin cost dashboard
-  cost_explorer_access = true
-
   # Lambda invoke permissions (e.g., scraper Lambda for eBay listing scraping)
   # When scraper is Terraform-managed, scraper module creates the invoke policy
   # Only pass ARN when scraper is external (not managed by Terraform)
   lambda_invoke_arns = local.scraper_enabled ? [] : (local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : [])
+
+  # Cost Explorer access for admin dashboard
+  enable_cost_explorer_access = var.enable_cost_explorer_access
 
   # Environment variables using BMX_* naming convention (standard for all environments)
   environment_variables = merge(

@@ -126,6 +126,12 @@ variable "enable_lambda_vpc" {
   default     = null
 }
 
+variable "enable_cost_explorer_access" {
+  type        = bool
+  description = "Enable AWS Cost Explorer access for admin dashboard cost monitoring"
+  default     = false
+}
+
 variable "lambda_function_name_external" {
   type        = string
   description = "External Lambda function name (used when enable_lambda=false)"

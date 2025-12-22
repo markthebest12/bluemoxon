@@ -29,8 +29,9 @@ db_allocated_storage = 20
 # Note: db_password should be passed via TF_VAR_db_password or -var flag, not stored in file
 
 # Feature flags
-enable_cloudfront = true
-enable_waf        = false
+enable_cloudfront           = true
+enable_waf                  = false
+enable_cost_explorer_access = true
 # GitHub OIDC - manages GitHub Actions deployment role
 enable_github_oidc                 = true
 enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check

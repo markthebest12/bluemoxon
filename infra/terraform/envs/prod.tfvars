@@ -37,6 +37,7 @@ enable_api_gateway            = false # API Gateway managed externally (import i
 enable_database               = false
 enable_nat_gateway            = false
 enable_waf                    = true
+enable_cost_explorer_access   = true
 enable_scraper                = true # Scraper now managed by Terraform (imported in #412)
 
 # Scraper name overrides - production uses inconsistent legacy naming
