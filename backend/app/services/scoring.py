@@ -630,9 +630,15 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
 
     is_duplicate = False
     if book.author_id:
+        # Only consider books actually in collection (in_transit or on_hand)
+        # Books in evaluation/wishlist don't count as duplicates
         other_books = (
             db.query(BookModel)
-            .filter(BookModel.author_id == book.author_id, BookModel.id != book.id)
+            .filter(
+                BookModel.author_id == book.author_id,
+                BookModel.id != book.id,
+                BookModel.acquisition_status.in_(["in_transit", "on_hand"]),
+            )
             .all()
         )
         for other in other_books:
