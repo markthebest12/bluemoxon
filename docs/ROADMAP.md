@@ -55,26 +55,52 @@ This document tracks planned features, improvements, and technical debt for the 
 | ~~**Insurance/Export Reports**~~ | ~~Insurance valuation report with CSV export, report type selector (Primary/Extended/Full)~~ | ~~Low~~ | ~~High~~ | ✅ DONE |
 | **Add Images to Insurance Report** | Include book thumbnails in printable report | Low | Low | |
 | **Audit Logging** | Track changes to book records (who changed what and when) | Low | Medium | |
-| ~~**Mobile Responsive Improvements**~~ | ~~Tailwind responsive classes across all views, touch support for modals~~ | ~~Low~~ | ~~Medium~~ | ✅ DONE |
+| **Set Completion Detection** | Detect when book completes a set in eval generation (#517) | Medium | Medium | Planned |
+| **Carrier API Support** | USPS, FedEx, DHL tracking integration (#516) | Low | High | Planned |
+| **Tiered Recommendations** | Offer prices with reasoning in valuations | Medium | Medium | Planned |
 
-### Recently Completed (Not Previously Tracked)
+### Recently Completed (December 2025)
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Duplicate Image Detection** | SHA256 content hash prevents uploading identical images; returns existing image info on duplicate | ✅ DONE |
-| **Per-User MFA Control** | Admin toggle to exempt specific users from MFA requirement; app-enforced default with per-user override | ✅ DONE |
-| **Dashboard Week-over-Week Trends** | Value change indicators (+$X, +X%) comparing to previous week on statistics dashboard | ✅ DONE |
-| **Mobile Responsive UI** | Tailwind breakpoints across all views, touch support for modals, mobile-optimized layouts | ✅ DONE |
-| **Deep Health Check Endpoints** | Kubernetes-style probes: `/health/live`, `/ready`, `/deep`, `/info` with DB/S3/Cognito validation | ✅ DONE |
-| **CloudWatch Monitoring Dashboard** | 10-panel dashboard: API latency (p50/p90/p99), request counts, errors, Lambda metrics, CloudFront stats | ✅ DONE |
-| **CloudWatch Alarms** | Automated alerting: high latency (p99>3s), 5xx errors, Lambda errors | ✅ DONE |
-| **CloudFront Access Logging** | Request logs to S3 (`bluemoxon-logs/cloudfront/`) for troubleshooting | ✅ DONE |
-| **CI/CD Health Check Validation** | Smoke tests use `/health/deep` endpoint, fail deploy if DB unhealthy | ✅ DONE |
-| **Analysis Management UI** | Split-pane markdown editor with live GFM preview, delete functionality, keyboard shortcuts | ✅ DONE |
-| **Collection Statistics Dashboard** | Interactive charts: value growth, bindery distribution, era breakdown, top publishers | ✅ DONE |
-| **Image Upload/Delete** | Upload new images and delete existing from book detail page | ✅ DONE |
-| **User Profile Names** | Editable first/last name on user profiles | ✅ DONE |
-| **Insurance Report View** | Browser-print optimized report with CSV export for Primary/Extended/Full inventory | ✅ DONE |
+| **Napoleon Framework v3** | Consolidated prompt directories, renamed v2→v3, added TDD verification test | ✅ #522 |
+| **Print Capability** | Print-friendly views for book detail and analysis pages | ✅ #511 |
+| **Report Theming** | Consistent theming across insurance report pages | ✅ #510 |
+| **CI/CD Smoke Tests** | Comprehensive smoke tests including image CDN validation | ✅ #507 |
+| **Provenance Re-analysis** | Batch re-analysis with provenance detection prompt improvements | ✅ #506 |
+| **Napoleon Prompt Enrichment** | Enhanced prompts for better valuations and provenance detection | ✅ #502 |
+| **Analysis Status Refresh** | Fixed eval runbook and Napoleon analysis requiring browser refresh | ✅ #499 |
+| **Ask Price Storage** | Fixed eval books not storing ask price from eBay import | ✅ #498 |
+| **URL Shortener Fix** | Fixed broken URLs from eBay shortener links | ✅ #497 |
+| **AI Image Filtering** | Filter non-related images from eBay listing imports | ✅ #487 |
+| **Acquire Modal Fix** | Fixed clipped modal in desktop browser | ✅ #481 |
+| **Provenance & First Edition** | Searchable provenance and first edition fields | ✅ #466 |
+| **Analysis Visual Cleanup** | Improved analysis and eval runbook UI | ✅ #461 |
+| **Regenerate Analysis UX** | Expanded features for regenerate analysis button | ✅ #459 |
+| **Acquisitions UI** | Moved Import/Add buttons, listing links for all statuses | ✅ #457, #456 |
+| **Tracking Refresh** | On-demand tracking info refresh button | ✅ #454 |
+| **Two-Stage Extraction** | Separated analysis generation from structured data extraction | ✅ #468 |
+| **Multi-Currency Support** | Manual entry widget supports GBP/EUR/USD | ✅ #446 |
+| **Staging Environment** | Full dual-environment setup with isolated resources | ✅ #429 |
+| **CloudFront Path Routing** | /book-images/* routed to images bucket | ✅ #430 |
+
+### Previously Completed (November-Early December 2025)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Duplicate Image Detection** | SHA256 content hash prevents uploading identical images | ✅ DONE |
+| **Per-User MFA Control** | Admin toggle to exempt specific users from MFA | ✅ DONE |
+| **Dashboard Week-over-Week Trends** | Value change indicators comparing to previous week | ✅ DONE |
+| **Mobile Responsive UI** | Tailwind breakpoints, touch support, mobile layouts | ✅ DONE |
+| **Deep Health Check Endpoints** | `/health/live`, `/ready`, `/deep`, `/info` | ✅ DONE |
+| **CloudWatch Monitoring** | 10-panel dashboard with API metrics | ✅ DONE |
+| **CloudWatch Alarms** | High latency, 5xx errors, Lambda errors alerts | ✅ DONE |
+| **CloudFront Access Logging** | Request logs to S3 for troubleshooting | ✅ DONE |
+| **Analysis Management UI** | Split-pane markdown editor with live preview | ✅ DONE |
+| **Collection Statistics Dashboard** | Charts: value growth, bindery, era, publishers | ✅ DONE |
+| **Image Upload/Delete** | Upload and delete images from book detail | ✅ DONE |
+| **User Profile Names** | Editable first/last name on profiles | ✅ DONE |
+| **Insurance Report View** | Print-optimized with CSV export | ✅ DONE |
 
 ---
 
@@ -87,7 +113,11 @@ This document tracks planned features, improvements, and technical debt for the 
 ```
 CloudFront → S3 (Frontend)
 CloudFront → API Gateway → Lambda → Aurora Serverless v2
+                                  → AWS Bedrock (Claude 4.5)
+                                  → S3 (Images + Prompts)
 ```
+
+**Dual Environment:** Production (`app.bluemoxon.com`) and Staging (`staging.app.bluemoxon.com`) with isolated Cognito pools, databases, and S3 buckets.
 
 ### Rollback Capabilities
 
@@ -153,11 +183,11 @@ aws rds create-db-cluster-snapshot \
   --db-cluster-snapshot-identifier pre-deploy-$(date +%Y%m%d)
 ```
 
-#### 4. Infrastructure (CDK) Rollback ($0)
-CDK doesn't have built-in rollback, but:
-- Git revert to previous CDK code
-- Run `cdk deploy` with previous version
-- Document critical resource IDs for manual recovery
+#### 4. Infrastructure (Terraform) Rollback ($0)
+Terraform state enables rollback:
+- Git revert to previous Terraform code
+- Run `terraform apply` with previous version
+- State file tracks all resources for recovery
 
 ### NOT Recommended (Too Expensive for Internal Use)
 
@@ -176,7 +206,10 @@ CDK doesn't have built-in rollback, but:
 | **CloudWatch Alarms** | High latency (p99>3s), 5xx errors (>5), Lambda errors (>=1) | ✅ DONE |
 | **CloudFront Access Logs** | Request logs to `bluemoxon-logs/cloudfront/` | ✅ DONE |
 | **Health Check Endpoints** | `/health/live`, `/ready`, `/deep`, `/info` | ✅ DONE |
+| **Staging Environment** | Full dual-environment with isolated resources | ✅ DONE |
 | **SNS Notifications** | Alert notifications via email/SMS | Planned |
+| **RDS Aurora Pause** | Schedule staging pause during off-hours (#477) | Planned |
+| **Bedrock VPC Endpoint** | Eliminate NAT Gateway dependency (#476) | Planned |
 
 **Dashboard URL:** https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API
 
@@ -398,10 +431,12 @@ To stay within budget:
 
 | Document | Purpose |
 |----------|---------|
-| [Eval Runbook Scaling](EVAL_RUNBOOK_SCALING.md) | Multi-tenant scaling roadmap |
 | [Architecture](ARCHITECTURE.md) | Current system design |
 | [Features](FEATURES.md) | Implemented features catalog |
+| [Bedrock](BEDROCK.md) | AI analysis integration (Napoleon Framework) |
+| [Operations](OPERATIONS.md) | Runbook for common operations |
+| [Eval Runbook Scaling](EVAL_RUNBOOK_SCALING.md) | Multi-tenant scaling roadmap |
 
 ---
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-22

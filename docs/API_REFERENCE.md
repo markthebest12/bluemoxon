@@ -249,8 +249,14 @@ Response:
 ## Book Analysis API
 
 Book analyses are detailed markdown documents providing professional valuations,
-historical context, and collection significance for each book. Analyses can be
-viewed by all authenticated users but only created/edited by users with the
+historical context, and collection significance for each book. Analyses are
+generated using **AWS Bedrock (Claude 4.5)** with the **Napoleon Framework** prompt,
+which produces comprehensive valuations following a standardized format.
+
+The Napoleon Framework prompt is stored in S3 (`s3://bluemoxon-images/prompts/napoleon-framework/v3.md`)
+and loaded with 5-minute caching. See [BEDROCK.md](BEDROCK.md) for details.
+
+Analyses can be viewed by all authenticated users but only created/edited by users with the
 **editor** or **admin** role.
 
 ### Get Book Analysis (Parsed)

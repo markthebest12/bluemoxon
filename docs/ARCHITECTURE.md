@@ -38,13 +38,14 @@ BlueMoxon is a serverless book collection management application deployed on AWS
 ┌───────▼───────┐           ┌─────────▼─────────┐          ┌───────▼───────┐
 │   Cognito     │           │   Aurora Sv2       │          │   S3 Bucket   │
 │  User Pool    │           │   PostgreSQL 16    │          │ (Book Images) │
-│ (MFA + Roles) │           │   (Private VPC)    │          │               │
+│ (MFA + Roles) │           │   (Private VPC)    │          │  + Prompts    │
 └───────────────┘           └───────────────────┘          └───────────────┘
-                                      │
-                            ┌─────────▼─────────┐
-                            │  Secrets Manager   │
-                            │  (DB Credentials)  │
-                            └───────────────────┘
+        │                             │                            │
+        │                   ┌─────────▼─────────┐          ┌───────▼───────┐
+        │                   │  Secrets Manager   │          │   Bedrock     │
+        │                   │  (DB Credentials)  │          │ (Claude 4.5)  │
+        │                   └───────────────────┘          │ Napoleon AI   │
+        │                                                  └───────────────┘
 ```
 
 ## Environments
@@ -63,6 +64,7 @@ Both environments are deployed via Terraform with isolated resources (separate C
 | Compute | AWS Lambda | Cost-effective for low traffic, cold starts acceptable |
 | Database | Aurora Serverless v2 | PostgreSQL for full-text search, scales to zero |
 | Auth | Cognito + MFA | Managed auth, built-in 2FA, admin invite only |
+| AI Analysis | AWS Bedrock (Claude 4.5) | Napoleon Framework valuations via managed Claude models |
 | Frontend | Vue 3 + Vite | User preference, modern tooling |
 | Backend | FastAPI | Fast, modern Python, auto-generated docs |
 | IaC | **Terraform** | Declarative, well-documented, dual-environment support |
@@ -151,7 +153,11 @@ flowchart TB
 
     subgraph Data["Data Layer"]
         Aurora["Aurora PostgreSQL<br/>Serverless v2"]
-        S3I["S3 Bucket<br/>(Book Images)"]
+        S3I["S3 Bucket<br/>(Book Images + Prompts)"]
+    end
+
+    subgraph AI["AI Analysis"]
+        Bedrock["AWS Bedrock<br/>(Claude 4.5)"]
     end
 
     Vue -->|HTTPS| CF
@@ -161,6 +167,7 @@ flowchart TB
     Lambda --> Aurora
     Lambda --> S3I
     Lambda --> Cognito
+    Lambda -->|Napoleon Framework| Bedrock
     Vue -->|Auth| Cognito
 ```
 
