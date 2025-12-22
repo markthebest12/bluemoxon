@@ -91,6 +91,22 @@ def calculate_investment_grade(
         return 0
 
 
+def author_tier_to_score(tier: str | None) -> int:
+    """Convert author tier to priority score.
+
+    TIER_1: +15 (Darwin, Lyell - Victorian Science)
+    TIER_2: +10 (Dickens, Collins - Victorian Novelists)
+    TIER_3: +5 (Ruskin - Art Criticism)
+    """
+    if tier == "TIER_1":
+        return 15
+    elif tier == "TIER_2":
+        return 10
+    elif tier == "TIER_3":
+        return 5
+    return 0
+
+
 def calculate_strategic_fit(
     publisher_tier: str | None,
     binder_tier: str | None,
@@ -586,12 +602,14 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
     from app.models import Book as BookModel
 
     author_priority = 0
+    author_tier = None
     publisher_tier = None
     binder_tier = None
     author_book_count = 0
 
     if book.author:
-        author_priority = book.author.priority_score or 0
+        author_tier = book.author.tier
+        author_priority = author_tier_to_score(author_tier)
         author_book_count = (
             db.query(BookModel)
             .filter(BookModel.author_id == book.author_id, BookModel.id != book.id)
