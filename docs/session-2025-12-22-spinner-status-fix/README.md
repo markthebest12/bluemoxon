@@ -1,32 +1,34 @@
 # Session: Spinner/Status Refresh Fix
 
 **Date:** 2025-12-22
-**Issue:** #554, #556
-**Status:** ✅ COMPLETE - Merged to staging
+**Issue:** #554, #556, #561
+**Status:** ✅ COMPLETE - Deployed to production
 
 ---
 
 ## Session Summary
 
 ### Issue #554: Spinner/Status Refresh Fix
-- **PR:** #555 (merged to staging)
+- **PR:** #555, #560 (merged to production)
 - **Solution:** Created `useJobPolling` composable that replaced scattered polling logic
 - **Files changed:**
   - `frontend/src/composables/useJobPolling.ts` (NEW - 102 lines)
   - `frontend/src/composables/__tests__/useJobPolling.test.ts` (NEW - 208 lines)
   - `frontend/src/views/AcquisitionsView.vue` (refactored to use composable)
   - `frontend/src/views/BookDetailView.vue` (refactored to use composable)
+  - `frontend/src/components/books/AnalysisViewer.vue` (switched to async polling)
   - `frontend/src/stores/books.ts` (removed 320 lines of polling code)
-  - `frontend/src/stores/books.test.ts` (deleted - obsolete)
 
 ### Issue #556: Duplicate Title Bug for Eval Books
-- **PR:** #557 (merged to staging)
+- **PR:** #557 (merged to production)
 - **Problem:** Books in evaluation status were incorrectly penalized for duplicate titles
 - **Solution:** Added `status.in_(['IN_TRANSIT', 'ON_HAND'])` filter to duplicate detection
-- **Files changed:**
-  - `backend/app/services/scoring.py`
-  - `backend/app/api/v1/books.py` (2 locations)
-  - `backend/app/services/eval_generation.py`
+
+### Issue #561: Analysis Timestamp Feature
+- **PR:** #563 (frontend - merged to production)
+- **PR:** #565 (backend - IN PROGRESS, CI running)
+- **Feature:** Display analysis generation timestamp at bottom of viewer
+- **Format:** "Analysis generated: December 22, 2025 at 1:18 PM Pacific"
 
 ---
 
@@ -55,73 +57,62 @@
 
 ---
 
-## Problem Statement
+## Current Work In Progress
 
-Spinners and status indicators on the Acquisitions page get stuck for both eval runbook and analysis workflows. The only workaround is a manual browser refresh.
+### PR #565: Backend timestamp fix
+- **Branch:** `fix/analysis-timestamp-backend`
+- **Status:** CI running (https://github.com/markthebest12/bluemoxon/pull/565)
+- **Change:** Returns `generated_at` from `book.analysis.updated_at` in GET `/books/{id}/analysis`
+- **Why:** Uses existing `updated_at` timestamp - works for ALL analyses without regeneration
 
-## Observed Symptoms
-
-| Workflow | Symptom | After Browser Refresh |
-|----------|---------|----------------------|
-| **Eval Runbook** | Stuck on "Generating runbook..." forever | Shows "Eval Runbook" link (job completed) |
-| **Analysis** | Cycles: Generate → Queued → Analyzing → Generate | Shows "View Analysis" link (job completed) |
-
-**Key insight:** Both jobs complete successfully on backend (<1 min). Frontend fails to detect completion.
-
-## Failed Fix Attempts (History)
-
-| Issue | Date | Fix Attempted | Why It Failed |
-|-------|------|---------------|---------------|
-| #382 | Dec 18 | First report | N/A |
-| #471 | Dec 19 | Added polling to BookDetailView | Helped BookDetailView, not Acquisitions |
-| #499 | Dec 21 | Added `clearJob()` in catch blocks | Dual source of truth still causes issues |
-
-## Root Cause Analysis
-
-### Architecture Problems
-
-1. **Two conflicting sources of truth:**
-   - In-memory Maps: `activeAnalysisJobs`, `activeEvalRunbookJobs`
-   - Backend fields: `book.analysis_job_status`, `book.eval_runbook_job_status`
-
-2. **UI displays from BOTH sources with OR logic:**
-   ```vue
-   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-   ```
-
-3. **Multiple overlapping polling mechanisms:**
-   - `startJobPoller()` - polls individual job status (5s)
-   - `jobCheckInterval` - checks for completed jobs (2s)
-   - `syncBackendJobPolling()` - reconciles on mount/import
-
-4. **Completion detection fails because:**
-   - Poller detects completion but book's `has_analysis`/`has_eval_runbook` not updated
-   - `acquisitionsStore.refreshBook()` may race with status updates
-   - Vue reactivity with Maps is fragile
-
-### Why Each Symptom Occurs
-
-**Eval Runbook stuck:**
-- Job completes, but neither `clearEvalRunbookJob()` triggers nor `has_eval_runbook` updates
-- Spinner condition remains true
-
-**Analysis reverts to button:**
-- Job completes, `clearJob()` removes from Map
-- But `has_analysis` not updated on book object
-- No active job + no `has_analysis` = shows Generate button
+**Next steps after CI passes:**
+1. Merge PR #565 to staging
+2. Test timestamp appears for existing analyses
+3. Promote staging to production
 
 ---
 
-## APPROVED DESIGN: `useJobPolling` Composable
+## Test Results (All Passing)
 
-### Core Concept
+| Test | Status | Notes |
+|------|--------|-------|
+| 3a: Analysis regen on Acquisitions page | ✅ PASS | |
+| 3b: Analysis regen in modal (View Analysis) | ✅ PASS | Fixed in PR #560 |
+| 3c: Analysis regen on BookDetailView | ✅ PASS | Fixed in PR #560 |
+| Eval runbooks | ✅ PASS | |
+| Duplicate checks | ✅ PASS | Fixed in PR #557 |
 
-A single, reusable Vue composable that replaces ALL scattered polling logic. Components call it and react to state changes.
+---
+
+## Production Deployment
+
+**PR #564:** Promoted staging to production
+- Merged: 2025-12-22 ~21:44 UTC
+- Deploy run: 20444787419
+- Smoke tests: ✅ All passing
+
+---
+
+## Related Files
+
+### Frontend
+- `frontend/src/composables/useJobPolling.ts` - Job polling composable
+- `frontend/src/views/AcquisitionsView.vue` - Acquisitions page
+- `frontend/src/views/BookDetailView.vue` - Book detail page
+- `frontend/src/components/books/AnalysisViewer.vue` - Analysis viewer modal
+- `frontend/src/stores/books.ts` - Books store (simplified)
+
+### Backend
+- `backend/app/api/v1/books.py` - Analysis endpoints (timestamp added)
+- `backend/app/models/analysis.py` - BookAnalysis model (has TimestampMixin)
+- `backend/app/models/base.py` - TimestampMixin (created_at, updated_at)
+
+---
+
+## Architecture: useJobPolling Composable
 
 ### Interface
-
 ```typescript
-// Usage in component
 const {
   isActive,      // boolean - is a job running?
   status,        // 'pending' | 'running' | 'completed' | 'failed' | null
@@ -131,134 +122,14 @@ const {
 } = useJobPolling('analysis')  // or 'eval-runbook'
 ```
 
-### How It Works
-
-```
-User clicks "Generate"
-    → Component calls API to start job
-    → Component calls polling.start(bookId)
-    → Composable polls /status endpoint every 3s
-    → When status = 'completed':
-        1. Stop polling
-        2. Refetch book data (updates has_analysis/has_eval_runbook)
-        3. Emit completion
-    → Component reactively shows correct UI
-```
+### Poll Intervals
+- Analysis: 5000ms (5 seconds)
+- Eval Runbook: 3000ms (3 seconds)
 
 ### Key Design Decisions
-
 | Decision | Choice | Why |
 |----------|--------|-----|
-| **Source of truth** | Composable state only | Eliminates dual-source bugs |
-| **Poll interval** | Job-type specific | Analysis: 5s (jobs ~5min), Eval: 3s (jobs <1min) |
-| **On completion** | Refetch book data | Guarantees `has_*` flags update |
-| **Scope** | Per-book, per-job-type | Multiple books can poll independently |
-| **Cleanup** | Auto on unmount | No memory leaks |
-
-### Poll Intervals
-
-```typescript
-const POLL_INTERVALS = {
-  'analysis': 5000,      // 5 seconds (60 polls over 5 min)
-  'eval-runbook': 3000,  // 3 seconds (20 polls over 1 min)
-}
-```
-
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `composables/useJobPolling.ts` | **NEW** - the composable |
-| `stores/books.ts` | Remove polling logic, keep API methods only |
-| `views/AcquisitionsView.vue` | Use composable, remove manual intervals |
-| `views/BookDetailView.vue` | Use composable |
-| `components/EditWatchlistModal.vue` | Use composable if needed |
-
-### What to Remove
-
-From `stores/books.ts`:
-- `activeAnalysisJobs` Map
-- `activeEvalRunbookJobs` Map
-- `analysisJobPollers` Map
-- `evalRunbookJobPollers` Map
-- `startJobPoller()`, `stopJobPoller()`, `clearJob()`
-- `startEvalRunbookJobPoller()`, `stopEvalRunbookJobPoller()`, `clearEvalRunbookJob()`
-- `getActiveJob()`, `hasActiveJob()`
-- `getActiveEvalRunbookJob()`, `hasActiveEvalRunbookJob()`
-
-From `AcquisitionsView.vue`:
-- `jobCheckInterval` (2s interval)
-- `syncBackendJobPolling()`
-- All the `getJobStatus()`, `isAnalysisRunning()` functions
-
----
-
-## Implementation Plan
-
-### Phase 1: Create Composable
-1. Create `frontend/src/composables/useJobPolling.ts`
-2. Write unit tests for the composable
-3. Test in isolation
-
-### Phase 2: Integrate in AcquisitionsView
-1. Import and use composable for each book with active job
-2. Update template to use composable state
-3. Remove old polling code
-4. Test manually
-
-### Phase 3: Integrate in BookDetailView
-1. Same pattern as AcquisitionsView
-2. Remove old polling code
-
-### Phase 4: Clean up books.ts store
-1. Remove all polling-related code
-2. Keep only API methods
-
-### Phase 5: Test and Deploy
-1. Test all scenarios on staging
-2. Create PR
-3. Deploy to production
-
----
-
-## Related Files
-
-- `frontend/src/stores/books.ts` - Current polling logic (to be simplified)
-- `frontend/src/views/AcquisitionsView.vue` - Status display (to be updated)
-- `frontend/src/views/BookDetailView.vue` - Similar polling pattern (to be updated)
-- `backend/app/api/v1/books.py` - Status endpoints (no changes needed)
-
----
-
-## Completion Status
-
-**Plan:** `docs/plans/2025-12-22-job-polling-composable.md`
-
-1. ✅ Created detailed implementation plan
-2. ✅ Implemented `useJobPolling` composable with tests (8 tasks)
-3. ✅ Integrated in AcquisitionsView and BookDetailView
-4. ✅ Cleaned up books.ts store (removed 320 lines)
-5. ✅ PR #555 merged to staging branch
-6. ✅ Bonus: Fixed #556 (duplicate title bug) - PR #557 merged to staging branch
-7. ⚠️ **DEPLOY BLOCKED** - Terraform state checksum mismatch (see #559)
-
-## Deploy Blocker: Terraform State Issue
-
-**Issue:** #559 - Recurring Terraform state checksum mismatch in staging
-
-Both PRs merged to staging branch but deploy workflow failed due to:
-```
-Error: state data in S3 does not have the expected content.
-The checksum calculated for the state stored in S3 does not match
-the checksum stored in DynamoDB.
-```
-
-**Fix applied:** Updated DynamoDB digest, deploy re-triggered at ~20:09 UTC.
-
-**Status:** ✅ Deploy completed successfully (run 20442767050)
-
-**Next:**
-1. ✅ Staging deploy completed
-2. Test fixes in staging environment (user to verify)
-3. Investigate root cause of recurring checksum mismatch (#559)
-4. Promote staging to production when ready
+| Source of truth | Composable state only | Eliminates dual-source bugs |
+| On completion | Refetch book data | Guarantees `has_*` flags update |
+| Scope | Per-book, per-job-type | Multiple books poll independently |
+| Cleanup | Auto on unmount | No memory leaks |
