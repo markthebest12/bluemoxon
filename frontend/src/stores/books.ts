@@ -105,11 +105,9 @@ export const useBooksStore = defineStore("books", () => {
 
   // Analysis job tracking (book_id -> job)
   const activeAnalysisJobs = ref<Map<number, AnalysisJob>>(new Map());
-  const analysisJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   // Eval runbook job tracking (book_id -> job)
   const activeEvalRunbookJobs = ref<Map<number, EvalRunbookJob>>(new Map());
-  const evalRunbookJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   const page = ref(1);
   const perPage = ref(20);
@@ -259,7 +257,7 @@ export const useBooksStore = defineStore("books", () => {
 
   /**
    * Start async analysis generation job.
-   * Returns immediately with job info, poll status for completion.
+   * Returns immediately with job info. Views handle polling via useJobPolling composable.
    */
   async function generateAnalysisAsync(
     bookId: number,
@@ -270,9 +268,6 @@ export const useBooksStore = defineStore("books", () => {
 
     // Track the job (create new Map to trigger Vue reactivity)
     activeAnalysisJobs.value = new Map(activeAnalysisJobs.value).set(bookId, job);
-
-    // Start polling for status
-    startJobPoller(bookId);
 
     return job;
   }
@@ -288,52 +283,6 @@ export const useBooksStore = defineStore("books", () => {
     activeAnalysisJobs.value = new Map(activeAnalysisJobs.value).set(bookId, job);
 
     return job;
-  }
-
-  /**
-   * Start polling for job status updates.
-   */
-  function startJobPoller(bookId: number, intervalMs: number = 5000) {
-    // Clear any existing poller for this book
-    stopJobPoller(bookId);
-
-    const poller = setInterval(async () => {
-      try {
-        const job = await fetchAnalysisJobStatus(bookId);
-
-        if (job.status === "completed" || job.status === "failed") {
-          stopJobPoller(bookId);
-
-          // Update book's has_analysis flag if completed
-          if (job.status === "completed" && currentBook.value?.id === bookId) {
-            currentBook.value.has_analysis = true;
-          }
-
-          // Clear job from tracking to trigger UI update
-          clearJob(bookId);
-        }
-      } catch (e) {
-        console.error(`Failed to poll job status for book ${bookId}:`, e);
-        // Stop polling on error (job might not exist)
-        stopJobPoller(bookId);
-        // Clear job from tracking so UI doesn't show stuck "Analyzing..." state
-        // Issue #499: This was missing, causing jobs to stay stuck in Map forever
-        clearJob(bookId);
-      }
-    }, intervalMs);
-
-    analysisJobPollers.value.set(bookId, poller);
-  }
-
-  /**
-   * Stop polling for a book's job status.
-   */
-  function stopJobPoller(bookId: number) {
-    const existingPoller = analysisJobPollers.value.get(bookId);
-    if (existingPoller) {
-      clearInterval(existingPoller);
-      analysisJobPollers.value.delete(bookId);
-    }
   }
 
   /**
@@ -359,14 +308,13 @@ export const useBooksStore = defineStore("books", () => {
     const newMap = new Map(activeAnalysisJobs.value);
     newMap.delete(bookId);
     activeAnalysisJobs.value = newMap;
-    stopJobPoller(bookId);
   }
 
   // ============ Eval Runbook Job Functions ============
 
   /**
    * Start async eval runbook generation job.
-   * Returns immediately with job info, poll status for completion.
+   * Returns immediately with job info. Views handle polling via useJobPolling composable.
    */
   async function generateEvalRunbookAsync(bookId: number): Promise<EvalRunbookJob> {
     const response = await api.post(`/books/${bookId}/eval-runbook/generate`);
@@ -374,9 +322,6 @@ export const useBooksStore = defineStore("books", () => {
 
     // Track the job (create new Map to trigger Vue reactivity)
     activeEvalRunbookJobs.value = new Map(activeEvalRunbookJobs.value).set(bookId, job);
-
-    // Start polling for status
-    startEvalRunbookJobPoller(bookId);
 
     return job;
   }
@@ -392,52 +337,6 @@ export const useBooksStore = defineStore("books", () => {
     activeEvalRunbookJobs.value = new Map(activeEvalRunbookJobs.value).set(bookId, job);
 
     return job;
-  }
-
-  /**
-   * Start polling for eval runbook job status updates.
-   */
-  function startEvalRunbookJobPoller(bookId: number, intervalMs: number = 5000) {
-    // Clear any existing poller for this book
-    stopEvalRunbookJobPoller(bookId);
-
-    const poller = setInterval(async () => {
-      try {
-        const job = await fetchEvalRunbookJobStatus(bookId);
-
-        if (job.status === "completed" || job.status === "failed") {
-          stopEvalRunbookJobPoller(bookId);
-
-          // Update book's has_eval_runbook flag if completed
-          if (job.status === "completed" && currentBook.value?.id === bookId) {
-            currentBook.value.has_eval_runbook = true;
-          }
-
-          // Clear job from tracking to trigger UI update
-          clearEvalRunbookJob(bookId);
-        }
-      } catch (e) {
-        console.error(`Failed to poll eval runbook job status for book ${bookId}:`, e);
-        // Stop polling on error (job might not exist)
-        stopEvalRunbookJobPoller(bookId);
-        // Clear job from tracking so UI doesn't show stuck state
-        // Issue #499: This was missing, causing jobs to stay stuck in Map forever
-        clearEvalRunbookJob(bookId);
-      }
-    }, intervalMs);
-
-    evalRunbookJobPollers.value.set(bookId, poller);
-  }
-
-  /**
-   * Stop polling for a book's eval runbook job status.
-   */
-  function stopEvalRunbookJobPoller(bookId: number) {
-    const existingPoller = evalRunbookJobPollers.value.get(bookId);
-    if (existingPoller) {
-      clearInterval(existingPoller);
-      evalRunbookJobPollers.value.delete(bookId);
-    }
   }
 
   /**
@@ -463,7 +362,6 @@ export const useBooksStore = defineStore("books", () => {
     const newMap = new Map(activeEvalRunbookJobs.value);
     newMap.delete(bookId);
     activeEvalRunbookJobs.value = newMap;
-    stopEvalRunbookJobPoller(bookId);
   }
 
   async function calculateScores(bookId: number) {
@@ -535,9 +433,6 @@ export const useBooksStore = defineStore("books", () => {
     getActiveEvalRunbookJob,
     hasActiveEvalRunbookJob,
     clearEvalRunbookJob,
-    // Polling functions (for syncing with backend jobs from other sessions)
-    startJobPoller,
-    startEvalRunbookJobPoller,
     calculateScores,
     fetchScoreBreakdown,
     archiveSource,
