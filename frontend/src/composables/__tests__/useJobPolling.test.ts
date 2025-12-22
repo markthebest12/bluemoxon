@@ -1,12 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useJobPolling } from '../useJobPolling'
 import { api } from '@/services/api'
+import { useBooksStore } from '@/stores/books'
+import { createPinia, setActivePinia } from 'pinia'
 
 // Mock the API
 vi.mock('@/services/api', () => ({
   api: {
     get: vi.fn(),
   },
+}))
+
+// Mock books store
+vi.mock('@/stores/books', () => ({
+  useBooksStore: vi.fn(() => ({
+    fetchBook: vi.fn(),
+  })),
 }))
 
 describe('useJobPolling', () => {
@@ -119,6 +128,81 @@ describe('useJobPolling', () => {
 
       await vi.advanceTimersByTimeAsync(10000)
       expect(api.get).toHaveBeenCalledTimes(1) // Still 1, not called again
+    })
+  })
+
+  describe('completion detection', () => {
+    beforeEach(() => {
+      setActivePinia(createPinia())
+      vi.mocked(api.get).mockReset()
+    })
+
+    it('should stop polling when job completes', async () => {
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { status: 'running' } })
+        .mockResolvedValueOnce({ data: { status: 'completed' } })
+
+      const polling = useJobPolling('analysis')
+      polling.start(123)
+
+      // First poll - running
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(polling.isActive.value).toBe(true)
+
+      // Second poll - completed
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(polling.isActive.value).toBe(false)
+      expect(polling.status.value).toBe('completed')
+    })
+
+    it('should stop polling when job fails', async () => {
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { status: 'running' } })
+        .mockResolvedValueOnce({ data: { status: 'failed', error_message: 'Out of memory' } })
+
+      const polling = useJobPolling('analysis')
+      polling.start(123)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(polling.isActive.value).toBe(false)
+      expect(polling.status.value).toBe('failed')
+      expect(polling.error.value).toBe('Out of memory')
+    })
+
+    it('should refetch book data on completion', async () => {
+      const mockFetchBook = vi.fn()
+      vi.mocked(useBooksStore).mockReturnValue({
+        fetchBook: mockFetchBook,
+      } as any)
+
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { status: 'running' } })
+        .mockResolvedValueOnce({ data: { status: 'completed' } })
+
+      const polling = useJobPolling('analysis')
+      polling.start(123)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(mockFetchBook).toHaveBeenCalledWith(123)
+    })
+
+    it('should emit onComplete callback when job completes', async () => {
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { status: 'running' } })
+        .mockResolvedValueOnce({ data: { status: 'completed' } })
+
+      const onComplete = vi.fn()
+      const polling = useJobPolling('analysis', { onComplete })
+      polling.start(123)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(onComplete).toHaveBeenCalledWith(123)
     })
   })
 })

@@ -1,8 +1,14 @@
 import { ref, readonly, onUnmounted } from 'vue'
 import { api } from '@/services/api'
+import { useBooksStore } from '@/stores/books'
 
 export type JobType = 'analysis' | 'eval-runbook'
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | null
+
+export interface UseJobPollingOptions {
+  onComplete?: (bookId: number) => void
+  onError?: (bookId: number, error: string) => void
+}
 
 const POLL_INTERVALS: Record<JobType, number> = {
   'analysis': 5000,
@@ -14,7 +20,9 @@ const STATUS_ENDPOINTS: Record<JobType, (bookId: number) => string> = {
   'eval-runbook': (bookId) => `/books/${bookId}/eval-runbook/status`,
 }
 
-export function useJobPolling(jobType: JobType) {
+export function useJobPolling(jobType: JobType, options: UseJobPollingOptions = {}) {
+  const booksStore = useBooksStore()
+
   const isActive = ref(false)
   const status = ref<JobStatus>(null)
   const error = ref<string | null>(null)
@@ -34,10 +42,27 @@ export function useJobPolling(jobType: JobType) {
       if (response.data.error_message) {
         error.value = response.data.error_message
       }
+
+      // Check for terminal states
+      if (response.data.status === 'completed') {
+        const bookId = currentBookId
+        stop()
+
+        // Refetch book data to update has_analysis/has_eval_runbook flags
+        await booksStore.fetchBook(bookId)
+
+        options.onComplete?.(bookId)
+      } else if (response.data.status === 'failed') {
+        const bookId = currentBookId
+        stop()
+        options.onError?.(bookId, error.value || 'Job failed')
+      }
     } catch (e: unknown) {
       console.error(`Failed to poll ${jobType} status:`, e)
       const err = e as { message?: string }
       error.value = err.message || 'Failed to fetch status'
+      // Stop polling on error (job might not exist)
+      stop()
     }
   }
 
