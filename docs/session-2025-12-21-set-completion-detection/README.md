@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21
 **Issue:** [#517](https://github.com/markthebest12/bluemoxon/issues/517)
-**Status:** Design Complete - Ready for Implementation
+**Status:** Task 8 of 8 - Final Verification and PR
 
 ---
 
@@ -10,77 +10,56 @@
 
 Implement set completion detection for multi-volume books. When a new book would complete an incomplete set in the collection, award +25 bonus points.
 
-**Problem:** `completes_set=False` is hardcoded in:
-- `eval_generation.py:555`
-- `scoring.py:628`
+**Problem:** `completes_set=False` was hardcoded in:
+- `eval_generation.py:555` - NOW FIXED
+- `scoring.py:628` - NOW FIXED
 
-**Solution:** New service `set_detection.py` that:
-1. Parses volume numbers from titles (Vol. 1, Volume VIII, etc.)
-2. Matches books by Author + Normalized Title
-3. Detects when new book fills the last gap in a set
-
----
-
-## Session Progress
-
-| Phase | Status | Artifact |
-|-------|--------|----------|
-| Issue Analysis | Complete | README.md |
-| Brainstorming | Complete | [design.md](./design.md) |
-| Git Worktree Setup | Pending | - |
-| Implementation Plan | Pending | plan.md |
-| Implementation | Pending | - |
-| Code Review | Pending | - |
-| Verification | Pending | - |
+**Solution:** New service `set_detection.py` with:
+1. `roman_to_int()` - Roman numeral conversion (I-XII)
+2. `extract_volume_number()` - Parse Vol. 1, Volume VIII, Part 2
+3. `normalize_title()` - Strip volume indicators for matching
+4. `titles_match()` - Compare normalized titles
+5. `detect_set_completion()` - Main detection with DB integration
 
 ---
 
-## Design Decisions
+## Current Progress
 
-| Question | Decision |
-|----------|----------|
-| Scope | Cross-book matching (not single-book completeness) |
-| Matching | Author + Normalized Title |
-| Volume extraction | Title parsing + volumes field |
-| Set size | Max `volumes` field from matched books |
-| Strictness | Author + Title only (ignore publisher/edition) |
+| Task | Status | Commit |
+|------|--------|--------|
+| Task 1: Roman numeral conversion | COMPLETE | `085c495` |
+| Task 2: Volume extraction | COMPLETE | `33109a8` |
+| Task 3: Title normalization | COMPLETE | `d057071` |
+| Task 4: Title matching | COMPLETE | `ba11975` |
+| Task 5: Main detection function | COMPLETE | `1c8e395` |
+| Task 6: Integrate eval_generation.py | COMPLETE | `5bca53e` |
+| Task 7: Integrate scoring.py | COMPLETE | `d6d82f9` |
+| Task 8: Final verification and PR | **NEXT** | - |
 
-See [design.md](./design.md) for full algorithm and code examples.
+**Test Status:** 524 passed, 1 skipped (40 new tests for set detection)
 
 ---
 
-## Next Steps
+## Next Step: Task 8 - Final Verification and PR
 
-Continue with Superpowers skill chain:
+Continue with **superpowers:verification-before-completion** then **superpowers:finishing-a-development-branch**:
 
-```
-1. using-git-worktrees  → Create isolated workspace
-2. writing-plans        → Detailed implementation tasks
-3. subagent-driven-development → Execute with code review
-```
-
-To resume:
-```
-/superpowers:using-git-worktrees
-```
+1. Run full test suite one more time
+2. Run linting checks
+3. Create PR targeting `staging` branch
+4. Follow finishing-a-development-branch skill
 
 ---
 
 ## CRITICAL: Superpowers Skills (MANDATORY)
 
-**Always use the appropriate skill chain:**
+**Currently using:** `superpowers:subagent-driven-development`
 
-| Task Type | Skill Chain |
-|-----------|-------------|
-| New feature | brainstorming → using-git-worktrees → writing-plans → subagent-driven-development |
-| Debugging | systematic-debugging → root-cause-tracing → defense-in-depth |
-| Writing tests | test-driven-development → condition-based-waiting → testing-anti-patterns |
-| Completing work | verification-before-completion → finishing-a-development-branch |
+**For Task 8, use:**
+- `superpowers:verification-before-completion` - Verify all tests pass
+- `superpowers:finishing-a-development-branch` - Complete the work
 
-**Before ANY task:**
-1. Check if a skill applies
-2. Use the Skill tool to invoke it
-3. Follow the skill exactly
+**Always invoke skills with the Skill tool before any task.**
 
 ---
 
@@ -98,45 +77,26 @@ To resume:
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
 
-### Examples
+---
 
-```bash
-# BAD - triggers prompts:
-poetry run pytest backend/tests/ && echo "done"
-# Check status
-git status
+## Files Created/Modified
 
-# GOOD - separate calls:
-poetry run pytest backend/tests/
-```
+**Created:**
+- `backend/app/services/set_detection.py` - New service (247 lines)
+- `backend/tests/services/test_set_detection.py` - New tests (40 tests)
 
-```bash
-# BAD - command substitution:
-aws logs filter-log-events --start-time $(date +%s000)
-
-# GOOD - calculate separately:
-aws logs filter-log-events --start-time 1734789600000
-```
+**Modified:**
+- `backend/app/services/eval_generation.py` - Added integration
+- `backend/app/services/scoring.py` - Added integration
 
 ---
 
-## Session Artifacts
+## Worktree Info
 
-| File | Purpose |
-|------|---------|
-| [README.md](./README.md) | This summary |
-| [design.md](./design.md) | Complete design from brainstorming |
-| plan.md | (TBD) Implementation plan |
+- **Directory:** `/Users/mark/projects/bluemoxon/.worktrees/feat-set-completion`
+- **Branch:** `feat/set-completion-517`
+- **Plan:** `docs/plans/2025-12-21-set-completion-detection.md`
 
 ---
 
-## Related Files
-
-- `backend/app/services/eval_generation.py:555` - Primary integration point
-- `backend/app/services/scoring.py:628` - Secondary integration point
-- `backend/app/services/tiered_scoring.py:118` - `STRATEGIC_COMPLETES_SET = 25`
-- `backend/app/models/book.py:50-53` - `volumes` and `is_complete` fields
-
----
-
-*Session created: 2025-12-21*
+*Last updated: 2025-12-21 (Task 7 complete, Task 8 pending)*
