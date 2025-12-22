@@ -119,7 +119,7 @@ import boto3
 
 # Load Napoleon prompt from S3
 s3 = boto3.client('s3', region_name='us-west-2')
-response = s3.get_object(Bucket='bluemoxon-images', Key='prompts/napoleon-framework/v1.md')
+response = s3.get_object(Bucket='bluemoxon-images', Key='prompts/napoleon-framework/v3.md')
 system_prompt = response['Body'].read().decode('utf-8')
 
 # Load book images (up to 10)
@@ -241,4 +241,5 @@ If Claude 4.5 requests hang indefinitely:
 
 - `backend/app/services/bedrock.py` - Bedrock client and invocation logic
 - `backend/app/api/v1/books.py` - Analysis generation endpoint
-- `s3://bluemoxon-images/prompts/napoleon-framework/v1.md` - System prompt
+- `s3://bluemoxon-images/prompts/napoleon-framework/v3.md` - Napoleon Framework system prompt
+- `backend/prompts/napoleon-framework/v3.md` - Source file (deploy to S3 after changes)
