@@ -1,9 +1,3 @@
-variable "cost_explorer_access" {
-  type        = bool
-  description = "Grant ce:GetCostAndUsage permission for AWS Cost Explorer"
-  default     = false
-}
-
 variable "bedrock_model_ids" {
   type        = list(string)
   description = "Bedrock model IDs the Lambda function can invoke (e.g., anthropic.claude-sonnet-4-5-20240929)"

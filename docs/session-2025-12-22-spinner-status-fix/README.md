@@ -1,8 +1,32 @@
 # Session: Spinner/Status Refresh Fix
 
 **Date:** 2025-12-22
-**Issue:** #554
-**Status:** Design APPROVED - Ready for Implementation
+**Issue:** #554, #556
+**Status:** ✅ COMPLETE - Merged to staging
+
+---
+
+## Session Summary
+
+### Issue #554: Spinner/Status Refresh Fix
+- **PR:** #555 (merged to staging)
+- **Solution:** Created `useJobPolling` composable that replaced scattered polling logic
+- **Files changed:**
+  - `frontend/src/composables/useJobPolling.ts` (NEW - 102 lines)
+  - `frontend/src/composables/__tests__/useJobPolling.test.ts` (NEW - 208 lines)
+  - `frontend/src/views/AcquisitionsView.vue` (refactored to use composable)
+  - `frontend/src/views/BookDetailView.vue` (refactored to use composable)
+  - `frontend/src/stores/books.ts` (removed 320 lines of polling code)
+  - `frontend/src/stores/books.test.ts` (deleted - obsolete)
+
+### Issue #556: Duplicate Title Bug for Eval Books
+- **PR:** #557 (merged to staging)
+- **Problem:** Books in evaluation status were incorrectly penalized for duplicate titles
+- **Solution:** Added `status.in_(['IN_TRANSIT', 'ON_HAND'])` filter to duplicate detection
+- **Files changed:**
+  - `backend/app/services/scoring.py`
+  - `backend/app/api/v1/books.py` (2 locations)
+  - `backend/app/services/eval_generation.py`
 
 ---
 
@@ -206,10 +230,35 @@ From `AcquisitionsView.vue`:
 
 ---
 
-## Next Steps
+## Completion Status
 
-**Plan created:** `docs/plans/2025-12-22-job-polling-composable.md`
+**Plan:** `docs/plans/2025-12-22-job-polling-composable.md`
 
-1. ~~Use `superpowers:writing-plans` to create detailed implementation tasks~~ DONE
-2. Use `superpowers:executing-plans` to implement the plan
-3. Test on staging and deploy
+1. ✅ Created detailed implementation plan
+2. ✅ Implemented `useJobPolling` composable with tests (8 tasks)
+3. ✅ Integrated in AcquisitionsView and BookDetailView
+4. ✅ Cleaned up books.ts store (removed 320 lines)
+5. ✅ PR #555 merged to staging branch
+6. ✅ Bonus: Fixed #556 (duplicate title bug) - PR #557 merged to staging branch
+7. ⚠️ **DEPLOY BLOCKED** - Terraform state checksum mismatch (see #559)
+
+## Deploy Blocker: Terraform State Issue
+
+**Issue:** #559 - Recurring Terraform state checksum mismatch in staging
+
+Both PRs merged to staging branch but deploy workflow failed due to:
+```
+Error: state data in S3 does not have the expected content.
+The checksum calculated for the state stored in S3 does not match
+the checksum stored in DynamoDB.
+```
+
+**Fix applied:** Updated DynamoDB digest, deploy re-triggered at ~20:09 UTC.
+
+**Status:** ✅ Deploy completed successfully (run 20442767050)
+
+**Next:**
+1. ✅ Staging deploy completed
+2. Test fixes in staging environment (user to verify)
+3. Investigate root cause of recurring checksum mismatch (#559)
+4. Promote staging to production when ready

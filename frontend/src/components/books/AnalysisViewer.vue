@@ -5,6 +5,7 @@ import DOMPurify from "dompurify";
 import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
+import { useJobPolling } from "@/composables/useJobPolling";
 
 const props = defineProps<{
   bookId: number;
@@ -18,6 +19,19 @@ const emit = defineEmits<{
 
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
+
+// Analysis generation polling (async generation with status updates)
+const analysisPoller = useJobPolling("analysis", {
+  onComplete: async () => {
+    // Reload analysis content when generation completes
+    await loadAnalysis();
+    generating.value = false;
+  },
+  onError: (_bookId, errorMsg) => {
+    generateError.value = errorMsg;
+    generating.value = false;
+  },
+});
 
 const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
@@ -146,21 +160,23 @@ async function deleteAnalysis() {
 }
 
 async function generateAnalysis() {
-  if (generating.value) return;
+  if (generating.value || analysisPoller.isActive.value) return;
 
   generating.value = true;
   generateError.value = null;
   error.value = null;
 
   try {
-    const result = await booksStore.generateAnalysis(props.bookId, selectedModel.value);
-    analysis.value = result.full_markdown;
-    editedAnalysis.value = result.full_markdown;
+    // Use async generation API + polling (not sync which can timeout on large books)
+    await booksStore.generateAnalysisAsync(props.bookId, selectedModel.value);
+    // Start polling - onComplete callback will reload analysis and set generating=false
+    analysisPoller.start(props.bookId);
   } catch (e: any) {
-    generateError.value = e.response?.data?.detail || e.message || "Failed to generate analysis.";
-  } finally {
+    generateError.value =
+      e.response?.data?.detail || e.message || "Failed to start analysis generation.";
     generating.value = false;
   }
+  // Note: generating.value stays true until poller's onComplete/onError callback
 }
 
 // Strip machine-readable structured data blocks before rendering

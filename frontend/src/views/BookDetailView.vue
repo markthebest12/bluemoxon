@@ -200,15 +200,13 @@ function closeAnalysis() {
   analysisVisible.value = false;
 }
 
-// Analysis job tracking
+// Analysis job tracking - use composable state directly
 function isAnalysisRunning(): boolean {
-  if (!booksStore.currentBook) return false;
-  return booksStore.hasActiveJob(booksStore.currentBook.id);
+  return analysisPoller.isActive.value;
 }
 
 function getJobStatus() {
-  if (!booksStore.currentBook) return null;
-  return booksStore.getActiveJob(booksStore.currentBook.id);
+  return { status: analysisPoller.status.value, error_message: analysisPoller.error.value };
 }
 
 async function handleGenerateAnalysis() {
@@ -218,6 +216,8 @@ async function handleGenerateAnalysis() {
   startingAnalysis.value = true;
   try {
     await booksStore.generateAnalysisAsync(book.id, selectedModel.value);
+    // Explicitly start polling (don't rely on watch - it may not trigger immediately)
+    analysisPoller.start(book.id);
   } catch (e: unknown) {
     console.error("Failed to start analysis:", e);
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
