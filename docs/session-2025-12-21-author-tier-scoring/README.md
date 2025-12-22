@@ -106,7 +106,9 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## Key Files
 
 - **Session doc:** `docs/session-2025-12-21-author-tier-scoring/README.md`
-- **Design doc:** `docs/plans/2025-12-21-author-tier-scoring-design.md` (to be created)
+- **Design doc:** `docs/plans/2025-12-21-author-tier-scoring-design.md`
+- **Implementation plan:** `docs/plans/2025-12-21-author-tier-scoring-implementation.md`
+- **Worktree:** `.worktrees/author-tier-scoring`
 - **Scoring service:** `backend/app/services/scoring.py`
 - **Author model:** `backend/app/models/author.py`
 
