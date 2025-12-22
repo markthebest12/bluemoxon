@@ -746,7 +746,9 @@ function getBarWidth(cost: number): string {
               </tr>
               <tr class="font-semibold bg-gray-50">
                 <td class="py-2" colspan="2">Total Bedrock</td>
-                <td class="py-2 text-right font-mono">{{ formatCurrency(costData.bedrock_total) }}</td>
+                <td class="py-2 text-right font-mono">
+                  {{ formatCurrency(costData.bedrock_total) }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -777,7 +779,10 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Other AWS Costs -->
-        <div v-if="Object.keys(costData.other_costs).length > 0" class="bg-white rounded-lg shadow p-6">
+        <div
+          v-if="Object.keys(costData.other_costs).length > 0"
+          class="bg-white rounded-lg shadow p-6"
+        >
           <details>
             <summary class="text-lg font-semibold cursor-pointer">Other AWS Costs</summary>
             <dl class="mt-4 space-y-2 text-sm">
@@ -797,7 +802,9 @@ function getBarWidth(cost: number): string {
         <div class="bg-white rounded-lg shadow p-6">
           <div class="flex justify-between items-center">
             <span class="text-lg font-semibold">Total AWS Cost (MTD)</span>
-            <span class="text-2xl font-bold font-mono">{{ formatCurrency(costData.total_aws_cost) }}</span>
+            <span class="text-2xl font-bold font-mono">{{
+              formatCurrency(costData.total_aws_cost)
+            }}</span>
           </div>
           <p class="mt-2 text-xs text-gray-400">
             Cached at: {{ formatDeployTime(costData.cached_at) }}
