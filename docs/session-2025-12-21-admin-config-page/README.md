@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21 / 2025-12-22
 **Issue:** [#529](https://github.com/markthebest12/bluemoxon/issues/529)
-**Status:** In Progress - Cost tab implementation (Tasks 1-4 complete, Task 4 staged)
+**Status:** In Progress - Cost tab implementation (Tasks 1-4 committed, Tasks 5-8 pending)
 
 ---
 
@@ -43,7 +43,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 | 1 | Add Cost Explorer IAM to Lambda module | ✅ Committed |
 | 2 | Enable for API Lambda in main.tf | ✅ Committed |
 | 3 | Create cost_explorer service | ✅ Committed |
-| 4 | Add /admin/costs endpoint | ✅ Staged (needs commit) |
+| 4 | Add /admin/costs endpoint | ✅ Committed |
 | 5 | Add TypeScript types | ⏳ Pending |
 | 6 | Add Cost tab to frontend | ⏳ Pending |
 | 7 | Validation and PR | ⏳ Pending |
@@ -54,6 +54,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 b924166 feat: add Cost Explorer IAM permission to Lambda module
 fa10368 feat: enable Cost Explorer access for API Lambda
 1fa690d feat: add Cost Explorer service for Bedrock cost tracking
+c9ea1f8 feat: add /admin/costs endpoint for cost dashboard
 ```
 
 ### Files Modified/Created
@@ -63,9 +64,9 @@ fa10368 feat: enable Cost Explorer access for API Lambda
 - `infra/terraform/modules/lambda/main.tf` - Added IAM policy for ce:GetCostAndUsage
 - `infra/terraform/main.tf` - Enabled `cost_explorer_access = true` for API Lambda
 
-**Backend (Task 3 committed, Task 4 staged):**
-- `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with 1-hour caching (committed)
-- `backend/app/api/v1/admin.py` - Added /costs endpoint and Pydantic models (staged, needs commit)
+**Backend (committed):**
+- `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with 1-hour caching
+- `backend/app/api/v1/admin.py` - Added /costs endpoint and Pydantic models
 
 **Frontend (pending):**
 - `frontend/src/types/admin.ts` - Add cost response types
@@ -146,7 +147,7 @@ To resume this work:
    ```
 
 3. **IMPORTANT:** Tell Claude to use superpowers:executing-plans:
-   > "Use superpowers:executing-plans to continue implementing docs/plans/2025-12-22-admin-cost-tab-implementation.md. Tasks 1-3 are committed, Task 4 is staged. Continue with committing Task 4 then Tasks 5-6."
+   > "Use superpowers:executing-plans to continue implementing docs/plans/2025-12-22-admin-cost-tab-implementation.md. Tasks 1-4 are committed. Continue with Tasks 5-6 (frontend)."
 
 4. **Remind Claude of bash rules:**
    > "Remember: No #, \, $(...), &&, or ! in bash commands. Use simple single-line commands and separate Bash tool calls."
@@ -155,17 +156,25 @@ To resume this work:
 
 ## Next Steps (for resume)
 
-1. Commit Task 4 (staged changes to admin.py):
-   ```bash
-   git commit -m "feat: add /admin/costs endpoint for cost dashboard"
-   ```
+1. **Task 5:** Add TypeScript types to `frontend/src/types/admin.ts`
+   - BedrockModelCost, DailyCost, CostResponse interfaces
 
-2. Continue with Task 5: Add TypeScript types to `frontend/src/types/admin.ts`
+2. **Task 6:** Add Cost tab to `frontend/src/views/AdminConfigView.vue`
+   - Add costData ref and fetchCostData function
+   - Add formatCurrency, formatDate, getBarWidth helpers
+   - Add Cost tab button
+   - Add Cost tab content (table, daily trend, other costs)
+   - Add CSS styles
 
-3. Continue with Task 6: Add Cost tab to `frontend/src/views/AdminConfigView.vue`
+3. **Task 7:** Run validation and create PR
+   - `poetry run ruff check backend/`
+   - `npm run lint` and `npm run type-check`
+   - `gh pr create --base staging`
 
-4. Run validation (Task 7) and create PR
+4. **Task 8:** Terraform apply and verify
+   - Apply Terraform to add IAM policy
+   - Test endpoint: `bmx-api GET /admin/costs`
 
 ---
 
-*Last updated: 2025-12-22 06:45 UTC (Tasks 1-4 complete, Task 4 staged)*
+*Last updated: 2025-12-22 06:50 UTC (Tasks 1-4 committed, Tasks 5-8 pending)*
