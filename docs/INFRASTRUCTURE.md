@@ -722,4 +722,14 @@ All resource IDs are stored in: `infra/aws-resources.json`
 
 ---
 
+## Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [Infrastructure Governance](INFRASTRUCTURE_GOVERNANCE.md) | Terraform policies and drift detection |
+| [Operations Runbook](OPERATIONS.md) | Health checks, troubleshooting |
+| [CI/CD Pipeline](CI_CD.md) | Deploy workflows |
+
+---
+
 *Last Updated: December 2025*
