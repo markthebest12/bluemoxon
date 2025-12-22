@@ -50,12 +50,32 @@ export interface ModelInfo {
   usage: string;
 }
 
+export interface InfrastructureConfig {
+  aws_region: string;
+  images_bucket: string;
+  backup_bucket: string;
+  images_cdn_url?: string;
+  analysis_queue?: string;
+  eval_runbook_queue?: string;
+}
+
+export interface LimitsConfig {
+  bedrock_read_timeout_sec: number;
+  bedrock_connect_timeout_sec: number;
+  image_max_bytes: number;
+  image_safe_bytes: number;
+  prompt_cache_ttl_sec: number;
+  presigned_url_expiry_sec: number;
+}
+
 export interface SystemInfoResponse {
   is_cold_start: boolean;
   timestamp: string;
   system: SystemInfo;
   health: HealthInfo;
   models: Record<string, ModelInfo>;
+  infrastructure: InfrastructureConfig;
+  limits: LimitsConfig;
   scoring_config: ScoringConfig;
   entity_tiers: EntityTiers;
 }
