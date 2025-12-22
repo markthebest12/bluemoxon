@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { api } from "@/services/api";
-import type { SystemInfoResponse } from "@/types/admin";
+import type { SystemInfoResponse, CostResponse } from "@/types/admin";
 
 // Tab state
-const activeTab = ref<"settings" | "status" | "scoring" | "tiers">("settings");
+const activeTab = ref<"settings" | "status" | "scoring" | "tiers" | "costs">("settings");
 
 // Settings tab (existing functionality)
 const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
@@ -15,6 +15,11 @@ const settingsMessage = ref("");
 const systemInfo = ref<SystemInfoResponse | null>(null);
 const loadingInfo = ref(false);
 const infoError = ref("");
+
+// Cost data
+const costData = ref<CostResponse | null>(null);
+const loadingCost = ref(false);
+const costError = ref("");
 
 // Key tunables to highlight in scoring config
 const keyTunables = new Set([
@@ -80,6 +85,20 @@ async function loadSystemInfo() {
 
 async function refreshSystemInfo() {
   await loadSystemInfo();
+}
+
+async function fetchCostData() {
+  loadingCost.value = true;
+  costError.value = "";
+  try {
+    const res = await api.get("/admin/costs");
+    costData.value = res.data;
+  } catch (e) {
+    costError.value = "Failed to load cost data";
+    console.error("Failed to load cost data:", e);
+  } finally {
+    loadingCost.value = false;
+  }
 }
 
 // Computed helpers
@@ -157,6 +176,25 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+function formatCurrency(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
+function formatCostDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+const maxDailyCost = computed(() => {
+  if (!costData.value?.daily_trend.length) return 0;
+  return Math.max(...costData.value.daily_trend.map((d) => d.cost));
+});
+
+function getBarWidth(cost: number): string {
+  if (!maxDailyCost.value) return "0%";
+  return `${(cost / maxDailyCost.value) * 100}%`;
+}
 </script>
 
 <template>
@@ -221,6 +259,20 @@ function formatBytes(bytes: number): string {
           ]"
         >
           Entity Tiers
+        </button>
+        <button
+          @click="
+            activeTab = 'costs';
+            if (!costData) fetchCostData();
+          "
+          :class="[
+            'py-4 px-1 border-b-2 font-medium text-sm',
+            activeTab === 'costs'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+          ]"
+        >
+          Costs
         </button>
       </nav>
     </div>
@@ -642,6 +694,113 @@ function formatBytes(bytes: number): string {
           </div>
           <p class="mt-4 text-xs text-gray-400">
             {{ systemInfo.entity_tiers.binders.length }} total
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Costs Tab -->
+    <div v-else-if="activeTab === 'costs'" class="space-y-6">
+      <div class="flex justify-end">
+        <button
+          @click="fetchCostData"
+          :disabled="loadingCost"
+          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          {{ loadingCost ? "Loading..." : "Refresh" }}
+        </button>
+      </div>
+
+      <div v-if="costError" class="p-4 bg-red-50 text-red-700 rounded">
+        {{ costError }}
+      </div>
+
+      <div v-else-if="loadingCost && !costData" class="text-center py-8 text-gray-500">
+        Loading cost data...
+      </div>
+
+      <div v-else-if="costData" class="space-y-6">
+        <!-- Bedrock Model Costs -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold mb-4">Bedrock Model Costs (MTD)</h3>
+          <div v-if="costData.error" class="p-3 bg-yellow-50 text-yellow-700 rounded mb-4">
+            {{ costData.error }}
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500 border-b">
+                <th class="pb-2">Model</th>
+                <th class="pb-2">Usage</th>
+                <th class="pb-2 text-right">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="model in costData.bedrock_models"
+                :key="model.model_name"
+                class="border-b border-gray-100"
+              >
+                <td class="py-2 font-medium">{{ model.model_name }}</td>
+                <td class="py-2 text-gray-500">{{ model.usage }}</td>
+                <td class="py-2 text-right font-mono">{{ formatCurrency(model.mtd_cost) }}</td>
+              </tr>
+              <tr class="font-semibold bg-gray-50">
+                <td class="py-2" colspan="2">Total Bedrock</td>
+                <td class="py-2 text-right font-mono">{{ formatCurrency(costData.bedrock_total) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mt-4 text-xs text-gray-400">
+            Period: {{ costData.period_start }} to {{ costData.period_end }}
+          </p>
+        </div>
+
+        <!-- Daily Trend -->
+        <div v-if="costData.daily_trend.length > 0" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold mb-4">Daily Trend (Last 14 Days)</h3>
+          <div class="space-y-2">
+            <div
+              v-for="day in costData.daily_trend"
+              :key="day.date"
+              class="flex items-center gap-3"
+            >
+              <span class="text-xs text-gray-500 w-16">{{ formatCostDate(day.date) }}</span>
+              <div class="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
+                <div
+                  class="h-full bg-blue-500 rounded"
+                  :style="{ width: getBarWidth(day.cost) }"
+                ></div>
+              </div>
+              <span class="text-xs font-mono w-16 text-right">{{ formatCurrency(day.cost) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other AWS Costs -->
+        <div v-if="Object.keys(costData.other_costs).length > 0" class="bg-white rounded-lg shadow p-6">
+          <details>
+            <summary class="text-lg font-semibold cursor-pointer">Other AWS Costs</summary>
+            <dl class="mt-4 space-y-2 text-sm">
+              <div
+                v-for="(cost, service) in costData.other_costs"
+                :key="service"
+                class="flex justify-between"
+              >
+                <dt>{{ service }}</dt>
+                <dd class="font-mono">{{ formatCurrency(cost) }}</dd>
+              </div>
+            </dl>
+          </details>
+        </div>
+
+        <!-- Total -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex justify-between items-center">
+            <span class="text-lg font-semibold">Total AWS Cost (MTD)</span>
+            <span class="text-2xl font-bold font-mono">{{ formatCurrency(costData.total_aws_cost) }}</span>
+          </div>
+          <p class="mt-2 text-xs text-gray-400">
+            Cached at: {{ formatDeployTime(costData.cached_at) }}
           </p>
         </div>
       </div>
