@@ -249,6 +249,29 @@ resource "aws_iam_role_policy" "lambda_invoke" {
   })
 }
 
+# Cost Explorer access for admin dashboard cost monitoring
+resource "aws_iam_role_policy" "cost_explorer_access" {
+  count = var.enable_cost_explorer_access ? 1 : 0
+  name  = "cost-explorer-access"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ce:GetCostAndUsage",
+          "ce:GetCostForecast",
+          "ce:GetDimensionValues",
+          "ce:GetTags"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # CloudWatch Log Group
 # -----------------------------------------------------------------------------
