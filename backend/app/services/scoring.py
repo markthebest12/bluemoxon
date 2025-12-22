@@ -8,6 +8,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from app.services.set_detection import detect_set_completion
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -625,7 +627,13 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
         author_priority_score=author_priority,
         author_book_count=author_book_count,
         is_duplicate=is_duplicate,
-        completes_set=False,
+        completes_set=detect_set_completion(
+            db=db,
+            author_id=book.author_id,
+            title=book.title,
+            volumes=book.volumes or 1,
+            book_id=book.id,
+        ),
         volume_count=book.volumes or 1,
     )
 
