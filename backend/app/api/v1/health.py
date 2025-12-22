@@ -511,6 +511,26 @@ MIGRATION_6E90A0C87832_SQL = [
     "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS napoleon_analyzed_at TIMESTAMP",
 ]
 
+# Migration SQL for s2345678klmn_add_author_tier (column)
+MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL = [
+    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS tier VARCHAR(10)",
+]
+
+# Migration SQL for f4f2fbe81faa_seed_author_publisher_binder_tiers (data)
+MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL = [
+    # Author tiers
+    "UPDATE authors SET tier = 'TIER_1' WHERE id = 34",  # Darwin
+    "UPDATE authors SET tier = 'TIER_2' WHERE id = 250",  # Dickens
+    "UPDATE authors SET tier = 'TIER_2' WHERE id = 335",  # Collins
+    "UPDATE authors SET tier = 'TIER_3' WHERE id = 260",  # Ruskin
+    # Publisher tiers
+    "UPDATE publishers SET tier = 'TIER_2' WHERE id = 193",  # Chatto and Windus
+    "UPDATE publishers SET tier = 'TIER_2' WHERE id = 197",  # George Allen
+    # Binder tier updates
+    "UPDATE binders SET tier = 'TIER_1' WHERE id = 4",  # Bayntun upgrade
+    "UPDATE binders SET tier = 'TIER_1' WHERE id = 27",  # Leighton
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -628,6 +648,8 @@ Migrations run in order:
 18. s2345678klmn - Expand binding_type column to varchar(100)
 19. t3456789lmno - Expand binders.name column to varchar(100)
 20. 6e90a0c87832 - Add tiered recommendation fields to eval_runbooks
+21. s2345678klmn - Add author tier column
+22. f4f2fbe81faa - Seed author/publisher/binder tier values
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -668,9 +690,11 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("s2345678klmn", MIGRATION_S2345678KLMN_SQL),
         ("t3456789lmno", MIGRATION_T3456789LMNO_SQL),
         ("6e90a0c87832", MIGRATION_6E90A0C87832_SQL),
+        ("s2345678klmn", MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL),
+        ("f4f2fbe81faa", MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL),
     ]
 
-    final_version = "6e90a0c87832"
+    final_version = "f4f2fbe81faa"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

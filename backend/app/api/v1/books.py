@@ -1152,6 +1152,7 @@ def get_book_score_breakdown(
     # Gather all inputs for scoring
     author_priority = 0
     author_name = None
+    author_tier = None
     publisher_tier = None
     publisher_name = None
     binder_tier = None
@@ -1162,6 +1163,7 @@ def get_book_score_breakdown(
     if book.author:
         author_priority = book.author.priority_score or 0
         author_name = book.author.name
+        author_tier = book.author.tier
         author_book_count = (
             db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
         )
@@ -1202,6 +1204,7 @@ def get_book_score_breakdown(
         publisher_name=publisher_name,
         binder_name=binder_name,
         duplicate_title=duplicate_title,
+        author_tier=author_tier,
     )
 
     return result

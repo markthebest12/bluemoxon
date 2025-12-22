@@ -20,6 +20,7 @@ class Author(Base):
     era: Mapped[str | None] = mapped_column(String(50))  # Victorian, Romantic, etc.
     first_acquired_date: Mapped[date | None] = mapped_column(Date)
     priority_score: Mapped[int] = mapped_column(Integer, default=0)
+    tier: Mapped[str | None] = mapped_column(String(10))  # TIER_1, TIER_2, TIER_3
 
     # Relationships
     books = relationship("Book", back_populates="author")
