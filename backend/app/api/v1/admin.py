@@ -123,6 +123,35 @@ class LimitsConfig(BaseModel):
     presigned_url_expiry_sec: int
 
 
+class BedrockModelCost(BaseModel):
+    """Cost for a single Bedrock model."""
+
+    model_name: str
+    usage: str
+    mtd_cost: float
+
+
+class DailyCost(BaseModel):
+    """Daily cost data point."""
+
+    date: str
+    cost: float
+
+
+class CostResponse(BaseModel):
+    """Cost data response."""
+
+    period_start: str
+    period_end: str
+    bedrock_models: list[BedrockModelCost]
+    bedrock_total: float
+    daily_trend: list[DailyCost]
+    other_costs: dict[str, float]
+    total_aws_cost: float
+    cached_at: str
+    error: str | None = None
+
+
 class SystemInfoResponse(BaseModel):
     """Complete system info response."""
 
@@ -318,3 +347,16 @@ def get_system_info(db: Session = Depends(get_db)):
             binders=[EntityTier(name=b.name, tier=b.tier) for b in binders],
         ),
     )
+
+
+@router.get("/costs", response_model=CostResponse)
+def get_costs():
+    """Get AWS cost data for admin dashboard.
+
+    Returns Bedrock model costs with usage descriptions,
+    daily trend, and other AWS service costs.
+    Cached for 1 hour.
+    """
+    from app.services.cost_explorer import get_costs as fetch_costs
+
+    return CostResponse(**fetch_costs())

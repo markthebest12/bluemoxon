@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-21 / 2025-12-22
 **Issue:** [#529](https://github.com/markthebest12/bluemoxon/issues/529)
-**Status:** In Progress - Cost tab implementation
+**Status:** In Progress - Cost tab implementation (Tasks 1-4 complete, Task 4 staged)
 
 ---
 
@@ -40,26 +40,34 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 1 | Add Cost Explorer IAM to Lambda module | ⏳ Pending |
-| 2 | Enable for API Lambda in main.tf | ⏳ Pending |
-| 3 | Create cost_explorer service | ⏳ Pending |
-| 4 | Add /admin/costs endpoint | ⏳ Pending |
+| 1 | Add Cost Explorer IAM to Lambda module | ✅ Committed |
+| 2 | Enable for API Lambda in main.tf | ✅ Committed |
+| 3 | Create cost_explorer service | ✅ Committed |
+| 4 | Add /admin/costs endpoint | ✅ Staged (needs commit) |
 | 5 | Add TypeScript types | ⏳ Pending |
 | 6 | Add Cost tab to frontend | ⏳ Pending |
 | 7 | Validation and PR | ⏳ Pending |
 | 8 | Terraform apply and verify | ⏳ Pending |
 
-### Files to Modify/Create
-**Infrastructure:**
-- `infra/terraform/modules/lambda/variables.tf` - Add cost_explorer_access variable
-- `infra/terraform/modules/lambda/main.tf` - Add IAM policy for ce:GetCostAndUsage
-- `infra/terraform/main.tf` - Enable cost_explorer_access for API Lambda
+### Commits Made (on feat/admin-cost-tab)
+```
+b924166 feat: add Cost Explorer IAM permission to Lambda module
+fa10368 feat: enable Cost Explorer access for API Lambda
+1fa690d feat: add Cost Explorer service for Bedrock cost tracking
+```
 
-**Backend:**
-- `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with caching
-- `backend/app/api/v1/admin.py` - Add /costs endpoint and models
+### Files Modified/Created
 
-**Frontend:**
+**Infrastructure (committed):**
+- `infra/terraform/modules/lambda/variables.tf` - Added `cost_explorer_access` variable
+- `infra/terraform/modules/lambda/main.tf` - Added IAM policy for ce:GetCostAndUsage
+- `infra/terraform/main.tf` - Enabled `cost_explorer_access = true` for API Lambda
+
+**Backend (Task 3 committed, Task 4 staged):**
+- `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with 1-hour caching (committed)
+- `backend/app/api/v1/admin.py` - Added /costs endpoint and Pydantic models (staged, needs commit)
+
+**Frontend (pending):**
 - `frontend/src/types/admin.ts` - Add cost response types
 - `frontend/src/views/AdminConfigView.vue` - Add Cost tab
 
@@ -79,39 +87,85 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 
 ---
 
-## Skills in Use
+## Skills in Use (MANDATORY)
 
-- **superpowers:brainstorming** - ✅ Design complete
-- **superpowers:writing-plans** - ✅ Plan written
-- **superpowers:executing-plans** - 🔄 Starting execution
-- **superpowers:verification-before-completion** - Before claiming done
-- **superpowers:finishing-a-development-branch** - When work complete
+**ALWAYS use superpowers skills for this work:**
+
+| Skill | Purpose | Status |
+|-------|---------|--------|
+| superpowers:brainstorming | Design refinement | ✅ Complete |
+| superpowers:writing-plans | Create implementation plan | ✅ Complete |
+| superpowers:executing-plans | Execute tasks in batches | 🔄 In Progress (Batch 2) |
+| superpowers:verification-before-completion | Verify before claiming done | ⏳ Before PR |
+| superpowers:finishing-a-development-branch | Complete branch workflow | ⏳ After all tasks |
 
 ---
 
 ## CRITICAL: Bash Command Rules
 
-**NEVER use (trigger permission prompts):**
+**NEVER use (these trigger permission prompts):**
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
-- `||` or `&&` chaining
-- `!` in quoted strings
+- `||` or `&&` chaining (even simple chaining breaks auto-approve)
+- `!` in quoted strings (bash history expansion)
 
 **ALWAYS use:**
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (pre-approved, no prompts)
 
+**Example - WRONG:**
+```bash
+# Check status
+git status && git diff
+```
+
+**Example - CORRECT:**
+```bash
+git status
+```
+(Then make a separate Bash tool call for `git diff`)
+
 ---
 
 ## Resume Instructions
 
 To resume this work:
-1. Navigate to worktree: `cd /Users/mark/projects/bluemoxon/.worktrees/admin-config-dashboard`
-2. Check branch: `git branch` (should be `feat/admin-cost-tab`)
-3. Tell Claude: "Use superpowers:executing-plans to implement docs/plans/2025-12-22-admin-cost-tab-implementation.md"
+
+1. Navigate to worktree:
+   ```bash
+   cd /Users/mark/projects/bluemoxon/.worktrees/admin-config-dashboard
+   ```
+
+2. Check branch and status:
+   ```bash
+   git branch
+   git status
+   git log --oneline -5
+   ```
+
+3. **IMPORTANT:** Tell Claude to use superpowers:executing-plans:
+   > "Use superpowers:executing-plans to continue implementing docs/plans/2025-12-22-admin-cost-tab-implementation.md. Tasks 1-3 are committed, Task 4 is staged. Continue with committing Task 4 then Tasks 5-6."
+
+4. **Remind Claude of bash rules:**
+   > "Remember: No #, \, $(...), &&, or ! in bash commands. Use simple single-line commands and separate Bash tool calls."
 
 ---
 
-*Last updated: 2025-12-22 (Cost tab implementation starting)*
+## Next Steps (for resume)
+
+1. Commit Task 4 (staged changes to admin.py):
+   ```bash
+   git commit -m "feat: add /admin/costs endpoint for cost dashboard"
+   ```
+
+2. Continue with Task 5: Add TypeScript types to `frontend/src/types/admin.ts`
+
+3. Continue with Task 6: Add Cost tab to `frontend/src/views/AdminConfigView.vue`
+
+4. Run validation (Task 7) and create PR
+
+---
+
+*Last updated: 2025-12-22 06:45 UTC (Tasks 1-4 complete, Task 4 staged)*
