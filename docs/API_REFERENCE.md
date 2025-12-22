@@ -1332,6 +1332,192 @@ Error Responses:
 
 ---
 
+## Admin Dashboard API (Editor+)
+
+Endpoints for the Admin Config Dashboard. Requires **Editor** or **Admin** role.
+
+---
+
+### Get System Info
+```
+GET /admin/system-info
+```
+
+Returns comprehensive system information including version, health checks, infrastructure config, scoring settings, and tiered entities.
+
+Response:
+```json
+{
+  "is_cold_start": false,
+  "timestamp": "2025-12-22T16:00:00+00:00",
+  "system": {
+    "version": "2025.12.22-abc1234",
+    "git_sha": "abc1234def5678",
+    "deploy_time": "2025-12-22T15:30:00+00:00",
+    "environment": "staging"
+  },
+  "health": {
+    "overall": "healthy",
+    "total_latency_ms": 125.5,
+    "checks": {
+      "database": {"status": "healthy", "latency_ms": 45.2, "book_count": 450},
+      "s3": {"status": "healthy", "latency_ms": 32.1, "bucket": "bluemoxon-images"},
+      "cognito": {"status": "healthy", "latency_ms": 48.2, "user_pool": "us-west-2_abc123"}
+    }
+  },
+  "models": {
+    "sonnet": {"model_id": "anthropic.claude-sonnet-4-5-20250514-v1:0", "usage": "Primary analysis model"},
+    "haiku": {"model_id": "anthropic.claude-3-haiku-20240307-v1:0", "usage": "Fast extraction tasks"}
+  },
+  "infrastructure": {
+    "aws_region": "us-west-2",
+    "images_bucket": "bluemoxon-images",
+    "backup_bucket": "bluemoxon-backup",
+    "images_cdn_url": "https://images.bluemoxon.com",
+    "analysis_queue": "bluemoxon-analysis-queue",
+    "eval_runbook_queue": "bluemoxon-eval-runbook-queue"
+  },
+  "limits": {
+    "bedrock_read_timeout_sec": 540,
+    "bedrock_connect_timeout_sec": 10,
+    "image_max_bytes": 5242880,
+    "image_safe_bytes": 3932160,
+    "prompt_cache_ttl_sec": 300,
+    "presigned_url_expiry_sec": 3600
+  },
+  "scoring_config": {
+    "quality_points": {
+      "publisher_tier_1": 15,
+      "publisher_tier_2": 10,
+      "binder_tier_1": 15,
+      "binder_tier_2": 10,
+      "double_tier_1_bonus": 5,
+      "era_bonus": 5,
+      "condition_fine": 10,
+      "condition_good": 5,
+      "complete_set": 10,
+      "author_priority_cap": 10,
+      "duplicate_penalty": -15,
+      "large_volume_penalty": -5
+    },
+    "strategic_points": {
+      "publisher_match": 10,
+      "new_author": 15,
+      "second_work": 10,
+      "completes_set": 20
+    },
+    "thresholds": {
+      "price_excellent": 0.6,
+      "price_good": 0.75,
+      "price_fair": 0.85,
+      "strategic_floor": 50,
+      "quality_floor": 40
+    },
+    "weights": {
+      "quality": 0.5,
+      "strategic_fit": 0.5
+    },
+    "offer_discounts": {"70-79": 0.15, "60-69": 0.2, "50-59": 0.25, "40-49": 0.3, "0-39": 0.35},
+    "era_boundaries": {"romantic_start": 1780, "romantic_end": 1850, "victorian_start": 1837, "victorian_end": 1901}
+  },
+  "entity_tiers": {
+    "authors": [
+      {"name": "Charles Darwin", "tier": "TIER_1"},
+      {"name": "Charles Dickens", "tier": "TIER_2"}
+    ],
+    "publishers": [
+      {"name": "John Murray", "tier": "TIER_1"},
+      {"name": "Chapman & Hall", "tier": "TIER_2"}
+    ],
+    "binders": [
+      {"name": "Zaehnsdorf", "tier": "TIER_1"},
+      {"name": "Riviere & Son", "tier": "TIER_1"}
+    ]
+  }
+}
+```
+
+---
+
+### Get AWS Costs
+```
+GET /admin/costs
+```
+
+Returns AWS Bedrock usage costs for the current month with daily trend data. **Cached for 1 hour** to minimize Cost Explorer API calls.
+
+Response:
+```json
+{
+  "period_start": "2025-12-01",
+  "period_end": "2025-12-23",
+  "bedrock_models": [
+    {"model_name": "Sonnet 4.5", "usage": "Primary analysis model", "mtd_cost": 52.53},
+    {"model_name": "Opus 4.5", "usage": "Complex reasoning tasks", "mtd_cost": 1.43},
+    {"model_name": "Claude 3.5 Sonnet v2", "usage": "Legacy analysis", "mtd_cost": 0.94},
+    {"model_name": "Claude 3.5 Sonnet", "usage": "Legacy analysis", "mtd_cost": 0.69},
+    {"model_name": "Claude 3 Haiku", "usage": "Fast extraction tasks", "mtd_cost": 0.15}
+  ],
+  "bedrock_total": 55.74,
+  "daily_trend": [
+    {"date": "2025-12-20", "cost": 2.45},
+    {"date": "2025-12-21", "cost": 3.12},
+    {"date": "2025-12-22", "cost": 1.89}
+  ],
+  "other_costs": {
+    "Amazon Simple Storage Service": 1.25,
+    "Amazon CloudFront": 0.89,
+    "Amazon Relational Database Service": 28.50
+  },
+  "total_aws_cost": 92.60,
+  "cached_at": "2025-12-22T16:00:00+00:00",
+  "error": null
+}
+```
+
+**Notes:**
+- Cost Explorer API requires `us-east-1` region regardless of resource location
+- Data is MTD (month-to-date) costs
+- `error` field contains message if Cost Explorer API fails
+
+---
+
+### Get Config
+```
+GET /admin/config
+```
+
+Returns currency exchange rates for acquisition cost conversion.
+
+Response:
+```json
+{
+  "gbp_to_usd_rate": 1.28,
+  "eur_to_usd_rate": 1.10
+}
+```
+
+---
+
+### Update Config (Admin Only)
+```
+PUT /admin/config
+```
+
+Update currency exchange rates. Requires **Admin** role.
+
+Request Body:
+```json
+{
+  "gbp_to_usd_rate": 1.27,
+  "eur_to_usd_rate": 1.09
+}
+```
+
+Response: Same as GET /admin/config
+
+---
+
 ## API Keys (Admin Only)
 
 ### List API Keys
