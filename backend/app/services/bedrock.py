@@ -35,9 +35,9 @@ MODEL_IDS = {
 
 # Model usage descriptions for admin dashboard
 MODEL_USAGE = {
-    "sonnet": "Napoleon framework analysis (default)",
-    "opus": "Napoleon framework analysis (high quality)",
-    "haiku": "Listing data extraction",
+    "sonnet": "Napoleon analysis, Eval runbooks, FMV lookup, Listing extraction",
+    "opus": "Napoleon analysis (high quality option)",
+    "haiku": "Order data extraction",
 }
 
 # Prompt cache with TTL
