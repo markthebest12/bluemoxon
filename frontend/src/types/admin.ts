@@ -79,3 +79,26 @@ export interface SystemInfoResponse {
   scoring_config: ScoringConfig;
   entity_tiers: EntityTiers;
 }
+
+export interface BedrockModelCost {
+  model_name: string;
+  usage: string;
+  mtd_cost: number;
+}
+
+export interface DailyCost {
+  date: string;
+  cost: number;
+}
+
+export interface CostResponse {
+  period_start: string;
+  period_end: string;
+  bedrock_models: BedrockModelCost[];
+  bedrock_total: number;
+  daily_trend: DailyCost[];
+  other_costs: Record<string, number>;
+  total_aws_cost: number;
+  cached_at: string;
+  error?: string;
+}
