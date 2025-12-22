@@ -30,6 +30,14 @@ settings = get_settings()
 MODEL_IDS = {
     "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude 4.5 Sonnet
     "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",  # Claude 4.5 Opus
+    "haiku": "anthropic.claude-3-haiku-20240307-v1:0",  # Claude 3 Haiku
+}
+
+# Model usage descriptions for admin dashboard
+MODEL_USAGE = {
+    "sonnet": "Napoleon analysis, Eval runbooks, FMV lookup, Listing extraction",
+    "opus": "Napoleon analysis (high quality option)",
+    "haiku": "Order data extraction",
 }
 
 # Prompt cache with TTL

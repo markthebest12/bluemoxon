@@ -77,7 +77,7 @@ const router = createRouter({
       path: "/admin/config",
       name: "admin-config",
       component: () => import("@/views/AdminConfigView.vue"),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresEditor: true },
     },
     {
       path: "/reports/insurance",
@@ -132,6 +132,9 @@ router.beforeEach(async (to, _from, next) => {
     next({ name: "login", query: { redirect: to.fullPath } });
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     // Admin-only routes redirect to home if not admin
+    next({ name: "home" });
+  } else if (to.meta.requiresEditor && !authStore.isEditor) {
+    // Editor-only routes redirect to home if not editor
     next({ name: "home" });
   } else if (to.name === "login" && authStore.isAuthenticated && !authStore.needsMfa) {
     // Redirect to home if already logged in and MFA is complete

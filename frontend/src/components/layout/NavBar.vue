@@ -112,6 +112,13 @@ function closeMobileMenu() {
                     Profile
                   </RouterLink>
                   <RouterLink
+                    v-if="authStore.isEditor"
+                    to="/admin/config"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Config
+                  </RouterLink>
+                  <RouterLink
                     v-if="authStore.isAdmin"
                     to="/admin"
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -211,6 +218,14 @@ function closeMobileMenu() {
             @click="closeMobileMenu"
           >
             Profile
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.isEditor"
+            to="/admin/config"
+            class="block py-3 text-victorian-paper-cream/80 hover:text-victorian-gold-light border-b border-victorian-hunter-700"
+            @click="closeMobileMenu"
+          >
+            Config
           </RouterLink>
           <RouterLink
             v-if="authStore.isAdmin"

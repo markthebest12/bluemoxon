@@ -353,6 +353,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       short_sha: ${{ steps.version.outputs.short_sha }}
+      deployed_at: ${{ steps.version.outputs.deployed_at }}
     steps:
       - name: Generate version string
         id: version
@@ -361,10 +362,13 @@ jobs:
           DATE=$(date -u +%Y.%m.%d)
           SHORT_SHA=${GITHUB_SHA::7}
           VERSION="${DATE}-${SHORT_SHA}"
+          DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           echo "Generated version: $VERSION"
+          echo "Deployed at: $DEPLOYED_AT"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "deployed_at=$DEPLOYED_AT" >> $GITHUB_OUTPUT
 
   # ============================================
   # Build Lambda Package
@@ -378,10 +382,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Create VERSION file
+      - name: Create VERSION and version_info.json files
         run: |
           echo "${{ needs.generate-version.outputs.version }}" > VERSION
           echo "VERSION file contents: $(cat VERSION)"
+
+          cat > version_info.json << EOF
+          {
+            "version": "${{ needs.generate-version.outputs.version }}",
+            "git_sha": "${{ github.sha }}",
+            "deployed_at": "${{ needs.generate-version.outputs.deployed_at }}"
+          }
+          EOF
+          echo "version_info.json contents: $(cat version_info.json)"
 
       - name: Build Lambda package with Docker
         run: |
@@ -390,6 +403,7 @@ jobs:
             --entrypoint /bin/bash \
             -v ${{ github.workspace }}/backend:/app:ro \
             -v ${{ github.workspace }}/VERSION:/VERSION:ro \
+            -v ${{ github.workspace }}/version_info.json:/version_info.json:ro \
             -v /tmp/lambda-deploy:/output \
             --platform linux/amd64 \
             public.ecr.aws/lambda/python:3.12 \
@@ -397,6 +411,7 @@ jobs:
               pip install -q -t /output -r /app/requirements.txt
               cp -r /app/app /output/
               cp /VERSION /output/
+              cp /version_info.json /output/
             "
 
       - name: Create deployment zip
