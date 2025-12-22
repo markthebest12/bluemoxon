@@ -36,6 +36,7 @@ from app.services.bedrock import (
     invoke_bedrock,
 )
 from app.services.scoring import (
+    author_tier_to_score,
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
     calculate_title_similarity,
@@ -57,7 +58,7 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
     author_book_count = 0
 
     if book.author:
-        author_priority = book.author.priority_score or 0
+        author_priority = author_tier_to_score(book.author.tier)
         author_book_count = (
             db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
         )
