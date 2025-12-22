@@ -314,6 +314,40 @@
             text-decoration: none;
         }
 
+        /* Hamburger button */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 28px;
+            height: 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1001;
+        }
+
+        .hamburger span {
+            width: 100%;
+            height: 3px;
+            background: var(--text-primary);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             nav {
@@ -324,8 +358,38 @@
                 height: 36px;
             }
 
+            .hamburger {
+                display: flex;
+            }
+
             nav .nav-links {
                 display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(10, 15, 26, 0.98);
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links.active {
+                display: flex;
+            }
+
+            nav .nav-links li {
+                padding: 0.75rem 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links li:last-child {
+                border-bottom: none;
+            }
+
+            nav .nav-links a {
+                font-size: 1rem;
             }
 
             .hero {
@@ -369,16 +433,21 @@
     <nav>
         <div class="nav-content">
             <a href="/" class="logo">
-                <img src="/images/bluemoxon-logo.png" alt="BlueMoxon">
+                <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
             </a>
+            <button class="hamburger" aria-label="Toggle menu" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
-                <li><a href="/features.html">Features</a></li>
+                <li><a href="/features.html" style="color: var(--accent-blue-light);">Features</a></li>
+                <li><a href="/#screenshots">Screenshots</a></li>
                 <li><a href="/admin-guide.html">Admin Guide</a></li>
+                <li><a href="/#architecture">Architecture</a></li>
+                <li><a href="/#api">API</a></li>
             </ul>
-            <a href="https://app.bluemoxon.com" class="btn btn-primary" target="_blank">
-                Open App
-            </a>
         </div>
     </nav>
 
@@ -620,5 +689,25 @@
             Built with Vue 3, FastAPI, Aurora PostgreSQL &bull; Powered by Claude
         </p>
     </footer>
+
+    <!-- Hamburger menu toggle -->
+    <script>
+        function toggleMenu() {
+            const hamburger = document.querySelector('.hamburger');
+            const navLinks = document.querySelector('.nav-links');
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        }
+
+        // Close menu when clicking a link
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const hamburger = document.querySelector('.hamburger');
+                const navLinks = document.querySelector('.nav-links');
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
+        });
+    </script>
 </body>
 </html>
