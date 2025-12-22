@@ -45,12 +45,17 @@ export interface ScoringConfig {
   era_boundaries: Record<string, number>;
 }
 
+export interface ModelInfo {
+  model_id: string;
+  usage: string;
+}
+
 export interface SystemInfoResponse {
   is_cold_start: boolean;
   timestamp: string;
   system: SystemInfo;
   health: HealthInfo;
-  models: Record<string, string>;
+  models: Record<string, ModelInfo>;
   scoring_config: ScoringConfig;
   entity_tiers: EntityTiers;
 }
