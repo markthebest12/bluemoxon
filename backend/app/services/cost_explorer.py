@@ -134,17 +134,17 @@ def _fetch_costs_from_aws() -> dict[str, Any]:
 
             if service_name in AWS_SERVICE_TO_MODEL:
                 model_name = AWS_SERVICE_TO_MODEL[service_name]
-                bedrock_models.append({
-                    "model_name": model_name,
-                    "usage": MODEL_USAGE_DESCRIPTIONS.get(model_name, ""),
-                    "mtd_cost": round(cost, 2),
-                })
+                bedrock_models.append(
+                    {
+                        "model_name": model_name,
+                        "usage": MODEL_USAGE_DESCRIPTIONS.get(model_name, ""),
+                        "mtd_cost": round(cost, 2),
+                    }
+                )
             elif service_name in OTHER_SERVICES:
                 # Shorten service names
                 short_name = (
-                    service_name.replace("Amazon ", "")
-                    .replace("AWS ", "")
-                    .replace(" Service", "")
+                    service_name.replace("Amazon ", "").replace("AWS ", "").replace(" Service", "")
                 )
                 other_costs[short_name] = round(cost, 2)
 
