@@ -71,8 +71,16 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
     is_duplicate = False
     if book.author_id:
+        # Only consider books actually in collection (in_transit or on_hand)
+        # Books in evaluation/wishlist don't count as duplicates
         other_books = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
+            )
+            .all()
         )
         for other in other_books:
             if is_duplicate_title(book.title, other.title):
@@ -1179,8 +1187,16 @@ def get_book_score_breakdown(
 
     is_duplicate = False
     if book.author_id:
+        # Only consider books actually in collection (in_transit or on_hand)
+        # Books in evaluation/wishlist don't count as duplicates
         other_books = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
+            )
+            .all()
         )
         for other in other_books:
             if is_duplicate_title(book.title, other.title):

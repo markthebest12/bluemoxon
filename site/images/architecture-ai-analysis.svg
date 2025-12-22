@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a472a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2d5a3d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f6f3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#efe9e1;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#faf8f5"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#1a472a">Napoleon Framework: AI Analysis Pipeline</text>
+
+  <!-- Step 1: Book Added -->
+  <g transform="translate(50,70)">
+    <rect width="130" height="80" rx="8" fill="url(#cardGrad)" stroke="#c9a959" stroke-width="2" filter="url(#shadow)"/>
+    <text x="65" y="30" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">1. Book Added</text>
+    <text x="65" y="50" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">Valuation ≥ $450</text>
+    <text x="65" y="65" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">triggers analysis</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <path d="M180,110 L220,110" stroke="#c9a959" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#c9a959"/></marker></defs>
+
+  <!-- Step 2: Queue -->
+  <g transform="translate(220,70)">
+    <rect width="130" height="80" rx="8" fill="url(#cardGrad)" stroke="#c9a959" stroke-width="2" filter="url(#shadow)"/>
+    <text x="65" y="30" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">2. SQS Queue</text>
+    <text x="65" y="50" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">Async processing</text>
+    <text x="65" y="65" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">Worker Lambda</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <path d="M350,110 L390,110" stroke="#c9a959" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 3: Claude -->
+  <g transform="translate(390,70)">
+    <rect width="130" height="80" rx="8" fill="url(#headerGrad)" stroke="#c9a959" stroke-width="2" filter="url(#shadow)"/>
+    <text x="65" y="30" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#f4e4bc">3. Claude Sonnet 4</text>
+    <text x="65" y="50" text-anchor="middle" font-family="Arial" font-size="10" fill="#d4c49c">AWS Bedrock</text>
+    <text x="65" y="65" text-anchor="middle" font-family="Arial" font-size="10" fill="#d4c49c">Napoleon Prompt</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <path d="M520,110 L560,110" stroke="#c9a959" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 4: Analysis -->
+  <g transform="translate(560,70)">
+    <rect width="180" height="80" rx="8" fill="url(#cardGrad)" stroke="#c9a959" stroke-width="2" filter="url(#shadow)"/>
+    <text x="90" y="30" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">4. 500+ Line Analysis</text>
+    <text x="90" y="50" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">Valuation • Condition</text>
+    <text x="90" y="65" text-anchor="middle" font-family="Arial" font-size="10" fill="#5c4a32">Market • Provenance</text>
+  </g>
+
+  <!-- Analysis Components Section -->
+  <text x="400" y="185" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#1a472a">Analysis Components</text>
+
+  <!-- Component boxes -->
+  <g transform="translate(50,200)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Executive Summary</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Key findings overview</text>
+  </g>
+
+  <g transform="translate(210,200)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Condition Report</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Detailed assessment</text>
+  </g>
+
+  <g transform="translate(370,200)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Market Analysis</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Comparable sales</text>
+  </g>
+
+  <g transform="translate(530,200)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Valuation</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Low / Mid / High</text>
+  </g>
+
+  <!-- Second row -->
+  <g transform="translate(130,280)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Binding Analysis</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Elaborateness score</text>
+  </g>
+
+  <g transform="translate(290,280)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Rarity Assessment</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Market scarcity</text>
+  </g>
+
+  <g transform="translate(450,280)">
+    <rect width="140" height="60" rx="6" fill="url(#cardGrad)" stroke="#8b7355" stroke-width="1.5" filter="url(#shadow)"/>
+    <text x="70" y="25" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#1a472a">Preservation</text>
+    <text x="70" y="45" text-anchor="middle" font-family="Arial" font-size="9" fill="#5c4a32">Care guidelines</text>
+  </g>
+
+  <!-- Footer note -->
+  <text x="400" y="375" text-anchor="middle" font-family="Arial" font-size="10" fill="#8b7355">Powered by Claude Sonnet 4 via AWS Bedrock</text>
+</svg>

@@ -524,13 +524,21 @@ def generate_eval_runbook(
             db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
         )
 
-    # Check for duplicates
+    # Check for duplicates - only consider books actually in collection
     is_duplicate = False
     if book.author_id:
         from app.services.scoring import is_duplicate_title
 
+        # Only consider books actually in collection (in_transit or on_hand)
+        # Books in evaluation/wishlist don't count as duplicates
         other_books = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).all()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
+            )
+            .all()
         )
         for other in other_books:
             if is_duplicate_title(book.title, other.title):

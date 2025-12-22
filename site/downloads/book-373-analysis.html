@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Analysis: Napoleon Memoirs 1820 | BlueMoxon AI Valuation</title>
+    <meta name="description" content="Sample AI-powered book valuation report from BlueMoxon - Napoleon Memoirs 1820 in Sangorski & Sutcliffe binding">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2d3748;
+            --accent: #c9a227;
+            --bg: #faf9f7;
+            --text: #1a202c;
+            --text-light: #4a5568;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', Georgia, serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 17px;
+        }
+
+        /* Header Banner */
+        .header-banner {
+            background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header-banner .logo {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-banner h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-banner .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .sample-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 1rem;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Document Header */
+        .document-header {
+            border-bottom: 3px double var(--border);
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .document-header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            line-height: 1.3;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem 2rem;
+            font-size: 0.95rem;
+        }
+
+        .meta-item {
+            display: flex;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: var(--text-light);
+            min-width: 140px;
+        }
+
+        .meta-value {
+            color: var(--text);
+        }
+
+        .value-highlight {
+            background: linear-gradient(180deg, transparent 60%, rgba(201, 162, 39, 0.3) 60%);
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            color: var(--secondary);
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        h4 {
+            font-size: 1rem;
+            color: var(--text-light);
+            margin: 1.25rem 0 0.5rem;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        ul, ol {
+            margin: 0 0 1rem 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(26, 54, 93, 0.03);
+        }
+
+        /* Callout Boxes */
+        .callout {
+            background: linear-gradient(135deg, rgba(26, 54, 93, 0.05) 0%, rgba(44, 82, 130, 0.05) 100%);
+            border-left: 4px solid var(--accent);
+            padding: 1.25rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .callout-title {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .callout p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Summary Box */
+        .summary-box {
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .summary-box h3 {
+            color: var(--primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        /* Footer */
+        .document-footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 3px double var(--border);
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .footer-note {
+            text-align: center;
+            font-style: italic;
+        }
+
+        /* Print styles */
+        @media print {
+            .header-banner {
+                padding: 1rem;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            h2 {
+                page-break-after: avoid;
+            }
+
+            .callout, .summary-box {
+                page-break-inside: avoid;
+            }
+
+            table {
+                page-break-inside: avoid;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        /* Download button (screen only) */
+        .download-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            padding: 1rem;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .download-bar a {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--primary);
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .download-bar a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        @media print {
+            .download-bar {
+                display: none;
+            }
+
+            body {
+                padding-bottom: 0;
+            }
+        }
+
+        @media screen {
+            body {
+                padding-bottom: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Banner -->
+    <div class="header-banner no-print">
+        <div class="logo">BlueMoxon</div>
+        <h1>AI-Powered Book Valuation Report</h1>
+        <p class="subtitle">Napoleon Framework Analysis</p>
+        <span class="sample-badge">Sample Report</span>
+    </div>
+
+    <div class="container">
+        <!-- Document Header -->
+        <div class="document-header">
+            <h1>Sangorski & Sutcliffe Bound Napoleon Memoirs: Professional Valuation Report</h1>
+
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <span class="meta-label">Item:</span>
+                    <span class="meta-value"><em>Memoirs of the Private Life, Return, and Reign of Napoleon in 1815</em></span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Author:</span>
+                    <span class="meta-value">M. Fleury de Chaboulon</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Publisher:</span>
+                    <span class="meta-value">John Murray, London, 1820</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Volumes:</span>
+                    <span class="meta-value">Two (Vol. I and Vol. II)</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Binding:</span>
+                    <span class="meta-value">Sangorski & Sutcliffe, London</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Condition Grade:</span>
+                    <span class="meta-value">Very Good to Excellent</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Estimated Value:</span>
+                    <span class="meta-value value-highlight">$8,000-$12,000</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Insurance:</span>
+                    <span class="meta-value value-highlight">$12,000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="summary-box">
+            <h3>Executive Summary</h3>
+            <p>This two-volume set represents exceptional quality Sangorski & Sutcliffe decorative work on a historically important first English edition. The combination of remarkably bright gilt preservation, premium green morocco labels, elaborate spine decoration with multiple Napoleonic emblems, and authenticated signature places this firmly in the upper-tier decorative binding category.</p>
+            <p>Based on actual condition examination and comprehensive market analysis, the set commands an estimated value of <strong>$8,000-$12,000</strong>, with strong potential toward the upper end of this range given the exceptional gilt preservation and premium decorative features.</p>
+        </div>
+
+        <!-- Condition Assessment -->
+        <h2>Detailed Condition Assessment</h2>
+
+        <h3>Binding Condition: Very Good to Excellent</h3>
+        <p>The binding is in notably superior condition to average examples of Sangorski & Sutcliffe work from this era, with exceptional preservation of gilt work being the most significant value driver.</p>
+
+        <h4>Spine Condition (Critical Factor)</h4>
+        <ul>
+            <li><strong>Gilt preservation:</strong> Remarkably bright and well-preserved - the most important positive factor</li>
+            <li><strong>Raised bands:</strong> Six raised bands show clear definition with no flattening</li>
+            <li><strong>Napoleonic decoration:</strong> At least three crowned "N" monograms visible</li>
+            <li><strong>Green morocco labels:</strong> Premium decorative feature beyond standard work</li>
+            <li><strong>Leather condition:</strong> Brown morocco appears supple without cracking</li>
+        </ul>
+
+        <div class="callout">
+            <div class="callout-title">Value Impact</div>
+            <p>The exceptional gilt preservation is the single most important condition factor. Most leather bindings of this age show substantial gilt fading - this set displays remarkable brightness suggesting careful storage throughout its 100+ year life.</p>
+        </div>
+
+        <h4>Authentication</h4>
+        <p><strong>Sangorski & Sutcliffe signature:</strong> Clearly visible and properly positioned on front turn-in: "BOUND BY SANGORSKI & SUTCLIFFE, LONDON" - confirming authenticity.</p>
+
+        <!-- Binding Assessment -->
+        <h2>Binding Elaborateness Assessment</h2>
+
+        <p>The binding exhibits more elaborate decoration than typical work, placing it firmly in the <strong>Upper Decorative Category</strong>:</p>
+
+        <ol>
+            <li><strong>Green morocco inlay labels</strong> - premium feature indicating higher-end commissioned work</li>
+            <li><strong>Multiple crowned "N" monograms</strong> - Napoleon's imperial crown and initial</li>
+            <li><strong>Extensive gilt compartmentalization</strong> - decorative ruling in all six compartments</li>
+            <li><strong>Decorative fleurons and tooling</strong> - ornamental gilt beyond basic rules</li>
+            <li><strong>Complex color blocking</strong> - alternating brown and green morocco sections</li>
+        </ol>
+
+        <!-- Market Analysis -->
+        <h2>Market Analysis and Valuation</h2>
+
+        <h3>Current Napoleon Collecting Market</h3>
+        <p>The Napoleon memorabilia market remains exceptionally robust. Collectors are described as "hugely passionate" with bidding at "fever pitch" for quality items. Recent physical artifact sales include bicorne hats at $2.1 million and personal items exceeding $4 million.</p>
+
+        <h3>Comparable Sales</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Comparable Item</th>
+                    <th>Venue</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Bourrienne Napoleon Memoirs (8 vol) S&S binding with extras</td>
+                    <td>Bauman Rare Books</td>
+                    <td>$25,000</td>
+                </tr>
+                <tr>
+                    <td>Bourrienne Memoirs S&S with fore-edge painting</td>
+                    <td>James Cummins</td>
+                    <td>$14,000</td>
+                </tr>
+                <tr>
+                    <td>Byron "Ode to Napoleon" S&S jeweled binding</td>
+                    <td>Bonhams</td>
+                    <td>$75,000</td>
+                </tr>
+                <tr>
+                    <td>Modern S&S Cosway-style Napoleon biography</td>
+                    <td>George Bayntun</td>
+                    <td>$6,064</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <div class="callout-title">Market Position</div>
+            <p>The Sangorski & Sutcliffe binding adds a <strong>2-4x multiplier</strong> over the same edition in original period binding. This set's premium decorative features with exceptional condition position it at <strong>$8,000-$12,000</strong>.</p>
+        </div>
+
+        <!-- Historical Significance -->
+        <h2>Historical Significance</h2>
+
+        <h3>The Text: Chaboulon's Hundred Days Chronicle</h3>
+        <p>Baron Chaboulon served as Napoleon's Special Secretary during the Hundred Days - the dramatic 110-day period from Napoleon's escape from Elba through Waterloo to his second abdication. Published in 1820 while Napoleon still lived at Saint Helena, these memoirs offered immediate historical testimony from Napoleon's inner circle.</p>
+
+        <h3>The Publisher: John Murray II</h3>
+        <p>John Murray II (1778-1843) was Britain's most prestigious publisher by 1820, publishing Lord Byron, Jane Austen, Sir Walter Scott, and Samuel Taylor Coleridge. A Murray imprint signaled serious historical literature.</p>
+
+        <h3>The Binding: Sangorski & Sutcliffe</h3>
+        <p>Founded October 1, 1901, Sangorski & Sutcliffe became "the most famous and fashionable bookbinders in England" within five years. Their most famous creation - "The Great Omar" Rubaiyat with over 1,050 jewels - sank with the Titanic, cementing their legendary status.</p>
+
+        <!-- Final Valuation -->
+        <h2>Final Valuation Summary</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Estimated Value</th>
+                    <th>Probability</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Conservative</td>
+                    <td>$8,000-$9,000</td>
+                    <td>20%</td>
+                </tr>
+                <tr>
+                    <td>Most Likely</td>
+                    <td>$9,000-$11,000</td>
+                    <td>60%</td>
+                </tr>
+                <tr>
+                    <td>Optimistic</td>
+                    <td>$11,000-$12,000</td>
+                    <td>15%</td>
+                </tr>
+                <tr>
+                    <td>Premium</td>
+                    <td>$12,000-$15,000</td>
+                    <td>5%</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="summary-box">
+            <h3>Key Value Drivers</h3>
+            <ol>
+                <li>Exceptional gilt preservation (most significant factor)</li>
+                <li>Green morocco labels (premium decorative feature)</li>
+                <li>Multiple Napoleonic emblems and elaborate tooling</li>
+                <li>Authenticated Sangorski & Sutcliffe signature</li>
+                <li>First English edition of important Hundred Days memoir</li>
+                <li>Prestigious John Murray publisher</li>
+                <li>Complete matching two-volume set</li>
+                <li>Sound structural condition</li>
+            </ol>
+        </div>
+
+        <!-- Footer -->
+        <div class="document-footer">
+            <p class="footer-note">
+                This sample report demonstrates BlueMoxon's AI-powered Napoleon Framework analysis.<br>
+                Full reports include 500+ lines covering condition assessment, market analysis, historical significance,<br>
+                rarity assessment, selling strategy, insurance recommendations, and preservation guidelines.
+            </p>
+            <p style="text-align: center; margin-top: 1.5rem;">
+                <strong>Report Generated:</strong> November 2025<br>
+                <strong>Analysis Model:</strong> Claude Sonnet 4 via AWS Bedrock<br>
+                <strong>BlueMoxon Collection ID:</strong> 373
+            </p>
+        </div>
+    </div>
+
+    <!-- Download Bar (screen only) -->
+    <div class="download-bar no-print">
+        <a href="book-373-napoleon-memoirs-analysis.md" download>Download Full Markdown Report</a>
+    </div>
+</body>
+</html>

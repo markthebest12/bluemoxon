@@ -1,0 +1,408 @@
+{
+  "degraded_only": [
+    {
+      "id": 59,
+      "title": "Aurora Leigh: A Poem",
+      "updated_at": "2025-12-20T22:28:54.734699Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 21,
+      "title": "Coridons Song and Other Verses",
+      "updated_at": "2025-12-20T22:28:36.755695Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 401,
+      "title": "Cranford",
+      "updated_at": "2025-12-20T22:30:10.706173Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 56,
+      "title": "Dante Purgatory (Shadwell/Pater)",
+      "updated_at": "2025-12-20T22:28:50.040936Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 22,
+      "title": "Days with Sir Roger de Coverley",
+      "updated_at": "2025-12-20T22:28:19.323053Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 395,
+      "title": "Encyclopedia Britannica 9th Edition",
+      "updated_at": "2025-12-20T22:30:00.229193Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 60,
+      "title": "Lays of the Scottish Cavaliers and Other Poems",
+      "updated_at": "2025-12-20T22:28:59.375024Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 512,
+      "title": "Memoirs Life of Sir Walter Scott",
+      "updated_at": "2025-12-20T22:27:45.874654Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 399,
+      "title": "Mr Romford's Hounds",
+      "updated_at": "2025-12-20T22:30:13.775874Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 389,
+      "title": "Nature Near London (Bayntun-Riviere)",
+      "updated_at": "2025-12-20T22:29:47.823690Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 62,
+      "title": "Poems of Shelley",
+      "updated_at": "2025-12-20T22:29:41.263630Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 57,
+      "title": "Poetical Works of Elizabeth Barrett Browning",
+      "updated_at": "2025-12-20T22:29:26.854035Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 390,
+      "title": "Practical Lessons on Hunting and Sporting",
+      "updated_at": "2025-12-20T22:29:55.040870Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 2,
+      "title": "Selections from The Poetical Works of Robert Browning",
+      "updated_at": "2025-12-20T22:28:07.812502Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 393,
+      "title": "The Bab Ballads",
+      "updated_at": "2025-12-20T22:30:56.232703Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 24,
+      "title": "The Complete Angler",
+      "updated_at": "2025-12-20T22:28:40.874501Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 4,
+      "title": "The Ethics of the Dust",
+      "updated_at": "2025-12-20T22:28:27.147427Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 391,
+      "title": "The Last Chronicle of Barset",
+      "updated_at": "2025-12-20T22:30:04.919823Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 67,
+      "title": "The Life and Letters of Charles Darwin",
+      "updated_at": "2025-12-20T22:29:36.877964Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 509,
+      "title": "The Life of Oliver Goldsmith, M.B.",
+      "updated_at": "2025-12-20T22:27:37.840866Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 47,
+      "title": "The Poetical Works",
+      "updated_at": "2025-12-20T22:28:44.801490Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 63,
+      "title": "The Poetical Works of Robert Browning",
+      "updated_at": "2025-12-20T22:29:19.483294Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 64,
+      "title": "The Queen of the Air",
+      "updated_at": "2025-12-20T22:29:21.759490Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 66,
+      "title": "The Water-Babies: A Fairy Tale for a Land-Baby",
+      "updated_at": "2025-12-20T22:29:31.295448Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 374,
+      "title": "Tom Brown's School-Days Sangorski",
+      "updated_at": "2025-12-20T22:30:49.418865Z",
+      "extraction_status": "degraded"
+    },
+    {
+      "id": 25,
+      "title": "Travels in the Interior Districts of Africa",
+      "updated_at": "2025-12-20T22:28:32.212180Z",
+      "extraction_status": "degraded"
+    }
+  ],
+  "stale_only": [
+    {
+      "id": 343,
+      "title": "American Gazetteer",
+      "updated_at": "2025-12-13T16:59:26.909424Z",
+      "extraction_status": null
+    },
+    {
+      "id": 396,
+      "title": "Ariadne Florentina",
+      "updated_at": "2025-12-13T16:59:27.315402Z",
+      "extraction_status": null
+    },
+    {
+      "id": 489,
+      "title": "A Short History of the English People",
+      "updated_at": "2025-12-18T23:28:42.419717Z",
+      "extraction_status": null
+    },
+    {
+      "id": 350,
+      "title": "Blessington Literary Life",
+      "updated_at": "2025-12-13T16:59:43.758065Z",
+      "extraction_status": null
+    },
+    {
+      "id": 336,
+      "title": "Byron Complete Poetical Works",
+      "updated_at": "2025-12-13T16:59:44.590147Z",
+      "extraction_status": null
+    },
+    {
+      "id": 372,
+      "title": "Byron Vol VIII Beppo-Maz",
+      "updated_at": "2025-12-13T16:59:45.047818Z",
+      "extraction_status": null
+    },
+    {
+      "id": 383,
+      "title": "Christmas Books (extra copy)",
+      "updated_at": "2025-12-13T16:59:52.483087Z",
+      "extraction_status": null
+    },
+    {
+      "id": 378,
+      "title": "Court and Times of James I",
+      "updated_at": "2025-12-13T16:59:59.794789Z",
+      "extraction_status": null
+    },
+    {
+      "id": 68,
+      "title": "Felix Holt, the Radical",
+      "updated_at": "2025-12-14T03:59:51.932299Z",
+      "extraction_status": null
+    },
+    {
+      "id": 351,
+      "title": "Fielding Select Works",
+      "updated_at": "2025-12-04T16:32:07.284081Z",
+      "extraction_status": null
+    },
+    {
+      "id": 384,
+      "title": "History of Pendennis (extra copy)",
+      "updated_at": "2025-11-29T19:43:42.076845Z",
+      "extraction_status": null
+    },
+    {
+      "id": 400,
+      "title": "In Memoriam",
+      "updated_at": "2025-12-04T16:32:07.497591Z",
+      "extraction_status": null
+    },
+    {
+      "id": 385,
+      "title": "John Masefield Collected Poems",
+      "updated_at": "2025-12-01T16:14:38.566989Z",
+      "extraction_status": null
+    },
+    {
+      "id": 352,
+      "title": "Kingsley Life/Letters",
+      "updated_at": "2025-12-04T16:32:05.290093Z",
+      "extraction_status": null
+    },
+    {
+      "id": 403,
+      "title": "Life of John Sterling",
+      "updated_at": "2025-12-11T05:04:07.447575Z",
+      "extraction_status": null
+    },
+    {
+      "id": 392,
+      "title": "Master Humphrey's Clock Vol I",
+      "updated_at": "2025-12-11T05:04:15.940184Z",
+      "extraction_status": null
+    },
+    {
+      "id": 405,
+      "title": "Memorials of Early Genius",
+      "updated_at": "2025-12-09T00:35:15.397023Z",
+      "extraction_status": null
+    },
+    {
+      "id": 339,
+      "title": "Messages & Papers of the Presidents",
+      "updated_at": "2025-11-29T19:43:42.076845Z",
+      "extraction_status": null
+    },
+    {
+      "id": 27,
+      "title": "Paradise Lost (Dore Illustrated Folio)",
+      "updated_at": "2025-12-11T22:28:40.979720Z",
+      "extraction_status": null
+    },
+    {
+      "id": 402,
+      "title": "Poetical Works Goldsmith Collins Warton",
+      "updated_at": "2025-12-04T16:32:07.929131Z",
+      "extraction_status": null
+    },
+    {
+      "id": 397,
+      "title": "Prose Idylls New and Old",
+      "updated_at": "2025-12-03T00:09:00.022891Z",
+      "extraction_status": null
+    },
+    {
+      "id": 367,
+      "title": "Roundabout Papers (2nd extra copy)",
+      "updated_at": "2025-12-04T16:31:45.631885Z",
+      "extraction_status": null
+    },
+    {
+      "id": 382,
+      "title": "Roundabout Papers (extra copy)",
+      "updated_at": "2025-12-04T16:32:04.383256Z",
+      "extraction_status": null
+    },
+    {
+      "id": 398,
+      "title": "Selected Poems of Thomas Hardy",
+      "updated_at": "2025-12-16T01:13:33.743220Z",
+      "extraction_status": null
+    },
+    {
+      "id": 347,
+      "title": "St Patrick's Eve",
+      "updated_at": "2025-12-02T02:19:27.230813Z",
+      "extraction_status": null
+    },
+    {
+      "id": 346,
+      "title": "Table-Talk",
+      "updated_at": "2025-12-02T02:19:26.264157Z",
+      "extraction_status": null
+    },
+    {
+      "id": 335,
+      "title": "Tennyson Complete Poetical Works (Moxon)",
+      "updated_at": "2025-12-04T16:31:44.132437Z",
+      "extraction_status": null
+    },
+    {
+      "id": 380,
+      "title": "The Four Georges (extra copy)",
+      "updated_at": "2025-12-04T16:32:04.160297Z",
+      "extraction_status": null
+    },
+    {
+      "id": 3,
+      "title": "The French Revolution",
+      "updated_at": "2025-12-13T16:33:43.544975Z",
+      "extraction_status": null
+    },
+    {
+      "id": 387,
+      "title": "The Hound of Heaven",
+      "updated_at": "2025-12-02T05:18:27.899982Z",
+      "extraction_status": null
+    },
+    {
+      "id": 379,
+      "title": "The Life and Works of Charlotte Bronte and Her Sisters",
+      "updated_at": "2025-12-06T05:06:31.297332Z",
+      "extraction_status": null
+    },
+    {
+      "id": 394,
+      "title": "The Mystery of Edwin Drood",
+      "updated_at": "2025-12-11T05:59:31.766415Z",
+      "extraction_status": null
+    },
+    {
+      "id": 345,
+      "title": "The Popular Educator",
+      "updated_at": "2025-12-02T02:19:25.503895Z",
+      "extraction_status": null
+    },
+    {
+      "id": 41,
+      "title": "The Story of the Greatest Nations and The World's Famous Events",
+      "updated_at": "2025-12-09T18:59:04.964839Z",
+      "extraction_status": null
+    },
+    {
+      "id": 381,
+      "title": "The Virginians (extra copy)",
+      "updated_at": "2025-12-04T16:31:46.918800Z",
+      "extraction_status": null
+    },
+    {
+      "id": 51,
+      "title": "The Works of William Shakespeare",
+      "updated_at": "2025-12-04T20:27:40.714017Z",
+      "extraction_status": null
+    },
+    {
+      "id": 348,
+      "title": "Thiers French Revolution",
+      "updated_at": "2025-12-04T16:32:06.160830Z",
+      "extraction_status": null
+    },
+    {
+      "id": 388,
+      "title": "Vanity Fair Vol II (extra copy)",
+      "updated_at": "2025-12-04T16:31:46.076347Z",
+      "extraction_status": null
+    },
+    {
+      "id": 356,
+      "title": "Westward Ho! Kingsley",
+      "updated_at": "2025-12-04T16:31:42.160867Z",
+      "extraction_status": null
+    },
+    {
+      "id": 337,
+      "title": "Works of William Makepeace Thackeray",
+      "updated_at": "2025-11-29T19:43:42.076845Z",
+      "extraction_status": null
+    }
+  ],
+  "both": [],
+  "total_count": 66,
+  "excluded": [
+    373
+  ],
+  "cutoff_timestamp": "2025-12-20T01:00:00Z"
+}
