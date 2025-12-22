@@ -151,6 +151,12 @@ function formatDeployTime(isoString: string | undefined): string {
     return isoString;
   }
 }
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 </script>
 
 <template>
@@ -363,6 +369,74 @@ function formatDeployTime(isoString: string | undefined): string {
               <dd class="font-mono text-xs text-gray-400 mt-0.5">
                 {{ model.model_id }}
               </dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Infrastructure -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold mb-4">Infrastructure</h3>
+          <dl class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt class="text-gray-500">AWS Region</dt>
+              <dd class="font-mono">{{ systemInfo.infrastructure.aws_region }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Images Bucket</dt>
+              <dd class="font-mono">{{ systemInfo.infrastructure.images_bucket }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Backup Bucket</dt>
+              <dd class="font-mono">{{ systemInfo.infrastructure.backup_bucket }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">CDN URL</dt>
+              <dd class="font-mono text-xs truncate">
+                {{ systemInfo.infrastructure.images_cdn_url || "Not configured" }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Analysis Queue</dt>
+              <dd class="font-mono text-xs">
+                {{ systemInfo.infrastructure.analysis_queue || "Not configured" }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Eval Runbook Queue</dt>
+              <dd class="font-mono text-xs">
+                {{ systemInfo.infrastructure.eval_runbook_queue || "Not configured" }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Limits & Timeouts -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold mb-4">Limits & Timeouts</h3>
+          <dl class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt class="text-gray-500">Bedrock Read Timeout</dt>
+              <dd class="font-mono">{{ systemInfo.limits.bedrock_read_timeout_sec }}s</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Bedrock Connect Timeout</dt>
+              <dd class="font-mono">{{ systemInfo.limits.bedrock_connect_timeout_sec }}s</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Max Image Size</dt>
+              <dd class="font-mono">{{ formatBytes(systemInfo.limits.image_max_bytes) }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Safe Image Size</dt>
+              <dd class="font-mono">{{ formatBytes(systemInfo.limits.image_safe_bytes) }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Prompt Cache TTL</dt>
+              <dd class="font-mono">{{ systemInfo.limits.prompt_cache_ttl_sec }}s</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Presigned URL Expiry</dt>
+              <dd class="font-mono">{{ systemInfo.limits.presigned_url_expiry_sec }}s (1 hour)</dd>
             </div>
           </dl>
         </div>
