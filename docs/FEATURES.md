@@ -20,9 +20,23 @@
 - **Sold/Removed** - Archived items
 
 ### Reference Library
-- **Authors** - Searchable catalog with priority scoring for target acquisitions
+- **Authors** - Searchable catalog with priority scoring and tiered classification (Tier 1-3) for strategic acquisitions
 - **Publishers** - Tiered classification (Tier 1-3) for quality assessment
-- **Binders** - Authenticated bindery records (Zaehnsdorf, Rivière, Bayntun, etc.)
+- **Binders** - Authenticated bindery records (Zaehnsdorf, Rivière, Bayntun, etc.) with tier bonuses
+
+### Entity Tier System
+
+Authors, publishers, and binders can be assigned tiers that affect book scoring:
+
+| Tier | Quality Bonus | Examples |
+|------|---------------|----------|
+| **Tier 1** | +15 points | Darwin, John Murray, Zaehnsdorf |
+| **Tier 2** | +10 points | Dickens, Chapman & Hall, Rivière |
+| **Tier 3** | +5 points | Ruskin, Macmillan |
+
+**Double Tier 1 Bonus:** Books with both Tier 1 publisher AND Tier 1 binder receive an additional +5 points.
+
+Tiers are displayed in the Admin Dashboard under **Entity Tiers** tab.
 
 ---
 

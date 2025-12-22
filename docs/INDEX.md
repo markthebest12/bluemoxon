@@ -14,6 +14,7 @@ Start here to find what you need.
 
 | Document | Purpose |
 |----------|---------|
+| [Admin Dashboard](ADMIN_DASHBOARD.md) | System monitoring, config, cost tracking |
 | [Operations Runbook](OPERATIONS.md) | Health checks, migrations, troubleshooting |
 | [Deployment Guide](DEPLOYMENT.md) | Deploy procedures |
 | [Rollback Procedures](ROLLBACK.md) | Rollback Lambda, S3, database |
