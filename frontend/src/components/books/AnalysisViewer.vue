@@ -5,6 +5,7 @@ import DOMPurify from "dompurify";
 import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
+import { useJobPolling } from "@/composables/useJobPolling";
 
 const props = defineProps<{
   bookId: number;
@@ -19,9 +20,23 @@ const emit = defineEmits<{
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 
+// Analysis generation polling (async generation with status updates)
+const analysisPoller = useJobPolling("analysis", {
+  onComplete: async () => {
+    // Reload analysis content when generation completes
+    await loadAnalysis();
+    generating.value = false;
+  },
+  onError: (_bookId, errorMsg) => {
+    generateError.value = errorMsg;
+    generating.value = false;
+  },
+});
+
 const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
 const extractionStatus = ref<string | null>(null); // "success", "degraded", "failed", or null (legacy)
+const generatedAt = ref<string | null>(null); // Analysis generation timestamp
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
@@ -73,10 +88,11 @@ async function loadAnalysis() {
     analysis.value = rawResponse.data;
     editedAnalysis.value = rawResponse.data || "";
 
-    // Fetch metadata for extraction status indicator
+    // Fetch metadata for extraction status indicator and generation timestamp
     try {
       const metaResponse = await api.get(`/books/${props.bookId}/analysis`);
       extractionStatus.value = metaResponse.data.extraction_status || null;
+      generatedAt.value = metaResponse.data.generated_at || null;
     } catch {
       // Metadata fetch failed, continue without extraction status
     }
@@ -146,21 +162,23 @@ async function deleteAnalysis() {
 }
 
 async function generateAnalysis() {
-  if (generating.value) return;
+  if (generating.value || analysisPoller.isActive.value) return;
 
   generating.value = true;
   generateError.value = null;
   error.value = null;
 
   try {
-    const result = await booksStore.generateAnalysis(props.bookId, selectedModel.value);
-    analysis.value = result.full_markdown;
-    editedAnalysis.value = result.full_markdown;
+    // Use async generation API + polling (not sync which can timeout on large books)
+    await booksStore.generateAnalysisAsync(props.bookId, selectedModel.value);
+    // Start polling - onComplete callback will reload analysis and set generating=false
+    analysisPoller.start(props.bookId);
   } catch (e: any) {
-    generateError.value = e.response?.data?.detail || e.message || "Failed to generate analysis.";
-  } finally {
+    generateError.value =
+      e.response?.data?.detail || e.message || "Failed to start analysis generation.";
     generating.value = false;
   }
+  // Note: generating.value stays true until poller's onComplete/onError callback
 }
 
 // Strip machine-readable structured data blocks before rendering
@@ -253,6 +271,21 @@ function printAnalysis() {
   setTimeout(() => {
     document.body.classList.remove("printing-analysis");
   }, 100);
+}
+
+// Format timestamp in Pacific timezone for display
+function formatPacificTime(isoString: string): string {
+  const date = new Date(isoString);
+  const formatted = date.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${formatted} Pacific`;
 }
 </script>
 
@@ -690,6 +723,13 @@ Detailed condition notes...
             <!-- View Mode - Analysis content -->
             <div v-else-if="analysis" class="h-full overflow-y-auto p-6">
               <article class="analysis-content" v-html="formattedAnalysis" />
+              <!-- Generation timestamp footer -->
+              <p
+                v-if="generatedAt"
+                class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500 italic"
+              >
+                Analysis generated: {{ formatPacificTime(generatedAt) }}
+              </p>
             </div>
 
             <!-- No analysis but can create -->
