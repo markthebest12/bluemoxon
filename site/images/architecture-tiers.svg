@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+  <defs>
+    <linearGradient id="tier1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f4e4bc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c9a959;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="tier2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c0c0c0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a0a0a0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="tier3Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#cd7f32;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a0522d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="headerGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a472a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2d5a3d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="cardGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f6f3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#efe9e1;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow3" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="400" fill="#faf8f5"/>
+
+  <!-- Title -->
+  <text x="450" y="35" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#1a472a">Author, Publisher &amp; Binder Tier System</text>
+  <text x="450" y="55" text-anchor="middle" font-family="Arial" font-size="12" fill="#5c4a32">Priority scoring bonuses for collection alignment</text>
+
+  <!-- Authors Column -->
+  <g transform="translate(30,75)">
+    <rect width="270" height="300" rx="10" fill="url(#cardGrad3)" stroke="#c9a959" stroke-width="2" filter="url(#shadow3)"/>
+    <rect width="270" height="40" rx="10" fill="url(#headerGrad3)"/>
+    <rect y="30" width="270" height="10" fill="url(#headerGrad3)"/>
+    <text x="135" y="28" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="#f4e4bc">Authors</text>
+
+    <!-- Tier 1 -->
+    <g transform="translate(15,55)">
+      <rect width="240" height="70" rx="6" fill="url(#tier1Grad)" stroke="#8b7355" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">TIER 1 — +15 points</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#5c4a32">Charles Darwin, Charles Lyell</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#5c4a32">Primary collection focus</text>
+    </g>
+
+    <!-- Tier 2 -->
+    <g transform="translate(15,135)">
+      <rect width="240" height="70" rx="6" fill="url(#tier2Grad)" stroke="#707070" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#333">TIER 2 — +10 points</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#444">Charles Dickens, Wilkie Collins</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#444">Victorian literature</text>
+    </g>
+
+    <!-- Tier 3 -->
+    <g transform="translate(15,215)">
+      <rect width="240" height="70" rx="6" fill="url(#tier3Grad)" stroke="#8b4513" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#fff">TIER 3 — +5 points</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#ffe4c4">John Ruskin, Thomas Carlyle</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#ffe4c4">Victorian essayists</text>
+    </g>
+  </g>
+
+  <!-- Publishers Column -->
+  <g transform="translate(315,75)">
+    <rect width="270" height="300" rx="10" fill="url(#cardGrad3)" stroke="#c9a959" stroke-width="2" filter="url(#shadow3)"/>
+    <rect width="270" height="40" rx="10" fill="url(#headerGrad3)"/>
+    <rect y="30" width="270" height="10" fill="url(#headerGrad3)"/>
+    <text x="135" y="28" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="#f4e4bc">Publishers</text>
+
+    <!-- Tier 1 -->
+    <g transform="translate(15,55)">
+      <rect width="240" height="70" rx="6" fill="url(#tier1Grad)" stroke="#8b7355" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">TIER 1 — Strategic Fit +1</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#5c4a32">Edward Moxon, William Pickering</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#5c4a32">John Murray, Macmillan</text>
+    </g>
+
+    <!-- Tier 2 -->
+    <g transform="translate(15,135)">
+      <rect width="240" height="70" rx="6" fill="url(#tier2Grad)" stroke="#707070" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#333">TIER 2 — Notable</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#444">Chapman and Hall</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#444">Longman, Smith Elder</text>
+    </g>
+
+    <!-- Tier 3 -->
+    <g transform="translate(15,215)">
+      <rect width="240" height="70" rx="6" fill="url(#tier3Grad)" stroke="#8b4513" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#fff">TIER 3 — Standard</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#ffe4c4">Regional publishers</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#ffe4c4">Trade editions</text>
+    </g>
+  </g>
+
+  <!-- Binders Column -->
+  <g transform="translate(600,75)">
+    <rect width="270" height="300" rx="10" fill="url(#cardGrad3)" stroke="#c9a959" stroke-width="2" filter="url(#shadow3)"/>
+    <rect width="270" height="40" rx="10" fill="url(#headerGrad3)"/>
+    <rect y="30" width="270" height="10" fill="url(#headerGrad3)"/>
+    <text x="135" y="28" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="#f4e4bc">Binders</text>
+
+    <!-- Tier 1 -->
+    <g transform="translate(15,55)">
+      <rect width="240" height="70" rx="6" fill="url(#tier1Grad)" stroke="#8b7355" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">TIER 1 — Strategic Fit +1</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#5c4a32">Zaehnsdorf, Rivière</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#5c4a32">Sangorski &amp; Sutcliffe</text>
+    </g>
+
+    <!-- Tier 2 -->
+    <g transform="translate(15,135)">
+      <rect width="240" height="70" rx="6" fill="url(#tier2Grad)" stroke="#707070" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#333">TIER 2 — Quality</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#444">Bayntun, Root &amp; Son</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#444">Morrell, Bedford</text>
+    </g>
+
+    <!-- Tier 3 -->
+    <g transform="translate(15,215)">
+      <rect width="240" height="70" rx="6" fill="url(#tier3Grad)" stroke="#8b4513" stroke-width="1.5"/>
+      <text x="15" y="22" font-family="Arial" font-size="12" font-weight="bold" fill="#fff">TIER 3 — Trade</text>
+      <text x="15" y="40" font-family="Arial" font-size="10" fill="#ffe4c4">Publisher bindings</text>
+      <text x="15" y="55" font-family="Arial" font-size="10" fill="#ffe4c4">Unknown binders</text>
+    </g>
+  </g>
+</svg>

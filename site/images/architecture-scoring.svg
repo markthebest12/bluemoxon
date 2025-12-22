@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="headerGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a472a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2d5a3d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f4e4bc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c9a959;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="cardGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f6f3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#efe9e1;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow2" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="#faf8f5"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#1a472a">Investment Scoring System</text>
+
+  <!-- Left Panel: Investment Grade -->
+  <g transform="translate(40,55)">
+    <rect width="340" height="370" rx="10" fill="url(#cardGrad2)" stroke="#c9a959" stroke-width="2" filter="url(#shadow2)"/>
+
+    <!-- Header -->
+    <rect width="340" height="45" rx="10" fill="url(#headerGrad2)"/>
+    <rect y="35" width="340" height="10" fill="url(#headerGrad2)"/>
+    <text x="170" y="30" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#f4e4bc">Investment Grade (0-100)</text>
+
+    <!-- Score display -->
+    <g transform="translate(110,60)">
+      <circle cx="60" cy="50" r="45" fill="url(#goldGrad)" stroke="#8b7355" stroke-width="2"/>
+      <text x="60" y="58" text-anchor="middle" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#1a472a">85</text>
+      <text x="60" y="110" text-anchor="middle" font-family="Arial" font-size="11" fill="#5c4a32">Composite Score</text>
+    </g>
+
+    <!-- Factors -->
+    <text x="20" y="190" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">Weighted Factors:</text>
+
+    <g transform="translate(20,205)">
+      <rect width="300" height="28" rx="4" fill="#e8e2d9"/>
+      <rect width="240" height="28" rx="4" fill="#c9a959" opacity="0.7"/>
+      <text x="10" y="18" font-family="Arial" font-size="11" fill="#1a472a">Binding Quality (Bindery Tier)</text>
+      <text x="280" y="18" text-anchor="end" font-family="Arial" font-size="10" fill="#5c4a32">25%</text>
+    </g>
+
+    <g transform="translate(20,240)">
+      <rect width="300" height="28" rx="4" fill="#e8e2d9"/>
+      <rect width="200" height="28" rx="4" fill="#c9a959" opacity="0.7"/>
+      <text x="10" y="18" font-family="Arial" font-size="11" fill="#1a472a">Acquisition Value (Discount)</text>
+      <text x="280" y="18" text-anchor="end" font-family="Arial" font-size="10" fill="#5c4a32">20%</text>
+    </g>
+
+    <g transform="translate(20,275)">
+      <rect width="300" height="28" rx="4" fill="#e8e2d9"/>
+      <rect width="180" height="28" rx="4" fill="#c9a959" opacity="0.7"/>
+      <text x="10" y="18" font-family="Arial" font-size="11" fill="#1a472a">Strategic Fit (Collection)</text>
+      <text x="280" y="18" text-anchor="end" font-family="Arial" font-size="10" fill="#5c4a32">20%</text>
+    </g>
+
+    <g transform="translate(20,310)">
+      <rect width="300" height="28" rx="4" fill="#e8e2d9"/>
+      <rect width="150" height="28" rx="4" fill="#c9a959" opacity="0.7"/>
+      <text x="10" y="18" font-family="Arial" font-size="11" fill="#1a472a">Condition Assessment</text>
+      <text x="280" y="18" text-anchor="end" font-family="Arial" font-size="10" fill="#5c4a32">15%</text>
+    </g>
+
+    <g transform="translate(20,345)">
+      <rect width="300" height="28" rx="4" fill="#e8e2d9"/>
+      <rect width="120" height="28" rx="4" fill="#c9a959" opacity="0.7"/>
+      <text x="10" y="18" font-family="Arial" font-size="11" fill="#1a472a">Author + Provenance</text>
+      <text x="280" y="18" text-anchor="end" font-family="Arial" font-size="10" fill="#5c4a32">20%</text>
+    </g>
+  </g>
+
+  <!-- Right Panel: Strategic Fit -->
+  <g transform="translate(420,55)">
+    <rect width="340" height="370" rx="10" fill="url(#cardGrad2)" stroke="#c9a959" stroke-width="2" filter="url(#shadow2)"/>
+
+    <!-- Header -->
+    <rect width="340" height="45" rx="10" fill="url(#headerGrad2)"/>
+    <rect y="35" width="340" height="10" fill="url(#headerGrad2)"/>
+    <text x="170" y="30" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#f4e4bc">Strategic Fit (0-7)</text>
+
+    <!-- Score display -->
+    <g transform="translate(110,60)">
+      <rect x="15" y="5" width="90" height="70" rx="8" fill="url(#goldGrad)" stroke="#8b7355" stroke-width="2"/>
+      <text x="60" y="50" text-anchor="middle" font-family="Georgia, serif" font-size="32" font-weight="bold" fill="#1a472a">6/7</text>
+      <text x="60" y="90" text-anchor="middle" font-family="Arial" font-size="11" fill="#5c4a32">Checklist Score</text>
+    </g>
+
+    <!-- Checklist -->
+    <text x="20" y="175" font-family="Arial" font-size="12" font-weight="bold" fill="#1a472a">Criteria Checklist:</text>
+
+    <g transform="translate(20,190)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">Target author match</text>
+    </g>
+
+    <g transform="translate(20,215)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">Tier 1 bindery</text>
+    </g>
+
+    <g transform="translate(20,240)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">Tier 1 publisher</text>
+    </g>
+
+    <g transform="translate(20,265)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">Victorian era (1837-1901)</text>
+    </g>
+
+    <g transform="translate(20,290)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">Single volume</text>
+    </g>
+
+    <g transform="translate(20,315)">
+      <rect width="18" height="18" rx="3" fill="#2d5a3d"/>
+      <text x="6" y="14" font-family="Arial" font-size="12" fill="white">✓</text>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#1a472a">40%+ discount from FMV</text>
+    </g>
+
+    <g transform="translate(20,340)">
+      <rect width="18" height="18" rx="3" fill="#e8e2d9" stroke="#8b7355"/>
+      <text x="28" y="14" font-family="Arial" font-size="11" fill="#8b7355">No duplicates in collection</text>
+    </g>
+  </g>
+</svg>
