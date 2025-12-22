@@ -1009,6 +1009,79 @@ jobs:
           total=$(echo "$body" | jq -r '.total' 2>/dev/null)
           echo "Books API check passed! Found $total books."
 
+      - name: Validate API response schema
+        run: |
+          echo "Validating API response schema (Issue #507)..."
+          API_BASE="${{ steps.urls.outputs.api_base }}"
+
+          response=$(curl -s "${API_BASE}/api/v1/books?per_page=5")
+
+          # Check required fields exist on book objects
+          for field in id title status inventory_type; do
+            if ! echo "$response" | jq -e ".items[0] | has(\"$field\")" > /dev/null 2>&1; then
+              echo "ERROR: Book response missing required field: $field"
+              exit 1
+            fi
+          done
+          echo "Required fields present: id, title, status, inventory_type"
+
+          # Check optional fields that should exist when populated
+          optional_fields="author publisher binder value_mid purchase_price source_url"
+          for field in $optional_fields; do
+            if echo "$response" | jq -e ".items[0] | has(\"$field\")" > /dev/null 2>&1; then
+              echo "  Optional field present: $field"
+            fi
+          done
+
+          echo "API schema validation passed!"
+
+      - name: Validate data integrity
+        run: |
+          echo "Validating data integrity (Issue #507)..."
+          API_BASE="${{ steps.urls.outputs.api_base }}"
+          warnings=0
+
+          # Check source_url format - should be full URL, not short alphanumeric ID
+          response=$(curl -s "${API_BASE}/api/v1/books?per_page=20")
+
+          # Find books with source_url and check format
+          source_urls=$(echo "$response" | jq -r '.items[] | select(.source_url) | .source_url' 2>/dev/null)
+
+          if [[ -n "$source_urls" ]]; then
+            echo "Checking source_url formats..."
+            while IFS= read -r url; do
+              # Valid URLs should start with http and contain item ID (10+ digits)
+              if [[ ! "$url" =~ ^https?:// ]]; then
+                echo "WARNING: Malformed source_url (not HTTP): $url"
+                warnings=$((warnings + 1))
+              elif [[ ! "$url" =~ [0-9]{10,} ]]; then
+                echo "WARNING: source_url may be missing item ID: $url"
+                warnings=$((warnings + 1))
+              fi
+            done <<< "$source_urls"
+
+            if [[ $warnings -eq 0 ]]; then
+              echo "All source_urls are properly formatted"
+            fi
+          else
+            echo "INFO: No books with source_url found (may be expected)"
+          fi
+
+          # Check for purchase_price = 0 issues (Issue #498)
+          zero_prices=$(echo "$response" | jq '[.items[] | select(.purchase_price == 0)] | length' 2>/dev/null)
+          if [[ "$zero_prices" -gt 0 ]]; then
+            echo "INFO: $zero_prices books with purchase_price = 0 (may need review)"
+          else
+            echo "No \$0 purchase prices found"
+          fi
+
+          # Summary
+          if [[ $warnings -gt 0 ]]; then
+            echo "Data integrity check completed with $warnings warnings"
+          else
+            echo "Data integrity check passed!"
+          fi
+
       - name: Test API authentication
         run: |
           echo "Testing API authentication (should reject unauthenticated requests)..."

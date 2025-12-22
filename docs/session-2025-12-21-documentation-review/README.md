@@ -41,6 +41,41 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 
 ## Run Log
 
+### Session 5 (Addendum)
+
+**Task:** Address gaps in documentation review - redundant/uncommitted features
+
+**Skills Used:**
+- `superpowers:using-superpowers` - Workflow coordination
+- `superpowers:verification-before-completion` - Final validation
+
+**Findings (Initially Missed):**
+
+1. **Open GitHub Issues Not Cross-Referenced:**
+   - 10 open issues existed but weren't audited against documentation
+   - Issues #506, #507 in progress separately
+
+2. **TODOs in Code Not Converted to Issues:**
+   - `tracking.py:218` - Carrier API support → Created #516
+   - `eval_generation.py:105` - Set completion detection → Created #517
+
+3. **ROADMAP.md Uncommitted Items:**
+   - Add Images to Insurance Report (Low)
+   - Audit Logging (Low)
+   - SNS Notifications (Planned)
+   - Deployment Notifications (Planned)
+
+4. **README.md Updates:**
+   - Fixed stale CDK references → Terraform
+   - Updated documentation links
+
+**Lessons Learned:**
+- Doc reviews should include GitHub issue audit
+- TODOs found should immediately become issues
+- ROADMAP.md should be reviewed for stale uncommitted items
+
+---
+
 ### Session 4 (Final)
 
 **Task:** Complete Phases 4c-4f after context compact
