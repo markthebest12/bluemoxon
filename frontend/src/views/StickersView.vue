@@ -529,12 +529,7 @@ function getRarityLabel(rarity: string): string {
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transform: skewX(-20deg);
   transition: left 0.6s ease;
   pointer-events: none;
@@ -596,12 +591,7 @@ function getRarityLabel(rarity: string): string {
 .bookplate-divider {
   width: 60%;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--gold),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
   margin: 8px 0;
 }
 
@@ -847,7 +837,12 @@ function getRarityLabel(rarity: string): string {
 .badge-shield {
   width: 80px;
   height: 90px;
-  background: linear-gradient(135deg, var(--hunter) 0%, var(--hunter-light) 50%, var(--hunter) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--hunter) 0%,
+    var(--hunter-light) 50%,
+    var(--hunter) 100%
+  );
   border-radius: 0 0 50% 50%;
   display: flex;
   align-items: center;
@@ -1003,12 +998,7 @@ function getRarityLabel(rarity: string): string {
 .footer-line {
   width: 60px;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--gold),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
 }
 
 /* ============================================
