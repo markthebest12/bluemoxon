@@ -86,3 +86,81 @@ def auto_correct_publisher_name(name: str) -> str:
     result = " ".join(result.split())
 
     return result
+
+
+# Publisher tier mappings based on market recognition and historical significance
+# Maps variant names to (canonical_name, tier)
+TIER_1_PUBLISHERS = {
+    # Major Victorian/Edwardian publishers
+    "Macmillan and Co.": "Macmillan and Co.",
+    "Macmillan": "Macmillan and Co.",
+    "Chapman & Hall": "Chapman & Hall",
+    "Chapman and Hall": "Chapman & Hall",
+    "Smith, Elder & Co.": "Smith, Elder & Co.",
+    "Smith Elder": "Smith, Elder & Co.",
+    "John Murray": "John Murray",
+    "Murray": "John Murray",
+    "William Blackwood and Sons": "William Blackwood and Sons",
+    "Blackwood": "William Blackwood and Sons",
+    "Edward Moxon and Co.": "Edward Moxon and Co.",
+    "Moxon": "Edward Moxon and Co.",
+    "Oxford University Press": "Oxford University Press",
+    "OUP": "Oxford University Press",
+    "Longmans, Green & Co.": "Longmans, Green & Co.",
+    "Longmans": "Longmans, Green & Co.",
+    "Longman": "Longmans, Green & Co.",
+    "Harper & Brothers": "Harper & Brothers",
+    "Harper": "Harper & Brothers",
+    "D. Appleton and Company": "D. Appleton and Company",
+    "Appleton": "D. Appleton and Company",
+    "Little, Brown, and Company": "Little, Brown, and Company",
+    "Little Brown": "Little, Brown, and Company",
+    "Richard Bentley": "Richard Bentley",
+    "Bentley": "Richard Bentley",
+}
+
+TIER_2_PUBLISHERS = {
+    "Chatto and Windus": "Chatto and Windus",
+    "Chatto & Windus": "Chatto and Windus",
+    "George Allen": "George Allen",
+    "Cassell": "Cassell, Petter & Galpin",
+    "Cassell, Petter & Galpin": "Cassell, Petter & Galpin",
+    "Routledge": "Routledge",
+    "Ward, Lock & Co.": "Ward, Lock & Co.",
+    "Ward Lock": "Ward, Lock & Co.",
+    "Hurst & Company": "Hurst & Company",
+    "Grosset & Dunlap": "Grosset & Dunlap",
+}
+
+
+def normalize_publisher_name(name: str) -> tuple[str, str | None]:
+    """Normalize publisher name and determine tier.
+
+    Applies auto-correction rules first, then matches against known publishers.
+
+    Args:
+        name: Raw publisher name from analysis
+
+    Returns:
+        Tuple of (canonical_name, tier) where tier is TIER_1, TIER_2, or None
+    """
+    # Apply auto-correction first
+    corrected = auto_correct_publisher_name(name)
+
+    # Check Tier 1 first
+    for variant, canonical in TIER_1_PUBLISHERS.items():
+        if variant.lower() == corrected.lower():
+            return canonical, "TIER_1"
+        # Also check if variant is contained in the name
+        if variant.lower() in corrected.lower():
+            return canonical, "TIER_1"
+
+    # Check Tier 2
+    for variant, canonical in TIER_2_PUBLISHERS.items():
+        if variant.lower() == corrected.lower():
+            return canonical, "TIER_2"
+        if variant.lower() in corrected.lower():
+            return canonical, "TIER_2"
+
+    # Unknown publisher - return corrected name with no tier
+    return corrected, None
