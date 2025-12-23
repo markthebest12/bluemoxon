@@ -1,7 +1,7 @@
 """Books API endpoints."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import boto3
@@ -1332,7 +1332,13 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
         "risk_factors": book.analysis.risk_factors,
         "source_filename": book.analysis.source_filename,
         "extraction_status": book.analysis.extraction_status,
-        "generated_at": book.analysis.updated_at.isoformat() if book.analysis.updated_at else None,
+        "generated_at": (
+            book.analysis.updated_at.replace(tzinfo=UTC)
+            if book.analysis.updated_at and book.analysis.updated_at.tzinfo is None
+            else book.analysis.updated_at
+        ).isoformat()
+        if book.analysis.updated_at
+        else None,
     }
 
 
@@ -1376,6 +1382,7 @@ def update_book_analysis(
         apply_metadata_to_book,
         extract_analysis_metadata,
     )
+    from app.services.publisher_validation import get_or_create_publisher
     from app.services.reference import get_or_create_binder
     from app.utils.markdown_parser import parse_analysis_markdown
 
@@ -1399,6 +1406,14 @@ def update_book_analysis(
         if binder and book.binder_id != binder.id:
             book.binder_id = binder.id
             binder_updated = True
+
+    # Extract publisher identification and associate with book
+    publisher_updated = False
+    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+        publisher = get_or_create_publisher(db, parsed.publisher_identification["name"])
+        if publisher and book.publisher_id != publisher.id:
+            book.publisher_id = publisher.id
+            publisher_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
@@ -1448,6 +1463,7 @@ def update_book_analysis(
         "message": "Analysis updated",
         "values_updated": values_changed,
         "binder_updated": binder_updated,
+        "publisher_updated": publisher_updated,
         "metadata_updated": metadata_updated,
         "scores_recalculated": True,
     }
