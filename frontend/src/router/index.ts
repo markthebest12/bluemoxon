@@ -85,6 +85,12 @@ const router = createRouter({
       component: () => import("@/views/InsuranceReportView.vue"),
       meta: { requiresAuth: true },
     },
+    {
+      path: "/stickers",
+      name: "stickers",
+      component: () => import("@/views/StickersView.vue"),
+      meta: { requiresAuth: true },
+    },
   ],
 });
 

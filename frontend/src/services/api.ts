@@ -2,6 +2,7 @@ import axios from "axios";
 import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
+const DEV_API_KEY = import.meta.env.VITE_API_KEY || "";
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -12,6 +13,13 @@ export const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use(async (config) => {
+  // Use API key bypass for local dev if configured
+  if (DEV_API_KEY) {
+    config.headers["X-API-Key"] = DEV_API_KEY;
+    console.log("[API] Using API key auth (dev mode)");
+    return config;
+  }
+
   try {
     console.log(`[API] Request interceptor for ${config.method?.toUpperCase()} ${config.url}`);
     const session = await fetchAuthSession();
