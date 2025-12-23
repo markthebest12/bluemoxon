@@ -293,6 +293,13 @@ variable "api_key_hash" {
   sensitive   = true
 }
 
+variable "api_key" {
+  type        = string
+  description = "Static API key for CLI/automation access (plaintext, for legacy/dev use)"
+  default     = ""
+  sensitive   = true
+}
+
 variable "private_subnet_ids" {
   type        = list(string)
   description = "Private subnet IDs for Lambda VPC configuration (subnets with NAT Gateway route)"
