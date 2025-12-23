@@ -541,6 +541,87 @@ A fine binding in excellent condition.
         assert result == ""
 
 
+class TestPublisherIdentification:
+    """Test publisher identification extraction from markdown."""
+
+    def test_extracts_publisher_from_structured_data(self):
+        """Extract publisher from STRUCTURED-DATA block."""
+        markdown = """---STRUCTURED-DATA---
+PUBLISHER_IDENTIFIED: Harper & Brothers
+PUBLISHER_CONFIDENCE: HIGH
+---END-STRUCTURED-DATA---
+
+## Executive Summary
+A fine first edition.
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.publisher_identification is not None
+        assert result.publisher_identification["name"] == "Harper & Brothers"
+        assert result.publisher_identification["confidence"] == "HIGH"
+
+    def test_extracts_publisher_from_text_pattern(self):
+        """Extract publisher from **Publisher:** pattern in text."""
+        markdown = """## Executive Summary
+
+A fine Victorian binding.
+
+## II. PHYSICAL DESCRIPTION
+
+**Publisher:** Macmillan and Co., London
+**Binding:** Full Morocco
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.publisher_identification is not None
+        assert result.publisher_identification["name"] == "Macmillan and Co., London"
+
+    def test_structured_data_publisher_takes_precedence(self):
+        """Structured data should take precedence over text patterns."""
+        markdown = """---STRUCTURED-DATA---
+PUBLISHER_IDENTIFIED: Oxford University Press
+PUBLISHER_CONFIDENCE: HIGH
+---END-STRUCTURED-DATA---
+
+## II. PHYSICAL DESCRIPTION
+
+**Publisher:** Some Other Publisher
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.publisher_identification is not None
+        assert result.publisher_identification["name"] == "Oxford University Press"
+
+    def test_handles_unknown_publisher(self):
+        """UNKNOWN publisher should result in None."""
+        markdown = """---STRUCTURED-DATA---
+PUBLISHER_IDENTIFIED: UNKNOWN
+PUBLISHER_CONFIDENCE: LOW
+---END-STRUCTURED-DATA---
+"""
+        result = parse_analysis_markdown(markdown)
+        assert (
+            result.publisher_identification is None or "name" not in result.publisher_identification
+        )
+
+    def test_extracts_publisher_with_location(self):
+        """Should extract publisher even with location suffix."""
+        markdown = """## II. PHYSICAL DESCRIPTION
+
+**Publisher:** Chapman & Hall, London
+**Year:** 1859
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.publisher_identification is not None
+        assert "Chapman & Hall" in result.publisher_identification["name"]
+
+    def test_no_publisher_returns_none(self):
+        """When no publisher info present, should return None."""
+        markdown = """## Executive Summary
+
+A fine binding with no publisher information.
+"""
+        result = parse_analysis_markdown(markdown)
+        assert result.publisher_identification is None
+
+
 class TestV2Integration:
     """Test v2 features integration in main parser."""
 

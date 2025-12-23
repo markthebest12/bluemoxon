@@ -105,6 +105,102 @@ Very good condition.
         assert response.status_code == 404
 
 
+class TestPublisherIntegration:
+    """Tests for publisher extraction and integration when saving analysis."""
+
+    def test_publisher_from_structured_data_updates_book(self, client, db):
+        """Test that publisher from structured data updates book.publisher_id."""
+        # Create a book without publisher
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Verify no publisher initially
+        response = client.get(f"/api/v1/books/{book_id}")
+        assert response.json()["publisher"] is None
+
+        # Upload analysis with publisher in structured data
+        markdown_content = """---STRUCTURED-DATA---
+PUBLISHER_IDENTIFIED: Harper & Brothers
+PUBLISHER_CONFIDENCE: HIGH
+---END-STRUCTURED-DATA---
+
+## Executive Summary
+A fine first edition published by Harper & Brothers.
+"""
+        response = client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content=markdown_content,
+            headers={"Content-Type": "text/plain"},
+        )
+        assert response.status_code == 200
+        assert response.json()["publisher_updated"] is True
+
+        # Verify publisher was associated with book
+        response = client.get(f"/api/v1/books/{book_id}")
+        book_data = response.json()
+        assert book_data["publisher"] is not None
+        assert book_data["publisher"]["name"] == "Harper & Brothers"
+        assert book_data["publisher"]["tier"] == "TIER_1"  # Known publisher
+
+    def test_publisher_from_text_pattern_updates_book(self, client, db):
+        """Test that publisher from **Publisher:** pattern updates book."""
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        markdown_content = """## Executive Summary
+A Victorian binding in fine condition.
+
+## II. PHYSICAL DESCRIPTION
+
+**Publisher:** Macmillan and Co., London
+**Binding:** Full Morocco
+"""
+        response = client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content=markdown_content,
+            headers={"Content-Type": "text/plain"},
+        )
+        assert response.status_code == 200
+        assert response.json()["publisher_updated"] is True
+
+        response = client.get(f"/api/v1/books/{book_id}")
+        book_data = response.json()
+        assert book_data["publisher"] is not None
+        # Location suffix should be auto-corrected
+        assert book_data["publisher"]["name"] == "Macmillan and Co."
+        assert book_data["publisher"]["tier"] == "TIER_1"
+
+    def test_publisher_not_updated_when_already_set(self, client, db):
+        """Test that publisher is not overwritten if already set to same."""
+        from app.models.publisher import Publisher
+
+        # Create publisher first
+        publisher = Publisher(name="Oxford University Press", tier="TIER_1")
+        db.add(publisher)
+        db.flush()
+
+        # Create book with publisher
+        response = client.post(
+            "/api/v1/books", json={"title": "Test Book", "publisher_id": publisher.id}
+        )
+        book_id = response.json()["id"]
+
+        # Upload analysis with same publisher
+        markdown_content = """---STRUCTURED-DATA---
+PUBLISHER_IDENTIFIED: Oxford University Press
+PUBLISHER_CONFIDENCE: HIGH
+---END-STRUCTURED-DATA---
+"""
+        response = client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content=markdown_content,
+            headers={"Content-Type": "text/plain"},
+        )
+        assert response.status_code == 200
+        # Should be False since publisher is already the same
+        assert response.json()["publisher_updated"] is False
+
+
 class TestAnalysisWithBookInfo:
     """Tests for analysis info in book responses."""
 

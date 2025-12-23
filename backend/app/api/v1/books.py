@@ -1376,6 +1376,7 @@ def update_book_analysis(
         apply_metadata_to_book,
         extract_analysis_metadata,
     )
+    from app.services.publisher_validation import get_or_create_publisher
     from app.services.reference import get_or_create_binder
     from app.utils.markdown_parser import parse_analysis_markdown
 
@@ -1399,6 +1400,14 @@ def update_book_analysis(
         if binder and book.binder_id != binder.id:
             book.binder_id = binder.id
             binder_updated = True
+
+    # Extract publisher identification and associate with book
+    publisher_updated = False
+    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+        publisher = get_or_create_publisher(db, parsed.publisher_identification["name"])
+        if publisher and book.publisher_id != publisher.id:
+            book.publisher_id = publisher.id
+            publisher_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
@@ -1448,6 +1457,7 @@ def update_book_analysis(
         "message": "Analysis updated",
         "values_updated": values_changed,
         "binder_updated": binder_updated,
+        "publisher_updated": publisher_updated,
         "metadata_updated": metadata_updated,
         "scores_recalculated": True,
     }
