@@ -276,17 +276,25 @@ def get_or_create_publisher(
         return publisher
 
     # No good match - create new publisher
-    # Handle race condition: another request may have created this publisher
+    # Use savepoint to handle race condition without affecting caller's transaction
     publisher = Publisher(
         name=canonical_name,
         tier=tier,
     )
-    db.add(publisher)
+
     try:
-        db.flush()  # Get the ID without committing
+        with db.begin_nested():  # Savepoint - only rolls back this block on error
+            db.add(publisher)
+            db.flush()
     except IntegrityError:
-        # Another request created this publisher - rollback and fetch
-        db.rollback()
+        # Another request created this publisher - fetch the existing one
+        # Savepoint was rolled back, but parent transaction is intact
         publisher = db.query(Publisher).filter(Publisher.name == canonical_name).first()
+        if publisher is None:
+            # Should not happen, but guard against it
+            raise RuntimeError(
+                f"Race condition in publisher creation for '{canonical_name}' "
+                "but could not find existing record"
+            ) from None
 
     return publisher
