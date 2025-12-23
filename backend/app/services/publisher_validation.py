@@ -2,9 +2,13 @@
 
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from rapidfuzz import fuzz
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from app.models.publisher import Publisher
 
 # Location suffixes to remove (case-insensitive)
 LOCATION_SUFFIXES = [
@@ -229,3 +233,58 @@ def fuzzy_match_publisher(
     # Sort by confidence descending, take top N
     matches.sort(key=lambda m: m.confidence, reverse=True)
     return matches[:max_results]
+
+
+def get_or_create_publisher(
+    db: Session,
+    name: str | None,
+    high_confidence_threshold: float = 0.90,
+) -> "Publisher | None":
+    """Look up or create a publisher from a name string.
+
+    Applies auto-correction, checks for existing matches via fuzzy matching,
+    and creates new publisher if no good match found.
+
+    Args:
+        db: Database session
+        name: Raw publisher name
+        high_confidence_threshold: Confidence above which to auto-accept match
+
+    Returns:
+        Publisher instance or None if name is empty
+    """
+    from app.models.publisher import Publisher
+
+    if not name or not name.strip():
+        return None
+
+    # Normalize name and get suggested tier
+    canonical_name, tier = normalize_publisher_name(name)
+
+    # Try exact match first
+    publisher = db.query(Publisher).filter(Publisher.name == canonical_name).first()
+
+    if publisher:
+        # Update tier if we have new information and current tier is null
+        if tier and not publisher.tier:
+            publisher.tier = tier
+        return publisher
+
+    # Try fuzzy match
+    matches = fuzzy_match_publisher(db, canonical_name, threshold=high_confidence_threshold)
+    if matches and matches[0].confidence >= high_confidence_threshold:
+        # High confidence match - use existing
+        publisher = db.query(Publisher).filter(Publisher.id == matches[0].publisher_id).first()
+        if publisher and tier and not publisher.tier:
+            publisher.tier = tier
+        return publisher
+
+    # No good match - create new publisher
+    publisher = Publisher(
+        name=canonical_name,
+        tier=tier,
+    )
+    db.add(publisher)
+    db.flush()  # Get the ID without committing
+
+    return publisher
