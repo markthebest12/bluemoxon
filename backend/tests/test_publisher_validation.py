@@ -127,3 +127,77 @@ class TestNormalizePublisherName:
         name, tier = normalize_publisher_name("MACMILLAN AND CO.")
         assert name == "Macmillan and Co."
         assert tier == "TIER_1"
+
+
+from app.services.publisher_validation import (
+    fuzzy_match_publisher,
+    PublisherMatch,
+)
+
+
+class TestFuzzyMatchPublisher:
+    """Test fuzzy matching against existing publishers."""
+
+    def test_exact_match_returns_high_confidence(self, db):
+        from app.models.publisher import Publisher
+
+        # Create existing publisher
+        pub = Publisher(name="Harper & Brothers", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+
+        matches = fuzzy_match_publisher(db, "Harper & Brothers")
+        assert len(matches) >= 1
+        assert matches[0].name == "Harper & Brothers"
+        assert matches[0].confidence >= 0.95
+        assert matches[0].publisher_id == pub.id
+
+    def test_close_match_returns_medium_confidence(self, db):
+        from app.models.publisher import Publisher
+
+        pub = Publisher(name="Harper & Brothers", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+
+        # Typo in name
+        matches = fuzzy_match_publisher(db, "Harpr & Brothers")
+        assert len(matches) >= 1
+        assert matches[0].name == "Harper & Brothers"
+        assert 0.6 <= matches[0].confidence < 0.95
+
+    def test_no_match_returns_empty(self, db):
+        from app.models.publisher import Publisher
+
+        pub = Publisher(name="Harper & Brothers", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+
+        matches = fuzzy_match_publisher(db, "Completely Different Publisher")
+        assert len(matches) == 0 or matches[0].confidence < 0.6
+
+    def test_returns_top_3_matches(self, db):
+        from app.models.publisher import Publisher
+
+        # Create several publishers
+        db.add(Publisher(name="Harper & Brothers", tier="TIER_1"))
+        db.add(Publisher(name="Harper & Row", tier="TIER_2"))
+        db.add(Publisher(name="Harpers Magazine", tier=None))
+        db.add(Publisher(name="Macmillan", tier="TIER_1"))
+        db.flush()
+
+        matches = fuzzy_match_publisher(db, "Harper")
+        assert len(matches) <= 3
+        # All returned should have Harper in name
+        for match in matches:
+            assert "Harper" in match.name or match.confidence > 0.5
+
+    def test_match_includes_tier(self, db):
+        from app.models.publisher import Publisher
+
+        pub = Publisher(name="Macmillan and Co.", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+
+        matches = fuzzy_match_publisher(db, "Macmillan")
+        assert len(matches) >= 1
+        assert matches[0].tier == "TIER_1"
