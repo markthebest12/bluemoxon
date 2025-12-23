@@ -1,8 +1,11 @@
 """Tests for publisher validation service."""
 
-import pytest
-
-from app.services.publisher_validation import auto_correct_publisher_name
+from app.services.publisher_validation import (
+    auto_correct_publisher_name,
+    fuzzy_match_publisher,
+    get_or_create_publisher,
+    normalize_publisher_name,
+)
 
 
 class TestAutoCorrectPublisherName:
@@ -59,9 +62,6 @@ class TestAutoCorrectPublisherName:
     def test_strips_whitespace(self):
         result = auto_correct_publisher_name("  Harper & Brothers  ")
         assert result == "Harper & Brothers"
-
-
-from app.services.publisher_validation import normalize_publisher_name
 
 
 class TestNormalizePublisherName:
@@ -127,12 +127,6 @@ class TestNormalizePublisherName:
         name, tier = normalize_publisher_name("MACMILLAN AND CO.")
         assert name == "Macmillan and Co."
         assert tier == "TIER_1"
-
-
-from app.services.publisher_validation import (
-    fuzzy_match_publisher,
-    PublisherMatch,
-)
 
 
 class TestFuzzyMatchPublisher:
@@ -201,9 +195,6 @@ class TestFuzzyMatchPublisher:
         matches = fuzzy_match_publisher(db, "Macmillan")
         assert len(matches) >= 1
         assert matches[0].tier == "TIER_1"
-
-
-from app.services.publisher_validation import get_or_create_publisher
 
 
 class TestGetOrCreatePublisher:

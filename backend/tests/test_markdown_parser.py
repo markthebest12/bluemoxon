@@ -597,7 +597,9 @@ PUBLISHER_CONFIDENCE: LOW
 ---END-STRUCTURED-DATA---
 """
         result = parse_analysis_markdown(markdown)
-        assert result.publisher_identification is None or "name" not in result.publisher_identification
+        assert (
+            result.publisher_identification is None or "name" not in result.publisher_identification
+        )
 
     def test_extracts_publisher_with_location(self):
         """Should extract publisher even with location suffix."""
