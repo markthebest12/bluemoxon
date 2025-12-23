@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from rapidfuzz import fuzz
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
@@ -155,19 +156,14 @@ def normalize_publisher_name(name: str) -> tuple[str, str | None]:
     # Apply auto-correction first
     corrected = auto_correct_publisher_name(name)
 
-    # Check Tier 1 first
+    # Check Tier 1 first (exact match only, case-insensitive)
     for variant, canonical in TIER_1_PUBLISHERS.items():
         if variant.lower() == corrected.lower():
             return canonical, "TIER_1"
-        # Also check if variant is contained in the name
-        if variant.lower() in corrected.lower():
-            return canonical, "TIER_1"
 
-    # Check Tier 2
+    # Check Tier 2 (exact match only, case-insensitive)
     for variant, canonical in TIER_2_PUBLISHERS.items():
         if variant.lower() == corrected.lower():
-            return canonical, "TIER_2"
-        if variant.lower() in corrected.lower():
             return canonical, "TIER_2"
 
     # Unknown publisher - return corrected name with no tier
@@ -280,11 +276,17 @@ def get_or_create_publisher(
         return publisher
 
     # No good match - create new publisher
+    # Handle race condition: another request may have created this publisher
     publisher = Publisher(
         name=canonical_name,
         tier=tier,
     )
     db.add(publisher)
-    db.flush()  # Get the ID without committing
+    try:
+        db.flush()  # Get the ID without committing
+    except IntegrityError:
+        # Another request created this publisher - rollback and fetch
+        db.rollback()
+        publisher = db.query(Publisher).filter(Publisher.name == canonical_name).first()
 
     return publisher

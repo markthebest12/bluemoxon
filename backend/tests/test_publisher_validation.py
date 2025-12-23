@@ -128,6 +128,24 @@ class TestNormalizePublisherName:
         assert name == "Macmillan and Co."
         assert tier == "TIER_1"
 
+    def test_no_substring_matching_murray(self):
+        # "Murray Printing Company" should NOT match "John Murray"
+        name, tier = normalize_publisher_name("Murray Printing Company")
+        assert name == "Murray Printing Company"
+        assert tier is None  # NOT TIER_1
+
+    def test_no_substring_matching_harper(self):
+        # "Harper's Magazine Press" should NOT match "Harper & Brothers"
+        name, tier = normalize_publisher_name("Harper's Magazine Press")
+        assert name == "Harper's Magazine Press"
+        assert tier is None  # NOT TIER_1
+
+    def test_no_substring_matching_appleton(self):
+        # "Appleton Wisconsin Books" should NOT match "D. Appleton and Company"
+        name, tier = normalize_publisher_name("Appleton Wisconsin Books")
+        assert name == "Appleton Wisconsin Books"
+        assert tier is None  # NOT TIER_1
+
 
 class TestFuzzyMatchPublisher:
     """Test fuzzy matching against existing publishers."""
