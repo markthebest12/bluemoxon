@@ -91,20 +91,31 @@ def get_costs() -> dict[str, Any]:
         return error_response
 
 
+def _get_current_account_id() -> str:
+    """Get the current AWS account ID."""
+    sts = boto3.client("sts")
+    return sts.get_caller_identity()["Account"]
+
+
 def _fetch_costs_from_aws() -> dict[str, Any]:
     """Fetch cost data from AWS Cost Explorer."""
     client = boto3.client("ce", region_name="us-east-1")  # CE is only in us-east-1
+
+    # Get current account ID for filtering in consolidated billing orgs
+    account_id = _get_current_account_id()
+    account_filter = {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": [account_id]}}
 
     now = datetime.now(UTC)
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
     period_end = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # Get monthly costs grouped by service
+    # Get monthly costs grouped by service (filtered by current account)
     monthly_response = client.get_cost_and_usage(
         TimePeriod={"Start": period_start, "End": period_end},
         Granularity="MONTHLY",
         Metrics=["UnblendedCost"],
         GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+        Filter=account_filter,
     )
 
     # Get daily costs for trend (last 14 days)
@@ -114,10 +125,15 @@ def _fetch_costs_from_aws() -> dict[str, Any]:
         Granularity="DAILY",
         Metrics=["UnblendedCost"],
         Filter={
-            "Dimensions": {
-                "Key": "SERVICE",
-                "Values": list(AWS_SERVICE_TO_MODEL.keys()),
-            }
+            "And": [
+                account_filter,
+                {
+                    "Dimensions": {
+                        "Key": "SERVICE",
+                        "Values": list(AWS_SERVICE_TO_MODEL.keys()),
+                    }
+                },
+            ]
         },
     )
 

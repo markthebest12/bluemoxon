@@ -314,6 +314,7 @@ module "lambda" {
       BMX_COGNITO_CLIENT_ID     = var.enable_cognito ? module.cognito[0].client_id : coalesce(var.cognito_client_id_external, "")
       BMX_IMAGES_BUCKET         = module.images_bucket.bucket_name
       BMX_API_KEY_HASH          = var.api_key_hash
+      BMX_API_KEY               = var.api_key
       BMX_ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       BMX_MAINTENANCE_MODE      = var.maintenance_mode
       BMX_ENVIRONMENT           = coalesce(var.environment_name_override, var.environment)
