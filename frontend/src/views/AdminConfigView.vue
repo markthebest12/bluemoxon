@@ -214,8 +214,8 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Tab Navigation -->
-    <div class="border-b border-gray-200 mb-6">
-      <nav class="-mb-px flex space-x-8">
+    <div class="border-b border-gray-200 mb-6 overflow-x-auto">
+      <nav class="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
         <button
           @click="activeTab = 'settings'"
           :class="[
@@ -337,9 +337,11 @@ function getBarWidth(cost: number): string {
               <dt class="text-gray-500">App Version</dt>
               <dd class="font-mono">{{ systemInfo.system.version }}</dd>
             </div>
-            <div>
+            <div class="overflow-hidden">
               <dt class="text-gray-500">Git SHA</dt>
-              <dd class="font-mono">{{ systemInfo.system.git_sha || "N/A" }}</dd>
+              <dd class="font-mono truncate" :title="systemInfo.system.git_sha">
+                {{ systemInfo.system.git_sha?.slice(0, 7) || "N/A" }}
+              </dd>
             </div>
             <div>
               <dt class="text-gray-500">Deploy Time</dt>

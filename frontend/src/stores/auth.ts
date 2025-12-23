@@ -2,6 +2,8 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
 
+const DEV_API_KEY = import.meta.env.VITE_API_KEY || "";
+
 interface User {
   username: string;
   email: string;
@@ -32,6 +34,36 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function checkAuth() {
     loading.value = true;
+
+    // Dev mode: bypass Cognito entirely when API key is configured
+    if (DEV_API_KEY) {
+      console.log("[Auth] Dev mode: using API key auth");
+      try {
+        const response = await api.get("/users/me");
+        user.value = {
+          username: response.data.email || "dev-user",
+          email: response.data.email || "dev@localhost",
+          role: response.data.role || "admin",
+          first_name: response.data.first_name,
+          last_name: response.data.last_name,
+          mfa_exempt: true,
+        };
+        mfaStep.value = "none";
+      } catch (e) {
+        console.warn("[Auth] Dev mode: API key auth failed:", e);
+        // Still set a default dev user so the app works
+        user.value = {
+          username: "dev-user",
+          email: "dev@localhost",
+          role: "admin",
+          mfa_exempt: true,
+        };
+        mfaStep.value = "none";
+      }
+      loading.value = false;
+      return;
+    }
+
     try {
       const { getCurrentUser, fetchMFAPreference } = await import("aws-amplify/auth");
       const currentUser = await getCurrentUser();
