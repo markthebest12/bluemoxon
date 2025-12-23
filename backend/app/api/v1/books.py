@@ -1,7 +1,7 @@
 """Books API endpoints."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import boto3
@@ -1332,7 +1332,13 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
         "risk_factors": book.analysis.risk_factors,
         "source_filename": book.analysis.source_filename,
         "extraction_status": book.analysis.extraction_status,
-        "generated_at": book.analysis.updated_at.isoformat() if book.analysis.updated_at else None,
+        "generated_at": (
+            book.analysis.updated_at.replace(tzinfo=UTC)
+            if book.analysis.updated_at and book.analysis.updated_at.tzinfo is None
+            else book.analysis.updated_at
+        ).isoformat()
+        if book.analysis.updated_at
+        else None,
     }
 
 
