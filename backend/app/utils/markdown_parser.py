@@ -16,6 +16,7 @@ class ParsedAnalysis:
     # New v2 fields
     structured_data: dict | None = None
     binder_identification: dict | None = None
+    publisher_identification: dict | None = None
 
 
 # Optional prefix pattern: handles emojis, numbers like "1.", roman numerals like "I."
@@ -325,6 +326,24 @@ def _parse_binder_identification(text: str) -> dict | None:
     return result if result else None
 
 
+def _parse_publisher_identification(text: str) -> dict | None:
+    """Extract publisher identification from markdown text.
+
+    Looks for **Publisher:** pattern in text.
+    Structured data parsing is handled separately.
+    """
+    result: dict = {}
+
+    # Look for **Publisher:** pattern
+    publisher_match = re.search(r"\*\*Publisher:\*\*\s*(.+)", text)
+    if publisher_match:
+        name = publisher_match.group(1).strip()
+        if name.lower() not in ("unknown", "unidentified", "none", "n/a"):
+            result["name"] = name
+
+    return result if result else None
+
+
 def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
     """Parse a markdown analysis document into structured fields.
 
@@ -351,6 +370,17 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
         if "confidence" not in binder_identification and structured_data.get("binder_confidence"):
             binder_identification["confidence"] = structured_data["binder_confidence"]
 
+    # Extract publisher identification from text patterns
+    publisher_identification = _parse_publisher_identification(markdown)
+
+    # If structured data has publisher info, it takes precedence
+    if structured_data and structured_data.get("publisher_identified"):
+        publisher_identification = {
+            "name": structured_data["publisher_identified"],
+        }
+        if structured_data.get("publisher_confidence"):
+            publisher_identification["confidence"] = structured_data["publisher_confidence"]
+
     return ParsedAnalysis(
         executive_summary=sections.get("executive_summary"),
         historical_significance=sections.get("historical_significance"),
@@ -367,4 +397,5 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
         recommendations=sections.get("recommendations"),
         structured_data=structured_data,
         binder_identification=binder_identification,
+        publisher_identification=publisher_identification,
     )
