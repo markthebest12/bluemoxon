@@ -1,5 +1,7 @@
 """Analysis API tests."""
 
+from datetime import datetime
+
 
 class TestGetAnalysis:
     """Tests for GET /api/v1/books/{id}/analysis."""
@@ -19,6 +21,27 @@ class TestGetAnalysis:
         """Test 404 when book doesn't exist."""
         response = client.get("/api/v1/books/999/analysis")
         assert response.status_code == 404
+
+    def test_get_analysis_includes_generated_at(self, client):
+        """Test that analysis response includes generated_at timestamp."""
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content="# Test Analysis\n\n## Executive Summary\nTest content.",
+            headers={"Content-Type": "text/plain"},
+        )
+
+        response = client.get(f"/api/v1/books/{book_id}/analysis")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "generated_at" in data
+        assert data["generated_at"] is not None
+
+        parsed = datetime.fromisoformat(data["generated_at"])
+        assert parsed.tzinfo is not None
 
 
 class TestGetAnalysisRaw:
