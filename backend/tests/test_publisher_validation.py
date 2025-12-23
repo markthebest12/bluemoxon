@@ -201,3 +201,73 @@ class TestFuzzyMatchPublisher:
         matches = fuzzy_match_publisher(db, "Macmillan")
         assert len(matches) >= 1
         assert matches[0].tier == "TIER_1"
+
+
+from app.services.publisher_validation import get_or_create_publisher
+
+
+class TestGetOrCreatePublisher:
+    """Test publisher lookup/creation from parsed data."""
+
+    def test_returns_none_for_none_input(self, db):
+        result = get_or_create_publisher(db, None)
+        assert result is None
+
+    def test_returns_none_for_empty_string(self, db):
+        result = get_or_create_publisher(db, "")
+        assert result is None
+
+    def test_creates_tier_1_publisher(self, db):
+        result = get_or_create_publisher(db, "Macmillan and Co.")
+        assert result is not None
+        assert result.name == "Macmillan and Co."
+        assert result.tier == "TIER_1"
+        assert result.id is not None
+
+    def test_creates_unknown_publisher_no_tier(self, db):
+        result = get_or_create_publisher(db, "Unknown Local Press")
+        assert result is not None
+        assert result.name == "Unknown Local Press"
+        assert result.tier is None
+
+    def test_returns_existing_publisher_exact_match(self, db):
+        # Create first
+        first = get_or_create_publisher(db, "Harper & Brothers")
+        db.flush()
+
+        # Look up again
+        second = get_or_create_publisher(db, "Harper & Brothers")
+        assert second.id == first.id
+
+    def test_returns_existing_publisher_fuzzy_match(self, db):
+        # Create first
+        first = get_or_create_publisher(db, "Harper & Brothers")
+        db.flush()
+
+        # Look up with typo - should still match
+        second = get_or_create_publisher(db, "Harpr & Brothers")
+        assert second.id == first.id
+
+    def test_applies_auto_correction(self, db):
+        result = get_or_create_publisher(db, "Harper & Brothers, New York")
+        assert result.name == "Harper & Brothers"
+        assert result.tier == "TIER_1"
+
+    def test_updates_tier_if_missing(self, db):
+        from app.models.publisher import Publisher
+
+        # Create publisher without tier manually
+        pub = Publisher(name="Macmillan and Co.", tier=None)
+        db.add(pub)
+        db.flush()
+
+        # Get via service - should update tier
+        result = get_or_create_publisher(db, "Macmillan and Co.")
+        assert result.id == pub.id
+        assert result.tier == "TIER_1"
+
+    def test_flags_new_publisher_for_enrichment(self, db):
+        result = get_or_create_publisher(db, "New Unknown Publisher")
+        assert result is not None
+        assert result.description is None  # Not enriched yet
+        # New publishers should exist but without enrichment
