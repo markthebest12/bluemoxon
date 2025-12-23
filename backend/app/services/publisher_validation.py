@@ -1,6 +1,10 @@
 """Publisher validation service for normalizing and matching publisher names."""
 
 import re
+from dataclasses import dataclass
+
+from rapidfuzz import fuzz
+from sqlalchemy.orm import Session
 
 # Location suffixes to remove (case-insensitive)
 LOCATION_SUFFIXES = [
@@ -164,3 +168,64 @@ def normalize_publisher_name(name: str) -> tuple[str, str | None]:
 
     # Unknown publisher - return corrected name with no tier
     return corrected, None
+
+
+@dataclass
+class PublisherMatch:
+    """Result of fuzzy matching a publisher name."""
+
+    publisher_id: int
+    name: str
+    tier: str | None
+    confidence: float  # 0.0 to 1.0
+
+
+def fuzzy_match_publisher(
+    db: Session,
+    name: str,
+    threshold: float = 0.6,
+    max_results: int = 3,
+) -> list[PublisherMatch]:
+    """Find existing publishers that fuzzy-match the given name.
+
+    Args:
+        db: Database session
+        name: Publisher name to match
+        threshold: Minimum confidence score (0.0 to 1.0)
+        max_results: Maximum number of matches to return
+
+    Returns:
+        List of PublisherMatch objects, sorted by confidence descending
+    """
+    from app.models.publisher import Publisher
+
+    # Apply auto-correction before matching
+    corrected_name = auto_correct_publisher_name(name)
+
+    # Get all publishers
+    publishers = db.query(Publisher).all()
+
+    matches = []
+    for pub in publishers:
+        # Calculate similarity ratio (0-100 scale from rapidfuzz)
+        ratio = fuzz.ratio(corrected_name.lower(), pub.name.lower()) / 100.0
+
+        # Also try token sort ratio for word order independence
+        token_ratio = fuzz.token_sort_ratio(corrected_name.lower(), pub.name.lower()) / 100.0
+
+        # Use the higher of the two scores
+        confidence = max(ratio, token_ratio)
+
+        if confidence >= threshold:
+            matches.append(
+                PublisherMatch(
+                    publisher_id=pub.id,
+                    name=pub.name,
+                    tier=pub.tier,
+                    confidence=confidence,
+                )
+            )
+
+    # Sort by confidence descending, take top N
+    matches.sort(key=lambda m: m.confidence, reverse=True)
+    return matches[:max_results]

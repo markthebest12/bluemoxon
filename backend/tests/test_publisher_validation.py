@@ -159,8 +159,8 @@ class TestFuzzyMatchPublisher:
         db.add(pub)
         db.flush()
 
-        # Typo in name
-        matches = fuzzy_match_publisher(db, "Harpr & Brothers")
+        # More significant variation for medium confidence
+        matches = fuzzy_match_publisher(db, "Harper Bros")
         assert len(matches) >= 1
         assert matches[0].name == "Harper & Brothers"
         assert 0.6 <= matches[0].confidence < 0.95
