@@ -272,3 +272,109 @@ class TestScrapeEbayListing:
 
         with pytest.raises(ValueError, match="Failed to parse"):
             scrape_ebay_listing("https://www.ebay.com/itm/123456")
+
+    @patch("app.services.scraper.generate_presigned_url")
+    @patch("app.services.scraper.invoke_scraper")
+    @patch("app.services.scraper.extract_listing_data")
+    @patch("app.services.scraper.get_settings")
+    def test_uses_passed_item_id_over_scraper_result(
+        self, mock_get_settings, mock_extract, mock_invoke, mock_presign
+    ):
+        """Should use the item_id passed to the function, not the scraper result."""
+        mock_settings = MagicMock()
+        mock_settings.images_bucket = "test-bucket"
+        mock_get_settings.return_value = mock_settings
+
+        mock_invoke.return_value = {
+            "html": "<html/>",
+            "image_urls": [],
+            "s3_keys": [],
+            "item_id": "scraper_item_id",  # Scraper returns different ID
+        }
+        mock_extract.return_value = {"title": "Book", "volumes": 1, "currency": "USD"}
+
+        # Pass specific item_id to function
+        result = scrape_ebay_listing("https://www.ebay.com/itm/c492afa0", item_id="316529574873")
+
+        # Should use the passed item_id, not the scraper's
+        assert result["item_id"] == "316529574873"
+
+    @patch("app.services.scraper.invoke_scraper")
+    @patch("app.services.scraper.extract_listing_data")
+    def test_raises_when_no_valid_item_id(self, mock_extract, mock_invoke):
+        """Should raise ValueError when neither item_id is passed nor scraper returns one."""
+        mock_invoke.return_value = {
+            "html": "<html/>",
+            "image_urls": [],
+            "s3_keys": [],
+            "item_id": "",  # Scraper returns empty item_id
+        }
+        mock_extract.return_value = {"title": "Book", "volumes": 1, "currency": "USD"}
+
+        # No item_id passed and scraper returns empty
+        with pytest.raises(ValueError, match="Scraper did not return a valid item ID"):
+            scrape_ebay_listing("https://www.ebay.com/itm/c492afa0")
+
+
+class TestInvokeScraperItemIdParameter:
+    """Tests for item_id parameter handling in invoke_scraper."""
+
+    @patch("app.services.scraper.get_lambda_client")
+    def test_passes_item_id_in_payload(self, mock_get_client):
+        """Should include item_id in Lambda payload when provided."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        response_payload = {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "html": "<html/>",
+                    "image_urls": [],
+                    "s3_keys": [],
+                    "item_id": "316529574873",
+                }
+            ),
+        }
+        mock_client.invoke.return_value = {
+            "StatusCode": 200,
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
+        }
+
+        invoke_scraper("https://www.ebay.com/itm/c492afa0", item_id="316529574873")
+
+        call_kwargs = mock_client.invoke.call_args[1]
+        payload = json.loads(call_kwargs["Payload"])
+        assert payload["item_id"] == "316529574873"
+
+    @patch("app.services.scraper.get_lambda_client")
+    def test_omits_item_id_when_not_provided(self, mock_get_client):
+        """Should not include item_id in payload when not provided."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        response_payload = {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "html": "<html/>",
+                    "image_urls": [],
+                    "s3_keys": [],
+                    "item_id": "123456",
+                }
+            ),
+        }
+        mock_client.invoke.return_value = {
+            "StatusCode": 200,
+            "Payload": MagicMock(
+                read=MagicMock(return_value=json.dumps(response_payload).encode())
+            ),
+        }
+
+        invoke_scraper("https://www.ebay.com/itm/123456")
+
+        call_kwargs = mock_client.invoke.call_args[1]
+        payload = json.loads(call_kwargs["Payload"])
+        assert "item_id" not in payload
