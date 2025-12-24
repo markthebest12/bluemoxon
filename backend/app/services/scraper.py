@@ -167,9 +167,15 @@ def scrape_ebay_listing(url: str, item_id: str | None = None) -> dict:
     else:
         logger.warning(f"No bucket ({bucket_name}) or s3_keys ({len(s3_keys)}) for presigned URLs")
 
+    # Use the item_id we passed to the scraper, or fall back to what it returned
+    # If neither is available, something is wrong
+    final_item_id = item_id or scraper_result.get("item_id")
+    if not final_item_id:
+        raise ValueError("Scraper did not return a valid item ID")
+
     return {
         "listing_data": listing_data,
         "images": images,
         "image_urls": scraper_result.get("image_urls", []),
-        "item_id": scraper_result.get("item_id", ""),
+        "item_id": final_item_id,
     }

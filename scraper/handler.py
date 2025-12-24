@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import re
-import uuid
 from pathlib import Path
 
 import boto3
@@ -42,8 +41,10 @@ def extract_item_id(url: str, provided_id: str | None = None) -> str:
         provided_id: Pre-resolved item ID from the API (preferred if available)
 
     Returns:
-        eBay item ID (12-digit numeric string), or provided_id if given,
-        or a random UUID[:8] as last resort fallback
+        eBay item ID (12-digit numeric string), or provided_id if given
+
+    Raises:
+        ValueError: If no valid item ID can be extracted from URL
     """
     # Use pre-resolved ID if provided (handles alphanumeric short IDs)
     if provided_id:
@@ -57,9 +58,8 @@ def extract_item_id(url: str, provided_id: str | None = None) -> str:
     if match:
         return match.group(1)
 
-    # Last resort fallback - should rarely happen now that API passes item_id
-    logger.warning(f"Could not extract numeric item ID from URL: {url}")
-    return str(uuid.uuid4())[:8]
+    # No valid ID found - raise error instead of generating garbage data
+    raise ValueError(f"Could not extract eBay item ID from URL: {url}")
 
 
 def is_likely_banner(image_data: bytes, position: int, total_images: int) -> bool:

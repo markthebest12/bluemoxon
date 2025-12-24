@@ -169,11 +169,17 @@ def extract_listing(
         if publisher_match:
             matches["publisher"] = publisher_match
 
+    # Validate we have a valid item_id before returning
+    final_item_id = item_id or result.get("item_id")
+    if not final_item_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Could not determine eBay item ID from URL or scraper result",
+        )
+
     return ExtractResponse(
         ebay_url=normalized_url,
-        # Use the resolved item_id from normalize_ebay_url, falling back to scraper's
-        # only for ebay.us short URLs where item_id was set from scraper result
-        ebay_item_id=item_id or result.get("item_id", ""),
+        ebay_item_id=final_item_id,
         listing_data=listing_data,
         images=images,
         image_urls=result["image_urls"],
