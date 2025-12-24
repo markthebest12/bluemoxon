@@ -291,8 +291,8 @@ class TestStrategicFit:
         )
         assert score == 50
 
-    def test_four_volume_penalty_minus_10(self):
-        """4-volume set should subtract 10 points."""
+    def test_four_volume_no_penalty(self):
+        """4-volume set should NOT subtract points (Issue #587)."""
         score = calculate_strategic_fit(
             publisher_tier=None,
             binder_tier=None,
@@ -302,10 +302,10 @@ class TestStrategicFit:
             author_priority_score=0,
             volume_count=4,
         )
-        assert score == -10
+        assert score == 0
 
-    def test_five_plus_volume_penalty_minus_20(self):
-        """5+ volume set should subtract 20 points."""
+    def test_five_plus_volume_no_penalty(self):
+        """5+ volume set should NOT subtract points (Issue #587)."""
         score = calculate_strategic_fit(
             publisher_tier=None,
             binder_tier=None,
@@ -315,7 +315,7 @@ class TestStrategicFit:
             author_priority_score=0,
             volume_count=6,
         )
-        assert score == -20
+        assert score == 0
 
     def test_combined_factors(self):
         """All factors should combine additively."""
@@ -326,10 +326,10 @@ class TestStrategicFit:
             is_complete=True,  # +15
             condition_grade="Very Good",  # +15
             author_priority_score=50,  # +50
-            volume_count=4,  # -10
+            volume_count=4,  # 0 (noted but no penalty per Issue #587)
         )
-        # 35 + 40 + 15 + 20 + 15 + 15 + 50 - 10 = 180
-        assert score == 180
+        # 35 + 40 + 15 + 20 + 15 + 15 + 50 + 0 = 190
+        assert score == 190
 
 
 class TestDuplicateDetection:
@@ -487,15 +487,15 @@ class TestCalculateAllScores:
             author_book_count=0,  # +30
             is_duplicate=False,
             completes_set=False,
-            volume_count=4,  # -10
+            volume_count=4,  # 0 (noted but no penalty per Issue #587)
         )
 
-        # strategic_fit = 35 + 40 + 15 + 20 + 15 + 15 - 10 = 130
-        assert result["strategic_fit"] == 130
+        # strategic_fit = 35 + 40 + 15 + 20 + 15 + 15 + 0 = 140
+        assert result["strategic_fit"] == 140
         # collection_impact = 30 (new author)
         assert result["collection_impact"] == 30
-        # overall = 70 + 130 + 30 = 230
-        assert result["overall_score"] == 230
+        # overall = 70 + 140 + 30 = 240
+        assert result["overall_score"] == 240
 
 
 class TestScoreBreakdown:
@@ -574,8 +574,8 @@ class TestStrategicFitBreakdown:
             binder_name="Zaehnsdorf",
         )
 
-        # Check total score: 35 + 40 + 15 (DOUBLE) + 20 + 15 + 15 + 50 - 10 = 180
-        assert breakdown.score == 180
+        # Check total score: 35 + 40 + 15 (DOUBLE) + 20 + 15 + 15 + 50 + 0 = 190 (Issue #587: no volume penalty)
+        assert breakdown.score == 190
 
         # Check factors include entity names
         factors_dict = {f.name: f for f in breakdown.factors}
@@ -593,8 +593,9 @@ class TestStrategicFitBreakdown:
         assert "Victorian" in factors_dict["era"].reason
         assert "1867" in factors_dict["era"].reason
 
-        assert "volume_penalty" in factors_dict
-        assert factors_dict["volume_penalty"].points == -10
+        # Issue #587: volume_count with 0 points instead of volume_penalty with -10
+        assert "volume_count" in factors_dict
+        assert factors_dict["volume_count"].points == 0
 
         assert "author_priority" in factors_dict
         assert "George Eliot" in factors_dict["author_priority"].reason

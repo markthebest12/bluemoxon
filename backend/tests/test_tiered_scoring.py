@@ -200,8 +200,8 @@ class TestQualityScore:
         )
         assert score == 0  # 25 - 30 = -5, floored at 0
 
-    def test_large_volume_penalty_minus_10(self):
-        """5+ volumes should subtract 10 points."""
+    def test_large_volume_no_penalty(self):
+        """5+ volumes should NOT subtract points (Issue #587)."""
         from app.services.tiered_scoring import calculate_quality_score
 
         score = calculate_quality_score(
@@ -211,10 +211,10 @@ class TestQualityScore:
             condition_grade=None,
             is_complete=False,
             author_priority_score=0,
-            volume_count=6,  # -10
+            volume_count=6,  # 0 (noted but no penalty per Issue #587)
             is_duplicate=False,
         )
-        assert score == 15  # 25 - 10
+        assert score == 25  # 25 + 0
 
     def test_max_quality_score_is_100(self):
         """Quality score should cap at 100."""
