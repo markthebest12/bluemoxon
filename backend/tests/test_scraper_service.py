@@ -294,10 +294,7 @@ class TestScrapeEbayListing:
         mock_extract.return_value = {"title": "Book", "volumes": 1, "currency": "USD"}
 
         # Pass specific item_id to function
-        result = scrape_ebay_listing(
-            "https://www.ebay.com/itm/c492afa0",
-            item_id="316529574873"
-        )
+        result = scrape_ebay_listing("https://www.ebay.com/itm/c492afa0", item_id="316529574873")
 
         # Should use the passed item_id, not the scraper's
         assert result["item_id"] == "316529574873"
@@ -330,12 +327,14 @@ class TestInvokeScraperItemIdParameter:
 
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({
-                "html": "<html/>",
-                "image_urls": [],
-                "s3_keys": [],
-                "item_id": "316529574873",
-            }),
+            "body": json.dumps(
+                {
+                    "html": "<html/>",
+                    "image_urls": [],
+                    "s3_keys": [],
+                    "item_id": "316529574873",
+                }
+            ),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
@@ -344,10 +343,7 @@ class TestInvokeScraperItemIdParameter:
             ),
         }
 
-        invoke_scraper(
-            "https://www.ebay.com/itm/c492afa0",
-            item_id="316529574873"
-        )
+        invoke_scraper("https://www.ebay.com/itm/c492afa0", item_id="316529574873")
 
         call_kwargs = mock_client.invoke.call_args[1]
         payload = json.loads(call_kwargs["Payload"])
@@ -361,12 +357,14 @@ class TestInvokeScraperItemIdParameter:
 
         response_payload = {
             "statusCode": 200,
-            "body": json.dumps({
-                "html": "<html/>",
-                "image_urls": [],
-                "s3_keys": [],
-                "item_id": "123456",
-            }),
+            "body": json.dumps(
+                {
+                    "html": "<html/>",
+                    "image_urls": [],
+                    "s3_keys": [],
+                    "item_id": "123456",
+                }
+            ),
         }
         mock_client.invoke.return_value = {
             "StatusCode": 200,
