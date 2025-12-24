@@ -61,12 +61,14 @@ def generate_presigned_url(bucket: str, key: str, expiry: int = PRESIGNED_URL_EX
     )
 
 
-def invoke_scraper(url: str, fetch_images: bool = True) -> dict:
+def invoke_scraper(url: str, fetch_images: bool = True, item_id: str | None = None) -> dict:
     """Invoke the scraper Lambda to fetch an eBay listing.
 
     Args:
         url: eBay listing URL
         fetch_images: Whether to download and upload images to S3 (default True)
+        item_id: Pre-resolved eBay item ID (if known). Prevents scraper from
+                 generating random IDs for URLs with alphanumeric short IDs.
 
     Returns:
         Dict with html, image_urls, s3_keys, and item_id
@@ -80,6 +82,8 @@ def invoke_scraper(url: str, fetch_images: bool = True) -> dict:
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     payload = {"url": url, "fetch_images": fetch_images}
+    if item_id:
+        payload["item_id"] = item_id
 
     logger.info(f"Invoking scraper Lambda for {url}")
     response = client.invoke(
@@ -113,7 +117,7 @@ def invoke_scraper(url: str, fetch_images: bool = True) -> dict:
     return body
 
 
-def scrape_ebay_listing(url: str) -> dict:
+def scrape_ebay_listing(url: str, item_id: str | None = None) -> dict:
     """Scrape an eBay listing and extract structured data.
 
     High-level function that invokes the scraper and extracts listing data.
@@ -121,6 +125,8 @@ def scrape_ebay_listing(url: str) -> dict:
 
     Args:
         url: eBay listing URL
+        item_id: Pre-resolved eBay item ID (if known). Prevents scraper from
+                 generating random IDs for URLs with alphanumeric short IDs.
 
     Returns:
         Dict with:
@@ -135,7 +141,7 @@ def scrape_ebay_listing(url: str) -> dict:
         ValueError: If extraction fails
     """
     # Invoke scraper Lambda
-    scraper_result = invoke_scraper(url)
+    scraper_result = invoke_scraper(url, item_id=item_id)
 
     # Extract structured data from HTML
     listing_data = extract_listing_data(scraper_result["html"])
@@ -161,9 +167,15 @@ def scrape_ebay_listing(url: str) -> dict:
     else:
         logger.warning(f"No bucket ({bucket_name}) or s3_keys ({len(s3_keys)}) for presigned URLs")
 
+    # Use the item_id we passed to the scraper, or fall back to what it returned
+    # If neither is available, something is wrong
+    final_item_id = item_id or scraper_result.get("item_id")
+    if not final_item_id:
+        raise ValueError("Scraper did not return a valid item ID")
+
     return {
         "listing_data": listing_data,
         "images": images,
         "image_urls": scraper_result.get("image_urls", []),
-        "item_id": scraper_result.get("item_id", ""),
+        "item_id": final_item_id,
     }

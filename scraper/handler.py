@@ -5,8 +5,8 @@ import json
 import logging
 import os
 import re
-import uuid
 from pathlib import Path
+from typing import Optional
 
 import boto3
 from PIL import Image
@@ -34,15 +34,33 @@ BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
 BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
 
 
-def extract_item_id(url: str) -> str:
-    """Extract eBay item ID from URL."""
+def extract_item_id(url: str, provided_id: Optional[str] = None) -> str:
+    """Extract eBay item ID from URL.
+
+    Args:
+        url: eBay listing URL
+        provided_id: Pre-resolved item ID from the API (preferred if available)
+
+    Returns:
+        eBay item ID (12-digit numeric string), or provided_id if given
+
+    Raises:
+        ValueError: If no valid item ID can be extracted from URL
+    """
+    # Use pre-resolved ID if provided (handles alphanumeric short IDs)
+    if provided_id:
+        return provided_id
+
+    # Try to extract numeric ID from URL
     match = re.search(r"/itm/(\d+)", url)
     if match:
         return match.group(1)
     match = re.search(r"item=(\d+)", url)
     if match:
         return match.group(1)
-    return str(uuid.uuid4())[:8]
+
+    # No valid ID found - raise error instead of generating garbage data
+    raise ValueError(f"Could not extract eBay item ID from URL: {url}")
 
 
 def is_likely_banner(image_data: bytes, position: int, total_images: int) -> bool:
@@ -221,7 +239,9 @@ def handler(event, context):
         logger.warning("IMAGES_BUCKET_NAME not set, disabling image uploads")
         fetch_images = False
 
-    item_id = extract_item_id(url)
+    # Use item_id from API if provided (handles alphanumeric short IDs properly)
+    provided_item_id = event.get("item_id")
+    item_id = extract_item_id(url, provided_item_id)
     logger.info(f"Processing eBay item {item_id}")
 
     try:

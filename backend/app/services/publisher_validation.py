@@ -286,7 +286,13 @@ def get_or_create_publisher(
         with db.begin_nested():  # Savepoint - only rolls back this block on error
             db.add(publisher)
             db.flush()
-    except IntegrityError:
+    except IntegrityError as e:
+        # Only handle unique constraint violation on name column
+        # Re-raise if it's a different constraint (tier enum, future columns, etc.)
+        error_str = str(e.orig) if e.orig else str(e)
+        if "publishers_name_key" not in error_str and "UNIQUE constraint" not in error_str:
+            raise
+
         # Another request created this publisher - fetch the existing one
         # Savepoint was rolled back, but parent transaction is intact
         publisher = db.query(Publisher).filter(Publisher.name == canonical_name).first()
@@ -295,6 +301,6 @@ def get_or_create_publisher(
             raise RuntimeError(
                 f"Race condition in publisher creation for '{canonical_name}' "
                 "but could not find existing record"
-            ) from None
+            ) from e
 
     return publisher

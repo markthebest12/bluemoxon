@@ -118,8 +118,9 @@ def extract_listing(
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     try:
-        # Scrape and extract
-        result = scrape_ebay_listing(request.url)
+        # Scrape and extract - pass item_id to prevent random UUID generation
+        # for URLs with alphanumeric short IDs
+        result = scrape_ebay_listing(request.url, item_id=item_id)
     except ScraperRateLimitError as e:
         logger.warning(f"Rate limited: {e}")
         raise HTTPException(status_code=429, detail=f"Rate limit exceeded: {e}") from e
@@ -168,9 +169,17 @@ def extract_listing(
         if publisher_match:
             matches["publisher"] = publisher_match
 
+    # Validate we have a valid item_id before returning
+    final_item_id = item_id or result.get("item_id")
+    if not final_item_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Could not determine eBay item ID from URL or scraper result",
+        )
+
     return ExtractResponse(
         ebay_url=normalized_url,
-        ebay_item_id=result.get("item_id", item_id),
+        ebay_item_id=final_item_id,
         listing_data=listing_data,
         images=images,
         image_urls=result["image_urls"],
@@ -258,7 +267,9 @@ def extract_listing_async(
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     lambda_client = boto3.client("lambda")
-    payload = {"url": request.url, "fetch_images": True}
+    # Pass resolved item_id to scraper so it doesn't need to extract from URL
+    # (scraper's extract_item_id only handles numeric IDs, not alphanumeric short IDs)
+    payload = {"url": request.url, "fetch_images": True, "item_id": item_id}
 
     try:
         lambda_client.invoke(

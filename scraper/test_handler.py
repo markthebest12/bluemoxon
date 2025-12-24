@@ -1,10 +1,73 @@
-"""Unit tests for scraper handler banner detection."""
+"""Unit tests for scraper handler."""
 
 import io
+
 import pytest
+from handler import extract_item_id, is_likely_banner
 from PIL import Image
 
-from handler import is_likely_banner, BANNER_ASPECT_RATIO_THRESHOLD, BANNER_POSITION_WINDOW
+
+class TestExtractItemId:
+    """Tests for extract_item_id function."""
+
+    def test_uses_provided_id_when_given(self):
+        """Should use provided_id when available, even if URL has different ID."""
+        # URL has numeric ID but provided_id should take precedence
+        result = extract_item_id(
+            "https://www.ebay.com/itm/123456789012",
+            provided_id="987654321098"
+        )
+        assert result == "987654321098"
+
+    def test_uses_provided_id_for_alphanumeric_short_urls(self):
+        """Should use provided_id for URLs with alphanumeric IDs that regex can't match."""
+        # URL has alphanumeric ID that regex can't extract
+        result = extract_item_id(
+            "https://www.ebay.com/itm/c492afa0",
+            provided_id="316529574873"
+        )
+        assert result == "316529574873"
+
+    def test_extracts_from_standard_url(self):
+        """Should extract numeric ID from standard eBay URL."""
+        result = extract_item_id("https://www.ebay.com/itm/316529574873")
+        assert result == "316529574873"
+
+    def test_extracts_from_item_param_url(self):
+        """Should extract numeric ID from URL with item= parameter."""
+        result = extract_item_id("https://www.ebay.com/itm?item=316529574873")
+        assert result == "316529574873"
+
+    def test_raises_on_alphanumeric_url_without_provided_id(self):
+        """Should raise ValueError for alphanumeric URL when no provided_id given."""
+        with pytest.raises(ValueError, match="Could not extract eBay item ID"):
+            extract_item_id("https://www.ebay.com/itm/c492afa0")
+
+    def test_raises_on_invalid_url(self):
+        """Should raise ValueError for URLs that don't contain valid item ID."""
+        with pytest.raises(ValueError, match="Could not extract eBay item ID"):
+            extract_item_id("https://www.ebay.com/some/other/path")
+
+    def test_raises_on_empty_url(self):
+        """Should raise ValueError for empty URL."""
+        with pytest.raises(ValueError, match="Could not extract eBay item ID"):
+            extract_item_id("")
+
+    def test_provided_id_empty_string_not_used(self):
+        """Empty string provided_id should not be used, should extract from URL."""
+        result = extract_item_id(
+            "https://www.ebay.com/itm/316529574873",
+            provided_id=""
+        )
+        assert result == "316529574873"
+
+    def test_provided_id_none_extracts_from_url(self):
+        """None provided_id should extract from URL."""
+        result = extract_item_id(
+            "https://www.ebay.com/itm/316529574873",
+            provided_id=None
+        )
+        assert result == "316529574873"
 
 
 def create_test_image(width: int, height: int) -> bytes:
