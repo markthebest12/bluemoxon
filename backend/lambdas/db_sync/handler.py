@@ -116,8 +116,9 @@ def adapt_row_for_insert(row: tuple, columns: list[str], jsonb_cols: set[str]) -
 
 def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> int:
     """Copy data from production table to staging table."""
-    # Get JSONB columns for this table (query once, use for all rows)
-    jsonb_cols = get_jsonb_columns(prod_conn, table)
+    # Get JSONB columns from STAGING schema (target) to handle schema divergence
+    # If prod has TEXT[] but staging has JSONB, we need staging's column types
+    jsonb_cols = get_jsonb_columns(staging_conn, table)
 
     # Get data from production
     with prod_conn.cursor() as prod_cur:
