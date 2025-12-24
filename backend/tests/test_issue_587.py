@@ -4,8 +4,6 @@ These tests are written FIRST (RED phase) to define expected behavior.
 Implementation comes after tests fail.
 """
 
-
-
 from app.services.scoring import (
     calculate_strategic_fit,
     calculate_strategic_fit_breakdown,
