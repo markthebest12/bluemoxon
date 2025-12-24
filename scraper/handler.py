@@ -6,6 +6,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 import boto3
 from PIL import Image
@@ -33,7 +34,7 @@ BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
 BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
 
 
-def extract_item_id(url: str, provided_id: str | None = None) -> str:
+def extract_item_id(url: str, provided_id: Optional[str] = None) -> str:
     """Extract eBay item ID from URL.
 
     Args:
