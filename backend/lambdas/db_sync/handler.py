@@ -77,15 +77,37 @@ def get_table_columns(conn, table: str) -> list[str]:
         return [row[0] for row in cur.fetchall()]
 
 
-def adapt_row_for_insert(row: tuple) -> tuple:
-    """Convert Python dicts/lists in row to Json for psycopg2 insertion."""
+def get_jsonb_columns(conn, table: str) -> set[str]:
+    """Get set of JSONB/JSON column names for a table."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = %s
+              AND data_type IN ('jsonb', 'json')
+        """,
+            (table,),
+        )
+        return {row[0] for row in cur.fetchall()}
+
+
+def adapt_row_for_insert(row: tuple, columns: list[str], jsonb_cols: set[str]) -> tuple:
+    """Convert values in JSONB columns to Json for psycopg2 insertion.
+
+    Args:
+        row: Tuple of values from SELECT
+        columns: List of column names in same order as row
+        jsonb_cols: Set of column names that are JSONB type
+
+    Returns:
+        Tuple with JSONB values wrapped in Json()
+    """
     adapted = []
-    for value in row:
-        if isinstance(value, dict):
-            # JSONB columns come back as dict, wrap for reinsertion
-            adapted.append(Json(value))
-        elif isinstance(value, list) and value and isinstance(value[0], dict):
-            # Array of JSON objects
+    for col, value in zip(columns, row, strict=True):
+        if col in jsonb_cols and value is not None:
+            # Wrap all JSONB values: dicts, lists (even empty), strings, etc.
             adapted.append(Json(value))
         else:
             adapted.append(value)
@@ -94,6 +116,9 @@ def adapt_row_for_insert(row: tuple) -> tuple:
 
 def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> int:
     """Copy data from production table to staging table."""
+    # Get JSONB columns for this table (query once, use for all rows)
+    jsonb_cols = get_jsonb_columns(prod_conn, table)
+
     # Get data from production
     with prod_conn.cursor() as prod_cur:
         column_list = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
@@ -104,8 +129,8 @@ def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> 
     if not rows:
         return 0
 
-    # Adapt rows to handle JSONB columns (dicts need to be wrapped in Json())
-    adapted_rows = [adapt_row_for_insert(row) for row in rows]
+    # Adapt rows to handle JSONB columns (wrap values in Json() for psycopg2)
+    adapted_rows = [adapt_row_for_insert(row, columns, jsonb_cols) for row in rows]
 
     # Insert into staging
     with staging_conn.cursor() as staging_cur:
