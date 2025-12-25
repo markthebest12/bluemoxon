@@ -267,6 +267,13 @@ resource "aws_iam_role_policy" "cost_explorer_access" {
           "ce:GetTags"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "organizations:DescribeOrganization"
+        ]
+        Resource = "*"
       }
     ]
   })
