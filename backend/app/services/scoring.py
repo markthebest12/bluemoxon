@@ -129,7 +129,7 @@ def calculate_strategic_fit(
     - Complete Set: +15
     - Good+ Condition: +15
     - Author Priority: variable (0-50)
-    - Volume Penalty: -10 (4 vols), -20 (5+ vols)
+    - Volume Count: 0 (large sets noted but no penalty per Issue #587)
 
     Returns score 0-100+ (can exceed 100 with high author priority).
     """
@@ -164,11 +164,8 @@ def calculate_strategic_fit(
     if condition_grade in ("Fine", "VG+", "VG", "Very Good", "VG-", "Good+", "Good"):
         score += 15
 
-    # Volume penalty - graduated scale
-    if volume_count == 4:
-        score -= 10
-    elif volume_count >= 5:
-        score -= 20
+    # Volume count - noted but no penalty (Issue #587)
+    # Large sets (4+ volumes) are noted in breakdown but don't affect score
 
     # Author priority
     score += author_priority_score
@@ -444,13 +441,11 @@ def calculate_strategic_fit_breakdown(
     else:
         breakdown.add("condition", 0, "Condition not specified")
 
-    # Volume penalty - graduated scale
-    if volume_count == 4:
-        score -= 10
-        breakdown.add("volume_penalty", -10, "4-volume set storage consideration")
-    elif volume_count >= 5:
-        score -= 20
-        breakdown.add("volume_penalty", -20, f"Large set ({volume_count} volumes)")
+    # Volume count - noted but no penalty (Issue #587)
+    if volume_count >= 5:
+        breakdown.add("volume_count", 0, f"Large set ({volume_count} volumes) - noted for storage")
+    elif volume_count == 4:
+        breakdown.add("volume_count", 0, "4-volume set - noted for storage")
     elif volume_count > 1:
         breakdown.add("volume_count", 0, f"Multi-volume ({volume_count} volumes)")
 

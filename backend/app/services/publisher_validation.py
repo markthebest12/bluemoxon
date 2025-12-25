@@ -115,6 +115,7 @@ TIER_1_PUBLISHERS = {
     "Moxon": "Edward Moxon and Co.",
     "Oxford University Press": "Oxford University Press",
     "OUP": "Oxford University Press",
+    "Clarendon Press": "Clarendon Press",
     "Longmans, Green & Co.": "Longmans, Green & Co.",
     "Longmans": "Longmans, Green & Co.",
     "Longman": "Longmans, Green & Co.",
