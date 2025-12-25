@@ -97,44 +97,77 @@ def _get_current_account_id() -> str:
     return sts.get_caller_identity()["Account"]
 
 
+def _is_management_account() -> bool:
+    """Check if current account is the AWS Organizations management account.
+
+    Returns True if the current account is the management/payer account.
+    Returns False if it's a linked/member account or not in an organization.
+
+    The LINKED_ACCOUNT dimension in Cost Explorer doesn't work for the
+    management account's own costs - those costs don't appear when filtering
+    by the management account's ID.
+    """
+    try:
+        account_id = _get_current_account_id()
+        orgs = boto3.client("organizations")
+        org = orgs.describe_organization()
+        master_account_id = org["Organization"]["MasterAccountId"]
+        return account_id == master_account_id
+    except ClientError:
+        # Not in an organization or no permissions - treat as standalone (no filter needed)
+        return False
+
+
 def _fetch_costs_from_aws() -> dict[str, Any]:
     """Fetch cost data from AWS Cost Explorer."""
     client = boto3.client("ce", region_name="us-east-1")  # CE is only in us-east-1
 
-    # Get current account ID for filtering in consolidated billing orgs
-    account_id = _get_current_account_id()
-    account_filter = {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": [account_id]}}
+    # Check if we're in the management account - if so, skip LINKED_ACCOUNT filter
+    # The LINKED_ACCOUNT dimension doesn't work for management account's own costs
+    is_mgmt = _is_management_account()
+
+    # Only apply LINKED_ACCOUNT filter for linked/member accounts
+    account_filter = None
+    if not is_mgmt:
+        account_id = _get_current_account_id()
+        account_filter = {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": [account_id]}}
 
     now = datetime.now(UTC)
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
     period_end = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # Get monthly costs grouped by service (filtered by current account)
-    monthly_response = client.get_cost_and_usage(
-        TimePeriod={"Start": period_start, "End": period_end},
-        Granularity="MONTHLY",
-        Metrics=["UnblendedCost"],
-        GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
-        Filter=account_filter,
-    )
+    # Build monthly query - with or without account filter
+    monthly_query = {
+        "TimePeriod": {"Start": period_start, "End": period_end},
+        "Granularity": "MONTHLY",
+        "Metrics": ["UnblendedCost"],
+        "GroupBy": [{"Type": "DIMENSION", "Key": "SERVICE"}],
+    }
+    if account_filter:
+        monthly_query["Filter"] = account_filter
 
-    # Get daily costs for trend (last 14 days)
+    monthly_response = client.get_cost_and_usage(**monthly_query)
+
+    # Build daily query for trend (last 14 days) - Bedrock services only
     trend_start = (now - timedelta(days=14)).strftime("%Y-%m-%d")
+    bedrock_filter = {
+        "Dimensions": {
+            "Key": "SERVICE",
+            "Values": list(AWS_SERVICE_TO_MODEL.keys()),
+        }
+    }
+
+    # Combine filters if we have an account filter
+    if account_filter:
+        daily_filter = {"And": [account_filter, bedrock_filter]}
+    else:
+        daily_filter = bedrock_filter
+
     daily_response = client.get_cost_and_usage(
         TimePeriod={"Start": trend_start, "End": period_end},
         Granularity="DAILY",
         Metrics=["UnblendedCost"],
-        Filter={
-            "And": [
-                account_filter,
-                {
-                    "Dimensions": {
-                        "Key": "SERVICE",
-                        "Values": list(AWS_SERVICE_TO_MODEL.keys()),
-                    }
-                },
-            ]
-        },
+        Filter=daily_filter,
     )
 
     # Parse monthly costs
