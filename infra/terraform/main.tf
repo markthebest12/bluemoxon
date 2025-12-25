@@ -395,8 +395,8 @@ module "scraper_lambda" {
   images_bucket_arn  = module.images_bucket.bucket_arn
   images_bucket_name = module.images_bucket.bucket_name
 
-  # Scraper settings
-  image_tag   = "v1.0.7"
+  # Scraper settings (image_tag updated to latest available in ECR)
+  image_tag   = "2025.12.25-4a3eb1c"
   memory_size = var.scraper_memory_size
   timeout     = 120 # Production uses 120s (Playwright + S3 uploads)
 
