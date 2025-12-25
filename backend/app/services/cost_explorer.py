@@ -1,4 +1,7 @@
-"""AWS Cost Explorer service for retrieving Bedrock costs."""
+"""AWS Cost Explorer service for retrieving Bedrock costs.
+
+Fixes #590: Management account detection for proper cost reporting.
+"""
 
 import logging
 from datetime import UTC, datetime, timedelta
