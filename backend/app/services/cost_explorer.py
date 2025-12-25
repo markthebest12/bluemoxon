@@ -1,5 +1,6 @@
 """AWS Cost Explorer service for retrieving Bedrock costs."""
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -7,6 +8,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from app.services.bedrock import MODEL_USAGE
+
+logger = logging.getLogger(__name__)
 
 # Cache for cost data (simple in-memory cache)
 _cost_cache: dict[str, Any] = {}
@@ -113,8 +116,13 @@ def _is_management_account() -> bool:
         org = orgs.describe_organization()
         master_account_id = org["Organization"]["MasterAccountId"]
         return account_id == master_account_id
-    except ClientError:
-        # Not in an organization or no permissions - treat as standalone (no filter needed)
+    except ClientError as e:
+        # STS or Organizations API call failed. Could be:
+        # - Account not in an organization
+        # - No permissions for organizations:DescribeOrganization
+        # - STS identity check failed
+        # Default to False (linked account behavior - apply filter) as conservative fallback.
+        logger.warning(f"Could not determine management account status: {e}")
         return False
 
 
