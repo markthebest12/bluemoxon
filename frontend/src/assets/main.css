@@ -5,12 +5,18 @@
 /* Victorian Typography - Cormorant Garamond */
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap");
 
-/* Prevent horizontal scroll on mobile */
+/* Prevent horizontal scroll on mobile and handle safe areas */
 @layer base {
   html,
   body {
     @apply overflow-x-hidden;
     @apply bg-victorian-paper-aged;
+  }
+
+  /* iOS safe area support for notch devices - left/right only, nav handles top */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Display typography for headings */
