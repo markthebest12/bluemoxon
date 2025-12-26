@@ -37,7 +37,10 @@ function closeMobileMenu() {
 </script>
 
 <template>
-  <nav class="bg-victorian-hunter-900 text-white shadow-lg">
+  <nav
+    class="bg-victorian-hunter-900 text-white shadow-lg sticky z-50"
+    style="top: env(safe-area-inset-top, 0px)"
+  >
     <div class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
