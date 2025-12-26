@@ -13,9 +13,8 @@
     @apply bg-victorian-paper-aged;
   }
 
-  /* iOS safe area support for notch devices */
+  /* iOS safe area support for notch devices - left/right only, nav handles top */
   body {
-    padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
