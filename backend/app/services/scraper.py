@@ -2,9 +2,8 @@
 
 import json
 import logging
-import os
 
-from app.config import get_settings
+from app.config import get_scraper_environment, get_settings
 from app.services.listing import extract_listing_data
 
 logger = logging.getLogger(__name__)
@@ -78,8 +77,7 @@ def invoke_scraper(url: str, fetch_images: bool = True, item_id: str | None = No
         ScraperError: If scraping fails
     """
     client = get_lambda_client()
-    # Use BMX_SCRAPER_ENVIRONMENT for function naming (handles prod naming mismatch)
-    environment = os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")
+    environment = get_scraper_environment()
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     payload = {"url": url, "fetch_images": fetch_images}
