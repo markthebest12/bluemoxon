@@ -78,7 +78,8 @@ def invoke_scraper(url: str, fetch_images: bool = True, item_id: str | None = No
         ScraperError: If scraping fails
     """
     client = get_lambda_client()
-    environment = os.getenv("BMX_ENVIRONMENT", "staging")
+    # Use BMX_SCRAPER_ENVIRONMENT for function naming (handles prod naming mismatch)
+    environment = os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     payload = {"url": url, "fetch_images": fetch_images}

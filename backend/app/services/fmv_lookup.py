@@ -57,7 +57,8 @@ def _fetch_via_scraper_lambda(url: str) -> str | None:
     """
     try:
         client = _get_lambda_client()
-        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        # Use BMX_SCRAPER_ENVIRONMENT for function naming (handles prod naming mismatch)
+        environment = os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
         # fetch_images=False since we only need HTML for search results
@@ -121,7 +122,8 @@ def _fetch_listings_via_scraper_lambda(url: str) -> list[dict] | None:
     """
     try:
         client = _get_lambda_client()
-        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        # Use BMX_SCRAPER_ENVIRONMENT for function naming (handles prod naming mismatch)
+        environment = os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
         # Use extract_listings mode to get structured data directly
