@@ -322,6 +322,23 @@ def handler(event, context):
             if is_short_url:
                 final_url = page.url
                 logger.info(f"Short URL resolved to: {final_url}")
+
+                # Handle eBay challenge/CAPTCHA pages - item URL is in 'ru' parameter
+                if "/splashui/challenge" in final_url:
+                    from urllib.parse import parse_qs, unquote
+
+                    parsed = urlparse(final_url)
+                    query_params = parse_qs(parsed.query)
+                    if "ru" in query_params:
+                        redirect_url = unquote(query_params["ru"][0])
+                        logger.info(f"Challenge page detected, redirect URL: {redirect_url}")
+                        if "/itm/" in redirect_url:
+                            final_url = redirect_url
+                        else:
+                            raise ValueError(f"Challenge page redirect URL is not an item page: {redirect_url}")
+                    else:
+                        raise ValueError(f"Challenge page has no redirect URL: {final_url}")
+
                 # Validate that short URL resolved to an item page
                 if "/itm/" not in final_url:
                     raise ValueError(f"Short URL did not resolve to item page: {final_url}")
