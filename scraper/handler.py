@@ -270,7 +270,7 @@ def handler(event, context):
     is_short_url = is_ebay_us_short_url(url) and not provided_item_id
     if is_short_url:
         logger.info(f"Short URL detected without item_id, will extract after navigation: {url}")
-        item_id = None  # Will be set after navigation
+        item_id = "PENDING_EXTRACTION"  # Sentinel - causes type error if accidentally used
     else:
         item_id = extract_item_id(url, provided_item_id)
         logger.info(f"Processing eBay item {item_id}")
@@ -322,6 +322,9 @@ def handler(event, context):
             if is_short_url:
                 final_url = page.url
                 logger.info(f"Short URL resolved to: {final_url}")
+                # Validate that short URL resolved to an item page
+                if "/itm/" not in final_url:
+                    raise ValueError(f"Short URL did not resolve to item page: {final_url}")
                 # Extract item_id from the final URL
                 item_id = extract_item_id(final_url, None)
                 logger.info(f"Extracted item_id from final URL: {item_id}")
