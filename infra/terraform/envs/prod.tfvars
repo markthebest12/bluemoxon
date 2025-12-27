@@ -104,8 +104,12 @@ secondary_origin_bucket_domain_name = "bluemoxon-images.s3.us-west-2.amazonaws.c
 secondary_origin_path_pattern       = "/book-images/*"
 secondary_origin_ttl                = 604800
 
-# Environment name override (prod uses "production" for scraper function naming)
+# Environment name override (prod uses "production" for display/health checks)
 environment_name_override = "production"
+
+# Scraper environment override - prod scraper Lambda is named bluemoxon-prod-scraper
+# but BMX_ENVIRONMENT is "production", so we need this separate override
+scraper_environment_override = "prod"
 
 # Cognito settings - preserve existing prod configuration
 cognito_mfa_configuration        = "OPTIONAL"

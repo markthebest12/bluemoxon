@@ -228,7 +228,13 @@ variable "environment" {
 
 variable "environment_name_override" {
   type        = string
-  description = "Override for BMX_ENVIRONMENT env var (e.g., 'production' instead of 'prod' for scraper function naming)"
+  description = "Override for BMX_ENVIRONMENT env var (e.g., 'production' instead of 'prod')"
+  default     = null
+}
+
+variable "scraper_environment_override" {
+  type        = string
+  description = "Override for BMX_SCRAPER_ENVIRONMENT env var used to build scraper Lambda function name. Set to 'prod' when scraper Lambda is named bluemoxon-prod-scraper but BMX_ENVIRONMENT is 'production'."
   default     = null
 }
 

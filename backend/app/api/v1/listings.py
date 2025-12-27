@@ -2,7 +2,6 @@
 
 import json
 import logging
-import os
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -11,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import get_scraper_environment, get_settings
 from app.db import get_db
 from app.services.listing import (
     extract_listing_data,
@@ -263,7 +262,7 @@ def extract_listing_async(
         )
 
     # Invoke scraper Lambda asynchronously
-    environment = os.getenv("BMX_ENVIRONMENT", "staging")
+    environment = get_scraper_environment()
     function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
     lambda_client = boto3.client("lambda")
