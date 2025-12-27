@@ -3,7 +3,7 @@
 import io
 
 import pytest
-from handler import extract_item_id, is_likely_banner
+from handler import extract_item_id, is_ebay_us_short_url, is_likely_banner
 from PIL import Image
 
 
@@ -68,6 +68,38 @@ class TestExtractItemId:
             provided_id=None
         )
         assert result == "316529574873"
+
+
+class TestIsEbayUsShortUrl:
+    """Tests for is_ebay_us_short_url function."""
+
+    def test_ebay_us_short_url_detected(self):
+        """Should detect ebay.us short URLs."""
+        assert is_ebay_us_short_url("https://ebay.us/m/egMUqO") is True
+
+    def test_ebay_us_with_www_detected(self):
+        """Should detect www.ebay.us short URLs."""
+        assert is_ebay_us_short_url("https://www.ebay.us/m/xyz123") is True
+
+    def test_ebay_us_http_detected(self):
+        """Should detect http ebay.us URLs."""
+        assert is_ebay_us_short_url("http://ebay.us/m/abc") is True
+
+    def test_standard_ebay_com_not_short_url(self):
+        """Standard ebay.com URLs should not be detected as short URLs."""
+        assert is_ebay_us_short_url("https://www.ebay.com/itm/123456789") is False
+
+    def test_mobile_ebay_not_short_url(self):
+        """Mobile ebay.com URLs should not be detected as short URLs."""
+        assert is_ebay_us_short_url("https://m.ebay.com/itm/123456789") is False
+
+    def test_empty_url_not_short_url(self):
+        """Empty URL should not be detected as short URL."""
+        assert is_ebay_us_short_url("") is False
+
+    def test_invalid_url_not_short_url(self):
+        """Invalid URL should not be detected as short URL."""
+        assert is_ebay_us_short_url("not a url") is False
 
 
 def create_test_image(width: int, height: int) -> bytes:

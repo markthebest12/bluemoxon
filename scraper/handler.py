@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import boto3
 from PIL import Image
@@ -32,6 +33,28 @@ MAX_LISTINGS = 20
 # Images in the last N positions with wide aspect ratio are likely seller banners
 BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
 BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
+
+
+def is_ebay_us_short_url(url: str) -> bool:
+    """Check if URL is an ebay.us short URL that requires redirect following.
+
+    ebay.us short URLs (e.g., https://ebay.us/m/egMUqO) don't contain
+    the numeric item ID and require following redirects to resolve.
+
+    Args:
+        url: URL to check
+
+    Returns:
+        True if URL is an ebay.us short URL, False otherwise
+    """
+    if not url:
+        return False
+    try:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        return "ebay.us" in host
+    except Exception:
+        return False
 
 
 def extract_item_id(url: str, provided_id: Optional[str] = None) -> str:
@@ -241,8 +264,16 @@ def handler(event, context):
 
     # Use item_id from API if provided (handles alphanumeric short IDs properly)
     provided_item_id = event.get("item_id")
-    item_id = extract_item_id(url, provided_item_id)
-    logger.info(f"Processing eBay item {item_id}")
+
+    # For ebay.us short URLs without a provided item_id, we need to navigate first
+    # to follow redirects and extract the item_id from the final URL
+    is_short_url = is_ebay_us_short_url(url) and not provided_item_id
+    if is_short_url:
+        logger.info(f"Short URL detected without item_id, will extract after navigation: {url}")
+        item_id = "PENDING_EXTRACTION"  # Sentinel - causes type error if accidentally used
+    else:
+        item_id = extract_item_id(url, provided_item_id)
+        logger.info(f"Processing eBay item {item_id}")
 
     try:
         with sync_playwright() as p:
@@ -286,6 +317,17 @@ def handler(event, context):
 
             logger.info(f"Navigating to {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
+
+            # For short URLs, extract item_id from the final URL after redirects
+            if is_short_url:
+                final_url = page.url
+                logger.info(f"Short URL resolved to: {final_url}")
+                # Validate that short URL resolved to an item page
+                if "/itm/" not in final_url:
+                    raise ValueError(f"Short URL did not resolve to item page: {final_url}")
+                # Extract item_id from the final URL
+                item_id = extract_item_id(final_url, None)
+                logger.info(f"Extracted item_id from final URL: {item_id}")
 
             # Wait for content to load - try multiple selectors
             content_loaded = False
