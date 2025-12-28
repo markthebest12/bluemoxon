@@ -6,86 +6,88 @@
 
 ---
 
-## Current Status (2025-12-28 ~23:30 UTC)
+## Current Status (2025-12-28 ~19:00 UTC)
 
-### PR #616 - AWAITING REVIEW
+### Issue #5: CSS Cascade Layers Breaking Form Elements - FIX PENDING REVIEW
 
-**Branch:** `fix/tailwind-v4-component-classes`
-**PR:** https://github.com/markthebest12/bluemoxon/pull/616
-**Status:** Created, awaiting user review before merge to staging
+**Branch:** `fix/tailwind-v4-forms-plugin`
+**PR #617:** https://github.com/markthebest12/bluemoxon/pull/617
+**Status:** CI passing, AWAITING USER REVIEW before merge
 
-### Root Cause IDENTIFIED
+### Solution Implemented
 
-The TRUE root cause of visual regressions was NOT `space-*` vs `gap-*` (that was a partial fix).
+Added `@tailwindcss/forms` plugin to provide properly styled form elements:
 
-**Actual Root Cause:** `@utility` with `@apply` does NOT properly generate CSS in Tailwind v4.
-
-Component classes defined with `@utility { @apply ... }` were silently failing:
-- `.card` rendered with `border: 0px`, `padding: 0px` instead of intended styles
-- `.input` rendered with `border: 0px`, `padding: 0px` instead of intended styles
-- `.btn-primary`, `.btn-secondary`, etc. had missing or broken styles
-
-### Evidence Gathered
-
-Used Playwright `browser_evaluate` to compare computed styles:
-
-| Element | Staging (broken) | Production (correct) |
-|---------|------------------|---------------------|
-| `.card` | `padding: 0px`, `border: 0px` | `padding: 24px`, `border: 1px solid rgb(232,225,213)` |
-| `.input` | `padding: 0px`, `border: 0px` | `padding: 8px 12px`, `border: 1px solid rgb(232,225,213)` |
-
-### Fix Applied in PR #616
-
-Converted ALL `@utility` blocks to `@layer components` with explicit CSS properties:
-
-**Before (broken in v4):**
 ```css
-@utility card {
-  @apply bg-victorian-paper-cream rounded-xs border border-victorian-paper-antique p-6;
-}
+@import "tailwindcss";
+
+/* Tailwind Forms Plugin - provides properly styled form elements that work with utilities */
+@plugin "@tailwindcss/forms";
 ```
 
-**After (works in v4):**
-```css
-@layer components {
-  .card {
-    background-color: var(--color-victorian-paper-cream);
-    border-radius: var(--radius-xs);
-    border: 1px solid var(--color-victorian-paper-antique);
-    padding: 1.5rem;
-    /* ... explicit CSS properties */
-  }
-}
-```
+**Changes in PR #617:**
+- Installed `@tailwindcss/forms` as devDependency
+- Added `@plugin "@tailwindcss/forms";` to main.css (v4 syntax)
 
-### Components Fixed
+### Important Caveat
 
-- `btn-primary`, `btn-secondary`, `btn-danger`, `btn-accent`
-- `card`, `card-static`
-- `input`, `select`
-- `badge-binder`, `badge-zaehnsdorf`, `badge-riviere`, `badge-sangorski`, `badge-bayntun`, `badge-default`
-- `divider-flourish`, `divider-flourish-symbol`, `section-header`
+The `@tailwindcss/forms` plugin styles `input`, `select`, `textarea` elements but does NOT directly style `<button>` elements. If buttons are still broken after this PR:
 
-### Verified in Local Build
-
-```
-npm run build  # SUCCESS
-
-# Compiled CSS contains proper styles:
-.btn-primary { background-color:var(--color-victorian-hunter-800); border:1px solid...; padding:.5rem 1rem }
-.card { background-color:var(--color-victorian-paper-cream); border:1px solid...; padding:1.5rem }
-.input { background-color:var(--color-victorian-paper-white); border:1px solid...; padding:.5rem .75rem }
-```
+**Potential additional fixes needed:**
+1. Override button preflight in `@layer base`:
+   ```css
+   @layer base {
+     button {
+       background-color: revert;
+       border-radius: revert;
+     }
+   }
+   ```
+2. Ensure all buttons use `.btn-*` component classes instead of utility classes directly
 
 ---
 
-## Next Steps
+## Root Cause Analysis (Issue #5)
 
-1. **User reviews PR #616** - DO NOT MERGE until approved
-2. **After approval:** Merge to staging, deploy, validate visually
-3. **Visual comparison:** Compare staging screenshots to production baseline
-4. **If validated:** Promote staging to main
-5. **Update postmortem** with root cause findings
+### The Problem
+
+Tailwind v4 preflight in `@layer base` resets form elements:
+
+```css
+button, input, select, optgroup, textarea {
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+```
+
+Despite `@layer utilities` being declared AFTER `@layer base`, utility classes were not overriding the form element reset for buttons specifically.
+
+### Evidence from Playwright Testing
+
+| Element | `.bg-blue-600` Works? | Computed Background |
+|---------|----------------------|---------------------|
+| `<div>` | YES | `oklch(0.546 0.245 262.881)` |
+| `<button>` | NO | `rgba(0, 0, 0, 0)` (transparent) |
+
+### Key Technical Differences
+
+| Aspect | Production (v3) | Staging (v4) |
+|--------|-----------------|--------------|
+| CSS Rules | 561 flat rules | 62 rules in @layer blocks |
+| `@layer` usage | NONE | `@layer properties, theme, base, components, utilities` |
+| Form element reset | Works with utilities | Utilities DON'T override base for form elements |
+
+---
+
+## Next Steps After User Review
+
+1. **User reviews PR #617** - Do NOT merge without approval
+2. **If approved:** Merge PR #617 to staging
+3. **Deploy and validate:** Visual comparison staging vs production
+4. **If buttons still broken:** Implement button-specific fix (override in @layer base)
+5. **Update postmortem** with Issue #5 complete findings
+6. **Promote to production** via staging→main PR
 
 ---
 
@@ -97,8 +99,21 @@ npm run build  # SUCCESS
 | #612 | fix: Navbar logo height | Merged | Added !h-14 |
 | #613 | fix: Deprecated classes | Merged | **Wrong** - doubled radius |
 | #614 | fix: Add --radius-xs to @theme | Merged | Correct radius fix |
-| #615 | fix: Replace space-* with gap-* | Merged to staging | Partial fix only |
-| #616 | fix: Convert @utility to @layer components | **AWAITING REVIEW** | TRUE root cause fix |
+| #615 | fix: Replace space-* with gap-* | Merged | Partial fix |
+| #616 | fix: Convert @utility to @layer components | Merged to staging | Partial fix |
+| #617 | fix: Add @tailwindcss/forms plugin | **PENDING REVIEW** | Issue #5 fix |
+
+---
+
+## Issues Identified in This Migration
+
+| Issue | Root Cause | Status |
+|-------|-----------|--------|
+| #1 | `rounded-xs` needs `--radius-xs` in @theme | FIXED (PR #614) |
+| #2 | `space-*` has zero specificity due to `:where()` wrapper | FIXED (PR #615) |
+| #3 | Image height override needed `!h-14` | FIXED (PR #612) |
+| #4 | `@utility` with `@apply` silently fails | FIXED (PR #616) |
+| #5 | CSS Cascade Layers - form element reset overrides utilities | **PR #617 PENDING** |
 
 ---
 
@@ -106,7 +121,7 @@ npm run build  # SUCCESS
 
 ### 1. MANDATORY: Use Superpowers Skills
 
-**ALWAYS check and use Superpowers skills at ALL stages:**
+**ALWAYS check and use Superpowers skills at ALL stages. NO EXCEPTIONS.**
 
 | Task Type | Required Skill Chain |
 |-----------|---------------------|
@@ -119,11 +134,15 @@ npm run build  # SUCCESS
 - "This is simple, don't need skills" - WRONG
 - "I can skip verification" - WRONG
 - "I'll just fix this directly" - WRONG
+- "I know the fix already" - WRONG
+
+**If you think there is even a 1% chance a skill might apply, YOU MUST USE IT.**
 
 ### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
 
 ```bash
-# NEVER USE:
+# NEVER USE - ALL OF THESE TRIGGER PERMISSION PROMPTS:
+
 # comment lines before commands
 command1 \
   --with-continuation           # backslash line continuations
@@ -133,10 +152,13 @@ command1 || command2            # || chaining
 echo "password!"                # ! in quoted strings
 ```
 
+**ENFORCEMENT:** If you catch yourself about to use `&&`, STOP. Make separate sequential Bash tool calls instead.
+
 ### 3. ALWAYS Use These Bash Patterns
 
 ```bash
-# ALWAYS USE:
+# ALWAYS USE - These work without permission prompts:
+
 # Simple single-line commands only
 curl -s https://api.example.com/health
 
@@ -146,6 +168,8 @@ curl -s https://api.example.com/health
 # bmx-api for all BlueMoxon API calls (no permission prompts)
 bmx-api GET /books
 bmx-api --prod GET /books/123
+bmx-api POST /books '{"title":"..."}'
+bmx-api --text-file analysis.md PUT /books/123/analysis
 ```
 
 ---
@@ -158,7 +182,7 @@ Tailwind v4 changed how custom utilities work. The `@utility` directive with `@a
 
 **Solution:** Use `@layer components` with explicit CSS properties and CSS custom variables from `@theme`.
 
-### Why space-* Breaks in v4 (Previous Finding)
+### Why space-* Breaks in v4
 
 Tailwind v4 wraps `space-*` in `:where()` giving zero CSS specificity:
 
@@ -170,6 +194,20 @@ Tailwind v4 wraps `space-*` in `:where()` giving zero CSS specificity:
 .gap-6 { gap: ...; }
 ```
 
+### Why Form Elements Break in v4
+
+The preflight form element reset in `@layer base` was overriding `@layer utilities` for form elements. The `@tailwindcss/forms` plugin provides properly layered form element styles that work with the utility system.
+
+---
+
+## Relevant Resources
+
+- [Tailwind CSS Preflight docs](https://tailwindcss.com/docs/preflight)
+- [Tailwind CSS Forms Plugin](https://github.com/tailwindlabs/tailwindcss-forms)
+- [v4 Upgrade Guide](https://tailwindcss.com/docs/upgrade-guide)
+- [Disabling Preflight in v4](https://github.com/tailwindlabs/tailwindcss/discussions/17481)
+- [CSS Cascade Layers Discussion](https://github.com/tailwindlabs/tailwindcss/discussions/16578)
+
 ---
 
 ## Worktree Location
@@ -178,4 +216,4 @@ Tailwind v4 wraps `space-*` in `:where()` giving zero CSS specificity:
 /Users/mark/projects/bluemoxon/.worktrees/tailwind-v4/
 ```
 
-Branch: `fix/tailwind-v4-component-classes` (PR #616)
+**Current Branch:** `fix/tailwind-v4-forms-plugin` (PR #617)

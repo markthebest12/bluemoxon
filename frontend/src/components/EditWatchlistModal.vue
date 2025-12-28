@@ -191,10 +191,7 @@ function openSourceUrl() {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Asking Price</label>
             <div class="flex gap-2">
-              <select
-                v-model="selectedCurrency"
-                class="w-24 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
+              <select v-model="selectedCurrency" class="select w-24">
                 <option value="USD">USD $</option>
                 <option value="GBP">GBP £</option>
                 <option value="EUR">EUR €</option>
@@ -207,7 +204,7 @@ function openSourceUrl() {
                   step="0.01"
                   min="0"
                   placeholder="0.00"
-                  class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input pl-7"
                 />
               </div>
             </div>
@@ -246,7 +243,7 @@ function openSourceUrl() {
                     step="1"
                     min="0"
                     placeholder="0"
-                    class="w-full pl-6 pr-2 py-2 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="input pl-6 text-sm"
                   />
                 </div>
               </div>
@@ -260,7 +257,7 @@ function openSourceUrl() {
                     step="1"
                     min="0"
                     placeholder="0"
-                    class="w-full pl-6 pr-2 py-2 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="input pl-6 text-sm"
                   />
                 </div>
               </div>
@@ -274,7 +271,7 @@ function openSourceUrl() {
                     step="1"
                     min="0"
                     placeholder="0"
-                    class="w-full pl-6 pr-2 py-2 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="input pl-6 text-sm"
                   />
                 </div>
               </div>
@@ -285,19 +282,14 @@ function openSourceUrl() {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Volumes</label>
-              <input
-                v-model.number="form.volumes"
-                type="number"
-                min="1"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input v-model.number="form.volumes" type="number" min="1" class="input" />
             </div>
             <div class="flex items-center pt-6">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   v-model="form.is_complete"
                   type="checkbox"
-                  class="w-4 h-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500"
+                  class="w-4 h-4 rounded-sm border-gray-300 text-victorian-hunter-600 focus:ring-victorian-gold-muted"
                 />
                 <span class="text-sm text-gray-700">Complete set</span>
               </label>
@@ -312,13 +304,13 @@ function openSourceUrl() {
                 v-model="form.source_url"
                 type="url"
                 placeholder="https://ebay.com/itm/..."
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="input flex-1"
               />
               <button
                 type="button"
                 :disabled="!form.source_url"
                 @click="openSourceUrl"
-                class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-secondary px-3"
                 title="Open URL"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,15 +331,11 @@ function openSourceUrl() {
               type="button"
               @click="handleClose"
               :disabled="submitting"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              class="btn-secondary flex-1"
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Saving..." : "Save Changes" }}
             </button>
           </div>
