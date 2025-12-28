@@ -142,21 +142,21 @@ function handleClose() {
           <textarea
             v-model="pastedText"
             rows="10"
-            class="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="input font-mono"
             placeholder="Your order has been confirmed!&#10;Order number: 21-13904-88107&#10;..."
           ></textarea>
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <div class="flex justify-end gap-2">
             <button
               @click="handleClose"
-              class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-300"
+              class="btn-secondary"
             >
               Cancel
             </button>
             <button
               @click="handleExtract"
               :disabled="extracting"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="btn-primary"
             >
               {{ extracting ? "Extracting..." : "Extract" }}
             </button>
@@ -167,7 +167,7 @@ function handleClose() {
         <div v-else class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <div
             v-if="extractedData.used_llm"
-            class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-sm inline-block"
+            class="text-xs text-victorian-hunter-600 bg-moxon-50 px-2 py-1 rounded-sm inline-block"
           >
             Enhanced with AI
           </div>
@@ -380,7 +380,7 @@ function handleClose() {
                 }}</code>
                 <button
                   @click="copyTracking"
-                  class="text-blue-600 hover:text-blue-800 text-xs"
+                  class="link text-xs"
                   title="Copy"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,13 +431,13 @@ function handleClose() {
           <div class="flex justify-end gap-2 pt-2 border-t">
             <button
               @click="handleBack"
-              class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-300"
+              class="btn-secondary"
             >
               Back
             </button>
             <button
               @click="handleApply"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              class="btn-primary"
             >
               Apply to Form
             </button>

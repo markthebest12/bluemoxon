@@ -509,7 +509,7 @@ function openSourceUrl() {
         <!-- Step 2: Extracting (async progress) -->
         <div v-if="step === 'extracting'" class="p-8 text-center">
           <div
-            class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
+            class="spinner spinner-xl mx-auto mb-4"
           ></div>
           <p class="text-gray-600 mb-2">
             {{
@@ -750,9 +750,7 @@ function openSourceUrl() {
         <!-- Step 4: Saving with progress steps -->
         <div v-if="step === 'saving'" class="p-6">
           <div class="flex items-center justify-center mb-6">
-            <div
-              class="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"
-            ></div>
+            <div class="spinner spinner-lg"></div>
           </div>
           <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
 
@@ -779,7 +777,7 @@ function openSourceUrl() {
                 </svg>
                 <div
                   v-else-if="index === currentSavingStep"
-                  class="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"
+                  class="spinner w-4 h-4"
                 ></div>
                 <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
               </div>
@@ -790,7 +788,7 @@ function openSourceUrl() {
                   index < currentSavingStep
                     ? 'text-green-600'
                     : index === currentSavingStep
-                      ? 'text-blue-600 font-medium'
+                      ? 'text-victorian-hunter-600 font-medium'
                       : 'text-gray-400',
                 ]"
               >

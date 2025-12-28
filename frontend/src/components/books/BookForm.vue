@@ -481,7 +481,7 @@ function cancel() {
           <label class="text-sm text-gray-600">Currency:</label>
           <select
             v-model="selectedCurrency"
-            class="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="select text-sm w-auto"
           >
             <option value="USD">USD $</option>
             <option value="GBP">GBP £</option>
@@ -507,7 +507,7 @@ function cancel() {
           <p class="text-xs text-gray-500 mt-1">Listing price only</p>
           <p
             v-if="selectedCurrency !== 'USD' && form.purchase_price"
-            class="text-xs text-blue-600 mt-1"
+            class="text-xs text-victorian-hunter-600 mt-1"
           >
             ≈ ${{ purchasePriceInUsd.toFixed(2) }} USD
           </p>
@@ -530,7 +530,7 @@ function cancel() {
           <p class="text-xs text-gray-500 mt-1">Total incl. shipping & tax</p>
           <p
             v-if="selectedCurrency !== 'USD' && form.acquisition_cost"
-            class="text-xs text-blue-600 mt-1"
+            class="text-xs text-victorian-hunter-600 mt-1"
           >
             ≈ ${{ acquisitionCostInUsd.toFixed(2) }} USD
           </p>
@@ -654,7 +654,7 @@ function cancel() {
                     class="px-2 py-0.5 text-xs rounded-sm"
                     :class="{
                       'bg-green-100 text-green-800': match.status === 'ON_HAND',
-                      'bg-blue-100 text-blue-800': match.status === 'IN_TRANSIT',
+                      'badge-transit': match.status === 'IN_TRANSIT',
                       'bg-yellow-100 text-yellow-800': match.status === 'EVALUATING',
                       'bg-gray-100 text-gray-800': match.status === 'SOLD',
                     }"

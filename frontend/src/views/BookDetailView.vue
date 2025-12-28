@@ -299,7 +299,7 @@ function getStatusColor(status: string): string {
     case "ON_HAND":
       return "bg-green-100 text-green-800";
     case "IN_TRANSIT":
-      return "bg-blue-100 text-blue-800";
+      return "badge-transit";
     case "SOLD":
       return "bg-gray-100 text-gray-800";
     case "REMOVED":
@@ -505,7 +505,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 2'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-blue-100 text-blue-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm badge-transit"
                 >
                   Tier 2 Provenance
                 </span>
@@ -683,7 +683,7 @@ function printPage() {
           <!-- Eval Runbook Button -->
           <div
             v-if="booksStore.currentBook?.has_eval_runbook"
-            class="card bg-blue-50 border-blue-200"
+            class="card card-info"
           >
             <div class="flex items-center justify-between">
               <div>
@@ -694,7 +694,7 @@ function printPage() {
               </div>
               <button
                 @click="evalRunbookVisible = true"
-                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                class="btn-primary flex items-center gap-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -717,7 +717,7 @@ function printPage() {
                 <!-- State: Job running -->
                 <div
                   v-if="isAnalysisRunning() || booksStore.currentBook?.analysis_job_status"
-                  class="text-sm text-blue-600 mt-1 flex items-center gap-1"
+                  class="text-sm text-status-running mt-1 flex items-center gap-1"
                 >
                   <span class="animate-spin">&#8987;</span>
                   <span>

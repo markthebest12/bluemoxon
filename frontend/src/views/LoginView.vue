@@ -186,7 +186,7 @@ function resetLogin() {
 
       <!-- New Password Required -->
       <div v-else-if="authStore.mfaStep === 'new_password_required'" class="flex flex-col gap-6">
-        <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+        <div class="card-info text-victorian-hunter-800 text-sm">
           <p class="font-medium mb-2">Welcome to BlueMoxon!</p>
           <p>Please create a new password to secure your account.</p>
         </div>
@@ -270,7 +270,7 @@ function resetLogin() {
 
       <!-- TOTP Setup (first time) -->
       <div v-else-if="authStore.mfaStep === 'totp_setup'" class="flex flex-col gap-6">
-        <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+        <div class="card-info text-victorian-hunter-800 text-sm">
           <p class="font-medium mb-2">Set up two-factor authentication</p>
           <p>
             Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password,

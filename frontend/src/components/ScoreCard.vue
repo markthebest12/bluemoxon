@@ -132,7 +132,7 @@ function handleRecalculate() {
         <div class="flex items-center gap-2">
           <div class="w-20 bg-gray-200 rounded-full h-2">
             <div
-              class="bg-blue-500 h-2 rounded-full"
+              class="progress-bar h-2"
               :style="{ width: `${Math.min(investmentGrade || 0, 100)}%` }"
             ></div>
           </div>
@@ -172,7 +172,7 @@ function handleRecalculate() {
       <button
         v-if="bookId"
         @click="toggleBreakdown"
-        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+        class="text-xs link hover:underline"
         :disabled="loadingBreakdown"
       >
         <span v-if="loadingBreakdown">Loading...</span>
@@ -181,7 +181,7 @@ function handleRecalculate() {
       </button>
       <button
         @click="handleRecalculate"
-        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+        class="text-xs link hover:underline"
       >
         Recalculate
       </button>
@@ -194,7 +194,7 @@ function handleRecalculate() {
     >
       <!-- Investment Grade Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>
+        <h4 class="text-xs font-semibold text-victorian-hunter-600 uppercase mb-2">Investment Grade</h4>
         <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
