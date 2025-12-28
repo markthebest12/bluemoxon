@@ -51,6 +51,9 @@ layer(utilities);
   --color-navy-700: #1a2332;
   --color-navy-800: #111827;
   --color-navy-900: #0a0f1a;
+
+  /* Custom radius for xs - preserves original 2px styling from Tailwind v3 */
+  --radius-xs: 0.125rem;
 }
 
 /*
@@ -79,7 +82,7 @@ layer(utilities);
            text-white
            font-medium
            py-2 px-4
-           rounded-sm
+           rounded-xs
            transition-colors
            border border-victorian-hunter-700;
 }
@@ -90,7 +93,7 @@ layer(utilities);
            text-victorian-ink-dark
            font-medium
            py-2 px-4
-           rounded-sm
+           rounded-xs
            transition-colors
            border border-victorian-paper-antique;
 }
@@ -101,7 +104,7 @@ layer(utilities);
            text-white
            font-medium
            py-2 px-4
-           rounded-sm
+           rounded-xs
            transition-colors
            disabled:opacity-50
            disabled:cursor-not-allowed;
@@ -113,13 +116,13 @@ layer(utilities);
            text-victorian-ink-black
            font-medium
            py-2 px-4
-           rounded-sm
+           rounded-xs
            transition-colors;
 }
 @utility card {
   /* Cards - Warm paper feel */
   @apply bg-victorian-paper-cream
-           rounded-sm
+           rounded-xs
            border border-victorian-paper-antique
            shadow-xs
            p-6
@@ -129,7 +132,7 @@ layer(utilities);
 @utility card-static {
   /* Card without hover effect */
   @apply bg-victorian-paper-cream
-           rounded-sm
+           rounded-xs
            border border-victorian-paper-antique
            shadow-xs
            p-6;
@@ -139,7 +142,7 @@ layer(utilities);
   @apply w-full px-3 py-2
            bg-victorian-paper-white
            border border-victorian-paper-antique
-           rounded-sm
+           rounded-xs
            focus:outline-none
            focus:ring-1
            focus:ring-victorian-gold-muted
@@ -152,7 +155,7 @@ layer(utilities);
   @apply w-full px-3 py-2
            bg-victorian-paper-white
            border border-victorian-paper-antique
-           rounded-sm
+           rounded-xs
            focus:outline-none
            focus:ring-1
            focus:ring-victorian-gold-muted
@@ -162,7 +165,7 @@ layer(utilities);
 @utility badge-binder {
   /* Premium binding badges */
   @apply inline-flex items-center px-2 py-0.5
-           text-xs font-medium rounded-sm;
+           text-xs font-medium rounded-xs;
 }
 @utility badge-zaehnsdorf {
   @apply bg-victorian-burgundy text-white;
