@@ -148,7 +148,11 @@ function resetLogin() {
       </div>
 
       <!-- Login form -->
-      <form v-if="authStore.mfaStep === 'none'" @submit.prevent="handleLogin" class="flex flex-col gap-6">
+      <form
+        v-if="authStore.mfaStep === 'none'"
+        @submit.prevent="handleLogin"
+        class="flex flex-col gap-6"
+      >
         <div>
           <label for="email" class="block text-sm font-medium text-gray-700 mb-1"> Email </label>
           <input

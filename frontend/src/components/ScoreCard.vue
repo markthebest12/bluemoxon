@@ -188,7 +188,10 @@ function handleRecalculate() {
     </div>
 
     <!-- Detailed Breakdown -->
-    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t flex flex-col gap-3 overflow-hidden">
+    <div
+      v-if="showBreakdown && breakdownData"
+      class="mt-3 pt-3 border-t flex flex-col gap-3 overflow-hidden"
+    >
       <!-- Investment Grade Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>

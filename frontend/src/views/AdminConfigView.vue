@@ -278,7 +278,10 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Settings Tab -->
-    <div v-if="activeTab === 'settings'" class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4">
+    <div
+      v-if="activeTab === 'settings'"
+      class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4"
+    >
       <h2 class="text-lg font-semibold">Currency Conversion Rates</h2>
       <div class="grid grid-cols-2 gap-4">
         <label class="block">

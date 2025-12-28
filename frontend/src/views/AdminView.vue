@@ -625,7 +625,11 @@ function formatDate(dateStr: string | null): string {
           Password reset successfully! The user can now log in with the new password.
         </div>
 
-        <form v-if="!resetPasswordSuccess" @submit.prevent="handleResetPassword" class="flex flex-col gap-4">
+        <form
+          v-if="!resetPasswordSuccess"
+          @submit.prevent="handleResetPassword"
+          class="flex flex-col gap-4"
+        >
           <div>
             <label for="resetNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
               New Password
