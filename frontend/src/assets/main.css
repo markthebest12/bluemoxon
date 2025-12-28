@@ -75,133 +75,194 @@ layer(utilities);
 }
 
 /* Custom styles for BlueMoxon - Victorian Design System */
-@utility btn-primary {
-  /* Primary button - Hunter green */
-  @apply bg-victorian-hunter-800
-           hover:bg-victorian-hunter-700
-           text-white
-           font-medium
-           py-2 px-4
-           rounded-xs
-           transition-colors
-           border border-victorian-hunter-700;
-}
-@utility btn-secondary {
-  /* Secondary button - Subtle */
-  @apply bg-victorian-paper-cream
-           hover:bg-victorian-paper-aged
-           text-victorian-ink-dark
-           font-medium
-           py-2 px-4
-           rounded-xs
-           transition-colors
-           border border-victorian-paper-antique;
-}
-@utility btn-danger {
-  /* Danger button */
-  @apply bg-victorian-burgundy
-           hover:bg-victorian-burgundy-dark
-           text-white
-           font-medium
-           py-2 px-4
-           rounded-xs
-           transition-colors
-           disabled:opacity-50
-           disabled:cursor-not-allowed;
-}
-@utility btn-accent {
-  /* Accent button - Gold (for special actions) */
-  @apply bg-victorian-gold
-           hover:bg-victorian-gold-dark
-           text-victorian-ink-black
-           font-medium
-           py-2 px-4
-           rounded-xs
-           transition-colors;
-}
-@utility card {
-  /* Cards - Warm paper feel */
-  @apply bg-victorian-paper-cream
-           rounded-xs
-           border border-victorian-paper-antique
-           shadow-xs
-           p-6
-           transition-shadow
-           hover:shadow-md;
-}
-@utility card-static {
-  /* Card without hover effect */
-  @apply bg-victorian-paper-cream
-           rounded-xs
-           border border-victorian-paper-antique
-           shadow-xs
-           p-6;
-}
-@utility input {
-  /* Form inputs */
-  @apply w-full px-3 py-2
-           bg-victorian-paper-white
-           border border-victorian-paper-antique
-           rounded-xs
-           focus:outline-none
-           focus:ring-1
-           focus:ring-victorian-gold-muted
-           focus:border-victorian-gold-muted
-           placeholder-victorian-ink-muted
-           text-victorian-ink-black;
-}
-@utility select {
-  /* Select dropdowns */
-  @apply w-full px-3 py-2
-           bg-victorian-paper-white
-           border border-victorian-paper-antique
-           rounded-xs
-           focus:outline-none
-           focus:ring-1
-           focus:ring-victorian-gold-muted
-           focus:border-victorian-gold-muted
-           text-victorian-ink-black;
-}
-@utility badge-binder {
-  /* Premium binding badges */
-  @apply inline-flex items-center px-2 py-0.5
-           text-xs font-medium rounded-xs;
-}
-@utility badge-zaehnsdorf {
-  @apply bg-victorian-burgundy text-white;
-}
-@utility badge-riviere {
-  @apply bg-victorian-hunter-800 text-victorian-gold-light;
-}
-@utility badge-sangorski {
-  @apply bg-victorian-gold text-victorian-ink-black;
-}
-@utility badge-bayntun {
-  @apply bg-victorian-ink-dark text-victorian-paper-cream;
-}
-@utility badge-default {
-  @apply bg-victorian-hunter-700 text-white;
-}
-@utility divider-flourish {
-  /* Section divider with flourish */
-  @apply flex items-center justify-center my-8;
-
-  &::before {
-    content: "";
-    @apply h-px w-16 bg-victorian-paper-antique;
+/* Using @layer components for component classes - @utility with @apply has issues in v4 */
+@layer components {
+  .btn-primary {
+    /* Primary button - Hunter green */
+    background-color: var(--color-victorian-hunter-800);
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-xs);
+    transition: background-color 0.15s ease-in-out;
+    border: 1px solid var(--color-victorian-hunter-700);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-victorian-hunter-700);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
-  &::after {
-    content: "";
-    @apply h-px w-16 bg-victorian-paper-antique;
+  .btn-secondary {
+    /* Secondary button - Subtle */
+    background-color: var(--color-victorian-paper-cream);
+    color: var(--color-victorian-ink-dark);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-xs);
+    transition: background-color 0.15s ease-in-out;
+    border: 1px solid var(--color-victorian-paper-antique);
   }
-}
-@utility divider-flourish-symbol {
-  @apply mx-4 text-victorian-gold-muted;
-}
-@utility section-header {
-  /* Section header with border */
-  @apply border-b border-victorian-paper-antique pb-2 mb-6;
+  .btn-secondary:hover {
+    background-color: var(--color-victorian-paper-aged);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-danger {
+    /* Danger button */
+    background-color: var(--color-victorian-burgundy);
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-xs);
+    transition: background-color 0.15s ease-in-out;
+  }
+  .btn-danger:hover {
+    background-color: var(--color-victorian-burgundy-dark);
+  }
+  .btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-accent {
+    /* Accent button - Gold (for special actions) */
+    background-color: var(--color-victorian-gold);
+    color: var(--color-victorian-ink-black);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-xs);
+    transition: background-color 0.15s ease-in-out;
+  }
+  .btn-accent:hover {
+    background-color: var(--color-victorian-gold-dark);
+  }
+  .btn-accent:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .card {
+    /* Cards - Warm paper feel */
+    background-color: var(--color-victorian-paper-cream);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-victorian-paper-antique);
+    box-shadow: var(--shadow-xs);
+    padding: 1.5rem;
+    transition: box-shadow 0.15s ease-in-out;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-static {
+    /* Card without hover effect */
+    background-color: var(--color-victorian-paper-cream);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-victorian-paper-antique);
+    box-shadow: var(--shadow-xs);
+    padding: 1.5rem;
+  }
+
+  .input {
+    /* Form inputs */
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-victorian-paper-white);
+    border: 1px solid var(--color-victorian-paper-antique);
+    border-radius: var(--radius-xs);
+    color: var(--color-victorian-ink-black);
+  }
+  .input::placeholder {
+    color: var(--color-victorian-ink-muted);
+  }
+  .input:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-victorian-gold-muted);
+    border-color: var(--color-victorian-gold-muted);
+  }
+
+  .select {
+    /* Select dropdowns */
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-victorian-paper-white);
+    border: 1px solid var(--color-victorian-paper-antique);
+    border-radius: var(--radius-xs);
+    color: var(--color-victorian-ink-black);
+  }
+  .select:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-victorian-gold-muted);
+    border-color: var(--color-victorian-gold-muted);
+  }
+
+  .badge-binder {
+    /* Premium binding badges */
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-xs);
+  }
+
+  .badge-zaehnsdorf {
+    background-color: var(--color-victorian-burgundy);
+    color: white;
+  }
+
+  .badge-riviere {
+    background-color: var(--color-victorian-hunter-800);
+    color: var(--color-victorian-gold-light);
+  }
+
+  .badge-sangorski {
+    background-color: var(--color-victorian-gold);
+    color: var(--color-victorian-ink-black);
+  }
+
+  .badge-bayntun {
+    background-color: var(--color-victorian-ink-dark);
+    color: var(--color-victorian-paper-cream);
+  }
+
+  .badge-default {
+    background-color: var(--color-victorian-hunter-700);
+    color: white;
+  }
+
+  .divider-flourish {
+    /* Section divider with flourish */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2rem 0;
+  }
+  .divider-flourish::before,
+  .divider-flourish::after {
+    content: "";
+    height: 1px;
+    width: 4rem;
+    background-color: var(--color-victorian-paper-antique);
+  }
+
+  .divider-flourish-symbol {
+    margin: 0 1rem;
+    color: var(--color-victorian-gold-muted);
+  }
+
+  .section-header {
+    /* Section header with border */
+    border-bottom: 1px solid var(--color-victorian-paper-antique);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
 }
 
 /* Prevent horizontal scroll on mobile and handle safe areas */
