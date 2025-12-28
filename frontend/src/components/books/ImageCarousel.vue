@@ -264,14 +264,14 @@ function handleSwipe() {
           <!-- Thumbnails -->
           <div
             v-if="images.length > 1"
-            class="flex justify-center gap-2 mt-4 overflow-x-auto py-2 flex-shrink-0"
+            class="flex justify-center gap-2 mt-4 overflow-x-auto py-2 shrink-0"
           >
             <button
               v-for="(img, idx) in images"
               :key="img.id"
               @click="goTo(idx)"
               :class="[
-                'w-16 h-16 rounded overflow-hidden border-2 transition-all flex-shrink-0',
+                'w-16 h-16 rounded-sm overflow-hidden border-2 transition-all shrink-0',
                 idx === currentIndex
                   ? 'border-white'
                   : 'border-transparent opacity-60 hover:opacity-100',

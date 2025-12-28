@@ -264,7 +264,7 @@ function formatCurrency(value: number | null | undefined): string {
             >
               <div class="flex items-start gap-3">
                 <svg
-                  class="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0"
+                  class="w-5 h-5 text-amber-500 mt-0.5 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -284,7 +284,7 @@ function formatCurrency(value: number | null | undefined): string {
                   </p>
                   <button
                     @click="runFullAnalysis"
-                    class="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700 flex items-center gap-2"
+                    class="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-sm hover:bg-amber-700 flex items-center gap-2"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -372,7 +372,7 @@ function formatCurrency(value: number | null | undefined): string {
                   <!-- Napoleon Override Indicator -->
                   <span
                     v-if="hasNapoleonOverride"
-                    class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded"
+                    class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-sm"
                   >
                     Napoleon: {{ runbook.napoleon_recommendation }}
                   </span>
@@ -468,7 +468,7 @@ function formatCurrency(value: number | null | undefined): string {
               <!-- Reasoning -->
               <div
                 v-if="runbook.recommendation_reasoning"
-                class="mt-4 p-3 bg-white rounded border text-sm text-gray-700"
+                class="mt-4 p-3 bg-white rounded-sm border text-sm text-gray-700"
               >
                 {{ runbook.recommendation_reasoning }}
               </div>
@@ -476,7 +476,7 @@ function formatCurrency(value: number | null | undefined): string {
               <!-- Suggested Offer (for CONDITIONAL) -->
               <div
                 v-if="runbook.recommendation_tier === 'CONDITIONAL' && runbook.suggested_offer"
-                class="mt-4 p-3 bg-amber-50 rounded border border-amber-200"
+                class="mt-4 p-3 bg-amber-50 rounded-sm border border-amber-200"
               >
                 <div class="text-sm font-medium text-amber-800">Suggested Offer</div>
                 <div class="text-lg font-bold text-amber-900">
@@ -735,7 +735,7 @@ function formatCurrency(value: number | null | undefined): string {
     <!-- Price Edit Modal -->
     <div
       v-if="showPriceEdit"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/50"
       @click.self="closePriceEdit"
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">

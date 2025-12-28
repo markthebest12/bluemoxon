@@ -316,7 +316,7 @@ function formatPacificTime(isoString: string): string {
             <h2 class="text-lg sm:text-xl font-semibold text-gray-800 truncate mr-2">
               {{ editMode ? "Edit Analysis" : "Book Analysis" }}
             </h2>
-            <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
               <!-- Edit mode controls - hidden on mobile except save/cancel -->
               <template v-if="canEdit && !loading">
                 <template v-if="editMode">
@@ -324,7 +324,7 @@ function formatPacificTime(isoString: string): string {
                   <button
                     @click="showPreview = !showPreview"
                     :class="[
-                      'hidden sm:flex px-3 py-1.5 text-sm rounded items-center gap-1',
+                      'hidden sm:flex px-3 py-1.5 text-sm rounded-sm items-center gap-1',
                       showPreview
                         ? 'bg-gray-200 text-gray-700'
                         : 'text-gray-500 hover:text-gray-700',
@@ -357,7 +357,7 @@ function formatPacificTime(isoString: string): string {
                   <button
                     @click="saveAnalysis"
                     :disabled="saving"
-                    class="px-2 sm:px-3 py-1.5 text-sm bg-victorian-burgundy text-white rounded hover:bg-victorian-burgundy/90 disabled:opacity-50 flex items-center gap-1"
+                    class="px-2 sm:px-3 py-1.5 text-sm bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90 disabled:opacity-50 flex items-center gap-1"
                   >
                     <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle
@@ -382,7 +382,7 @@ function formatPacificTime(isoString: string): string {
                   <div class="hidden sm:flex items-center gap-2">
                     <select
                       v-model="selectedModel"
-                      class="text-sm border border-gray-300 rounded px-2 py-1"
+                      class="text-sm border border-gray-300 rounded-sm px-2 py-1"
                       :disabled="generating"
                     >
                       <option value="sonnet">Sonnet 4.5</option>
@@ -391,7 +391,7 @@ function formatPacificTime(isoString: string): string {
                     <button
                       @click="generateAnalysis"
                       :disabled="generating"
-                      class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                      class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                     >
                       <span v-if="generating" class="flex items-center gap-2">
                         <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -568,12 +568,7 @@ function formatPacificTime(isoString: string): string {
             v-if="extractionStatus === 'degraded'"
             class="px-4 sm:px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-sm flex items-center gap-2"
           >
-            <svg
-              class="w-4 h-4 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -600,7 +595,7 @@ function formatPacificTime(isoString: string): string {
               </p>
               <div
                 v-if="error"
-                class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
               >
                 {{ error }}
               </div>
@@ -615,7 +610,7 @@ function formatPacificTime(isoString: string): string {
                 <button
                   @click="deleteAnalysis"
                   :disabled="deleting"
-                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                  class="px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                 >
                   <svg v-if="deleting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle
@@ -654,7 +649,7 @@ function formatPacificTime(isoString: string): string {
               <button
                 v-if="canEdit && !analysis"
                 @click="startEditing"
-                class="mt-4 px-4 py-2 bg-victorian-burgundy text-white rounded hover:bg-victorian-burgundy/90"
+                class="mt-4 px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
               >
                 Create Analysis
               </button>
@@ -664,13 +659,13 @@ function formatPacificTime(isoString: string): string {
             <div v-else-if="editMode" class="h-full flex flex-col">
               <div
                 v-if="error"
-                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
               >
                 {{ error }}
               </div>
               <div
                 v-if="generateError"
-                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
               >
                 {{ generateError }}
               </div>
@@ -682,7 +677,7 @@ function formatPacificTime(isoString: string): string {
                   </div>
                   <textarea
                     v-model="editedAnalysis"
-                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-hidden"
                     placeholder="Enter markdown analysis...
 
 # Executive Summary
@@ -737,7 +732,7 @@ Detailed condition notes...
               <p class="text-gray-500 mb-4">No analysis available for this book.</p>
               <button
                 @click="startEditing"
-                class="px-4 py-2 bg-victorian-burgundy text-white rounded hover:bg-victorian-burgundy/90"
+                class="px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
               >
                 Create Analysis
               </button>
@@ -750,6 +745,8 @@ Detailed condition notes...
 </template>
 
 <style scoped>
+@reference "../../assets/main.css";
+
 .slide-enter-active,
 .slide-leave-active {
   transition: transform 0.3s ease;

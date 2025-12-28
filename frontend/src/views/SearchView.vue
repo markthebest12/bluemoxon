@@ -86,7 +86,7 @@ function viewResult(result: any) {
           <div>
             <span
               :class="[
-                'px-2 py-1 text-xs rounded uppercase',
+                'px-2 py-1 text-xs rounded-sm uppercase',
                 result.type === 'book'
                   ? 'bg-moxon-100 text-moxon-700'
                   : 'bg-gray-100 text-gray-700',

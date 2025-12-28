@@ -111,7 +111,7 @@ function handleRecalculate() {
 
 <template>
   <div v-if="compact" class="flex items-center gap-2">
-    <span :class="[scoreColor, 'px-2 py-1 rounded text-xs font-bold']">
+    <span :class="[scoreColor, 'px-2 py-1 rounded-sm text-xs font-bold']">
       {{ formatScore(overallScore) }}
     </span>
   </div>
@@ -120,7 +120,7 @@ function handleRecalculate() {
     <!-- Overall Score Header -->
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm font-medium text-gray-600">SCORE</span>
-      <span :class="[scoreColor, 'px-3 py-1 rounded font-bold text-sm']">
+      <span :class="[scoreColor, 'px-3 py-1 rounded-sm font-bold text-sm']">
         {{ formatScore(overallScore) }} {{ scoreLabel }}
       </span>
     </div>
@@ -202,12 +202,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>
@@ -226,12 +226,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>
@@ -250,12 +250,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>

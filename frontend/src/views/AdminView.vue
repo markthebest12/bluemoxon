@@ -194,7 +194,7 @@ function formatDate(dateStr: string | null): string {
     <!-- Error display -->
     <div
       v-if="adminStore.error"
-      class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded"
+      class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-sm"
     >
       {{ adminStore.error }}
     </div>
@@ -232,7 +232,7 @@ function formatDate(dateStr: string | null): string {
         <h3 class="text-lg font-medium text-gray-800 mb-3">Invite New User</h3>
         <div
           v-if="inviteSuccess"
-          class="mb-3 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm"
+          class="mb-3 p-3 bg-green-100 border border-green-400 text-green-700 rounded-sm text-sm"
         >
           {{ inviteSuccess }}
         </div>
@@ -261,7 +261,7 @@ function formatDate(dateStr: string | null): string {
           <input
             v-model="inviteMfaExempt"
             type="checkbox"
-            class="rounded border-gray-300 text-moxon-600 focus:ring-moxon-500"
+            class="rounded-sm border-gray-300 text-moxon-600 focus:ring-moxon-500"
           />
           <span>MFA Exempt (user won't be required to set up two-factor authentication)</span>
         </label>
@@ -273,7 +273,11 @@ function formatDate(dateStr: string | null): string {
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
       <div v-else class="space-y-3">
-        <div v-for="user in adminStore.users" :key="user.id" class="bg-white rounded-lg shadow p-4">
+        <div
+          v-for="user in adminStore.users"
+          :key="user.id"
+          class="bg-white rounded-lg shadow-sm p-4"
+        >
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div class="min-w-0">
               <div class="text-sm font-medium text-gray-900 break-all sm:truncate">
@@ -292,7 +296,7 @@ function formatDate(dateStr: string | null): string {
               <select
                 :value="user.role"
                 @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
-                class="text-sm border rounded px-2 py-1"
+                class="text-sm border rounded-sm px-2 py-1"
                 :class="{
                   'bg-purple-100 text-purple-800': user.role === 'admin',
                   'bg-blue-100 text-blue-800': user.role === 'editor',
@@ -307,7 +311,7 @@ function formatDate(dateStr: string | null): string {
               <button
                 @click="toggleMfa(user.id, user.mfa_enabled)"
                 :disabled="mfaLoading === user.id || (!user.mfa_enabled && !user.mfa_configured)"
-                class="text-xs px-2 py-1 rounded border"
+                class="text-xs px-2 py-1 rounded-sm border"
                 :class="
                   user.mfa_enabled
                     ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
@@ -337,7 +341,7 @@ function formatDate(dateStr: string | null): string {
               <button
                 v-if="authStore.user?.email !== user.email"
                 @click="openResetPasswordModal(user.id, user.email)"
-                class="text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
+                class="text-xs px-2 py-1 rounded-sm border border-amber-300 text-amber-700 hover:bg-amber-50"
               >
                 Reset PW
               </button>
@@ -345,7 +349,7 @@ function formatDate(dateStr: string | null): string {
               <button
                 v-if="authStore.user?.email !== user.email"
                 @click="impersonateUser(user.id)"
-                class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                class="text-xs px-2 py-1 rounded-sm border border-blue-300 text-blue-700 hover:bg-blue-50"
               >
                 Login As
               </button>
@@ -361,13 +365,13 @@ function formatDate(dateStr: string | null): string {
               <div v-else class="flex items-center gap-2">
                 <button
                   @click="deleteUser(user.id)"
-                  class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                  class="px-2 py-1 bg-red-600 text-white text-xs rounded-sm hover:bg-red-700"
                 >
                   Yes
                 </button>
                 <button
                   @click="confirmDeleteUser = null"
-                  class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                  class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
                 >
                   No
                 </button>
@@ -401,7 +405,7 @@ function formatDate(dateStr: string | null): string {
         Loading API keys...
       </div>
 
-      <div v-else class="bg-white rounded-lg shadow overflow-hidden">
+      <div v-else class="bg-white rounded-lg shadow-sm overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -448,7 +452,9 @@ function formatDate(dateStr: string | null): string {
                 <div class="text-xs text-gray-500">by {{ key.created_by_email || "Unknown" }}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <code class="text-sm bg-gray-100 px-2 py-1 rounded">{{ key.key_prefix }}...</code>
+                <code class="text-sm bg-gray-100 px-2 py-1 rounded-sm"
+                  >{{ key.key_prefix }}...</code
+                >
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ formatDate(key.created_at) }}
@@ -504,7 +510,7 @@ function formatDate(dateStr: string | null): string {
             <code class="flex-1 text-sm break-all">{{ adminStore.newlyCreatedKey.key }}</code>
             <button
               @click="copyToClipboard(adminStore.newlyCreatedKey!.key)"
-              class="px-3 py-1 bg-moxon-600 text-white text-sm rounded hover:bg-moxon-700"
+              class="px-3 py-1 bg-moxon-600 text-white text-sm rounded-sm hover:bg-moxon-700"
             >
               Copy
             </button>
@@ -512,8 +518,8 @@ function formatDate(dateStr: string | null): string {
         </div>
 
         <p class="text-sm text-gray-600 mb-4">
-          Use this key in the <code class="bg-gray-100 px-1 rounded">X-API-Key</code> header for API
-          requests.
+          Use this key in the <code class="bg-gray-100 px-1 rounded-sm">X-API-Key</code> header for
+          API requests.
         </p>
 
         <div class="flex justify-end">
@@ -552,7 +558,7 @@ function formatDate(dateStr: string | null): string {
               <code class="flex-1 text-sm">{{ adminStore.impersonationCredentials.email }}</code>
               <button
                 @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
-                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
                 Copy
               </button>
@@ -566,7 +572,7 @@ function formatDate(dateStr: string | null): string {
               }}</code>
               <button
                 @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
-                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
                 Copy
               </button>
@@ -585,7 +591,7 @@ function formatDate(dateStr: string | null): string {
               showImpersonateModal = false;
               adminStore.clearImpersonation();
             "
-            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300"
           >
             Close
           </button>
@@ -607,14 +613,14 @@ function formatDate(dateStr: string | null): string {
 
         <div
           v-if="adminStore.error"
-          class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm"
+          class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-sm text-sm"
         >
           {{ adminStore.error }}
         </div>
 
         <div
           v-if="resetPasswordSuccess"
-          class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm"
+          class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-sm text-sm"
         >
           Password reset successfully! The user can now log in with the new password.
         </div>
@@ -643,7 +649,7 @@ function formatDate(dateStr: string | null): string {
             <button
               type="button"
               @click="closeResetPasswordModal"
-              class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              class="px-4 py-2 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300"
             >
               Cancel
             </button>

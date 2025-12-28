@@ -268,7 +268,10 @@ function cancel() {
 <template>
   <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto space-y-8">
     <!-- Error message -->
-    <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+    <div
+      v-if="errorMessage"
+      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm"
+    >
       {{ errorMessage }}
     </div>
 
@@ -648,7 +651,7 @@ function cancel() {
                 <div class="text-sm text-gray-600 flex gap-4">
                   <span v-if="match.author_name">{{ match.author_name }}</span>
                   <span
-                    class="px-2 py-0.5 text-xs rounded"
+                    class="px-2 py-0.5 text-xs rounded-sm"
                     :class="{
                       'bg-green-100 text-green-800': match.status === 'ON_HAND',
                       'bg-blue-100 text-blue-800': match.status === 'IN_TRANSIT',

@@ -1,9 +1,205 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Victorian Typography - Cormorant Garamond */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap")
+layer(utilities);
+
+@theme {
+  --font-display: Cormorant Garamond, Georgia, serif;
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --color-moxon-50: #f0f5f3;
+  --color-moxon-100: #dae8e2;
+  --color-moxon-200: #b8d4c9;
+  --color-moxon-300: #8dbaa8;
+  --color-moxon-400: #5e9a82;
+  --color-moxon-500: #3a6b5c;
+  --color-moxon-600: #2f5a4b;
+  --color-moxon-700: #254a3d;
+  --color-moxon-800: #1a3a2f;
+  --color-moxon-900: #0f2318;
+
+  --color-victorian-hunter-500: #3a6b5c;
+  --color-victorian-hunter-600: #2f5a4b;
+  --color-victorian-hunter-700: #254a3d;
+  --color-victorian-hunter-800: #1a3a2f;
+  --color-victorian-hunter-900: #0f2318;
+
+  --color-victorian-gold-light: #d4af37;
+  --color-victorian-gold: #c9a227;
+  --color-victorian-gold-dark: #a67c00;
+  --color-victorian-gold-muted: #b8956e;
+
+  --color-victorian-burgundy-light: #8b3a42;
+  --color-victorian-burgundy: #722f37;
+  --color-victorian-burgundy-dark: #5c262e;
+
+  --color-victorian-paper-white: #fdfcfa;
+  --color-victorian-paper-cream: #f8f5f0;
+  --color-victorian-paper-aged: #f0ebe3;
+  --color-victorian-paper-antique: #e8e1d5;
+
+  --color-victorian-ink-black: #1a1a18;
+  --color-victorian-ink-dark: #2d2d2a;
+  --color-victorian-ink-muted: #5c5c58;
+
+  --color-victorian-forest: #228b22;
+  --color-victorian-cream: #fffdd0;
+
+  --color-navy-500: #334155;
+  --color-navy-600: #1e293b;
+  --color-navy-700: #1a2332;
+  --color-navy-800: #111827;
+  --color-navy-900: #0a0f1a;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* Custom styles for BlueMoxon - Victorian Design System */
+@utility btn-primary {
+  /* Primary button - Hunter green */
+  @apply bg-victorian-hunter-800
+           hover:bg-victorian-hunter-700
+           text-white
+           font-medium
+           py-2 px-4
+           rounded-xs
+           transition-colors
+           border border-victorian-hunter-700;
+}
+@utility btn-secondary {
+  /* Secondary button - Subtle */
+  @apply bg-victorian-paper-cream
+           hover:bg-victorian-paper-aged
+           text-victorian-ink-dark
+           font-medium
+           py-2 px-4
+           rounded-xs
+           transition-colors
+           border border-victorian-paper-antique;
+}
+@utility btn-danger {
+  /* Danger button */
+  @apply bg-victorian-burgundy
+           hover:bg-victorian-burgundy-dark
+           text-white
+           font-medium
+           py-2 px-4
+           rounded-xs
+           transition-colors
+           disabled:opacity-50
+           disabled:cursor-not-allowed;
+}
+@utility btn-accent {
+  /* Accent button - Gold (for special actions) */
+  @apply bg-victorian-gold
+           hover:bg-victorian-gold-dark
+           text-victorian-ink-black
+           font-medium
+           py-2 px-4
+           rounded-xs
+           transition-colors;
+}
+@utility card {
+  /* Cards - Warm paper feel */
+  @apply bg-victorian-paper-cream
+           rounded-xs
+           border border-victorian-paper-antique
+           shadow-xs
+           p-6
+           transition-shadow
+           hover:shadow-md;
+}
+@utility card-static {
+  /* Card without hover effect */
+  @apply bg-victorian-paper-cream
+           rounded-xs
+           border border-victorian-paper-antique
+           shadow-xs
+           p-6;
+}
+@utility input {
+  /* Form inputs */
+  @apply w-full px-3 py-2
+           bg-victorian-paper-white
+           border border-victorian-paper-antique
+           rounded-xs
+           focus:outline-hidden
+           focus:ring-1
+           focus:ring-victorian-gold-muted
+           focus:border-victorian-gold-muted
+           placeholder-victorian-ink-muted
+           text-victorian-ink-black;
+}
+@utility select {
+  /* Select dropdowns */
+  @apply w-full px-3 py-2
+           bg-victorian-paper-white
+           border border-victorian-paper-antique
+           rounded-xs
+           focus:outline-hidden
+           focus:ring-1
+           focus:ring-victorian-gold-muted
+           focus:border-victorian-gold-muted
+           text-victorian-ink-black;
+}
+@utility badge-binder {
+  /* Premium binding badges */
+  @apply inline-flex items-center px-2 py-0.5
+           text-xs font-medium rounded-xs;
+}
+@utility badge-zaehnsdorf {
+  @apply bg-victorian-burgundy text-white;
+}
+@utility badge-riviere {
+  @apply bg-victorian-hunter-800 text-victorian-gold-light;
+}
+@utility badge-sangorski {
+  @apply bg-victorian-gold text-victorian-ink-black;
+}
+@utility badge-bayntun {
+  @apply bg-victorian-ink-dark text-victorian-paper-cream;
+}
+@utility badge-default {
+  @apply bg-victorian-hunter-700 text-white;
+}
+@utility divider-flourish {
+  /* Section divider with flourish */
+  @apply flex items-center justify-center my-8;
+
+  &::before {
+    content: "";
+    @apply h-px w-16 bg-victorian-paper-antique;
+  }
+
+  &::after {
+    content: "";
+    @apply h-px w-16 bg-victorian-paper-antique;
+  }
+}
+@utility divider-flourish-symbol {
+  @apply mx-4 text-victorian-gold-muted;
+}
+@utility section-header {
+  /* Section header with border */
+  @apply border-b border-victorian-paper-antique pb-2 mb-6;
+}
 
 /* Prevent horizontal scroll on mobile and handle safe areas */
 @layer base {
@@ -37,150 +233,6 @@
 
   h3 {
     @apply text-lg text-victorian-ink-dark;
-  }
-}
-
-/* Custom styles for BlueMoxon - Victorian Design System */
-@layer components {
-  /* Primary button - Hunter green */
-  .btn-primary {
-    @apply bg-victorian-hunter-800
-           hover:bg-victorian-hunter-700
-           text-white
-           font-medium
-           py-2 px-4
-           rounded-sm
-           transition-colors
-           border border-victorian-hunter-700;
-  }
-
-  /* Secondary button - Subtle */
-  .btn-secondary {
-    @apply bg-victorian-paper-cream
-           hover:bg-victorian-paper-aged
-           text-victorian-ink-dark
-           font-medium
-           py-2 px-4
-           rounded-sm
-           transition-colors
-           border border-victorian-paper-antique;
-  }
-
-  /* Danger button */
-  .btn-danger {
-    @apply bg-victorian-burgundy
-           hover:bg-victorian-burgundy-dark
-           text-white
-           font-medium
-           py-2 px-4
-           rounded-sm
-           transition-colors
-           disabled:opacity-50
-           disabled:cursor-not-allowed;
-  }
-
-  /* Accent button - Gold (for special actions) */
-  .btn-accent {
-    @apply bg-victorian-gold
-           hover:bg-victorian-gold-dark
-           text-victorian-ink-black
-           font-medium
-           py-2 px-4
-           rounded-sm
-           transition-colors;
-  }
-
-  /* Cards - Warm paper feel */
-  .card {
-    @apply bg-victorian-paper-cream
-           rounded-sm
-           border border-victorian-paper-antique
-           shadow-sm
-           p-6
-           transition-shadow
-           hover:shadow-md;
-  }
-
-  /* Card without hover effect */
-  .card-static {
-    @apply bg-victorian-paper-cream
-           rounded-sm
-           border border-victorian-paper-antique
-           shadow-sm
-           p-6;
-  }
-
-  /* Form inputs */
-  .input {
-    @apply w-full px-3 py-2
-           bg-victorian-paper-white
-           border border-victorian-paper-antique
-           rounded-sm
-           focus:outline-none
-           focus:ring-1
-           focus:ring-victorian-gold-muted
-           focus:border-victorian-gold-muted
-           placeholder-victorian-ink-muted
-           text-victorian-ink-black;
-  }
-
-  /* Select dropdowns */
-  .select {
-    @apply w-full px-3 py-2
-           bg-victorian-paper-white
-           border border-victorian-paper-antique
-           rounded-sm
-           focus:outline-none
-           focus:ring-1
-           focus:ring-victorian-gold-muted
-           focus:border-victorian-gold-muted
-           text-victorian-ink-black;
-  }
-
-  /* Premium binding badges */
-  .badge-binder {
-    @apply inline-flex items-center px-2 py-0.5
-           text-xs font-medium rounded-sm;
-  }
-
-  .badge-zaehnsdorf {
-    @apply bg-victorian-burgundy text-white;
-  }
-
-  .badge-riviere {
-    @apply bg-victorian-hunter-800 text-victorian-gold-light;
-  }
-
-  .badge-sangorski {
-    @apply bg-victorian-gold text-victorian-ink-black;
-  }
-
-  .badge-bayntun {
-    @apply bg-victorian-ink-dark text-victorian-paper-cream;
-  }
-
-  .badge-default {
-    @apply bg-victorian-hunter-700 text-white;
-  }
-
-  /* Section divider with flourish */
-  .divider-flourish {
-    @apply flex items-center justify-center my-8;
-  }
-
-  .divider-flourish::before,
-  .divider-flourish::after {
-    content: "";
-    @apply h-px w-16 bg-victorian-paper-antique;
-  }
-
-  .divider-flourish-symbol {
-    @apply mx-4 text-victorian-gold-muted;
-  }
-
-  /* Section header with border */
-  .section-header {
-    @apply border-b border-victorian-paper-antique pb-2 mb-6;
   }
 }
 

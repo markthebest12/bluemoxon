@@ -241,7 +241,7 @@ function close() {
                 @touchend="handleTouchEnd"
               >
                 <!-- Drag Handle -->
-                <div class="text-gray-400 flex-shrink-0">
+                <div class="text-gray-400 shrink-0">
                   <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path
                       d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8-12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
@@ -251,7 +251,7 @@ function close() {
 
                 <!-- Order Number -->
                 <div
-                  class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-medium text-sm flex-shrink-0"
+                  class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-medium text-sm shrink-0"
                 >
                   {{ index + 1 }}
                 </div>
@@ -260,7 +260,7 @@ function close() {
                 <img
                   :src="img.thumbnail_url"
                   :alt="img.caption || `Image ${index + 1}`"
-                  class="w-16 h-16 object-cover rounded flex-shrink-0"
+                  class="w-16 h-16 object-cover rounded-sm shrink-0"
                 />
 
                 <!-- Info -->
@@ -272,12 +272,12 @@ function close() {
                 </div>
 
                 <!-- Up/Down Buttons -->
-                <div class="flex flex-col gap-1 flex-shrink-0">
+                <div class="flex flex-col gap-1 shrink-0">
                   <button
                     @click.stop="moveUp(index)"
                     :disabled="index === 0"
                     :class="[
-                      'p-1 rounded hover:bg-gray-100',
+                      'p-1 rounded-sm hover:bg-gray-100',
                       index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500',
                     ]"
                   >
@@ -294,7 +294,7 @@ function close() {
                     @click.stop="moveDown(index)"
                     :disabled="index === orderedImages.length - 1"
                     :class="[
-                      'p-1 rounded hover:bg-gray-100',
+                      'p-1 rounded-sm hover:bg-gray-100',
                       index === orderedImages.length - 1
                         ? 'text-gray-300 cursor-not-allowed'
                         : 'text-gray-500',
@@ -316,7 +316,7 @@ function close() {
             <!-- Error -->
             <div
               v-if="error"
-              class="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+              class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
             >
               {{ error }}
             </div>

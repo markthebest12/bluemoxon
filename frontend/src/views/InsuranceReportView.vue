@@ -318,25 +318,25 @@ const exportCSV = () => {
         </h3>
         <div class="grid grid-cols-4 gap-4 mb-4 max-md:grid-cols-2">
           <div
-            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+            class="bg-victorian-paper-white p-4 rounded-sm text-center border border-victorian-paper-antique"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">Collections</span>
             <span class="block text-2xl font-bold">{{ stats.totalItems }}</span>
           </div>
           <div
-            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+            class="bg-victorian-paper-white p-4 rounded-sm text-center border border-victorian-paper-antique"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">Volumes</span>
             <span class="block text-2xl font-bold">{{ stats.totalVolumes }}</span>
           </div>
           <div
-            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+            class="bg-victorian-paper-white p-4 rounded-sm text-center border border-victorian-paper-antique"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">Authenticated Bindings</span>
             <span class="block text-2xl font-bold">{{ stats.authenticatedBindings }}</span>
           </div>
           <div
-            class="bg-victorian-paper-white p-4 rounded text-center border border-victorian-paper-antique"
+            class="bg-victorian-paper-white p-4 rounded-sm text-center border border-victorian-paper-antique"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">Total Cost</span>
             <span class="block text-2xl font-bold">{{
@@ -344,19 +344,19 @@ const exportCSV = () => {
             }}</span>
           </div>
           <div
-            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+            class="bg-victorian-gold-muted/20 p-4 rounded-sm text-center border border-victorian-gold-muted"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">Low Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueLow) }}</span>
           </div>
           <div
-            class="bg-victorian-hunter-800 text-white p-4 rounded text-center border border-victorian-hunter-800"
+            class="bg-victorian-hunter-800 text-white p-4 rounded-sm text-center border border-victorian-hunter-800"
           >
             <span class="block text-xs text-victorian-paper-cream mb-1">Mid Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueMid) }}</span>
           </div>
           <div
-            class="bg-victorian-gold-muted/20 p-4 rounded text-center border border-victorian-gold-muted"
+            class="bg-victorian-gold-muted/20 p-4 rounded-sm text-center border border-victorian-gold-muted"
           >
             <span class="block text-xs text-victorian-ink-muted mb-1">High Estimate</span>
             <span class="block text-2xl font-bold">{{ formatCurrency(stats.totalValueHigh) }}</span>
@@ -365,7 +365,7 @@ const exportCSV = () => {
         <!-- Insurance recommendation only for insurance report -->
         <p
           v-if="isInsuranceReport"
-          class="bg-green-100 p-4 rounded text-center m-0 border border-green-300"
+          class="bg-green-100 p-4 rounded-sm text-center m-0 border border-green-300"
         >
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
@@ -428,7 +428,7 @@ const exportCSV = () => {
                   {{ book.publisher?.name || "-" }}
                   <span
                     v-if="book.publisher?.tier"
-                    class="text-xs bg-victorian-paper-aged px-1 py-0.5 rounded ml-1 text-victorian-ink-dark"
+                    class="text-xs bg-victorian-paper-aged px-1 py-0.5 rounded-sm ml-1 text-victorian-ink-dark"
                     >{{ book.publisher.tier }}</span
                   >
                 </td>

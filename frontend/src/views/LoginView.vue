@@ -288,7 +288,7 @@ function resetLogin() {
         <!-- Manual entry option -->
         <details class="text-sm text-gray-600">
           <summary class="cursor-pointer hover:text-gray-800">Can't scan? Enter manually</summary>
-          <code class="block mt-2 p-2 bg-gray-100 rounded text-xs break-all">
+          <code class="block mt-2 p-2 bg-gray-100 rounded-sm text-xs break-all">
             {{ authStore.totpSetupUri }}
           </code>
         </details>
