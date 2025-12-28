@@ -382,7 +382,7 @@ function formatPacificTime(isoString: string): string {
                   <div class="hidden sm:flex items-center gap-2">
                     <select
                       v-model="selectedModel"
-                      class="text-sm border border-gray-300 rounded-sm px-2 py-1"
+                      class="select text-sm w-28"
                       :disabled="generating"
                     >
                       <option value="sonnet">Sonnet 4.5</option>
@@ -391,7 +391,7 @@ function formatPacificTime(isoString: string): string {
                     <button
                       @click="generateAnalysis"
                       :disabled="generating"
-                      class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                      class="btn-primary px-3 py-1.5 text-sm disabled:opacity-50 flex items-center gap-1"
                     >
                       <span v-if="generating" class="flex items-center gap-2">
                         <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
