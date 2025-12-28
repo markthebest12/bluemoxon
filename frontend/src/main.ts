@@ -32,7 +32,7 @@ async function initApp() {
   try {
     await fetchAuthSession();
     console.log("[BlueMoxon] Auth session initialized");
-  } catch (e) {
+  } catch (_e) {
     console.log("[BlueMoxon] No existing auth session");
   }
 
