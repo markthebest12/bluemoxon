@@ -108,7 +108,7 @@ function handleAddNew() {
       v-model="searchText"
       type="text"
       :placeholder="placeholder || `Select or add ${label.toLowerCase()}`"
-      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      class="input"
       @focus="handleFocus"
       @blur="handleBlur"
     />
@@ -124,7 +124,7 @@ function handleAddNew() {
         :key="option.id"
         type="button"
         data-testid="option"
-        class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+        class="w-full px-3 py-2 text-left text-sm hover:bg-victorian-paper-aged"
         @mousedown.prevent="selectOption(option)"
       >
         {{ option.name }}
@@ -135,7 +135,7 @@ function handleAddNew() {
         v-if="showAddNew"
         type="button"
         data-testid="add-new"
-        class="w-full px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 border-t border-gray-200"
+        class="w-full px-3 py-2 text-left text-sm text-victorian-hunter-700 hover:bg-victorian-paper-aged border-t border-victorian-paper-antique"
         @mousedown.prevent="handleAddNew"
       >
         + Add "{{ searchText.trim() }}"
