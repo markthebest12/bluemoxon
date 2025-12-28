@@ -371,7 +371,7 @@ onMounted(async () => {
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- Premium Bindings Distribution -->
-      <div class="card-static !p-4">
+      <div class="card-static p-4!">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Premium Bindings
         </h3>
@@ -388,7 +388,7 @@ onMounted(async () => {
       </div>
 
       <!-- Era Distribution -->
-      <div class="card-static !p-4">
+      <div class="card-static p-4!">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Books by Era
         </h3>
@@ -401,7 +401,7 @@ onMounted(async () => {
       </div>
 
       <!-- Top Authors -->
-      <div class="card-static !p-4">
+      <div class="card-static p-4!">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Top Authors
         </h3>
@@ -414,7 +414,7 @@ onMounted(async () => {
       </div>
 
       <!-- Top Tier 1 Publishers -->
-      <div class="card-static !p-4">
+      <div class="card-static p-4!">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Top Tier 1 Publishers
         </h3>
@@ -427,7 +427,7 @@ onMounted(async () => {
       </div>
 
       <!-- Cumulative Value Growth - full width at bottom -->
-      <div class="card-static !p-4 col-span-1 lg:col-span-2">
+      <div class="card-static p-4! col-span-1 lg:col-span-2">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Est. Value Growth (Last 30 Days)
         </h3>

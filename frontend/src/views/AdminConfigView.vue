@@ -215,13 +215,13 @@ function getBarWidth(cost: number): string {
 
     <!-- Tab Navigation -->
     <div class="border-b border-gray-200 mb-6 overflow-x-auto">
-      <nav class="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+      <nav class="-mb-px flex gap-4 sm:gap-8 min-w-max">
         <button
           @click="activeTab = 'settings'"
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'settings'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -232,7 +232,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'status'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -243,7 +243,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'scoring'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -254,7 +254,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'tiers'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -268,7 +268,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'costs'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -278,7 +278,10 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Settings Tab -->
-    <div v-if="activeTab === 'settings'" class="bg-white rounded-lg shadow p-6 space-y-4">
+    <div
+      v-if="activeTab === 'settings'"
+      class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4"
+    >
       <h2 class="text-lg font-semibold">Currency Conversion Rates</h2>
       <div class="grid grid-cols-2 gap-4">
         <label class="block">
@@ -287,7 +290,7 @@ function getBarWidth(cost: number): string {
             v-model.number="config.gbp_to_usd_rate"
             type="number"
             step="0.01"
-            class="mt-1 block w-full rounded border-gray-300 shadow-sm"
+            class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
           />
         </label>
         <label class="block">
@@ -296,16 +299,12 @@ function getBarWidth(cost: number): string {
             v-model.number="config.eur_to_usd_rate"
             type="number"
             step="0.01"
-            class="mt-1 block w-full rounded border-gray-300 shadow-sm"
+            class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
           />
         </label>
       </div>
       <div class="flex items-center gap-4">
-        <button
-          @click="saveConfig"
-          :disabled="saving"
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
+        <button @click="saveConfig" :disabled="saving" class="btn-primary">
           {{ saving ? "Saving..." : "Save" }}
         </button>
         <span v-if="settingsMessage" class="text-sm text-green-600">{{ settingsMessage }}</span>
@@ -313,24 +312,24 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- System Status Tab -->
-    <div v-else-if="activeTab === 'status'" class="space-y-6">
+    <div v-else-if="activeTab === 'status'" class="flex flex-col gap-6">
       <div class="flex justify-end">
         <button
           @click="refreshSystemInfo"
           :disabled="loadingInfo"
-          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
         >
           {{ loadingInfo ? "Loading..." : "Refresh" }}
         </button>
       </div>
 
-      <div v-if="infoError" class="p-4 bg-red-50 text-red-700 rounded">
+      <div v-if="infoError" class="p-4 bg-red-50 text-red-700 rounded-sm">
         {{ infoError }}
       </div>
 
-      <div v-else-if="systemInfo" class="space-y-6">
+      <div v-else-if="systemInfo" class="flex flex-col gap-6">
         <!-- Version & Deployment -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Version & Deployment</h3>
           <dl class="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -358,9 +357,9 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Health Checks -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Health Checks</h3>
-          <div class="space-y-3">
+          <div class="flex flex-col gap-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span :class="healthStatusClass(systemInfo.health.checks.database.status)">
@@ -410,9 +409,9 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Bedrock Models -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Bedrock Models</h3>
-          <dl class="space-y-3 text-sm">
+          <dl class="flex flex-col gap-3 text-sm">
             <div
               v-for="(model, key) in systemInfo.models"
               :key="key"
@@ -428,7 +427,7 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Infrastructure -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Infrastructure</h3>
           <dl class="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -465,7 +464,7 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Limits & Timeouts -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Limits & Timeouts</h3>
           <dl class="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -498,13 +497,13 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Scoring Config Tab -->
-    <div v-else-if="activeTab === 'scoring'" class="space-y-6">
+    <div v-else-if="activeTab === 'scoring'" class="flex flex-col gap-6">
       <div class="flex justify-between items-center">
         <p class="text-sm text-gray-500">★ = Key tunable</p>
         <button
           @click="refreshSystemInfo"
           :disabled="loadingInfo"
-          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
         >
           {{ loadingInfo ? "Loading..." : "Refresh" }}
         </button>
@@ -512,14 +511,14 @@ function getBarWidth(cost: number): string {
 
       <div v-if="systemInfo" class="grid md:grid-cols-2 gap-6">
         <!-- Quality Points -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Quality Score Points</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.quality_points"
               :key="key"
               class="flex justify-between"
-              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded': isKeyTunable(String(key)) }"
+              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded-sm': isKeyTunable(String(key)) }"
             >
               <dt>
                 <span v-if="isKeyTunable(String(key))" class="text-yellow-600">★ </span>
@@ -531,14 +530,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Strategic Points -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Strategic Fit Points</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.strategic_points"
               :key="key"
               class="flex justify-between"
-              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded': isKeyTunable(String(key)) }"
+              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded-sm': isKeyTunable(String(key)) }"
             >
               <dt>
                 <span v-if="isKeyTunable(String(key))" class="text-yellow-600">★ </span>
@@ -550,14 +549,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Thresholds -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Thresholds</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.thresholds"
               :key="key"
               class="flex justify-between"
-              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded': isKeyTunable(String(key)) }"
+              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded-sm': isKeyTunable(String(key)) }"
             >
               <dt>
                 <span v-if="isKeyTunable(String(key))" class="text-yellow-600">★ </span>
@@ -571,14 +570,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Weights -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Combined Score Weights</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.weights"
               :key="key"
               class="flex justify-between"
-              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded': isKeyTunable(String(key)) }"
+              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded-sm': isKeyTunable(String(key)) }"
             >
               <dt>
                 <span v-if="isKeyTunable(String(key))" class="text-yellow-600">★ </span>
@@ -590,14 +589,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Offer Discounts -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Offer Discounts</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.offer_discounts"
               :key="key"
               class="flex justify-between"
-              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded': isKeyTunable(String(key)) }"
+              :class="{ 'bg-yellow-50 -mx-2 px-2 py-0.5 rounded-sm': isKeyTunable(String(key)) }"
             >
               <dt>
                 <span v-if="isKeyTunable(String(key))" class="text-yellow-600">★ </span>
@@ -613,9 +612,9 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Era Boundaries -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Era Boundaries</h3>
-          <dl class="space-y-1 text-sm">
+          <dl class="flex flex-col gap-1 text-sm">
             <div
               v-for="(value, key) in systemInfo.scoring_config.era_boundaries"
               :key="key"
@@ -630,12 +629,12 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Entity Tiers Tab -->
-    <div v-else-if="activeTab === 'tiers'" class="space-y-6">
+    <div v-else-if="activeTab === 'tiers'" class="flex flex-col gap-6">
       <div class="flex justify-end">
         <button
           @click="refreshSystemInfo"
           :disabled="loadingInfo"
-          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
         >
           {{ loadingInfo ? "Loading..." : "Refresh" }}
         </button>
@@ -643,14 +642,14 @@ function getBarWidth(cost: number): string {
 
       <div v-if="systemInfo" class="grid md:grid-cols-3 gap-6">
         <!-- Authors -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Authors</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
               <h4 class="text-sm font-medium text-gray-500 mb-2">
                 {{ formatTierLabel(tier) }}
               </h4>
-              <ul v-if="groupedAuthors[tier]?.length" class="space-y-1 text-sm">
+              <ul v-if="groupedAuthors[tier]?.length" class="flex flex-col gap-1 text-sm">
                 <li v-for="name in groupedAuthors[tier]" :key="name">• {{ name }}</li>
               </ul>
               <p v-else class="text-sm text-gray-400 italic">None</p>
@@ -662,14 +661,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Publishers -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Publishers</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
               <h4 class="text-sm font-medium text-gray-500 mb-2">
                 {{ formatTierLabel(tier) }}
               </h4>
-              <ul v-if="groupedPublishers[tier]?.length" class="space-y-1 text-sm">
+              <ul v-if="groupedPublishers[tier]?.length" class="flex flex-col gap-1 text-sm">
                 <li v-for="name in groupedPublishers[tier]" :key="name">• {{ name }}</li>
               </ul>
               <p v-else class="text-sm text-gray-400 italic">None</p>
@@ -681,14 +680,14 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Binders -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Binders</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
               <h4 class="text-sm font-medium text-gray-500 mb-2">
                 {{ formatTierLabel(tier) }}
               </h4>
-              <ul v-if="groupedBinders[tier]?.length" class="space-y-1 text-sm">
+              <ul v-if="groupedBinders[tier]?.length" class="flex flex-col gap-1 text-sm">
                 <li v-for="name in groupedBinders[tier]" :key="name">• {{ name }}</li>
               </ul>
               <p v-else class="text-sm text-gray-400 italic">None</p>
@@ -702,18 +701,18 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Costs Tab -->
-    <div v-else-if="activeTab === 'costs'" class="space-y-6">
+    <div v-else-if="activeTab === 'costs'" class="flex flex-col gap-6">
       <div class="flex justify-end">
         <button
           @click="fetchCostData"
           :disabled="loadingCost"
-          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
         >
           {{ loadingCost ? "Loading..." : "Refresh" }}
         </button>
       </div>
 
-      <div v-if="costError" class="p-4 bg-red-50 text-red-700 rounded">
+      <div v-if="costError" class="p-4 bg-red-50 text-red-700 rounded-sm">
         {{ costError }}
       </div>
 
@@ -721,11 +720,11 @@ function getBarWidth(cost: number): string {
         Loading cost data...
       </div>
 
-      <div v-else-if="costData" class="space-y-6">
+      <div v-else-if="costData" class="flex flex-col gap-6">
         <!-- Bedrock Model Costs -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Bedrock Model Costs (MTD)</h3>
-          <div v-if="costData.error" class="p-3 bg-yellow-50 text-yellow-700 rounded mb-4">
+          <div v-if="costData.error" class="p-3 bg-yellow-50 text-yellow-700 rounded-sm mb-4">
             {{ costData.error }}
           </div>
           <table class="w-full text-sm">
@@ -760,20 +759,17 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Daily Trend -->
-        <div v-if="costData.daily_trend.length > 0" class="bg-white rounded-lg shadow p-6">
+        <div v-if="costData.daily_trend.length > 0" class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-semibold mb-4">Daily Trend (Last 14 Days)</h3>
-          <div class="space-y-2">
+          <div class="flex flex-col gap-2">
             <div
               v-for="day in costData.daily_trend"
               :key="day.date"
               class="flex items-center gap-3"
             >
               <span class="text-xs text-gray-500 w-16">{{ formatCostDate(day.date) }}</span>
-              <div class="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
-                <div
-                  class="h-full bg-blue-500 rounded"
-                  :style="{ width: getBarWidth(day.cost) }"
-                ></div>
+              <div class="flex-1 h-5 bg-gray-100 rounded-sm overflow-hidden">
+                <div class="h-full progress-bar" :style="{ width: getBarWidth(day.cost) }"></div>
               </div>
               <span class="text-xs font-mono w-16 text-right">{{ formatCurrency(day.cost) }}</span>
             </div>
@@ -783,11 +779,11 @@ function getBarWidth(cost: number): string {
         <!-- Other AWS Costs -->
         <div
           v-if="Object.keys(costData.other_costs).length > 0"
-          class="bg-white rounded-lg shadow p-6"
+          class="bg-white rounded-lg shadow-sm p-6"
         >
           <details>
             <summary class="text-lg font-semibold cursor-pointer">Other AWS Costs</summary>
-            <dl class="mt-4 space-y-2 text-sm">
+            <dl class="mt-4 flex flex-col gap-2 text-sm">
               <div
                 v-for="(cost, service) in costData.other_costs"
                 :key="service"
@@ -801,7 +797,7 @@ function getBarWidth(cost: number): string {
         </div>
 
         <!-- Total -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
           <div class="flex justify-between items-center">
             <span class="text-lg font-semibold">Total AWS Cost (MTD)</span>
             <span class="text-2xl font-bold font-mono">{{

@@ -195,7 +195,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4">
+        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
           <!-- Error Message -->
           <div
             v-if="errorMessage"
@@ -212,7 +212,7 @@ function openSourceUrl() {
             <input
               v-model="form.title"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input"
               :class="{ 'border-red-500': validationErrors.title }"
             />
             <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
@@ -251,12 +251,7 @@ function openSourceUrl() {
             />
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
-              <input
-                v-model="form.publication_date"
-                type="text"
-                placeholder="1867"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input v-model="form.publication_date" type="text" placeholder="1867" class="input" />
             </div>
           </div>
 
@@ -264,20 +259,12 @@ function openSourceUrl() {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
-              <input
-                v-model.number="form.volumes"
-                type="number"
-                min="1"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input v-model.number="form.volumes" type="number" min="1" class="input" />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
               <div class="flex gap-2">
-                <select
-                  v-model="selectedCurrency"
-                  class="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
+                <select v-model="selectedCurrency" class="select w-20">
                   <option value="USD">USD $</option>
                   <option value="GBP">GBP £</option>
                   <option value="EUR">EUR €</option>
@@ -290,7 +277,7 @@ function openSourceUrl() {
                     step="0.01"
                     min="0"
                     placeholder="Optional"
-                    class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="input pl-7"
                   />
                 </div>
               </div>
@@ -311,13 +298,13 @@ function openSourceUrl() {
                 v-model="form.source_url"
                 type="url"
                 placeholder="https://ebay.com/itm/..."
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="input flex-1"
               />
               <button
                 type="button"
                 :disabled="!form.source_url"
                 @click="openSourceUrl"
-                class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-secondary px-3"
                 title="Open URL"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,15 +325,11 @@ function openSourceUrl() {
               type="button"
               @click="handleClose"
               :disabled="submitting"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              class="btn-secondary flex-1"
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Adding..." : "Add to List" }}
             </button>
           </div>

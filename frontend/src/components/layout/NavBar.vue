@@ -45,11 +45,11 @@ function closeMobileMenu() {
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
-          <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-14 w-auto" />
+          <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="!h-14 w-auto" />
         </RouterLink>
 
         <!-- Desktop Navigation Links -->
-        <div class="hidden md:flex items-center space-x-6">
+        <div class="hidden md:flex items-center gap-6">
           <RouterLink
             to="/"
             class="text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
@@ -82,7 +82,7 @@ function closeMobileMenu() {
         </div>
 
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center gap-4">
           <!-- User Menu - Desktop -->
           <div class="hidden md:flex items-center">
             <template v-if="authStore.isAuthenticated">
@@ -152,7 +152,7 @@ function closeMobileMenu() {
           <!-- Hamburger Menu Button - Mobile -->
           <button
             @click="toggleMobileMenu"
-            class="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 focus:outline-none"
+            class="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 focus:outline-none"
             aria-label="Toggle menu"
           >
             <span
@@ -177,7 +177,7 @@ function closeMobileMenu() {
       v-if="mobileMenuOpen"
       class="md:hidden bg-victorian-hunter-900/98 border-t border-victorian-hunter-700"
     >
-      <div class="px-4 py-3 space-y-1">
+      <div class="px-4 py-3 flex flex-col gap-1">
         <!-- Navigation Links -->
         <RouterLink
           to="/"

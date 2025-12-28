@@ -299,7 +299,7 @@ function getStatusColor(status: string): string {
     case "ON_HAND":
       return "bg-green-100 text-green-800";
     case "IN_TRANSIT":
-      return "bg-blue-100 text-blue-800";
+      return "badge-transit";
     case "SOLD":
       return "bg-gray-100 text-gray-800";
     case "REMOVED":
@@ -334,7 +334,7 @@ function printPage() {
           <!-- Print button (visible to all users) -->
           <button
             @click="printPage"
-            class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded hover:bg-victorian-paper-cream transition-colors"
+            class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded-sm hover:bg-victorian-paper-cream transition-colors"
             title="Print this page"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -373,7 +373,7 @@ function printPage() {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Main Content (2 columns) -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class="lg:col-span-2 flex flex-col gap-6">
         <!-- Image Gallery -->
         <div class="card">
           <div class="flex items-center justify-between mb-4">
@@ -414,7 +414,7 @@ function printPage() {
             <div
               v-for="(img, idx) in images"
               :key="img.id"
-              class="relative group aspect-square rounded overflow-hidden"
+              class="relative group aspect-square rounded-sm overflow-hidden"
             >
               <button
                 @click="openCarousel(idx)"
@@ -486,7 +486,7 @@ function printPage() {
                 <!-- First Edition Badge -->
                 <span
                   v-if="booksStore.currentBook.is_first_edition"
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800"
                 >
                   1st Edition
                 </span>
@@ -496,7 +496,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 1'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800"
                 >
                   Tier 1 Provenance
                 </span>
@@ -505,7 +505,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 2'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm badge-transit"
                 >
                   Tier 2 Provenance
                 </span>
@@ -514,7 +514,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 3'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-gray-100 text-gray-800"
                 >
                   Tier 3 Provenance
                 </span>
@@ -522,7 +522,7 @@ function printPage() {
                   v-if="
                     booksStore.currentBook.has_provenance && !booksStore.currentBook.provenance_tier
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-gray-100 text-gray-600"
                 >
                   Has Provenance
                 </span>
@@ -560,7 +560,7 @@ function printPage() {
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                   :disabled="updatingStatus"
                   :class="[
-                    'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer no-print',
+                    'px-2 py-1 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
                     getStatusColor(booksStore.currentBook.status),
                     updatingStatus ? 'opacity-50' : '',
                   ]"
@@ -573,7 +573,7 @@ function printPage() {
                 <span
                   v-if="authStore.isEditor"
                   :class="[
-                    'hidden print-only px-2 py-1 rounded text-sm font-medium',
+                    'hidden print-only px-2 py-1 rounded-sm text-sm font-medium',
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
@@ -583,7 +583,7 @@ function printPage() {
                 <span
                   v-else
                   :class="[
-                    'px-2 py-1 rounded text-sm font-medium',
+                    'px-2 py-1 rounded-sm text-sm font-medium',
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
@@ -597,7 +597,7 @@ function printPage() {
         <!-- Binding -->
         <div class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Binding</h2>
-          <dl class="space-y-2">
+          <dl class="flex flex-col gap-2">
             <div>
               <dt class="text-sm text-gray-500">Type</dt>
               <dd class="font-medium">
@@ -679,12 +679,9 @@ function printPage() {
         </div>
 
         <!-- Eval Runbook and Analysis Buttons -->
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <!-- Eval Runbook Button -->
-          <div
-            v-if="booksStore.currentBook?.has_eval_runbook"
-            class="card bg-blue-50 border-blue-200"
-          >
+          <div v-if="booksStore.currentBook?.has_eval_runbook" class="card card-info">
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="text-lg font-semibold text-gray-800">Eval Runbook</h2>
@@ -694,7 +691,7 @@ function printPage() {
               </div>
               <button
                 @click="evalRunbookVisible = true"
-                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                class="btn-primary flex items-center gap-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -717,7 +714,7 @@ function printPage() {
                 <!-- State: Job running -->
                 <div
                   v-if="isAnalysisRunning() || booksStore.currentBook?.analysis_job_status"
-                  class="text-sm text-blue-600 mt-1 flex items-center gap-1"
+                  class="text-sm text-status-running mt-1 flex items-center gap-1"
                 >
                   <span class="animate-spin">&#8987;</span>
                   <span>
@@ -773,7 +770,7 @@ function printPage() {
                     !booksStore.currentBook?.analysis_job_status
                   "
                   v-model="selectedModel"
-                  class="text-sm border border-gray-300 rounded px-2 py-1.5"
+                  class="select text-sm w-32 pr-8"
                   :disabled="startingAnalysis"
                 >
                   <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">
@@ -808,7 +805,7 @@ function printPage() {
                   "
                   @click="handleGenerateAnalysis"
                   :disabled="startingAnalysis"
-                  class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
+                  class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-sm hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
                   title="Regenerate analysis with selected model"
                 >
                   <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
@@ -822,7 +819,7 @@ function printPage() {
       </div>
 
       <!-- Sidebar - Valuation -->
-      <div class="space-y-6">
+      <div class="flex flex-col gap-6">
         <div class="card bg-victorian-cream">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Valuation</h2>
           <div class="text-center">
@@ -861,7 +858,7 @@ function printPage() {
 
         <div v-if="booksStore.currentBook.purchase_price" class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Acquisition</h2>
-          <dl class="space-y-2">
+          <dl class="flex flex-col gap-2">
             <div>
               <dt class="text-sm text-gray-500">Purchase Price</dt>
               <dd class="font-medium">
@@ -889,7 +886,7 @@ function printPage() {
         <!-- Source Archive -->
         <div v-if="booksStore.currentBook.source_url" class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Source Archive</h2>
-          <dl class="space-y-3">
+          <dl class="flex flex-col gap-3">
             <div>
               <dt class="text-sm text-gray-500">Original Listing</dt>
               <dd class="font-medium truncate">
@@ -919,7 +916,7 @@ function printPage() {
         <!-- Quick Stats -->
         <div class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Info</h2>
-          <dl class="space-y-2 text-sm">
+          <dl class="flex flex-col gap-2 text-sm">
             <div class="flex justify-between">
               <dt class="text-gray-500">Images</dt>
               <dd class="font-medium">{{ images.length }}</dd>
@@ -983,7 +980,7 @@ function printPage() {
               <img
                 :src="imageToDelete.thumbnail_url"
                 :alt="imageToDelete.caption || 'Image'"
-                class="w-32 h-32 object-cover rounded"
+                class="w-32 h-32 object-cover rounded-sm"
               />
             </div>
             <p class="text-sm text-red-600 mt-3 text-center">This action cannot be undone.</p>
@@ -991,7 +988,7 @@ function printPage() {
 
           <div
             v-if="deleteImageError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
           >
             {{ deleteImageError }}
           </div>
@@ -1045,7 +1042,7 @@ function printPage() {
 
           <div
             v-if="deleteError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
           >
             {{ deleteError }}
           </div>

@@ -160,7 +160,7 @@ function handlePasteApply(data: any) {
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <div>
             <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
             <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
@@ -169,7 +169,7 @@ function handlePasteApply(data: any) {
             <button
               @click="showPasteModal = true"
               :disabled="submitting"
-              class="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
+              class="text-sm text-victorian-hunter-600 hover:text-victorian-hunter-700 disabled:opacity-50 flex items-center gap-1"
               title="Paste order details from email"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +200,7 @@ function handlePasteApply(data: any) {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4 overflow-y-auto flex-1">
+        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <!-- Error Message -->
           <div
             v-if="errorMessage"
@@ -213,10 +213,7 @@ function handlePasteApply(data: any) {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Price * </label>
             <div class="flex gap-2">
-              <select
-                v-model="selectedCurrency"
-                class="w-24 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
+              <select v-model="selectedCurrency" class="select w-24">
                 <option value="USD">USD $</option>
                 <option value="GBP">GBP £</option>
                 <option value="EUR">EUR €</option>
@@ -228,7 +225,7 @@ function handlePasteApply(data: any) {
                   type="number"
                   step="0.01"
                   min="0"
-                  class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input pl-7"
                   required
                 />
               </div>
@@ -255,12 +252,7 @@ function handlePasteApply(data: any) {
           <!-- Purchase Date -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Date * </label>
-            <input
-              v-model="form.purchase_date"
-              type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
+            <input v-model="form.purchase_date" type="date" class="input" required />
           </div>
 
           <!-- Order Number -->
@@ -270,7 +262,7 @@ function handlePasteApply(data: any) {
               v-model="form.order_number"
               type="text"
               placeholder="19-13940-40744"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input"
               required
             />
           </div>
@@ -278,10 +270,7 @@ function handlePasteApply(data: any) {
           <!-- Platform -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Platform * </label>
-            <select
-              v-model="form.place_of_purchase"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
+            <select v-model="form.place_of_purchase" class="select">
               <option value="eBay">eBay</option>
               <option value="Etsy">Etsy</option>
               <option value="AbeBooks">AbeBooks</option>
@@ -292,11 +281,7 @@ function handlePasteApply(data: any) {
           <!-- Estimated Delivery -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Estimated Delivery </label>
-            <input
-              v-model="form.estimated_delivery"
-              type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            <input v-model="form.estimated_delivery" type="date" class="input" />
           </div>
 
           <!-- Tracking Number (Optional) -->
@@ -308,7 +293,7 @@ function handlePasteApply(data: any) {
               v-model="form.tracking_number"
               type="text"
               placeholder="e.g., 1Z999AA10123456784"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input"
             />
             <p class="mt-1 text-xs text-gray-500">
               Carrier will be auto-detected. Add tracking now or later.
@@ -320,10 +305,7 @@ function handlePasteApply(data: any) {
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Carrier (Optional Override)
             </label>
-            <select
-              v-model="form.tracking_carrier"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
+            <select v-model="form.tracking_carrier" class="select">
               <option value="">Auto-detect</option>
               <option value="USPS">USPS</option>
               <option value="UPS">UPS</option>
@@ -341,15 +323,11 @@ function handlePasteApply(data: any) {
               type="button"
               @click="handleClose"
               :disabled="submitting"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              class="btn-secondary flex-1"
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Processing..." : "Confirm Acquire" }}
             </button>
           </div>

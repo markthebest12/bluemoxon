@@ -72,7 +72,7 @@ const iconPath = computed(() => {
       :rel="status === 'success' && archivedUrl ? 'noopener noreferrer' : undefined"
       :class="[
         badgeClass,
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium',
         status === 'success' && archivedUrl ? 'hover:underline cursor-pointer' : '',
       ]"
       :title="status === 'success' && archivedUrl ? 'View archived page' : undefined"
@@ -86,7 +86,7 @@ const iconPath = computed(() => {
       v-if="canArchive"
       @click="emit('archive')"
       :disabled="archiving"
-      class="ml-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+      class="ml-1 text-xs link disabled:opacity-50"
       :title="status === 'failed' ? 'Retry archive' : 'Archive now'"
     >
       <span v-if="archiving">⏳</span>

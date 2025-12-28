@@ -241,14 +241,14 @@ function formatFileSize(bytes: number): string {
             </div>
 
             <!-- File List -->
-            <div v-if="hasFiles" class="mt-4 space-y-2">
+            <div v-if="hasFiles" class="mt-4 flex flex-col gap-2">
               <div
                 v-for="file in files"
                 :key="file.id"
                 class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
               >
                 <!-- Status Icon -->
-                <div class="flex-shrink-0">
+                <div class="shrink-0">
                   <svg
                     v-if="file.status === 'pending'"
                     class="w-5 h-5 text-gray-400"
@@ -327,7 +327,7 @@ function formatFileSize(bytes: number): string {
                 </div>
 
                 <!-- Progress Bar -->
-                <div v-if="file.status === 'uploading'" class="w-20 flex-shrink-0">
+                <div v-if="file.status === 'uploading'" class="w-20 shrink-0">
                   <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       class="h-full bg-moxon-600 transition-all duration-300"
@@ -341,7 +341,7 @@ function formatFileSize(bytes: number): string {
                 <button
                   v-if="file.status === 'pending' || file.status === 'error'"
                   @click="removeFile(file.id)"
-                  class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600"
+                  class="shrink-0 p-1 text-gray-400 hover:text-gray-600"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path

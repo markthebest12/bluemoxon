@@ -266,9 +266,12 @@ function cancel() {
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto space-y-8">
+  <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto flex flex-col gap-8">
     <!-- Error message -->
-    <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+    <div
+      v-if="errorMessage"
+      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm"
+    >
       {{ errorMessage }}
     </div>
 
@@ -476,10 +479,7 @@ function cancel() {
         <h2 class="text-lg font-semibold text-gray-800">Acquisition</h2>
         <div class="flex items-center gap-2">
           <label class="text-sm text-gray-600">Currency:</label>
-          <select
-            v-model="selectedCurrency"
-            class="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
+          <select v-model="selectedCurrency" class="select text-sm w-auto">
             <option value="USD">USD $</option>
             <option value="GBP">GBP £</option>
             <option value="EUR">EUR €</option>
@@ -504,7 +504,7 @@ function cancel() {
           <p class="text-xs text-gray-500 mt-1">Listing price only</p>
           <p
             v-if="selectedCurrency !== 'USD' && form.purchase_price"
-            class="text-xs text-blue-600 mt-1"
+            class="text-xs text-victorian-hunter-600 mt-1"
           >
             ≈ ${{ purchasePriceInUsd.toFixed(2) }} USD
           </p>
@@ -527,7 +527,7 @@ function cancel() {
           <p class="text-xs text-gray-500 mt-1">Total incl. shipping & tax</p>
           <p
             v-if="selectedCurrency !== 'USD' && form.acquisition_cost"
-            class="text-xs text-blue-600 mt-1"
+            class="text-xs text-victorian-hunter-600 mt-1"
           >
             ≈ ${{ acquisitionCostInUsd.toFixed(2) }} USD
           </p>
@@ -553,7 +553,7 @@ function cancel() {
     <!-- Notes -->
     <div class="card">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Notes</h2>
-      <div class="space-y-4">
+      <div class="flex flex-col gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
           <textarea
@@ -606,7 +606,7 @@ function cancel() {
     </div>
 
     <!-- Actions -->
-    <div class="flex justify-end space-x-4">
+    <div class="flex justify-end gap-4">
       <button type="button" @click="cancel" class="btn-secondary">Cancel</button>
       <button type="submit" :disabled="saving" class="btn-primary">
         {{ saving ? "Saving..." : isEditing ? "Update Book" : "Create Book" }}
@@ -638,7 +638,7 @@ function cancel() {
               Similar books already exist in your collection. Are you sure you want to create
               another entry?
             </p>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div class="flex flex-col gap-2 max-h-48 overflow-y-auto">
               <div
                 v-for="match in duplicateMatches"
                 :key="match.id"
@@ -648,10 +648,10 @@ function cancel() {
                 <div class="text-sm text-gray-600 flex gap-4">
                   <span v-if="match.author_name">{{ match.author_name }}</span>
                   <span
-                    class="px-2 py-0.5 text-xs rounded"
+                    class="px-2 py-0.5 text-xs rounded-sm"
                     :class="{
                       'bg-green-100 text-green-800': match.status === 'ON_HAND',
-                      'bg-blue-100 text-blue-800': match.status === 'IN_TRANSIT',
+                      'badge-transit': match.status === 'IN_TRANSIT',
                       'bg-yellow-100 text-yellow-800': match.status === 'EVALUATING',
                       'bg-gray-100 text-gray-800': match.status === 'SOLD',
                     }"

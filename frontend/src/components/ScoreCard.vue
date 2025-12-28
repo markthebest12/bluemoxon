@@ -57,10 +57,10 @@ const scoreLabel = computed(() => {
 const scoreColor = computed(() => {
   const score = props.overallScore;
   if (score === null || score === undefined) return "bg-gray-200 text-gray-600";
-  if (score >= 160) return "bg-green-500 text-white";
+  if (score >= 160) return "bg-victorian-hunter-600 text-white";
   if (score >= 120) return "bg-yellow-500 text-white";
   if (score >= 80) return "bg-orange-500 text-white";
-  return "bg-red-500 text-white";
+  return "bg-victorian-burgundy text-white";
 });
 
 function formatScore(score?: number | null): string {
@@ -111,7 +111,7 @@ function handleRecalculate() {
 
 <template>
   <div v-if="compact" class="flex items-center gap-2">
-    <span :class="[scoreColor, 'px-2 py-1 rounded text-xs font-bold']">
+    <span :class="[scoreColor, 'px-2 py-1 rounded-sm text-xs font-bold']">
       {{ formatScore(overallScore) }}
     </span>
   </div>
@@ -120,19 +120,19 @@ function handleRecalculate() {
     <!-- Overall Score Header -->
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm font-medium text-gray-600">SCORE</span>
-      <span :class="[scoreColor, 'px-3 py-1 rounded font-bold text-sm']">
+      <span :class="[scoreColor, 'px-3 py-1 rounded-sm font-bold text-sm']">
         {{ formatScore(overallScore) }} {{ scoreLabel }}
       </span>
     </div>
 
     <!-- Component Breakdown -->
-    <div class="space-y-2 text-sm">
+    <div class="flex flex-col gap-2 text-sm">
       <div class="flex justify-between items-center">
         <span class="text-gray-600">Investment</span>
         <div class="flex items-center gap-2">
           <div class="w-20 bg-gray-200 rounded-full h-2">
             <div
-              class="bg-blue-500 h-2 rounded-full"
+              class="progress-bar h-2"
               :style="{ width: `${Math.min(investmentGrade || 0, 100)}%` }"
             ></div>
           </div>
@@ -172,27 +172,27 @@ function handleRecalculate() {
       <button
         v-if="bookId"
         @click="toggleBreakdown"
-        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+        class="text-xs link hover:underline"
         :disabled="loadingBreakdown"
       >
         <span v-if="loadingBreakdown">Loading...</span>
         <span v-else-if="showBreakdown">Hide Details</span>
         <span v-else>Show Details</span>
       </button>
-      <button
-        @click="handleRecalculate"
-        class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-      >
-        Recalculate
-      </button>
+      <button @click="handleRecalculate" class="text-xs link hover:underline">Recalculate</button>
     </div>
 
     <!-- Detailed Breakdown -->
-    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-3 overflow-hidden">
+    <div
+      v-if="showBreakdown && breakdownData"
+      class="mt-3 pt-3 border-t flex flex-col gap-3 overflow-hidden"
+    >
       <!-- Investment Grade Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>
-        <div class="space-y-1.5">
+        <h4 class="text-xs font-semibold text-victorian-hunter-600 uppercase mb-2">
+          Investment Grade
+        </h4>
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
             :key="factor.name"
@@ -202,12 +202,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>
@@ -216,7 +216,7 @@ function handleRecalculate() {
       <!-- Strategic Fit Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-purple-600 uppercase mb-2">Strategic Fit</h4>
-        <div class="space-y-1.5">
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.strategic_fit.factors"
             :key="factor.name"
@@ -226,12 +226,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>
@@ -240,7 +240,7 @@ function handleRecalculate() {
       <!-- Collection Impact Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-teal-600 uppercase mb-2">Collection Impact</h4>
-        <div class="space-y-1.5">
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.collection_impact.factors"
             :key="factor.name"
@@ -250,12 +250,12 @@ function handleRecalculate() {
               <span
                 :class="[
                   pointsClass(factor.points),
-                  'font-medium whitespace-nowrap w-8 text-right flex-shrink-0',
+                  'font-medium whitespace-nowrap w-8 text-right shrink-0',
                 ]"
               >
                 {{ formatPoints(factor.points) }}
               </span>
-              <span class="text-gray-600 break-words">{{ factor.reason }}</span>
+              <span class="text-gray-600 wrap-break-word">{{ factor.reason }}</span>
             </div>
           </div>
         </div>

@@ -148,7 +148,11 @@ function resetLogin() {
       </div>
 
       <!-- Login form -->
-      <form v-if="authStore.mfaStep === 'none'" @submit.prevent="handleLogin" class="space-y-6">
+      <form
+        v-if="authStore.mfaStep === 'none'"
+        @submit.prevent="handleLogin"
+        class="flex flex-col gap-6"
+      >
         <div>
           <label for="email" class="block text-sm font-medium text-gray-700 mb-1"> Email </label>
           <input
@@ -181,13 +185,13 @@ function resetLogin() {
       </form>
 
       <!-- New Password Required -->
-      <div v-else-if="authStore.mfaStep === 'new_password_required'" class="space-y-6">
-        <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+      <div v-else-if="authStore.mfaStep === 'new_password_required'" class="flex flex-col gap-6">
+        <div class="card-info text-victorian-hunter-800 text-sm">
           <p class="font-medium mb-2">Welcome to BlueMoxon!</p>
           <p>Please create a new password to secure your account.</p>
         </div>
 
-        <form @submit.prevent="handleNewPasswordSubmit" class="space-y-4">
+        <form @submit.prevent="handleNewPasswordSubmit" class="flex flex-col gap-4">
           <div>
             <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
               New Password
@@ -218,7 +222,7 @@ function resetLogin() {
             />
           </div>
 
-          <div class="text-xs text-gray-500 space-y-1">
+          <div class="text-xs text-gray-500 flex flex-col gap-1">
             <p class="font-medium">Password requirements:</p>
             <ul class="list-disc list-inside">
               <li>At least 8 characters</li>
@@ -242,7 +246,7 @@ function resetLogin() {
       </div>
 
       <!-- MFA Setup Required (post-login enforcement) -->
-      <div v-else-if="authStore.mfaStep === 'mfa_setup_required'" class="space-y-6">
+      <div v-else-if="authStore.mfaStep === 'mfa_setup_required'" class="flex flex-col gap-6">
         <div class="bg-amber-50 text-amber-800 p-4 rounded-lg text-sm">
           <p class="font-medium mb-2">Two-factor authentication required</p>
           <p>
@@ -265,8 +269,8 @@ function resetLogin() {
       </div>
 
       <!-- TOTP Setup (first time) -->
-      <div v-else-if="authStore.mfaStep === 'totp_setup'" class="space-y-6">
-        <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+      <div v-else-if="authStore.mfaStep === 'totp_setup'" class="flex flex-col gap-6">
+        <div class="card-info text-victorian-hunter-800 text-sm">
           <p class="font-medium mb-2">Set up two-factor authentication</p>
           <p>
             Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password,
@@ -288,12 +292,12 @@ function resetLogin() {
         <!-- Manual entry option -->
         <details class="text-sm text-gray-600">
           <summary class="cursor-pointer hover:text-gray-800">Can't scan? Enter manually</summary>
-          <code class="block mt-2 p-2 bg-gray-100 rounded text-xs break-all">
+          <code class="block mt-2 p-2 bg-gray-100 rounded-sm text-xs break-all">
             {{ authStore.totpSetupUri }}
           </code>
         </details>
 
-        <form @submit.prevent="handleTotpSubmit" class="space-y-4">
+        <form @submit.prevent="handleTotpSubmit" class="flex flex-col gap-4">
           <div>
             <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Enter 6-digit code from your app
@@ -327,12 +331,12 @@ function resetLogin() {
       </div>
 
       <!-- TOTP Required (returning user) -->
-      <div v-else-if="authStore.mfaStep === 'totp_required'" class="space-y-6">
+      <div v-else-if="authStore.mfaStep === 'totp_required'" class="flex flex-col gap-6">
         <div class="bg-gray-50 text-gray-700 p-4 rounded-lg text-sm">
           Enter the 6-digit code from your authenticator app
         </div>
 
-        <form @submit.prevent="handleTotpSubmit" class="space-y-4">
+        <form @submit.prevent="handleTotpSubmit" class="flex flex-col gap-4">
           <div>
             <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Verification Code

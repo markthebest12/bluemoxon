@@ -116,7 +116,7 @@ function handleClose() {
     >
       <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <h2 class="text-lg font-semibold text-gray-900">
             {{ extractedData ? "Extracted Order Details" : "Paste Order Details" }}
           </h2>
@@ -137,42 +137,33 @@ function handleClose() {
         </div>
 
         <!-- Input State -->
-        <div v-if="!extractedData" class="p-4 space-y-4 overflow-y-auto flex-1">
+        <div v-if="!extractedData" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <p class="text-sm text-gray-600">Paste your eBay order confirmation email text below.</p>
           <textarea
             v-model="pastedText"
             rows="10"
-            class="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="input font-mono"
             placeholder="Your order has been confirmed!&#10;Order number: 21-13904-88107&#10;..."
           ></textarea>
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <div class="flex justify-end gap-2">
-            <button
-              @click="handleClose"
-              class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              @click="handleExtract"
-              :disabled="extracting"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button @click="handleClose" class="btn-secondary">Cancel</button>
+            <button @click="handleExtract" :disabled="extracting" class="btn-primary">
               {{ extracting ? "Extracting..." : "Extract" }}
             </button>
           </div>
         </div>
 
         <!-- Results State -->
-        <div v-else class="p-4 space-y-4 overflow-y-auto flex-1">
+        <div v-else class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <div
             v-if="extractedData.used_llm"
-            class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block"
+            class="text-xs text-victorian-hunter-600 bg-moxon-50 px-2 py-1 rounded-sm inline-block"
           >
             Enhanced with AI
           </div>
 
-          <div class="space-y-2">
+          <div class="flex flex-col gap-2">
             <div v-if="extractedData.order_number" class="flex justify-between items-center">
               <span class="text-sm text-gray-600">Order Number</span>
               <span class="font-medium flex items-center gap-1">
@@ -371,18 +362,14 @@ function handleClose() {
             <!-- Tracking Number (display only with copy) -->
             <div
               v-if="extractedData.tracking_number"
-              class="flex justify-between items-center bg-gray-50 p-2 rounded"
+              class="flex justify-between items-center bg-gray-50 p-2 rounded-sm"
             >
               <span class="text-sm text-gray-600">Tracking</span>
               <div class="flex items-center gap-2">
-                <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{
+                <code class="text-xs bg-gray-100 px-2 py-1 rounded-sm">{{
                   extractedData.tracking_number
                 }}</code>
-                <button
-                  @click="copyTracking"
-                  class="text-blue-600 hover:text-blue-800 text-xs"
-                  title="Copy"
-                >
+                <button @click="copyTracking" class="link text-xs" title="Copy">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -429,18 +416,8 @@ function handleClose() {
           </div>
 
           <div class="flex justify-end gap-2 pt-2 border-t">
-            <button
-              @click="handleBack"
-              class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-300"
-            >
-              Back
-            </button>
-            <button
-              @click="handleApply"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Apply to Form
-            </button>
+            <button @click="handleBack" class="btn-secondary">Back</button>
+            <button @click="handleApply" class="btn-primary">Apply to Form</button>
           </div>
         </div>
       </div>

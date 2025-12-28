@@ -351,14 +351,14 @@ async function handleArchiveSource(bookId: number) {
           <button
             data-testid="import-from-ebay"
             @click="openImportModal"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            class="btn-primary text-sm flex items-center gap-2"
           >
             🔗 Import from eBay
           </button>
           <button
             data-testid="add-to-watchlist"
             @click="openWatchlistModal"
-            class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 flex items-center gap-2"
+            class="btn-secondary text-sm flex items-center gap-2"
           >
             + Add Manually
           </button>
@@ -372,13 +372,13 @@ async function handleArchiveSource(bookId: number) {
 
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div class="spinner spinner-lg"></div>
       </div>
 
       <!-- Kanban Board -->
       <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- EVALUATING Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
               <span class="w-3 h-3 bg-yellow-400 rounded-full"></span>
@@ -386,17 +386,17 @@ async function handleArchiveSource(bookId: number) {
               <span class="ml-auto text-sm text-gray-500">{{ evaluating.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in evaluating"
               :key="book.id"
-              class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors"
+              class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-victorian-hunter-300 transition-colors"
             >
               <a
                 :href="`/books/${book.id}`"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="block hover:text-blue-600"
+                class="block hover:text-victorian-hunter-600"
               >
                 <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
                   {{ book.title }}
@@ -412,7 +412,7 @@ async function handleArchiveSource(bookId: number) {
                   :href="book.source_url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  class="link flex items-center gap-1"
                   title="View eBay listing"
                 >
                   🛒 Listing
@@ -434,13 +434,13 @@ async function handleArchiveSource(bookId: number) {
               <div class="mt-3 flex gap-2">
                 <button
                   @click="openAcquireModal(book.id)"
-                  class="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  class="btn-primary flex-1 px-2 py-1 text-xs"
                 >
                   Acquire
                 </button>
                 <button
                   @click="openEditModal(book)"
-                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded"
+                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded-sm"
                   title="Edit FMV and details"
                 >
                   Edit
@@ -448,7 +448,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   @click="handleDelete(book.id)"
                   :disabled="deletingBook === book.id"
-                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded disabled:opacity-50"
+                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded-sm disabled:opacity-50"
                 >
                   {{ deletingBook === book.id ? "Deleting..." : "Delete" }}
                 </button>
@@ -459,7 +459,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -467,7 +467,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator (check both in-memory and API status) -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="text-xs text-blue-600 flex items-center gap-1"
+                  class="text-xs text-status-running flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -496,7 +496,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
+                  class="text-xs link flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -513,7 +513,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  class="text-xs link disabled:opacity-50"
                   title="Regenerate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -590,15 +590,15 @@ async function handleArchiveSource(bookId: number) {
         </div>
 
         <!-- IN_TRANSIT Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
-              <span class="w-3 h-3 bg-blue-400 rounded-full"></span>
+              <span class="w-3 h-3 bg-victorian-hunter-400 rounded-full"></span>
               In Transit
               <span class="ml-auto text-sm text-gray-500">{{ inTransit.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in inTransit"
               :key="book.id"
@@ -608,7 +608,7 @@ async function handleArchiveSource(bookId: number) {
                 :href="`/books/${book.id}`"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="block hover:text-blue-600"
+                class="block hover:text-victorian-hunter-600"
               >
                 <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
                   {{ book.title }}
@@ -629,7 +629,7 @@ async function handleArchiveSource(bookId: number) {
                   :href="book.source_url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                  class="inline-flex items-center gap-1 text-xs link"
                   title="View eBay listing"
                 >
                   🛒 View Listing
@@ -661,7 +661,7 @@ async function handleArchiveSource(bookId: number) {
                   v-if="book.tracking_number && book.tracking_carrier"
                   @click="handleRefreshTracking(book.id)"
                   :disabled="refreshingTracking === book.id"
-                  class="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                  class="p-0.5 text-gray-400 hover:text-victorian-hunter-600 hover:bg-victorian-paper-aged rounded-sm disabled:opacity-50"
                   title="Refresh tracking info"
                 >
                   <svg
@@ -687,7 +687,7 @@ async function handleArchiveSource(bookId: number) {
                   :href="book.tracking_url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                  class="inline-flex items-center gap-1 text-xs link"
                 >
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -723,13 +723,13 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="!book.tracking_url"
                   @click="openTrackingModal(book)"
-                  class="flex-1 px-2 py-1 border border-blue-600 text-blue-600 text-xs rounded hover:bg-blue-50"
+                  class="btn-secondary flex-1 px-2 py-1 text-xs"
                 >
                   Add Tracking
                 </button>
                 <button
                   @click="handleMarkReceived(book.id)"
-                  class="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  class="flex-1 px-2 py-1 bg-victorian-hunter-600 text-white text-xs rounded-sm hover:bg-victorian-hunter-700"
                 >
                   Mark Received
                 </button>
@@ -740,7 +740,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -748,7 +748,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="text-xs text-blue-600 flex items-center gap-1"
+                  class="text-xs text-status-running flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -777,7 +777,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
+                  class="text-xs link flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -794,7 +794,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  class="text-xs link disabled:opacity-50"
                   title="Regenerate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -871,7 +871,7 @@ async function handleArchiveSource(bookId: number) {
         </div>
 
         <!-- RECEIVED Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
               <span class="w-3 h-3 bg-green-400 rounded-full"></span>
@@ -879,7 +879,7 @@ async function handleArchiveSource(bookId: number) {
               <span class="ml-auto text-sm text-gray-500">{{ received.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in received"
               :key="book.id"
@@ -889,7 +889,7 @@ async function handleArchiveSource(bookId: number) {
                 :href="`/books/${book.id}`"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="block hover:text-blue-600"
+                class="block hover:text-victorian-hunter-600"
               >
                 <h3 class="font-medium text-gray-900 text-sm truncate hover:underline">
                   {{ book.title }}
@@ -910,7 +910,7 @@ async function handleArchiveSource(bookId: number) {
                   :href="book.source_url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                  class="inline-flex items-center gap-1 text-xs link"
                   title="View eBay listing"
                 >
                   🛒 View Listing
@@ -935,7 +935,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -943,7 +943,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
-                  class="text-xs text-blue-600 flex items-center gap-1"
+                  class="text-xs text-status-running flex items-center gap-1"
                 >
                   <span class="animate-spin">⏳</span>
                   <span>
@@ -972,7 +972,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
+                  class="text-xs link flex items-center gap-1 disabled:opacity-50"
                   title="Generate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>
@@ -989,7 +989,7 @@ async function handleArchiveSource(bookId: number) {
                   "
                   @click="handleGenerateAnalysis(book.id)"
                   :disabled="startingAnalysis === book.id"
-                  class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  class="text-xs link disabled:opacity-50"
                   title="Regenerate analysis"
                 >
                   <span v-if="startingAnalysis === book.id" class="animate-spin">⏳</span>

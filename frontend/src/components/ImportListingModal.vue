@@ -463,7 +463,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Step 1: URL Input -->
-        <div v-if="step === 'url'" class="p-4 space-y-4">
+        <div v-if="step === 'url'" class="p-4 flex flex-col gap-4">
           <div
             v-if="extractError"
             class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
@@ -477,7 +477,7 @@ function openSourceUrl() {
               v-model="urlInput"
               type="url"
               placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input"
               :class="{ 'border-red-500': extractError }"
               @keyup.enter="handleExtract"
             />
@@ -491,7 +491,7 @@ function openSourceUrl() {
               type="button"
               @click="handleClose"
               :disabled="extracting"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              class="btn-secondary flex-1"
             >
               Cancel
             </button>
@@ -499,7 +499,7 @@ function openSourceUrl() {
               type="button"
               @click="handleExtract"
               :disabled="extracting || !urlInput"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="btn-primary flex-1"
             >
               {{ extracting ? "Extracting..." : "Extract Details" }}
             </button>
@@ -508,9 +508,7 @@ function openSourceUrl() {
 
         <!-- Step 2: Extracting (async progress) -->
         <div v-if="step === 'extracting'" class="p-8 text-center">
-          <div
-            class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"
-          ></div>
+          <div class="spinner spinner-xl mx-auto mb-4"></div>
           <p class="text-gray-600 mb-2">
             {{
               extractionStatus?.status === "pending"
@@ -527,7 +525,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Step 3: Review & Edit -->
-        <div v-if="step === 'review'" class="p-4 space-y-4">
+        <div v-if="step === 'review'" class="p-4 flex flex-col gap-4">
           <!-- Image Preview (using presigned URLs from S3) -->
           <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
             <img
@@ -554,7 +552,7 @@ function openSourceUrl() {
           </div>
 
           <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-4">
+          <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
             <!-- Title -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -563,7 +561,7 @@ function openSourceUrl() {
               <input
                 v-model="form.title"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="input"
                 :class="{ 'border-red-500': validationErrors.title }"
               />
               <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
@@ -648,7 +646,7 @@ function openSourceUrl() {
                   v-model="form.publication_date"
                   type="text"
                   placeholder="1867"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input"
                 />
               </div>
             </div>
@@ -657,12 +655,7 @@ function openSourceUrl() {
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
-                <input
-                  v-model.number="form.volumes"
-                  type="number"
-                  min="1"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input v-model.number="form.volumes" type="number" min="1" class="input" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
@@ -673,7 +666,7 @@ function openSourceUrl() {
                     type="number"
                     step="0.01"
                     min="0"
-                    class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="input pl-7"
                   />
                 </div>
               </div>
@@ -687,7 +680,7 @@ function openSourceUrl() {
                   v-model="form.binding_type"
                   type="text"
                   placeholder="Full morocco, half calf, etc."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input"
                 />
               </div>
               <div>
@@ -698,7 +691,7 @@ function openSourceUrl() {
                   v-model="form.condition_notes"
                   type="text"
                   placeholder="Fine, minor foxing, etc."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input"
                 />
               </div>
             </div>
@@ -711,13 +704,13 @@ function openSourceUrl() {
                   v-model="form.source_url"
                   type="url"
                   readonly
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                  class="input flex-1 bg-gray-50 text-gray-600"
                 />
                 <button
                   type="button"
                   :disabled="!form.source_url"
                   @click="openSourceUrl"
-                  class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  class="btn-secondary px-3"
                   title="Open URL"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -734,27 +727,18 @@ function openSourceUrl() {
 
             <!-- Footer Buttons -->
             <div class="flex gap-3 pt-4">
-              <button
-                type="button"
-                @click="goBack"
-                :disabled="submitting"
-                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
+              <button type="button" @click="goBack" :disabled="submitting" class="btn-secondary">
                 Back
               </button>
               <button
                 type="button"
                 @click="handleClose"
                 :disabled="submitting"
-                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                class="btn-secondary flex-1"
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                :disabled="submitting"
-                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
+              <button type="submit" :disabled="submitting" class="btn-primary flex-1">
                 {{ submitting ? "Adding..." : "Add to Watchlist" }}
               </button>
             </div>
@@ -764,21 +748,19 @@ function openSourceUrl() {
         <!-- Step 4: Saving with progress steps -->
         <div v-if="step === 'saving'" class="p-6">
           <div class="flex items-center justify-center mb-6">
-            <div
-              class="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"
-            ></div>
+            <div class="spinner spinner-lg"></div>
           </div>
           <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
 
           <!-- Progress steps -->
-          <div class="space-y-3 max-w-sm mx-auto">
+          <div class="flex flex-col gap-3 max-w-sm mx-auto">
             <div
               v-for="(stepItem, index) in savingSteps"
               :key="stepItem.id"
               class="flex items-center gap-3"
             >
               <!-- Step indicator -->
-              <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+              <div class="shrink-0 w-6 h-6 flex items-center justify-center">
                 <svg
                   v-if="index < currentSavingStep"
                   class="w-5 h-5 text-green-500"
@@ -791,10 +773,7 @@ function openSourceUrl() {
                     clip-rule="evenodd"
                   />
                 </svg>
-                <div
-                  v-else-if="index === currentSavingStep"
-                  class="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"
-                ></div>
+                <div v-else-if="index === currentSavingStep" class="spinner w-4 h-4"></div>
                 <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
               </div>
               <!-- Step label -->
@@ -804,7 +783,7 @@ function openSourceUrl() {
                   index < currentSavingStep
                     ? 'text-green-600'
                     : index === currentSavingStep
-                      ? 'text-blue-600 font-medium'
+                      ? 'text-victorian-hunter-600 font-medium'
                       : 'text-gray-400',
                 ]"
               >
