@@ -57,10 +57,10 @@ const scoreLabel = computed(() => {
 const scoreColor = computed(() => {
   const score = props.overallScore;
   if (score === null || score === undefined) return "bg-gray-200 text-gray-600";
-  if (score >= 160) return "bg-green-500 text-white";
+  if (score >= 160) return "bg-victorian-hunter-600 text-white";
   if (score >= 120) return "bg-yellow-500 text-white";
   if (score >= 80) return "bg-orange-500 text-white";
-  return "bg-red-500 text-white";
+  return "bg-victorian-burgundy text-white";
 });
 
 function formatScore(score?: number | null): string {

@@ -459,7 +459,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -729,7 +729,7 @@ async function handleArchiveSource(bookId: number) {
                 </button>
                 <button
                   @click="handleMarkReceived(book.id)"
-                  class="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded-sm hover:bg-green-700"
+                  class="flex-1 px-2 py-1 bg-victorian-hunter-600 text-white text-xs rounded-sm hover:bg-victorian-hunter-700"
                 >
                   Mark Received
                 </button>
@@ -740,7 +740,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
@@ -935,7 +935,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="book.has_analysis"
                   @click="openAnalysisViewer(book.id)"
-                  class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
+                  class="text-xs text-victorian-hunter-700 hover:text-victorian-hunter-900 flex items-center gap-1"
                   title="View analysis"
                 >
                   📄 View Analysis
