@@ -2,18 +2,21 @@
 
 **Issue:** #166
 **Date:** 2025-12-27 to 2025-12-28
-**Status:** In Progress (awaiting final review)
+**Status:** Complete
+**Severity:** Critical - Production visual regressions
+**Duration:** 2 days
 
 ---
 
 ## Executive Summary
 
-The Tailwind CSS v4 migration encountered multiple silent failures that required 5 separate PRs to address. The root causes were Tailwind v4's architectural changes that produce no build warnings when utilities fail to generate CSS.
+The Tailwind CSS v4 migration encountered multiple silent failures that required 6 separate PRs to address. The root causes were Tailwind v4's architectural changes that produce no build warnings when utilities fail to generate CSS.
 
 **Key Takeaways:**
 1. Tailwind v4 uses `:where()` wrappers giving some utilities zero CSS specificity
 2. Custom theme values require explicit `@theme` definitions (no defaults)
 3. Silent CSS generation failures make automated testing unreliable
+4. `@utility` with `@apply` silently fails for component classes - use `@layer components` instead
 
 ---
 
@@ -191,6 +194,63 @@ For future silent failures, add to CI:
 
 ---
 
+## Issue 4: @utility with @apply Silent Failure
+
+### Timeline
+
+| PR | What Was Done | Result |
+|----|---------------|--------|
+| #609 | Initial migration - used @utility with @apply | Component classes silently broken |
+| #616 | Convert @utility to @layer components | **CORRECT** - TRUE root cause fix |
+
+### Root Cause
+
+Tailwind v4 `@utility` directive does NOT work correctly with `@apply` for component-style classes. Some properties (like `background-color`) may work while others (`border`, `padding`) silently fail to generate CSS.
+
+### Symptom
+
+Component classes rendered with missing styles:
+
+| Element | Staging (broken) | Production (correct) |
+|---------|------------------|---------------------|
+| `.card` | `padding: 0px`, `border: 0px` | `padding: 24px`, `border: 1px solid` |
+| `.input` | `padding: 0px`, `border: 0px` | `padding: 8px 12px`, `border: 1px solid` |
+
+### Solution
+
+Convert ALL `@utility` blocks to `@layer components` with explicit CSS properties:
+
+```css
+/* BROKEN in v4 */
+@utility card {
+  @apply bg-victorian-paper-cream rounded-xs border border-victorian-paper-antique p-6;
+}
+
+/* WORKS in v4 */
+@layer components {
+  .card {
+    background-color: var(--color-victorian-paper-cream);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-victorian-paper-antique);
+    padding: 1.5rem;
+  }
+}
+```
+
+### Components Affected
+
+- `.btn-primary`, `.btn-secondary`, `.btn-danger`, `.btn-accent`
+- `.card`, `.card-static`
+- `.input`, `.select`
+- All `.badge-*` variants
+- `.divider-flourish`, `.section-header`
+
+### Lesson Learned
+
+> In Tailwind v4, custom component classes MUST use `@layer components` with explicit CSS properties. Do NOT use `@utility` with `@apply` for component-style classes.
+
+---
+
 ## Summary of PRs
 
 | PR | Title | Status | Verdict |
@@ -200,7 +260,8 @@ For future silent failures, add to CI:
 | #612 | fix: Navbar logo height | Merged | Correct |
 | #613 | fix: Tailwind v4 deprecated classes | Merged | **WRONG** (rounded-xs→rounded-sm) |
 | #614 | fix: Add --radius-xs to @theme | Merged | Correct (reverted #613) |
-| #615 | fix: Replace space-* with gap-* | Pending Review | Comprehensive fix |
+| #615 | fix: Replace space-* with gap-* | Merged | Partial fix |
+| #616 | fix: Convert @utility to @layer components | Merged | TRUE root cause fix |
 
 ---
 
@@ -230,3 +291,11 @@ For future silent failures, add to CI:
 | `h-*` on images | `!h-*` |
 | `w-*` on images | `!w-*` |
 | Any base layer override | `!utility` |
+
+### Custom Component Classes
+
+| Avoid | Use Instead |
+|-------|-------------|
+| `@utility name { @apply ... }` | `@layer components { .name { explicit CSS } }` |
+
+**Why:** `@utility` with `@apply` silently fails to generate some CSS properties (border, padding) while others (background-color) may work. This creates partial, broken styles with no build warnings.
