@@ -6,44 +6,246 @@
 
 ---
 
-## Current Status (2025-12-28)
+## Postmortem: Why Border Radius Took 3 PRs to Fix
 
-**Staging:** FIX IN PROGRESS - PR #612 pending CI
-**Production:** BLOCKED - Depends on staging fix + PR #611
+### Timeline
 
-### Active PR
+| PR | What Was Done | Result |
+|----|---------------|--------|
+| #609 | Initial migration - kept `rounded-xs` | Class existed but **generated no CSS** (silent failure) |
+| #613 | Changed `rounded-xs` → `rounded-sm` | **WRONG** - doubled radius from 2px to 4px |
+| #614 | Added `--radius-xs` to @theme, reverted to `rounded-xs` | **CORRECT** fix |
 
-**PR #612** (`fix/tailwind-v4-navbar-height` → `staging`)
-- Fixes the "watermark" bug where navbar logo displayed at full size
-- CI checks running - merge when complete
-- URL: https://github.com/markthebest12/bluemoxon/pull/612
+### Root Cause: Silent CSS Generation Failure
+
+In Tailwind v4, utility classes only generate CSS if their underlying CSS variables are defined. The `rounded-xs` class requires:
+
+```css
+@theme {
+  --radius-xs: 0.125rem;  /* Without this, rounded-xs generates NOTHING */
+}
+```
+
+**The failure was silent** - no build errors, no warnings, no visible indication that `rounded-xs` wasn't working. The class was in the HTML, but the CSS rule was never generated.
+
+### Why PR #613 Was Wrong
+
+When investigating why `rounded-xs` wasn't working, I made a critical error:
+
+1. **Observed:** `rounded-xs` class exists in HTML but no 2px radius visible
+2. **Incorrect diagnosis:** "Tailwind v4 renamed `rounded-xs` to `rounded-sm`"
+3. **Incorrect fix:** Replace all `rounded-xs` with `rounded-sm`
+4. **Actual result:** Changed 2px radius to 4px radius (doubled it)
+
+**The correct diagnosis should have been:** Tailwind v4 requires explicit `--radius-xs` definition in @theme for custom radius values.
+
+### Contributing Factors
+
+1. **No lint/build errors** - Tailwind v4 silently ignores undefined utilities
+2. **Insufficient investigation** - Didn't check Tailwind v4 docs for custom radius tokens
+3. **Confirmation bias** - Saw `rounded-sm` working, assumed it was the "new name" for `rounded-xs`
+4. **Inadequate visual testing** - Didn't notice the doubled radius before merging
+
+### Lessons Learned
+
+1. **When a utility doesn't work in Tailwind v4, check if it needs a @theme definition first**
+2. **Tailwind v4 silent failures are dangerous** - classes can exist but generate no CSS
+3. **Visual regression testing must include dimensional checks** - not just "does it look similar"
+4. **Don't assume renames** - check the actual Tailwind v4 default scale values
+
+### Correct Fix (PR #614)
+
+```css
+@theme {
+  /* Tailwind v4 default scale doesn't include xs - must define explicitly */
+  --radius-xs: 0.125rem;  /* 2px - matches original Tailwind v3 behavior */
+}
+```
+
+Then keep using `rounded-xs` (don't change to `rounded-sm`).
+
+### Process Improvements Needed
+
+1. **Before changing any utility class:** Check Tailwind v4 docs for that specific utility
+2. **For any "deprecated" class:** Verify the actual CSS values, not just the class names
+3. **User review before staging merge:** Don't auto-merge PRs without user approval
 
 ---
 
-## CRITICAL: Skill and Command Requirements
+## Current Status (2025-12-28 ~15:30 UTC)
 
-### 1. ALWAYS Use Superpowers Skills
+**Staging:** PR #614 deploying (run 20555611770) - correct fix with `--radius-xs` in @theme
+**Production:** BLOCKED - awaiting user validation of staging
 
-**MANDATORY:** Use `superpowers:executing-plans` skill for this migration. Continue following it strictly at ALL stages.
+### What's Deployed
+- PR #614 adds `--radius-xs: 0.125rem` to @theme block
+- Reverts all `rounded-sm` back to `rounded-xs`
+- This is the CORRECT fix (preserves 2px radius)
 
-When resuming:
+### Next Steps When Resuming
+
+1. **Check deploy completed:**
+   ```bash
+   gh run view 20555611770 --json status,conclusion
+   ```
+
+2. **User validates staging:** https://staging.app.bluemoxon.com
+   - Check buttons, cards, inputs have subtle 2px radius (not chunky 4px)
+   - Run through test cases from issue #166
+
+3. **If validation passes:** Create PR staging → main for production promotion
+
+4. **If issues found:** Create new fix PR, wait for user review before merging
+
+### CRITICAL ISSUES
+
+#### 1. PR #613 `rounded-xs → rounded-sm` Fix Was WRONG
+
+The fix incorrectly replaced `rounded-xs` with `rounded-sm`, which DOUBLES the border radius:
+
+| Class | Tailwind v4 Value |
+|-------|-------------------|
+| `rounded-xs` | 2px (0.125rem) - **This is what we want** |
+| `rounded-sm` | 4px (0.25rem) - **WRONG - too large** |
+
+**Root Cause:** `rounded-xs` wasn't generating CSS because it doesn't exist in Tailwind v4's default scale.
+
+**Correct Fix:** Add custom radius to `@theme` block in `main.css`:
+```css
+@theme {
+  --radius-xs: 0.125rem;  /* 2px - preserves original styling */
+}
 ```
-I'm using the executing-plans skill to continue implementing the Tailwind v4 migration plan.
-```
+
+#### 2. PR #609 "NO REGRESSIONS" Claim Was False
+
+PR #609 stated visual regression testing found "NO REGRESSIONS", but user testing revealed:
+- A1: Hamburger menu broken
+- A2: Compressed tab links
+- B1-B3: Dashboard layout/font/spacing issues
+- C1-C5: Books page issues (search bar, badges, modals)
+
+**Lesson:** Automated screenshot comparison was inadequate. Manual user testing is required.
+
+#### 3. Changes Not Visible on Staging
+
+After PR #613 merge, user reported "no changes whatsoever" on staging v2025.12.28-4e093da.
+
+**Possible causes to investigate:**
+- CloudFront cache not invalidated properly
+- CSS not being regenerated correctly
+- Classes still not generating due to missing @theme definitions
+
+### Next Steps to Resume
+
+1. **Revert PR #613** or create new fix PR
+2. **Add proper @theme definitions:**
+   ```css
+   @theme {
+     --radius-xs: 0.125rem;
+   }
+   ```
+3. **Keep `rounded-xs` class** (don't change to rounded-sm)
+4. **Investigate other missing utilities** - check if gradients, outline, etc. need @theme additions
+5. **Manual user testing required** before any production promotion
+
+---
+
+## MANDATORY: Skill and Command Requirements
+
+### 1. ALWAYS Use Superpowers Skills (NON-NEGOTIABLE)
+
+**Before ANY task, you MUST:**
+1. Check if a Superpowers skill applies
+2. Use the Skill tool to invoke it
+3. Announce: "I'm using the [skill-name] skill to [what you're doing]"
+
+**Key skills for this work:**
+| Skill | When to Use |
+|-------|-------------|
+| `superpowers:executing-plans` | Implementing any plan |
+| `superpowers:systematic-debugging` | Investigating ANY issue |
+| `superpowers:verification-before-completion` | Before claiming ANYTHING works |
+| `superpowers:requesting-code-review` | After completing significant code |
+
+**FAILURE TO USE SKILLS = FAILURE AT TASK**
 
 ### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
 
-- `#` comment lines before commands
-- `\` backslash line continuations
-- `$(...)` or `$((...))` command/arithmetic substitution
-- `||` or `&&` chaining
-- `!` in quoted strings
+| Pattern | Example | Why It Fails |
+|---------|---------|--------------|
+| `#` comments | `# Check status` then `git status` | Comment triggers prompt |
+| `\` continuations | `curl -s \ -X GET` | Multi-line triggers prompt |
+| `$(...)` substitution | `echo $(date)` | Subshell triggers prompt |
+| `||` or `&&` chaining | `git add . && git commit` | Chaining triggers prompt |
+| `!` in strings | `--password 'Test1234!'` | History expansion corrupts |
 
 ### 3. ALWAYS Use These Patterns
 
-- Simple single-line commands only
-- **Separate sequential Bash tool calls** instead of `&&`
-- `bmx-api` for all BlueMoxon API calls (no permission prompts)
+| Pattern | Example |
+|---------|---------|
+| Simple single-line | `git status` |
+| Separate Bash calls | Call 1: `git add .` then Call 2: `git commit -m "msg"` |
+| bmx-api for API | `bmx-api GET /books` (no permission prompts) |
+
+**Correct Examples:**
+```bash
+git status
+git add .
+git commit -m "fix: something"
+curl -s https://example.com
+bmx-api GET /health/deep
+```
+
+**WRONG - Never do this:**
+```bash
+# This comment triggers a prompt
+git add . && git commit -m "fix: something"
+curl -s $(echo "url")
+aws logs --start-time $(date +%s000)
+```
+
+### 4. ALWAYS Wait for User Review Before Merging PRs
+
+**Process:**
+1. Create PR
+2. Watch CI pass
+3. **STOP - Ask user to review**
+4. Only merge after user approval
+
+**Do NOT auto-merge PRs without explicit user approval.**
+
+---
+
+## PRs in This Migration
+
+| PR | Title | Status | Notes |
+|----|-------|--------|-------|
+| #609 | feat: Upgrade to Tailwind CSS v4 | ✅ Merged | Initial migration - had hidden bugs |
+| #611 | chore: Promote staging to production | ❌ Blocked | Has merge conflicts, staging broken |
+| #612 | fix: Navbar logo height | ✅ Merged | Added !h-14 for logo |
+| #613 | fix: Tailwind v4 deprecated classes | ⚠️ WRONG | rounded-xs→rounded-sm DOUBLES radius |
+| #614 | fix: Add --radius-xs to @theme | ✅ Merged | CORRECT fix - adds @theme variable, reverts to rounded-xs |
+
+---
+
+## Background: What Was Done (For Context)
+
+### PR #609 Changes (Initial Migration)
+- Tailwind CSS upgraded from v3.4.x to v4.1.18
+- PostCSS plugin migrated to @tailwindcss/postcss
+- tailwind.config.js converted to CSS @theme block
+- @reference directive added for Vue scoped styles
+- autoprefixer removed (built into v4)
+
+### PR #612 Fix (Navbar Logo)
+- Changed `h-14` to `!h-14` for navbar logo
+- Fixed CSS cascade layer conflict where base layer reset was overriding utility
+
+### PR #613 Fix (INCORRECT - Needs Revert)
+- Changed `rounded-xs` → `rounded-sm` (WRONG - doubles radius)
+- Changed `bg-linear-to-bl` → `bg-gradient-to-bl` (may be correct)
+- Changed `focus:outline-hidden` → `focus:outline-none` (may be correct)
 
 ---
 
