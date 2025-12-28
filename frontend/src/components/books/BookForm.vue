@@ -268,7 +268,10 @@ function cancel() {
 <template>
   <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto space-y-8">
     <!-- Error message -->
-    <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm">
+    <div
+      v-if="errorMessage"
+      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm"
+    >
       {{ errorMessage }}
     </div>
 

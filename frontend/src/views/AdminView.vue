@@ -273,7 +273,11 @@ function formatDate(dateStr: string | null): string {
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
       <div v-else class="space-y-3">
-        <div v-for="user in adminStore.users" :key="user.id" class="bg-white rounded-lg shadow-sm p-4">
+        <div
+          v-for="user in adminStore.users"
+          :key="user.id"
+          class="bg-white rounded-lg shadow-sm p-4"
+        >
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div class="min-w-0">
               <div class="text-sm font-medium text-gray-900 break-all sm:truncate">
@@ -448,7 +452,9 @@ function formatDate(dateStr: string | null): string {
                 <div class="text-xs text-gray-500">by {{ key.created_by_email || "Unknown" }}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <code class="text-sm bg-gray-100 px-2 py-1 rounded-sm">{{ key.key_prefix }}...</code>
+                <code class="text-sm bg-gray-100 px-2 py-1 rounded-sm"
+                  >{{ key.key_prefix }}...</code
+                >
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ formatDate(key.created_at) }}
@@ -512,8 +518,8 @@ function formatDate(dateStr: string | null): string {
         </div>
 
         <p class="text-sm text-gray-600 mb-4">
-          Use this key in the <code class="bg-gray-100 px-1 rounded-sm">X-API-Key</code> header for API
-          requests.
+          Use this key in the <code class="bg-gray-100 px-1 rounded-sm">X-API-Key</code> header for
+          API requests.
         </p>
 
         <div class="flex justify-end">
