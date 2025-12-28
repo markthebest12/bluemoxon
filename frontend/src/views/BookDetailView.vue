@@ -681,10 +681,7 @@ function printPage() {
         <!-- Eval Runbook and Analysis Buttons -->
         <div class="flex flex-col gap-4">
           <!-- Eval Runbook Button -->
-          <div
-            v-if="booksStore.currentBook?.has_eval_runbook"
-            class="card card-info"
-          >
+          <div v-if="booksStore.currentBook?.has_eval_runbook" class="card card-info">
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="text-lg font-semibold text-gray-800">Eval Runbook</h2>

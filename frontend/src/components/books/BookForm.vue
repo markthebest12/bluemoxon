@@ -479,10 +479,7 @@ function cancel() {
         <h2 class="text-lg font-semibold text-gray-800">Acquisition</h2>
         <div class="flex items-center gap-2">
           <label class="text-sm text-gray-600">Currency:</label>
-          <select
-            v-model="selectedCurrency"
-            class="select text-sm w-auto"
-          >
+          <select v-model="selectedCurrency" class="select text-sm w-auto">
             <option value="USD">USD $</option>
             <option value="GBP">GBP £</option>
             <option value="EUR">EUR €</option>

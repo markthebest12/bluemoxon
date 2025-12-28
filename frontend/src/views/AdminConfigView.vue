@@ -304,11 +304,7 @@ function getBarWidth(cost: number): string {
         </label>
       </div>
       <div class="flex items-center gap-4">
-        <button
-          @click="saveConfig"
-          :disabled="saving"
-          class="btn-primary"
-        >
+        <button @click="saveConfig" :disabled="saving" class="btn-primary">
           {{ saving ? "Saving..." : "Save" }}
         </button>
         <span v-if="settingsMessage" class="text-sm text-green-600">{{ settingsMessage }}</span>
@@ -773,10 +769,7 @@ function getBarWidth(cost: number): string {
             >
               <span class="text-xs text-gray-500 w-16">{{ formatCostDate(day.date) }}</span>
               <div class="flex-1 h-5 bg-gray-100 rounded-sm overflow-hidden">
-                <div
-                  class="h-full progress-bar"
-                  :style="{ width: getBarWidth(day.cost) }"
-                ></div>
+                <div class="h-full progress-bar" :style="{ width: getBarWidth(day.cost) }"></div>
               </div>
               <span class="text-xs font-mono w-16 text-right">{{ formatCurrency(day.cost) }}</span>
             </div>

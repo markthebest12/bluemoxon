@@ -508,9 +508,7 @@ function openSourceUrl() {
 
         <!-- Step 2: Extracting (async progress) -->
         <div v-if="step === 'extracting'" class="p-8 text-center">
-          <div
-            class="spinner spinner-xl mx-auto mb-4"
-          ></div>
+          <div class="spinner spinner-xl mx-auto mb-4"></div>
           <p class="text-gray-600 mb-2">
             {{
               extractionStatus?.status === "pending"
@@ -775,10 +773,7 @@ function openSourceUrl() {
                     clip-rule="evenodd"
                   />
                 </svg>
-                <div
-                  v-else-if="index === currentSavingStep"
-                  class="spinner w-4 h-4"
-                ></div>
+                <div v-else-if="index === currentSavingStep" class="spinner w-4 h-4"></div>
                 <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
               </div>
               <!-- Step label -->

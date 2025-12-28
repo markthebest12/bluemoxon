@@ -147,17 +147,8 @@ function handleClose() {
           ></textarea>
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <div class="flex justify-end gap-2">
-            <button
-              @click="handleClose"
-              class="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              @click="handleExtract"
-              :disabled="extracting"
-              class="btn-primary"
-            >
+            <button @click="handleClose" class="btn-secondary">Cancel</button>
+            <button @click="handleExtract" :disabled="extracting" class="btn-primary">
               {{ extracting ? "Extracting..." : "Extract" }}
             </button>
           </div>
@@ -378,11 +369,7 @@ function handleClose() {
                 <code class="text-xs bg-gray-100 px-2 py-1 rounded-sm">{{
                   extractedData.tracking_number
                 }}</code>
-                <button
-                  @click="copyTracking"
-                  class="link text-xs"
-                  title="Copy"
-                >
+                <button @click="copyTracking" class="link text-xs" title="Copy">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -429,18 +416,8 @@ function handleClose() {
           </div>
 
           <div class="flex justify-end gap-2 pt-2 border-t">
-            <button
-              @click="handleBack"
-              class="btn-secondary"
-            >
-              Back
-            </button>
-            <button
-              @click="handleApply"
-              class="btn-primary"
-            >
-              Apply to Form
-            </button>
+            <button @click="handleBack" class="btn-secondary">Back</button>
+            <button @click="handleApply" class="btn-primary">Apply to Form</button>
           </div>
         </div>
       </div>

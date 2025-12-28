@@ -305,7 +305,9 @@ function formatCurrency(value: number | null | undefined): string {
               <div class="flex items-center gap-3">
                 <div class="spinner w-5 h-5"></div>
                 <div>
-                  <p class="text-sm text-victorian-hunter-800 font-medium">Running full analysis...</p>
+                  <p class="text-sm text-victorian-hunter-800 font-medium">
+                    Running full analysis...
+                  </p>
                   <p class="text-sm text-victorian-hunter-600">
                     Analyzing images and looking up market prices. This may take 30-60 seconds.
                   </p>
@@ -488,11 +490,7 @@ function formatCurrency(value: number | null | undefined): string {
                   <div class="text-gray-500">Asking</div>
                   <div class="font-medium flex items-center gap-1">
                     {{ formatCurrency(runbook.current_asking_price) }}
-                    <button
-                      @click="openPriceEdit"
-                      class="link"
-                      title="Edit price"
-                    >
+                    <button @click="openPriceEdit" class="link" title="Edit price">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           stroke-linecap="round"
@@ -813,18 +811,10 @@ function formatCurrency(value: number | null | undefined): string {
           </div>
 
           <div class="flex gap-3 pt-2">
-            <button
-              type="button"
-              @click="closePriceEdit"
-              class="btn-secondary flex-1"
-            >
+            <button type="button" @click="closePriceEdit" class="btn-secondary flex-1">
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="updatingPrice"
-              class="btn-primary flex-1"
-            >
+            <button type="submit" :disabled="updatingPrice" class="btn-primary flex-1">
               {{ updatingPrice ? "Saving..." : "Save & Recalculate" }}
             </button>
           </div>

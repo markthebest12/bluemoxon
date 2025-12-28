@@ -179,12 +179,7 @@ function handleRecalculate() {
         <span v-else-if="showBreakdown">Hide Details</span>
         <span v-else>Show Details</span>
       </button>
-      <button
-        @click="handleRecalculate"
-        class="text-xs link hover:underline"
-      >
-        Recalculate
-      </button>
+      <button @click="handleRecalculate" class="text-xs link hover:underline">Recalculate</button>
     </div>
 
     <!-- Detailed Breakdown -->
@@ -194,7 +189,9 @@ function handleRecalculate() {
     >
       <!-- Investment Grade Breakdown -->
       <div>
-        <h4 class="text-xs font-semibold text-victorian-hunter-600 uppercase mb-2">Investment Grade</h4>
+        <h4 class="text-xs font-semibold text-victorian-hunter-600 uppercase mb-2">
+          Investment Grade
+        </h4>
         <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
