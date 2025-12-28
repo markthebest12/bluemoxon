@@ -272,7 +272,7 @@ function formatDate(dateStr: string | null): string {
 
       <div v-if="adminStore.loading" class="text-center py-8 text-gray-500">Loading users...</div>
 
-      <div v-else class="space-y-3">
+      <div v-else class="flex flex-col gap-3">
         <div
           v-for="user in adminStore.users"
           :key="user.id"
@@ -551,7 +551,7 @@ function formatDate(dateStr: string | null): string {
           Temporary credentials generated. The user's password has been changed.
         </p>
 
-        <div class="space-y-3 mb-4">
+        <div class="flex flex-col gap-3 mb-4">
           <div class="bg-gray-100 p-3 rounded-lg">
             <label class="block text-xs text-gray-500 mb-1">Email</label>
             <div class="flex items-center gap-2">
@@ -625,7 +625,11 @@ function formatDate(dateStr: string | null): string {
           Password reset successfully! The user can now log in with the new password.
         </div>
 
-        <form v-if="!resetPasswordSuccess" @submit.prevent="handleResetPassword" class="space-y-4">
+        <form
+          v-if="!resetPasswordSuccess"
+          @submit.prevent="handleResetPassword"
+          class="flex flex-col gap-4"
+        >
           <div>
             <label for="resetNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
               New Password

@@ -120,7 +120,7 @@ function handleClose() {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4">
+        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
           <!-- Error Message -->
           <div
             v-if="errorMessage"
@@ -158,7 +158,7 @@ function handleClose() {
           </div>
 
           <!-- Tracking Number Input -->
-          <div v-if="inputMode === 'number'" class="space-y-4">
+          <div v-if="inputMode === 'number'" class="flex flex-col gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
                 Tracking Number *

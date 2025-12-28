@@ -217,7 +217,7 @@ function close() {
               thumbnail.
             </p>
 
-            <div class="space-y-2">
+            <div class="flex flex-col gap-2">
               <div
                 v-for="(img, index) in orderedImages"
                 :key="img.id"

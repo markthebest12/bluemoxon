@@ -266,7 +266,7 @@ function cancel() {
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto space-y-8">
+  <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto flex flex-col gap-8">
     <!-- Error message -->
     <div
       v-if="errorMessage"
@@ -556,7 +556,7 @@ function cancel() {
     <!-- Notes -->
     <div class="card">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Notes</h2>
-      <div class="space-y-4">
+      <div class="flex flex-col gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
           <textarea
@@ -609,7 +609,7 @@ function cancel() {
     </div>
 
     <!-- Actions -->
-    <div class="flex justify-end space-x-4">
+    <div class="flex justify-end gap-4">
       <button type="button" @click="cancel" class="btn-secondary">Cancel</button>
       <button type="submit" :disabled="saving" class="btn-primary">
         {{ saving ? "Saving..." : isEditing ? "Update Book" : "Create Book" }}
@@ -641,7 +641,7 @@ function cancel() {
               Similar books already exist in your collection. Are you sure you want to create
               another entry?
             </p>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div class="flex flex-col gap-2 max-h-48 overflow-y-auto">
               <div
                 v-for="match in duplicateMatches"
                 :key="match.id"

@@ -126,7 +126,7 @@ function handleRecalculate() {
     </div>
 
     <!-- Component Breakdown -->
-    <div class="space-y-2 text-sm">
+    <div class="flex flex-col gap-2 text-sm">
       <div class="flex justify-between items-center">
         <span class="text-gray-600">Investment</span>
         <div class="flex items-center gap-2">
@@ -188,11 +188,14 @@ function handleRecalculate() {
     </div>
 
     <!-- Detailed Breakdown -->
-    <div v-if="showBreakdown && breakdownData" class="mt-3 pt-3 border-t space-y-3 overflow-hidden">
+    <div
+      v-if="showBreakdown && breakdownData"
+      class="mt-3 pt-3 border-t flex flex-col gap-3 overflow-hidden"
+    >
       <!-- Investment Grade Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-blue-600 uppercase mb-2">Investment Grade</h4>
-        <div class="space-y-1.5">
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.investment_grade.factors"
             :key="factor.name"
@@ -216,7 +219,7 @@ function handleRecalculate() {
       <!-- Strategic Fit Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-purple-600 uppercase mb-2">Strategic Fit</h4>
-        <div class="space-y-1.5">
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.strategic_fit.factors"
             :key="factor.name"
@@ -240,7 +243,7 @@ function handleRecalculate() {
       <!-- Collection Impact Breakdown -->
       <div>
         <h4 class="text-xs font-semibold text-teal-600 uppercase mb-2">Collection Impact</h4>
-        <div class="space-y-1.5">
+        <div class="flex flex-col gap-1.5">
           <div
             v-for="factor in breakdownData.breakdown.collection_impact.factors"
             :key="factor.name"

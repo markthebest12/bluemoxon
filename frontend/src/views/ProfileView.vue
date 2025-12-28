@@ -94,7 +94,7 @@ async function handleChangePassword() {
         {{ profileSuccess }}
       </div>
 
-      <form @submit.prevent="handleUpdateProfile" class="space-y-4">
+      <form @submit.prevent="handleUpdateProfile" class="flex flex-col gap-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">
@@ -122,7 +122,7 @@ async function handleChangePassword() {
           </div>
         </div>
 
-        <dl class="space-y-3 pt-4 border-t">
+        <dl class="flex flex-col gap-3 pt-4 border-t">
           <div>
             <dt class="text-sm text-gray-500">Email</dt>
             <dd class="text-gray-800">{{ authStore.user?.email }}</dd>
@@ -153,7 +153,7 @@ async function handleChangePassword() {
         {{ success }}
       </div>
 
-      <form @submit.prevent="handleChangePassword" class="space-y-4">
+      <form @submit.prevent="handleChangePassword" class="flex flex-col gap-4">
         <div>
           <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">
             Current Password

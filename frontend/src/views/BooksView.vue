@@ -556,7 +556,7 @@ function closeCarousel() {
               <span class="text-sm text-gray-600">
                 {{ formatDate(book.purchase_date) }}
               </span>
-              <div class="flex items-center space-x-1">
+              <div class="flex items-center gap-1">
                 <span
                   v-if="book.binding_authenticated"
                   class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded-sm"
@@ -585,7 +585,7 @@ function closeCarousel() {
     </div>
 
     <!-- Pagination -->
-    <div v-if="booksStore.totalPages > 1" class="flex justify-center mt-8 space-x-2">
+    <div v-if="booksStore.totalPages > 1" class="flex justify-center mt-8 gap-2">
       <button
         @click="booksStore.setPage(booksStore.page - 1)"
         :disabled="booksStore.page === 1"

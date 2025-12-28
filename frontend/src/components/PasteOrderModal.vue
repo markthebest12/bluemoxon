@@ -137,7 +137,7 @@ function handleClose() {
         </div>
 
         <!-- Input State -->
-        <div v-if="!extractedData" class="p-4 space-y-4 overflow-y-auto flex-1">
+        <div v-if="!extractedData" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <p class="text-sm text-gray-600">Paste your eBay order confirmation email text below.</p>
           <textarea
             v-model="pastedText"
@@ -164,7 +164,7 @@ function handleClose() {
         </div>
 
         <!-- Results State -->
-        <div v-else class="p-4 space-y-4 overflow-y-auto flex-1">
+        <div v-else class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <div
             v-if="extractedData.used_llm"
             class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-sm inline-block"
@@ -172,7 +172,7 @@ function handleClose() {
             Enhanced with AI
           </div>
 
-          <div class="space-y-2">
+          <div class="flex flex-col gap-2">
             <div v-if="extractedData.order_number" class="flex justify-between items-center">
               <span class="text-sm text-gray-600">Order Number</span>
               <span class="font-medium flex items-center gap-1">

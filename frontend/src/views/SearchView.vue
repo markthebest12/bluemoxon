@@ -73,7 +73,7 @@ function viewResult(result: any) {
       <p class="text-gray-500">No results found for "{{ query }}"</p>
     </div>
 
-    <div v-else-if="results.length > 0" class="space-y-4">
+    <div v-else-if="results.length > 0" class="flex flex-col gap-4">
       <p class="text-sm text-gray-500 mb-4">{{ results.length }} results found</p>
 
       <div

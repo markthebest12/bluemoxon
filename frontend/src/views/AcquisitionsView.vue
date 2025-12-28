@@ -386,7 +386,7 @@ async function handleArchiveSource(bookId: number) {
               <span class="ml-auto text-sm text-gray-500">{{ evaluating.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in evaluating"
               :key="book.id"
@@ -598,7 +598,7 @@ async function handleArchiveSource(bookId: number) {
               <span class="ml-auto text-sm text-gray-500">{{ inTransit.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in inTransit"
               :key="book.id"
@@ -879,7 +879,7 @@ async function handleArchiveSource(bookId: number) {
               <span class="ml-auto text-sm text-gray-500">{{ received.length }}</span>
             </h2>
           </div>
-          <div class="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+          <div class="p-4 flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto">
             <div
               v-for="book in received"
               :key="book.id"
