@@ -39,7 +39,7 @@ function handleClick() {
   <div
     :class="[
       sizeClasses,
-      'relative rounded-xs overflow-hidden bg-victorian-paper-cream border border-victorian-paper-antique transition-all',
+      'relative rounded-sm overflow-hidden bg-victorian-paper-cream border border-victorian-paper-antique transition-all',
       hasImage ? 'cursor-pointer hover:border-victorian-gold-muted hover:shadow-md' : '',
     ]"
     @click="handleClick"
@@ -56,7 +56,7 @@ function handleClick() {
     <!-- Image indicator badge (only for actual images) -->
     <div
       v-if="hasImage"
-      class="absolute bottom-1 right-1 bg-victorian-hunter-900/70 text-victorian-paper-cream text-xs px-1.5 py-0.5 rounded-xs"
+      class="absolute bottom-1 right-1 bg-victorian-hunter-900/70 text-victorian-paper-cream text-xs px-1.5 py-0.5 rounded-sm"
     >
       <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
