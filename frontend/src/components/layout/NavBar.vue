@@ -45,7 +45,7 @@ function closeMobileMenu() {
       <div class="flex items-center justify-between h-16">
         <!-- Logo -->
         <RouterLink to="/" class="flex items-center">
-          <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-14 w-auto" />
+          <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="!h-14 w-auto" />
         </RouterLink>
 
         <!-- Desktop Navigation Links -->
