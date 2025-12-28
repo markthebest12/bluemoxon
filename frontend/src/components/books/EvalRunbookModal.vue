@@ -247,7 +247,7 @@ function formatCurrency(value: number | null | undefined): string {
         <div class="flex-1 overflow-y-auto p-4">
           <!-- Loading -->
           <div v-if="loading" class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div class="spinner spinner-lg"></div>
           </div>
 
           <!-- Not Found -->
@@ -301,14 +301,14 @@ function formatCurrency(value: number | null | undefined): string {
             </div>
 
             <!-- Refreshing state -->
-            <div v-if="refreshing" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div v-if="refreshing" class="card-info mb-4">
               <div class="flex items-center gap-3">
-                <div
-                  class="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"
-                ></div>
+                <div class="spinner w-5 h-5"></div>
                 <div>
-                  <p class="text-sm text-blue-800 font-medium">Running full analysis...</p>
-                  <p class="text-sm text-blue-600">
+                  <p class="text-sm text-victorian-hunter-800 font-medium">
+                    Running full analysis...
+                  </p>
+                  <p class="text-sm text-victorian-hunter-600">
                     Analyzing images and looking up market prices. This may take 30-60 seconds.
                   </p>
                 </div>
@@ -392,7 +392,7 @@ function formatCurrency(value: number | null | undefined): string {
                   </div>
                   <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      class="h-full bg-blue-500"
+                      class="h-full progress-bar"
                       :style="{ width: `${runbook.quality_score}%` }"
                     ></div>
                   </div>
@@ -490,11 +490,7 @@ function formatCurrency(value: number | null | undefined): string {
                   <div class="text-gray-500">Asking</div>
                   <div class="font-medium flex items-center gap-1">
                     {{ formatCurrency(runbook.current_asking_price) }}
-                    <button
-                      @click="openPriceEdit"
-                      class="text-blue-600 hover:text-blue-700"
-                      title="Edit price"
-                    >
+                    <button @click="openPriceEdit" class="link" title="Edit price">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           stroke-linecap="round"
@@ -769,7 +765,7 @@ function formatCurrency(value: number | null | undefined): string {
                 type="number"
                 step="0.01"
                 min="0"
-                class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                class="input pl-7"
                 required
               />
             </div>
@@ -781,7 +777,7 @@ function formatCurrency(value: number | null | undefined): string {
               v-model="priceForm.discount_code"
               type="text"
               placeholder="e.g., SAVE20"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              class="input"
             />
           </div>
 
@@ -791,7 +787,7 @@ function formatCurrency(value: number | null | undefined): string {
               v-model="priceForm.notes"
               rows="2"
               placeholder="e.g., Seller accepted offer"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              class="input"
             ></textarea>
           </div>
 
@@ -815,18 +811,10 @@ function formatCurrency(value: number | null | undefined): string {
           </div>
 
           <div class="flex gap-3 pt-2">
-            <button
-              type="button"
-              @click="closePriceEdit"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-            >
+            <button type="button" @click="closePriceEdit" class="btn-secondary flex-1">
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="updatingPrice"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button type="submit" :disabled="updatingPrice" class="btn-primary flex-1">
               {{ updatingPrice ? "Saving..." : "Save & Recalculate" }}
             </button>
           </div>

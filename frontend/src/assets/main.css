@@ -266,6 +266,151 @@ layer(utilities);
     padding-bottom: 0.5rem;
     margin-bottom: 1.5rem;
   }
+
+  /* ============================================
+     LINKS - Victorian hunter green instead of blue
+     ============================================ */
+  .link {
+    color: var(--color-victorian-hunter-600);
+    transition: color 0.15s ease-in-out;
+  }
+  .link:hover {
+    color: var(--color-victorian-hunter-800);
+  }
+  .link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .link-subtle {
+    /* For less prominent links */
+    color: var(--color-victorian-ink-muted);
+  }
+  .link-subtle:hover {
+    color: var(--color-victorian-hunter-600);
+  }
+
+  /* ============================================
+     INFO/HIGHLIGHT CARDS - Soft hunter green tones
+     ============================================ */
+  .card-info {
+    /* Info highlight box - replaces blue-50/blue-200 patterns */
+    background-color: var(--color-moxon-50);
+    border: 1px solid var(--color-moxon-200);
+    border-radius: var(--radius-xs);
+    padding: 1rem;
+  }
+
+  .card-highlight {
+    /* Stronger highlight - for featured sections */
+    background-color: var(--color-moxon-100);
+    border: 1px solid var(--color-moxon-300);
+    border-radius: var(--radius-xs);
+    padding: 1rem;
+  }
+
+  /* ============================================
+     LOADING SPINNERS - Victorian colors
+     ============================================ */
+  .spinner {
+    border: 2px solid var(--color-victorian-hunter-600);
+    border-top-color: transparent;
+    border-radius: 9999px;
+    animation: spin 1s linear infinite;
+  }
+
+  .spinner-lg {
+    width: 2rem;
+    height: 2rem;
+    border-width: 3px;
+  }
+
+  .spinner-xl {
+    width: 3rem;
+    height: 3rem;
+    border-width: 4px;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ============================================
+     PROGRESS BARS - Victorian colors
+     ============================================ */
+  .progress-bar {
+    background-color: var(--color-victorian-hunter-500);
+    border-radius: 9999px;
+  }
+
+  .progress-bar-gold {
+    background-color: var(--color-victorian-gold);
+  }
+
+  /* ============================================
+     STATUS BADGES - Victorian theme
+     ============================================ */
+  .badge-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-xs);
+  }
+
+  .badge-transit {
+    /* In transit status - replaces bg-blue-100 text-blue-800 */
+    background-color: var(--color-moxon-100);
+    color: var(--color-victorian-hunter-800);
+  }
+
+  .badge-pending {
+    background-color: var(--color-victorian-paper-aged);
+    color: var(--color-victorian-ink-dark);
+  }
+
+  .badge-success {
+    background-color: #dcfce7;
+    color: #166534;
+  }
+
+  .badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .badge-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  /* ============================================
+     TABS - Victorian theme
+     ============================================ */
+  .tab {
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+    color: var(--color-victorian-ink-muted);
+    transition: all 0.15s ease-in-out;
+  }
+  .tab:hover {
+    color: var(--color-victorian-hunter-600);
+  }
+  .tab-active {
+    border-bottom-color: var(--color-victorian-hunter-600);
+    color: var(--color-victorian-hunter-700);
+  }
+
+  /* ============================================
+     TEXT STATUS - Victorian colors for status text
+     ============================================ */
+  .text-status-running {
+    color: var(--color-victorian-hunter-600);
+  }
 }
 
 /* Prevent horizontal scroll on mobile and handle safe areas */

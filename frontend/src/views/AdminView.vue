@@ -299,7 +299,7 @@ function formatDate(dateStr: string | null): string {
                 class="text-sm border rounded-sm px-2 py-1"
                 :class="{
                   'bg-purple-100 text-purple-800': user.role === 'admin',
-                  'bg-blue-100 text-blue-800': user.role === 'editor',
+                  'badge-transit': user.role === 'editor',
                   'bg-gray-100 text-gray-800': user.role === 'viewer',
                 }"
               >
@@ -349,7 +349,7 @@ function formatDate(dateStr: string | null): string {
               <button
                 v-if="authStore.user?.email !== user.email"
                 @click="impersonateUser(user.id)"
-                class="text-xs px-2 py-1 rounded-sm border border-blue-300 text-blue-700 hover:bg-blue-50"
+                class="text-xs px-2 py-1 rounded-sm border border-victorian-hunter-300 text-victorian-hunter-700 hover:bg-victorian-paper-aged"
               >
                 Login As
               </button>

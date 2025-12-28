@@ -221,7 +221,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'settings'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -232,7 +232,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'status'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -243,7 +243,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'scoring'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -254,7 +254,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'tiers'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -268,7 +268,7 @@ function getBarWidth(cost: number): string {
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'costs'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
@@ -304,11 +304,7 @@ function getBarWidth(cost: number): string {
         </label>
       </div>
       <div class="flex items-center gap-4">
-        <button
-          @click="saveConfig"
-          :disabled="saving"
-          class="px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 disabled:opacity-50"
-        >
+        <button @click="saveConfig" :disabled="saving" class="btn-primary">
           {{ saving ? "Saving..." : "Save" }}
         </button>
         <span v-if="settingsMessage" class="text-sm text-green-600">{{ settingsMessage }}</span>
@@ -773,10 +769,7 @@ function getBarWidth(cost: number): string {
             >
               <span class="text-xs text-gray-500 w-16">{{ formatCostDate(day.date) }}</span>
               <div class="flex-1 h-5 bg-gray-100 rounded-sm overflow-hidden">
-                <div
-                  class="h-full bg-blue-500 rounded-sm"
-                  :style="{ width: getBarWidth(day.cost) }"
-                ></div>
+                <div class="h-full progress-bar" :style="{ width: getBarWidth(day.cost) }"></div>
               </div>
               <span class="text-xs font-mono w-16 text-right">{{ formatCurrency(day.cost) }}</span>
             </div>
