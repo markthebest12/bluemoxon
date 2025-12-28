@@ -150,3 +150,16 @@ def get_settings() -> Settings:
     settings = Settings()
     logger.info("cors_origins setting: %s", settings.cors_origins)
     return settings
+
+
+def get_scraper_environment() -> str:
+    """Get environment name for scraper Lambda function naming.
+
+    Uses BMX_SCRAPER_ENVIRONMENT if set (for prod where scraper Lambda is named
+    bluemoxon-prod-scraper but BMX_ENVIRONMENT is "production"), otherwise
+    falls back to BMX_ENVIRONMENT.
+
+    Returns:
+        Environment string for building scraper function name (e.g., "staging", "prod")
+    """
+    return os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")

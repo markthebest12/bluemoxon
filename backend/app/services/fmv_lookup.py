@@ -6,12 +6,12 @@ eBay requests use the scraper Lambda with Playwright for bot detection avoidance
 
 import json
 import logging
-import os
 import re
 import urllib.parse
 
 import httpx
 
+from app.config import get_scraper_environment
 from app.services.bedrock import get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def _fetch_via_scraper_lambda(url: str) -> str | None:
     """
     try:
         client = _get_lambda_client()
-        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        environment = get_scraper_environment()
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
         # fetch_images=False since we only need HTML for search results
@@ -121,7 +121,7 @@ def _fetch_listings_via_scraper_lambda(url: str) -> list[dict] | None:
     """
     try:
         client = _get_lambda_client()
-        environment = os.getenv("BMX_ENVIRONMENT", "staging")
+        environment = get_scraper_environment()
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
         # Use extract_listings mode to get structured data directly

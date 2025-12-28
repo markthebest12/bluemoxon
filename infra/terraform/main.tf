@@ -318,6 +318,8 @@ module "lambda" {
       BMX_ALLOWED_EDITOR_EMAILS = var.allowed_editor_emails
       BMX_MAINTENANCE_MODE      = var.maintenance_mode
       BMX_ENVIRONMENT           = coalesce(var.environment_name_override, var.environment)
+      # Scraper function naming - separate from BMX_ENVIRONMENT to handle prod naming mismatch
+      BMX_SCRAPER_ENVIRONMENT = coalesce(var.scraper_environment_override, var.environment)
       # Worker queue names (URLs constructed at runtime)
       BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
       BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
