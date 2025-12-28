@@ -82,9 +82,9 @@ function getTrendArrow(value: number): string {
 
     <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Collections -->
-      <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
+      <div class="card-static p-3! md:p-6! relative overflow-hidden">
         <div
-          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
+          class="absolute top-0 right-0 w-16 h-16 bg-linear-to-bl from-victorian-hunter-800/5 to-transparent"
         ></div>
         <h3
           class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
@@ -112,9 +112,9 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Total Volumes -->
-      <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
+      <div class="card-static p-3! md:p-6! relative overflow-hidden">
         <div
-          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
+          class="absolute top-0 right-0 w-16 h-16 bg-linear-to-bl from-victorian-hunter-800/5 to-transparent"
         ></div>
         <h3
           class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
@@ -139,9 +139,9 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Collection Value -->
-      <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
+      <div class="card-static p-3! md:p-6! relative overflow-hidden">
         <div
-          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-gold/10 to-transparent"
+          class="absolute top-0 right-0 w-16 h-16 bg-linear-to-bl from-victorian-gold/10 to-transparent"
         ></div>
         <h3
           class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
@@ -174,9 +174,9 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Authenticated Bindings -->
-      <div class="card-static !p-3 md:!p-6 relative overflow-hidden">
+      <div class="card-static p-3! md:p-6! relative overflow-hidden">
         <div
-          class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-burgundy/10 to-transparent"
+          class="absolute top-0 right-0 w-16 h-16 bg-linear-to-bl from-victorian-burgundy/10 to-transparent"
         ></div>
         <h3
           class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"

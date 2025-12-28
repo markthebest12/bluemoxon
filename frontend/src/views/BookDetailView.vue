@@ -334,7 +334,7 @@ function printPage() {
           <!-- Print button (visible to all users) -->
           <button
             @click="printPage"
-            class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded hover:bg-victorian-paper-cream transition-colors"
+            class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded-sm hover:bg-victorian-paper-cream transition-colors"
             title="Print this page"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,7 +414,7 @@ function printPage() {
             <div
               v-for="(img, idx) in images"
               :key="img.id"
-              class="relative group aspect-square rounded overflow-hidden"
+              class="relative group aspect-square rounded-sm overflow-hidden"
             >
               <button
                 @click="openCarousel(idx)"
@@ -486,7 +486,7 @@ function printPage() {
                 <!-- First Edition Badge -->
                 <span
                   v-if="booksStore.currentBook.is_first_edition"
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800"
                 >
                   1st Edition
                 </span>
@@ -496,7 +496,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 1'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800"
                 >
                   Tier 1 Provenance
                 </span>
@@ -505,7 +505,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 2'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-blue-100 text-blue-800"
                 >
                   Tier 2 Provenance
                 </span>
@@ -514,7 +514,7 @@ function printPage() {
                     booksStore.currentBook.has_provenance &&
                     booksStore.currentBook.provenance_tier === 'Tier 3'
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-gray-100 text-gray-800"
                 >
                   Tier 3 Provenance
                 </span>
@@ -522,7 +522,7 @@ function printPage() {
                   v-if="
                     booksStore.currentBook.has_provenance && !booksStore.currentBook.provenance_tier
                   "
-                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600"
+                  class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-gray-100 text-gray-600"
                 >
                   Has Provenance
                 </span>
@@ -560,7 +560,7 @@ function printPage() {
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                   :disabled="updatingStatus"
                   :class="[
-                    'px-2 py-1 rounded text-sm font-medium border-0 cursor-pointer no-print',
+                    'px-2 py-1 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
                     getStatusColor(booksStore.currentBook.status),
                     updatingStatus ? 'opacity-50' : '',
                   ]"
@@ -573,7 +573,7 @@ function printPage() {
                 <span
                   v-if="authStore.isEditor"
                   :class="[
-                    'hidden print-only px-2 py-1 rounded text-sm font-medium',
+                    'hidden print-only px-2 py-1 rounded-sm text-sm font-medium',
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
@@ -583,7 +583,7 @@ function printPage() {
                 <span
                   v-else
                   :class="[
-                    'px-2 py-1 rounded text-sm font-medium',
+                    'px-2 py-1 rounded-sm text-sm font-medium',
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
@@ -773,7 +773,7 @@ function printPage() {
                     !booksStore.currentBook?.analysis_job_status
                   "
                   v-model="selectedModel"
-                  class="text-sm border border-gray-300 rounded px-2 py-1.5"
+                  class="text-sm border border-gray-300 rounded-sm px-2 py-1.5"
                   :disabled="startingAnalysis"
                 >
                   <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">
@@ -808,7 +808,7 @@ function printPage() {
                   "
                   @click="handleGenerateAnalysis"
                   :disabled="startingAnalysis"
-                  class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
+                  class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-sm hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
                   title="Regenerate analysis with selected model"
                 >
                   <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
@@ -983,7 +983,7 @@ function printPage() {
               <img
                 :src="imageToDelete.thumbnail_url"
                 :alt="imageToDelete.caption || 'Image'"
-                class="w-32 h-32 object-cover rounded"
+                class="w-32 h-32 object-cover rounded-sm"
               />
             </div>
             <p class="text-sm text-red-600 mt-3 text-center">This action cannot be undone.</p>
@@ -991,7 +991,7 @@ function printPage() {
 
           <div
             v-if="deleteImageError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
           >
             {{ deleteImageError }}
           </div>
@@ -1045,7 +1045,7 @@ function printPage() {
 
           <div
             v-if="deleteError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
           >
             {{ deleteError }}
           </div>

@@ -378,7 +378,7 @@ async function handleArchiveSource(bookId: number) {
       <!-- Kanban Board -->
       <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- EVALUATING Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
               <span class="w-3 h-3 bg-yellow-400 rounded-full"></span>
@@ -434,13 +434,13 @@ async function handleArchiveSource(bookId: number) {
               <div class="mt-3 flex gap-2">
                 <button
                   @click="openAcquireModal(book.id)"
-                  class="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  class="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-sm hover:bg-blue-700"
                 >
                   Acquire
                 </button>
                 <button
                   @click="openEditModal(book)"
-                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded"
+                  class="px-2 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded-sm"
                   title="Edit FMV and details"
                 >
                   Edit
@@ -448,7 +448,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   @click="handleDelete(book.id)"
                   :disabled="deletingBook === book.id"
-                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded disabled:opacity-50"
+                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded-sm disabled:opacity-50"
                 >
                   {{ deletingBook === book.id ? "Deleting..." : "Delete" }}
                 </button>
@@ -590,7 +590,7 @@ async function handleArchiveSource(bookId: number) {
         </div>
 
         <!-- IN_TRANSIT Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
               <span class="w-3 h-3 bg-blue-400 rounded-full"></span>
@@ -661,7 +661,7 @@ async function handleArchiveSource(bookId: number) {
                   v-if="book.tracking_number && book.tracking_carrier"
                   @click="handleRefreshTracking(book.id)"
                   :disabled="refreshingTracking === book.id"
-                  class="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                  class="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-sm disabled:opacity-50"
                   title="Refresh tracking info"
                 >
                   <svg
@@ -723,13 +723,13 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   v-if="!book.tracking_url"
                   @click="openTrackingModal(book)"
-                  class="flex-1 px-2 py-1 border border-blue-600 text-blue-600 text-xs rounded hover:bg-blue-50"
+                  class="flex-1 px-2 py-1 border border-blue-600 text-blue-600 text-xs rounded-sm hover:bg-blue-50"
                 >
                   Add Tracking
                 </button>
                 <button
                   @click="handleMarkReceived(book.id)"
-                  class="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  class="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded-sm hover:bg-green-700"
                 >
                   Mark Received
                 </button>
@@ -871,7 +871,7 @@ async function handleArchiveSource(bookId: number) {
         </div>
 
         <!-- RECEIVED Column -->
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
               <span class="w-3 h-3 bg-green-400 rounded-full"></span>

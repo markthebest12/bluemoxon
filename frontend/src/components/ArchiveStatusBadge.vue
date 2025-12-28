@@ -72,7 +72,7 @@ const iconPath = computed(() => {
       :rel="status === 'success' && archivedUrl ? 'noopener noreferrer' : undefined"
       :class="[
         badgeClass,
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium',
         status === 'success' && archivedUrl ? 'hover:underline cursor-pointer' : '',
       ]"
       :title="status === 'success' && archivedUrl ? 'View archived page' : undefined"

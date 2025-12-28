@@ -160,7 +160,7 @@ function handlePasteApply(data: any) {
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <div>
             <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
             <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>

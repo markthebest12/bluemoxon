@@ -325,7 +325,7 @@ function closeCarousel() {
     </div>
 
     <!-- Expandable Filter Panel -->
-    <div v-if="showFilters" class="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+    <div v-if="showFilters" class="mb-6 p-4 bg-white border rounded-lg shadow-xs">
       <!-- Row 1: Reference Filters -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <!-- Binder Filter -->
@@ -559,20 +559,20 @@ function closeCarousel() {
               <div class="flex items-center space-x-1">
                 <span
                   v-if="book.binding_authenticated"
-                  class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded"
+                  class="px-2 py-1 text-xs bg-victorian-burgundy text-white rounded-sm"
                   :title="book.binder?.name"
                 >
                   {{ book.binder?.name }}
                 </span>
                 <span
                   v-if="book.volumes > 1"
-                  class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
+                  class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded-sm"
                 >
                   {{ book.volumes }} vols
                 </span>
                 <span
                   v-if="book.has_analysis"
-                  class="px-1.5 py-1 text-xs bg-green-100 text-green-700 rounded"
+                  class="px-1.5 py-1 text-xs bg-green-100 text-green-700 rounded-sm"
                   title="Has analysis"
                 >
                   A

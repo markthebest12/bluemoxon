@@ -778,7 +778,7 @@ function openSourceUrl() {
               class="flex items-center gap-3"
             >
               <!-- Step indicator -->
-              <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+              <div class="shrink-0 w-6 h-6 flex items-center justify-center">
                 <svg
                   v-if="index < currentSavingStep"
                   class="w-5 h-5 text-green-500"
