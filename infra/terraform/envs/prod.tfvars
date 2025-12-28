@@ -195,6 +195,7 @@ github_oidc_cloudfront_distribution_arns = [
   "arn:aws:cloudfront::266672885920:distribution/E1VE5JPXXGIJ25",
   "arn:aws:cloudfront::266672885920:distribution/ES60BQB34DNYS"
 ]
+enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check
 
 # =============================================================================
 # Route53 DNS (prod only - manages DNS for both prod and staging)
