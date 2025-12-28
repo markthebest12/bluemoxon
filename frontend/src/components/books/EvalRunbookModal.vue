@@ -256,7 +256,7 @@ function formatCurrency(value: number | null | undefined): string {
           </div>
 
           <!-- Runbook Content -->
-          <div v-else class="space-y-4">
+          <div v-else class="flex flex-col gap-4">
             <!-- Run Full Analysis Banner (shows when quick import was used) -->
             <div
               v-if="needsFullAnalysis && !refreshing"
@@ -383,7 +383,7 @@ function formatCurrency(value: number | null | undefined): string {
               </div>
 
               <!-- Score Bars -->
-              <div class="space-y-3">
+              <div class="flex flex-col gap-3">
                 <!-- Quality Score -->
                 <div v-if="runbook.quality_score !== undefined">
                   <div class="flex justify-between text-sm mb-1">
@@ -643,12 +643,12 @@ function formatCurrency(value: number | null | undefined): string {
               </button>
               <div
                 v-if="isSectionOpen('fmv')"
-                class="p-3 pt-0 border-t border-gray-200 text-sm space-y-3"
+                class="p-3 pt-0 border-t border-gray-200 text-sm flex flex-col gap-3"
               >
                 <!-- eBay Sold -->
                 <div v-if="runbook.ebay_comparables?.length">
                   <div class="font-medium mb-1">eBay Sold (last 90 days)</div>
-                  <div class="space-y-1">
+                  <div class="flex flex-col gap-1">
                     <div
                       v-for="(comp, i) in runbook.ebay_comparables"
                       :key="i"
@@ -670,7 +670,7 @@ function formatCurrency(value: number | null | undefined): string {
                 <!-- AbeBooks -->
                 <div v-if="runbook.abebooks_comparables?.length">
                   <div class="font-medium mb-1">AbeBooks (current)</div>
-                  <div class="space-y-1">
+                  <div class="flex flex-col gap-1">
                     <div
                       v-for="(comp, i) in runbook.abebooks_comparables"
                       :key="i"
@@ -700,7 +700,7 @@ function formatCurrency(value: number | null | undefined): string {
               <div v-if="isSectionOpen('issues')" class="p-3 pt-0 border-t border-gray-200 text-sm">
                 <ul
                   v-if="runbook.critical_issues?.length"
-                  class="list-disc list-inside text-gray-600 space-y-1"
+                  class="list-disc list-inside text-gray-600 flex flex-col gap-1"
                 >
                   <li v-for="(issue, i) in runbook.critical_issues" :key="i">{{ issue }}</li>
                 </ul>
@@ -753,7 +753,7 @@ function formatCurrency(value: number | null | undefined): string {
           </button>
         </div>
 
-        <form @submit.prevent="submitPriceUpdate" class="p-4 space-y-4">
+        <form @submit.prevent="submitPriceUpdate" class="p-4 flex flex-col gap-4">
           <div>
             <div class="text-sm text-gray-500 mb-2">
               Original Listing Price: {{ formatCurrency(runbook?.original_asking_price) }}

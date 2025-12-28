@@ -463,7 +463,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Step 1: URL Input -->
-        <div v-if="step === 'url'" class="p-4 space-y-4">
+        <div v-if="step === 'url'" class="p-4 flex flex-col gap-4">
           <div
             v-if="extractError"
             class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
@@ -527,7 +527,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Step 3: Review & Edit -->
-        <div v-if="step === 'review'" class="p-4 space-y-4">
+        <div v-if="step === 'review'" class="p-4 flex flex-col gap-4">
           <!-- Image Preview (using presigned URLs from S3) -->
           <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
             <img
@@ -554,7 +554,7 @@ function openSourceUrl() {
           </div>
 
           <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-4">
+          <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
             <!-- Title -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -771,7 +771,7 @@ function openSourceUrl() {
           <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
 
           <!-- Progress steps -->
-          <div class="space-y-3 max-w-sm mx-auto">
+          <div class="flex flex-col gap-3 max-w-sm mx-auto">
             <div
               v-for="(stepItem, index) in savingSteps"
               :key="stepItem.id"

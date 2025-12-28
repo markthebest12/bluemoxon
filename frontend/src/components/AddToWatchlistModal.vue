@@ -195,7 +195,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4">
+        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
           <!-- Error Message -->
           <div
             v-if="errorMessage"

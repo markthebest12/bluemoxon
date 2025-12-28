@@ -241,7 +241,7 @@ function formatFileSize(bytes: number): string {
             </div>
 
             <!-- File List -->
-            <div v-if="hasFiles" class="mt-4 space-y-2">
+            <div v-if="hasFiles" class="mt-4 flex flex-col gap-2">
               <div
                 v-for="file in files"
                 :key="file.id"

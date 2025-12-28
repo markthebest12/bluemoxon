@@ -373,7 +373,7 @@ function printPage() {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Main Content (2 columns) -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class="lg:col-span-2 flex flex-col gap-6">
         <!-- Image Gallery -->
         <div class="card">
           <div class="flex items-center justify-between mb-4">
@@ -597,7 +597,7 @@ function printPage() {
         <!-- Binding -->
         <div class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Binding</h2>
-          <dl class="space-y-2">
+          <dl class="flex flex-col gap-2">
             <div>
               <dt class="text-sm text-gray-500">Type</dt>
               <dd class="font-medium">
@@ -679,7 +679,7 @@ function printPage() {
         </div>
 
         <!-- Eval Runbook and Analysis Buttons -->
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <!-- Eval Runbook Button -->
           <div
             v-if="booksStore.currentBook?.has_eval_runbook"
@@ -822,7 +822,7 @@ function printPage() {
       </div>
 
       <!-- Sidebar - Valuation -->
-      <div class="space-y-6">
+      <div class="flex flex-col gap-6">
         <div class="card bg-victorian-cream">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Valuation</h2>
           <div class="text-center">
@@ -861,7 +861,7 @@ function printPage() {
 
         <div v-if="booksStore.currentBook.purchase_price" class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Acquisition</h2>
-          <dl class="space-y-2">
+          <dl class="flex flex-col gap-2">
             <div>
               <dt class="text-sm text-gray-500">Purchase Price</dt>
               <dd class="font-medium">
@@ -889,7 +889,7 @@ function printPage() {
         <!-- Source Archive -->
         <div v-if="booksStore.currentBook.source_url" class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Source Archive</h2>
-          <dl class="space-y-3">
+          <dl class="flex flex-col gap-3">
             <div>
               <dt class="text-sm text-gray-500">Original Listing</dt>
               <dd class="font-medium truncate">
@@ -919,7 +919,7 @@ function printPage() {
         <!-- Quick Stats -->
         <div class="card">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Info</h2>
-          <dl class="space-y-2 text-sm">
+          <dl class="flex flex-col gap-2 text-sm">
             <div class="flex justify-between">
               <dt class="text-gray-500">Images</dt>
               <dd class="font-medium">{{ images.length }}</dd>

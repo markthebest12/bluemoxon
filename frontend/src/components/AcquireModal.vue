@@ -200,7 +200,7 @@ function handlePasteApply(data: any) {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 space-y-4 overflow-y-auto flex-1">
+        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
           <!-- Error Message -->
           <div
             v-if="errorMessage"
