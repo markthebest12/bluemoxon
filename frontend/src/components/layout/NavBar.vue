@@ -152,7 +152,7 @@ function closeMobileMenu() {
           <!-- Hamburger Menu Button - Mobile -->
           <button
             @click="toggleMobileMenu"
-            class="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 focus:outline-hidden"
+            class="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 focus:outline-none"
             aria-label="Toggle menu"
           >
             <span

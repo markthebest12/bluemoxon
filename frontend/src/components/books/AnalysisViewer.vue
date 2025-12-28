@@ -677,7 +677,7 @@ function formatPacificTime(isoString: string): string {
                   </div>
                   <textarea
                     v-model="editedAnalysis"
-                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-hidden"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none"
                     placeholder="Enter markdown analysis...
 
 # Executive Summary
