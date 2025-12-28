@@ -137,8 +137,8 @@ function handleClose() {
               :class="[
                 'flex-1 py-2 text-sm font-medium transition-colors',
                 inputMode === 'number'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100',
+                  ? 'bg-victorian-hunter-600 text-white'
+                  : 'bg-gray-50 text-gray-600 hover:bg-victorian-paper-aged',
               ]"
             >
               Tracking Number
@@ -149,8 +149,8 @@ function handleClose() {
               :class="[
                 'flex-1 py-2 text-sm font-medium transition-colors',
                 inputMode === 'url'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100',
+                  ? 'bg-victorian-hunter-600 text-white'
+                  : 'bg-gray-50 text-gray-600 hover:bg-victorian-paper-aged',
               ]"
             >
               Direct URL
@@ -167,7 +167,7 @@ function handleClose() {
                 v-model="form.tracking_number"
                 type="text"
                 placeholder="e.g., 1Z999AA10123456784"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="input"
               />
               <p class="mt-1 text-xs text-gray-500">
                 Carrier will be auto-detected from the number format
@@ -181,7 +181,7 @@ function handleClose() {
               </label>
               <select
                 v-model="form.tracking_carrier"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="select"
               >
                 <option value="">Auto-detect</option>
                 <option v-for="carrier in carriers" :key="carrier" :value="carrier">
@@ -199,7 +199,7 @@ function handleClose() {
               v-model="form.tracking_url"
               type="url"
               placeholder="https://..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="input"
             />
             <p class="mt-1 text-xs text-gray-500">Paste a direct tracking link from any carrier</p>
           </div>
@@ -210,14 +210,14 @@ function handleClose() {
               type="button"
               @click="handleClose"
               :disabled="submitting"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              class="btn-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               :disabled="submitting"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="btn-primary flex-1"
             >
               {{ submitting ? "Adding..." : "Add Tracking" }}
             </button>
