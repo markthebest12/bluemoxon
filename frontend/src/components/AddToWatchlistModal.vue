@@ -251,12 +251,7 @@ function openSourceUrl() {
             />
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
-              <input
-                v-model="form.publication_date"
-                type="text"
-                placeholder="1867"
-                class="input"
-              />
+              <input v-model="form.publication_date" type="text" placeholder="1867" class="input" />
             </div>
           </div>
 
@@ -264,20 +259,12 @@ function openSourceUrl() {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
-              <input
-                v-model.number="form.volumes"
-                type="number"
-                min="1"
-                class="input"
-              />
+              <input v-model.number="form.volumes" type="number" min="1" class="input" />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
               <div class="flex gap-2">
-                <select
-                  v-model="selectedCurrency"
-                  class="select w-20"
-                >
+                <select v-model="selectedCurrency" class="select w-20">
                   <option value="USD">USD $</option>
                   <option value="GBP">GBP £</option>
                   <option value="EUR">EUR €</option>
@@ -342,11 +329,7 @@ function openSourceUrl() {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="btn-primary flex-1"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Adding..." : "Add to List" }}
             </button>
           </div>

@@ -179,10 +179,7 @@ function handleClose() {
               <label class="block text-sm font-medium text-gray-700 mb-1">
                 Carrier (optional)
               </label>
-              <select
-                v-model="form.tracking_carrier"
-                class="select"
-              >
+              <select v-model="form.tracking_carrier" class="select">
                 <option value="">Auto-detect</option>
                 <option v-for="carrier in carriers" :key="carrier" :value="carrier">
                   {{ carrier }}
@@ -195,12 +192,7 @@ function handleClose() {
           <!-- Direct URL Input -->
           <div v-if="inputMode === 'url'">
             <label class="block text-sm font-medium text-gray-700 mb-1"> Tracking URL * </label>
-            <input
-              v-model="form.tracking_url"
-              type="url"
-              placeholder="https://..."
-              class="input"
-            />
+            <input v-model="form.tracking_url" type="url" placeholder="https://..." class="input" />
             <p class="mt-1 text-xs text-gray-500">Paste a direct tracking link from any carrier</p>
           </div>
 
@@ -214,11 +206,7 @@ function handleClose() {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="btn-primary flex-1"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Adding..." : "Add Tracking" }}
             </button>
           </div>

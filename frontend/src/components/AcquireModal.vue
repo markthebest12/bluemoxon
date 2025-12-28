@@ -213,10 +213,7 @@ function handlePasteApply(data: any) {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Price * </label>
             <div class="flex gap-2">
-              <select
-                v-model="selectedCurrency"
-                class="select w-24"
-              >
+              <select v-model="selectedCurrency" class="select w-24">
                 <option value="USD">USD $</option>
                 <option value="GBP">GBP £</option>
                 <option value="EUR">EUR €</option>
@@ -255,12 +252,7 @@ function handlePasteApply(data: any) {
           <!-- Purchase Date -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Date * </label>
-            <input
-              v-model="form.purchase_date"
-              type="date"
-              class="input"
-              required
-            />
+            <input v-model="form.purchase_date" type="date" class="input" required />
           </div>
 
           <!-- Order Number -->
@@ -278,10 +270,7 @@ function handlePasteApply(data: any) {
           <!-- Platform -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Platform * </label>
-            <select
-              v-model="form.place_of_purchase"
-              class="select"
-            >
+            <select v-model="form.place_of_purchase" class="select">
               <option value="eBay">eBay</option>
               <option value="Etsy">Etsy</option>
               <option value="AbeBooks">AbeBooks</option>
@@ -292,11 +281,7 @@ function handlePasteApply(data: any) {
           <!-- Estimated Delivery -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Estimated Delivery </label>
-            <input
-              v-model="form.estimated_delivery"
-              type="date"
-              class="input"
-            />
+            <input v-model="form.estimated_delivery" type="date" class="input" />
           </div>
 
           <!-- Tracking Number (Optional) -->
@@ -320,10 +305,7 @@ function handlePasteApply(data: any) {
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Carrier (Optional Override)
             </label>
-            <select
-              v-model="form.tracking_carrier"
-              class="select"
-            >
+            <select v-model="form.tracking_carrier" class="select">
               <option value="">Auto-detect</option>
               <option value="USPS">USPS</option>
               <option value="UPS">UPS</option>
@@ -345,11 +327,7 @@ function handlePasteApply(data: any) {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="btn-primary flex-1"
-            >
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
               {{ submitting ? "Processing..." : "Confirm Acquire" }}
             </button>
           </div>
