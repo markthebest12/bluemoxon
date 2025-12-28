@@ -773,7 +773,7 @@ function printPage() {
                     !booksStore.currentBook?.analysis_job_status
                   "
                   v-model="selectedModel"
-                  class="select text-sm w-28"
+                  class="select text-sm w-32 pr-8"
                   :disabled="startingAnalysis"
                 >
                   <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">

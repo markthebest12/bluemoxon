@@ -382,7 +382,7 @@ function formatPacificTime(isoString: string): string {
                   <div class="hidden sm:flex items-center gap-2">
                     <select
                       v-model="selectedModel"
-                      class="select text-sm w-28"
+                      class="select text-sm w-32 pr-8"
                       :disabled="generating"
                     >
                       <option value="sonnet">Sonnet 4.5</option>
