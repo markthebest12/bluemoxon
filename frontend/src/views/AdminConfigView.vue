@@ -846,18 +846,18 @@ function getBarWidth(cost: number): string {
       <!-- Error message -->
       <div
         v-if="entityError"
-        class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm"
+        class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
       >
         {{ entityError }}
       </div>
 
       <!-- Authors Section -->
-      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+      <div class="bg-white rounded-lg shadow-sm">
         <button
           @click="toggleSection('author')"
-          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
         >
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Authors</h3>
+          <h3 class="text-lg font-semibold text-gray-900">Authors</h3>
           <svg
             class="w-5 h-5 text-gray-500 transition-transform"
             :class="{ 'rotate-180': !collapsedSections.authors }"
@@ -878,7 +878,7 @@ function getBarWidth(cost: number): string {
             v-model="searchFilters.authors"
             type="text"
             placeholder="Search authors..."
-            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
           />
           <EntityManagementTable
             entity-type="author"
@@ -896,12 +896,12 @@ function getBarWidth(cost: number): string {
       </div>
 
       <!-- Publishers Section -->
-      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+      <div class="bg-white rounded-lg shadow-sm">
         <button
           @click="toggleSection('publisher')"
-          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
         >
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Publishers</h3>
+          <h3 class="text-lg font-semibold text-gray-900">Publishers</h3>
           <svg
             class="w-5 h-5 text-gray-500 transition-transform"
             :class="{ 'rotate-180': !collapsedSections.publishers }"
@@ -922,7 +922,7 @@ function getBarWidth(cost: number): string {
             v-model="searchFilters.publishers"
             type="text"
             placeholder="Search publishers..."
-            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
           />
           <EntityManagementTable
             entity-type="publisher"
@@ -940,12 +940,12 @@ function getBarWidth(cost: number): string {
       </div>
 
       <!-- Binders Section -->
-      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+      <div class="bg-white rounded-lg shadow-sm">
         <button
           @click="toggleSection('binder')"
-          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
         >
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Binders</h3>
+          <h3 class="text-lg font-semibold text-gray-900">Binders</h3>
           <svg
             class="w-5 h-5 text-gray-500 transition-transform"
             :class="{ 'rotate-180': !collapsedSections.binders }"
@@ -966,7 +966,7 @@ function getBarWidth(cost: number): string {
             v-model="searchFilters.binders"
             type="text"
             placeholder="Search binders..."
-            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
           />
           <EntityManagementTable
             entity-type="binder"

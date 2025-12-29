@@ -79,7 +79,7 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
   <div class="entity-table">
     <!-- Header with Add button -->
     <div class="flex justify-between items-center mb-4">
-      <span class="text-sm text-gray-500 dark:text-gray-400">
+      <span class="text-sm text-gray-500">
         {{ filteredEntities.length }} {{ entityLabel
         }}{{ filteredEntities.length !== 1 ? "s" : "" }}
       </span>
@@ -96,36 +96,31 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
     <div v-if="loading" class="text-center py-8 text-gray-500">Loading...</div>
 
     <!-- Empty state -->
-    <div
-      v-else-if="filteredEntities.length === 0"
-      class="text-center py-8 text-gray-500 dark:text-gray-400"
-    >
+    <div v-else-if="filteredEntities.length === 0" class="text-center py-8 text-gray-500">
       {{ searchQuery ? "No matches found" : `No ${entityLabel.toLowerCase()}s yet` }}
     </div>
 
     <!-- Table -->
     <table v-else class="w-full text-sm">
       <thead>
-        <tr class="text-left border-b border-gray-200 dark:border-gray-700">
-          <th class="pb-2 font-medium text-gray-600 dark:text-gray-300">Name</th>
-          <th class="pb-2 font-medium text-gray-600 dark:text-gray-300 w-32">Tier</th>
-          <th class="pb-2 font-medium text-gray-600 dark:text-gray-300 w-24 text-center">
-            Preferred
-          </th>
-          <th class="pb-2 font-medium text-gray-600 dark:text-gray-300 w-20 text-right">Books</th>
-          <th class="pb-2 font-medium text-gray-600 dark:text-gray-300 w-24 text-right">Actions</th>
+        <tr class="text-left border-b border-gray-200">
+          <th class="pb-2 font-medium text-gray-600">Name</th>
+          <th class="pb-2 font-medium text-gray-600 w-32">Tier</th>
+          <th class="pb-2 font-medium text-gray-600 w-24 text-center">Preferred</th>
+          <th class="pb-2 font-medium text-gray-600 w-20 text-right">Books</th>
+          <th class="pb-2 font-medium text-gray-600 w-24 text-right">Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="entity in filteredEntities"
           :key="entity.id"
-          class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          class="border-b border-gray-100 hover:bg-gray-50"
         >
           <td class="py-2">
             <button
               @click="emit('edit', entity)"
-              class="text-left hover:text-victorian-hunter-600 dark:hover:text-victorian-gold-400 transition-colors"
+              class="text-left hover:text-victorian-hunter-600 transition-colors"
               :class="{ 'cursor-default': !canEdit }"
               :disabled="!canEdit"
             >
@@ -137,7 +132,7 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
               :value="entity.tier || ''"
               @change="handleTierChange(entity, $event)"
               :disabled="!canEdit"
-              class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option v-for="opt in tierOptions" :key="opt.label" :value="opt.value || ''">
                 {{ opt.label }}
@@ -150,18 +145,16 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
               :checked="entity.preferred"
               @change="handlePreferredChange(entity, $event)"
               :disabled="!canEdit"
-              class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-victorian-hunter-600 focus:ring-victorian-hunter-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-4 h-4 rounded border-gray-300 text-victorian-hunter-600 focus:ring-victorian-hunter-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </td>
-          <td class="py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">
-            {{ entity.book_count }}
-          </td>
+          <td class="py-2 text-right tabular-nums text-gray-600">{{ entity.book_count }}</td>
           <td class="py-2 text-right">
             <div class="flex justify-end gap-2">
               <button
                 v-if="canEdit"
                 @click="emit('edit', entity)"
-                class="text-gray-500 hover:text-victorian-hunter-600 dark:hover:text-victorian-gold-400"
+                class="text-gray-500 hover:text-victorian-hunter-600"
                 title="Edit"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +169,7 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
               <button
                 v-if="canEdit"
                 @click="emit('delete', entity)"
-                class="text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+                class="text-gray-500 hover:text-red-600"
                 title="Delete"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

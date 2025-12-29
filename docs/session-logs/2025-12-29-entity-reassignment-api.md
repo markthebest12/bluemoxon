@@ -3,7 +3,7 @@
 **Date:** 2025-12-29
 **Issue:** GitHub #608 - UI management page for binders, authors and publishers
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api`
-**Branch:** `feat/608-entity-reassignment`
+**Branch:** `staging` (feature branch merged)
 
 ---
 
@@ -38,6 +38,74 @@ Issue #608 implements full CRUD UI for Authors, Publishers, and Binders in the a
 1. **PR #649 (MERGED)** - Backend: Added `preferred` field to entities + scoring config
 2. **PR #661 (MERGED)** - Reassignment API endpoints
 3. **PR #662 (MERGED TO STAGING)** - Frontend UI implementation - Deployed as v2025.12.29-5ea127d
+
+---
+
+## CURRENT STATUS: Light Mode CSS Fix In Progress
+
+### Problem Discovered
+Light mode in Reference Data tab shows dark styling (dark backgrounds, white text) even when light mode is active. Root cause: inconsistent `dark:` class variants in entity management components while rest of admin page has no dark mode support.
+
+### Fix Strategy
+Remove `dark:` class variants from entity management components to match rest of AdminConfigView (light-mode only). Dark mode support can be added comprehensively in follow-up issue.
+
+### Files Being Fixed (IN PROGRESS)
+
+**COMPLETED:**
+- `frontend/src/views/AdminConfigView.vue` - Removed dark: classes from Reference Data tab sections
+- `frontend/src/components/admin/EntityManagementTable.vue` - Removed dark: classes
+
+**STILL NEEDS FIXING:**
+- `frontend/src/components/admin/EntityFormModal.vue` - Partially done, need to finish author/publisher/binder fields and footer
+- `frontend/src/components/admin/ReassignDeleteModal.vue` - Not started
+
+### PR #670 Created (BLOCKED)
+PR from staging → main created but BLOCKED until CSS fix is complete:
+https://github.com/markthebest12/bluemoxon/pull/670
+
+---
+
+## To Continue
+
+### Step 1: Finish CSS Fix
+Complete removing `dark:` classes from:
+
+**EntityFormModal.vue - remaining sections:**
+- Author-specific fields (birth_year, death_year, era inputs)
+- Publisher-specific fields (founded_year, description)
+- Binder-specific fields (full_name, authentication_markers)
+- Footer buttons
+
+**ReassignDeleteModal.vue - all sections:**
+- Modal container, header, content, footer
+- Error message, entity info, warning boxes
+- Select dropdown, buttons
+
+### Step 2: Validate and Deploy
+```bash
+npm run --prefix /Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api/frontend type-check
+npm run --prefix /Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api/frontend lint
+```
+
+### Step 3: Commit and Push to Staging
+```bash
+git -C /Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api add -A
+git -C /Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api commit -m "fix(admin): remove dark mode classes for consistent light mode styling"
+git -C /Users/mark/projects/bluemoxon/.worktrees/608-reassignment-api push origin staging
+```
+
+### Step 4: Watch Deploy and Test
+```bash
+gh run list --repo markthebest12/bluemoxon --limit 1
+gh run watch <run-id> --repo markthebest12/bluemoxon --exit-status
+```
+
+### Step 5: Merge to Production
+```bash
+gh pr checks 670 --repo markthebest12/bluemoxon --watch
+gh pr merge 670 --repo markthebest12/bluemoxon --squash --admin
+gh run watch <run-id> --repo markthebest12/bluemoxon --exit-status
+```
 
 ---
 
