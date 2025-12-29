@@ -8,6 +8,11 @@ import {
   type ExtractionStatusResponse,
 } from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
+import TransitionModal from "./TransitionModal.vue";
+
+defineProps<{
+  visible: boolean;
+}>();
 
 const emit = defineEmits<{
   close: [];
@@ -67,17 +72,7 @@ const savingSteps = [
 const currentSavingStep = ref(0);
 let savingStepInterval: ReturnType<typeof setInterval> | null = null;
 
-// Lock body scroll when modal is open
-watch(
-  () => true,
-  () => {
-    document.body.style.overflow = "hidden";
-  },
-  { immediate: true }
-);
-
 onUnmounted(() => {
-  document.body.style.overflow = "";
   // Clean up any active extraction polling
   if (currentItemId.value) {
     listingsStore.clearExtraction(currentItemId.value);
@@ -427,376 +422,359 @@ function openSourceUrl() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="handleClose"
-    >
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">
-            {{
-              step === "url"
-                ? "Import from eBay"
-                : step === "extracting"
-                  ? "Extracting Listing..."
-                  : step === "review"
-                    ? "Review Listing"
-                    : "Saving..."
-            }}
-          </h2>
-          <button
-            @click="handleClose"
-            :disabled="extracting || submitting"
-            class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">
+          {{
+            step === "url"
+              ? "Import from eBay"
+              : step === "extracting"
+                ? "Extracting Listing..."
+                : step === "review"
+                  ? "Review Listing"
+                  : "Saving..."
+          }}
+        </h2>
+        <button
+          @click="handleClose"
+          :disabled="extracting || submitting"
+          class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Step 1: URL Input -->
+      <div v-if="step === 'url'" class="p-4 flex flex-col gap-4">
+        <div
+          v-if="extractError"
+          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+        >
+          {{ extractError }}
         </div>
 
-        <!-- Step 1: URL Input -->
-        <div v-if="step === 'url'" class="p-4 flex flex-col gap-4">
-          <div
-            v-if="extractError"
-            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
-          >
-            {{ extractError }}
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> eBay Listing URL </label>
+          <input
+            v-model="urlInput"
+            type="url"
+            placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
+            class="input"
+            :class="{ 'border-red-500': extractError }"
+            @keyup.enter="handleExtract"
+          />
+          <p class="mt-1 text-sm text-gray-500">
+            Paste an eBay listing URL (including short URLs like ebay.us/xxx)
+          </p>
+        </div>
 
+        <div class="flex gap-3">
+          <button
+            type="button"
+            @click="handleClose"
+            :disabled="extracting"
+            class="btn-secondary flex-1"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="handleExtract"
+            :disabled="extracting || !urlInput"
+            class="btn-primary flex-1"
+          >
+            {{ extracting ? "Extracting..." : "Extract Details" }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Extracting (async progress) -->
+      <div v-if="step === 'extracting'" class="p-8 text-center">
+        <div class="spinner spinner-xl mx-auto mb-4"></div>
+        <p class="text-gray-600 mb-2">
+          {{
+            extractionStatus?.status === "pending"
+              ? "Scraping eBay listing..."
+              : extractionStatus?.status === "scraped"
+                ? "Extracting book details..."
+                : "Processing..."
+          }}
+        </p>
+        <p class="text-sm text-gray-500">This may take up to 2 minutes. Please wait.</p>
+        <button @click="goBack" class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800">
+          Cancel
+        </button>
+      </div>
+
+      <!-- Step 3: Review & Edit -->
+      <div v-if="step === 'review'" class="p-4 flex flex-col gap-4">
+        <!-- Image Preview (using presigned URLs from S3) -->
+        <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
+          <img
+            v-for="(img, idx) in extractedData.images.slice(0, 4)"
+            :key="idx"
+            :src="img.presigned_url"
+            class="w-24 h-24 object-cover rounded-lg border border-gray-200"
+            :alt="`Image ${idx + 1}`"
+          />
+          <div
+            v-if="extractedData.images.length > 4"
+            class="w-24 h-24 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200 text-gray-500 text-sm"
+          >
+            +{{ extractedData.images.length - 4 }} more
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div
+          v-if="errorMessage"
+          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+        >
+          {{ errorMessage }}
+        </div>
+
+        <!-- Form -->
+        <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
+          <!-- Title -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> eBay Listing URL </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Title <span class="text-red-500">*</span>
+            </label>
             <input
-              v-model="urlInput"
-              type="url"
-              placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
+              v-model="form.title"
+              type="text"
               class="input"
-              :class="{ 'border-red-500': extractError }"
-              @keyup.enter="handleExtract"
+              :class="{ 'border-red-500': validationErrors.title }"
             />
-            <p class="mt-1 text-sm text-gray-500">
-              Paste an eBay listing URL (including short URLs like ebay.us/xxx)
+            <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
+              {{ validationErrors.title }}
             </p>
           </div>
 
-          <div class="flex gap-3">
+          <!-- Author & Publisher Row -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <ComboboxWithAdd
+                label="Author"
+                :options="refsStore.authors"
+                v-model="form.author_id"
+                :suggested-name="suggestedAuthorName"
+                @create="handleCreateAuthor"
+              />
+              <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
+                {{ validationErrors.author }}
+              </p>
+              <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-green-600">
+                Matched: {{ extractedData.matches.author.name }} ({{
+                  Math.round(extractedData.matches.author.similarity * 100)
+                }}%)
+              </p>
+              <p
+                v-else-if="extractedData?.listing_data?.author"
+                class="mt-1 text-xs text-amber-600"
+              >
+                Extracted: "{{ extractedData.listing_data.author }}" (no match found - create new?)
+              </p>
+            </div>
+            <div>
+              <ComboboxWithAdd
+                label="Publisher"
+                :options="refsStore.publishers"
+                v-model="form.publisher_id"
+                :suggested-name="suggestedPublisherName"
+                @create="handleCreatePublisher"
+              />
+              <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
+                Matched: {{ extractedData.matches.publisher.name }}
+              </p>
+              <p
+                v-else-if="extractedData?.listing_data?.publisher"
+                class="mt-1 text-xs text-amber-600"
+              >
+                Extracted: "{{ extractedData.listing_data.publisher }}" (no match)
+              </p>
+            </div>
+          </div>
+
+          <!-- Binder & Publication Date Row -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <ComboboxWithAdd
+                label="Binder"
+                :options="refsStore.binders"
+                v-model="form.binder_id"
+                :suggested-name="suggestedBinderName"
+                @create="handleCreateBinder"
+              />
+              <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
+                Matched: {{ extractedData.matches.binder.name }}
+              </p>
+              <p
+                v-else-if="extractedData?.listing_data?.binder"
+                class="mt-1 text-xs text-amber-600"
+              >
+                Extracted: "{{ extractedData.listing_data.binder }}" (no match)
+              </p>
+              <p v-else-if="suggestedBinderName === 'Custom'" class="mt-1 text-xs text-amber-600">
+                Ornate binding detected - suggested "Custom" binder
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
+              <input v-model="form.publication_date" type="text" placeholder="1867" class="input" />
+            </div>
+          </div>
+
+          <!-- Volumes & Asking Price Row -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
+              <input v-model.number="form.volumes" type="number" min="1" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
+              <div class="relative">
+                <span class="absolute left-3 top-2 text-gray-500">$</span>
+                <input
+                  v-model.number="form.purchase_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input pl-7"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Binding Type & Condition -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Binding Type </label>
+              <input
+                v-model="form.binding_type"
+                type="text"
+                placeholder="Full morocco, half calf, etc."
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"> Condition Notes </label>
+              <input
+                v-model="form.condition_notes"
+                type="text"
+                placeholder="Fine, minor foxing, etc."
+                class="input"
+              />
+            </div>
+          </div>
+
+          <!-- Source URL (read-only with link) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
+            <div class="flex gap-2">
+              <input
+                v-model="form.source_url"
+                type="url"
+                readonly
+                class="input flex-1 bg-gray-50 text-gray-600"
+              />
+              <button
+                type="button"
+                :disabled="!form.source_url"
+                @click="openSourceUrl"
+                class="btn-secondary px-3"
+                title="Open URL"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Footer Buttons -->
+          <div class="flex gap-3 pt-4">
+            <button type="button" @click="goBack" :disabled="submitting" class="btn-secondary">
+              Back
+            </button>
             <button
               type="button"
               @click="handleClose"
-              :disabled="extracting"
+              :disabled="submitting"
               class="btn-secondary flex-1"
             >
               Cancel
             </button>
-            <button
-              type="button"
-              @click="handleExtract"
-              :disabled="extracting || !urlInput"
-              class="btn-primary flex-1"
-            >
-              {{ extracting ? "Extracting..." : "Extract Details" }}
+            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
+              {{ submitting ? "Adding..." : "Add to Watchlist" }}
             </button>
           </div>
+        </form>
+      </div>
+
+      <!-- Step 4: Saving with progress steps -->
+      <div v-if="step === 'saving'" class="p-6">
+        <div class="flex items-center justify-center mb-6">
+          <div class="spinner spinner-lg"></div>
         </div>
+        <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
 
-        <!-- Step 2: Extracting (async progress) -->
-        <div v-if="step === 'extracting'" class="p-8 text-center">
-          <div class="spinner spinner-xl mx-auto mb-4"></div>
-          <p class="text-gray-600 mb-2">
-            {{
-              extractionStatus?.status === "pending"
-                ? "Scraping eBay listing..."
-                : extractionStatus?.status === "scraped"
-                  ? "Extracting book details..."
-                  : "Processing..."
-            }}
-          </p>
-          <p class="text-sm text-gray-500">This may take up to 2 minutes. Please wait.</p>
-          <button @click="goBack" class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800">
-            Cancel
-          </button>
-        </div>
-
-        <!-- Step 3: Review & Edit -->
-        <div v-if="step === 'review'" class="p-4 flex flex-col gap-4">
-          <!-- Image Preview (using presigned URLs from S3) -->
-          <div v-if="extractedData?.images?.length" class="flex gap-2 overflow-x-auto pb-2">
-            <img
-              v-for="(img, idx) in extractedData.images.slice(0, 4)"
-              :key="idx"
-              :src="img.presigned_url"
-              class="w-24 h-24 object-cover rounded-lg border border-gray-200"
-              :alt="`Image ${idx + 1}`"
-            />
-            <div
-              v-if="extractedData.images.length > 4"
-              class="w-24 h-24 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200 text-gray-500 text-sm"
-            >
-              +{{ extractedData.images.length - 4 }} more
-            </div>
-          </div>
-
-          <!-- Error Message -->
+        <!-- Progress steps -->
+        <div class="flex flex-col gap-3 max-w-sm mx-auto">
           <div
-            v-if="errorMessage"
-            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+            v-for="(stepItem, index) in savingSteps"
+            :key="stepItem.id"
+            class="flex items-center gap-3"
           >
-            {{ errorMessage }}
-          </div>
-
-          <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
-            <!-- Title -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Title <span class="text-red-500">*</span>
-              </label>
-              <input
-                v-model="form.title"
-                type="text"
-                class="input"
-                :class="{ 'border-red-500': validationErrors.title }"
-              />
-              <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
-                {{ validationErrors.title }}
-              </p>
-            </div>
-
-            <!-- Author & Publisher Row -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <ComboboxWithAdd
-                  label="Author"
-                  :options="refsStore.authors"
-                  v-model="form.author_id"
-                  :suggested-name="suggestedAuthorName"
-                  @create="handleCreateAuthor"
-                />
-                <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
-                  {{ validationErrors.author }}
-                </p>
-                <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-green-600">
-                  Matched: {{ extractedData.matches.author.name }} ({{
-                    Math.round(extractedData.matches.author.similarity * 100)
-                  }}%)
-                </p>
-                <p
-                  v-else-if="extractedData?.listing_data?.author"
-                  class="mt-1 text-xs text-amber-600"
-                >
-                  Extracted: "{{ extractedData.listing_data.author }}" (no match found - create
-                  new?)
-                </p>
-              </div>
-              <div>
-                <ComboboxWithAdd
-                  label="Publisher"
-                  :options="refsStore.publishers"
-                  v-model="form.publisher_id"
-                  :suggested-name="suggestedPublisherName"
-                  @create="handleCreatePublisher"
-                />
-                <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
-                  Matched: {{ extractedData.matches.publisher.name }}
-                </p>
-                <p
-                  v-else-if="extractedData?.listing_data?.publisher"
-                  class="mt-1 text-xs text-amber-600"
-                >
-                  Extracted: "{{ extractedData.listing_data.publisher }}" (no match)
-                </p>
-              </div>
-            </div>
-
-            <!-- Binder & Publication Date Row -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <ComboboxWithAdd
-                  label="Binder"
-                  :options="refsStore.binders"
-                  v-model="form.binder_id"
-                  :suggested-name="suggestedBinderName"
-                  @create="handleCreateBinder"
-                />
-                <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
-                  Matched: {{ extractedData.matches.binder.name }}
-                </p>
-                <p
-                  v-else-if="extractedData?.listing_data?.binder"
-                  class="mt-1 text-xs text-amber-600"
-                >
-                  Extracted: "{{ extractedData.listing_data.binder }}" (no match)
-                </p>
-                <p v-else-if="suggestedBinderName === 'Custom'" class="mt-1 text-xs text-amber-600">
-                  Ornate binding detected - suggested "Custom" binder
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Publication Date
-                </label>
-                <input
-                  v-model="form.publication_date"
-                  type="text"
-                  placeholder="1867"
-                  class="input"
-                />
-              </div>
-            </div>
-
-            <!-- Volumes & Asking Price Row -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
-                <input v-model.number="form.volumes" type="number" min="1" class="input" />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
-                <div class="relative">
-                  <span class="absolute left-3 top-2 text-gray-500">$</span>
-                  <input
-                    v-model.number="form.purchase_price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="input pl-7"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Binding Type & Condition -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1"> Binding Type </label>
-                <input
-                  v-model="form.binding_type"
-                  type="text"
-                  placeholder="Full morocco, half calf, etc."
-                  class="input"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Condition Notes
-                </label>
-                <input
-                  v-model="form.condition_notes"
-                  type="text"
-                  placeholder="Fine, minor foxing, etc."
-                  class="input"
-                />
-              </div>
-            </div>
-
-            <!-- Source URL (read-only with link) -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
-              <div class="flex gap-2">
-                <input
-                  v-model="form.source_url"
-                  type="url"
-                  readonly
-                  class="input flex-1 bg-gray-50 text-gray-600"
-                />
-                <button
-                  type="button"
-                  :disabled="!form.source_url"
-                  @click="openSourceUrl"
-                  class="btn-secondary px-3"
-                  title="Open URL"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Footer Buttons -->
-            <div class="flex gap-3 pt-4">
-              <button type="button" @click="goBack" :disabled="submitting" class="btn-secondary">
-                Back
-              </button>
-              <button
-                type="button"
-                @click="handleClose"
-                :disabled="submitting"
-                class="btn-secondary flex-1"
+            <!-- Step indicator -->
+            <div class="shrink-0 w-6 h-6 flex items-center justify-center">
+              <svg
+                v-if="index < currentSavingStep"
+                class="w-5 h-5 text-green-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
               >
-                Cancel
-              </button>
-              <button type="submit" :disabled="submitting" class="btn-primary flex-1">
-                {{ submitting ? "Adding..." : "Add to Watchlist" }}
-              </button>
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <div v-else-if="index === currentSavingStep" class="spinner w-4 h-4"></div>
+              <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
             </div>
-          </form>
-        </div>
-
-        <!-- Step 4: Saving with progress steps -->
-        <div v-if="step === 'saving'" class="p-6">
-          <div class="flex items-center justify-center mb-6">
-            <div class="spinner spinner-lg"></div>
-          </div>
-          <p class="text-center text-gray-600 mb-6">Saving to watchlist...</p>
-
-          <!-- Progress steps -->
-          <div class="flex flex-col gap-3 max-w-sm mx-auto">
-            <div
-              v-for="(stepItem, index) in savingSteps"
-              :key="stepItem.id"
-              class="flex items-center gap-3"
+            <!-- Step label -->
+            <span
+              :class="[
+                'text-sm',
+                index < currentSavingStep
+                  ? 'text-green-600'
+                  : index === currentSavingStep
+                    ? 'text-victorian-hunter-600 font-medium'
+                    : 'text-gray-400',
+              ]"
             >
-              <!-- Step indicator -->
-              <div class="shrink-0 w-6 h-6 flex items-center justify-center">
-                <svg
-                  v-if="index < currentSavingStep"
-                  class="w-5 h-5 text-green-500"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <div v-else-if="index === currentSavingStep" class="spinner w-4 h-4"></div>
-                <div v-else class="w-3 h-3 rounded-full bg-gray-300"></div>
-              </div>
-              <!-- Step label -->
-              <span
-                :class="[
-                  'text-sm',
-                  index < currentSavingStep
-                    ? 'text-green-600'
-                    : index === currentSavingStep
-                      ? 'text-victorian-hunter-600 font-medium'
-                      : 'text-gray-400',
-                ]"
-              >
-                {{ stepItem.label }}
-              </span>
-            </div>
+              {{ stepItem.label }}
+            </span>
           </div>
-
-          <p class="text-center text-xs text-gray-400 mt-6">
-            This should only take a few seconds...
-          </p>
         </div>
+
+        <p class="text-center text-xs text-gray-400 mt-6">This should only take a few seconds...</p>
       </div>
     </div>
-  </Teleport>
+  </TransitionModal>
 </template>
