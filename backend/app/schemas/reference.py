@@ -119,3 +119,18 @@ class BinderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Reassignment schemas
+class ReassignRequest(BaseModel):
+    """Request schema for reassigning books to another entity."""
+
+    target_id: int
+
+
+class ReassignResponse(BaseModel):
+    """Response schema for reassignment operation."""
+
+    reassigned_count: int
+    deleted_entity: str
+    target_entity: str
