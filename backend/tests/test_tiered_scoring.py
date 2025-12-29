@@ -641,3 +641,128 @@ class TestReasoningGeneration:
         )
         assert len(reasoning) > 0
         assert "above fmv" in reasoning.lower() or "overpriced" in reasoning.lower()
+
+
+class TestPreferredBonus:
+    """Tests for preferred entity bonus in quality score."""
+
+    def test_preferred_bonus_constant_exists(self):
+        """PREFERRED_BONUS constant should be defined as 10."""
+        from app.services.tiered_scoring import PREFERRED_BONUS
+
+        assert PREFERRED_BONUS == 10
+
+    def test_preferred_author_adds_10(self):
+        """Preferred author should add 10 points."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=True,
+            publisher_preferred=False,
+            binder_preferred=False,
+        )
+        assert score == 10
+
+    def test_non_preferred_author_no_bonus(self):
+        """Non-preferred author should not add bonus."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=False,
+            publisher_preferred=False,
+            binder_preferred=False,
+        )
+        assert score == 0
+
+    def test_preferred_publisher_adds_10(self):
+        """Preferred publisher should add 10 points."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=False,
+            publisher_preferred=True,
+            binder_preferred=False,
+        )
+        assert score == 10
+
+    def test_preferred_binder_adds_10(self):
+        """Preferred binder should add 10 points."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=False,
+            publisher_preferred=False,
+            binder_preferred=True,
+        )
+        assert score == 10
+
+    def test_all_preferred_entities_stack(self):
+        """All three preferred entities should add 30 points total."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier=None,
+            binder_tier=None,
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=True,
+            publisher_preferred=True,
+            binder_preferred=True,
+        )
+        assert score == 30
+
+    def test_preferred_combines_with_tier_bonuses(self):
+        """Preferred bonus should combine with tier bonuses."""
+        from app.services.tiered_scoring import calculate_quality_score
+
+        score = calculate_quality_score(
+            publisher_tier="TIER_1",  # +25
+            binder_tier="TIER_1",  # +30 + 10 double bonus
+            year_start=None,
+            condition_grade=None,
+            is_complete=False,
+            author_priority_score=0,
+            volume_count=1,
+            is_duplicate=False,
+            author_preferred=True,  # +10
+            publisher_preferred=True,  # +10
+            binder_preferred=True,  # +10
+        )
+        # 25 + 30 + 10 (double) + 10 + 10 + 10 = 95
+        assert score == 95

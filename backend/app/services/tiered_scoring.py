@@ -23,6 +23,7 @@ QUALITY_COMPLETE_SET = 10
 QUALITY_AUTHOR_PRIORITY_CAP = 15
 QUALITY_DUPLICATE_PENALTY = -30
 QUALITY_LARGE_VOLUME_PENALTY = 0  # Issue #587: removed penalty, large sets noted only
+PREFERRED_BONUS = 10  # Bonus points for each preferred entity (author/publisher/binder)
 
 # Era boundaries
 ROMANTIC_START = 1800
@@ -44,6 +45,9 @@ def calculate_quality_score(
     author_priority_score: int,
     volume_count: int,
     is_duplicate: bool,
+    author_preferred: bool = False,
+    publisher_preferred: bool = False,
+    binder_preferred: bool = False,
 ) -> int:
     """Calculate quality score (0-100) measuring intrinsic book desirability.
 
@@ -59,6 +63,9 @@ def calculate_quality_score(
         author_priority_score: Priority score from author record
         volume_count: Number of volumes
         is_duplicate: Whether title already in collection
+        author_preferred: Whether author is marked as preferred
+        publisher_preferred: Whether publisher is marked as preferred
+        binder_preferred: Whether binder is marked as preferred
 
     Returns:
         Quality score 0-100
@@ -99,6 +106,14 @@ def calculate_quality_score(
 
     # Author priority (capped)
     score += min(author_priority_score, QUALITY_AUTHOR_PRIORITY_CAP)
+
+    # Preferred entity bonuses
+    if author_preferred:
+        score += PREFERRED_BONUS
+    if publisher_preferred:
+        score += PREFERRED_BONUS
+    if binder_preferred:
+        score += PREFERRED_BONUS
 
     # Penalties
     if is_duplicate:

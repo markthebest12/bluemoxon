@@ -5,8 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
-from app.models import Publisher
-from app.schemas.reference import PublisherCreate, PublisherResponse, PublisherUpdate
+from app.models import Book, Publisher
+from app.schemas.reference import (
+    PublisherCreate,
+    PublisherResponse,
+    PublisherUpdate,
+    ReassignRequest,
+    ReassignResponse,
+)
 
 router = APIRouter()
 
@@ -22,6 +28,7 @@ def list_publishers(db: Session = Depends(get_db)):
             "tier": p.tier,
             "founded_year": p.founded_year,
             "description": p.description,
+            "preferred": p.preferred,
             "book_count": len(p.books),
         }
         for p in publishers
@@ -41,6 +48,7 @@ def get_publisher(publisher_id: int, db: Session = Depends(get_db)):
         "tier": publisher.tier,
         "founded_year": publisher.founded_year,
         "description": publisher.description,
+        "preferred": publisher.preferred,
         "book_count": len(publisher.books),
         "books": [
             {
@@ -78,6 +86,7 @@ def create_publisher(
         tier=publisher.tier,
         founded_year=publisher.founded_year,
         description=publisher.description,
+        preferred=publisher.preferred,
         book_count=len(publisher.books),
     )
 
@@ -107,6 +116,7 @@ def update_publisher(
         tier=publisher.tier,
         founded_year=publisher.founded_year,
         description=publisher.description,
+        preferred=publisher.preferred,
         book_count=len(publisher.books),
     )
 
@@ -131,3 +141,49 @@ def delete_publisher(
 
     db.delete(publisher)
     db.commit()
+
+
+@router.post("/{publisher_id}/reassign", response_model=ReassignResponse)
+def reassign_publisher_books(
+    publisher_id: int,
+    body: ReassignRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Reassign all books from source publisher to target publisher, then delete source.
+    Requires editor role.
+    """
+    # Validate source exists
+    source = db.query(Publisher).filter(Publisher.id == publisher_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source publisher not found")
+
+    # Validate not same entity
+    if publisher_id == body.target_id:
+        raise HTTPException(status_code=400, detail="Cannot reassign to same publisher")
+
+    # Validate target exists
+    target = db.query(Publisher).filter(Publisher.id == body.target_id).first()
+    if not target:
+        raise HTTPException(status_code=400, detail="Target publisher not found")
+
+    # Count and reassign books
+    book_count = db.query(Book).filter(Book.publisher_id == publisher_id).count()
+    db.query(Book).filter(Book.publisher_id == publisher_id).update(
+        {"publisher_id": body.target_id}
+    )
+
+    # Store names before deletion
+    source_name = source.name
+    target_name = target.name
+
+    # Delete source publisher
+    db.delete(source)
+    db.commit()
+
+    return ReassignResponse(
+        reassigned_count=book_count,
+        deleted_entity=source_name,
+        target_entity=target_name,
+    )

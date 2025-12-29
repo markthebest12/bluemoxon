@@ -15,6 +15,7 @@ class AuthorCreate(BaseModel):
     era: str | None = None
     first_acquired_date: date | None = None
     tier: str | None = None
+    preferred: bool = False
 
 
 class AuthorUpdate(BaseModel):
@@ -27,6 +28,7 @@ class AuthorUpdate(BaseModel):
     first_acquired_date: date | None = None
     priority_score: int | None = None
     tier: str | None = None
+    preferred: bool | None = None
 
 
 class AuthorResponse(BaseModel):
@@ -40,6 +42,7 @@ class AuthorResponse(BaseModel):
     first_acquired_date: date | None = None
     priority_score: int = 0
     tier: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:
@@ -54,6 +57,7 @@ class PublisherCreate(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool = False
 
 
 class PublisherUpdate(BaseModel):
@@ -63,6 +67,7 @@ class PublisherUpdate(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool | None = None
 
 
 class PublisherResponse(BaseModel):
@@ -73,6 +78,7 @@ class PublisherResponse(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:
@@ -87,6 +93,7 @@ class BinderCreate(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool = False
 
 
 class BinderUpdate(BaseModel):
@@ -96,6 +103,7 @@ class BinderUpdate(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool | None = None
 
 
 class BinderResponse(BaseModel):
@@ -106,7 +114,23 @@ class BinderResponse(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:
         from_attributes = True
+
+
+# Reassignment schemas
+class ReassignRequest(BaseModel):
+    """Request schema for reassigning books to another entity."""
+
+    target_id: int
+
+
+class ReassignResponse(BaseModel):
+    """Response schema for reassignment operation."""
+
+    reassigned_count: int
+    deleted_entity: str
+    target_entity: str

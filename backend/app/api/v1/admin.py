@@ -182,6 +182,7 @@ def get_scoring_config() -> dict:
             "author_priority_cap": tiered_scoring.QUALITY_AUTHOR_PRIORITY_CAP,
             "duplicate_penalty": tiered_scoring.QUALITY_DUPLICATE_PENALTY,
             "large_volume_penalty": tiered_scoring.QUALITY_LARGE_VOLUME_PENALTY,
+            "preferred_bonus": tiered_scoring.PREFERRED_BONUS,
         },
         "strategic_points": {
             "publisher_match": tiered_scoring.STRATEGIC_PUBLISHER_MATCH,
