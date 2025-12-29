@@ -150,7 +150,7 @@ export const useListingsStore = defineStore("listings", () => {
     // Clear existing poller
     stopExtractionPoller(itemId);
 
-    const poller = setInterval(async () => {
+    async function pollExtraction() {
       try {
         const status = await fetchExtractionStatus(itemId);
 
@@ -173,7 +173,9 @@ export const useListingsStore = defineStore("listings", () => {
         console.error(`Failed to poll extraction status for ${itemId}:`, e);
         // Don't stop on error, keep trying
       }
-    }, intervalMs);
+    }
+
+    const poller = setInterval(() => void pollExtraction(), intervalMs);
 
     extractionPollers.value.set(itemId, poller);
   }

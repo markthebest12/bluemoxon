@@ -75,8 +75,8 @@ async function loadExchangeRates() {
 }
 
 onMounted(() => {
-  refsStore.fetchAll();
-  loadExchangeRates();
+  void refsStore.fetchAll();
+  void loadExchangeRates();
 });
 
 function validate(): boolean {

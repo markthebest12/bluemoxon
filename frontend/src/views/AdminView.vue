@@ -35,7 +35,7 @@ const resetPasswordSuccess = ref(false);
 onMounted(async () => {
   // Redirect if not admin
   if (!authStore.isAdmin) {
-    router.push("/");
+    void router.push("/");
     return;
   }
 
@@ -43,7 +43,7 @@ onMounted(async () => {
 
   // Load MFA status for each user (in background)
   for (const user of adminStore.users) {
-    loadMfaStatus(user.id);
+    void loadMfaStatus(user.id);
   }
 });
 
@@ -109,7 +109,7 @@ async function revokeKey(keyId: number) {
 }
 
 function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
+  void navigator.clipboard.writeText(text);
 }
 
 async function toggleMfa(userId: number, currentlyEnabled: boolean | undefined) {

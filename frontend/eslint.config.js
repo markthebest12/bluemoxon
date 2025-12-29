@@ -20,6 +20,14 @@ const sharedTypeScriptRules = {
   "@typescript-eslint/no-explicit-any": "off",
 };
 
+// Type-aware rules that catch real async bugs (#625)
+const typeAwareRules = {
+  // Catch forgotten awaits - causes silent failures
+  "@typescript-eslint/no-floating-promises": "error",
+  // Catch accidental promise-in-condition bugs
+  "@typescript-eslint/no-misused-promises": "error",
+};
+
 export default [
   // Global ignores
   {
@@ -67,6 +75,38 @@ export default [
     },
     rules: {
       ...sharedTypeScriptRules,
+    },
+  },
+
+  // Type-aware linting for src/ TypeScript files (#625)
+  // These rules require type information from tsconfig
+  // Excludes test files (__tests__) which aren't in tsconfig.app.json
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/**/__tests__/**"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.app.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      ...typeAwareRules,
+    },
+  },
+
+  // Type-aware linting for Vue files (#625)
+  {
+    files: ["src/**/*.vue"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.app.json",
+        tsconfigRootDir: import.meta.dirname,
+        extraFileExtensions: [".vue"],
+      },
+    },
+    rules: {
+      ...typeAwareRules,
     },
   },
 

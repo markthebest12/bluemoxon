@@ -22,9 +22,9 @@ const authStore = useAuthStore();
 
 // Analysis generation polling (async generation with status updates)
 const analysisPoller = useJobPolling("analysis", {
-  onComplete: async () => {
+  onComplete: () => {
     // Reload analysis content when generation completes
-    await loadAnalysis();
+    void loadAnalysis();
     generating.value = false;
   },
   onError: (_bookId, errorMsg) => {
@@ -250,7 +250,7 @@ function handleBackdropClick(e: MouseEvent) {
 function handleKeydown(e: KeyboardEvent) {
   if (editMode.value && e.metaKey && e.key === "s") {
     e.preventDefault();
-    saveAnalysis();
+    void saveAnalysis();
   }
   if (e.key === "Escape") {
     if (showDeleteConfirm.value) {

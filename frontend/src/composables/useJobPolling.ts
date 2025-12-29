@@ -74,7 +74,7 @@ export function useJobPolling(jobType: JobType, options: UseJobPollingOptions = 
     status.value = "pending"; // Assume pending until first poll
     error.value = null;
 
-    intervalId = setInterval(poll, pollInterval);
+    intervalId = setInterval(() => void poll(), pollInterval);
   }
 
   function stop() {

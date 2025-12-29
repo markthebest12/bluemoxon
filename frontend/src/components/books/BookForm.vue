@@ -236,7 +236,7 @@ async function handleSubmit() {
     }
 
     // Navigate to the book detail page
-    router.push(`/books/${result.id}`);
+    void router.push(`/books/${result.id}`);
   } catch (e: any) {
     errorMessage.value = e.response?.data?.detail || e.message || "Failed to save book";
   } finally {
@@ -248,7 +248,7 @@ async function handleSubmit() {
 function confirmCreateDuplicate() {
   showDuplicateWarning.value = false;
   skipDuplicateCheck.value = true;
-  handleSubmit();
+  void handleSubmit();
 }
 
 function cancelDuplicateWarning() {
@@ -258,9 +258,9 @@ function cancelDuplicateWarning() {
 
 function cancel() {
   if (props.bookId) {
-    router.push(`/books/${props.bookId}`);
+    void router.push(`/books/${props.bookId}`);
   } else {
-    router.push("/books");
+    void router.push("/books");
   }
 }
 </script>
