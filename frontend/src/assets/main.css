@@ -69,6 +69,24 @@ layer(utilities);
   --ease-out-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ============================================
+     SEMANTIC TOKENS - Theme-aware colors
+     ============================================ */
+  --color-surface-base: var(--color-victorian-paper-aged);
+  --color-surface-primary: var(--color-victorian-paper-white);
+  --color-surface-secondary: var(--color-victorian-paper-cream);
+  --color-surface-elevated: var(--color-victorian-paper-cream);
+
+  --color-text-primary: var(--color-victorian-ink-black);
+  --color-text-secondary: var(--color-victorian-ink-dark);
+  --color-text-muted: var(--color-victorian-ink-muted);
+
+  --color-border-default: var(--color-victorian-paper-antique);
+  --color-border-subtle: var(--color-gray-200);
+
+  --color-accent-primary: var(--color-victorian-hunter-600);
+  --color-accent-highlight: var(--color-victorian-gold);
 }
 
 /*
