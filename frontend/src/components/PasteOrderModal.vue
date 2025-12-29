@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
+import { ref } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -32,19 +32,6 @@ const pastedText = ref("");
 const extractedData = ref<ExtractedData | null>(null);
 const extracting = ref(false);
 const error = ref("");
-
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 async function handleExtract() {
   if (!pastedText.value.trim()) {

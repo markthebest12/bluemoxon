@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, computed } from "vue";
+import { ref, watch, computed } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "../TransitionModal.vue";
 
@@ -25,23 +25,15 @@ const files = ref<UploadFile[]>([]);
 const isDragging = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-// Lock body scroll when modal is visible
+// Reset files when modal opens
 watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      document.body.style.overflow = "hidden";
       files.value = [];
-    } else {
-      document.body.style.overflow = "";
     }
   }
 );
-
-// Clean up on unmount
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 const hasFiles = computed(() => files.value.length > 0);
 const isUploading = computed(() => files.value.some((f) => f.status === "uploading"));

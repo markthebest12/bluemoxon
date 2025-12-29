@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAcquisitionsStore, type AcquirePayload } from "@/stores/acquisitions";
 import { api } from "@/services/api";
 import PasteOrderModal from "./PasteOrderModal.vue";
@@ -90,19 +90,6 @@ onMounted(() => {
   loadExchangeRates();
 });
 
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
-// Clean up on unmount
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 async function handleSubmit() {
   if (!form.value.purchase_price || !form.value.order_number) {

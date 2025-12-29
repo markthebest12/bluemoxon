@@ -1,11 +1,43 @@
 <script setup lang="ts">
-defineProps<{
+import { watch, onUnmounted } from "vue";
+
+const props = defineProps<{
   visible: boolean;
 }>();
 
 defineEmits<{
   'backdrop-click': [];
 }>();
+
+// Track how many modals are open to handle nested modals correctly
+let modalCount = 0;
+
+watch(
+  () => props.visible,
+  (isVisible) => {
+    if (isVisible) {
+      modalCount++;
+      document.body.style.overflow = "hidden";
+    } else {
+      modalCount--;
+      if (modalCount <= 0) {
+        modalCount = 0;
+        document.body.style.overflow = "";
+      }
+    }
+  },
+  { immediate: true }
+);
+
+onUnmounted(() => {
+  if (props.visible) {
+    modalCount--;
+    if (modalCount <= 0) {
+      modalCount = 0;
+      document.body.style.overflow = "";
+    }
+  }
+});
 </script>
 
 <template>
@@ -15,6 +47,7 @@ defineEmits<{
       enter-active-class="modal-backdrop-enter-active"
       leave-to-class="modal-backdrop-leave-to"
       leave-active-class="modal-backdrop-leave-active"
+      appear
     >
       <div
         v-if="visible"

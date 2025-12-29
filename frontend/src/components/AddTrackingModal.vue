@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, computed } from "vue";
+import { ref, computed } from "vue";
 import { useAcquisitionsStore, type TrackingPayload } from "@/stores/acquisitions";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -33,19 +33,6 @@ const showCarrierField = computed(() => {
 
 // Known carriers for dropdown
 const carriers = ["USPS", "UPS", "FedEx", "DHL", "Royal Mail", "Parcelforce", "Other"];
-
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 async function handleSubmit() {
   // Validate: need either tracking_number or tracking_url

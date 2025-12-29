@@ -72,17 +72,7 @@ const savingSteps = [
 const currentSavingStep = ref(0);
 let savingStepInterval: ReturnType<typeof setInterval> | null = null;
 
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
 onUnmounted(() => {
-  document.body.style.overflow = "";
   // Clean up any active extraction polling
   if (currentItemId.value) {
     listingsStore.clearExtraction(currentItemId.value);

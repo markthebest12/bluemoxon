@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch } from "vue";
 import {
   useEvalRunbookStore,
   type EvalRunbook,
@@ -39,11 +39,10 @@ const refreshing = ref(false);
 const refreshError = ref<string | null>(null);
 const refreshSuccess = ref(false);
 
-// Lock body scroll when modal is visible
+// Load runbook when modal becomes visible
 watch(
   () => props.visible,
   async (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
     if (isVisible) {
       loading.value = true;
       try {
@@ -60,12 +59,6 @@ watch(
   },
   { immediate: true }
 );
-
-// Clean up on unmount
-onUnmounted(() => {
-  document.body.style.overflow = "";
-  store.clearRunbook();
-});
 
 const scoreColor = computed(() => {
   if (!runbook.value) return "bg-gray-200";

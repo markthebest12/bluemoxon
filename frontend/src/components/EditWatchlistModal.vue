@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { api } from "@/services/api";
@@ -75,21 +75,8 @@ const originalPrice = props.book.purchase_price ?? null;
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
 onMounted(() => {
   loadExchangeRates();
-});
-
-onUnmounted(() => {
-  document.body.style.overflow = "";
 });
 
 async function handleSubmit() {

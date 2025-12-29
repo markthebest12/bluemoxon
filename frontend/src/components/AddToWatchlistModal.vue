@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { api } from "@/services/api";
@@ -64,19 +64,6 @@ const form = ref({
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
-
-// Lock body scroll when modal is visible
-watch(
-  () => props.visible,
-  (isVisible) => {
-    document.body.style.overflow = isVisible ? "hidden" : "";
-  },
-  { immediate: true }
-);
-
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 async function loadExchangeRates() {
   try {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
+import { ref, watch } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "../TransitionModal.vue";
 
@@ -32,25 +32,17 @@ const dropTargetIndex = ref<number | null>(null);
 const touchedIndex = ref<number | null>(null);
 const itemRefs = ref<HTMLElement[]>([]);
 
-// Lock body scroll when modal is visible
+// Initialize when modal becomes visible
 watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      document.body.style.overflow = "hidden";
       // Clone the images array
       orderedImages.value = [...props.images].sort((a, b) => a.display_order - b.display_order);
       error.value = null;
-    } else {
-      document.body.style.overflow = "";
     }
   }
 );
-
-// Clean up on unmount
-onUnmounted(() => {
-  document.body.style.overflow = "";
-});
 
 function handleDragStart(e: DragEvent, index: number) {
   draggedIndex.value = index;
