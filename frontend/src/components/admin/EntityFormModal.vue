@@ -183,9 +183,7 @@ function handleSubmit() {
             />
           </label>
           <label class="block">
-            <span class="text-sm font-medium text-gray-700">
-              Authentication Markers
-            </span>
+            <span class="text-sm font-medium text-gray-700"> Authentication Markers </span>
             <textarea
               v-model="(form as BinderEntity).authentication_markers"
               rows="3"
@@ -196,9 +194,7 @@ function handleSubmit() {
       </form>
 
       <!-- Footer -->
-      <div
-        class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50"
-      >
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
         <button
           type="button"
           @click="emit('close')"

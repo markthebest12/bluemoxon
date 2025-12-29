@@ -55,20 +55,11 @@ function handleDelete() {
 
 <template>
   <TransitionModal :visible="visible" @backdrop-click="emit('close')">
-    <div
-      class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
-    >
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
       <!-- Header -->
-      <div
-        class="px-6 py-4 border-b border-gray-200 flex justify-between items-center"
-      >
-        <h2 class="text-lg font-semibold text-gray-900">
-          Delete {{ entityLabel }}
-        </h2>
-        <button
-          @click="emit('close')"
-          class="text-gray-400 hover:text-gray-600"
-        >
+      <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-gray-900">Delete {{ entityLabel }}</h2>
+        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -83,10 +74,7 @@ function handleDelete() {
       <!-- Content -->
       <div class="px-6 py-4">
         <!-- Error -->
-        <div
-          v-if="error"
-          class="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm"
-        >
+        <div v-if="error" class="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">
           {{ error }}
         </div>
 
@@ -117,9 +105,7 @@ function handleDelete() {
             </div>
 
             <label class="block">
-              <span class="text-sm font-medium text-gray-700">
-                Reassign books to *
-              </span>
+              <span class="text-sm font-medium text-gray-700"> Reassign books to * </span>
               <select
                 v-model="selectedTargetId"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-victorian-hunter-500 focus:border-victorian-hunter-500"
@@ -137,9 +123,7 @@ function handleDelete() {
       </div>
 
       <!-- Footer -->
-      <div
-        class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50"
-      >
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
         <button
           type="button"
           @click="emit('close')"
