@@ -108,10 +108,6 @@ onMounted(async () => {
   } catch {
     images.value = [];
   }
-
-  // Scroll to top after content loads (iOS Safari workaround)
-  // The router's scroll reset may fire before async content renders
-  window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 });
 
 // Cleanup polling on unmount
