@@ -140,10 +140,10 @@ const groupedPublishers = computed(() =>
 );
 const groupedBinders = computed(() => groupByTier(systemInfo.value?.entity_tiers.binders || []));
 
-function groupByTier(entities: { name: string; tier: string }[]) {
+function groupByTier(entities: { name: string; tier: string | null }[]) {
   const groups: Record<string, string[]> = { TIER_1: [], TIER_2: [], TIER_3: [] };
   for (const e of entities) {
-    if (groups[e.tier]) {
+    if (e.tier && groups[e.tier]) {
       groups[e.tier].push(e.name);
     }
   }
