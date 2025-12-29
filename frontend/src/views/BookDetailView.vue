@@ -466,7 +466,9 @@ function printPage() {
           </div>
           <div v-else class="flex items-center justify-center py-8">
             <div class="text-center">
-              <BookThumbnail :book-id="booksStore.currentBook.id" size="lg" />
+              <div class="w-48">
+                <BookThumbnail :book-id="booksStore.currentBook.id" />
+              </div>
               <p class="text-sm text-gray-500 mt-3">No images available</p>
             </div>
           </div>
