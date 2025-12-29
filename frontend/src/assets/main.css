@@ -157,8 +157,8 @@ layer(utilities);
 
   .btn-secondary {
     /* Secondary button - Subtle */
-    background-color: var(--color-victorian-paper-cream);
-    color: var(--color-victorian-ink-dark);
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-secondary);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
@@ -224,9 +224,9 @@ layer(utilities);
 
   .card {
     /* Cards - Warm paper feel */
-    background-color: var(--color-victorian-paper-cream);
+    background-color: var(--color-surface-secondary);
     border-radius: var(--radius-xs);
-    border: 1px solid var(--color-victorian-paper-antique);
+    border: 1px solid var(--color-border-default);
     box-shadow: var(--shadow-xs);
     padding: 1.5rem;
     transition: box-shadow 0.15s ease-in-out;
@@ -237,9 +237,9 @@ layer(utilities);
 
   .card-static {
     /* Card without hover effect */
-    background-color: var(--color-victorian-paper-cream);
+    background-color: var(--color-surface-secondary);
     border-radius: var(--radius-xs);
-    border: 1px solid var(--color-victorian-paper-antique);
+    border: 1px solid var(--color-border-default);
     box-shadow: var(--shadow-xs);
     padding: 1.5rem;
   }
@@ -248,10 +248,10 @@ layer(utilities);
     /* Form inputs */
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background-color: var(--color-victorian-paper-white);
-    border: 1px solid var(--color-victorian-paper-antique);
+    background-color: var(--color-surface-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: var(--radius-xs);
-    color: var(--color-victorian-ink-black);
+    color: var(--color-text-primary);
   }
   .input::placeholder {
     color: var(--color-victorian-ink-muted);
@@ -266,10 +266,10 @@ layer(utilities);
     /* Select dropdowns */
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background-color: var(--color-victorian-paper-white);
-    border: 1px solid var(--color-victorian-paper-antique);
+    background-color: var(--color-surface-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: var(--radius-xs);
-    color: var(--color-victorian-ink-black);
+    color: var(--color-text-primary);
   }
   .select:focus {
     outline: none;
