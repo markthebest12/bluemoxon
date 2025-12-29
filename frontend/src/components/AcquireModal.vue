@@ -90,7 +90,6 @@ onMounted(() => {
   loadExchangeRates();
 });
 
-
 async function handleSubmit() {
   if (!form.value.purchase_price || !form.value.order_number) {
     errorMessage.value = "Please fill in all required fields";
@@ -144,180 +143,180 @@ function handlePasteApply(data: any) {
 <template>
   <TransitionModal :visible="visible" @backdrop-click="handleClose">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
-            <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              @click="showPasteModal = true"
-              :disabled="submitting"
-              class="text-sm text-victorian-hunter-600 hover:text-victorian-hunter-700 disabled:opacity-50 flex items-center gap-1"
-              title="Paste order details from email"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
-              Paste Order
-            </button>
-            <button
-              @click="handleClose"
-              :disabled="submitting"
-              class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900">Acquire Book</h2>
+          <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            @click="showPasteModal = true"
+            :disabled="submitting"
+            class="text-sm text-victorian-hunter-600 hover:text-victorian-hunter-700 disabled:opacity-50 flex items-center gap-1"
+            title="Paste order details from email"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            Paste Order
+          </button>
+          <button
+            @click="handleClose"
+            :disabled="submitting"
+            class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
+        <!-- Error Message -->
+        <div
+          v-if="errorMessage"
+          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+        >
+          {{ errorMessage }}
         </div>
 
-        <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
-          <!-- Error Message -->
+        <!-- Purchase Price with Currency Selector -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Price * </label>
+          <div class="flex gap-2">
+            <select v-model="selectedCurrency" class="select w-24">
+              <option value="USD">USD $</option>
+              <option value="GBP">GBP £</option>
+              <option value="EUR">EUR €</option>
+            </select>
+            <div class="relative flex-1">
+              <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+              <input
+                v-model.number="form.purchase_price"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input pl-7"
+                required
+              />
+            </div>
+          </div>
           <div
-            v-if="errorMessage"
-            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+            v-if="selectedCurrency !== 'USD' && form.purchase_price"
+            class="mt-1 text-sm text-gray-600"
           >
-            {{ errorMessage }}
-          </div>
-
-          <!-- Purchase Price with Currency Selector -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Price * </label>
-            <div class="flex gap-2">
-              <select v-model="selectedCurrency" class="select w-24">
-                <option value="USD">USD $</option>
-                <option value="GBP">GBP £</option>
-                <option value="EUR">EUR €</option>
-              </select>
-              <div class="relative flex-1">
-                <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
-                <input
-                  v-model.number="form.purchase_price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pl-7"
-                  required
-                />
-              </div>
-            </div>
-            <div
-              v-if="selectedCurrency !== 'USD' && form.purchase_price"
-              class="mt-1 text-sm text-gray-600"
+            ≈ ${{ priceInUsd.toFixed(2) }} USD
+            <span class="text-gray-400"
+              >(rate:
+              {{
+                selectedCurrency === "GBP"
+                  ? exchangeRates.gbp_to_usd_rate
+                  : exchangeRates.eur_to_usd_rate
+              }})</span
             >
-              ≈ ${{ priceInUsd.toFixed(2) }} USD
-              <span class="text-gray-400"
-                >(rate:
-                {{
-                  selectedCurrency === "GBP"
-                    ? exchangeRates.gbp_to_usd_rate
-                    : exchangeRates.eur_to_usd_rate
-                }})</span
-              >
-            </div>
-            <p v-if="estimatedDiscount" class="mt-1 text-sm text-green-600">
-              {{ estimatedDiscount }}% discount from FMV (${{ valueMidNumeric?.toFixed(2) }})
-            </p>
           </div>
+          <p v-if="estimatedDiscount" class="mt-1 text-sm text-green-600">
+            {{ estimatedDiscount }}% discount from FMV (${{ valueMidNumeric?.toFixed(2) }})
+          </p>
+        </div>
 
-          <!-- Purchase Date -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Date * </label>
-            <input v-model="form.purchase_date" type="date" class="input" required />
-          </div>
+        <!-- Purchase Date -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Purchase Date * </label>
+          <input v-model="form.purchase_date" type="date" class="input" required />
+        </div>
 
-          <!-- Order Number -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Order Number * </label>
-            <input
-              v-model="form.order_number"
-              type="text"
-              placeholder="19-13940-40744"
-              class="input"
-              required
-            />
-          </div>
+        <!-- Order Number -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Order Number * </label>
+          <input
+            v-model="form.order_number"
+            type="text"
+            placeholder="19-13940-40744"
+            class="input"
+            required
+          />
+        </div>
 
-          <!-- Platform -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Platform * </label>
-            <select v-model="form.place_of_purchase" class="select">
-              <option value="eBay">eBay</option>
-              <option value="Etsy">Etsy</option>
-              <option value="AbeBooks">AbeBooks</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
+        <!-- Platform -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Platform * </label>
+          <select v-model="form.place_of_purchase" class="select">
+            <option value="eBay">eBay</option>
+            <option value="Etsy">Etsy</option>
+            <option value="AbeBooks">AbeBooks</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
 
-          <!-- Estimated Delivery -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Estimated Delivery </label>
-            <input v-model="form.estimated_delivery" type="date" class="input" />
-          </div>
+        <!-- Estimated Delivery -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Estimated Delivery </label>
+          <input v-model="form.estimated_delivery" type="date" class="input" />
+        </div>
 
-          <!-- Tracking Number (Optional) -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Tracking Number (Optional)
-            </label>
-            <input
-              v-model="form.tracking_number"
-              type="text"
-              placeholder="e.g., 1Z999AA10123456784"
-              class="input"
-            />
-            <p class="mt-1 text-xs text-gray-500">
-              Carrier will be auto-detected. Add tracking now or later.
-            </p>
-          </div>
+        <!-- Tracking Number (Optional) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Tracking Number (Optional)
+          </label>
+          <input
+            v-model="form.tracking_number"
+            type="text"
+            placeholder="e.g., 1Z999AA10123456784"
+            class="input"
+          />
+          <p class="mt-1 text-xs text-gray-500">
+            Carrier will be auto-detected. Add tracking now or later.
+          </p>
+        </div>
 
-          <!-- Carrier Override (Optional) -->
-          <div v-if="form.tracking_number">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Carrier (Optional Override)
-            </label>
-            <select v-model="form.tracking_carrier" class="select">
-              <option value="">Auto-detect</option>
-              <option value="USPS">USPS</option>
-              <option value="UPS">UPS</option>
-              <option value="FedEx">FedEx</option>
-              <option value="DHL">DHL</option>
-              <option value="Royal Mail">Royal Mail</option>
-              <option value="Parcelforce">Parcelforce</option>
-            </select>
-            <p class="mt-1 text-xs text-gray-500">Override if auto-detection fails</p>
-          </div>
+        <!-- Carrier Override (Optional) -->
+        <div v-if="form.tracking_number">
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Carrier (Optional Override)
+          </label>
+          <select v-model="form.tracking_carrier" class="select">
+            <option value="">Auto-detect</option>
+            <option value="USPS">USPS</option>
+            <option value="UPS">UPS</option>
+            <option value="FedEx">FedEx</option>
+            <option value="DHL">DHL</option>
+            <option value="Royal Mail">Royal Mail</option>
+            <option value="Parcelforce">Parcelforce</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">Override if auto-detection fails</p>
+        </div>
 
-          <!-- Footer Buttons -->
-          <div class="flex gap-3 pt-4">
-            <button
-              type="button"
-              @click="handleClose"
-              :disabled="submitting"
-              class="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
-            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
-              {{ submitting ? "Processing..." : "Confirm Acquire" }}
-            </button>
-          </div>
-        </form>
-      </div>
+        <!-- Footer Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="button"
+            @click="handleClose"
+            :disabled="submitting"
+            class="btn-secondary flex-1"
+          >
+            Cancel
+          </button>
+          <button type="submit" :disabled="submitting" class="btn-primary flex-1">
+            {{ submitting ? "Processing..." : "Confirm Acquire" }}
+          </button>
+        </div>
+      </form>
+    </div>
   </TransitionModal>
 
   <!-- Paste Order Modal -->

@@ -163,165 +163,165 @@ function openSourceUrl() {
 <template>
   <TransitionModal :visible="visible" @backdrop-click="handleClose">
     <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">Add to Watchlist</h2>
-          <button
-            @click="handleClose"
-            :disabled="submitting"
-            class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Add to Watchlist</h2>
+        <button
+          @click="handleClose"
+          :disabled="submitting"
+          class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
+        <!-- Error Message -->
+        <div
+          v-if="errorMessage"
+          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+        >
+          {{ errorMessage }}
         </div>
 
-        <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
-          <!-- Error Message -->
-          <div
-            v-if="errorMessage"
-            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
-          >
-            {{ errorMessage }}
-          </div>
+        <!-- Title -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Title <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="form.title"
+            type="text"
+            class="input"
+            :class="{ 'border-red-500': validationErrors.title }"
+          />
+          <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
+            {{ validationErrors.title }}
+          </p>
+        </div>
 
-          <!-- Title -->
+        <!-- Author & Publisher Row -->
+        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Title <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="form.title"
-              type="text"
-              class="input"
-              :class="{ 'border-red-500': validationErrors.title }"
+            <ComboboxWithAdd
+              label="Author"
+              :options="refsStore.authors"
+              v-model="form.author_id"
+              @create="handleCreateAuthor"
             />
-            <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
-              {{ validationErrors.title }}
+            <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
+              {{ validationErrors.author }}
             </p>
           </div>
+          <ComboboxWithAdd
+            label="Publisher"
+            :options="refsStore.publishers"
+            v-model="form.publisher_id"
+            @create="handleCreatePublisher"
+          />
+        </div>
 
-          <!-- Author & Publisher Row -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <ComboboxWithAdd
-                label="Author"
-                :options="refsStore.authors"
-                v-model="form.author_id"
-                @create="handleCreateAuthor"
-              />
-              <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
-                {{ validationErrors.author }}
-              </p>
-            </div>
-            <ComboboxWithAdd
-              label="Publisher"
-              :options="refsStore.publishers"
-              v-model="form.publisher_id"
-              @create="handleCreatePublisher"
-            />
-          </div>
-
-          <!-- Binder & Publication Date Row -->
-          <div class="grid grid-cols-2 gap-4">
-            <ComboboxWithAdd
-              label="Binder"
-              :options="refsStore.binders"
-              v-model="form.binder_id"
-              @create="handleCreateBinder"
-            />
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
-              <input v-model="form.publication_date" type="text" placeholder="1867" class="input" />
-            </div>
-          </div>
-
-          <!-- Volumes & Asking Price Row -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
-              <input v-model.number="form.volumes" type="number" min="1" class="input" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
-              <div class="flex gap-2">
-                <select v-model="selectedCurrency" class="select w-20">
-                  <option value="USD">USD $</option>
-                  <option value="GBP">GBP £</option>
-                  <option value="EUR">EUR €</option>
-                </select>
-                <div class="relative flex-1">
-                  <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
-                  <input
-                    v-model.number="form.purchase_price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Optional"
-                    class="input pl-7"
-                  />
-                </div>
-              </div>
-              <p
-                v-if="form.purchase_price && selectedCurrency !== 'USD'"
-                class="mt-1 text-xs text-gray-500"
-              >
-                ≈ ${{ priceInUsd?.toFixed(2) }} USD
-              </p>
-            </div>
-          </div>
-
-          <!-- Source URL -->
+        <!-- Binder & Publication Date Row -->
+        <div class="grid grid-cols-2 gap-4">
+          <ComboboxWithAdd
+            label="Binder"
+            :options="refsStore.binders"
+            v-model="form.binder_id"
+            @create="handleCreateBinder"
+          />
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
-            <div class="flex gap-2">
-              <input
-                v-model="form.source_url"
-                type="url"
-                placeholder="https://ebay.com/itm/..."
-                class="input flex-1"
-              />
-              <button
-                type="button"
-                :disabled="!form.source_url"
-                @click="openSourceUrl"
-                class="btn-secondary px-3"
-                title="Open URL"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </button>
-            </div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
+            <input v-model="form.publication_date" type="text" placeholder="1867" class="input" />
           </div>
+        </div>
 
-          <!-- Footer Buttons -->
-          <div class="flex gap-3 pt-4">
+        <!-- Volumes & Asking Price Row -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Volumes </label>
+            <input v-model.number="form.volumes" type="number" min="1" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Asking Price </label>
+            <div class="flex gap-2">
+              <select v-model="selectedCurrency" class="select w-20">
+                <option value="USD">USD $</option>
+                <option value="GBP">GBP £</option>
+                <option value="EUR">EUR €</option>
+              </select>
+              <div class="relative flex-1">
+                <span class="absolute left-3 top-2 text-gray-500">{{ currencySymbol }}</span>
+                <input
+                  v-model.number="form.purchase_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Optional"
+                  class="input pl-7"
+                />
+              </div>
+            </div>
+            <p
+              v-if="form.purchase_price && selectedCurrency !== 'USD'"
+              class="mt-1 text-xs text-gray-500"
+            >
+              ≈ ${{ priceInUsd?.toFixed(2) }} USD
+            </p>
+          </div>
+        </div>
+
+        <!-- Source URL -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Source URL </label>
+          <div class="flex gap-2">
+            <input
+              v-model="form.source_url"
+              type="url"
+              placeholder="https://ebay.com/itm/..."
+              class="input flex-1"
+            />
             <button
               type="button"
-              @click="handleClose"
-              :disabled="submitting"
-              class="btn-secondary flex-1"
+              :disabled="!form.source_url"
+              @click="openSourceUrl"
+              class="btn-secondary px-3"
+              title="Open URL"
             >
-              Cancel
-            </button>
-            <button type="submit" :disabled="submitting" class="btn-primary flex-1">
-              {{ submitting ? "Adding..." : "Add to List" }}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
             </button>
           </div>
-        </form>
-      </div>
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="button"
+            @click="handleClose"
+            :disabled="submitting"
+            class="btn-secondary flex-1"
+          >
+            Cancel
+          </button>
+          <button type="submit" :disabled="submitting" class="btn-primary flex-1">
+            {{ submitting ? "Adding..." : "Add to List" }}
+          </button>
+        </div>
+      </form>
+    </div>
   </TransitionModal>
 </template>

@@ -99,8 +99,9 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color var(--duration-fast) var(--ease-out-soft),
-                transform var(--duration-instant) var(--ease-out-soft);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-soft),
+      transform var(--duration-instant) var(--ease-out-soft);
     border: 1px solid var(--color-victorian-hunter-700);
   }
   .btn-primary:hover {
@@ -121,8 +122,9 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color var(--duration-fast) var(--ease-out-soft),
-                transform var(--duration-instant) var(--ease-out-soft);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-soft),
+      transform var(--duration-instant) var(--ease-out-soft);
     border: 1px solid var(--color-victorian-paper-antique);
   }
   .btn-secondary:hover {
@@ -143,8 +145,9 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color var(--duration-fast) var(--ease-out-soft),
-                transform var(--duration-instant) var(--ease-out-soft);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-soft),
+      transform var(--duration-instant) var(--ease-out-soft);
   }
   .btn-danger:hover {
     background-color: var(--color-victorian-burgundy-dark);
@@ -164,8 +167,9 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color var(--duration-fast) var(--ease-out-soft),
-                transform var(--duration-instant) var(--ease-out-soft);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-soft),
+      transform var(--duration-instant) var(--ease-out-soft);
   }
   .btn-accent:hover {
     background-color: var(--color-victorian-gold-dark);
@@ -341,8 +345,9 @@ layer(utilities);
      INTERACTIVE ANIMATIONS
      ============================================ */
   .card-interactive {
-    transition: transform var(--duration-fast) var(--ease-out-soft),
-                box-shadow var(--duration-fast) var(--ease-out-soft);
+    transition:
+      transform var(--duration-fast) var(--ease-out-soft),
+      box-shadow var(--duration-fast) var(--ease-out-soft);
   }
   .card-interactive:hover {
     transform: translateY(-2px);
@@ -430,8 +435,12 @@ layer(utilities);
   }
 
   @keyframes skeleton-pulse {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   .skeleton-text {
@@ -465,8 +474,12 @@ layer(utilities);
   }
 
   @keyframes progress-slide {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
   }
 
   /* ============================================

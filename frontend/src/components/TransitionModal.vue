@@ -6,7 +6,7 @@ const props = defineProps<{
 }>();
 
 defineEmits<{
-  'backdrop-click': [];
+  "backdrop-click": [];
 }>();
 
 // Track how many modals are open to handle nested modals correctly

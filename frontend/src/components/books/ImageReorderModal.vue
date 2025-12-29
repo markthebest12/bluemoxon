@@ -182,142 +182,142 @@ function close() {
 <template>
   <TransitionModal :visible="visible" @backdrop-click="close">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
-          <!-- Header -->
-          <div class="flex items-center justify-between p-4 border-b">
-            <h2 class="text-lg font-semibold text-gray-800">Reorder Images</h2>
-            <button @click="close" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Reorder Images</h2>
+        <button @click="close" class="text-gray-500 hover:text-gray-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto p-4">
+        <p class="text-sm text-gray-600 mb-4">
+          Drag and drop images to reorder them. The first image will be shown as the primary
+          thumbnail.
+        </p>
+
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="(img, index) in orderedImages"
+            :key="img.id"
+            :ref="(el) => setItemRef(el as HTMLElement, index)"
+            :class="[
+              'flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-move touch-none',
+              draggedIndex === index
+                ? 'opacity-50 border-moxon-300'
+                : dropTargetIndex === index
+                  ? 'border-moxon-500 bg-moxon-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white',
+            ]"
+            draggable="true"
+            @dragstart="handleDragStart($event, index)"
+            @dragover="handleDragOver($event, index)"
+            @dragleave="handleDragLeave"
+            @drop="handleDrop($event, index)"
+            @dragend="handleDragEnd"
+            @touchstart="handleTouchStart($event, index)"
+            @touchmove="handleTouchMove($event)"
+            @touchend="handleTouchEnd"
+          >
+            <!-- Drag Handle -->
+            <div class="text-gray-400 shrink-0">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
+                  d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8-12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
                 />
               </svg>
-            </button>
-          </div>
-
-          <!-- Content -->
-          <div class="flex-1 overflow-y-auto p-4">
-            <p class="text-sm text-gray-600 mb-4">
-              Drag and drop images to reorder them. The first image will be shown as the primary
-              thumbnail.
-            </p>
-
-            <div class="flex flex-col gap-2">
-              <div
-                v-for="(img, index) in orderedImages"
-                :key="img.id"
-                :ref="(el) => setItemRef(el as HTMLElement, index)"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-move touch-none',
-                  draggedIndex === index
-                    ? 'opacity-50 border-moxon-300'
-                    : dropTargetIndex === index
-                      ? 'border-moxon-500 bg-moxon-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white',
-                ]"
-                draggable="true"
-                @dragstart="handleDragStart($event, index)"
-                @dragover="handleDragOver($event, index)"
-                @dragleave="handleDragLeave"
-                @drop="handleDrop($event, index)"
-                @dragend="handleDragEnd"
-                @touchstart="handleTouchStart($event, index)"
-                @touchmove="handleTouchMove($event)"
-                @touchend="handleTouchEnd"
-              >
-                <!-- Drag Handle -->
-                <div class="text-gray-400 shrink-0">
-                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8-12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm0 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
-                    />
-                  </svg>
-                </div>
-
-                <!-- Order Number -->
-                <div
-                  class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-medium text-sm shrink-0"
-                >
-                  {{ index + 1 }}
-                </div>
-
-                <!-- Thumbnail -->
-                <img
-                  :src="img.thumbnail_url"
-                  :alt="img.caption || `Image ${index + 1}`"
-                  class="w-16 h-16 object-cover rounded-sm shrink-0"
-                />
-
-                <!-- Info -->
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-800 truncate">
-                    {{ img.caption || img.image_type || `Image ${index + 1}` }}
-                  </p>
-                  <p v-if="index === 0" class="text-xs text-moxon-600">Primary thumbnail</p>
-                </div>
-
-                <!-- Up/Down Buttons -->
-                <div class="flex flex-col gap-1 shrink-0">
-                  <button
-                    @click.stop="moveUp(index)"
-                    :disabled="index === 0"
-                    :class="[
-                      'p-1 rounded-sm hover:bg-gray-100',
-                      index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500',
-                    ]"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    @click.stop="moveDown(index)"
-                    :disabled="index === orderedImages.length - 1"
-                    :class="[
-                      'p-1 rounded-sm hover:bg-gray-100',
-                      index === orderedImages.length - 1
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : 'text-gray-500',
-                    ]"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <!-- Error -->
+            <!-- Order Number -->
             <div
-              v-if="error"
-              class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+              class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-medium text-sm shrink-0"
             >
-              {{ error }}
+              {{ index + 1 }}
             </div>
-          </div>
 
-          <!-- Footer -->
-          <div class="flex justify-end gap-3 p-4 border-t">
-            <button type="button" @click="close" :disabled="saving" class="btn-secondary">
-              Cancel
-            </button>
-            <button type="button" @click="save" :disabled="saving" class="btn-primary">
-              {{ saving ? "Saving..." : "Save Order" }}
-            </button>
+            <!-- Thumbnail -->
+            <img
+              :src="img.thumbnail_url"
+              :alt="img.caption || `Image ${index + 1}`"
+              class="w-16 h-16 object-cover rounded-sm shrink-0"
+            />
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-800 truncate">
+                {{ img.caption || img.image_type || `Image ${index + 1}` }}
+              </p>
+              <p v-if="index === 0" class="text-xs text-moxon-600">Primary thumbnail</p>
+            </div>
+
+            <!-- Up/Down Buttons -->
+            <div class="flex flex-col gap-1 shrink-0">
+              <button
+                @click.stop="moveUp(index)"
+                :disabled="index === 0"
+                :class="[
+                  'p-1 rounded-sm hover:bg-gray-100',
+                  index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500',
+                ]"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 15l7-7 7 7"
+                  />
+                </svg>
+              </button>
+              <button
+                @click.stop="moveDown(index)"
+                :disabled="index === orderedImages.length - 1"
+                :class="[
+                  'p-1 rounded-sm hover:bg-gray-100',
+                  index === orderedImages.length - 1
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-500',
+                ]"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
+
+        <!-- Error -->
+        <div
+          v-if="error"
+          class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+        >
+          {{ error }}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 p-4 border-t">
+        <button type="button" @click="close" :disabled="saving" class="btn-secondary">
+          Cancel
+        </button>
+        <button type="button" @click="save" :disabled="saving" class="btn-primary">
+          {{ saving ? "Saving..." : "Save Order" }}
+        </button>
+      </div>
+    </div>
   </TransitionModal>
 </template>
