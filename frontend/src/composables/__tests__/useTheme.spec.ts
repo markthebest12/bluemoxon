@@ -121,4 +121,30 @@ describe('useTheme', () => {
     await nextTick();
     expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'dark');
   });
+
+  it('shares state across multiple useTheme() calls (singleton)', async () => {
+    window.matchMedia = createMatchMediaMock(false);
+    const { useTheme } = await import('../useTheme');
+
+    // Simulate multiple components using useTheme
+    const instance1 = useTheme();
+    const instance2 = useTheme();
+    const instance3 = useTheme();
+
+    // All instances should share the same refs
+    instance1.setTheme('dark');
+
+    // All instances see the change
+    expect(instance1.isDark.value).toBe(true);
+    expect(instance2.isDark.value).toBe(true);
+    expect(instance3.isDark.value).toBe(true);
+
+    // Change from another instance
+    instance2.setTheme('light');
+
+    // All instances see the change
+    expect(instance1.isDark.value).toBe(false);
+    expect(instance2.isDark.value).toBe(false);
+    expect(instance3.isDark.value).toBe(false);
+  });
 });

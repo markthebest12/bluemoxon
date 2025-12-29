@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
@@ -19,20 +19,47 @@ function getSystemPreference(): ResolvedTheme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-// Shared state across all instances
+// ============================================
+// SINGLETON STATE - shared across all instances
+// ============================================
 const preference = ref<ThemePreference>(getStoredPreference());
 const systemPreference = ref<ResolvedTheme>(getSystemPreference());
 
-export function useTheme() {
-  const resolvedTheme = computed<ResolvedTheme>(() => {
-    if (preference.value === 'system') {
-      return systemPreference.value;
-    }
-    return preference.value;
+const resolvedTheme = computed<ResolvedTheme>(() => {
+  if (preference.value === 'system') {
+    return systemPreference.value;
+  }
+  return preference.value;
+});
+
+const isDark = computed(() => resolvedTheme.value === 'dark');
+
+// ============================================
+// SINGLETON EFFECTS - run once at module load
+// ============================================
+
+// Apply theme to DOM and persist (single watcher, not per-component)
+watch(
+  resolvedTheme,
+  (theme) => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem(STORAGE_KEY, preference.value);
+  },
+  { immediate: true }
+);
+
+// Listen for system preference changes (single listener, not per-component)
+if (typeof window !== 'undefined') {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  mediaQuery.addEventListener('change', (e: MediaQueryListEvent) => {
+    systemPreference.value = e.matches ? 'dark' : 'light';
   });
+}
 
-  const isDark = computed(() => resolvedTheme.value === 'dark');
-
+// ============================================
+// COMPOSABLE - just returns shared state
+// ============================================
+export function useTheme() {
   function toggle(): void {
     preference.value = isDark.value ? 'light' : 'dark';
   }
@@ -40,25 +67,6 @@ export function useTheme() {
   function setTheme(theme: ThemePreference): void {
     preference.value = theme;
   }
-
-  // Apply theme to DOM and persist
-  watch(
-    resolvedTheme,
-    (theme) => {
-      document.documentElement.classList.toggle('dark', theme === 'dark');
-      localStorage.setItem(STORAGE_KEY, preference.value);
-    },
-    { immediate: true }
-  );
-
-  // Listen for system preference changes
-  onMounted(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => {
-      systemPreference.value = e.matches ? 'dark' : 'light';
-    };
-    mediaQuery.addEventListener('change', handler);
-  });
 
   return {
     preference,

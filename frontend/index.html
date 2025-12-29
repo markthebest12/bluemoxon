@@ -21,6 +21,7 @@
     <link rel="preconnect" href="https://cognito-idp.us-west-2.amazonaws.com" crossorigin />
 
     <!-- Prevent flash of wrong theme on load -->
+    <!-- SYNC WITH: src/composables/useTheme.ts - theme resolution logic must match -->
     <script>
       (function() {
         var p = localStorage.getItem('theme');

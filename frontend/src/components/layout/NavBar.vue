@@ -116,37 +116,32 @@ function closeMobileMenu() {
                 >
                   <div
                     v-if="showDropdown"
-                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 z-50"
-                    style="background-color: var(--color-surface-elevated)"
+                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 z-50 bg-[var(--color-surface-elevated)]"
                     @click="closeDropdown"
                   >
                     <RouterLink
                       to="/profile"
-                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
-                      style="color: var(--color-text-primary)"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Profile
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isEditor"
                       to="/admin/config"
-                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
-                      style="color: var(--color-text-primary)"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Config
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isAdmin"
                       to="/admin"
-                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
-                      style="color: var(--color-text-primary)"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Admin Settings
                     </RouterLink>
                     <button
                       @click="handleSignOut"
-                      class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
-                      style="color: var(--color-text-primary)"
+                      class="block w-full text-left px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Sign Out
                     </button>
