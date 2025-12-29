@@ -145,6 +145,11 @@ layer(utilities);
     background-color: var(--color-surface-elevated);
   }
 
+  /* Background overrides - Victorian cream (bright yellow-cream) */
+  .bg-victorian-cream {
+    background-color: var(--color-surface-secondary);
+  }
+
   /* Background overrides - Yellow/amber highlight rows */
   .bg-yellow-50 {
     background-color: #3d3a28;
@@ -205,6 +210,25 @@ layer(utilities);
     color: var(--color-victorian-gold-light);
   }
 
+  /* Text color overrides - Moxon brand colors */
+  .text-moxon-800 {
+    color: var(--color-victorian-gold);
+  }
+  .text-moxon-700 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-moxon-600 {
+    color: var(--color-victorian-gold-light);
+  }
+
+  /* Text color overrides - Victorian accent colors */
+  .text-victorian-gold-dark {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-victorian-burgundy {
+    color: #f87171; /* red-400 for better visibility */
+  }
+
   /* Green status/success colors - dark mode versions */
   .bg-green-50 {
     background-color: #1a2e1a;
@@ -228,6 +252,16 @@ layer(utilities);
   /* Section headers - make titles readable */
   .section-header h1 {
     color: var(--color-text-primary);
+  }
+
+  /* Card variants - dark mode backgrounds */
+  .card-info {
+    background-color: var(--color-surface-secondary);
+    border-color: var(--color-border-default);
+  }
+  .card-highlight {
+    background-color: var(--color-surface-elevated);
+    border-color: var(--color-border-default);
   }
 
   /* Border color overrides */
@@ -784,6 +818,16 @@ layer(utilities);
 
   h3 {
     @apply text-lg text-victorian-ink-dark;
+  }
+
+  /* Dark mode typography - override base heading colors */
+  .dark h1,
+  .dark h2 {
+    color: var(--color-text-primary);
+  }
+
+  .dark h3 {
+    color: var(--color-text-secondary);
   }
 }
 
