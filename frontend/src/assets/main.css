@@ -591,7 +591,7 @@ layer(utilities);
   html,
   body {
     @apply overflow-x-hidden;
-    @apply bg-victorian-paper-aged;
+    background-color: var(--color-surface-base);
   }
 
   /* iOS safe area support for notch devices - left/right only, nav handles top */
