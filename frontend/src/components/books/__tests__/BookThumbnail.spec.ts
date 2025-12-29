@@ -77,5 +77,4 @@ describe("BookThumbnail", () => {
       expect(wrapper.classes()).not.toContain("cursor-pointer");
     });
   });
-
 });
