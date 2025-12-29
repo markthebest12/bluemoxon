@@ -386,18 +386,18 @@ export const useBooksStore = defineStore("books", () => {
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
-    fetchBooks();
+    void fetchBooks();
   }
 
   function setSort(field: string, order: "asc" | "desc") {
     sortBy.value = field;
     sortOrder.value = order;
-    fetchBooks();
+    void fetchBooks();
   }
 
   function setPage(newPage: number) {
     page.value = newPage;
-    fetchBooks();
+    void fetchBooks();
   }
 
   return {

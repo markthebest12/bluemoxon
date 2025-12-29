@@ -33,9 +33,9 @@ async function search() {
 
 function viewResult(result: any) {
   if (result.type === "book") {
-    router.push(`/books/${result.id}`);
+    void router.push(`/books/${result.id}`);
   } else if (result.type === "analysis") {
-    router.push(`/books/${result.book_id}`);
+    void router.push(`/books/${result.book_id}`);
   }
 }
 </script>

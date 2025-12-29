@@ -35,7 +35,7 @@ const resetPasswordSuccess = ref(false);
 onMounted(async () => {
   // Redirect if not admin
   if (!authStore.isAdmin) {
-    router.push("/");
+    void router.push("/");
     return;
   }
 
@@ -43,7 +43,7 @@ onMounted(async () => {
 
   // Load MFA status for each user (in background)
   for (const user of adminStore.users) {
-    loadMfaStatus(user.id);
+    void loadMfaStatus(user.id);
   }
 });
 
@@ -108,8 +108,21 @@ async function revokeKey(keyId: number) {
   }
 }
 
+const copySuccess = ref(false);
+
 function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
+  navigator.clipboard.writeText(text).then(
+    () => {
+      copySuccess.value = true;
+      setTimeout(() => {
+        copySuccess.value = false;
+      }, 2000);
+    },
+    (err) => {
+      console.error("Copy failed:", err);
+      alert("Failed to copy to clipboard");
+    }
+  );
 }
 
 async function toggleMfa(userId: number, currentlyEnabled: boolean | undefined) {
@@ -512,7 +525,7 @@ function formatDate(dateStr: string | null): string {
               @click="copyToClipboard(adminStore.newlyCreatedKey!.key)"
               class="px-3 py-1 bg-moxon-600 text-white text-sm rounded-sm hover:bg-moxon-700"
             >
-              Copy
+              {{ copySuccess ? "Copied!" : "Copy" }}
             </button>
           </div>
         </div>
@@ -560,7 +573,7 @@ function formatDate(dateStr: string | null): string {
                 @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
-                Copy
+                {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
             </div>
           </div>
@@ -574,7 +587,7 @@ function formatDate(dateStr: string | null): string {
                 @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
-                Copy
+                {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
             </div>
           </div>

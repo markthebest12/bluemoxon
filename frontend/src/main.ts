@@ -42,4 +42,15 @@ async function initApp() {
   app.mount("#app");
 }
 
-initApp();
+initApp().catch((error: unknown) => {
+  console.error("App initialization failed:", error);
+  const appEl = document.getElementById("app");
+  if (appEl) {
+    appEl.innerHTML = `
+      <div style="padding: 40px; font-family: system-ui, sans-serif; text-align: center;">
+        <h1 style="color: #7c2d12; margin-bottom: 16px;">Failed to load application</h1>
+        <p style="color: #57534e;">Please refresh the page or contact support if the problem persists.</p>
+      </div>
+    `;
+  }
+});

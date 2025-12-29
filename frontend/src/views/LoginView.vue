@@ -24,7 +24,7 @@ async function handleLogin() {
     // Otherwise, we're logged in
     if (authStore.isAuthenticated) {
       const redirect = (route.query.redirect as string) || "/";
-      router.push(redirect);
+      void router.push(redirect);
     }
   } catch (e: any) {
     if (e.name === "UserNotConfirmedException") {
@@ -55,7 +55,7 @@ async function handleTotpSubmit() {
 
     if (authStore.isAuthenticated && authStore.mfaStep === "none") {
       const redirect = (route.query.redirect as string) || "/";
-      router.push(redirect);
+      void router.push(redirect);
     }
   } catch (e: any) {
     localError.value = e.message || "Invalid code";
@@ -104,7 +104,7 @@ async function handleNewPasswordSubmit() {
     // Only redirect if authenticated AND MFA is complete
     if (authStore.isAuthenticated && authStore.mfaStep === "none") {
       const redirect = (route.query.redirect as string) || "/";
-      router.push(redirect);
+      void router.push(redirect);
     }
   } catch (e: any) {
     localError.value = e.message || "Failed to set new password";
@@ -112,7 +112,7 @@ async function handleNewPasswordSubmit() {
 }
 
 function resetLogin() {
-  authStore.logout();
+  void authStore.logout();
   email.value = "";
   password.value = "";
   totpCode.value = "";

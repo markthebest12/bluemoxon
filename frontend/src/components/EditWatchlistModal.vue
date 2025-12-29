@@ -76,7 +76,7 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 
 onMounted(() => {
-  loadExchangeRates();
+  void loadExchangeRates();
 });
 
 async function handleSubmit() {

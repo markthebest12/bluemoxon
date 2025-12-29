@@ -85,7 +85,7 @@ onUnmounted(() => {
 });
 
 onMounted(() => {
-  refsStore.fetchAll();
+  void refsStore.fetchAll();
 });
 
 // Computed: Is the URL a valid eBay URL?

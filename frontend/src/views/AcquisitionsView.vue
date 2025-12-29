@@ -29,7 +29,7 @@ const evalRunbookPollers = new Map<number, JobPoller>();
 function getOrCreateAnalysisPoller(bookId: number) {
   if (!analysisPollers.has(bookId)) {
     const poller = useJobPolling("analysis", {
-      onComplete: () => acquisitionsStore.refreshBook(bookId),
+      onComplete: () => void acquisitionsStore.refreshBook(bookId),
     });
     analysisPollers.set(bookId, poller);
   }
@@ -39,7 +39,7 @@ function getOrCreateAnalysisPoller(bookId: number) {
 function getOrCreateEvalRunbookPoller(bookId: number) {
   if (!evalRunbookPollers.has(bookId)) {
     const poller = useJobPolling("eval-runbook", {
-      onComplete: () => acquisitionsStore.refreshBook(bookId),
+      onComplete: () => void acquisitionsStore.refreshBook(bookId),
     });
     evalRunbookPollers.set(bookId, poller);
   }
@@ -115,7 +115,7 @@ function closeEditModal() {
 function handleEditUpdated() {
   showEditModal.value = false;
   editingBook.value = null;
-  acquisitionsStore.fetchAll();
+  void acquisitionsStore.fetchAll();
 }
 
 function openAnalysisViewer(bookId: number) {
