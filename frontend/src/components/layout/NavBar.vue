@@ -116,32 +116,37 @@ function closeMobileMenu() {
                 >
                   <div
                     v-if="showDropdown"
-                    class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 z-50"
+                    style="background-color: var(--color-surface-elevated)"
                     @click="closeDropdown"
                   >
                     <RouterLink
                       to="/profile"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
+                      style="color: var(--color-text-primary)"
                     >
                       Profile
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isEditor"
                       to="/admin/config"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
+                      style="color: var(--color-text-primary)"
                     >
                       Config
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isAdmin"
                       to="/admin"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
+                      style="color: var(--color-text-primary)"
                     >
                       Admin Settings
                     </RouterLink>
                     <button
                       @click="handleSignOut"
-                      class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10"
+                      style="color: var(--color-text-primary)"
                     >
                       Sign Out
                     </button>
