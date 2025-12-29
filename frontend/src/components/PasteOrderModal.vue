@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
 import { api } from "@/services/api";
+import TransitionModal from "./TransitionModal.vue";
+
+const props = defineProps<{
+  visible: boolean;
+}>();
 
 interface ExtractedData {
   order_number?: string;
@@ -28,11 +33,11 @@ const extractedData = ref<ExtractedData | null>(null);
 const extracting = ref(false);
 const error = ref("");
 
-// Lock body scroll when modal is open
+// Lock body scroll when modal is visible
 watch(
-  () => true,
-  () => {
-    document.body.style.overflow = "hidden";
+  () => props.visible,
+  (isVisible) => {
+    document.body.style.overflow = isVisible ? "hidden" : "";
   },
   { immediate: true }
 );
@@ -109,26 +114,8 @@ function handleClose() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-      appear
-    >
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="handleClose"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <h2 class="text-lg font-semibold text-gray-900">
@@ -433,10 +420,7 @@ function handleClose() {
             <button @click="handleBack" class="btn-secondary">Back</button>
             <button @click="handleApply" class="btn-primary">Apply to Form</button>
           </div>
-            </div>
-          </div>
-        </Transition>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+  </TransitionModal>
 </template>

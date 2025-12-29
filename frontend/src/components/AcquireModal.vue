@@ -335,7 +335,7 @@ function handlePasteApply(data: any) {
 
   <!-- Paste Order Modal -->
   <PasteOrderModal
-    v-if="showPasteModal"
+    :visible="showPasteModal"
     @close="showPasteModal = false"
     @apply="handlePasteApply"
   />
