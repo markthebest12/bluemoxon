@@ -5,8 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
-from app.models import Author
-from app.schemas.reference import AuthorCreate, AuthorResponse, AuthorUpdate
+from app.models import Author, Book
+from app.schemas.reference import (
+    AuthorCreate,
+    AuthorResponse,
+    AuthorUpdate,
+    ReassignRequest,
+    ReassignResponse,
+)
 
 router = APIRouter()
 
@@ -150,3 +156,49 @@ def delete_author(
 
     db.delete(author)
     db.commit()
+
+
+@router.post("/{author_id}/reassign", response_model=ReassignResponse)
+def reassign_author_books(
+    author_id: int,
+    body: ReassignRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Reassign all books from source author to target author, then delete source.
+    Requires editor role.
+    """
+    # Validate source exists
+    source = db.query(Author).filter(Author.id == author_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source author not found")
+
+    # Validate not same entity
+    if author_id == body.target_id:
+        raise HTTPException(status_code=400, detail="Cannot reassign to same author")
+
+    # Validate target exists
+    target = db.query(Author).filter(Author.id == body.target_id).first()
+    if not target:
+        raise HTTPException(status_code=400, detail="Target author not found")
+
+    # Count and reassign books
+    book_count = db.query(Book).filter(Book.author_id == author_id).count()
+    db.query(Book).filter(Book.author_id == author_id).update(
+        {"author_id": body.target_id}
+    )
+
+    # Store names before deletion
+    source_name = source.name
+    target_name = target.name
+
+    # Delete source author
+    db.delete(source)
+    db.commit()
+
+    return ReassignResponse(
+        reassigned_count=book_count,
+        deleted_entity=source_name,
+        target_entity=target_name,
+    )
