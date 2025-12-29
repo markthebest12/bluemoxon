@@ -3,8 +3,10 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { api } from "@/services/api";
+import TransitionModal from "./TransitionModal.vue";
 
 const props = defineProps<{
+  visible: boolean;
   book: AcquisitionBook;
 }>();
 
@@ -73,11 +75,11 @@ const originalPrice = props.book.purchase_price ?? null;
 const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 
-// Lock body scroll when modal is open
+// Lock body scroll when modal is visible
 watch(
-  () => true,
-  () => {
-    document.body.style.overflow = "hidden";
+  () => props.visible,
+  (isVisible) => {
+    document.body.style.overflow = isVisible ? "hidden" : "";
   },
   { immediate: true }
 );
@@ -145,26 +147,8 @@ function openSourceUrl() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-      appear
-    >
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="handleClose"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 class="text-lg font-semibold text-gray-900">Edit Watchlist Item</h2>
@@ -353,10 +337,7 @@ function openSourceUrl() {
               {{ submitting ? "Saving..." : "Save Changes" }}
             </button>
           </div>
-            </form>
-          </div>
-        </Transition>
+        </form>
       </div>
-    </Transition>
-  </Teleport>
+  </TransitionModal>
 </template>

@@ -1098,14 +1098,15 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Import from eBay Modal -->
     <ImportListingModal
-      v-if="showImportModal"
+      :visible="showImportModal"
       @close="closeImportModal"
       @added="handleImportAdded"
     />
 
     <!-- Edit Watchlist Modal -->
     <EditWatchlistModal
-      v-if="showEditModal && editingBook"
+      v-if="editingBook"
+      :visible="showEditModal"
       :book="editingBook"
       @close="closeEditModal"
       @updated="handleEditUpdated"
@@ -1123,7 +1124,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Add Tracking Modal -->
     <AddTrackingModal
-      v-if="showTrackingModal && trackingBook"
+      v-if="trackingBook"
+      :visible="showTrackingModal"
       :book-id="trackingBook.id"
       :book-title="trackingBook.title"
       @close="closeTrackingModal"

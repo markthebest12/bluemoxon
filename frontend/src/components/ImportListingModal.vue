@@ -8,6 +8,11 @@ import {
   type ExtractionStatusResponse,
 } from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
+import TransitionModal from "./TransitionModal.vue";
+
+const props = defineProps<{
+  visible: boolean;
+}>();
 
 const emit = defineEmits<{
   close: [];
@@ -67,11 +72,11 @@ const savingSteps = [
 const currentSavingStep = ref(0);
 let savingStepInterval: ReturnType<typeof setInterval> | null = null;
 
-// Lock body scroll when modal is open
+// Lock body scroll when modal is visible
 watch(
-  () => true,
-  () => {
-    document.body.style.overflow = "hidden";
+  () => props.visible,
+  (isVisible) => {
+    document.body.style.overflow = isVisible ? "hidden" : "";
   },
   { immediate: true }
 );
@@ -427,26 +432,8 @@ function openSourceUrl() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-      appear
-    >
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="handleClose"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 class="text-lg font-semibold text-gray-900">
@@ -809,10 +796,7 @@ function openSourceUrl() {
           <p class="text-center text-xs text-gray-400 mt-6">
             This should only take a few seconds...
           </p>
-            </div>
-          </div>
-        </Transition>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+  </TransitionModal>
 </template>
