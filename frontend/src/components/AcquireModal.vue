@@ -87,7 +87,7 @@ async function loadExchangeRates() {
 }
 
 onMounted(() => {
-  loadExchangeRates();
+  void loadExchangeRates();
 });
 
 async function handleSubmit() {

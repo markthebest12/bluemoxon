@@ -20,7 +20,7 @@ async function handleSignOut() {
   showDropdown.value = false;
   mobileMenuOpen.value = false;
   await authStore.logout();
-  router.push("/login");
+  void router.push("/login");
 }
 
 function closeDropdown() {

@@ -99,7 +99,7 @@ watch(
     // Only sync if we're on the books list route
     if (newPath.startsWith("/books?") || newPath === "/books") {
       syncFiltersFromUrl();
-      booksStore.fetchBooks();
+      void booksStore.fetchBooks();
     }
   }
 );
@@ -136,7 +136,7 @@ function updateUrlWithFilters() {
 
   // Set flag to prevent watch from firing
   isUpdatingUrl.value = true;
-  router.replace({ query }).finally(() => {
+  void router.replace({ query }).finally(() => {
     // Reset flag after URL update completes
     setTimeout(() => {
       isUpdatingUrl.value = false;
@@ -174,7 +174,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 function viewBook(id: number) {
-  router.push(`/books/${id}`);
+  void router.push(`/books/${id}`);
 }
 
 function openCarousel(bookId: number) {

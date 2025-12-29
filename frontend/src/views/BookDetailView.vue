@@ -246,7 +246,7 @@ async function confirmDelete() {
   try {
     await booksStore.deleteBook(booksStore.currentBook.id);
     deleteModalVisible.value = false;
-    router.push("/books");
+    void router.push("/books");
   } catch (e: any) {
     deleteError.value = e.message || "Failed to delete book";
   } finally {
