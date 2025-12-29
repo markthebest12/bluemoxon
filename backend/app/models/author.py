@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from sqlalchemy import Date, Integer, String
+from sqlalchemy import Boolean, Date, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -21,6 +21,7 @@ class Author(Base):
     first_acquired_date: Mapped[date | None] = mapped_column(Date)
     priority_score: Mapped[int] = mapped_column(Integer, default=0)
     tier: Mapped[str | None] = mapped_column(String(10))  # TIER_1, TIER_2, TIER_3
+    preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     books = relationship("Book", back_populates="author")
