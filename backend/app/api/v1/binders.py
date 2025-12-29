@@ -5,8 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
-from app.models import Binder
-from app.schemas.reference import BinderCreate, BinderResponse, BinderUpdate
+from app.models import Binder, Book
+from app.schemas.reference import (
+    BinderCreate,
+    BinderResponse,
+    BinderUpdate,
+    ReassignRequest,
+    ReassignResponse,
+)
 
 router = APIRouter()
 
@@ -22,6 +28,7 @@ def list_binders(db: Session = Depends(get_db)):
             "full_name": b.full_name,
             "authentication_markers": b.authentication_markers,
             "tier": b.tier,
+            "preferred": b.preferred,
             "book_count": len(b.books),
         }
         for b in binders
@@ -41,6 +48,7 @@ def get_binder(binder_id: int, db: Session = Depends(get_db)):
         "full_name": binder.full_name,
         "authentication_markers": binder.authentication_markers,
         "tier": binder.tier,
+        "preferred": binder.preferred,
         "book_count": len(binder.books),
         "books": [
             {
@@ -78,6 +86,7 @@ def create_binder(
         tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
+        preferred=binder.preferred,
         book_count=len(binder.books),
     )
 
@@ -107,6 +116,7 @@ def update_binder(
         tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
+        preferred=binder.preferred,
         book_count=len(binder.books),
     )
 
@@ -131,3 +141,47 @@ def delete_binder(
 
     db.delete(binder)
     db.commit()
+
+
+@router.post("/{binder_id}/reassign", response_model=ReassignResponse)
+def reassign_binder_books(
+    binder_id: int,
+    body: ReassignRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
+    """
+    Reassign all books from source binder to target binder, then delete source.
+    Requires editor role.
+    """
+    # Validate source exists
+    source = db.query(Binder).filter(Binder.id == binder_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source binder not found")
+
+    # Validate not same entity
+    if binder_id == body.target_id:
+        raise HTTPException(status_code=400, detail="Cannot reassign to same binder")
+
+    # Validate target exists
+    target = db.query(Binder).filter(Binder.id == body.target_id).first()
+    if not target:
+        raise HTTPException(status_code=400, detail="Target binder not found")
+
+    # Count and reassign books
+    book_count = db.query(Book).filter(Book.binder_id == binder_id).count()
+    db.query(Book).filter(Book.binder_id == binder_id).update({"binder_id": body.target_id})
+
+    # Store names before deletion
+    source_name = source.name
+    target_name = target.name
+
+    # Delete source binder
+    db.delete(source)
+    db.commit()
+
+    return ReassignResponse(
+        reassigned_count=book_count,
+        deleted_entity=source_name,
+        target_entity=target_name,
+    )

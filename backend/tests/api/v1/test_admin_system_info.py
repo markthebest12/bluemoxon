@@ -60,6 +60,7 @@ def test_get_system_info_scoring_config(client: TestClient):
 
     # Verify specific values match constants
     assert config["quality_points"]["publisher_tier_1"] == 25
+    assert config["quality_points"]["preferred_bonus"] == 10
     assert config["weights"]["quality"] == 0.6
 
 
