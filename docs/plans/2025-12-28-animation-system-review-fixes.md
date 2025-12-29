@@ -3,6 +3,7 @@
 **Date:** 2025-12-28
 **Branch:** `feat/624-animation-system`
 **PR:** #628
+**Latest Commit:** `e3ccd36` (chore: Trigger CI)
 
 ---
 
@@ -12,6 +13,7 @@
 - **MANDATORY:** Check and use relevant skills before ANY task
 - Use `superpowers:verification-before-completion` before claiming done
 - Use `superpowers:finishing-a-development-branch` when all tasks complete
+- If a skill exists for your task, you MUST use it - no exceptions
 
 ### 2. Bash Command Rules - NEVER Use These (Permission Prompts)
 ```bash
@@ -38,32 +40,63 @@ bmx-api GET /books        # For all API calls
 
 ---
 
-## Current State: TYPE ERRORS - NEEDS FIXING
+## Current State: CI NOT TRIGGERING
 
-Type-check fails with unused import errors. Must fix these imports:
+All code review fixes are complete and verified locally. CI is not triggering on GitHub despite:
+- Pushing 3 new commits (f76db52, b2d1a55, ffac1c2, e3ccd36)
+- Closing and reopening the PR
+- Creating an empty commit to force trigger
 
+### Local Verification (ALL PASSED)
 ```
-src/components/AcquireModal.vue - remove: watch, onUnmounted
-src/components/AddToWatchlistModal.vue - remove: watch, onUnmounted
-src/components/AddTrackingModal.vue - remove: watch, onUnmounted
-src/components/books/EvalRunbookModal.vue - remove: onUnmounted
-src/components/books/ImageReorderModal.vue - remove: onUnmounted
-src/components/books/ImageUploadModal.vue - remove: onUnmounted
-src/components/EditWatchlistModal.vue - remove: onUnmounted, watch
-src/components/PasteOrderModal.vue - remove: watch, onUnmounted
+npm run --prefix frontend type-check  # PASS
+npm run --prefix frontend lint -- --max-warnings 0  # PASS
+npm run --prefix frontend test  # PASS (84/84)
+npm run --prefix frontend build  # PASS
 ```
 
 ---
 
-## Completed Fixes
+## Completed Fixes (All in branch)
 
-| Issue | Fix | Status |
+| Issue | Fix | Commit |
 |-------|-----|--------|
-| TransitionModal `appear` on wrong Transition | Added `appear` to BOTH backdrop and inner Transition | DONE |
-| Plan files committed (1400+ lines) | Removed 3 files from branch | DONE |
-| Nested modal scroll lock collision | Centralized in TransitionModal with counter | DONE |
-| Hardcoded shadows in card-interactive | Changed to `var(--shadow-md)` | DONE |
-| Scroll lock logic in individual modals | Removed from all modals | DONE |
+| TransitionModal `appear` on wrong Transition | Added `appear` to BOTH backdrop and inner Transition | f76db52 |
+| Plan files committed (1400+ lines) | Removed 3 files from branch | f76db52 |
+| Nested modal scroll lock collision | Centralized in TransitionModal with counter | f76db52 |
+| Hardcoded shadows in card-interactive | Changed to `var(--shadow-md)` | f76db52 |
+| Unused imports after scroll lock removal | Cleaned up imports in 8 modal components | f76db52 |
+| Unused `props` assignments (lint warning) | Removed `const props =` from 3 files | b2d1a55 |
+| Prettier formatting | Ran `npm run format` on all files | ffac1c2 |
+
+---
+
+## Commits Ready to Merge
+
+```
+e3ccd36 chore: Trigger CI
+ffac1c2 style: Format code with Prettier
+b2d1a55 fix: Remove unused props assignments to fix lint warnings
+f76db52 fix: Address code review feedback for animation system
+```
+
+---
+
+## Next Steps
+
+### Option A: Wait for CI
+1. Check if CI eventually triggers: `gh run list --limit 5`
+2. If CI passes: `gh pr merge 628 --squash --delete-branch`
+
+### Option B: Merge Without CI (verified locally)
+1. All verification passed locally
+2. Code review feedback addressed
+3. Consider merging if CI remains stuck
+
+### Option C: Investigate CI
+1. Check GitHub Actions settings
+2. Check if workflow file triggers on `pull_request` event
+3. Check if branch protection is blocking
 
 ---
 
@@ -116,7 +149,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition ... appear>  <!-- appear on BACKDROP -->
       <div v-if="visible" ...>
-        <Transition ... appear>  <!-- appear on CONTENT too -->
+        <Transition ... appear>  <!-- appear on CONTENT -->
           <slot />
         </Transition>
       </div>
@@ -127,112 +160,32 @@ onUnmounted(() => {
 
 ---
 
-## Next Steps
+## Files Modified in This Branch
 
-1. **Fix unused imports** in 8 files (see list above)
-2. **Run verification:**
-   ```bash
-   npm run --prefix frontend type-check
-   npm run --prefix frontend lint
-   npm run --prefix frontend test
-   npm run --prefix frontend build
-   ```
-3. **Commit all fixes:**
-   ```bash
-   git add -A
-   git commit -m "fix: Address code review feedback for animation system"
-   ```
-4. **Push and update PR:**
-   ```bash
-   git push origin feat/624-animation-system
-   ```
-
----
-
-## Import Fixes Required
-
-### AcquireModal.vue
-```typescript
-// FROM:
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-// TO:
-import { ref, computed, onMounted } from "vue";
-```
-
-### AddToWatchlistModal.vue
-```typescript
-// FROM:
-import { ref, computed, onMounted, watch, onUnmounted } from "vue";
-// TO:
-import { ref, computed, onMounted } from "vue";
-```
-
-### AddTrackingModal.vue
-```typescript
-// FROM:
-import { ref, watch, onUnmounted, computed } from "vue";
-// TO:
-import { ref, computed } from "vue";
-```
-
-### EvalRunbookModal.vue
-```typescript
-// FROM:
-import { ref, computed, watch, onUnmounted } from "vue";
-// TO:
-import { ref, computed, watch } from "vue";
-```
-
-### ImageReorderModal.vue
-```typescript
-// FROM:
-import { ref, watch, onUnmounted } from "vue";
-// TO:
-import { ref, watch } from "vue";
-```
-
-### ImageUploadModal.vue
-```typescript
-// FROM:
-import { ref, watch, onUnmounted, computed } from "vue";
-// TO:
-import { ref, watch, computed } from "vue";
-```
-
-### EditWatchlistModal.vue
-```typescript
-// FROM:
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-// TO:
-import { ref, computed, onMounted } from "vue";
-```
-
-### PasteOrderModal.vue
-```typescript
-// FROM:
-import { ref, watch, onUnmounted } from "vue";
-// TO:
-import { ref } from "vue";
-```
-
----
-
-## Files Modified (uncommitted)
-
-- `frontend/src/components/TransitionModal.vue` - centralized scroll lock
-- `frontend/src/components/AcquireModal.vue` - removed scroll lock
-- `frontend/src/components/AddToWatchlistModal.vue` - removed scroll lock
-- `frontend/src/components/AddTrackingModal.vue` - removed scroll lock
-- `frontend/src/components/EditWatchlistModal.vue` - removed scroll lock
-- `frontend/src/components/PasteOrderModal.vue` - removed scroll lock
-- `frontend/src/components/ImportListingModal.vue` - removed scroll lock
-- `frontend/src/components/books/EvalRunbookModal.vue` - removed scroll lock
-- `frontend/src/components/books/ImageReorderModal.vue` - removed scroll lock
-- `frontend/src/components/books/ImageUploadModal.vue` - removed scroll lock
+### Code Review Fixes (f76db52)
+- `frontend/src/components/TransitionModal.vue` - centralized scroll lock with counter
 - `frontend/src/assets/main.css` - fixed hardcoded shadow
+- 8 modal files - removed scroll lock logic and unused imports
+
+### Lint Fixes (b2d1a55)
+- `frontend/src/components/AddToWatchlistModal.vue` - removed unused props
+- `frontend/src/components/ImportListingModal.vue` - removed unused props
+- `frontend/src/components/PasteOrderModal.vue` - removed unused props
+
+### Formatting (ffac1c2)
+- 11 files formatted with Prettier
 
 ---
 
 ## Resume Command
 
-Continue fixing imports, then run verification and commit.
+```bash
+# Check CI status
+gh run list --limit 5
+
+# If CI passed, merge
+gh pr merge 628 --squash --delete-branch
+
+# If CI still not running, investigate or merge manually
+gh pr view 628
+```
