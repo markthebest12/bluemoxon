@@ -96,6 +96,10 @@ export default [
   },
 
   // Type-aware linting for Vue files (#625)
+  // SEPARATE CONFIG REQUIRED: Vue files need extraFileExtensions: [".vue"] in
+  // parserOptions to enable type-aware linting. This option is incompatible with
+  // .ts files (causes "You cannot use extraFileExtensions for .ts" error), so
+  // TypeScript and Vue type-aware configs must be separate blocks.
   {
     files: ["src/**/*.vue"],
     languageOptions: {

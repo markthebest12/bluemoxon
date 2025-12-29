@@ -24,8 +24,14 @@ const authStore = useAuthStore();
 const analysisPoller = useJobPolling("analysis", {
   onComplete: () => {
     // Reload analysis content when generation completes
-    void loadAnalysis();
-    generating.value = false;
+    // Use promise chain so generating.value=false happens AFTER load completes
+    loadAnalysis()
+      .catch((err) => {
+        console.error("Failed to load analysis after generation:", err);
+      })
+      .finally(() => {
+        generating.value = false;
+      });
   },
   onError: (_bookId, errorMsg) => {
     generateError.value = errorMsg;

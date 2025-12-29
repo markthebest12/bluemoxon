@@ -175,7 +175,12 @@ export const useListingsStore = defineStore("listings", () => {
       }
     }
 
-    const poller = setInterval(() => void pollExtraction(), intervalMs);
+    const poller = setInterval(() => {
+      pollExtraction().catch((err: unknown) => {
+        console.error(`Extraction polling error for ${itemId}:`, err);
+        // Don't stop on error - the extraction might still complete
+      });
+    }, intervalMs);
 
     extractionPollers.value.set(itemId, poller);
   }

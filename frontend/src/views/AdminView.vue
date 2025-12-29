@@ -108,8 +108,21 @@ async function revokeKey(keyId: number) {
   }
 }
 
+const copySuccess = ref(false);
+
 function copyToClipboard(text: string) {
-  void navigator.clipboard.writeText(text);
+  navigator.clipboard.writeText(text).then(
+    () => {
+      copySuccess.value = true;
+      setTimeout(() => {
+        copySuccess.value = false;
+      }, 2000);
+    },
+    (err) => {
+      console.error("Copy failed:", err);
+      alert("Failed to copy to clipboard");
+    }
+  );
 }
 
 async function toggleMfa(userId: number, currentlyEnabled: boolean | undefined) {
