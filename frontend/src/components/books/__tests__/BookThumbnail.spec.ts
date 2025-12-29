@@ -7,24 +7,15 @@ describe("BookThumbnail", () => {
     bookId: 123,
   };
 
-  describe("container query structure", () => {
-    it("has @container class on wrapper element", () => {
-      const wrapper = mount(BookThumbnail, { props: defaultProps });
-      const container = wrapper.find("[class*='@container']");
-      expect(container.exists()).toBe(true);
-    });
-
+  describe("layout structure", () => {
     it("has aspect-[4/5] class for proper aspect ratio", () => {
       const wrapper = mount(BookThumbnail, { props: defaultProps });
-      const inner = wrapper.find("[class*='aspect-']");
-      expect(inner.exists()).toBe(true);
-      expect(inner.classes()).toContain("aspect-[4/5]");
+      expect(wrapper.classes()).toContain("aspect-[4/5]");
     });
 
     it("fills container width with w-full class", () => {
       const wrapper = mount(BookThumbnail, { props: defaultProps });
-      const container = wrapper.find("[class*='@container']");
-      expect(container.classes()).toContain("w-full");
+      expect(wrapper.classes()).toContain("w-full");
     });
   });
 
@@ -78,15 +69,19 @@ describe("BookThumbnail", () => {
       const wrapper = mount(BookThumbnail, {
         props: { ...defaultProps, imageUrl: "https://example.com/book.jpg" },
       });
-      const clickable = wrapper.find("[class*='cursor-pointer']");
-      expect(clickable.exists()).toBe(true);
+      expect(wrapper.classes()).toContain("cursor-pointer");
+    });
+
+    it("does not have cursor-pointer class when no image", () => {
+      const wrapper = mount(BookThumbnail, { props: defaultProps });
+      expect(wrapper.classes()).not.toContain("cursor-pointer");
     });
   });
 
-  describe("no size prop", () => {
-    it("does not accept size prop (removed)", () => {
-      // This test documents that size prop was intentionally removed
-      // Component should work without any size prop
+  describe("props", () => {
+    it("works without size prop (size prop was removed)", () => {
+      // Documents that size prop was intentionally removed
+      // Component uses aspect ratio and fills parent container
       const wrapper = mount(BookThumbnail, { props: defaultProps });
       expect(wrapper.exists()).toBe(true);
     });
