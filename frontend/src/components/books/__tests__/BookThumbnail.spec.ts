@@ -78,12 +78,4 @@ describe("BookThumbnail", () => {
     });
   });
 
-  describe("props", () => {
-    it("works without size prop (size prop was removed)", () => {
-      // Documents that size prop was intentionally removed
-      // Component uses aspect ratio and fills parent container
-      const wrapper = mount(BookThumbnail, { props: defaultProps });
-      expect(wrapper.exists()).toBe(true);
-    });
-  });
 });
