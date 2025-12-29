@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { api } from "@/services/api";
-import type { SystemInfoResponse, CostResponse } from "@/types/admin";
+import type {
+  SystemInfoResponse,
+  CostResponse,
+  EntityTier,
+  AuthorEntity,
+  PublisherEntity,
+  BinderEntity,
+} from "@/types/admin";
+import EntityManagementTable from "@/components/admin/EntityManagementTable.vue";
+import EntityFormModal from "@/components/admin/EntityFormModal.vue";
+import ReassignDeleteModal from "@/components/admin/ReassignDeleteModal.vue";
 
 // Tab state
-const activeTab = ref<"settings" | "status" | "scoring" | "tiers" | "costs">("settings");
+const activeTab = ref<"settings" | "status" | "scoring" | "reference" | "costs">("settings");
 
 // Settings tab (existing functionality)
 const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
@@ -20,6 +30,39 @@ const infoError = ref("");
 const costData = ref<CostResponse | null>(null);
 const loadingCost = ref(false);
 const costError = ref("");
+
+// Entity management state
+const authors = ref<AuthorEntity[]>([]);
+const publishers = ref<PublisherEntity[]>([]);
+const binders = ref<BinderEntity[]>([]);
+const loadingEntities = ref({ authors: false, publishers: false, binders: false });
+
+// Search filters
+const searchFilters = ref({ authors: "", publishers: "", binders: "" });
+
+// Collapsed sections
+const collapsedSections = ref({ authors: false, publishers: false, binders: false });
+
+// Modal state
+type EntityType = "author" | "publisher" | "binder";
+const formModal = ref({
+  visible: false,
+  entityType: "author" as EntityType,
+  entity: null as EntityTier | null,
+  saving: false,
+  error: null as string | null,
+});
+
+const deleteModal = ref({
+  visible: false,
+  entityType: "author" as EntityType,
+  entity: null as EntityTier | null,
+  processing: false,
+  error: null as string | null,
+});
+
+// Permission check (placeholder - implement based on your auth system)
+const canEdit = computed(() => true); // TODO: Check userStore.isEditor
 
 // Key tunables to highlight in scoring config
 const keyTunables = new Set([
@@ -99,6 +142,52 @@ async function fetchCostData() {
   } finally {
     loadingCost.value = false;
   }
+}
+
+// Entity management functions
+async function loadEntities() {
+  loadingEntities.value = { authors: true, publishers: true, binders: true };
+  try {
+    const [authorsRes, publishersRes, bindersRes] = await Promise.all([
+      api.get("/authors"),
+      api.get("/publishers"),
+      api.get("/binders"),
+    ]);
+    authors.value = authorsRes.data;
+    publishers.value = publishersRes.data;
+    binders.value = bindersRes.data;
+  } catch (e) {
+    console.error("Failed to load entities:", e);
+  } finally {
+    loadingEntities.value = { authors: false, publishers: false, binders: false };
+  }
+}
+
+function getEntitiesByType(type: EntityType): EntityTier[] {
+  switch (type) {
+    case "author":
+      return authors.value;
+    case "publisher":
+      return publishers.value;
+    case "binder":
+      return binders.value;
+  }
+}
+
+function getEntityLabel(type: EntityType): string {
+  switch (type) {
+    case "author":
+      return "Author";
+    case "publisher":
+      return "Publisher";
+    case "binder":
+      return "Binder";
+  }
+}
+
+function toggleSection(type: EntityType) {
+  const key = (type + "s") as "authors" | "publishers" | "binders";
+  collapsedSections.value[key] = !collapsedSections.value[key];
 }
 
 // Computed helpers
@@ -250,15 +339,18 @@ function getBarWidth(cost: number): string {
           Scoring Config
         </button>
         <button
-          @click="activeTab = 'tiers'"
+          @click="
+            activeTab = 'reference';
+            if (!authors.length) loadEntities();
+          "
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
-            activeTab === 'tiers'
+            activeTab === 'reference'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
-          Entity Tiers
+          Reference Data
         </button>
         <button
           @click="
@@ -628,8 +720,8 @@ function getBarWidth(cost: number): string {
       </div>
     </div>
 
-    <!-- Entity Tiers Tab -->
-    <div v-else-if="activeTab === 'tiers'" class="flex flex-col gap-6">
+    <!-- Reference Data Tab -->
+    <div v-else-if="activeTab === 'reference'" class="flex flex-col gap-6">
       <div class="flex justify-end">
         <button
           @click="refreshSystemInfo"
