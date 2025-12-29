@@ -100,7 +100,8 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color 0.15s ease-in-out;
+    transition: background-color var(--duration-fast) var(--ease-out-soft),
+                transform var(--duration-instant) var(--ease-out-soft);
     border: 1px solid var(--color-victorian-hunter-700);
   }
   .btn-primary:hover {
@@ -110,6 +111,9 @@ layer(utilities);
     opacity: 0.5;
     cursor: not-allowed;
   }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 
   .btn-secondary {
     /* Secondary button - Subtle */
@@ -118,7 +122,8 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color 0.15s ease-in-out;
+    transition: background-color var(--duration-fast) var(--ease-out-soft),
+                transform var(--duration-instant) var(--ease-out-soft);
     border: 1px solid var(--color-victorian-paper-antique);
   }
   .btn-secondary:hover {
@@ -128,6 +133,9 @@ layer(utilities);
     opacity: 0.5;
     cursor: not-allowed;
   }
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 
   .btn-danger {
     /* Danger button */
@@ -136,7 +144,8 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color 0.15s ease-in-out;
+    transition: background-color var(--duration-fast) var(--ease-out-soft),
+                transform var(--duration-instant) var(--ease-out-soft);
   }
   .btn-danger:hover {
     background-color: var(--color-victorian-burgundy-dark);
@@ -144,6 +153,9 @@ layer(utilities);
   .btn-danger:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  .btn-danger:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .btn-accent {
@@ -153,7 +165,8 @@ layer(utilities);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
-    transition: background-color 0.15s ease-in-out;
+    transition: background-color var(--duration-fast) var(--ease-out-soft),
+                transform var(--duration-instant) var(--ease-out-soft);
   }
   .btn-accent:hover {
     background-color: var(--color-victorian-gold-dark);
@@ -161,6 +174,9 @@ layer(utilities);
   .btn-accent:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  .btn-accent:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .card {
@@ -460,15 +476,34 @@ layer(utilities);
   }
 
   /* ============================================
-     PROGRESS BARS - Victorian colors
+     PROGRESS BARS - Victorian colors with animation
      ============================================ */
   .progress-bar {
-    background-color: var(--color-victorian-hunter-500);
-    border-radius: 9999px;
+    height: 4px;
+    background: rgb(0 0 0 / 0.1);
+    border-radius: 2px;
+    overflow: hidden;
   }
 
-  .progress-bar-gold {
-    background-color: var(--color-victorian-gold);
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--color-victorian-hunter-500);
+    transition: width var(--duration-normal) var(--ease-out-soft);
+    border-radius: 2px;
+  }
+
+  .progress-bar-gold .progress-bar-fill {
+    background: var(--color-victorian-gold);
+  }
+
+  .progress-bar-indeterminate .progress-bar-fill {
+    width: 30%;
+    animation: progress-slide 1.5s var(--ease-in-out) infinite;
+  }
+
+  @keyframes progress-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
   }
 
   /* ============================================

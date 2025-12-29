@@ -529,7 +529,7 @@ function closeCarousel() {
       <div
         v-for="book in booksStore.books"
         :key="book.id"
-        class="card cursor-pointer hover:shadow-lg transition-shadow"
+        class="card card-interactive cursor-pointer"
       >
         <div class="flex gap-4">
           <!-- Thumbnail -->
