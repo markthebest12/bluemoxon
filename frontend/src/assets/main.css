@@ -631,3 +631,18 @@ layer(utilities);
     position: static !important;
   }
 }
+
+/* ============================================
+   REDUCED MOTION - Accessibility
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive,
+  .modal-enter-active,
+  .modal-leave-active,
+  .dropdown-enter-active,
+  .dropdown-leave-active,
+  .skeleton {
+    transition: none !important;
+    animation: none !important;
+  }
+}
