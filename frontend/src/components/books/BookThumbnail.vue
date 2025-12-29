@@ -4,23 +4,11 @@ import { computed } from "vue";
 const props = defineProps<{
   bookId: number;
   imageUrl?: string | null;
-  size?: "sm" | "md" | "lg";
 }>();
 
 const emit = defineEmits<{
   click: [];
 }>();
-
-const sizeClasses = computed(() => {
-  switch (props.size) {
-    case "sm":
-      return "w-16 h-20";
-    case "lg":
-      return "w-48 h-64";
-    default:
-      return "w-24 h-32";
-  }
-});
 
 const hasImage = computed(() => !!props.imageUrl);
 
@@ -38,8 +26,7 @@ function handleClick() {
 <template>
   <div
     :class="[
-      sizeClasses,
-      'relative rounded-xs overflow-hidden bg-victorian-paper-cream border border-victorian-paper-antique transition-all',
+      'aspect-[4/5] w-full relative rounded-xs overflow-hidden bg-victorian-paper-cream border border-victorian-paper-antique transition-all',
       hasImage ? 'cursor-pointer hover:border-victorian-gold-muted hover:shadow-md' : '',
     ]"
     @click="handleClick"
