@@ -32,6 +32,7 @@ def list_authors(
             "era": a.era,
             "priority_score": a.priority_score,
             "tier": a.tier,
+            "preferred": a.preferred,
             "book_count": len(a.books),
         }
         for a in authors
@@ -52,6 +53,7 @@ def get_author(author_id: int, db: Session = Depends(get_db)):
         "death_year": author.death_year,
         "era": author.era,
         "first_acquired_date": author.first_acquired_date,
+        "preferred": author.preferred,
         "books": [
             {
                 "id": b.id,
@@ -90,6 +92,7 @@ def create_author(
         first_acquired_date=author.first_acquired_date,
         priority_score=author.priority_score,
         tier=author.tier,
+        preferred=author.preferred,
         book_count=len(author.books),
     )
 
@@ -122,6 +125,7 @@ def update_author(
         first_acquired_date=author.first_acquired_date,
         priority_score=author.priority_score,
         tier=author.tier,
+        preferred=author.preferred,
         book_count=len(author.books),
     )
 

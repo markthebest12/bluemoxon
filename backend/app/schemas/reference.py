@@ -15,6 +15,7 @@ class AuthorCreate(BaseModel):
     era: str | None = None
     first_acquired_date: date | None = None
     tier: str | None = None
+    preferred: bool = False
 
 
 class AuthorUpdate(BaseModel):
@@ -27,6 +28,7 @@ class AuthorUpdate(BaseModel):
     first_acquired_date: date | None = None
     priority_score: int | None = None
     tier: str | None = None
+    preferred: bool | None = None
 
 
 class AuthorResponse(BaseModel):
@@ -40,6 +42,7 @@ class AuthorResponse(BaseModel):
     first_acquired_date: date | None = None
     priority_score: int = 0
     tier: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:
