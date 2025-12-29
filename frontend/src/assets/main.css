@@ -109,14 +109,7 @@ layer(utilities);
 
   --color-accent-primary: var(--color-victorian-gold);
   --color-accent-highlight: var(--color-victorian-gold-light);
-}
 
-/* ============================================
-   DARK MODE - Automatic Tailwind utility overrides
-   These override common hardcoded Tailwind classes
-   so existing components work with dark mode
-   ============================================ */
-.dark {
   /* Background overrides - Tailwind grays */
   .bg-white {
     background-color: var(--color-surface-primary);
