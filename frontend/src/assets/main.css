@@ -109,6 +109,214 @@ layer(utilities);
 
   --color-accent-primary: var(--color-victorian-gold);
   --color-accent-highlight: var(--color-victorian-gold-light);
+
+  /* Background overrides - Tailwind grays */
+  .bg-white {
+    background-color: var(--color-surface-primary);
+  }
+  .bg-gray-50 {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-gray-100 {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-gray-200 {
+    background-color: var(--color-surface-elevated);
+  }
+
+  /* Background overrides - Victorian paper colors */
+  .bg-victorian-paper-white {
+    background-color: var(--color-surface-primary);
+  }
+  .bg-victorian-paper-cream {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-victorian-paper-aged {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-victorian-paper-antique {
+    background-color: var(--color-surface-elevated);
+  }
+
+  /* Background overrides - Victorian cream (bright yellow-cream) */
+  .bg-victorian-cream {
+    background-color: var(--color-surface-secondary);
+  }
+
+  /* Background overrides - Yellow/amber highlight rows */
+  .bg-yellow-50 {
+    background-color: #3d3a28;
+  }
+  .bg-yellow-100 {
+    background-color: #4a4530;
+  }
+  .bg-amber-50 {
+    background-color: #3d3828;
+  }
+  .bg-amber-100 {
+    background-color: #4a4330;
+  }
+
+  /* Text color overrides - Tailwind grays */
+  .text-gray-900 {
+    color: var(--color-text-primary);
+  }
+  .text-gray-800 {
+    color: var(--color-text-primary);
+  }
+  .text-gray-700 {
+    color: var(--color-text-secondary);
+  }
+  .text-gray-600 {
+    color: var(--color-text-secondary);
+  }
+  .text-gray-500 {
+    color: var(--color-text-muted);
+  }
+  .text-gray-400 {
+    color: var(--color-text-muted);
+  }
+  .text-black {
+    color: var(--color-text-primary);
+  }
+
+  /* Text color overrides - Victorian ink colors */
+  .text-victorian-ink-black {
+    color: var(--color-text-primary);
+  }
+  .text-victorian-ink-dark {
+    color: var(--color-text-secondary);
+  }
+  .text-victorian-ink-muted {
+    color: var(--color-text-muted);
+  }
+  .text-victorian-hunter-900 {
+    color: var(--color-victorian-gold);
+  }
+  .text-victorian-hunter-800 {
+    color: var(--color-victorian-gold);
+  }
+  .text-victorian-hunter-700 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-victorian-hunter-600 {
+    color: var(--color-victorian-gold-light);
+  }
+
+  /* Text color overrides - Moxon brand colors */
+  .text-moxon-800 {
+    color: var(--color-victorian-gold);
+  }
+  .text-moxon-700 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-moxon-600 {
+    color: var(--color-victorian-gold-light);
+  }
+
+  /* Text color overrides - Victorian accent colors */
+  .text-victorian-gold-dark {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-victorian-burgundy {
+    color: #f87171; /* red-400 for better visibility */
+  }
+
+  /* Green status/success colors - dark mode versions */
+  .bg-green-50 {
+    background-color: #1a2e1a;
+  }
+  .bg-green-100 {
+    background-color: #1f3a1f;
+  }
+  .text-green-700 {
+    color: #86efac;
+  }
+  .text-green-800 {
+    color: #86efac;
+  }
+  .border-green-300 {
+    border-color: #4ade80;
+  }
+  .border-green-400 {
+    border-color: #4ade80;
+  }
+
+  /* Section headers - make titles readable */
+  .section-header h1 {
+    color: var(--color-text-primary);
+  }
+
+  /* Card variants - dark mode backgrounds */
+  .card-info {
+    background-color: var(--color-surface-secondary);
+    border-color: var(--color-border-default);
+  }
+  .card-highlight {
+    background-color: var(--color-surface-elevated);
+    border-color: var(--color-border-default);
+  }
+
+  /* Border color overrides */
+  .border-gray-200 {
+    border-color: var(--color-border-default);
+  }
+  .border-gray-300 {
+    border-color: var(--color-border-default);
+  }
+  .divide-gray-200 > :not(:last-child) {
+    border-color: var(--color-border-default);
+  }
+
+  /* Ring/outline overrides */
+  .ring-gray-200 {
+    --tw-ring-color: var(--color-border-default);
+  }
+  .ring-gray-300 {
+    --tw-ring-color: var(--color-border-default);
+  }
+
+  /* Shadow adjustments - make shadows more visible on dark backgrounds */
+  .shadow-sm {
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+    box-shadow:
+      var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+  .shadow {
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+    box-shadow:
+      var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+
+  /* Form input overrides */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    background-color: var(--color-surface-secondary);
+    border-color: var(--color-border-default);
+    color: var(--color-text-primary);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  /* Print styles - reset to light theme for readability and ink savings */
+  @media print {
+    & {
+      color-scheme: light;
+      --color-surface-base: var(--color-victorian-paper-aged);
+      --color-surface-primary: var(--color-victorian-paper-white);
+      --color-surface-secondary: var(--color-victorian-paper-cream);
+      --color-surface-elevated: var(--color-victorian-paper-cream);
+      --color-text-primary: var(--color-victorian-ink-black);
+      --color-text-secondary: var(--color-victorian-ink-dark);
+      --color-text-muted: var(--color-victorian-ink-muted);
+      --color-border-default: var(--color-victorian-paper-antique);
+    }
+  }
 }
 
 /*
@@ -618,6 +826,16 @@ layer(utilities);
 
   h3 {
     @apply text-lg text-victorian-ink-dark;
+  }
+
+  /* Dark mode typography - override base heading colors */
+  .dark h1,
+  .dark h2 {
+    color: var(--color-text-primary);
+  }
+
+  .dark h3 {
+    color: var(--color-text-secondary);
   }
 }
 
