@@ -93,6 +93,7 @@ class BinderCreate(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool = False
 
 
 class BinderUpdate(BaseModel):
@@ -102,6 +103,7 @@ class BinderUpdate(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool | None = None
 
 
 class BinderResponse(BaseModel):
@@ -112,6 +114,7 @@ class BinderResponse(BaseModel):
     tier: str | None = None
     full_name: str | None = None
     authentication_markers: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:

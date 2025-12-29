@@ -22,6 +22,7 @@ def list_binders(db: Session = Depends(get_db)):
             "full_name": b.full_name,
             "authentication_markers": b.authentication_markers,
             "tier": b.tier,
+            "preferred": b.preferred,
             "book_count": len(b.books),
         }
         for b in binders
@@ -41,6 +42,7 @@ def get_binder(binder_id: int, db: Session = Depends(get_db)):
         "full_name": binder.full_name,
         "authentication_markers": binder.authentication_markers,
         "tier": binder.tier,
+        "preferred": binder.preferred,
         "book_count": len(binder.books),
         "books": [
             {
@@ -78,6 +80,7 @@ def create_binder(
         tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
+        preferred=binder.preferred,
         book_count=len(binder.books),
     )
 
@@ -107,6 +110,7 @@ def update_binder(
         tier=binder.tier,
         full_name=binder.full_name,
         authentication_markers=binder.authentication_markers,
+        preferred=binder.preferred,
         book_count=len(binder.books),
     )
 
