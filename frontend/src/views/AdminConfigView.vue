@@ -349,27 +349,6 @@ const healthIcon = (status: string) => {
   }
 };
 
-// Group entities by tier
-const groupedAuthors = computed(() => groupByTier(systemInfo.value?.entity_tiers.authors || []));
-const groupedPublishers = computed(() =>
-  groupByTier(systemInfo.value?.entity_tiers.publishers || [])
-);
-const groupedBinders = computed(() => groupByTier(systemInfo.value?.entity_tiers.binders || []));
-
-function groupByTier(entities: { name: string; tier: string | null }[]) {
-  const groups: Record<string, string[]> = { TIER_1: [], TIER_2: [], TIER_3: [] };
-  for (const e of entities) {
-    if (e.tier && groups[e.tier]) {
-      groups[e.tier].push(e.name);
-    }
-  }
-  return groups;
-}
-
-function formatTierLabel(tier: string) {
-  return tier.replace("TIER_", "Tier ");
-}
-
 function formatDeployTime(isoString: string | undefined): string {
   if (!isoString || isoString === "unknown") return "N/A";
   try {
@@ -849,72 +828,120 @@ function getBarWidth(cost: number): string {
 
     <!-- Reference Data Tab -->
     <div v-else-if="activeTab === 'reference'" class="flex flex-col gap-6">
-      <div class="flex justify-end">
+      <!-- Authors Section -->
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
         <button
-          @click="refreshSystemInfo"
-          :disabled="loadingInfo"
-          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
+          @click="toggleSection('author')"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
         >
-          {{ loadingInfo ? "Loading..." : "Refresh" }}
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Authors</h3>
+          <svg
+            class="w-5 h-5 text-gray-500 transition-transform"
+            :class="{ 'rotate-180': !collapsedSections.authors }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
+        <div v-if="!collapsedSections.authors" class="p-6">
+          <input
+            v-model="searchFilters.authors"
+            type="text"
+            placeholder="Search authors..."
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <EntityManagementTable
+            entity-type="author"
+            :entities="authors"
+            :loading="loadingEntities.authors"
+            :can-edit="canEdit"
+            :search-query="searchFilters.authors"
+            @update:tier="(id, tier) => handleTierUpdate('author', id, tier)"
+            @update:preferred="(id, pref) => handlePreferredUpdate('author', id, pref)"
+            @edit="(e) => openEditModal('author', e)"
+            @delete="(e) => openDeleteModal('author', e)"
+            @create="openCreateModal('author')"
+          />
+        </div>
       </div>
 
-      <div v-if="systemInfo" class="grid md:grid-cols-3 gap-6">
-        <!-- Authors -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-lg font-semibold mb-4">Authors</h3>
-          <div class="flex flex-col gap-4">
-            <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
-              <h4 class="text-sm font-medium text-gray-500 mb-2">
-                {{ formatTierLabel(tier) }}
-              </h4>
-              <ul v-if="groupedAuthors[tier]?.length" class="flex flex-col gap-1 text-sm">
-                <li v-for="name in groupedAuthors[tier]" :key="name">• {{ name }}</li>
-              </ul>
-              <p v-else class="text-sm text-gray-400 italic">None</p>
-            </div>
-          </div>
-          <p class="mt-4 text-xs text-gray-400">
-            {{ systemInfo.entity_tiers.authors.length }} total
-          </p>
+      <!-- Publishers Section -->
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+        <button
+          @click="toggleSection('publisher')"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
+        >
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Publishers</h3>
+          <svg
+            class="w-5 h-5 text-gray-500 transition-transform"
+            :class="{ 'rotate-180': !collapsedSections.publishers }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div v-if="!collapsedSections.publishers" class="p-6">
+          <input
+            v-model="searchFilters.publishers"
+            type="text"
+            placeholder="Search publishers..."
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <EntityManagementTable
+            entity-type="publisher"
+            :entities="publishers"
+            :loading="loadingEntities.publishers"
+            :can-edit="canEdit"
+            :search-query="searchFilters.publishers"
+            @update:tier="(id, tier) => handleTierUpdate('publisher', id, tier)"
+            @update:preferred="(id, pref) => handlePreferredUpdate('publisher', id, pref)"
+            @edit="(e) => openEditModal('publisher', e)"
+            @delete="(e) => openDeleteModal('publisher', e)"
+            @create="openCreateModal('publisher')"
+          />
         </div>
+      </div>
 
-        <!-- Publishers -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-lg font-semibold mb-4">Publishers</h3>
-          <div class="flex flex-col gap-4">
-            <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
-              <h4 class="text-sm font-medium text-gray-500 mb-2">
-                {{ formatTierLabel(tier) }}
-              </h4>
-              <ul v-if="groupedPublishers[tier]?.length" class="flex flex-col gap-1 text-sm">
-                <li v-for="name in groupedPublishers[tier]" :key="name">• {{ name }}</li>
-              </ul>
-              <p v-else class="text-sm text-gray-400 italic">None</p>
-            </div>
-          </div>
-          <p class="mt-4 text-xs text-gray-400">
-            {{ systemInfo.entity_tiers.publishers.length }} total
-          </p>
-        </div>
-
-        <!-- Binders -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-lg font-semibold mb-4">Binders</h3>
-          <div class="flex flex-col gap-4">
-            <div v-for="tier in ['TIER_1', 'TIER_2', 'TIER_3']" :key="tier">
-              <h4 class="text-sm font-medium text-gray-500 mb-2">
-                {{ formatTierLabel(tier) }}
-              </h4>
-              <ul v-if="groupedBinders[tier]?.length" class="flex flex-col gap-1 text-sm">
-                <li v-for="name in groupedBinders[tier]" :key="name">• {{ name }}</li>
-              </ul>
-              <p v-else class="text-sm text-gray-400 italic">None</p>
-            </div>
-          </div>
-          <p class="mt-4 text-xs text-gray-400">
-            {{ systemInfo.entity_tiers.binders.length }} total
-          </p>
+      <!-- Binders Section -->
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+        <button
+          @click="toggleSection('binder')"
+          class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200 dark:border-gray-700"
+        >
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Binders</h3>
+          <svg
+            class="w-5 h-5 text-gray-500 transition-transform"
+            :class="{ 'rotate-180': !collapsedSections.binders }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div v-if="!collapsedSections.binders" class="p-6">
+          <input
+            v-model="searchFilters.binders"
+            type="text"
+            placeholder="Search binders..."
+            class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <EntityManagementTable
+            entity-type="binder"
+            :entities="binders"
+            :loading="loadingEntities.binders"
+            :can-edit="canEdit"
+            :search-query="searchFilters.binders"
+            @update:tier="(id, tier) => handleTierUpdate('binder', id, tier)"
+            @update:preferred="(id, pref) => handlePreferredUpdate('binder', id, pref)"
+            @edit="(e) => openEditModal('binder', e)"
+            @delete="(e) => openDeleteModal('binder', e)"
+            @create="openCreateModal('binder')"
+          />
         </div>
       </div>
     </div>
@@ -1029,5 +1056,29 @@ function getBarWidth(cost: number): string {
         </div>
       </div>
     </div>
+
+    <!-- Entity Form Modal -->
+    <EntityFormModal
+      :visible="formModal.visible"
+      :entity-type="formModal.entityType"
+      :entity="formModal.entity"
+      :saving="formModal.saving"
+      :error="formModal.error"
+      @close="closeFormModal"
+      @save="(data) => handleFormSave(formModal.entityType, data)"
+    />
+
+    <!-- Reassign Delete Modal -->
+    <ReassignDeleteModal
+      :visible="deleteModal.visible"
+      :entity="deleteModal.entity"
+      :all-entities="getEntitiesByType(deleteModal.entityType)"
+      :entity-label="getEntityLabel(deleteModal.entityType)"
+      :processing="deleteModal.processing"
+      :error="deleteModal.error"
+      @close="closeDeleteModal"
+      @delete-direct="handleDeleteDirect(deleteModal.entityType)"
+      @reassign-delete="(targetId) => handleReassignDelete(deleteModal.entityType, targetId)"
+    />
   </div>
 </template>

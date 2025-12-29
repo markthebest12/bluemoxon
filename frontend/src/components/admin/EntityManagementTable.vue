@@ -41,6 +41,8 @@ const entityLabel = computed(() => {
       return "Publisher";
     case "binder":
       return "Binder";
+    default:
+      return "Entity";
   }
 });
 
