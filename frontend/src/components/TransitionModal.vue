@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { watch, onUnmounted } from "vue";
+import { watch } from "vue";
+import { useScrollLock } from "@/composables/useScrollLock";
 
 const props = defineProps<{
   visible: boolean;
@@ -9,35 +10,19 @@ defineEmits<{
   "backdrop-click": [];
 }>();
 
-// Track how many modals are open to handle nested modals correctly
-let modalCount = 0;
+const { lock, unlock } = useScrollLock();
 
 watch(
   () => props.visible,
   (isVisible) => {
     if (isVisible) {
-      modalCount++;
-      document.body.style.overflow = "hidden";
+      lock();
     } else {
-      modalCount--;
-      if (modalCount <= 0) {
-        modalCount = 0;
-        document.body.style.overflow = "";
-      }
+      unlock();
     }
   },
   { immediate: true }
 );
-
-onUnmounted(() => {
-  if (props.visible) {
-    modalCount--;
-    if (modalCount <= 0) {
-      modalCount = 0;
-      document.body.style.overflow = "";
-    }
-  }
-});
 </script>
 
 <template>
