@@ -708,7 +708,7 @@ function printPage() {
 
           <!-- Analysis Card -->
           <div class="card bg-victorian-cream border-victorian-burgundy/20">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
                 <!-- State: Job running -->
@@ -748,7 +748,7 @@ function printPage() {
               </div>
 
               <!-- Action buttons -->
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 <!-- View Analysis button (all users, when analysis exists) -->
                 <button
                   v-if="
@@ -1007,7 +1007,8 @@ function printPage() {
 
     <!-- Eval Runbook Modal -->
     <EvalRunbookModal
-      v-if="evalRunbookVisible && booksStore.currentBook"
+      v-if="booksStore.currentBook"
+      :visible="evalRunbookVisible"
       :book-id="booksStore.currentBook.id"
       :book-title="booksStore.currentBook.title"
       @close="evalRunbookVisible = false"

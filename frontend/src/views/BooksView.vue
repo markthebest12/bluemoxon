@@ -519,9 +519,18 @@ function closeCarousel() {
       </div>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="booksStore.loading" class="text-center py-12">
-      <p class="text-gray-500">Loading books...</p>
+    <!-- Loading state - skeleton cards -->
+    <div v-if="booksStore.loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="n in 6" :key="n" class="card">
+        <div class="flex gap-4">
+          <div class="skeleton skeleton-image w-24 h-32"></div>
+          <div class="flex-1">
+            <div class="skeleton skeleton-title mb-2"></div>
+            <div class="skeleton skeleton-text w-3/4"></div>
+            <div class="skeleton skeleton-text w-1/2"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Books grid -->
@@ -529,7 +538,7 @@ function closeCarousel() {
       <div
         v-for="book in booksStore.books"
         :key="book.id"
-        class="card cursor-pointer hover:shadow-lg transition-shadow"
+        class="card card-interactive cursor-pointer"
       >
         <div class="flex gap-4">
           <!-- Thumbnail -->

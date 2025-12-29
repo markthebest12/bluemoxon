@@ -370,9 +370,20 @@ async function handleArchiveSource(bookId: number) {
         <p class="text-red-700">{{ error }}</p>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="spinner spinner-lg"></div>
+      <!-- Loading State - skeleton kanban columns -->
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div v-for="col in 3" :key="col" class="bg-white rounded-lg shadow-sm">
+          <div class="p-4 border-b border-gray-200">
+            <div class="skeleton skeleton-text w-24"></div>
+          </div>
+          <div class="p-4 flex flex-col gap-3">
+            <div v-for="n in 3" :key="n" class="border rounded-lg p-3">
+              <div class="skeleton skeleton-title mb-2"></div>
+              <div class="skeleton skeleton-text w-3/4 mb-1"></div>
+              <div class="skeleton skeleton-text w-1/2"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Kanban Board -->
@@ -1069,7 +1080,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Acquire Modal -->
     <AcquireModal
-      v-if="showAcquireModal && selectedBook"
+      v-if="selectedBook"
+      :visible="showAcquireModal"
       :book-id="selectedBook.id"
       :book-title="selectedBook.title"
       :value-mid="selectedBook.value_mid"
@@ -1079,21 +1091,22 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Add to Watchlist Modal -->
     <AddToWatchlistModal
-      v-if="showWatchlistModal"
+      :visible="showWatchlistModal"
       @close="closeWatchlistModal"
       @added="handleWatchlistAdded"
     />
 
     <!-- Import from eBay Modal -->
     <ImportListingModal
-      v-if="showImportModal"
+      :visible="showImportModal"
       @close="closeImportModal"
       @added="handleImportAdded"
     />
 
     <!-- Edit Watchlist Modal -->
     <EditWatchlistModal
-      v-if="showEditModal && editingBook"
+      v-if="editingBook"
+      :visible="showEditModal"
       :book="editingBook"
       @close="closeEditModal"
       @updated="handleEditUpdated"
@@ -1111,7 +1124,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Add Tracking Modal -->
     <AddTrackingModal
-      v-if="showTrackingModal && trackingBook"
+      v-if="trackingBook"
+      :visible="showTrackingModal"
       :book-id="trackingBook.id"
       :book-title="trackingBook.title"
       @close="closeTrackingModal"
@@ -1120,7 +1134,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Eval Runbook Modal -->
     <EvalRunbookModal
-      v-if="showEvalRunbook && evalRunbookBook"
+      v-if="evalRunbookBook"
+      :visible="showEvalRunbook"
       :book-id="evalRunbookBook.id"
       :book-title="evalRunbookBook.title"
       @close="closeEvalRunbook"
