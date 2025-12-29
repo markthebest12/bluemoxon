@@ -58,13 +58,13 @@ Design document: `docs/plans/2025-12-28-eslint-stricter-rules-design.md`
 
 ---
 
-### Session 2: Code Review Fixes (CURRENT)
+### Session 2: Code Review Fixes
 
 **Code Review Feedback Received** - 6 issues identified:
 
 #### CRITICAL Issues (Fixed ✅)
 1. **AnalysisViewer.vue behavior regression** - `onComplete` changed from async/await to void, causing `generating.value = false` to run before `loadAnalysis()` completes
-   - **Fix:** Restored async/await with try/finally block
+   - **Fix:** Used promise chain `.catch().finally()` to properly sequence (can't use async due to `no-misused-promises`)
 
 2. **main.ts silent failure** - `void initApp()` swallows initialization errors
    - **Fix:** Added `.catch()` with error handler showing user-visible error message
@@ -77,27 +77,35 @@ Design document: `docs/plans/2025-12-28-eslint-stricter-rules-design.md`
    - **Fix:** Added explicit `.catch()` that logs error
 
 5. **AdminView.vue clipboard** - `void navigator.clipboard.writeText()` silently fails
-   - **Fix:** Added `.then()` with success feedback and error alert
+   - **Fix:** Added `.then()` with success/error handling + template shows "Copied!" feedback
 
 #### MEDIUM Issues (Fixed ✅)
 6. **ESLint config duplication** - Two similar blocks unexplained
    - **Fix:** Added comment explaining why separate blocks required (extraFileExtensions incompatibility)
 
+### Session 2 Commits
+1. `24201e3` - Initial code review fixes (all 6 issues)
+2. `b59c496` - Added "Copied!" visual feedback to template buttons
+
 ### Files Modified in Session 2
-- `src/components/books/AnalysisViewer.vue` - Restored async/await for onComplete
-- `src/main.ts` - Added error handler with user-visible message
-- `src/composables/useJobPolling.ts` - Added .catch() for polling errors
-- `src/stores/listings.ts` - Added .catch() for extraction polling
-- `src/views/AdminView.vue` - Added clipboard success/error handling
-- `eslint.config.js` - Added explanatory comment for separate config blocks
+- `src/components/books/AnalysisViewer.vue` - Promise chain for proper sequencing
+- `src/main.ts` - Error handler with user-visible message
+- `src/composables/useJobPolling.ts` - .catch() for polling errors
+- `src/stores/listings.ts` - .catch() for extraction polling
+- `src/views/AdminView.vue` - Clipboard success/error + template feedback
+- `eslint.config.js` - Explanatory comment for separate config blocks
 
 ---
 
+## Status
+
+**PR #636 Updated** - All code review fixes pushed, awaiting re-review.
+
 ## Next Steps
 
-1. **Run verification** - `npm run lint`, `npm run type-check`, `npm run build`
-2. **Push fixes to PR #636**
-3. **Request re-review**
+1. ~~Run verification~~ ✅ (lint, type-check, build all pass)
+2. ~~Push fixes to PR #636~~ ✅
+3. ~~Request code review~~ ✅ (used superpowers:code-reviewer)
 4. **After approval:** Merge to staging, validate, then PR staging → main
 
 ## Key Learnings
