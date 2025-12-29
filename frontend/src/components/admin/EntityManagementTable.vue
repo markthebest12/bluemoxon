@@ -28,9 +28,26 @@ const tierOptions = [
 ];
 
 const filteredEntities = computed(() => {
-  if (!props.searchQuery) return props.entities;
-  const query = props.searchQuery.toLowerCase();
-  return props.entities.filter((e) => e.name.toLowerCase().includes(query));
+  let result = [...props.entities];
+
+  // Filter by search query
+  if (props.searchQuery) {
+    const query = props.searchQuery.toLowerCase();
+    result = result.filter((e) => e.name.toLowerCase().includes(query));
+  }
+
+  // Sort: preferred first, then by tier (1 > 2 > 3 > none), then alphabetically
+  return result.sort((a, b) => {
+    // Preferred entities first
+    if (a.preferred !== b.preferred) return a.preferred ? -1 : 1;
+    // Then by tier (TIER_1 > TIER_2 > TIER_3 > null)
+    const tierOrder = { TIER_1: 1, TIER_2: 2, TIER_3: 3 };
+    const aTier = a.tier ? tierOrder[a.tier as keyof typeof tierOrder] || 4 : 4;
+    const bTier = b.tier ? tierOrder[b.tier as keyof typeof tierOrder] || 4 : 4;
+    if (aTier !== bTier) return aTier - bTier;
+    // Then alphabetically
+    return a.name.localeCompare(b.name);
+  });
 });
 
 const entityLabel = computed(() => {

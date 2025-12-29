@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { api } from "@/services/api";
+import { useAuthStore } from "@/stores/auth";
 import type {
   SystemInfoResponse,
   CostResponse,
@@ -36,6 +37,7 @@ const authors = ref<AuthorEntity[]>([]);
 const publishers = ref<PublisherEntity[]>([]);
 const binders = ref<BinderEntity[]>([]);
 const loadingEntities = ref({ authors: false, publishers: false, binders: false });
+const entityError = ref<string | null>(null);
 
 // Search filters
 const searchFilters = ref({ authors: "", publishers: "", binders: "" });
@@ -61,8 +63,9 @@ const deleteModal = ref({
   error: null as string | null,
 });
 
-// Permission check (placeholder - implement based on your auth system)
-const canEdit = computed(() => true); // TODO: Check userStore.isEditor
+// Permission check
+const authStore = useAuthStore();
+const canEdit = computed(() => authStore.isEditor);
 
 // Key tunables to highlight in scoring config
 const keyTunables = new Set([
@@ -190,8 +193,17 @@ function toggleSection(type: EntityType) {
   collapsedSections.value[key] = !collapsedSections.value[key];
 }
 
+// Show error and auto-clear after 5 seconds
+function showEntityError(message: string) {
+  entityError.value = message;
+  setTimeout(() => {
+    entityError.value = null;
+  }, 5000);
+}
+
 // Inline update handlers
 async function handleTierUpdate(type: EntityType, id: number, tier: string | null) {
+  entityError.value = null;
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { tier });
@@ -201,12 +213,14 @@ async function handleTierUpdate(type: EntityType, id: number, tier: string | nul
     if (entity) entity.tier = tier;
   } catch (e) {
     console.error(`Failed to update ${type} tier:`, e);
+    showEntityError(`Failed to update tier. Please try again.`);
     // Reload to revert
     await loadEntities();
   }
 }
 
 async function handlePreferredUpdate(type: EntityType, id: number, preferred: boolean) {
+  entityError.value = null;
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { preferred });
@@ -216,6 +230,7 @@ async function handlePreferredUpdate(type: EntityType, id: number, preferred: bo
     if (entity) entity.preferred = preferred;
   } catch (e) {
     console.error(`Failed to update ${type} preferred:`, e);
+    showEntityError(`Failed to update preferred status. Please try again.`);
     await loadEntities();
   }
 }
@@ -828,6 +843,14 @@ function getBarWidth(cost: number): string {
 
     <!-- Reference Data Tab -->
     <div v-else-if="activeTab === 'reference'" class="flex flex-col gap-6">
+      <!-- Error message -->
+      <div
+        v-if="entityError"
+        class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm"
+      >
+        {{ entityError }}
+      </div>
+
       <!-- Authors Section -->
       <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
         <button

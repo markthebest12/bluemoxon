@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const selectedTargetId = ref<number | null>(null);
+const confirmDelete = ref(false);
 
 // Available targets (exclude self)
 const targetOptions = computed(() => {
@@ -34,6 +35,7 @@ watch(
   (isVisible) => {
     if (isVisible) {
       selectedTargetId.value = null;
+      confirmDelete.value = false;
     }
   }
 );
@@ -42,6 +44,10 @@ function handleDelete() {
   if (hasBooks.value && selectedTargetId.value) {
     emit("reassign-delete", selectedTargetId.value);
   } else if (!hasBooks.value) {
+    if (!confirmDelete.value) {
+      confirmDelete.value = true;
+      return;
+    }
     emit("delete-direct");
   }
 }
@@ -142,9 +148,18 @@ function handleDelete() {
         <button
           @click="handleDelete"
           :disabled="processing || (hasBooks && !selectedTargetId)"
-          class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          class="px-4 py-2 text-sm text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          :class="confirmDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-red-600 hover:bg-red-700'"
         >
-          {{ processing ? "Processing..." : hasBooks ? "Reassign & Delete" : "Delete" }}
+          {{
+            processing
+              ? "Processing..."
+              : hasBooks
+                ? "Reassign & Delete"
+                : confirmDelete
+                  ? "Click again to confirm"
+                  : "Delete"
+          }}
         </button>
       </div>
     </div>
