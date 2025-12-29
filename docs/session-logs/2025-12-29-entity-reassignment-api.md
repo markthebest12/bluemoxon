@@ -57,10 +57,10 @@ Issue #608 implements full CRUD UI for Authors, Publishers, and Binders in the a
 | 4 | COMPLETE | Create ReassignDeleteModal component |
 | 5 | COMPLETE | Update AdminConfigView - Script Setup |
 | 6 | COMPLETE | Update AdminConfigView - CRUD Handlers |
-| 7 | **IN PROGRESS** | Update AdminConfigView - Template |
-| 8 | PENDING | Remove Dead Code |
-| 9 | PENDING | Final Validation |
-| 10 | PENDING | Push and Create PR |
+| 7 | COMPLETE | Update AdminConfigView - Template |
+| 8 | COMPLETE | Remove Dead Code |
+| 9 | COMPLETE | Final Validation |
+| 10 | COMPLETE | Push and Create PR (#662) |
 
 ---
 
@@ -113,6 +113,7 @@ c546686 feat(ui): add EntityFormModal component for create/edit
 40a9786 feat(ui): add ReassignDeleteModal component for delete with reassignment
 ceac7c8 feat(admin): add entity management state and loading functions
 37ad691 feat(admin): add CRUD and modal handlers for entity management
+b3013b7 feat(admin): complete entity management UI with modals and cleanup
 ```
 
 ---
@@ -132,15 +133,11 @@ ceac7c8 feat(admin): add entity management state and loading functions
 
 ## Next Steps
 
-1. **Complete Task 7**: Add modals to template (code snippet above)
-2. **Task 8**: Remove dead code (groupedAuthors, groupedPublishers, groupedBinders, groupByTier, formatTierLabel)
-3. **Task 9**: Run validation
-   ```bash
-   npm run type-check
-   npm run lint
-   npm run build
-   ```
-4. **Task 10**: Push and create PR to staging
+**ALL TASKS COMPLETE**
+
+PR #662 created: https://github.com/markthebest12/bluemoxon/pull/662
+
+Wait for CI to pass, then merge to staging for testing.
 
 ---
 
