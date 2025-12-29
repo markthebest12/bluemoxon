@@ -308,6 +308,7 @@ function formatPacificTime(isoString: string): string {
             'relative ml-auto bg-white shadow-xl h-full overflow-hidden flex flex-col transition-all duration-300',
             editMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl',
           ]"
+          style="padding-top: env(safe-area-inset-top, 0px)"
         >
           <!-- Header -->
           <div
