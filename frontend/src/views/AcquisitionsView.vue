@@ -370,9 +370,20 @@ async function handleArchiveSource(bookId: number) {
         <p class="text-red-700">{{ error }}</p>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="spinner spinner-lg"></div>
+      <!-- Loading State - skeleton kanban columns -->
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div v-for="col in 3" :key="col" class="bg-white rounded-lg shadow-sm">
+          <div class="p-4 border-b border-gray-200">
+            <div class="skeleton skeleton-text w-24"></div>
+          </div>
+          <div class="p-4 flex flex-col gap-3">
+            <div v-for="n in 3" :key="n" class="border rounded-lg p-3">
+              <div class="skeleton skeleton-title mb-2"></div>
+              <div class="skeleton skeleton-text w-3/4 mb-1"></div>
+              <div class="skeleton skeleton-text w-1/2"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Kanban Board -->
