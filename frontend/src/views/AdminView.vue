@@ -525,7 +525,7 @@ function formatDate(dateStr: string | null): string {
               @click="copyToClipboard(adminStore.newlyCreatedKey!.key)"
               class="px-3 py-1 bg-moxon-600 text-white text-sm rounded-sm hover:bg-moxon-700"
             >
-              Copy
+              {{ copySuccess ? "Copied!" : "Copy" }}
             </button>
           </div>
         </div>
@@ -573,7 +573,7 @@ function formatDate(dateStr: string | null): string {
                 @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
-                Copy
+                {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
             </div>
           </div>
@@ -587,7 +587,7 @@ function formatDate(dateStr: string | null): string {
                 @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
               >
-                Copy
+                {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
             </div>
           </div>
