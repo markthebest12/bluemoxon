@@ -37,7 +37,7 @@ Issue #608 implements full CRUD UI for Authors, Publishers, and Binders in the a
 
 1. **PR #649 (MERGED)** - Backend: Added `preferred` field to entities + scoring config
 2. **PR #661 (MERGED)** - Reassignment API endpoints
-3. **PR #662 (AWAITING CI)** - Frontend UI implementation
+3. **PR #662 (MERGED TO STAGING)** - Frontend UI implementation - Deployed as v2025.12.29-5ea127d
 
 ---
 
@@ -116,21 +116,10 @@ b41ece1 style: fix prettier formatting
 
 ## Next Steps
 
-**PR #662 AWAITING CI** - https://github.com/markthebest12/bluemoxon/pull/662
+**PR #662 MERGED TO STAGING** - https://github.com/markthebest12/bluemoxon/pull/662
+**Staging Deploy:** v2025.12.29-5ea127d - https://staging.app.bluemoxon.com
 
-### To Continue:
-```bash
-# 1. Check CI status
-gh pr checks 662 --repo markthebest12/bluemoxon
-
-# 2. If CI passes, merge
-gh pr merge 662 --repo markthebest12/bluemoxon --squash --delete-branch
-
-# 3. Watch staging deploy
-gh run list --workflow "Deploy Staging" --limit 1
-```
-
-### Manual Testing After Deploy:
+### Manual Testing Checklist:
 - [ ] Create/Edit/Delete authors, publishers, binders
 - [ ] Inline tier and preferred editing
 - [ ] Search filtering
@@ -138,16 +127,21 @@ gh run list --workflow "Deploy Staging" --limit 1
 - [ ] Dark mode appearance
 - [ ] Verify only editors can edit (permission check)
 
-### After Staging Validation:
-Create PR from staging → main to promote to production.
+### To Promote to Production:
+```bash
+gh pr create --base main --head staging --repo markthebest12/bluemoxon --title "chore: Promote staging to production (Entity Management UI #608)"
+gh pr checks <pr-number> --repo markthebest12/bluemoxon --watch
+gh pr merge <pr-number> --repo markthebest12/bluemoxon --squash --admin
+gh run watch <run-id> --repo markthebest12/bluemoxon --exit-status
+```
 
 ---
 
-## Issue #608 Status: NEARLY COMPLETE
+## Issue #608 Status: STAGING COMPLETE - AWAITING PRODUCTION PROMOTION
 
 PRs:
 - PR #649 (Backend) ✓ MERGED
 - PR #661 (Reassignment API) ✓ MERGED
-- PR #662 (Frontend UI) - AWAITING CI, then merge
+- PR #662 (Frontend UI) ✓ MERGED TO STAGING
 
 Follow-up improvements tracked in issues #663-#668.
