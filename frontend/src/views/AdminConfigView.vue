@@ -190,6 +190,133 @@ function toggleSection(type: EntityType) {
   collapsedSections.value[key] = !collapsedSections.value[key];
 }
 
+// Inline update handlers
+async function handleTierUpdate(type: EntityType, id: number, tier: string | null) {
+  const endpoint = `/${type}s/${id}`;
+  try {
+    await api.put(endpoint, { tier });
+    // Update local state
+    const entities = getEntitiesByType(type);
+    const entity = entities.find((e) => e.id === id);
+    if (entity) entity.tier = tier;
+  } catch (e) {
+    console.error(`Failed to update ${type} tier:`, e);
+    // Reload to revert
+    await loadEntities();
+  }
+}
+
+async function handlePreferredUpdate(type: EntityType, id: number, preferred: boolean) {
+  const endpoint = `/${type}s/${id}`;
+  try {
+    await api.put(endpoint, { preferred });
+    // Update local state
+    const entities = getEntitiesByType(type);
+    const entity = entities.find((e) => e.id === id);
+    if (entity) entity.preferred = preferred;
+  } catch (e) {
+    console.error(`Failed to update ${type} preferred:`, e);
+    await loadEntities();
+  }
+}
+
+// Modal handlers
+function openCreateModal(type: EntityType) {
+  formModal.value = {
+    visible: true,
+    entityType: type,
+    entity: null,
+    saving: false,
+    error: null,
+  };
+}
+
+function openEditModal(type: EntityType, entity: EntityTier) {
+  formModal.value = {
+    visible: true,
+    entityType: type,
+    entity,
+    saving: false,
+    error: null,
+  };
+}
+
+function closeFormModal() {
+  formModal.value.visible = false;
+}
+
+async function handleFormSave(type: EntityType, data: Partial<EntityTier>) {
+  formModal.value.saving = true;
+  formModal.value.error = null;
+
+  try {
+    if (formModal.value.entity?.id) {
+      // Update
+      await api.put(`/${type}s/${formModal.value.entity.id}`, data);
+    } else {
+      // Create
+      await api.post(`/${type}s`, data);
+    }
+    closeFormModal();
+    await loadEntities();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    formModal.value.error = err.response?.data?.detail || "Failed to save";
+  } finally {
+    formModal.value.saving = false;
+  }
+}
+
+function openDeleteModal(type: EntityType, entity: EntityTier) {
+  deleteModal.value = {
+    visible: true,
+    entityType: type,
+    entity,
+    processing: false,
+    error: null,
+  };
+}
+
+function closeDeleteModal() {
+  deleteModal.value.visible = false;
+}
+
+async function handleDeleteDirect(type: EntityType) {
+  if (!deleteModal.value.entity) return;
+  deleteModal.value.processing = true;
+  deleteModal.value.error = null;
+
+  try {
+    await api.delete(`/${type}s/${deleteModal.value.entity.id}`);
+    closeDeleteModal();
+    await loadEntities();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    deleteModal.value.error = err.response?.data?.detail || "Failed to delete";
+  } finally {
+    deleteModal.value.processing = false;
+  }
+}
+
+async function handleReassignDelete(type: EntityType, targetId: number) {
+  if (!deleteModal.value.entity) return;
+  deleteModal.value.processing = true;
+  deleteModal.value.error = null;
+
+  try {
+    await api.post(`/${type}s/${deleteModal.value.entity.id}/reassign`, {
+      target_id: targetId,
+    });
+    closeDeleteModal();
+    await loadEntities();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    deleteModal.value.error = err.response?.data?.detail || "Failed to reassign and delete";
+  } finally {
+    deleteModal.value.processing = false;
+  }
+}
+
 // Computed helpers
 const hasHealthIssues = computed(() => {
   if (!systemInfo.value) return false;
