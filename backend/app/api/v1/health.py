@@ -531,6 +531,13 @@ MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL = [
     "UPDATE binders SET tier = 'TIER_1' WHERE id = 27",  # Leighton
 ]
 
+# Migration SQL for t3456789opqr_add_preferred_to_entities
+MIGRATION_T3456789OPQR_SQL = [
+    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS preferred BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE publishers ADD COLUMN IF NOT EXISTS preferred BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE binders ADD COLUMN IF NOT EXISTS preferred BOOLEAN NOT NULL DEFAULT FALSE",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -650,6 +657,7 @@ Migrations run in order:
 20. 6e90a0c87832 - Add tiered recommendation fields to eval_runbooks
 21. s2345678klmn - Add author tier column
 22. f4f2fbe81faa - Seed author/publisher/binder tier values
+23. t3456789opqr - Add preferred boolean to authors, publishers, binders
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -692,9 +700,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("6e90a0c87832", MIGRATION_6E90A0C87832_SQL),
         ("s2345678klmn", MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL),
         ("f4f2fbe81faa", MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL),
+        ("t3456789opqr", MIGRATION_T3456789OPQR_SQL),
     ]
 
-    final_version = "f4f2fbe81faa"
+    final_version = "t3456789opqr"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
