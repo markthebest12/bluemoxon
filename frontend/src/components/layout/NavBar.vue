@@ -103,38 +103,45 @@ function closeMobileMenu() {
                   </svg>
                 </button>
                 <!-- Dropdown Menu -->
-                <div
-                  v-if="showDropdown"
-                  class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
-                  @click="closeDropdown"
+                <Transition
+                  enter-from-class="dropdown-enter-from"
+                  enter-active-class="dropdown-enter-active"
+                  leave-to-class="dropdown-leave-to"
+                  leave-active-class="dropdown-leave-active"
                 >
-                  <RouterLink
-                    to="/profile"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <div
+                    v-if="showDropdown"
+                    class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                    @click="closeDropdown"
                   >
-                    Profile
-                  </RouterLink>
-                  <RouterLink
-                    v-if="authStore.isEditor"
-                    to="/admin/config"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Config
-                  </RouterLink>
-                  <RouterLink
-                    v-if="authStore.isAdmin"
-                    to="/admin"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Admin Settings
-                  </RouterLink>
-                  <button
-                    @click="handleSignOut"
-                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Sign Out
-                  </button>
-                </div>
+                    <RouterLink
+                      to="/profile"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Profile
+                    </RouterLink>
+                    <RouterLink
+                      v-if="authStore.isEditor"
+                      to="/admin/config"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Config
+                    </RouterLink>
+                    <RouterLink
+                      v-if="authStore.isAdmin"
+                      to="/admin"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Admin Settings
+                    </RouterLink>
+                    <button
+                      @click="handleSignOut"
+                      class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </Transition>
               </div>
               <!-- Click outside to close -->
               <div v-if="showDropdown" class="fixed inset-0 z-40" @click="closeDropdown"></div>
