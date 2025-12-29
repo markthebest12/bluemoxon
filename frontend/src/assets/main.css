@@ -479,25 +479,17 @@ layer(utilities);
      PROGRESS BARS - Victorian colors with animation
      ============================================ */
   .progress-bar {
-    height: 4px;
-    background: rgb(0 0 0 / 0.1);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background: var(--color-victorian-hunter-500);
+    /* Backward compatible - can be used directly as fill element */
+    background-color: var(--color-victorian-hunter-500);
+    border-radius: 9999px;
     transition: width var(--duration-normal) var(--ease-out-soft);
-    border-radius: 2px;
   }
 
-  .progress-bar-gold .progress-bar-fill {
-    background: var(--color-victorian-gold);
+  .progress-bar-gold {
+    background-color: var(--color-victorian-gold);
   }
 
-  .progress-bar-indeterminate .progress-bar-fill {
-    width: 30%;
+  .progress-bar-indeterminate {
     animation: progress-slide 1.5s var(--ease-in-out) infinite;
   }
 
