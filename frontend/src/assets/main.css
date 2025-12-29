@@ -198,6 +198,37 @@ layer(utilities);
   .text-victorian-hunter-800 {
     color: var(--color-victorian-gold);
   }
+  .text-victorian-hunter-700 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-victorian-hunter-600 {
+    color: var(--color-victorian-gold-light);
+  }
+
+  /* Green status/success colors - dark mode versions */
+  .bg-green-50 {
+    background-color: #1a2e1a;
+  }
+  .bg-green-100 {
+    background-color: #1f3a1f;
+  }
+  .text-green-700 {
+    color: #86efac;
+  }
+  .text-green-800 {
+    color: #86efac;
+  }
+  .border-green-300 {
+    border-color: #4ade80;
+  }
+  .border-green-400 {
+    border-color: #4ade80;
+  }
+
+  /* Section headers - make titles readable */
+  .section-header h1 {
+    color: var(--color-text-primary);
+  }
 
   /* Border color overrides */
   .border-gray-200 {
