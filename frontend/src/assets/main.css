@@ -111,6 +111,94 @@ layer(utilities);
   --color-accent-highlight: var(--color-victorian-gold-light);
 }
 
+/* ============================================
+   DARK MODE - Automatic Tailwind utility overrides
+   These override common hardcoded Tailwind classes
+   so existing components work with dark mode
+   ============================================ */
+.dark {
+  /* Background overrides */
+  .bg-white {
+    background-color: var(--color-surface-primary);
+  }
+  .bg-gray-50 {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-gray-100 {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-gray-200 {
+    background-color: var(--color-surface-elevated);
+  }
+
+  /* Text color overrides */
+  .text-gray-900 {
+    color: var(--color-text-primary);
+  }
+  .text-gray-800 {
+    color: var(--color-text-primary);
+  }
+  .text-gray-700 {
+    color: var(--color-text-secondary);
+  }
+  .text-gray-600 {
+    color: var(--color-text-secondary);
+  }
+  .text-gray-500 {
+    color: var(--color-text-muted);
+  }
+  .text-gray-400 {
+    color: var(--color-text-muted);
+  }
+  .text-black {
+    color: var(--color-text-primary);
+  }
+
+  /* Border color overrides */
+  .border-gray-200 {
+    border-color: var(--color-border-default);
+  }
+  .border-gray-300 {
+    border-color: var(--color-border-default);
+  }
+  .divide-gray-200 > :not(:last-child) {
+    border-color: var(--color-border-default);
+  }
+
+  /* Ring/outline overrides */
+  .ring-gray-200 {
+    --tw-ring-color: var(--color-border-default);
+  }
+  .ring-gray-300 {
+    --tw-ring-color: var(--color-border-default);
+  }
+
+  /* Shadow adjustments - make shadows more visible on dark backgrounds */
+  .shadow-sm {
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+  .shadow {
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+
+  /* Form input overrides */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    background-color: var(--color-surface-secondary);
+    border-color: var(--color-border-default);
+    color: var(--color-text-primary);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-muted);
+  }
+}
+
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
