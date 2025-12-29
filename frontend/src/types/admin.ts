@@ -26,8 +26,40 @@ export interface SystemInfo {
 }
 
 export interface EntityTier {
+  id: number;
   name: string;
-  tier: string;
+  tier: string | null;
+  preferred: boolean;
+  book_count: number;
+}
+
+// Extended entity types for forms
+export interface AuthorEntity extends EntityTier {
+  birth_year?: number | null;
+  death_year?: number | null;
+  era?: string | null;
+  first_acquired_date?: string | null;
+  priority_score?: number;
+}
+
+export interface PublisherEntity extends EntityTier {
+  founded_year?: number | null;
+  description?: string | null;
+}
+
+export interface BinderEntity extends EntityTier {
+  full_name?: string | null;
+  authentication_markers?: string | null;
+}
+
+export interface ReassignRequest {
+  target_id: number;
+}
+
+export interface ReassignResponse {
+  reassigned_count: number;
+  deleted_entity: string;
+  target_entity: string;
 }
 
 export interface EntityTiers {
