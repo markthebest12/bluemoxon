@@ -1091,7 +1091,7 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Add to Watchlist Modal -->
     <AddToWatchlistModal
-      v-if="showWatchlistModal"
+      :visible="showWatchlistModal"
       @close="closeWatchlistModal"
       @added="handleWatchlistAdded"
     />

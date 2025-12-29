@@ -18,6 +18,7 @@ describe("AddToWatchlistModal", () => {
 
   it("renders modal with form fields", () => {
     const wrapper = mount(AddToWatchlistModal, {
+      props: { visible: true },
       global: {
         stubs: {
           Teleport: true,
@@ -31,6 +32,7 @@ describe("AddToWatchlistModal", () => {
 
   it("emits close when cancel clicked", async () => {
     const wrapper = mount(AddToWatchlistModal, {
+      props: { visible: true },
       global: {
         stubs: {
           Teleport: true,
@@ -46,6 +48,7 @@ describe("AddToWatchlistModal", () => {
 
   it("validates required fields before submit", async () => {
     const wrapper = mount(AddToWatchlistModal, {
+      props: { visible: true },
       global: {
         stubs: {
           Teleport: true,
