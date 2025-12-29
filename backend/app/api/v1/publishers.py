@@ -22,6 +22,7 @@ def list_publishers(db: Session = Depends(get_db)):
             "tier": p.tier,
             "founded_year": p.founded_year,
             "description": p.description,
+            "preferred": p.preferred,
             "book_count": len(p.books),
         }
         for p in publishers
@@ -41,6 +42,7 @@ def get_publisher(publisher_id: int, db: Session = Depends(get_db)):
         "tier": publisher.tier,
         "founded_year": publisher.founded_year,
         "description": publisher.description,
+        "preferred": publisher.preferred,
         "book_count": len(publisher.books),
         "books": [
             {
@@ -78,6 +80,7 @@ def create_publisher(
         tier=publisher.tier,
         founded_year=publisher.founded_year,
         description=publisher.description,
+        preferred=publisher.preferred,
         book_count=len(publisher.books),
     )
 
@@ -107,6 +110,7 @@ def update_publisher(
         tier=publisher.tier,
         founded_year=publisher.founded_year,
         description=publisher.description,
+        preferred=publisher.preferred,
         book_count=len(publisher.books),
     )
 

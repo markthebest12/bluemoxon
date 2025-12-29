@@ -57,6 +57,7 @@ class PublisherCreate(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool = False
 
 
 class PublisherUpdate(BaseModel):
@@ -66,6 +67,7 @@ class PublisherUpdate(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool | None = None
 
 
 class PublisherResponse(BaseModel):
@@ -76,6 +78,7 @@ class PublisherResponse(BaseModel):
     tier: str | None = None
     founded_year: int | None = None
     description: str | None = None
+    preferred: bool = False
     book_count: int = 0
 
     class Config:
