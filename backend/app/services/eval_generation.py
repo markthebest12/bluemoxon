@@ -555,6 +555,9 @@ def generate_eval_runbook(
         author_priority_score=book.author.priority_score if book.author else 0,
         volume_count=book.volumes or 1,
         is_duplicate=is_duplicate,
+        author_preferred=book.author.preferred if book.author else False,
+        publisher_preferred=book.publisher.preferred if book.publisher else False,
+        binder_preferred=book.binder.preferred if book.binder else False,
     )
 
     # Calculate strategic fit score
