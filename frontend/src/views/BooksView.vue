@@ -542,12 +542,13 @@ function closeCarousel() {
       >
         <div class="flex gap-4">
           <!-- Thumbnail -->
-          <BookThumbnail
-            :book-id="book.id"
-            :image-url="book.primary_image_url"
-            size="md"
-            @click="openCarousel(book.id)"
-          />
+          <div class="w-24 shrink-0">
+            <BookThumbnail
+              :book-id="book.id"
+              :image-url="book.primary_image_url"
+              @click="openCarousel(book.id)"
+            />
+          </div>
 
           <!-- Book info -->
           <div class="flex-1 min-w-0" @click="viewBook(book.id)">
