@@ -117,7 +117,7 @@ layer(utilities);
    so existing components work with dark mode
    ============================================ */
 .dark {
-  /* Background overrides */
+  /* Background overrides - Tailwind grays */
   .bg-white {
     background-color: var(--color-surface-primary);
   }
@@ -131,7 +131,35 @@ layer(utilities);
     background-color: var(--color-surface-elevated);
   }
 
-  /* Text color overrides */
+  /* Background overrides - Victorian paper colors */
+  .bg-victorian-paper-white {
+    background-color: var(--color-surface-primary);
+  }
+  .bg-victorian-paper-cream {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-victorian-paper-aged {
+    background-color: var(--color-surface-secondary);
+  }
+  .bg-victorian-paper-antique {
+    background-color: var(--color-surface-elevated);
+  }
+
+  /* Background overrides - Yellow/amber highlight rows */
+  .bg-yellow-50 {
+    background-color: #3d3a28;
+  }
+  .bg-yellow-100 {
+    background-color: #4a4530;
+  }
+  .bg-amber-50 {
+    background-color: #3d3828;
+  }
+  .bg-amber-100 {
+    background-color: #4a4330;
+  }
+
+  /* Text color overrides - Tailwind grays */
   .text-gray-900 {
     color: var(--color-text-primary);
   }
@@ -152,6 +180,23 @@ layer(utilities);
   }
   .text-black {
     color: var(--color-text-primary);
+  }
+
+  /* Text color overrides - Victorian ink colors */
+  .text-victorian-ink-black {
+    color: var(--color-text-primary);
+  }
+  .text-victorian-ink-dark {
+    color: var(--color-text-secondary);
+  }
+  .text-victorian-ink-muted {
+    color: var(--color-text-muted);
+  }
+  .text-victorian-hunter-900 {
+    color: var(--color-victorian-gold);
+  }
+  .text-victorian-hunter-800 {
+    color: var(--color-victorian-gold);
   }
 
   /* Border color overrides */
