@@ -47,9 +47,9 @@ initApp().catch((error: unknown) => {
   const appEl = document.getElementById("app");
   if (appEl) {
     appEl.innerHTML = `
-      <div style="padding: 40px; font-family: system-ui, sans-serif; text-align: center;">
-        <h1 style="color: #7c2d12; margin-bottom: 16px;">Failed to load application</h1>
-        <p style="color: #57534e;">Please refresh the page or contact support if the problem persists.</p>
+      <div style="padding: 40px; font-family: system-ui, sans-serif; text-align: center; background: var(--color-surface-base, #f0ebe3); color: var(--color-text-primary, #1a1a18);">
+        <h1 style="color: var(--color-victorian-burgundy, #722f37); margin-bottom: 16px;">Failed to load application</h1>
+        <p>Please refresh the page or contact support if the problem persists.</p>
       </div>
     `;
   }

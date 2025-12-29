@@ -302,6 +302,21 @@ layer(utilities);
   textarea::placeholder {
     color: var(--color-text-muted);
   }
+
+  /* Print styles - reset to light theme for readability and ink savings */
+  @media print {
+    & {
+      color-scheme: light;
+      --color-surface-base: var(--color-victorian-paper-aged);
+      --color-surface-primary: var(--color-victorian-paper-white);
+      --color-surface-secondary: var(--color-victorian-paper-cream);
+      --color-surface-elevated: var(--color-victorian-paper-cream);
+      --color-text-primary: var(--color-victorian-ink-black);
+      --color-text-secondary: var(--color-victorian-ink-dark);
+      --color-text-muted: var(--color-victorian-ink-muted);
+      --color-border-default: var(--color-victorian-paper-antique);
+    }
+  }
 }
 
 /*
