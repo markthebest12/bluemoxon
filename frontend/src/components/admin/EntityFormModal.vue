@@ -126,28 +126,28 @@ function handleSubmit() {
         <template v-if="entityType === 'author'">
           <div class="grid grid-cols-2 gap-4">
             <label class="block">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Birth Year</span>
+              <span class="text-sm font-medium text-gray-700">Birth Year</span>
               <input
                 v-model.number="(form as AuthorEntity).birth_year"
                 type="number"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
               />
             </label>
             <label class="block">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Death Year</span>
+              <span class="text-sm font-medium text-gray-700">Death Year</span>
               <input
                 v-model.number="(form as AuthorEntity).death_year"
                 type="number"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
               />
             </label>
           </div>
           <label class="block">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Era</span>
+            <span class="text-sm font-medium text-gray-700">Era</span>
             <input
               v-model="(form as AuthorEntity).era"
               type="text"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
             />
           </label>
         </template>
@@ -155,19 +155,19 @@ function handleSubmit() {
         <!-- Publisher-specific fields -->
         <template v-if="entityType === 'publisher'">
           <label class="block">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Founded Year</span>
+            <span class="text-sm font-medium text-gray-700">Founded Year</span>
             <input
               v-model.number="(form as PublisherEntity).founded_year"
               type="number"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
             />
           </label>
           <label class="block">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Description</span>
+            <span class="text-sm font-medium text-gray-700">Description</span>
             <textarea
               v-model="(form as PublisherEntity).description"
               rows="3"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
             />
           </label>
         </template>
@@ -175,21 +175,21 @@ function handleSubmit() {
         <!-- Binder-specific fields -->
         <template v-if="entityType === 'binder'">
           <label class="block">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</span>
+            <span class="text-sm font-medium text-gray-700">Full Name</span>
             <input
               v-model="(form as BinderEntity).full_name"
               type="text"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
             />
           </label>
           <label class="block">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span class="text-sm font-medium text-gray-700">
               Authentication Markers
             </span>
             <textarea
               v-model="(form as BinderEntity).authentication_markers"
               rows="3"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900"
             />
           </label>
         </template>
@@ -197,12 +197,12 @@ function handleSubmit() {
 
       <!-- Footer -->
       <div
-        class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50"
+        class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50"
       >
         <button
           type="button"
           @click="emit('close')"
-          class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+          class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
         >
           Cancel
         </button>

@@ -56,18 +56,18 @@ function handleDelete() {
 <template>
   <TransitionModal :visible="visible" @backdrop-click="emit('close')">
     <div
-      class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
+      class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
     >
       <!-- Header -->
       <div
-        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center"
+        class="px-6 py-4 border-b border-gray-200 flex justify-between items-center"
       >
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 class="text-lg font-semibold text-gray-900">
           Delete {{ entityLabel }}
         </h2>
         <button
           @click="emit('close')"
-          class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          class="text-gray-400 hover:text-gray-600"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -85,7 +85,7 @@ function handleDelete() {
         <!-- Error -->
         <div
           v-if="error"
-          class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-sm"
+          class="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm"
         >
           {{ error }}
         </div>
@@ -93,23 +93,23 @@ function handleDelete() {
         <div v-if="entity">
           <!-- Entity info -->
           <div class="mb-4">
-            <p class="text-gray-900 dark:text-gray-100 font-medium">{{ entity.name }}</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
+            <p class="text-gray-900 font-medium">{{ entity.name }}</p>
+            <p class="text-sm text-gray-500">
               {{ entity.book_count }} associated book{{ entity.book_count !== 1 ? "s" : "" }}
             </p>
           </div>
 
           <!-- No books - simple delete -->
-          <div v-if="!hasBooks" class="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded">
-            <p class="text-sm text-yellow-800 dark:text-yellow-200">
+          <div v-if="!hasBooks" class="p-4 bg-yellow-50 rounded">
+            <p class="text-sm text-yellow-800">
               This {{ entityLabel.toLowerCase() }} has no books. It will be permanently deleted.
             </p>
           </div>
 
           <!-- Has books - must reassign -->
           <div v-else class="flex flex-col gap-4">
-            <div class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded">
-              <p class="text-sm text-amber-800 dark:text-amber-200">
+            <div class="p-4 bg-amber-50 rounded">
+              <p class="text-sm text-amber-800">
                 This {{ entityLabel.toLowerCase() }} has {{ entity.book_count }} book{{
                   entity.book_count !== 1 ? "s" : ""
                 }}. Select a target to reassign them before deletion.
@@ -117,12 +117,12 @@ function handleDelete() {
             </div>
 
             <label class="block">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span class="text-sm font-medium text-gray-700">
                 Reassign books to *
               </span>
               <select
                 v-model="selectedTargetId"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-victorian-hunter-500 focus:border-victorian-hunter-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-victorian-hunter-500 focus:border-victorian-hunter-500"
               >
                 <option :value="null" disabled>
                   Select target {{ entityLabel.toLowerCase() }}
@@ -138,12 +138,12 @@ function handleDelete() {
 
       <!-- Footer -->
       <div
-        class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50"
+        class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50"
       >
         <button
           type="button"
           @click="emit('close')"
-          class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+          class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
         >
           Cancel
         </button>
