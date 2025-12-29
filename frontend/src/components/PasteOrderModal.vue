@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "./TransitionModal.vue";
 
-const props = defineProps<{
+defineProps<{
   visible: boolean;
 }>();
 

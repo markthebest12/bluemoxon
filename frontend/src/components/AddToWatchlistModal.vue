@@ -6,7 +6,7 @@ import { api } from "@/services/api";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
-const props = defineProps<{
+defineProps<{
   visible: boolean;
 }>();
 
