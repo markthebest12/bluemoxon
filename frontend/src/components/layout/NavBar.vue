@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -83,6 +84,10 @@ function closeMobileMenu() {
 
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
         <div class="flex items-center gap-4">
+          <!-- Theme Toggle - Desktop -->
+          <div class="hidden md:block">
+            <ThemeToggle />
+          </div>
           <!-- User Menu - Desktop -->
           <div class="hidden md:flex items-center">
             <template v-if="authStore.isAuthenticated">
@@ -156,6 +161,10 @@ function closeMobileMenu() {
             </template>
           </div>
 
+          <!-- Theme Toggle - Mobile -->
+          <div class="md:hidden">
+            <ThemeToggle />
+          </div>
           <!-- Hamburger Menu Button - Mobile -->
           <button
             @click="toggleMobileMenu"
