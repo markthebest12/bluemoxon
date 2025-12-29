@@ -46,7 +46,7 @@ def test_get_publisher_includes_preferred(client, db):
 
 def test_reassign_publisher_moves_books_to_target(client, db):
     """Reassign endpoint moves all books from source to target publisher."""
-    from app.models import Publisher, Book
+    from app.models import Book, Publisher
 
     # Create source and target publishers
     source = Publisher(name="Source Publisher")

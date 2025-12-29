@@ -170,9 +170,7 @@ def reassign_binder_books(
 
     # Count and reassign books
     book_count = db.query(Book).filter(Book.binder_id == binder_id).count()
-    db.query(Book).filter(Book.binder_id == binder_id).update(
-        {"binder_id": body.target_id}
-    )
+    db.query(Book).filter(Book.binder_id == binder_id).update({"binder_id": body.target_id})
 
     # Store names before deletion
     source_name = source.name

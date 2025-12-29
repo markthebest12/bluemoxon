@@ -185,9 +185,7 @@ def reassign_author_books(
 
     # Count and reassign books
     book_count = db.query(Book).filter(Book.author_id == author_id).count()
-    db.query(Book).filter(Book.author_id == author_id).update(
-        {"author_id": body.target_id}
-    )
+    db.query(Book).filter(Book.author_id == author_id).update({"author_id": body.target_id})
 
     # Store names before deletion
     source_name = source.name

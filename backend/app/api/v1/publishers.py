@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
-from app.models import Publisher, Book
+from app.models import Book, Publisher
 from app.schemas.reference import (
     PublisherCreate,
     PublisherResponse,
