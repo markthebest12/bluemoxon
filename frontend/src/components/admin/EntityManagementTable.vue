@@ -80,7 +80,8 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
     <!-- Header with Add button -->
     <div class="flex justify-between items-center mb-4">
       <span class="text-sm text-gray-500 dark:text-gray-400">
-        {{ filteredEntities.length }} {{ entityLabel }}{{ filteredEntities.length !== 1 ? "s" : "" }}
+        {{ filteredEntities.length }} {{ entityLabel
+        }}{{ filteredEntities.length !== 1 ? "s" : "" }}
       </span>
       <button
         v-if="canEdit"

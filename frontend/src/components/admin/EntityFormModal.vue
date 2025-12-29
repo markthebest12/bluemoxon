@@ -91,7 +91,10 @@ function handleSubmit() {
       <!-- Form -->
       <form @submit.prevent="handleSubmit" class="px-6 py-4 flex flex-col gap-4">
         <!-- Error -->
-        <div v-if="error" class="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-sm">
+        <div
+          v-if="error"
+          class="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-sm"
+        >
           {{ error }}
         </div>
 
@@ -126,7 +129,9 @@ function handleSubmit() {
             type="checkbox"
             class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-victorian-hunter-600 focus:ring-victorian-hunter-500"
           />
-          <span class="text-sm text-gray-700 dark:text-gray-300">Preferred (+10 scoring bonus)</span>
+          <span class="text-sm text-gray-700 dark:text-gray-300"
+            >Preferred (+10 scoring bonus)</span
+          >
         </label>
 
         <!-- Author-specific fields -->

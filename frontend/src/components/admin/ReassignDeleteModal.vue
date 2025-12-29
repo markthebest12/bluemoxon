@@ -124,7 +124,9 @@ function handleDelete() {
                 v-model="selectedTargetId"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-victorian-hunter-500 focus:border-victorian-hunter-500"
               >
-                <option :value="null" disabled>Select target {{ entityLabel.toLowerCase() }}</option>
+                <option :value="null" disabled>
+                  Select target {{ entityLabel.toLowerCase() }}
+                </option>
                 <option v-for="target in targetOptions" :key="target.id" :value="target.id">
                   {{ target.name }} ({{ target.book_count }} books)
                 </option>
