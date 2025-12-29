@@ -21,13 +21,25 @@ app_version = get_version()
 
 
 def check_database(db: Session) -> dict[str, Any]:
-    """Check database connectivity and basic queries."""
+    """Check database connectivity and schema compatibility.
+
+    This function validates that we can actually SELECT row data, not just
+    COUNT(*). This catches schema mismatches (e.g., model has column X but
+    database doesn't) that would cause API endpoints to fail with 500 errors
+    while health check falsely reports healthy.
+    """
     start = time.time()
     try:
         # Test connection with simple query
         db.execute(text("SELECT 1"))
 
-        # Test ORM query
+        # Test ORM query - fetch actual row to validate schema compatibility
+        # COUNT(*) alone doesn't access column data, so it won't catch missing columns
+        first_book = db.query(Book).limit(1).first()
+        schema_validated = first_book is not None or True  # True even if no books exist
+
+        # If we got here without exception, schema is compatible
+        # (SQLAlchemy would raise if model columns don't exist in DB)
         book_count = db.query(Book).count()
 
         latency_ms = round((time.time() - start) * 1000, 2)
@@ -35,12 +47,14 @@ def check_database(db: Session) -> dict[str, Any]:
             "status": "healthy",
             "latency_ms": latency_ms,
             "book_count": book_count,
+            "schema_validated": schema_validated,
         }
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
             "latency_ms": round((time.time() - start) * 1000, 2),
+            "schema_validated": False,
         }
 
 

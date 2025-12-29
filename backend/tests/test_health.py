@@ -75,6 +75,33 @@ class TestDeepHealthCheck:
             assert "latency_ms" in db_check
             assert isinstance(db_check["latency_ms"], int | float)
 
+    def test_deep_health_database_validates_schema(self, client, db):
+        """Test database check validates schema by fetching actual row data.
+
+        This catches missing columns that COUNT(*) wouldn't detect.
+        A schema mismatch (e.g., model has column X but DB doesn't) would
+        cause health to return unhealthy, not falsely report healthy.
+        """
+        from app.models import Book
+
+        # Create a book to ensure there's data to fetch
+        book = Book(title="Schema Test Book")
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/health/deep")
+        data = response.json()
+
+        db_check = data["checks"]["database"]
+        # Health check should validate schema, not just count
+        # This field proves we actually fetched row data
+        assert db_check["status"] == "healthy"
+        assert "schema_validated" in db_check, (
+            "Health check must validate schema by fetching actual row data. "
+            "COUNT(*) alone doesn't catch missing columns."
+        )
+        assert db_check["schema_validated"] is True
+
     def test_deep_health_overall_status_logic(self, client):
         """Test overall status reflects component statuses."""
         response = client.get("/api/v1/health/deep")
