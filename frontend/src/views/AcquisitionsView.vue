@@ -1134,7 +1134,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Eval Runbook Modal -->
     <EvalRunbookModal
-      v-if="showEvalRunbook && evalRunbookBook"
+      v-if="evalRunbookBook"
+      :visible="showEvalRunbook"
       :book-id="evalRunbookBook.id"
       :book-title="evalRunbookBook.title"
       @close="closeEvalRunbook"

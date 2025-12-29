@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted, computed } from "vue";
 import { api } from "@/services/api";
+import TransitionModal from "../TransitionModal.vue";
 
 const props = defineProps<{
   bookId: number;
@@ -166,26 +167,8 @@ function formatFileSize(bytes: number): string {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-    >
-      <div
-        v-if="visible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="close"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+  <TransitionModal :visible="visible" @backdrop-click="close">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
           <!-- Header -->
           <div class="flex items-center justify-between p-4 border-b">
             <h2 class="text-lg font-semibold text-gray-800">Upload Images</h2>
@@ -402,22 +385,7 @@ function formatFileSize(bytes: number): string {
                   : `Upload ${files.filter((f) => f.status === "pending").length} Image${files.filter((f) => f.status === "pending").length !== 1 ? "s" : ""}`
               }}
             </button>
-            </div>
           </div>
-        </Transition>
-      </div>
-    </Transition>
-  </Teleport>
+        </div>
+  </TransitionModal>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

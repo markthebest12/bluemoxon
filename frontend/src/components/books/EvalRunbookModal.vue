@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import {
   useEvalRunbookStore,
   type EvalRunbook,
   type PriceUpdatePayload,
 } from "@/stores/evalRunbook";
+import TransitionModal from "../TransitionModal.vue";
 
 const props = defineProps<{
+  visible: boolean;
   bookId: number;
   bookTitle: string;
 }>();
@@ -37,18 +39,29 @@ const refreshing = ref(false);
 const refreshError = ref<string | null>(null);
 const refreshSuccess = ref(false);
 
-onMounted(async () => {
-  document.body.style.overflow = "hidden";
-  try {
-    runbook.value = await store.fetchRunbook(props.bookId);
-    if (runbook.value) {
-      priceForm.value.new_price = runbook.value.current_asking_price || 0;
+// Lock body scroll when modal is visible
+watch(
+  () => props.visible,
+  async (isVisible) => {
+    document.body.style.overflow = isVisible ? "hidden" : "";
+    if (isVisible) {
+      loading.value = true;
+      try {
+        runbook.value = await store.fetchRunbook(props.bookId);
+        if (runbook.value) {
+          priceForm.value.new_price = runbook.value.current_asking_price || 0;
+        }
+      } finally {
+        loading.value = false;
+      }
+    } else {
+      store.clearRunbook();
     }
-  } finally {
-    loading.value = false;
-  }
-});
+  },
+  { immediate: true }
+);
 
+// Clean up on unmount
 onUnmounted(() => {
   document.body.style.overflow = "";
   store.clearRunbook();
@@ -219,26 +232,8 @@ function formatCurrency(value: number | null | undefined): string {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-      appear
-    >
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="handleClose"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <div>
@@ -739,12 +734,11 @@ function formatCurrency(value: number | null | undefined): string {
             </div>
           </div>
         </div>
-          </div>
-        </Transition>
       </div>
-    </Transition>
+  </TransitionModal>
 
-    <!-- Price Edit Modal -->
+  <!-- Price Edit Modal (nested inline modal, kept as-is) -->
+  <Teleport to="body">
     <div
       v-if="showPriceEdit"
       class="fixed inset-0 z-60 flex items-center justify-center bg-black/50"

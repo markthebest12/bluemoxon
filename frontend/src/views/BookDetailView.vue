@@ -1007,7 +1007,8 @@ function printPage() {
 
     <!-- Eval Runbook Modal -->
     <EvalRunbookModal
-      v-if="evalRunbookVisible && booksStore.currentBook"
+      v-if="booksStore.currentBook"
+      :visible="evalRunbookVisible"
       :book-id="booksStore.currentBook.id"
       :book-title="booksStore.currentBook.title"
       @close="evalRunbookVisible = false"
