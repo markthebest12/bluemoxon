@@ -311,15 +311,15 @@ function formatPacificTime(isoString: string): string {
         <!-- Panel - wider in edit mode -->
         <div
           :class="[
-            'relative ml-auto bg-white shadow-xl h-full overflow-hidden flex flex-col transition-all duration-300',
+            'relative ml-auto bg-[var(--color-surface-primary)] shadow-xl h-full overflow-hidden flex flex-col transition-all duration-300',
             editMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl',
           ]"
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b bg-victorian-cream"
+            class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--color-border-default)] bg-[var(--color-surface-secondary)]"
           >
-            <h2 class="text-lg sm:text-xl font-semibold text-gray-800 truncate mr-2">
+            <h2 class="text-lg sm:text-xl font-semibold text-[var(--color-text-primary)] truncate mr-2">
               {{ editMode ? "Edit Analysis" : "Book Analysis" }}
             </h2>
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -332,8 +332,8 @@ function formatPacificTime(isoString: string): string {
                     :class="[
                       'hidden sm:flex px-3 py-1.5 text-sm rounded-sm items-center gap-1',
                       showPreview
-                        ? 'bg-gray-200 text-gray-700'
-                        : 'text-gray-500 hover:text-gray-700',
+                        ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
                     ]"
                     title="Toggle preview"
                   >
@@ -356,7 +356,7 @@ function formatPacificTime(isoString: string): string {
                   <button
                     @click="cancelEditing"
                     :disabled="saving"
-                    class="px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                    class="px-2 sm:px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -388,7 +388,7 @@ function formatPacificTime(isoString: string): string {
                   <div class="hidden sm:flex items-center gap-2">
                     <select
                       v-model="selectedModel"
-                      class="select text-sm w-32 pr-8"
+                      class="select text-sm w-32 pr-8 bg-[var(--color-surface-primary)] text-[var(--color-text-primary)]"
                       :disabled="generating"
                     >
                       <option value="sonnet">Sonnet 4.5</option>
@@ -455,7 +455,7 @@ function formatPacificTime(isoString: string): string {
                   <div class="relative sm:hidden">
                     <button
                       @click="showMobileMenu = !showMobileMenu"
-                      class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                      class="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full"
                       title="More actions"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,14 +470,14 @@ function formatPacificTime(isoString: string): string {
                     <!-- Dropdown menu -->
                     <div
                       v-if="showMobileMenu"
-                      class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-20"
+                      class="absolute right-0 mt-1 w-48 bg-[var(--color-surface-elevated)] rounded-lg shadow-lg border border-[var(--color-border-default)] py-1 z-20"
                     >
                       <button
                         @click="
                           startEditing();
                           showMobileMenu = false;
                         "
-                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -495,7 +495,7 @@ function formatPacificTime(isoString: string): string {
                           showMobileMenu = false;
                         "
                         :disabled="generating"
-                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2 disabled:opacity-50"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -554,7 +554,7 @@ function formatPacificTime(isoString: string): string {
               <!-- Close button - always visible and prominent -->
               <button
                 @click="emit('close')"
-                class="no-print p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors ml-1 sm:ml-2"
+                class="no-print p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors ml-1 sm:ml-2"
                 title="Close"
               >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -593,9 +593,9 @@ function formatPacificTime(isoString: string): string {
             v-if="showDeleteConfirm"
             class="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
           >
-            <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Analysis?</h3>
-              <p class="text-gray-600 mb-4">
+            <div class="bg-[var(--color-surface-elevated)] rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Delete Analysis?</h3>
+              <p class="text-[var(--color-text-secondary)] mb-4">
                 This will permanently delete the analysis for this book. This action cannot be
                 undone.
               </p>
@@ -609,7 +609,7 @@ function formatPacificTime(isoString: string): string {
                 <button
                   @click="showDeleteConfirm = false"
                   :disabled="deleting"
-                  class="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                  class="px-4 py-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -643,7 +643,7 @@ function formatPacificTime(isoString: string): string {
           <div class="flex-1 overflow-hidden">
             <!-- Loading -->
             <div v-if="loading" class="h-full flex items-center justify-center">
-              <p class="text-gray-500">Loading analysis...</p>
+              <p class="text-[var(--color-text-muted)]">Loading analysis...</p>
             </div>
 
             <!-- Error (not in edit mode) -->
@@ -651,7 +651,7 @@ function formatPacificTime(isoString: string): string {
               v-else-if="error && !editMode"
               class="h-full flex flex-col items-center justify-center p-6"
             >
-              <p class="text-gray-500">{{ error }}</p>
+              <p class="text-[var(--color-text-muted)]">{{ error }}</p>
               <button
                 v-if="canEdit && !analysis"
                 @click="startEditing"
@@ -677,13 +677,13 @@ function formatPacificTime(isoString: string): string {
               </div>
               <div class="flex-1 flex overflow-hidden">
                 <!-- Editor pane -->
-                <div :class="['flex flex-col', showPreview ? 'w-1/2 border-r' : 'w-full']">
-                  <div class="px-4 py-2 bg-gray-50 border-b text-xs text-gray-500 font-medium">
+                <div :class="['flex flex-col', showPreview ? 'w-1/2 border-r border-[var(--color-border-default)]' : 'w-full']">
+                  <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium">
                     MARKDOWN
                   </div>
                   <textarea
                     v-model="editedAnalysis"
-                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none"
+                    class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none bg-[var(--color-surface-primary)] text-[var(--color-text-primary)]"
                     placeholder="Enter markdown analysis...
 
 # Executive Summary
@@ -704,7 +704,7 @@ Detailed condition notes...
                 </div>
                 <!-- Preview pane -->
                 <div v-if="showPreview" class="w-1/2 flex flex-col overflow-hidden">
-                  <div class="px-4 py-2 bg-gray-50 border-b text-xs text-gray-500 font-medium">
+                  <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium">
                     PREVIEW
                   </div>
                   <div class="flex-1 overflow-y-auto p-6">
@@ -712,12 +712,12 @@ Detailed condition notes...
                   </div>
                 </div>
               </div>
-              <div class="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500 flex justify-between">
+              <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-t border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] flex justify-between">
                 <span
                   >Supports GitHub Flavored Markdown: # headers, **bold**, *italic*, - lists, |
                   tables |</span
                 >
-                <span class="text-gray-400">⌘S to save • Esc to cancel</span>
+                <span class="text-[var(--color-text-muted)] opacity-75">⌘S to save • Esc to cancel</span>
               </div>
             </div>
 
@@ -727,7 +727,7 @@ Detailed condition notes...
               <!-- Generation timestamp footer -->
               <p
                 v-if="generatedAt"
-                class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500 italic"
+                class="mt-8 pt-4 border-t border-[var(--color-border-default)] text-sm text-[var(--color-text-muted)] italic"
               >
                 Analysis generated: {{ formatPacificTime(generatedAt) }}
               </p>
@@ -735,7 +735,7 @@ Detailed condition notes...
 
             <!-- No analysis but can create -->
             <div v-else-if="canEdit" class="h-full flex flex-col items-center justify-center p-6">
-              <p class="text-gray-500 mb-4">No analysis available for this book.</p>
+              <p class="text-[var(--color-text-muted)] mb-4">No analysis available for this book.</p>
               <button
                 @click="startEditing"
                 class="px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
@@ -775,23 +775,29 @@ Detailed condition notes...
 
 /* Analysis content styling - applied to rendered markdown */
 .analysis-content {
-  @apply text-gray-700 leading-relaxed;
+  color: var(--color-text-secondary);
+  @apply leading-relaxed;
 }
 
 .analysis-content :deep(h1) {
-  @apply text-2xl font-bold mt-8 mb-4 text-gray-900 border-b pb-2;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+  @apply text-2xl font-bold mt-8 mb-4 border-b pb-2;
 }
 
 .analysis-content :deep(h2) {
-  @apply text-xl font-bold mt-8 mb-3 text-gray-900;
+  color: var(--color-text-primary);
+  @apply text-xl font-bold mt-8 mb-3;
 }
 
 .analysis-content :deep(h3) {
-  @apply text-lg font-semibold mt-6 mb-2 text-gray-800;
+  color: var(--color-text-primary);
+  @apply text-lg font-semibold mt-6 mb-2;
 }
 
 .analysis-content :deep(h4) {
-  @apply text-base font-semibold mt-4 mb-2 text-gray-800;
+  color: var(--color-text-primary);
+  @apply text-base font-semibold mt-4 mb-2;
 }
 
 .analysis-content :deep(p) {
@@ -819,11 +825,13 @@ Detailed condition notes...
 }
 
 .analysis-content :deep(code) {
-  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+  background-color: var(--color-surface-secondary);
+  @apply px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
 .analysis-content :deep(pre) {
-  @apply bg-gray-100 p-4 rounded my-4 overflow-x-auto;
+  background-color: var(--color-surface-secondary);
+  @apply p-4 rounded my-4 overflow-x-auto;
 }
 
 .analysis-content :deep(pre code) {
@@ -831,16 +839,21 @@ Detailed condition notes...
 }
 
 .analysis-content :deep(blockquote) {
-  @apply border-l-4 border-gray-300 pl-4 my-4 text-gray-600 italic;
+  border-color: var(--color-border-default);
+  color: var(--color-text-muted);
+  @apply border-l-4 pl-4 my-4 italic;
 }
 
 .analysis-content :deep(hr) {
-  @apply my-6 border-gray-300;
+  border-color: var(--color-border-default);
+  @apply my-6;
 }
 
 /* YAML summary block styling - smaller, monospace, subtle background */
 .analysis-content :deep(.yaml-summary) {
-  @apply mb-6 rounded-lg bg-gray-50 border border-gray-200;
+  background-color: var(--color-surface-secondary);
+  border-color: var(--color-border-default);
+  @apply mb-6 rounded-lg border;
 }
 
 .analysis-content :deep(.yaml-summary pre) {
@@ -848,7 +861,8 @@ Detailed condition notes...
 }
 
 .analysis-content :deep(.yaml-summary code) {
-  @apply bg-transparent p-0 text-gray-600 text-xs;
+  color: var(--color-text-muted);
+  @apply bg-transparent p-0 text-xs;
 }
 
 .analysis-content :deep(a) {
@@ -861,19 +875,22 @@ Detailed condition notes...
 }
 
 .analysis-content :deep(thead) {
-  @apply bg-gray-100;
+  background-color: var(--color-surface-secondary);
 }
 
 .analysis-content :deep(th) {
-  @apply px-3 py-2 text-left font-semibold text-gray-700 border border-gray-300;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+  @apply px-3 py-2 text-left font-semibold border;
 }
 
 .analysis-content :deep(td) {
-  @apply px-3 py-2 border border-gray-300;
+  border-color: var(--color-border-default);
+  @apply px-3 py-2 border;
 }
 
 .analysis-content :deep(tr:nth-child(even)) {
-  @apply bg-gray-50;
+  background-color: var(--color-surface-secondary);
 }
 
 /* Print styles */
