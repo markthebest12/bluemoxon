@@ -69,6 +69,46 @@ layer(utilities);
   --ease-out-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ============================================
+     SEMANTIC TOKENS - Theme-aware colors
+     ============================================ */
+  --color-surface-base: var(--color-victorian-paper-aged);
+  --color-surface-primary: var(--color-victorian-paper-white);
+  --color-surface-secondary: var(--color-victorian-paper-cream);
+  --color-surface-elevated: var(--color-victorian-paper-cream);
+
+  --color-text-primary: var(--color-victorian-ink-black);
+  --color-text-secondary: var(--color-victorian-ink-dark);
+  --color-text-muted: var(--color-victorian-ink-muted);
+
+  --color-border-default: var(--color-victorian-paper-antique);
+  --color-border-subtle: var(--color-gray-200);
+
+  --color-accent-primary: var(--color-victorian-hunter-600);
+  --color-accent-highlight: var(--color-victorian-gold);
+}
+
+/* ============================================
+   DARK MODE - Victorian "Evening Reading" theme
+   ============================================ */
+.dark {
+  color-scheme: dark;
+
+  --color-surface-base: #1a2318;
+  --color-surface-primary: #1a2318;
+  --color-surface-secondary: #2d3028;
+  --color-surface-elevated: #343a30;
+
+  --color-text-primary: #e8e1d5;
+  --color-text-secondary: #c9c3b8;
+  --color-text-muted: #9a958c;
+
+  --color-border-default: #3d4a3d;
+  --color-border-subtle: #2d3028;
+
+  --color-accent-primary: var(--color-victorian-gold);
+  --color-accent-highlight: var(--color-victorian-gold-light);
 }
 
 /*
@@ -117,8 +157,8 @@ layer(utilities);
 
   .btn-secondary {
     /* Secondary button - Subtle */
-    background-color: var(--color-victorian-paper-cream);
-    color: var(--color-victorian-ink-dark);
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-secondary);
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-xs);
@@ -184,9 +224,9 @@ layer(utilities);
 
   .card {
     /* Cards - Warm paper feel */
-    background-color: var(--color-victorian-paper-cream);
+    background-color: var(--color-surface-secondary);
     border-radius: var(--radius-xs);
-    border: 1px solid var(--color-victorian-paper-antique);
+    border: 1px solid var(--color-border-default);
     box-shadow: var(--shadow-xs);
     padding: 1.5rem;
     transition: box-shadow 0.15s ease-in-out;
@@ -197,9 +237,9 @@ layer(utilities);
 
   .card-static {
     /* Card without hover effect */
-    background-color: var(--color-victorian-paper-cream);
+    background-color: var(--color-surface-secondary);
     border-radius: var(--radius-xs);
-    border: 1px solid var(--color-victorian-paper-antique);
+    border: 1px solid var(--color-border-default);
     box-shadow: var(--shadow-xs);
     padding: 1.5rem;
   }
@@ -208,13 +248,13 @@ layer(utilities);
     /* Form inputs */
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background-color: var(--color-victorian-paper-white);
-    border: 1px solid var(--color-victorian-paper-antique);
+    background-color: var(--color-surface-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: var(--radius-xs);
-    color: var(--color-victorian-ink-black);
+    color: var(--color-text-primary);
   }
   .input::placeholder {
-    color: var(--color-victorian-ink-muted);
+    color: var(--color-text-muted);
   }
   .input:focus {
     outline: none;
@@ -226,10 +266,10 @@ layer(utilities);
     /* Select dropdowns */
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background-color: var(--color-victorian-paper-white);
-    border: 1px solid var(--color-victorian-paper-antique);
+    background-color: var(--color-surface-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: var(--radius-xs);
-    color: var(--color-victorian-ink-black);
+    color: var(--color-text-primary);
   }
   .select:focus {
     outline: none;
@@ -551,7 +591,7 @@ layer(utilities);
   html,
   body {
     @apply overflow-x-hidden;
-    @apply bg-victorian-paper-aged;
+    background-color: var(--color-surface-base);
   }
 
   /* iOS safe area support for notch devices - left/right only, nav handles top */
