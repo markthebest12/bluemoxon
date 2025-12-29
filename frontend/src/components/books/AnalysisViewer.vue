@@ -319,7 +319,9 @@ function formatPacificTime(isoString: string): string {
           <div
             class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--color-border-default)] bg-[var(--color-surface-secondary)]"
           >
-            <h2 class="text-lg sm:text-xl font-semibold text-[var(--color-text-primary)] truncate mr-2">
+            <h2
+              class="text-lg sm:text-xl font-semibold text-[var(--color-text-primary)] truncate mr-2"
+            >
               {{ editMode ? "Edit Analysis" : "Book Analysis" }}
             </h2>
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -594,7 +596,9 @@ function formatPacificTime(isoString: string): string {
             class="absolute inset-0 z-10 flex items-center justify-center bg-black/50"
           >
             <div class="bg-[var(--color-surface-elevated)] rounded-lg shadow-xl p-6 max-w-md mx-4">
-              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Delete Analysis?</h3>
+              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+                Delete Analysis?
+              </h3>
               <p class="text-[var(--color-text-secondary)] mb-4">
                 This will permanently delete the analysis for this book. This action cannot be
                 undone.
@@ -677,8 +681,15 @@ function formatPacificTime(isoString: string): string {
               </div>
               <div class="flex-1 flex overflow-hidden">
                 <!-- Editor pane -->
-                <div :class="['flex flex-col', showPreview ? 'w-1/2 border-r border-[var(--color-border-default)]' : 'w-full']">
-                  <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium">
+                <div
+                  :class="[
+                    'flex flex-col',
+                    showPreview ? 'w-1/2 border-r border-[var(--color-border-default)]' : 'w-full',
+                  ]"
+                >
+                  <div
+                    class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium"
+                  >
                     MARKDOWN
                   </div>
                   <textarea
@@ -704,7 +715,9 @@ Detailed condition notes...
                 </div>
                 <!-- Preview pane -->
                 <div v-if="showPreview" class="w-1/2 flex flex-col overflow-hidden">
-                  <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium">
+                  <div
+                    class="px-4 py-2 bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium"
+                  >
                     PREVIEW
                   </div>
                   <div class="flex-1 overflow-y-auto p-6">
@@ -712,12 +725,16 @@ Detailed condition notes...
                   </div>
                 </div>
               </div>
-              <div class="px-4 py-2 bg-[var(--color-surface-secondary)] border-t border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] flex justify-between">
+              <div
+                class="px-4 py-2 bg-[var(--color-surface-secondary)] border-t border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] flex justify-between"
+              >
                 <span
                   >Supports GitHub Flavored Markdown: # headers, **bold**, *italic*, - lists, |
                   tables |</span
                 >
-                <span class="text-[var(--color-text-muted)] opacity-75">⌘S to save • Esc to cancel</span>
+                <span class="text-[var(--color-text-muted)] opacity-75"
+                  >⌘S to save • Esc to cancel</span
+                >
               </div>
             </div>
 
@@ -735,7 +752,9 @@ Detailed condition notes...
 
             <!-- No analysis but can create -->
             <div v-else-if="canEdit" class="h-full flex flex-col items-center justify-center p-6">
-              <p class="text-[var(--color-text-muted)] mb-4">No analysis available for this book.</p>
+              <p class="text-[var(--color-text-muted)] mb-4">
+                No analysis available for this book.
+              </p>
               <button
                 @click="startEditing"
                 class="px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
