@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -83,6 +84,10 @@ function closeMobileMenu() {
 
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
         <div class="flex items-center gap-4">
+          <!-- Theme Toggle - Desktop -->
+          <div class="hidden md:block">
+            <ThemeToggle />
+          </div>
           <!-- User Menu - Desktop -->
           <div class="hidden md:flex items-center">
             <template v-if="authStore.isAuthenticated">
@@ -111,32 +116,32 @@ function closeMobileMenu() {
                 >
                   <div
                     v-if="showDropdown"
-                    class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 z-50 bg-[var(--color-surface-elevated)]"
                     @click="closeDropdown"
                   >
                     <RouterLink
                       to="/profile"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Profile
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isEditor"
                       to="/admin/config"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Config
                     </RouterLink>
                     <RouterLink
                       v-if="authStore.isAdmin"
                       to="/admin"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Admin Settings
                     </RouterLink>
                     <button
                       @click="handleSignOut"
-                      class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="block w-full text-left px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
                     >
                       Sign Out
                     </button>
@@ -156,6 +161,10 @@ function closeMobileMenu() {
             </template>
           </div>
 
+          <!-- Theme Toggle - Mobile -->
+          <div class="md:hidden">
+            <ThemeToggle />
+          </div>
           <!-- Hamburger Menu Button - Mobile -->
           <button
             @click="toggleMobileMenu"
