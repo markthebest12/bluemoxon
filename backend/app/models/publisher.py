@@ -1,6 +1,6 @@
 """Publisher model."""
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -16,6 +16,7 @@ class Publisher(Base):
     tier: Mapped[str | None] = mapped_column(String(10))  # TIER_1, TIER_2, TIER_3, OTHER
     founded_year: Mapped[int | None] = mapped_column(Integer)
     description: Mapped[str | None] = mapped_column(Text)
+    preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     books = relationship("Book", back_populates="publisher")
