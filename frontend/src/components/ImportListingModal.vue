@@ -428,11 +428,25 @@ function openSourceUrl() {
 
 <template>
   <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="handleClose"
+    <Transition
+      enter-from-class="modal-backdrop-enter-from"
+      enter-active-class="modal-backdrop-enter-active"
+      leave-to-class="modal-backdrop-leave-to"
+      leave-active-class="modal-backdrop-leave-active"
+      appear
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="handleClose"
+      >
+        <Transition
+          enter-from-class="modal-enter-from"
+          enter-active-class="modal-enter-active"
+          leave-to-class="modal-leave-to"
+          leave-active-class="modal-leave-active"
+          appear
+        >
+          <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 class="text-lg font-semibold text-gray-900">
@@ -795,8 +809,10 @@ function openSourceUrl() {
           <p class="text-center text-xs text-gray-400 mt-6">
             This should only take a few seconds...
           </p>
-        </div>
+            </div>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>

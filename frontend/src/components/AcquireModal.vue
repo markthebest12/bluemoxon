@@ -154,11 +154,25 @@ function handlePasteApply(data: any) {
 
 <template>
   <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="handleClose"
+    <Transition
+      enter-from-class="modal-backdrop-enter-from"
+      enter-active-class="modal-backdrop-enter-active"
+      leave-to-class="modal-backdrop-leave-to"
+      leave-active-class="modal-backdrop-leave-active"
+      appear
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
+      <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="handleClose"
+      >
+        <Transition
+          enter-from-class="modal-enter-from"
+          enter-active-class="modal-enter-active"
+          leave-to-class="modal-leave-to"
+          leave-active-class="modal-leave-active"
+          appear
+        >
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <div>
@@ -331,9 +345,11 @@ function handlePasteApply(data: any) {
               {{ submitting ? "Processing..." : "Confirm Acquire" }}
             </button>
           </div>
-        </form>
+            </form>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
 
     <!-- Paste Order Modal -->
     <PasteOrderModal
