@@ -19,6 +19,15 @@
 
     <!-- Preconnect to Cognito for faster auth -->
     <link rel="preconnect" href="https://cognito-idp.us-west-2.amazonaws.com" crossorigin />
+
+    <!-- Prevent flash of wrong theme on load -->
+    <script>
+      (function() {
+        var p = localStorage.getItem('theme');
+        var dark = p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
