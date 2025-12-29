@@ -401,7 +401,7 @@ async function handleArchiveSource(bookId: number) {
             <div
               v-for="book in evaluating"
               :key="book.id"
-              class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-victorian-hunter-300 transition-colors"
+              class="bg-gray-50 rounded-lg p-3 border border-gray-200 card-interactive"
             >
               <a
                 :href="`/books/${book.id}`"
@@ -613,7 +613,7 @@ async function handleArchiveSource(bookId: number) {
             <div
               v-for="book in inTransit"
               :key="book.id"
-              class="bg-gray-50 rounded-lg p-3 border border-gray-200"
+              class="bg-gray-50 rounded-lg p-3 border border-gray-200 card-interactive"
             >
               <a
                 :href="`/books/${book.id}`"
@@ -894,7 +894,7 @@ async function handleArchiveSource(bookId: number) {
             <div
               v-for="book in received"
               :key="book.id"
-              class="bg-gray-50 rounded-lg p-3 border border-gray-200"
+              class="bg-gray-50 rounded-lg p-3 border border-gray-200 card-interactive"
             >
               <a
                 :href="`/books/${book.id}`"
