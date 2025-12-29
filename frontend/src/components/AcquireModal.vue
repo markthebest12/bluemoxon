@@ -3,8 +3,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useAcquisitionsStore, type AcquirePayload } from "@/stores/acquisitions";
 import { api } from "@/services/api";
 import PasteOrderModal from "./PasteOrderModal.vue";
+import TransitionModal from "./TransitionModal.vue";
 
 const props = defineProps<{
+  visible: boolean;
   bookId: number;
   bookTitle: string;
   valueMid?: number;
@@ -88,11 +90,11 @@ onMounted(() => {
   loadExchangeRates();
 });
 
-// Lock body scroll when modal is open
+// Lock body scroll when modal is visible
 watch(
-  () => true, // Modal is always visible when component exists
-  () => {
-    document.body.style.overflow = "hidden";
+  () => props.visible,
+  (isVisible) => {
+    document.body.style.overflow = isVisible ? "hidden" : "";
   },
   { immediate: true }
 );
@@ -153,26 +155,8 @@ function handlePasteApply(data: any) {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-from-class="modal-backdrop-enter-from"
-      enter-active-class="modal-backdrop-enter-active"
-      leave-to-class="modal-backdrop-leave-to"
-      leave-active-class="modal-backdrop-leave-active"
-      appear
-    >
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="handleClose"
-      >
-        <Transition
-          enter-from-class="modal-enter-from"
-          enter-active-class="modal-enter-active"
-          leave-to-class="modal-leave-to"
-          leave-active-class="modal-leave-active"
-          appear
-        >
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
+  <TransitionModal :visible="visible" @backdrop-click="handleClose">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
           <div>
@@ -345,19 +329,16 @@ function handlePasteApply(data: any) {
               {{ submitting ? "Processing..." : "Confirm Acquire" }}
             </button>
           </div>
-            </form>
-          </div>
-        </Transition>
+        </form>
       </div>
-    </Transition>
+  </TransitionModal>
 
-    <!-- Paste Order Modal -->
-    <PasteOrderModal
-      v-if="showPasteModal"
-      @close="showPasteModal = false"
-      @apply="handlePasteApply"
-    />
-  </Teleport>
+  <!-- Paste Order Modal -->
+  <PasteOrderModal
+    v-if="showPasteModal"
+    @close="showPasteModal = false"
+    @apply="handlePasteApply"
+  />
 </template>
 
 <style scoped></style>

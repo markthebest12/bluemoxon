@@ -1080,7 +1080,8 @@ async function handleArchiveSource(bookId: number) {
 
     <!-- Acquire Modal -->
     <AcquireModal
-      v-if="showAcquireModal && selectedBook"
+      v-if="selectedBook"
+      :visible="showAcquireModal"
       :book-id="selectedBook.id"
       :book-title="selectedBook.title"
       :value-mid="selectedBook.value_mid"
