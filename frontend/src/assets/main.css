@@ -89,6 +89,28 @@ layer(utilities);
   --color-accent-highlight: var(--color-victorian-gold);
 }
 
+/* ============================================
+   DARK MODE - Victorian "Evening Reading" theme
+   ============================================ */
+.dark {
+  color-scheme: dark;
+
+  --color-surface-base: #1a2318;
+  --color-surface-primary: #1a2318;
+  --color-surface-secondary: #2d3028;
+  --color-surface-elevated: #343a30;
+
+  --color-text-primary: #e8e1d5;
+  --color-text-secondary: #c9c3b8;
+  --color-text-muted: #9a958c;
+
+  --color-border-default: #3d4a3d;
+  --color-border-subtle: #2d3028;
+
+  --color-accent-primary: var(--color-victorian-gold);
+  --color-accent-highlight: var(--color-victorian-gold-light);
+}
+
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
