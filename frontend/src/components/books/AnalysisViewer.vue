@@ -68,6 +68,8 @@ watch(
   (visible) => {
     if (visible) {
       document.body.style.overflow = "hidden";
+      // Scroll to top when modal opens (iOS Safari workaround)
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     } else {
       document.body.style.overflow = "";
       // Reset edit mode when closing
