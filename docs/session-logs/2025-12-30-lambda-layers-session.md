@@ -1,9 +1,9 @@
-# Lambda Layers Implementation Session Log
+# Lambda Layers & Cleanup Bug Fix Session Log
 
 **Date:** 2025-12-30
-**Branch:** `feat/lambda-layers`
+**Branch:** `fix/cleanup-lambda-orphan-detection` (PR #686 targeting staging)
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/feat-lambda-layers`
-**PR:** https://github.com/markthebest12/bluemoxon/pull/684
+**PRs:** #684 (Lambda Layers), #685 (IAM fix), #686 (Cleanup Fix) - #684/#685 merged, #686 pending
 
 ---
 
@@ -16,6 +16,8 @@ Before ANY action, check if a skill applies:
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:writing-plans` - Before multi-step implementation
 - `superpowers:executing-plans` - When implementing a plan
+- `superpowers:systematic-debugging` - For ANY bug or unexpected behavior
+- `superpowers:test-driven-development` - Before writing ANY new code
 - `superpowers:receiving-code-review` - When receiving code review feedback
 - `superpowers:verification-before-completion` - Before claiming work is done
 - `superpowers:finishing-a-development-branch` - When implementation complete
@@ -53,102 +55,175 @@ bmx-api --prod GET /health
 
 ## Current Status
 
-**Phase:** Code Review Fixes Complete - Ready for Re-Review
-**PR:** #684 created, targeting `staging`
+**Phase:** FIX COMPLETE - PR #686 AWAITING CI/MERGE
 
-### Code Review Fixes Applied (Commit 44a3a78)
+### Summary
 
-**CRITICAL Issues - FIXED:**
+The cleanup Lambda bug fix is complete with all safety improvements implemented:
 
-1. **Race Condition in Deploy** - FIXED
-   - Reordered: now update layer BEFORE code for all Lambdas
-   - Old code + new layer = safe (layer has superset of deps)
-   - New code + new layer = safe (final state)
+| Item | Status |
+|------|--------|
+| Root cause fix (prefix + key stripping) | Done |
+| Enhanced dry run output | Done |
+| orphans_by_prefix breakdown | Done |
+| max_deletions guard (default 100) | Done |
+| Explicit key format test | Done |
+| All 33 tests passing | Verified |
+| PR #686 created | Awaiting CI |
+| S3 restore | In progress (~30-40%) |
 
-2. **Layer Version Published EVERY Deploy** - FIXED
-   - Added conditional: check if layer content unchanged
-   - If unchanged, reuse existing layer version ARN
-   - Prevents hitting 75 version limit
+---
 
-3. **No Rollback Mechanism** - FIXED
-   - Added "Capture current Lambda state" step before deploy
-   - Added "Deployment failure recovery info" step (runs on failure)
-   - Provides manual recovery commands if deploy fails
+## INCIDENT: Cleanup Lambda Deleted Valid Images
 
-**HIGH Issues - FIXED:**
+The cleanup Lambda's orphan detection had TWO critical bugs that caused it to delete ~6,900 valid S3 objects.
 
-4. **Terraform State Drift by Design** - DOCUMENTED (known behavior)
-   - `ignore_changes = [layers]` is intentional for CI/CD management
-   - Documented in comments
+**Impact:**
+- ~6,900 S3 objects deleted across all prefixes
+- Frontend showing broken images for all books
+- Staging environment data loss (recoverable via S3 versioning)
 
-5. **Missing Layer Output in Root Terraform** - FIXED
-   - Added `lambda_layer_arn`, `lambda_layer_version_arn`, `lambda_layer_version`
+### Root Cause #1: Key Format Mismatch
+```python
+# S3 stores: "books/515/image_00.webp" (WITH prefix)
+# DB stores: "515/image_00.webp" (WITHOUT prefix)
 
-6. **Cleanup Lambda Doesn't Publish Version** - FIXED
-   - Added "Publish Cleanup Lambda version" step
+# OLD CODE - comparison NEVER matches:
+orphaned_keys = s3_keys - db_keys  # ALL S3 keys appear orphaned!
+```
 
-**MEDIUM Issues - DEFERRED:**
+### Root Cause #2: No Prefix Filter on S3 Listing
+```python
+# OLD CODE - lists ENTIRE bucket:
+for page in paginator.paginate(Bucket=bucket):  # No Prefix!
+```
 
-7. S3 Frontend Bucket for Lambda Artifacts - Low priority
-8. No Verification of Layer Content - Can add later
-9. Hardcoded Python 3.12 - Refactoring task
+---
+
+## Fix Implementation (COMPLETE)
+
+### File: `backend/lambdas/cleanup/handler.py`
+
+```python
+def cleanup_orphaned_images(
+    db: Session,
+    bucket: str,
+    delete: bool = False,
+    max_deletions: int = 100,      # NEW: Safety guard
+    force_delete: bool = False,    # NEW: Override for bulk ops
+) -> dict:
+    S3_BOOKS_PREFIX = "books/"
+
+    # FIX 1: Only list objects under books/ prefix
+    for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
+        # FIX 2: Strip prefix before comparing to DB keys
+        stripped_key = full_key[len(S3_BOOKS_PREFIX):]
+
+    # FIX 3: Group orphans by prefix for visibility
+    orphans_by_prefix: dict[str, int] = {}
+    for key in orphaned_full_keys:
+        prefix = key.split("/")[0] + "/"
+        orphans_by_prefix[prefix] = orphans_by_prefix.get(prefix, 0) + 1
+
+    # FIX 4: Deletion guard
+    deletion_limit = None if force_delete else max_deletions
+    if deletion_limit is not None and deleted >= deletion_limit:
+        break
+
+    # Enhanced output for dry run review
+    result = {
+        "scan_prefix": S3_BOOKS_PREFIX,
+        "total_objects_scanned": len(s3_keys_full),
+        "objects_in_database": len(db_keys),
+        "orphans_found": len(orphaned_full_keys),
+        "orphans_by_prefix": orphans_by_prefix,
+        "orphan_percentage": orphan_percentage,
+        "sample_orphan_keys": list(orphaned_full_keys)[:10],
+        "deleted": deleted,
+    }
+```
+
+### Tests: `backend/tests/test_cleanup.py` (33 tests passing)
+
+Key new tests:
+- `test_key_format_s3_prefix_stripped_for_db_comparison` - Explicit regression test for key mismatch
+- `test_max_deletions_guard_stops_at_limit` - Verifies deletion guard works
+- `test_max_deletions_guard_allows_override` - Verifies force_delete override
+- `test_warns_on_high_orphan_percentage` - Verifies warning on suspicious orphan rate
+- `test_orphans_by_prefix` - Verifies prefix breakdown in output
 
 ---
 
 ## Next Steps
 
-1. Wait for re-review of PR #684
-2. After approval, merge to staging
-3. Watch CI/deploy workflow
-4. Verify in staging environment
+### Immediate
+1. **Wait for CI on PR #686** - `gh pr checks 686`
+2. **Wait for S3 restore to complete** - Check: `AWS_PROFILE=bmx-staging aws s3api list-object-versions --bucket bluemoxon-images-staging --query 'DeleteMarkers[?IsLatest==\`true\`] | length(@)'`
+
+### After CI Passes
+3. **Merge PR #686 to staging**
+4. **Wait for staging deploy**
+5. **Test cleanup Lambda dry-run** - Should find ~0 orphans
+
+### After Staging Verified
+6. **Promote to production** via staging->main PR
+7. **Close incident** and update postmortem
 
 ---
 
-## Completed Tasks
+## Verification Commands
 
-| Task | Status | Commit |
-|------|--------|--------|
-| 1. Create Lambda Layer Terraform Module | ✅ | 3c91c71 |
-| 2. Update Lambda Module for Layers | ✅ | 77ccc30 |
-| 3. Wire Layer in Main Terraform | ✅ | 3d0414b |
-| 4. Update Deploy Workflow | ✅ | 4f8f648 |
-| 5. Update Cleanup Lambda Module | ✅ | 98d28e1 |
-| 6. Add invoke-cleanup Policy | ✅ | (already existed) |
-| 7. Bootstrap Layer Manually | ✅ | (manual) |
-| 8. Apply Terraform Changes | ✅ | (layer v2 created) |
-| 9. Update Lambda Functions | ✅ | (all 3 updated) |
-| 10. Create PR | ✅ | PR #684 |
+```bash
+# Check CI status
+gh pr checks 686
 
----
+# Check S3 restore progress (delete markers remaining)
+AWS_PROFILE=bmx-staging aws s3api list-object-versions --bucket bluemoxon-images-staging --query 'DeleteMarkers[?IsLatest==`true`] | length(@)'
 
-## Commits
-```
-44a3a78 fix: address code review issues for Lambda Layers
-4d8755b docs: update session log with code review issues
-68480b9 docs: add Lambda Layers implementation session log
-98d28e1 feat: add layers support to cleanup-lambda module
-4f8f648 feat: implement Lambda Layers in deploy workflow
-3d0414b feat: wire lambda layer to API and cleanup functions
-77ccc30 feat: add layers support to lambda module
-3c91c71 feat: add lambda-layer Terraform module
-611d8a1 docs: add Lambda Layers design and implementation plan
+# Test image accessibility
+curl -sI "https://staging.app.bluemoxon.com/book-images/books/10_352c23c2d6c94065b7af7aa87717f605.jpg" | head -3
+
+# Run cleanup tests locally
+cd /Users/mark/projects/bluemoxon/.worktrees/feat-lambda-layers/backend
+poetry run pytest tests/test_cleanup.py -v
 ```
 
 ---
 
-## Key Files
-- `infra/terraform/modules/lambda-layer/` (NEW)
-- `infra/terraform/modules/lambda/variables.tf`
-- `infra/terraform/modules/lambda/main.tf`
-- `infra/terraform/modules/cleanup-lambda/variables.tf`
-- `infra/terraform/modules/cleanup-lambda/main.tf`
-- `infra/terraform/main.tf`
-- `.github/workflows/deploy.yml`
+## Key Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/lambdas/cleanup/handler.py` | Prefix filter, key stripping, max_deletions guard, enhanced output |
+| `backend/tests/test_cleanup.py` | 33 tests including regression tests for key format and deletion guard |
+| `docs/postmortems/2025-12-30-cleanup-lambda-s3-deletion.md` | Full RCA (updated to use books/ prefix) |
+| `docs/session-logs/2025-12-30-lambda-layers-session.md` | This file |
 
 ---
 
-## Layer Info
-- **Layer ARN:** `arn:aws:lambda:us-west-2:652617421195:layer:bluemoxon-staging-deps:2`
-- **Layer Size:** 52MB
-- **Code Package Size:** 456KB (down from ~50MB)
-- **S3 Location:** `s3://bluemoxon-frontend-staging/lambda/layer.zip`
+## Lambda Layers Status (COMPLETE)
+
+The Lambda Layers feature that started this session is complete:
+- PRs #684, #685 merged to staging
+- Package size: 50MB -> 456KB (99% reduction)
+- Layer ARN: `arn:aws:lambda:us-west-2:652617421195:layer:bluemoxon-staging-deps:2`
+
+**DO NOT promote to production until cleanup bug fix (PR #686) is merged and verified.**
+
+---
+
+## Recovery Script Location
+
+```bash
+# Restore script (removes S3 delete markers)
+/Users/mark/projects/bluemoxon/.worktrees/feat-lambda-layers/infra/terraform/.tmp/restore_all_s3.sh
+
+# Log file
+/tmp/restore_progress.log
+```
+
+---
+
+## Postmortem Reference
+
+Full RCA in: `docs/postmortems/2025-12-30-cleanup-lambda-s3-deletion.md`
