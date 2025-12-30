@@ -341,13 +341,13 @@ const hasHealthIssues = computed(() => {
 const healthStatusClass = (status: string) => {
   switch (status) {
     case "healthy":
-      return "text-green-600";
+      return "text-[var(--color-status-success-accent)]";
     case "unhealthy":
-      return "text-red-600";
+      return "text-[var(--color-status-error-accent)]";
     case "skipped":
       return "text-gray-400";
     default:
-      return "text-yellow-600";
+      return "text-[var(--color-status-warning-accent)]";
   }
 };
 
@@ -414,12 +414,14 @@ function getBarWidth(cost: number): string {
     <!-- Health Alert Banner -->
     <div
       v-if="hasHealthIssues && systemInfo"
-      class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg"
+      class="mb-4 p-4 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg"
     >
-      <div class="flex items-center gap-2 text-red-700">
+      <div class="flex items-center gap-2 text-[var(--color-status-error-text)]">
         <span class="text-xl">⚠️</span>
         <span class="font-medium">System health issues detected</span>
-        <span class="text-sm text-red-600"> ({{ systemInfo.health.overall }}) </span>
+        <span class="text-sm text-[var(--color-status-error-accent)]">
+          ({{ systemInfo.health.overall }})
+        </span>
       </div>
     </div>
 
@@ -520,7 +522,9 @@ function getBarWidth(cost: number): string {
         <button @click="saveConfig" :disabled="saving" class="btn-primary">
           {{ saving ? "Saving..." : "Save" }}
         </button>
-        <span v-if="settingsMessage" class="text-sm text-green-600">{{ settingsMessage }}</span>
+        <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{
+          settingsMessage
+        }}</span>
       </div>
     </div>
 
@@ -536,7 +540,10 @@ function getBarWidth(cost: number): string {
         </button>
       </div>
 
-      <div v-if="infoError" class="p-4 bg-red-50 text-red-700 rounded-sm">
+      <div
+        v-if="infoError"
+        class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm"
+      >
         {{ infoError }}
       </div>
 
@@ -846,7 +853,7 @@ function getBarWidth(cost: number): string {
       <!-- Error message -->
       <div
         v-if="entityError"
-        class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+        class="p-4 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg text-[var(--color-status-error-text)] text-sm"
       >
         {{ entityError }}
       </div>
@@ -996,7 +1003,10 @@ function getBarWidth(cost: number): string {
         </button>
       </div>
 
-      <div v-if="costError" class="p-4 bg-red-50 text-red-700 rounded-sm">
+      <div
+        v-if="costError"
+        class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm"
+      >
         {{ costError }}
       </div>
 

@@ -26,13 +26,13 @@ const canArchive = computed(() => {
 const badgeClass = computed(() => {
   switch (props.status) {
     case "success":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
     case "pending":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning-text)]";
     case "failed":
-      return "bg-red-100 text-red-800";
+      return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
     default:
-      return "bg-gray-100 text-gray-600";
+      return "bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)]";
   }
 });
 

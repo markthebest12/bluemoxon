@@ -267,7 +267,7 @@ function formatFileSize(bytes: number): string {
               </svg>
               <svg
                 v-else-if="file.status === 'success'"
-                class="w-5 h-5 text-green-600"
+                class="w-5 h-5 text-[var(--color-status-success-accent)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -281,7 +281,7 @@ function formatFileSize(bytes: number): string {
               </svg>
               <svg
                 v-else-if="file.status === 'error'"
-                class="w-5 h-5 text-red-600"
+                class="w-5 h-5 text-[var(--color-status-error-accent)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -300,7 +300,10 @@ function formatFileSize(bytes: number): string {
               <p class="text-sm font-medium text-gray-800 truncate">
                 {{ file.file.name }}
               </p>
-              <p v-if="file.status === 'error'" class="text-xs text-red-600">
+              <p
+                v-if="file.status === 'error'"
+                class="text-xs text-[var(--color-status-error-accent)]"
+              >
                 {{ file.error }}
               </p>
               <p v-else class="text-xs text-gray-500">
@@ -341,13 +344,17 @@ function formatFileSize(bytes: number): string {
         <div
           v-if="allComplete && hasFiles"
           class="mt-4 p-3 rounded-lg"
-          :class="errorCount > 0 ? 'bg-yellow-50' : 'bg-green-50'"
+          :class="
+            errorCount > 0
+              ? 'bg-[var(--color-status-warning-bg)]'
+              : 'bg-[var(--color-status-success-bg)]'
+          "
         >
           <p class="text-sm">
-            <span v-if="successCount > 0" class="text-green-700">
+            <span v-if="successCount > 0" class="text-[var(--color-status-success-text)]">
               {{ successCount }} image{{ successCount !== 1 ? "s" : "" }} uploaded successfully.
             </span>
-            <span v-if="errorCount > 0" class="text-red-700">
+            <span v-if="errorCount > 0" class="text-[var(--color-status-error-text)]">
               {{ errorCount }} upload{{ errorCount !== 1 ? "s" : "" }} failed.
             </span>
           </p>

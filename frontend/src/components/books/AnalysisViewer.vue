@@ -441,7 +441,7 @@ function formatPacificTime(isoString: string): string {
                   <button
                     v-if="analysis"
                     @click="showDeleteConfirm = true"
-                    class="hidden sm:flex px-3 py-1.5 text-sm text-red-600 hover:text-red-700 items-center gap-1"
+                    class="hidden sm:flex px-3 py-1.5 text-sm text-[var(--color-status-error-accent)] hover:opacity-80 items-center gap-1"
                     title="Delete analysis"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -515,7 +515,7 @@ function formatPacificTime(isoString: string): string {
                           showDeleteConfirm = true;
                           showMobileMenu = false;
                         "
-                        class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-status-error-accent)] hover:bg-[var(--color-status-error-bg)] flex items-center gap-2"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -605,7 +605,7 @@ function formatPacificTime(isoString: string): string {
               </p>
               <div
                 v-if="error"
-                class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+                class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
               >
                 {{ error }}
               </div>
@@ -620,7 +620,7 @@ function formatPacificTime(isoString: string): string {
                 <button
                   @click="deleteAnalysis"
                   :disabled="deleting"
-                  class="px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                  class="px-4 py-2 bg-[var(--color-status-error-solid)] text-white rounded-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                 >
                   <svg v-if="deleting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle
@@ -669,13 +669,13 @@ function formatPacificTime(isoString: string): string {
             <div v-else-if="editMode" class="h-full flex flex-col">
               <div
                 v-if="error"
-                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+                class="mx-6 mt-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
               >
                 {{ error }}
               </div>
               <div
                 v-if="generateError"
-                class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+                class="mx-6 mt-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
               >
                 {{ generateError }}
               </div>

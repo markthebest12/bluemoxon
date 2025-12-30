@@ -365,11 +365,13 @@ const exportCSV = () => {
         <!-- Insurance recommendation only for insurance report -->
         <p
           v-if="isInsuranceReport"
-          class="bg-green-100 p-4 rounded-sm text-center m-0 border border-green-300"
+          class="bg-[var(--color-status-success-bg)] p-4 rounded-sm text-center m-0 border border-[var(--color-status-success-border)]"
         >
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
-          <span class="text-sm text-green-800">(High estimate + 10% buffer)</span>
+          <span class="text-sm text-[var(--color-status-success-text)]"
+            >(High estimate + 10% buffer)</span
+          >
         </p>
       </section>
 

@@ -303,7 +303,7 @@ function close() {
         <!-- Error -->
         <div
           v-if="error"
-          class="mt-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+          class="mt-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
         >
           {{ error }}
         </div>
