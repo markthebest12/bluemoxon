@@ -180,6 +180,20 @@ output "eval_runbook_dlq_url" {
 }
 
 # =============================================================================
+# Cleanup Lambda Outputs
+# =============================================================================
+
+output "cleanup_lambda_function_name" {
+  description = "Cleanup Lambda function name"
+  value       = local.cleanup_lambda_enabled ? module.cleanup_lambda[0].function_name : null
+}
+
+output "cleanup_lambda_function_arn" {
+  description = "Cleanup Lambda function ARN"
+  value       = local.cleanup_lambda_enabled ? module.cleanup_lambda[0].function_arn : null
+}
+
+# =============================================================================
 # GitHub OIDC Outputs
 # =============================================================================
 

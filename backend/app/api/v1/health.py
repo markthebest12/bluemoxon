@@ -552,6 +552,16 @@ MIGRATION_T3456789OPQR_SQL = [
     "ALTER TABLE binders ADD COLUMN IF NOT EXISTS preferred BOOLEAN NOT NULL DEFAULT FALSE",
 ]
 
+# Migration SQL for u4567890stuv_add_archive_attempts
+MIGRATION_U4567890STUV_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS archive_attempts INTEGER NOT NULL DEFAULT 0",
+]
+
+# Migration SQL for v5678901uvwx_add_source_expired
+MIGRATION_V5678901UVWX_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_expired BOOLEAN",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -715,9 +725,11 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("s2345678klmn", MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL),
         ("f4f2fbe81faa", MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL),
         ("t3456789opqr", MIGRATION_T3456789OPQR_SQL),
+        ("u4567890stuv", MIGRATION_U4567890STUV_SQL),
+        ("v5678901uvwx", MIGRATION_V5678901UVWX_SQL),
     ]
 
-    final_version = "t3456789opqr"
+    final_version = "v5678901uvwx"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
