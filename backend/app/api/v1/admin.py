@@ -386,21 +386,23 @@ def get_costs(
         max_length=64,
         description="IANA timezone name (e.g., 'America/Los_Angeles') for MTD calculation",
     ),
+    refresh: bool = False,
 ):
     """Get AWS cost data for admin dashboard.
-
-    Returns Bedrock model costs with usage descriptions,
-    daily trend, and other AWS service costs.
-    Cached server-side for 1 hour (see cost_explorer.py).
 
     Args:
         timezone: Optional timezone for determining current month. If provided,
                   uses browser's local time to calculate MTD instead of UTC.
+        refresh: If True, bypass server cache and fetch fresh data from AWS.
+
+    Returns Bedrock model costs with usage descriptions,
+    daily trend, and other AWS service costs.
+    Cached server-side for 1 hour (see cost_explorer.py).
     """
     from app.services.cost_explorer import get_costs as fetch_costs
 
     response.headers["Cache-Control"] = "no-store"
-    return CostResponse(**fetch_costs(timezone=timezone))
+    return CostResponse(**fetch_costs(timezone=timezone, force_refresh=refresh))
 
 
 @router.post("/cleanup", response_model=CleanupResult)
