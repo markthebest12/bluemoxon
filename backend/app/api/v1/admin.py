@@ -379,8 +379,11 @@ def get_system_info(response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/costs", response_model=CostResponse)
-def get_costs(response: Response):
+def get_costs(response: Response, refresh: bool = False):
     """Get AWS cost data for admin dashboard.
+
+    Args:
+        refresh: If True, bypass server cache and fetch fresh data from AWS.
 
     Returns Bedrock model costs with usage descriptions,
     daily trend, and other AWS service costs.
@@ -389,7 +392,7 @@ def get_costs(response: Response):
     from app.services.cost_explorer import get_costs as fetch_costs
 
     response.headers["Cache-Control"] = "no-store"
-    return CostResponse(**fetch_costs())
+    return CostResponse(**fetch_costs(force_refresh=refresh))
 
 
 @router.post("/cleanup", response_model=CleanupResult)
