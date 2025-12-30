@@ -6,6 +6,11 @@ import type { AuthorEntity, PublisherEntity, BinderEntity } from "@/types/admin"
 type EntityType = "author" | "publisher" | "binder";
 type Entity = AuthorEntity | PublisherEntity | BinderEntity;
 
+// Validation constants
+const MIN_YEAR = 1000;
+const MAX_YEAR = 2100;
+const MAX_NAME_LENGTH = 255;
+
 const props = defineProps<{
   visible: boolean;
   entityType: EntityType;
@@ -28,6 +33,7 @@ const tierOptions = [
 
 // Form state
 const form = ref<Partial<Entity>>({});
+const validationError = ref<string | null>(null);
 
 const isEdit = computed(() => !!props.entity?.id);
 const title = computed(() => {
@@ -57,8 +63,60 @@ watch(
   { immediate: true }
 );
 
+function validate(): string | null {
+  const name = form.value.name?.trim() || "";
+
+  // Name length validation (all entity types)
+  if (name.length > MAX_NAME_LENGTH) {
+    return "Name must be 255 characters or less";
+  }
+
+  // Author-specific validation
+  if (props.entityType === "author") {
+    const authorForm = form.value as Partial<AuthorEntity>;
+    const birthYear = authorForm.birth_year;
+    const deathYear = authorForm.death_year;
+
+    // Validate year ranges
+    if (birthYear !== undefined && birthYear !== null) {
+      if (birthYear < MIN_YEAR || birthYear > MAX_YEAR) {
+        return "Year must be between 1000 and 2100";
+      }
+    }
+    if (deathYear !== undefined && deathYear !== null) {
+      if (deathYear < MIN_YEAR || deathYear > MAX_YEAR) {
+        return "Year must be between 1000 and 2100";
+      }
+    }
+
+    // Birth year must be before death year
+    if (birthYear && deathYear && birthYear >= deathYear) {
+      return "Birth year must be before death year";
+    }
+  }
+
+  // Publisher-specific validation
+  if (props.entityType === "publisher") {
+    const publisherForm = form.value as Partial<PublisherEntity>;
+    const foundedYear = publisherForm.founded_year;
+    const currentYear = new Date().getFullYear();
+
+    if (foundedYear !== undefined && foundedYear !== null) {
+      if (foundedYear < MIN_YEAR || foundedYear > currentYear) {
+        return `Founded year must be between 1000 and ${currentYear}`;
+      }
+    }
+  }
+
+  return null;
+}
+
 function handleSubmit() {
   if (!form.value.name?.trim()) return;
+
+  validationError.value = validate();
+  if (validationError.value) return;
+
   emit("save", form.value);
 }
 </script>
@@ -83,12 +141,21 @@ function handleSubmit() {
 
       <!-- Form -->
       <form @submit.prevent="handleSubmit" class="px-6 py-4 flex flex-col gap-4">
-        <!-- Error -->
+        <!-- Server Error -->
         <div
           v-if="error"
           class="p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded text-sm"
         >
           {{ error }}
+        </div>
+
+        <!-- Validation Error -->
+        <div
+          v-if="validationError"
+          data-testid="validation-error"
+          class="p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded text-sm"
+        >
+          {{ validationError }}
         </div>
 
         <!-- Name (all types) -->

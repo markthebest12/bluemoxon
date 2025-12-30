@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { refDebounced } from "@vueuse/core";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import type {
@@ -39,8 +40,18 @@ const binders = ref<BinderEntity[]>([]);
 const loadingEntities = ref({ authors: false, publishers: false, binders: false });
 const entityError = ref<string | null>(null);
 
-// Search filters
-const searchFilters = ref({ authors: "", publishers: "", binders: "" });
+// Track entities currently being saved (for per-row loading indicator)
+const savingEntityIds = ref<Set<string>>(new Set());
+
+// Search filters - individual refs for debouncing
+const authorSearch = ref("");
+const publisherSearch = ref("");
+const binderSearch = ref("");
+
+// Debounced search filters (300ms delay for performance)
+const debouncedAuthorSearch = refDebounced(authorSearch, 300);
+const debouncedPublisherSearch = refDebounced(publisherSearch, 300);
+const debouncedBinderSearch = refDebounced(binderSearch, 300);
 
 // Collapsed sections
 const collapsedSections = ref({ authors: false, publishers: false, binders: false });
@@ -201,9 +212,23 @@ function showEntityError(message: string) {
   }, 5000);
 }
 
-// Inline update handlers
+// Helper to create entity saving key
+function getSavingKey(type: EntityType, id: number): string {
+  return `${type}-${id}`;
+}
+
+// Inline update handlers with lock to prevent race conditions
 async function handleTierUpdate(type: EntityType, id: number, tier: string | null) {
+  const key = getSavingKey(type, id);
+
+  // Lock: if already saving this entity, ignore the request
+  if (savingEntityIds.value.has(key)) {
+    return;
+  }
+
   entityError.value = null;
+  savingEntityIds.value = new Set([...savingEntityIds.value, key]);
+
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { tier });
@@ -216,11 +241,24 @@ async function handleTierUpdate(type: EntityType, id: number, tier: string | nul
     showEntityError(`Failed to update tier. Please try again.`);
     // Reload to revert
     await loadEntities();
+  } finally {
+    const newSet = new Set(savingEntityIds.value);
+    newSet.delete(key);
+    savingEntityIds.value = newSet;
   }
 }
 
 async function handlePreferredUpdate(type: EntityType, id: number, preferred: boolean) {
+  const key = getSavingKey(type, id);
+
+  // Lock: if already saving this entity, ignore the request
+  if (savingEntityIds.value.has(key)) {
+    return;
+  }
+
   entityError.value = null;
+  savingEntityIds.value = new Set([...savingEntityIds.value, key]);
+
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { preferred });
@@ -232,6 +270,10 @@ async function handlePreferredUpdate(type: EntityType, id: number, preferred: bo
     console.error(`Failed to update ${type} preferred:`, e);
     showEntityError(`Failed to update preferred status. Please try again.`);
     await loadEntities();
+  } finally {
+    const newSet = new Set(savingEntityIds.value);
+    newSet.delete(key);
+    savingEntityIds.value = newSet;
   }
 }
 
@@ -327,6 +369,8 @@ async function handleReassignDelete(type: EntityType, targetId: number) {
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } };
     deleteModal.value.error = err.response?.data?.detail || "Failed to reassign and delete";
+    // Refresh entities so dropdown shows current state (target may have been deleted)
+    await loadEntities();
   } finally {
     deleteModal.value.processing = false;
   }
@@ -882,7 +926,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.authors" class="p-6">
           <input
-            v-model="searchFilters.authors"
+            v-model="authorSearch"
             type="text"
             placeholder="Search authors..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -892,7 +936,8 @@ function getBarWidth(cost: number): string {
             :entities="authors"
             :loading="loadingEntities.authors"
             :can-edit="canEdit"
-            :search-query="searchFilters.authors"
+            :search-query="debouncedAuthorSearch"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('author', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('author', id, pref)"
             @edit="(e) => openEditModal('author', e)"
@@ -926,7 +971,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.publishers" class="p-6">
           <input
-            v-model="searchFilters.publishers"
+            v-model="publisherSearch"
             type="text"
             placeholder="Search publishers..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -936,7 +981,8 @@ function getBarWidth(cost: number): string {
             :entities="publishers"
             :loading="loadingEntities.publishers"
             :can-edit="canEdit"
-            :search-query="searchFilters.publishers"
+            :search-query="debouncedPublisherSearch"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('publisher', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('publisher', id, pref)"
             @edit="(e) => openEditModal('publisher', e)"
@@ -970,7 +1016,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.binders" class="p-6">
           <input
-            v-model="searchFilters.binders"
+            v-model="binderSearch"
             type="text"
             placeholder="Search binders..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -980,7 +1026,8 @@ function getBarWidth(cost: number): string {
             :entities="binders"
             :loading="loadingEntities.binders"
             :can-edit="canEdit"
-            :search-query="searchFilters.binders"
+            :search-query="debouncedBinderSearch"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('binder', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('binder', id, pref)"
             @edit="(e) => openEditModal('binder', e)"

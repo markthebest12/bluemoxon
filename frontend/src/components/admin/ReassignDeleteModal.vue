@@ -40,6 +40,16 @@ watch(
   }
 );
 
+// Reset selection when error occurs (target may no longer be valid)
+watch(
+  () => props.error,
+  (error) => {
+    if (error) {
+      selectedTargetId.value = null;
+    }
+  }
+);
+
 function handleDelete() {
   if (hasBooks.value && selectedTargetId.value) {
     emit("reassign-delete", selectedTargetId.value);
