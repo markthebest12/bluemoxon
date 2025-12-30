@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from "vue";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useScrollLock } from "@/composables/useScrollLock";
 
 const props = defineProps<{
@@ -13,13 +13,10 @@ defineEmits<{
 
 const { lock, unlock } = useScrollLock();
 
-// Focus trap setup
+// Focus trap setup - error handling is in the composable
 const modalContainerRef = ref<HTMLElement | null>(null);
 const { activate, deactivate } = useFocusTrap(modalContainerRef, {
-  immediate: false,
-  allowOutsideClick: true,
   escapeDeactivates: false, // Let modal handle escape
-  fallbackFocus: () => modalContainerRef.value || document.body,
 });
 
 watch(
@@ -29,25 +26,9 @@ watch(
       lock();
       // Wait for DOM to update before activating focus trap
       await nextTick();
-      if (modalContainerRef.value) {
-        try {
-          activate();
-        } catch (e) {
-          // Log in non-test environments to aid debugging
-          if (import.meta.env.MODE !== "test") {
-            console.warn("Focus trap activation failed:", e);
-          }
-        }
-      }
+      activate();
     } else {
-      try {
-        deactivate();
-      } catch (e) {
-        // Log in non-test environments to aid debugging
-        if (import.meta.env.MODE !== "test") {
-          console.warn("Focus trap deactivation failed:", e);
-        }
-      }
+      deactivate();
       unlock();
     }
   },

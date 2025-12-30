@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { refDebounced } from "@vueuse/core";
+import { refDebounced } from "@/composables/useDebounce";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import type {

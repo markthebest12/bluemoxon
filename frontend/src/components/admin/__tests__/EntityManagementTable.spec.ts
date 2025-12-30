@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref, nextTick } from "vue";
-import { refDebounced } from "@vueuse/core";
+import { refDebounced } from "@/composables/useDebounce";
 import EntityManagementTable from "../EntityManagementTable.vue";
 
 const mockEntities = [
