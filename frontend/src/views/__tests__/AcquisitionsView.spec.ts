@@ -243,6 +243,112 @@ describe("AcquisitionsView", () => {
     });
   });
 
+  describe("responsive header", () => {
+    it("has responsive classes for mobile-first layout", async () => {
+      mockEmptyResponse();
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+        },
+      });
+
+      await flushPromises();
+
+      // Header should have flex-col for mobile, sm:flex-row for desktop
+      const header = wrapper.find(".mb-6");
+      expect(header.classes()).toContain("flex-col");
+      expect(header.classes()).toContain("sm:flex-row");
+    });
+
+    it("has icon and text spans in Import button for responsive visibility", async () => {
+      mockEmptyResponse();
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+        },
+      });
+
+      await flushPromises();
+
+      const importButton = wrapper.find('[data-testid="import-from-ebay"]');
+      const spans = importButton.findAll("span");
+
+      // Should have icon span, mobile text span, and desktop text span
+      expect(spans.length).toBeGreaterThanOrEqual(3);
+      // Mobile text span should have sm:hidden (visible on mobile only)
+      const mobileSpan = spans.find((s) => s.text() === "Import");
+      expect(mobileSpan?.classes()).toContain("sm:hidden");
+      // Desktop text span should have hidden sm:inline (visible on desktop only)
+      const desktopSpan = spans.find((s) => s.text().includes("from eBay"));
+      expect(desktopSpan?.classes()).toContain("hidden");
+      expect(desktopSpan?.classes()).toContain("sm:inline");
+    });
+
+    it("has icon and text spans in Add button for responsive visibility", async () => {
+      mockEmptyResponse();
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+        },
+      });
+
+      await flushPromises();
+
+      const addButton = wrapper.find('[data-testid="add-to-watchlist"]');
+      const spans = addButton.findAll("span");
+
+      // Should have icon span, mobile text span, and desktop text span
+      expect(spans.length).toBeGreaterThanOrEqual(3);
+      // Mobile text span should have sm:hidden (visible on mobile only)
+      const mobileSpan = spans.find((s) => s.text() === "Add");
+      expect(mobileSpan?.classes()).toContain("sm:hidden");
+      // Desktop text span should have hidden sm:inline (visible on desktop only)
+      const desktopSpan = spans.find((s) => s.text().includes("Manually"));
+      expect(desktopSpan?.classes()).toContain("hidden");
+      expect(desktopSpan?.classes()).toContain("sm:inline");
+    });
+
+    it("has subtitle with responsive visibility", async () => {
+      mockEmptyResponse();
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+        },
+      });
+
+      await flushPromises();
+
+      // Subtitle should have hidden sm:block for responsive
+      const subtitle = wrapper.find("p.text-gray-600");
+      expect(subtitle.exists()).toBe(true);
+      expect(subtitle.classes()).toContain("hidden");
+      expect(subtitle.classes()).toContain("sm:block");
+    });
+
+    it("has Victorian ornament visible on desktop only", async () => {
+      mockEmptyResponse();
+
+      const wrapper = mount(AcquisitionsView, {
+        global: {
+          plugins: [router, createPinia()],
+        },
+      });
+
+      await flushPromises();
+
+      // Ornament should exist and have hidden sm:inline
+      const ornament = wrapper.find('[data-testid="victorian-ornament"]');
+      expect(ornament.exists()).toBe(true);
+      expect(ornament.classes()).toContain("hidden");
+      expect(ornament.classes()).toContain("sm:inline");
+      expect(ornament.text()).toContain("❧");
+    });
+  });
+
   describe("Add to Watchlist Modal", () => {
     it("opens AddToWatchlistModal when add button clicked", async () => {
       vi.mocked(api.get).mockImplementation((_url, config) => {
