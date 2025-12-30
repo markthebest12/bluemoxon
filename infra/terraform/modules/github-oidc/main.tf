@@ -72,6 +72,7 @@ resource "aws_iam_role_policy" "deploy" {
           Effect = "Allow"
           Action = [
             "lambda:UpdateFunctionCode",
+            "lambda:UpdateFunctionConfiguration",
             "lambda:GetFunction",
             "lambda:GetFunctionConfiguration",
             "lambda:PublishVersion",
@@ -83,6 +84,16 @@ resource "aws_iam_role_policy" "deploy" {
             "lambda:InvokeFunction"
           ]
           Resource = var.lambda_function_arns
+        },
+        {
+          Sid    = "LambdaLayerDeployment"
+          Effect = "Allow"
+          Action = [
+            "lambda:PublishLayerVersion",
+            "lambda:ListLayerVersions",
+            "lambda:GetLayerVersion"
+          ]
+          Resource = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:layer:bluemoxon-*"
         }
       ],
       # S3 Frontend deployment permissions
