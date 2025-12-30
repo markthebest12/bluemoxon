@@ -169,7 +169,7 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
               <button
                 v-if="canEdit"
                 @click="emit('delete', entity)"
-                class="text-gray-500 hover:text-red-600"
+                class="text-gray-500 hover:text-[var(--color-status-error-accent)]"
                 title="Delete"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -617,7 +617,7 @@ function closeCarousel() {
                 </span>
                 <span
                   v-if="book.has_analysis"
-                  class="px-1.5 py-1 text-xs bg-green-100 text-green-700 rounded-sm"
+                  class="px-1.5 py-1 text-xs bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)] rounded-sm"
                   title="Has analysis"
                 >
                   A
