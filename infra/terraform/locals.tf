@@ -62,6 +62,10 @@ locals {
   # Allows enabling eval runbook worker when main Lambda is managed externally
   eval_runbook_worker_enabled = coalesce(var.enable_eval_runbook_worker, var.enable_lambda)
 
+  # Cleanup Lambda enabled - defaults to enable_lambda if not explicitly set
+  # Handles stale evaluations, expired sources, orphaned images, failed archives
+  cleanup_lambda_enabled = coalesce(var.enable_cleanup_lambda, var.enable_lambda)
+
   # Scraper Lambda enabled - defaults to enable_lambda if not explicitly set
   # Allows disabling scraper when using existing scraper (prod uses bluemoxon-prod-scraper)
   scraper_enabled = coalesce(var.enable_scraper, var.enable_lambda)

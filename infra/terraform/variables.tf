@@ -192,6 +192,18 @@ variable "enable_eval_runbook_worker" {
   default     = null # Defaults to enable_lambda value when null
 }
 
+variable "enable_cleanup_lambda" {
+  type        = bool
+  description = "Enable cleanup Lambda for stale data maintenance"
+  default     = null # Defaults to enable_lambda value when null
+}
+
+variable "cleanup_schedule_expression" {
+  type        = string
+  description = "EventBridge schedule expression for cleanup Lambda (e.g., 'rate(1 day)')"
+  default     = null # No schedule by default - triggered via admin API
+}
+
 variable "external_lambda_role_name" {
   type        = string
   description = "External Lambda IAM role name for SQS send permissions (used when enable_lambda=false)"

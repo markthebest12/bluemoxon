@@ -1,0 +1,227 @@
+"""Cleanup Lambda handler for stale data maintenance."""
+
+from datetime import UTC, datetime, timedelta
+
+import boto3
+import requests
+from sqlalchemy.orm import Session
+
+from app.models import Book
+from app.models.image import BookImage
+from app.services.archive import archive_url
+
+
+def cleanup_stale_evaluations(db: Session) -> int:
+    """Archive books stuck in EVALUATING status for > 30 days.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Count of books archived
+    """
+    stale_threshold = datetime.now(UTC) - timedelta(days=30)
+
+    stale_books = (
+        db.query(Book)
+        .filter(Book.status == "EVALUATING")
+        .filter(Book.updated_at < stale_threshold)
+        .all()
+    )
+
+    count = 0
+    for book in stale_books:
+        book.status = "REMOVED"
+        count += 1
+
+    db.commit()
+    return count
+
+
+def check_expired_sources(db: Session) -> tuple[int, int]:
+    """Check source URLs for books and mark expired ones.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Tuple of (checked_count, expired_count)
+    """
+    # Query books with source_url that haven't been checked
+    books = (
+        db.query(Book)
+        .filter(Book.source_url.isnot(None))
+        .filter(Book.source_expired.is_(None))
+        .all()
+    )
+
+    checked = 0
+    expired = 0
+
+    for book in books:
+        checked += 1
+        try:
+            response = requests.head(book.source_url, timeout=10, allow_redirects=True)
+            if response.status_code in (404, 410):
+                book.source_expired = True
+                expired += 1
+            else:
+                book.source_expired = False
+        except requests.RequestException:
+            # Network error - mark as expired
+            book.source_expired = True
+            expired += 1
+
+    db.commit()
+    return checked, expired
+
+
+def cleanup_orphaned_images(
+    db: Session, bucket: str, delete: bool = False
+) -> dict:
+    """Find and optionally delete orphaned images in S3.
+
+    Args:
+        db: Database session
+        bucket: S3 bucket name
+        delete: If True, delete orphaned images. Otherwise dry run.
+
+    Returns:
+        Dict with found, deleted counts and list of orphaned keys
+    """
+    # Get S3 client
+    s3 = boto3.client("s3")
+
+    # List all keys in S3 bucket
+    response = s3.list_objects_v2(Bucket=bucket)
+    s3_keys = set()
+    if "Contents" in response:
+        for obj in response["Contents"]:
+            s3_keys.add(obj["Key"])
+
+    # Get all image keys from database
+    db_keys = {key for (key,) in db.query(BookImage.s3_key).all()}
+
+    # Find orphaned keys (in S3 but not in DB)
+    orphaned_keys = s3_keys - db_keys
+
+    deleted = 0
+    if delete:
+        for key in orphaned_keys:
+            s3.delete_object(Bucket=bucket, Key=key)
+            deleted += 1
+
+    return {
+        "found": len(orphaned_keys),
+        "deleted": deleted,
+        "keys": list(orphaned_keys),
+    }
+
+
+async def retry_failed_archives(db: Session) -> dict:
+    """Retry archiving for books with failed archive status.
+
+    Only retries books with less than 3 attempts.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Dict with retried, succeeded, failed counts
+    """
+    MAX_ATTEMPTS = 3
+
+    # Query books with failed archive status and < max attempts
+    books = (
+        db.query(Book)
+        .filter(Book.archive_status == "failed")
+        .filter(Book.archive_attempts < MAX_ATTEMPTS)
+        .all()
+    )
+
+    retried = 0
+    succeeded = 0
+    failed = 0
+
+    for book in books:
+        if not book.source_url:
+            continue
+
+        retried += 1
+        book.archive_attempts += 1
+
+        result = await archive_url(book.source_url)
+
+        if result["status"] == "success":
+            book.archive_status = "success"
+            book.source_archived_url = result["archived_url"]
+            succeeded += 1
+        else:
+            failed += 1
+
+    db.commit()
+    return {
+        "retried": retried,
+        "succeeded": succeeded,
+        "failed": failed,
+    }
+
+
+async def handler(event: dict, context) -> dict:
+    """Cleanup Lambda handler.
+
+    Event payload:
+        action: "all" | "stale" | "expired" | "orphans" | "archives"
+        bucket: S3 bucket name (required for orphans action)
+        delete_orphans: bool (default False)
+
+    Args:
+        event: Lambda event dict
+        context: Lambda context (unused)
+
+    Returns:
+        Dict with cleanup results
+    """
+    from app.db.session import get_db
+
+    action = event.get("action", "all")
+    bucket = event.get("bucket")
+    delete_orphans = event.get("delete_orphans", False)
+
+    valid_actions = {"all", "stale", "expired", "orphans", "archives"}
+    if action not in valid_actions:
+        return {"error": f"Unknown action: {action}. Valid actions: {valid_actions}"}
+
+    if action in ("orphans", "all") and not bucket:
+        return {"error": "bucket is required for orphans action"}
+
+    result = {}
+
+    # Get database session
+    db = next(get_db())
+
+    try:
+        if action in ("all", "stale"):
+            count = cleanup_stale_evaluations(db)
+            result["stale_evaluations_archived"] = count
+
+        if action in ("all", "expired"):
+            checked, expired = check_expired_sources(db)
+            result["sources_checked"] = checked
+            result["sources_expired"] = expired
+
+        if action in ("all", "orphans"):
+            orphan_result = cleanup_orphaned_images(db, bucket=bucket, delete=delete_orphans)
+            result["orphans_found"] = orphan_result["found"]
+            result["orphans_deleted"] = orphan_result["deleted"]
+
+        if action in ("all", "archives"):
+            archive_result = await retry_failed_archives(db)
+            result["archives_retried"] = archive_result["retried"]
+            result["archives_succeeded"] = archive_result["succeeded"]
+            result["archives_failed"] = archive_result["failed"]
+
+    finally:
+        db.close()
+
+    return result

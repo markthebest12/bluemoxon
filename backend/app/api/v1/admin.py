@@ -1,8 +1,11 @@
 """Admin configuration API endpoints."""
 
+import json
 from datetime import UTC, datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends
+import boto3
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -164,6 +167,26 @@ class SystemInfoResponse(BaseModel):
     limits: LimitsConfig
     scoring_config: dict
     entity_tiers: EntityTiers
+
+
+class CleanupRequest(BaseModel):
+    """Cleanup operation request."""
+
+    action: Literal["all", "stale", "expired", "orphans", "archives"] = "all"
+    delete_orphans: bool = False
+
+
+class CleanupResult(BaseModel):
+    """Cleanup operation result."""
+
+    stale_archived: int = 0
+    sources_checked: int = 0
+    sources_expired: int = 0
+    orphans_found: int = 0
+    orphans_deleted: int = 0
+    archives_retried: int = 0
+    archives_succeeded: int = 0
+    archives_failed: int = 0
 
 
 def get_scoring_config() -> dict:
@@ -361,3 +384,57 @@ def get_costs():
     from app.services.cost_explorer import get_costs as fetch_costs
 
     return CostResponse(**fetch_costs())
+
+
+@router.post("/cleanup", response_model=CleanupResult)
+def run_cleanup(
+    request: CleanupRequest,
+    _user=Depends(require_admin),
+):
+    """Invoke cleanup Lambda to run maintenance tasks (admin only).
+
+    Supports running individual or all cleanup operations:
+    - stale: Archive books stuck in EVALUATING for 30+ days
+    - expired: Check source URLs and mark expired ones
+    - orphans: Find/delete orphaned S3 images
+    - archives: Retry failed Wayback archives
+    - all: Run all of the above
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    lambda_client = boto3.client("lambda", region_name=settings.aws_region)
+
+    # Build payload for cleanup Lambda
+    payload = {
+        "action": request.action,
+        "delete_orphans": request.delete_orphans,
+        "bucket": settings.images_bucket,
+    }
+
+    # Invoke cleanup Lambda synchronously
+    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    response = lambda_client.invoke(
+        FunctionName=function_name,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(payload),
+    )
+
+    # Parse response
+    result = json.loads(response["Payload"].read())
+
+    # Check for Lambda error
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=f"Cleanup error: {result['error']}")
+
+    # Map Lambda response to CleanupResult
+    return CleanupResult(
+        stale_archived=result.get("stale_evaluations_archived", 0),
+        sources_checked=result.get("sources_checked", 0),
+        sources_expired=result.get("sources_expired", 0),
+        orphans_found=result.get("orphans_found", 0),
+        orphans_deleted=result.get("orphans_deleted", 0),
+        archives_retried=result.get("archives_retried", 0),
+        archives_succeeded=result.get("archives_succeeded", 0),
+        archives_failed=result.get("archives_failed", 0),
+    )
