@@ -369,6 +369,8 @@ async function handleReassignDelete(type: EntityType, targetId: number) {
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } };
     deleteModal.value.error = err.response?.data?.detail || "Failed to reassign and delete";
+    // Refresh entities so dropdown shows current state (target may have been deleted)
+    await loadEntities();
   } finally {
     deleteModal.value.processing = false;
   }
