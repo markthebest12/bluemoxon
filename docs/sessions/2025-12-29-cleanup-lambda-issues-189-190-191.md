@@ -1,6 +1,6 @@
 # Session: Cleanup Lambda Implementation (Issues #189, #190, #191)
 
-**Date**: 2025-12-29
+**Date**: 2025-12-29 (Updated 2025-12-30)
 **Issues**: #189, #190, #191
 **Branch**: `feat/cleanup-lambda`
 **PR**: https://github.com/markthebest12/bluemoxon/pull/682
@@ -14,10 +14,12 @@
 **Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke.
 
 Required skills:
-- `superpowers:test-driven-development` - For ALL implementation
-- `superpowers:using-superpowers` - At session start
-- `superpowers:verification-before-completion` - Before claiming done
+- `superpowers:using-superpowers` - **INVOKE FIRST** at session start
 - `superpowers:systematic-debugging` - For any bugs/failures
+- `superpowers:test-driven-development` - For ALL implementation
+- `superpowers:verification-before-completion` - Before claiming done
+
+**IF A SKILL APPLIES, YOU MUST USE IT. This is not optional.**
 
 ### 2. Bash Command Rules (NEVER VIOLATE)
 
@@ -34,13 +36,13 @@ echo 'Test1234!'  # NEVER - ! in quotes
 
 **ALWAYS use:**
 ```bash
-# Simple single-line commands only
 command --option value
+```
 
-# Make SEPARATE Bash tool calls for each command
-# NOT chained with &&
+Make SEPARATE Bash tool calls for each command - NOT chained with &&
 
-# For API calls:
+For API calls use bmx-api (no permission prompts):
+```bash
 bmx-api GET /books
 bmx-api --prod GET /books
 ```
@@ -53,139 +55,120 @@ bmx-api --prod GET /books
 
 ---
 
-## Current Status: P6 IN PROGRESS
+## Current Status: LAMBDA LAYERS DESIGNED
 
-### Completed This Session
+### Decision Made (2025-12-30)
+
+**Problem:** Lambda package too large for direct upload (72MB > 66MB limit).
+
+**Solution:** Implement Lambda Layers to split dependencies from code:
+- **Dependencies Layer (~50MB):** All Python packages, shared across Lambdas
+- **Function Code (<1MB):** `app/` + `lambdas/` only
+
+**Design Documents Created:**
+- `docs/plans/2025-12-30-lambda-layers-design.md` - Full architecture design
+- `docs/plans/2025-12-30-lambda-layers.md` - Step-by-step implementation plan
+
+**Key Architectural Decisions:**
+1. One layer per environment (staging/prod separate)
+2. Layer cached by `poetry.lock` hash - only rebuilds when dependencies change
+3. Layer stored in S3 with versioned naming: `layer-{hash}.zip`
+4. CI/CD publishes new layer versions automatically
+
+### What Happened This Session
 
 | Task | Status |
 |------|--------|
-| P0: Async handler fix | **DONE** - `handler.py` updated |
-| P1: S3 pagination | **DONE** - uses paginator |
-| P2: Database session | **DONE** - uses `SessionLocal()` |
-| P3: Network errors | **DONE** - transient errors not marked expired |
-| P4: Alembic chain | **VERIFIED** |
-| P5: Batch limits | **DONE** - 25/10 batch sizes |
-| Handler tests sync | **DONE** - 28 tests pass |
-| P6: Move cleanup panel | **IN PROGRESS** |
-| P7: Emoji accessibility | **TODO** |
+| Terraform init with staging backend | **DONE** |
+| Terraform apply attempted | **PARTIAL** - IAM roles created, Lambda FAILED |
+| DB password incident | **FIXED** - DUMMY_VALUE broke DB, reset via AWS CLI |
+| Lambda zip size issue | **BLOCKED** - 70MB > 66MB limit for direct upload |
+| Deploy workflow bug found | **FOUND** - doesn't copy `lambdas/` directory |
 
-### Handler Tests Updated
+### The Problem Chain
 
-Changed `TestCleanupHandler` class from async to sync:
-- Removed `@pytest.mark.asyncio` decorators
-- Changed `async def` to `def`
-- Removed `await` from handler calls
-- Changed mock from `get_db` to `SessionLocal`
-- Added `mock_db.close.assert_called_once()` verification
+1. **First attempt**: `terraform apply` with `db_password=DUMMY_VALUE`
+   - Created IAM roles, log groups successfully
+   - **BROKE STAGING DB** - terraform changed RDS password to DUMMY_VALUE
+   - Fixed by resetting password via `aws rds modify-db-instance`
 
-**All 28 tests pass:**
-```
-tests/test_cleanup.py - 28 passed
-```
+2. **Second attempt**: Used correct password from Secrets Manager
+   - Lambda creation failed: `RequestEntityTooLargeException`
+   - ZIP file was 72MB, limit is ~66MB for direct upload
 
----
+3. **Root cause investigation**:
+   - Deploy workflow only copies `app/` directory, not `lambdas/`
+   - This is a **BUG** - cleanup handler at `lambdas/cleanup/handler.py` was never in Lambda package
+   - Adding `lambdas/` to the existing 50MB package pushes it over the limit
 
-## P6 Progress: Move Cleanup Panel
+### Infrastructure State
 
-### What's Done
-
-Added to `AdminConfigView.vue`:
-1. Extended tab type to include `"maintenance"`
-2. Added cleanup state variables (`cleanupLoading`, `cleanupResult`, `cleanupError`)
-3. Added `runCleanup()` function
-
-### What's Left
-
-1. Add "Maintenance" tab button to navigation (after "Costs" tab)
-2. Add Maintenance tab content with cleanup UI
-3. Remove cleanup panel from `AcquisitionsView.vue` (lines 316-348 state, 1117-1280 template)
-4. Fix P7: Add `aria-hidden="true"` to decorative emojis
-
-### Key Files
-
-| File | What to Do |
-|------|------------|
-| `frontend/src/views/AdminConfigView.vue` | Add tab navigation + content (state already added) |
-| `frontend/src/views/AcquisitionsView.vue` | Remove cleanup panel code |
-
----
-
-## P7: Emoji Accessibility
-
-All decorative emojis need `aria-hidden="true"`:
-
-```html
-<!-- Current (bad for screen readers) -->
-<span class="text-lg">🧹</span>
-
-<!-- Fixed -->
-<span class="text-lg" aria-hidden="true">🧹</span>
-```
-
-Emojis to fix in cleanup panel: 🧹 🔄 📦 🔗 🗄️ 🔍 🗑️
+| Resource | Status |
+|----------|--------|
+| `aws_cloudwatch_log_group` `/aws/lambda/bluemoxon-staging-cleanup` | **CREATED** |
+| `aws_iam_role` `bluemoxon-staging-cleanup-role` | **CREATED** |
+| `aws_iam_role_policy` (s3, secrets) | **CREATED** |
+| `aws_iam_role_policy_attachment` (basic, vpc, xray) | **CREATED** |
+| `aws_lambda_function` `bluemoxon-staging-cleanup` | **NOT CREATED** - zip too large |
 
 ---
 
 ## NEXT STEPS (In Order)
 
-### 1. Complete P6 - Add Maintenance Tab UI
+### 1. Create Lambda Using S3-Based Deployment
 
-Add tab button after Costs in AdminConfigView.vue navigation:
-```vue
-<button
-  @click="activeTab = 'maintenance'"
-  :class="[/* same pattern as other tabs */]"
->
-  Maintenance
-</button>
-```
+The Lambda package is too large for direct upload. Must use S3:
 
-Add tab content section with cleanup UI (copy from AcquisitionsView lines 1117-1280, add aria-hidden to emojis).
-
-### 2. Remove Cleanup from AcquisitionsView.vue
-
-Remove:
-- Lines 316-329: cleanup state variables
-- Lines 331-348: `runCleanup()` function
-- Lines 1117-1280: cleanup panel template
-
-### 3. Run Validation
-
+**Option A: AWS CLI (Quick fix)**
 ```bash
-cd /Users/mark/projects/bluemoxon/frontend
+# Download existing API Lambda package
+AWS_PROFILE=bmx-staging aws lambda get-function --function-name bluemoxon-staging-api --query 'Code.Location' --output text > .tmp/lambda-url.txt
 ```
 ```bash
-npm run lint
+curl -s -o .tmp/base-lambda.zip "$(cat .tmp/lambda-url.txt)"
 ```
 ```bash
-npm run type-check
-```
-```bash
+# Add lambdas directory (excluding .tmp)
 cd /Users/mark/projects/bluemoxon/backend
+zip -r .tmp/base-lambda.zip lambdas/__init__.py lambdas/cleanup/ -x "*.pyc" -x "*__pycache__*"
 ```
 ```bash
-poetry run ruff check .
+# Upload to S3
+AWS_PROFILE=bmx-staging aws s3 cp .tmp/base-lambda.zip s3://bluemoxon-frontend-staging/lambda/cleanup.zip
 ```
 ```bash
-poetry run ruff format --check .
-```
-
-### 4. Commit and Push
-
-```bash
-git add -A
-```
-```bash
-git commit -m "fix(cleanup): Address code review issues P0-P7"
-```
-```bash
-git push
+# Create Lambda from S3
+AWS_PROFILE=bmx-staging aws lambda create-function --function-name bluemoxon-staging-cleanup --runtime python3.12 --role arn:aws:iam::652617421195:role/bluemoxon-staging-cleanup-role --handler lambdas.cleanup.handler.handler --code S3Bucket=bluemoxon-frontend-staging,S3Key=lambda/cleanup.zip --timeout 300 --memory-size 256 --environment "Variables={DATABASE_SECRET_ARN=arn:aws:secretsmanager:us-west-2:652617421195:secret:bluemoxon-staging/database-ayNNLZ,ENVIRONMENT=staging,IMAGES_BUCKET=bluemoxon-images-staging}" --vpc-config SubnetIds=subnet-09eeb023cb49a83d5,subnet-0bfb299044084bad3,subnet-0ceb0276fa36428f2,SecurityGroupIds=sg-050fb5268bcd06443
 ```
 
-### 5. Watch CI
+**Option B: Fix Terraform module (Proper fix)**
+- Modify `modules/cleanup-lambda/main.tf` to support S3 source
+- Add `s3_bucket` and `s3_key` variables
+- Update deploy workflow to upload Lambda package to S3
+
+### 2. Fix Deploy Workflow Bug
+
+The deploy workflow at `.github/workflows/deploy.yml` line 412 only copies `app/`:
+```bash
+cp -r /app/app /output/
+```
+
+**Must add:**
+```bash
+cp -r /app/lambdas /output/
+```
+
+### 3. Verify Cleanup Lambda Works
 
 ```bash
-gh pr checks 682 --watch
+bmx-api POST /admin/cleanup '{"action":"all"}'
+```
+
+### 4. Promote to Production
+
+After staging verified:
+```bash
+gh pr create --base main --head staging --title "chore: Promote staging to production - Cleanup Lambda"
 ```
 
 ---
@@ -196,9 +179,11 @@ gh pr checks 682 --watch
 |------|--------|
 | `backend/lambdas/cleanup/handler.py` | **DONE** - P0-P5 fixes applied |
 | `backend/tests/test_cleanup.py` | **DONE** - sync tests, 28 passing |
-| `backend/app/api/v1/health.py` | **DONE** - migrations registered |
-| `frontend/src/views/AdminConfigView.vue` | **IN PROGRESS** - state added, need tab UI |
-| `frontend/src/views/AcquisitionsView.vue` | **TODO** - remove cleanup panel |
+| `backend/app/api/v1/admin.py` | **DONE** - cleanup endpoint |
+| `frontend/src/views/AdminConfigView.vue` | **DONE** - Maintenance tab |
+| `infra/terraform/modules/cleanup-lambda/` | **DONE** - module exists |
+| `.github/workflows/deploy.yml` | **BUG** - missing lambdas/ copy |
+| **AWS Lambda** | **NOT CREATED** - needs S3-based deployment |
 
 ---
 
@@ -207,12 +192,23 @@ gh pr checks 682 --watch
 ```
 1. [completed] Fix P0-P5 in handler.py
 2. [completed] Update handler tests to sync pattern
-3. [completed] Run tests - 28 passing
-4. [in_progress] Fix P6: Add Maintenance tab UI to AdminConfigView
-5. [pending] Fix P6: Remove cleanup panel from AcquisitionsView
-6. [pending] Fix P7: Add aria-hidden to emojis
-7. [pending] Run frontend lint/type-check
-8. [pending] Run backend lint
-9. [pending] Commit and push
-10. [pending] Watch CI
+3. [completed] PR #682 merged to staging
+4. [completed] CI passing, deploy ran
+5. [completed] FIX URGENT: Reset staging DB password after DUMMY_VALUE broke it
+6. [in_progress] Create Lambda via S3-based deployment (zip too large for direct)
+7. [pending] Fix deploy workflow to include lambdas/ directory
+8. [pending] Test cleanup endpoint in staging
+9. [pending] Promote staging to production
 ```
+
+---
+
+## Lessons Learned
+
+1. **NEVER use `db_password=DUMMY_VALUE`** - Terraform will apply it to RDS even with -target
+2. **Get real password from Secrets Manager first**:
+   ```bash
+   AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value --secret-id bluemoxon-staging/database --query 'SecretString' --output text
+   ```
+3. **Lambda direct upload limit is ~66MB** - Use S3 for larger packages
+4. **Deploy workflow bug** - Must copy ALL code directories, not just `app/`
