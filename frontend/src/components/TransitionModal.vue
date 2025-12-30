@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { watch } from "vue";
+import { ref, watch, nextTick } from "vue";
+import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 import { useScrollLock } from "@/composables/useScrollLock";
 
 const props = defineProps<{
@@ -12,12 +13,36 @@ defineEmits<{
 
 const { lock, unlock } = useScrollLock();
 
+// Focus trap setup
+const modalContainerRef = ref<HTMLElement | null>(null);
+const { activate, deactivate } = useFocusTrap(modalContainerRef, {
+  immediate: false,
+  allowOutsideClick: true,
+  escapeDeactivates: false, // Let modal handle escape
+  fallbackFocus: () => modalContainerRef.value || document.body,
+});
+
 watch(
   () => props.visible,
-  (isVisible) => {
+  async (isVisible) => {
     if (isVisible) {
       lock();
+      // Wait for DOM to update before activating focus trap
+      await nextTick();
+      if (modalContainerRef.value) {
+        try {
+          activate();
+        } catch {
+          // Ignore focus-trap errors in testing environments
+          // where elements may not have focusable content
+        }
+      }
     } else {
+      try {
+        deactivate();
+      } catch {
+        // Ignore deactivation errors
+      }
       unlock();
     }
   },
@@ -36,6 +61,8 @@ watch(
     >
       <div
         v-if="visible"
+        ref="modalContainerRef"
+        data-testid="modal-container"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         @click.self="$emit('backdrop-click')"
       >

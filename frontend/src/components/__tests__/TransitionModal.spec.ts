@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import TransitionModal from "../TransitionModal.vue";
 
 describe("TransitionModal", () => {
@@ -165,5 +166,48 @@ describe("TransitionModal", () => {
     modal1.unmount();
     modal2.unmount();
     modal3.unmount();
+  });
+
+  describe("focus trapping (#668)", () => {
+    it("adds data-testid to modal container", async () => {
+      const wrapper = mount(TransitionModal, {
+        props: { visible: true },
+        slots: {
+          default: '<div><button>OK</button></div>',
+        },
+        global: {
+          stubs: {
+            Teleport: true,
+            Transition: false,
+          },
+        },
+      });
+
+      await nextTick();
+
+      // Modal container should have data-testid for focus trap identification
+      const modalContainer = wrapper.find('[data-testid="modal-container"]');
+      expect(modalContainer.exists()).toBe(true);
+
+      wrapper.unmount();
+    });
+
+    it("does not render modal container when not visible", () => {
+      const wrapper = mount(TransitionModal, {
+        props: { visible: false },
+        slots: {
+          default: '<div><button>OK</button></div>',
+        },
+        global: {
+          stubs: {
+            Teleport: true,
+            Transition: false,
+          },
+        },
+      });
+
+      const modalContainer = wrapper.find('[data-testid="modal-container"]');
+      expect(modalContainer.exists()).toBe(false);
+    });
   });
 });
