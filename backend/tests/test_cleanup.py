@@ -162,7 +162,7 @@ class TestSourceExpiredField:
 class TestCheckExpiredSources:
     """Tests for check_expired_sources function."""
 
-    @patch("lambdas.cleanup.handler.requests.head")
+    @patch("lambdas.cleanup.handler.httpx.head")
     def test_marks_source_expired_on_404(self, mock_head, db):
         """Test that sources returning 404 are marked as expired."""
         # Create book with source URL
@@ -187,7 +187,7 @@ class TestCheckExpiredSources:
         assert expired == 1
         assert book.source_expired is True
 
-    @patch("lambdas.cleanup.handler.requests.head")
+    @patch("lambdas.cleanup.handler.httpx.head")
     def test_marks_source_valid_on_200(self, mock_head, db):
         """Test that sources returning 200 are marked as not expired."""
         # Create book with source URL
@@ -212,7 +212,7 @@ class TestCheckExpiredSources:
         assert expired == 0
         assert book.source_expired is False
 
-    @patch("lambdas.cleanup.handler.requests.head")
+    @patch("lambdas.cleanup.handler.httpx.head")
     def test_skips_already_checked_sources(self, mock_head, db):
         """Test that sources already checked are skipped."""
         # Create book with already-checked source
@@ -232,7 +232,7 @@ class TestCheckExpiredSources:
         assert expired == 0
         mock_head.assert_not_called()
 
-    @patch("lambdas.cleanup.handler.requests.head")
+    @patch("lambdas.cleanup.handler.httpx.head")
     def test_skips_books_without_source_url(self, mock_head, db):
         """Test that books without source_url are skipped."""
         # Create book without source URL

@@ -4,7 +4,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import boto3
-import requests
+import httpx
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
@@ -71,19 +71,19 @@ def check_expired_sources(db: Session) -> tuple[int, int]:
     for book in books:
         checked += 1
         try:
-            response = requests.head(book.source_url, timeout=10, allow_redirects=True)
+            response = httpx.head(book.source_url, timeout=10.0, follow_redirects=True)
             if response.status_code in (404, 410):
                 book.source_expired = True
                 expired += 1
             else:
                 book.source_expired = False
-        except requests.Timeout:
+        except httpx.TimeoutException:
             # Transient timeout - leave as None to retry later
             pass
-        except requests.ConnectionError:
+        except httpx.ConnectError:
             # Transient connection error - leave as None to retry later
             pass
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             # Check if it's a definitive HTTP error in the exception
             error_str = str(e).lower()
             if "404" in error_str or "410" in error_str or "not found" in error_str:
