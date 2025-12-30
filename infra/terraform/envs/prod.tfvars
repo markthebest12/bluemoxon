@@ -173,6 +173,7 @@ lambda_iam_role_name_override   = "bluemoxon-lambda-role"
 api_gateway_name_override       = "bluemoxon-api"
 cognito_user_pool_name_override = "bluemoxon-users"
 cognito_domain_override         = "bluemoxon"
+cleanup_function_name_override  = "bluemoxon-production-cleanup"
 
 # Logs bucket for CloudFront access logs (prod only)
 logs_bucket_name = "bluemoxon-logs"
