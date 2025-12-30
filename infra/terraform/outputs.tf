@@ -117,6 +117,25 @@ output "lambda_invoke_arn" {
 }
 
 # =============================================================================
+# Lambda Layer Outputs
+# =============================================================================
+
+output "lambda_layer_arn" {
+  description = "Lambda layer ARN (without version)"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_arn : null
+}
+
+output "lambda_layer_version_arn" {
+  description = "Lambda layer version ARN (with version)"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_version_arn : null
+}
+
+output "lambda_layer_version" {
+  description = "Lambda layer version number"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_version : null
+}
+
+# =============================================================================
 # API Gateway Outputs (when enabled)
 # =============================================================================
 
@@ -177,6 +196,20 @@ output "eval_runbook_queue_url" {
 output "eval_runbook_dlq_url" {
   description = "SQS dead letter queue URL for failed eval runbook jobs"
   value       = local.eval_runbook_worker_enabled ? module.eval_runbook_worker[0].dlq_url : null
+}
+
+# =============================================================================
+# Cleanup Lambda Outputs
+# =============================================================================
+
+output "cleanup_lambda_function_name" {
+  description = "Cleanup Lambda function name"
+  value       = local.cleanup_lambda_enabled ? module.cleanup_lambda[0].function_name : null
+}
+
+output "cleanup_lambda_function_arn" {
+  description = "Cleanup Lambda function ARN"
+  value       = local.cleanup_lambda_enabled ? module.cleanup_lambda[0].function_arn : null
 }
 
 # =============================================================================

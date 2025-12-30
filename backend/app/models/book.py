@@ -105,6 +105,8 @@ class Book(Base, TimestampMixin):
     # Archive tracking
     source_archived_url: Mapped[str | None] = mapped_column(String(500))
     archive_status: Mapped[str | None] = mapped_column(String(20))  # pending, success, failed
+    archive_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    source_expired: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     # Calculated scores
     investment_grade: Mapped[int | None] = mapped_column(Integer)

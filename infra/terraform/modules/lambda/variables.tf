@@ -143,3 +143,9 @@ variable "vpc_id" {
   description = "VPC ID for the Lambda security group (required if create_security_group is true)"
   default     = null
 }
+
+variable "layers" {
+  description = "List of Lambda Layer ARNs to attach"
+  type        = list(string)
+  default     = []
+}

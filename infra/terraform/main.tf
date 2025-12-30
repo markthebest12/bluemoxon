@@ -243,6 +243,22 @@ module "database" {
 }
 
 # =============================================================================
+# Lambda Layer (shared Python dependencies)
+# =============================================================================
+
+module "lambda_layer" {
+  count  = var.enable_lambda ? 1 : 0
+  source = "./modules/lambda-layer"
+
+  layer_name  = "bluemoxon-${var.environment}-deps"
+  description = "Shared Python dependencies for BlueMoxon Lambdas"
+  s3_bucket   = module.frontend_bucket.bucket_id
+  s3_key      = "lambda/layer.zip"
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Lambda Function
 # =============================================================================
 
@@ -255,6 +271,7 @@ module "lambda" {
   environment      = var.environment
   package_path     = var.lambda_package_path
   source_code_hash = var.lambda_source_code_hash
+  layers           = [module.lambda_layer[0].layer_version_arn]
 
   runtime     = var.lambda_runtime
   memory_size = var.lambda_memory_size
@@ -538,6 +555,68 @@ module "eval_runbook_worker" {
       IMAGES_BUCKET     = module.images_bucket.bucket_name
     },
     # Database secret ARN (use module output for staging, explicit ARN for prod)
+    var.enable_database ? {
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
+  )
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# Cleanup Lambda (stale data maintenance)
+# =============================================================================
+# Handles cleanup tasks:
+# - Archive stale EVALUATING books (> 30 days)
+# - Check and mark expired source URLs
+# - Find/delete orphaned S3 images
+# - Retry failed archive.org submissions
+
+module "cleanup_lambda" {
+  count  = local.cleanup_lambda_enabled ? 1 : 0
+  source = "./modules/cleanup-lambda"
+
+  function_name = "${local.name_prefix}-cleanup"
+  environment   = var.environment
+
+  package_path     = var.lambda_package_path
+  source_code_hash = var.lambda_source_code_hash
+  runtime          = var.lambda_runtime
+  layers           = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
+
+  memory_size = 256
+  timeout     = 300
+
+  # VPC configuration
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # Secrets Manager access
+  secret_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+    ] : (
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
+
+  # S3 bucket access for orphan cleanup
+  s3_bucket_arns     = [module.images_bucket.bucket_arn]
+  images_bucket_name = module.images_bucket.bucket_name
+
+  # Optional schedule (default: on-demand via admin API)
+  schedule_expression = var.cleanup_schedule_expression
+
+  # Allow API Lambda to invoke cleanup
+  api_lambda_role_name = local.api_lambda_role_name
+
+  # Environment variables
+  environment_variables = merge(
+    {
+      IMAGES_BUCKET = module.images_bucket.bucket_name
+    },
     var.enable_database ? {
       DATABASE_SECRET_ARN = module.database_secret[0].arn
       } : (var.database_secret_arn != null ? {
