@@ -207,7 +207,7 @@ function formatDate(dateStr: string | null): string {
     <!-- Error display -->
     <div
       v-if="adminStore.error"
-      class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-sm"
+      class="mb-4 p-4 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] rounded-sm"
     >
       {{ adminStore.error }}
     </div>
@@ -245,7 +245,7 @@ function formatDate(dateStr: string | null): string {
         <h3 class="text-lg font-medium text-gray-800 mb-3">Invite New User</h3>
         <div
           v-if="inviteSuccess"
-          class="mb-3 p-3 bg-green-100 border border-green-400 text-green-700 rounded-sm text-sm"
+          class="mb-3 p-3 bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)] text-[var(--color-status-success-text)] rounded-sm text-sm"
         >
           {{ inviteSuccess }}
         </div>
@@ -299,9 +299,15 @@ function formatDate(dateStr: string | null): string {
               <div class="text-xs text-gray-500 break-all sm:truncate">
                 {{ user.first_name ? user.email : "" }} ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
-                  <span v-if="user.mfa_enabled" class="text-green-600">MFA Active</span>
-                  <span v-else-if="user.mfa_configured" class="text-amber-600">MFA Off</span>
-                  <span v-else class="text-gray-500">MFA Pending</span>
+                  <span v-if="user.mfa_enabled" class="text-[var(--color-status-success-accent)]"
+                    >MFA Active</span
+                  >
+                  <span
+                    v-else-if="user.mfa_configured"
+                    class="text-[var(--color-status-warning-accent)]"
+                    >MFA Off</span
+                  >
+                  <span v-else class="text-[var(--color-text-muted)]">MFA Pending</span>
                 </span>
               </div>
             </div>
@@ -327,10 +333,10 @@ function formatDate(dateStr: string | null): string {
                 class="text-xs px-2 py-1 rounded-sm border"
                 :class="
                   user.mfa_enabled
-                    ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                    ? 'border-[var(--color-status-warning-border)] text-[var(--color-status-warning-text)] hover:bg-[var(--color-status-warning-bg)]'
                     : user.mfa_configured
-                      ? 'border-green-300 text-green-700 hover:bg-green-50'
-                      : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      ? 'border-[var(--color-status-success-border)] text-[var(--color-status-success-text)] hover:bg-[var(--color-status-success-bg)]'
+                      : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] cursor-not-allowed'
                 "
                 :title="
                   user.mfa_enabled
@@ -370,7 +376,7 @@ function formatDate(dateStr: string | null): string {
               <div v-if="confirmDeleteUser !== user.id">
                 <button
                   @click="confirmDeleteUser = user.id"
-                  class="text-red-600 hover:text-red-800 text-sm"
+                  class="text-[var(--color-status-error-accent)] hover:text-[var(--color-status-error-text)] text-sm"
                 >
                   Delete
                 </button>
@@ -378,7 +384,7 @@ function formatDate(dateStr: string | null): string {
               <div v-else class="flex items-center gap-2">
                 <button
                   @click="deleteUser(user.id)"
-                  class="px-2 py-1 bg-red-600 text-white text-xs rounded-sm hover:bg-red-700"
+                  class="px-2 py-1 bg-[var(--color-status-error-solid)] text-[var(--color-status-error-solid-text)] text-xs rounded-sm hover:opacity-90"
                 >
                   Yes
                 </button>
@@ -478,7 +484,11 @@ function formatDate(dateStr: string | null): string {
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="px-2 py-1 text-xs rounded-full"
-                  :class="key.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                  :class="
+                    key.is_active
+                      ? 'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]'
+                      : 'bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]'
+                  "
                 >
                   {{ key.is_active ? "Active" : "Revoked" }}
                 </span>
@@ -487,7 +497,7 @@ function formatDate(dateStr: string | null): string {
                 <button
                   v-if="key.is_active"
                   @click="revokeKey(key.id)"
-                  class="text-red-600 hover:text-red-800"
+                  class="text-[var(--color-status-error-accent)] hover:text-[var(--color-status-error-text)]"
                 >
                   Revoke
                 </button>
@@ -626,14 +636,14 @@ function formatDate(dateStr: string | null): string {
 
         <div
           v-if="adminStore.error"
-          class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-sm text-sm"
+          class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] rounded-sm text-sm"
         >
           {{ adminStore.error }}
         </div>
 
         <div
           v-if="resetPasswordSuccess"
-          class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-sm text-sm"
+          class="mb-4 p-3 bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)] text-[var(--color-status-success-text)] rounded-sm text-sm"
         >
           Password reset successfully! The user can now log in with the new password.
         </div>

@@ -87,6 +87,41 @@ layer(utilities);
 
   --color-accent-primary: var(--color-victorian-hunter-600);
   --color-accent-highlight: var(--color-victorian-gold);
+
+  /* ============================================
+     STATUS TOKENS - Semantic status colors
+     ============================================ */
+  /* SUCCESS - Green */
+  --color-status-success-bg: #dcfce7;
+  --color-status-success-text: #166534;
+  --color-status-success-border: #86efac;
+  --color-status-success-solid: #22c55e;
+  --color-status-success-solid-text: #ffffff;
+  --color-status-success-accent: #16a34a;
+
+  /* WARNING - Yellow/Amber */
+  --color-status-warning-bg: #fef3c7;
+  --color-status-warning-text: #92400e;
+  --color-status-warning-border: #fcd34d;
+  --color-status-warning-solid: #eab308;
+  --color-status-warning-solid-text: #ffffff;
+  --color-status-warning-accent: #ca8a04;
+
+  /* ERROR - Red */
+  --color-status-error-bg: #fee2e2;
+  --color-status-error-text: #991b1b;
+  --color-status-error-border: #fca5a5;
+  --color-status-error-solid: #ef4444;
+  --color-status-error-solid-text: #ffffff;
+  --color-status-error-accent: #dc2626;
+
+  /* INFO - Victorian moxon/hunter (brand-aligned) */
+  --color-status-info-bg: #f0f5f3;
+  --color-status-info-text: #254a3d;
+  --color-status-info-border: #8dbaa8;
+  --color-status-info-solid: #3a6b5c;
+  --color-status-info-solid-text: #ffffff;
+  --color-status-info-accent: #2f5a4b;
 }
 
 /* ============================================
@@ -109,6 +144,39 @@ layer(utilities);
 
   --color-accent-primary: var(--color-victorian-gold);
   --color-accent-highlight: var(--color-victorian-gold-light);
+
+  /* STATUS TOKENS - Dark mode overrides */
+  /* SUCCESS */
+  --color-status-success-bg: #1a2e1a;
+  --color-status-success-text: #86efac;
+  --color-status-success-border: #22c55e;
+  --color-status-success-solid: #22c55e;
+  --color-status-success-solid-text: #ffffff;
+  --color-status-success-accent: #4ade80;
+
+  /* WARNING */
+  --color-status-warning-bg: #3d3828;
+  --color-status-warning-text: #fcd34d;
+  --color-status-warning-border: #eab308;
+  --color-status-warning-solid: #eab308;
+  --color-status-warning-solid-text: #1a1a18;
+  --color-status-warning-accent: #facc15;
+
+  /* ERROR */
+  --color-status-error-bg: #2e1a1a;
+  --color-status-error-text: #fca5a5;
+  --color-status-error-border: #ef4444;
+  --color-status-error-solid: #ef4444;
+  --color-status-error-solid-text: #ffffff;
+  --color-status-error-accent: #f87171;
+
+  /* INFO */
+  --color-status-info-bg: #2d3028;
+  --color-status-info-text: #c9c3b8;
+  --color-status-info-border: #3d4a3d;
+  --color-status-info-solid: var(--color-victorian-gold);
+  --color-status-info-solid-text: #1a1a18;
+  --color-status-info-accent: var(--color-victorian-gold-light);
 
   /* Background overrides - Tailwind grays */
   .bg-white {
@@ -220,26 +288,6 @@ layer(utilities);
   }
   .text-victorian-burgundy {
     color: #f87171; /* red-400 for better visibility */
-  }
-
-  /* Green status/success colors - dark mode versions */
-  .bg-green-50 {
-    background-color: #1a2e1a;
-  }
-  .bg-green-100 {
-    background-color: #1f3a1f;
-  }
-  .text-green-700 {
-    color: #86efac;
-  }
-  .text-green-800 {
-    color: #86efac;
-  }
-  .border-green-300 {
-    border-color: #4ade80;
-  }
-  .border-green-400 {
-    border-color: #4ade80;
   }
 
   /* Section headers - make titles readable */
@@ -754,18 +802,18 @@ layer(utilities);
   }
 
   .badge-success {
-    background-color: #dcfce7;
-    color: #166534;
+    background-color: var(--color-status-success-bg);
+    color: var(--color-status-success-text);
   }
 
   .badge-warning {
-    background-color: #fef3c7;
-    color: #92400e;
+    background-color: var(--color-status-warning-bg);
+    color: var(--color-status-warning-text);
   }
 
   .badge-error {
-    background-color: #fee2e2;
-    color: #991b1b;
+    background-color: var(--color-status-error-bg);
+    color: var(--color-status-error-text);
   }
 
   /* ============================================

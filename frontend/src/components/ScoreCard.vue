@@ -74,8 +74,8 @@ function formatPoints(points: number): string {
 }
 
 function pointsClass(points: number): string {
-  if (points > 0) return "text-green-600";
-  if (points < 0) return "text-red-600";
+  if (points > 0) return "text-[var(--color-status-success-accent)]";
+  if (points < 0) return "text-[var(--color-status-error-accent)]";
   return "text-gray-500";
 }
 

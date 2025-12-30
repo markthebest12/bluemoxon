@@ -84,7 +84,10 @@ function handleSubmit() {
       <!-- Form -->
       <form @submit.prevent="handleSubmit" class="px-6 py-4 flex flex-col gap-4">
         <!-- Error -->
-        <div v-if="error" class="p-3 bg-red-50 text-red-700 rounded text-sm">
+        <div
+          v-if="error"
+          class="p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded text-sm"
+        >
           {{ error }}
         </div>
 

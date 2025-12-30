@@ -270,7 +270,7 @@ function cancel() {
     <!-- Error message -->
     <div
       v-if="errorMessage"
-      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm"
+      class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] px-4 py-3 rounded-sm"
     >
       {{ errorMessage }}
     </div>
@@ -650,10 +650,13 @@ function cancel() {
                   <span
                     class="px-2 py-0.5 text-xs rounded-sm"
                     :class="{
-                      'bg-green-100 text-green-800': match.status === 'ON_HAND',
+                      'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]':
+                        match.status === 'ON_HAND',
                       'badge-transit': match.status === 'IN_TRANSIT',
-                      'bg-yellow-100 text-yellow-800': match.status === 'EVALUATING',
-                      'bg-gray-100 text-gray-800': match.status === 'SOLD',
+                      'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning-text)]':
+                        match.status === 'EVALUATING',
+                      'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)]':
+                        match.status === 'SOLD',
                     }"
                   >
                     {{ match.status }}

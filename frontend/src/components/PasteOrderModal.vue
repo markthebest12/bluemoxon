@@ -75,7 +75,9 @@ function getConfidenceIcon(field: string): string {
 
 function getConfidenceClass(field: string): string {
   const conf = extractedData.value?.field_confidence[field] || 0;
-  return conf >= 0.8 ? "text-green-600" : "text-yellow-600";
+  return conf >= 0.8
+    ? "text-[var(--color-status-success-accent)]"
+    : "text-[var(--color-status-warning-accent)]";
 }
 
 async function copyTracking() {
@@ -133,7 +135,7 @@ function handleClose() {
           class="input font-mono"
           placeholder="Your order has been confirmed!&#10;Order number: 21-13904-88107&#10;..."
         ></textarea>
-        <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+        <p v-if="error" class="text-sm text-[var(--color-status-error-accent)]">{{ error }}</p>
         <div class="flex justify-end gap-2">
           <button @click="handleClose" class="btn-secondary">Cancel</button>
           <button @click="handleExtract" :disabled="extracting" class="btn-primary">
@@ -372,7 +374,12 @@ function handleClose() {
         </div>
 
         <div class="text-xs text-gray-500 flex items-center gap-2">
-          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-4 h-4 text-[var(--color-status-success-accent)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

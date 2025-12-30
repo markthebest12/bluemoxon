@@ -297,13 +297,13 @@ async function saveProvenance() {
 function getStatusColor(status: string): string {
   switch (status) {
     case "ON_HAND":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
     case "IN_TRANSIT":
       return "badge-transit";
     case "SOLD":
       return "bg-gray-100 text-gray-800";
     case "REMOVED":
-      return "bg-red-100 text-red-800";
+      return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -450,7 +450,7 @@ function printPage() {
               <button
                 v-if="authStore.isEditor"
                 @click.stop="openDeleteImageModal(img)"
-                class="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 no-print"
+                class="absolute top-1 right-1 p-1 bg-[var(--color-status-error-solid)] text-[var(--color-status-error-solid-text)] rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:opacity-80 no-print"
                 title="Delete image"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,7 +731,7 @@ function printPage() {
                 <!-- State: Job failed -->
                 <p
                   v-else-if="getJobStatus()?.status === 'failed'"
-                  class="text-sm text-red-600 mt-1"
+                  class="text-sm text-[var(--color-status-error-accent)] mt-1"
                 >
                   Analysis failed. Please try again.
                 </p>
@@ -876,11 +876,15 @@ function printPage() {
             </div>
             <div v-if="booksStore.currentBook.discount_pct">
               <dt class="text-sm text-gray-500">Discount</dt>
-              <dd class="font-medium text-green-600">{{ booksStore.currentBook.discount_pct }}%</dd>
+              <dd class="font-medium text-[var(--color-status-success-accent)]">
+                {{ booksStore.currentBook.discount_pct }}%
+              </dd>
             </div>
             <div v-if="booksStore.currentBook.roi_pct">
               <dt class="text-sm text-gray-500">ROI</dt>
-              <dd class="font-medium text-green-600">{{ booksStore.currentBook.roi_pct }}%</dd>
+              <dd class="font-medium text-[var(--color-status-success-accent)]">
+                {{ booksStore.currentBook.roi_pct }}%
+              </dd>
             </div>
           </dl>
         </div>
@@ -985,12 +989,14 @@ function printPage() {
                 class="w-32 h-32 object-cover rounded-sm"
               />
             </div>
-            <p class="text-sm text-red-600 mt-3 text-center">This action cannot be undone.</p>
+            <p class="text-sm text-[var(--color-status-error-accent)] mt-3 text-center">
+              This action cannot be undone.
+            </p>
           </div>
 
           <div
             v-if="deleteImageError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+            class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
           >
             {{ deleteImageError }}
           </div>
@@ -1036,7 +1042,7 @@ function printPage() {
           <div class="mb-6">
             <p class="text-gray-600 mb-3">Are you sure you want to delete this book?</p>
             <p class="font-medium text-gray-800 mb-2">"{{ booksStore.currentBook.title }}"</p>
-            <p class="text-sm text-red-600">
+            <p class="text-sm text-[var(--color-status-error-accent)]">
               This will permanently delete the book along with all associated images ({{
                 images.length
               }}) and analysis data.
@@ -1045,7 +1051,7 @@ function printPage() {
 
           <div
             v-if="deleteError"
-            class="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm text-red-700 text-sm"
+            class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
           >
             {{ deleteError }}
           </div>
