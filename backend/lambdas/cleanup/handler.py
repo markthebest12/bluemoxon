@@ -99,6 +99,8 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
     """Find and optionally delete orphaned images in S3.
 
     Uses pagination to handle buckets with more than 1000 objects.
+    Only checks images under the 'books/' prefix to avoid deleting
+    other bucket contents (lambda packages, listings, etc.).
 
     Args:
         db: Database session
@@ -110,30 +112,67 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
     """
     s3 = boto3.client("s3")
 
-    # Use paginator to handle > 1000 objects
-    paginator = s3.get_paginator("list_objects_v2")
-    s3_keys = set()
-    for page in paginator.paginate(Bucket=bucket):
-        for obj in page.get("Contents", []):
-            s3_keys.add(obj["Key"])
+    # S3 prefix for book images - MUST match what's used in image upload
+    S3_BOOKS_PREFIX = "books/"
 
-    # Get all image keys from database
-    db_keys = {key for (key,) in db.query(BookImage.s3_key).all()}
+    # Use paginator to handle > 1000 objects
+    # IMPORTANT: Only list objects under books/ prefix
+    paginator = s3.get_paginator("list_objects_v2")
+    s3_keys_full = set()  # Full S3 keys with prefix (for deletion)
+    s3_keys_stripped = set()  # Keys without prefix (for comparison with DB)
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
+        for obj in page.get("Contents", []):
+            full_key = obj["Key"]
+            s3_keys_full.add(full_key)
+            # Strip the books/ prefix to match DB storage format
+            # DB stores: "515/image_00.webp"
+            # S3 stores: "books/515/image_00.webp"
+            if full_key.startswith(S3_BOOKS_PREFIX):
+                stripped_key = full_key[len(S3_BOOKS_PREFIX) :]
+                s3_keys_stripped.add(stripped_key)
+
+    # Get all image keys from database (stored WITHOUT books/ prefix)
+    db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
 
     # Find orphaned keys (in S3 but not in DB)
-    orphaned_keys = s3_keys - db_keys
+    # Compare using stripped keys (without prefix)
+    orphaned_stripped = s3_keys_stripped - db_keys
+
+    # Convert back to full S3 keys for deletion
+    orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
 
     deleted = 0
     if delete:
-        for key in orphaned_keys:
+        for key in orphaned_full_keys:
             s3.delete_object(Bucket=bucket, Key=key)
             deleted += 1
 
-    return {
-        "found": len(orphaned_keys),
+    # Calculate orphan percentage for sanity check
+    orphan_percentage = (
+        round(len(orphaned_full_keys) / len(s3_keys_full) * 100, 1) if s3_keys_full else 0
+    )
+
+    # Build contextual response for dry run review
+    result = {
+        "scan_prefix": S3_BOOKS_PREFIX,
+        "total_objects_scanned": len(s3_keys_full),
+        "objects_in_database": len(db_keys),
+        "orphans_found": len(orphaned_full_keys),
+        "orphan_percentage": orphan_percentage,
+        "sample_orphan_keys": list(orphaned_full_keys)[:10],
         "deleted": deleted,
-        "keys": list(orphaned_keys),
     }
+
+    # Add warning if high orphan rate (indicates likely bug)
+    if orphan_percentage > 50:
+        result["WARNING"] = f"High orphan rate ({orphan_percentage}%) - verify before deleting"
+
+    # Legacy keys for backward compatibility
+    result["found"] = result["orphans_found"]
+    result["keys"] = list(orphaned_full_keys)
+
+    return result
 
 
 async def retry_failed_archives(db: Session) -> dict:

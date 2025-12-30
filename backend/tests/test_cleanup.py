@@ -250,7 +250,17 @@ class TestCheckExpiredSources:
 
 
 class TestCleanupOrphanedImages:
-    """Tests for cleanup_orphaned_images function."""
+    """Tests for cleanup_orphaned_images function.
+
+    IMPORTANT: These tests reflect the real-world key format mismatch:
+    - S3 stores images with 'books/' prefix: "books/515/image_00.webp"
+    - Database stores keys WITHOUT prefix: "515/image_00.webp"
+
+    The cleanup function must handle this by:
+    1. Only listing S3 objects under 'books/' prefix
+    2. Stripping prefix when comparing to DB keys
+    3. Using full S3 key when deleting
+    """
 
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_finds_orphaned_images_dry_run(self, mock_boto_client, db):
@@ -259,39 +269,48 @@ class TestCleanupOrphanedImages:
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock paginator for S3 listing - 3 images in S3
+        # Mock paginator for S3 listing - 3 images in S3 (with books/ prefix)
         mock_paginator = MagicMock()
         mock_s3.get_paginator.return_value = mock_paginator
         mock_paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "images/book1/photo1.jpg"},
-                    {"Key": "images/book2/photo2.jpg"},
-                    {"Key": "images/orphan/photo3.jpg"},  # Orphaned
+                    {"Key": "books/123/photo1.jpg"},
+                    {"Key": "books/456/photo2.jpg"},
+                    {"Key": "books/orphan/photo3.jpg"},  # Orphaned - not in DB
                 ]
             }
         ]
 
-        # Create book with 2 images in DB
+        # Create book with 2 images in DB (WITHOUT books/ prefix)
         from app.models.image import BookImage
 
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
 
-        image1 = BookImage(book_id=book.id, s3_key="images/book1/photo1.jpg")
-        image2 = BookImage(book_id=book.id, s3_key="images/book2/photo2.jpg")
+        image1 = BookImage(book_id=book.id, s3_key="123/photo1.jpg")
+        image2 = BookImage(book_id=book.id, s3_key="456/photo2.jpg")
         db.add_all([image1, image2])
         db.commit()
 
         # Run cleanup (dry run by default)
         result = cleanup_orphaned_images(db, bucket="test-bucket")
 
-        # Verify
+        # Verify - should find orphan with full S3 key
         assert result["found"] == 1
+        assert result["orphans_found"] == 1
         assert result["deleted"] == 0
-        assert "images/orphan/photo3.jpg" in result["keys"]
+        assert "books/orphan/photo3.jpg" in result["keys"]
         mock_s3.delete_object.assert_not_called()
+        # Verify paginator was called with books/ prefix
+        mock_paginator.paginate.assert_called_once_with(Bucket="test-bucket", Prefix="books/")
+        # Verify enhanced output fields
+        assert result["scan_prefix"] == "books/"
+        assert result["total_objects_scanned"] == 3
+        assert result["objects_in_database"] == 2
+        assert "orphan_percentage" in result
+        assert "sample_orphan_keys" in result
 
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_deletes_orphaned_images_when_enabled(self, mock_boto_client, db):
@@ -300,38 +319,38 @@ class TestCleanupOrphanedImages:
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock paginator for S3 listing - 2 images in S3
+        # Mock paginator for S3 listing - 2 images in S3 (with books/ prefix)
         mock_paginator = MagicMock()
         mock_s3.get_paginator.return_value = mock_paginator
         mock_paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "images/book1/photo1.jpg"},
-                    {"Key": "images/orphan/photo2.jpg"},  # Orphaned
+                    {"Key": "books/123/photo1.jpg"},
+                    {"Key": "books/orphan/photo2.jpg"},  # Orphaned
                 ]
             }
         ]
 
-        # Create book with 1 image in DB
+        # Create book with 1 image in DB (WITHOUT books/ prefix)
         from app.models.image import BookImage
 
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
 
-        image = BookImage(book_id=book.id, s3_key="images/book1/photo1.jpg")
+        image = BookImage(book_id=book.id, s3_key="123/photo1.jpg")
         db.add(image)
         db.commit()
 
         # Run cleanup with delete=True
         result = cleanup_orphaned_images(db, bucket="test-bucket", delete=True)
 
-        # Verify
+        # Verify - deletes with full S3 key (including books/ prefix)
         assert result["found"] == 1
         assert result["deleted"] == 1
-        assert "images/orphan/photo2.jpg" in result["keys"]
+        assert "books/orphan/photo2.jpg" in result["keys"]
         mock_s3.delete_object.assert_called_once_with(
-            Bucket="test-bucket", Key="images/orphan/photo2.jpg"
+            Bucket="test-bucket", Key="books/orphan/photo2.jpg"
         )
 
     @patch("lambdas.cleanup.handler.boto3.client")
@@ -341,32 +360,32 @@ class TestCleanupOrphanedImages:
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock paginator for S3 listing - 1 image in S3
+        # Mock paginator for S3 listing - 1 image in S3 (with books/ prefix)
         mock_paginator = MagicMock()
         mock_s3.get_paginator.return_value = mock_paginator
         mock_paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "images/book1/photo1.jpg"},
+                    {"Key": "books/123/photo1.jpg"},
                 ]
             }
         ]
 
-        # Create book with matching image in DB
+        # Create book with matching image in DB (WITHOUT books/ prefix)
         from app.models.image import BookImage
 
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
 
-        image = BookImage(book_id=book.id, s3_key="images/book1/photo1.jpg")
+        image = BookImage(book_id=book.id, s3_key="123/photo1.jpg")
         db.add(image)
         db.commit()
 
         # Run cleanup
         result = cleanup_orphaned_images(db, bucket="test-bucket")
 
-        # Verify
+        # Verify - no orphans because stripped S3 key matches DB key
         assert result["found"] == 0
         assert result["deleted"] == 0
         assert result["keys"] == []
@@ -380,32 +399,96 @@ class TestCleanupOrphanedImages:
 
         mock_paginator = MagicMock()
         mock_s3.get_paginator.return_value = mock_paginator
-        # Simulate multiple pages (> 1000 objects)
+        # Simulate multiple pages (> 1000 objects) with books/ prefix
         mock_paginator.paginate.return_value = [
-            {"Contents": [{"Key": "images/page1/photo1.jpg"}]},
-            {"Contents": [{"Key": "images/page2/photo2.jpg"}]},
-            {"Contents": [{"Key": "images/orphan/photo3.jpg"}]},  # Orphaned
+            {"Contents": [{"Key": "books/page1/photo1.jpg"}]},
+            {"Contents": [{"Key": "books/page2/photo2.jpg"}]},
+            {"Contents": [{"Key": "books/orphan/photo3.jpg"}]},  # Orphaned
         ]
 
-        # Create book with 2 images in DB
+        # Create book with 2 images in DB (WITHOUT books/ prefix)
         from app.models.image import BookImage
 
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
 
-        image1 = BookImage(book_id=book.id, s3_key="images/page1/photo1.jpg")
-        image2 = BookImage(book_id=book.id, s3_key="images/page2/photo2.jpg")
+        image1 = BookImage(book_id=book.id, s3_key="page1/photo1.jpg")
+        image2 = BookImage(book_id=book.id, s3_key="page2/photo2.jpg")
         db.add_all([image1, image2])
         db.commit()
 
         # Run cleanup
         result = cleanup_orphaned_images(db, bucket="test-bucket")
 
-        # Verify paginator was used and found orphan across pages
+        # Verify paginator was used with books/ prefix
         mock_s3.get_paginator.assert_called_once_with("list_objects_v2")
+        mock_paginator.paginate.assert_called_once_with(Bucket="test-bucket", Prefix="books/")
         assert result["found"] == 1
-        assert "images/orphan/photo3.jpg" in result["keys"]
+        assert "books/orphan/photo3.jpg" in result["keys"]
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_only_checks_books_prefix(self, mock_boto_client, db):
+        """Test that cleanup only checks images under books/ prefix.
+
+        This is critical - the bucket contains other files (lambda packages,
+        listings, etc.) that should NOT be considered for orphan cleanup.
+        """
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # S3 returns only books/ prefix items (due to Prefix filter)
+        mock_paginator.paginate.return_value = [{"Contents": [{"Key": "books/123/photo1.jpg"}]}]
+
+        from app.models.image import BookImage
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        image = BookImage(book_id=book.id, s3_key="123/photo1.jpg")
+        db.add(image)
+        db.commit()
+
+        result = cleanup_orphaned_images(db, bucket="test-bucket")
+
+        # Verify Prefix was passed to paginator
+        mock_paginator.paginate.assert_called_once_with(Bucket="test-bucket", Prefix="books/")
+        assert result["found"] == 0
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_warns_on_high_orphan_percentage(self, mock_boto_client, db):
+        """Test that a warning is returned when orphan percentage is high.
+
+        This helps catch bugs where the orphan detection logic is broken
+        (like the key format mismatch that caused the 2025-12-30 incident).
+        """
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # All items appear as orphans (simulating broken detection)
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/1/photo1.jpg"},
+                    {"Key": "books/2/photo2.jpg"},
+                    {"Key": "books/3/photo3.jpg"},
+                    {"Key": "books/4/photo4.jpg"},
+                ]
+            }
+        ]
+
+        # No images in DB - 100% orphan rate
+        result = cleanup_orphaned_images(db, bucket="test-bucket")
+
+        # Verify warning is present for high orphan rate
+        assert result["orphan_percentage"] == 100.0
+        assert "WARNING" in result
+        assert "High orphan rate" in result["WARNING"]
 
 
 class TestCleanupHandler:
