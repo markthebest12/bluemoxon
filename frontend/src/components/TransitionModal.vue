@@ -32,16 +32,21 @@ watch(
       if (modalContainerRef.value) {
         try {
           activate();
-        } catch {
-          // Ignore focus-trap errors in testing environments
-          // where elements may not have focusable content
+        } catch (e) {
+          // Log in non-test environments to aid debugging
+          if (import.meta.env.MODE !== "test") {
+            console.warn("Focus trap activation failed:", e);
+          }
         }
       }
     } else {
       try {
         deactivate();
-      } catch {
-        // Ignore deactivation errors
+      } catch (e) {
+        // Log in non-test environments to aid debugging
+        if (import.meta.env.MODE !== "test") {
+          console.warn("Focus trap deactivation failed:", e);
+        }
       }
       unlock();
     }
