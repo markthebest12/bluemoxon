@@ -173,7 +173,7 @@ describe("TransitionModal", () => {
       const wrapper = mount(TransitionModal, {
         props: { visible: true },
         slots: {
-          default: '<div><button>OK</button></div>',
+          default: "<div><button>OK</button></div>",
         },
         global: {
           stubs: {
@@ -196,7 +196,7 @@ describe("TransitionModal", () => {
       const wrapper = mount(TransitionModal, {
         props: { visible: false },
         slots: {
-          default: '<div><button>OK</button></div>',
+          default: "<div><button>OK</button></div>",
         },
         global: {
           stubs: {
