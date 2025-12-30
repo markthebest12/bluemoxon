@@ -120,6 +120,7 @@ resource "aws_lambda_function" "this" {
 
   filename         = var.package_path
   source_code_hash = var.source_code_hash
+  layers           = var.layers
 
   environment {
     variables = merge(
@@ -151,6 +152,7 @@ resource "aws_lambda_function" "this" {
     ignore_changes = [
       filename,
       source_code_hash,
+      layers,
     ]
   }
 }
