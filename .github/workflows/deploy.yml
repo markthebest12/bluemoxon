@@ -650,16 +650,76 @@ jobs:
           name: frontend-dist
           path: frontend-dist
 
+      # ---- Capture Current State (for rollback) ----
+      - name: Capture current Lambda state
+        id: current-state
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
+
+          # Get current layer version (if any)
+          CURRENT_LAYERS=$(aws lambda get-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --query 'Layers[*].Arn' \
+            --output text 2>/dev/null || echo "none")
+
+          echo "Current layers: $CURRENT_LAYERS"
+          echo "current_layers=$CURRENT_LAYERS" >> $GITHUB_OUTPUT
+
+          # Get current published version via alias
+          ENV="${{ needs.configure.outputs.environment }}"
+          ALIAS_NAME="${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }}"
+
+          CURRENT_VERSION=$(aws lambda get-alias \
+            --function-name "$FUNCTION_NAME" \
+            --name "$ALIAS_NAME" \
+            --query 'FunctionVersion' \
+            --output text 2>/dev/null || echo "none")
+
+          echo "Current version via alias $ALIAS_NAME: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
       # ---- Publish Lambda Layer ----
-      - name: Publish new layer version
+      - name: Publish or reuse layer version
         id: publish-layer
         run: |
           ENV="${{ needs.configure.outputs.environment }}"
           S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
           LAYER_S3_KEY="${{ needs.build-layer.outputs.layer_s3_key }}"
           LAYER_NAME="bluemoxon-${ENV}-deps"
+          LAYER_EXISTS="${{ needs.build-layer.outputs.layer_exists }}"
 
-          echo "Publishing layer from s3://${S3_BUCKET}/${LAYER_S3_KEY}"
+          echo "Layer name: $LAYER_NAME"
+          echo "S3 location: s3://${S3_BUCKET}/${LAYER_S3_KEY}"
+          echo "Layer already in S3: $LAYER_EXISTS"
+
+          # Get the SHA256 of the S3 object (for comparison)
+          S3_SHA256=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$LAYER_S3_KEY" --query 'Metadata.sha256' --output text 2>/dev/null || echo "")
+
+          # If layer content unchanged, check if matching layer version exists
+          if [[ "$LAYER_EXISTS" == "true" ]]; then
+            echo "Layer content unchanged, checking for existing layer version..."
+
+            # Get latest layer version's CodeSha256
+            LATEST_VERSION_INFO=$(aws lambda list-layer-versions \
+              --layer-name "$LAYER_NAME" \
+              --max-items 1 \
+              --query 'LayerVersions[0]' \
+              --output json 2>/dev/null || echo "{}")
+
+            if [[ "$LATEST_VERSION_INFO" != "{}" && "$LATEST_VERSION_INFO" != "null" ]]; then
+              LATEST_VERSION_ARN=$(echo "$LATEST_VERSION_INFO" | jq -r '.LayerVersionArn')
+              echo "Found existing layer version: $LATEST_VERSION_ARN"
+
+              # Reuse existing layer version (content unchanged)
+              echo "Reusing existing layer version (dependencies unchanged)"
+              echo "layer_arn=$LATEST_VERSION_ARN" >> $GITHUB_OUTPUT
+              echo "reused=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          # Publish new layer version
+          echo "Publishing new layer version from s3://${S3_BUCKET}/${LAYER_S3_KEY}"
 
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name "$LAYER_NAME" \
@@ -669,8 +729,9 @@ jobs:
             --query 'LayerVersionArn' \
             --output text)
 
-          echo "Published layer: $LAYER_ARN"
+          echo "Published new layer: $LAYER_ARN"
           echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
+          echo "reused=false" >> $GITHUB_OUTPUT
 
       # ---- Deploy Lambda ----
       - name: Upload Lambda to S3
@@ -678,20 +739,9 @@ jobs:
           aws s3 cp lambda-package.zip \
             s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
 
-      - name: Update Lambda function code
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ needs.configure.outputs.lambda_function_name }} \
-            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
-            --s3-key lambda/backend.zip
-
-      - name: Wait for Lambda code update
-        run: |
-          echo "Waiting for Lambda function to be ready..."
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.lambda_function_name }}
-          echo "Lambda function code updated successfully"
-
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      # Old code + new layer = safe (layer has superset of deps)
+      # New code + old layer = BROKEN (missing deps for 30-60s)
       - name: Update Lambda with new layer
         run: |
           LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
@@ -707,6 +757,20 @@ jobs:
           aws lambda wait function-updated \
             --function-name ${{ needs.configure.outputs.lambda_function_name }}
           echo "Lambda function layer updated successfully"
+
+      - name: Update Lambda function code
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ needs.configure.outputs.lambda_function_name }} \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/backend.zip
+
+      - name: Wait for Lambda code update
+        run: |
+          echo "Waiting for Lambda function to be ready..."
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.lambda_function_name }}
+          echo "Lambda function code updated successfully"
 
       - name: Publish Lambda version
         id: lambda-version
@@ -775,6 +839,25 @@ jobs:
           fi
 
       # ---- Deploy Analysis Worker Lambda (if configured) ----
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      - name: Update Worker Lambda with layer
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Worker Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$WORKER_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Worker Lambda config update
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          echo "Worker Lambda layer updated successfully"
+
       - name: Update Worker Lambda function
         if: needs.configure.outputs.worker_function_name != ''
         run: |
@@ -794,24 +877,6 @@ jobs:
           aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
           echo "Worker Lambda code updated successfully"
 
-      - name: Update Worker Lambda with layer
-        if: needs.configure.outputs.worker_function_name != ''
-        run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Worker Lambda with layer: $LAYER_ARN"
-
-          aws lambda update-function-configuration \
-            --function-name "$WORKER_FUNCTION" \
-            --layers "$LAYER_ARN"
-
-      - name: Wait for Worker Lambda config update
-        if: needs.configure.outputs.worker_function_name != ''
-        run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Worker Lambda layer updated successfully"
-
       - name: Publish Worker Lambda version
         if: needs.configure.outputs.worker_function_name != ''
         id: worker-version
@@ -829,6 +894,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Deploy Eval Runbook Worker Lambda (if configured) ----
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      - name: Update Eval Runbook Worker Lambda with layer
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Eval Runbook Worker Lambda config update
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
+          echo "Eval Runbook Worker Lambda layer updated successfully"
+
       - name: Update Eval Runbook Worker Lambda function
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
@@ -848,24 +932,6 @@ jobs:
           aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
           echo "Eval Runbook Worker Lambda code updated successfully"
 
-      - name: Update Eval Runbook Worker Lambda with layer
-        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
-        run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
-
-          aws lambda update-function-configuration \
-            --function-name "$EVAL_RUNBOOK_FUNCTION" \
-            --layers "$LAYER_ARN"
-
-      - name: Wait for Eval Runbook Worker Lambda config update
-        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
-        run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
-          echo "Eval Runbook Worker Lambda layer updated successfully"
-
       - name: Publish Eval Runbook Worker Lambda version
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         id: eval-runbook-version
@@ -883,6 +949,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Deploy Cleanup Lambda (if configured) ----
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      - name: Update Cleanup Lambda with layer
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$CLEANUP_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Cleanup Lambda config update
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
+          echo "Cleanup Lambda layer updated successfully"
+
       - name: Update Cleanup Lambda function
         if: needs.configure.outputs.cleanup_function_name != ''
         run: |
@@ -902,23 +987,21 @@ jobs:
           aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
           echo "Cleanup Lambda code updated successfully"
 
-      - name: Update Cleanup Lambda with layer
+      - name: Publish Cleanup Lambda version
         if: needs.configure.outputs.cleanup_function_name != ''
+        id: cleanup-version
         run: |
           CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
+          echo "Publishing new Cleanup Lambda version..."
 
-          aws lambda update-function-configuration \
+          VERSION=$(aws lambda publish-version \
             --function-name "$CLEANUP_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
 
-      - name: Wait for Cleanup Lambda config update
-        if: needs.configure.outputs.cleanup_function_name != ''
-        run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
-          echo "Cleanup Lambda layer updated successfully"
+          echo "Published cleanup version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Deploy Scraper Lambda (if configured) ----
       - name: Update Scraper Lambda function
@@ -1042,6 +1125,39 @@ jobs:
             --distribution-id ${{ needs.configure.outputs.cloudfront_distribution_id }} \
             --id $INVALIDATION_ID
           echo "CloudFront invalidation completed"
+
+      # ---- Failure Recovery Info ----
+      - name: Deployment failure recovery info
+        if: failure()
+        run: |
+          echo "========================================="
+          echo "DEPLOYMENT FAILED - RECOVERY INFORMATION"
+          echo "========================================="
+          echo ""
+          echo "Previous state captured at start of deploy:"
+          echo "  Previous layers: ${{ steps.current-state.outputs.current_layers }}"
+          echo "  Previous version: ${{ steps.current-state.outputs.current_version }}"
+          echo ""
+          echo "IMPORTANT: Traffic routing via alias may still be pointing to the"
+          echo "previous working version. Check the alias configuration."
+          echo ""
+          echo "Manual recovery commands (if needed):"
+          echo ""
+          echo "1. Restore previous layer:"
+          echo "   aws lambda update-function-configuration \\"
+          echo "     --function-name ${{ needs.configure.outputs.lambda_function_name }} \\"
+          echo "     --layers '${{ steps.current-state.outputs.current_layers }}'"
+          echo ""
+          echo "2. Point alias to previous version:"
+          echo "   aws lambda update-alias \\"
+          echo "     --function-name ${{ needs.configure.outputs.lambda_function_name }} \\"
+          echo "     --name ${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }} \\"
+          echo "     --function-version ${{ steps.current-state.outputs.current_version }}"
+          echo ""
+          echo "3. Verify API health:"
+          echo "   curl -s ${{ needs.configure.outputs.api_url }}/health"
+          echo ""
+          echo "========================================="
 
   # ============================================
   # Smoke Tests

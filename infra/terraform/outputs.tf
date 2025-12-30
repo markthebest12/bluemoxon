@@ -117,6 +117,25 @@ output "lambda_invoke_arn" {
 }
 
 # =============================================================================
+# Lambda Layer Outputs
+# =============================================================================
+
+output "lambda_layer_arn" {
+  description = "Lambda layer ARN (without version)"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_arn : null
+}
+
+output "lambda_layer_version_arn" {
+  description = "Lambda layer version ARN (with version)"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_version_arn : null
+}
+
+output "lambda_layer_version" {
+  description = "Lambda layer version number"
+  value       = var.enable_lambda ? module.lambda_layer[0].layer_version : null
+}
+
+# =============================================================================
 # API Gateway Outputs (when enabled)
 # =============================================================================
 
