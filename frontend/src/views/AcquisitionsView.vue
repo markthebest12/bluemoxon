@@ -346,7 +346,11 @@ async function handleArchiveSource(bookId: number) {
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
-            <span data-testid="victorian-ornament" class="hidden sm:inline text-victorian-gold-500 opacity-60">❧</span>
+            <span
+              data-testid="victorian-ornament"
+              class="hidden sm:inline text-victorian-gold-500 opacity-60"
+              >❧</span
+            >
           </div>
           <p class="hidden sm:block text-gray-600">Track books from watchlist through delivery</p>
         </div>
