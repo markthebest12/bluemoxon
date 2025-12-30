@@ -53,70 +53,54 @@ bmx-api --prod GET /health
 
 ## Current Status
 
-**Phase:** Code Review Feedback Received - Fixes Required
+**Phase:** Code Review Fixes Complete - Ready for Re-Review
 **PR:** #684 created, targeting `staging`
 
-### Implementation Complete
-- All 10 tasks completed
-- Layer bootstrapped and tested in staging
-- All Lambdas updated with layer (code: 456KB, layer: 52MB)
-- API health check passing
+### Code Review Fixes Applied (Commit 44a3a78)
 
-### Code Review Issues Identified
+**CRITICAL Issues - FIXED:**
 
-**CRITICAL (Must Fix Before Merge):**
+1. **Race Condition in Deploy** - FIXED
+   - Reordered: now update layer BEFORE code for all Lambdas
+   - Old code + new layer = safe (layer has superset of deps)
+   - New code + new layer = safe (final state)
 
-1. **Race Condition in Deploy** - Lambda broken between code update and layer attachment
-   - Between `update-function-code` and `update-function-configuration --layers`
-   - New code deployed but old dependencies = import failures for 30-60 seconds
-   - **Fix:** Use `--publish false`, update layers, then publish version atomically
+2. **Layer Version Published EVERY Deploy** - FIXED
+   - Added conditional: check if layer content unchanged
+   - If unchanged, reuse existing layer version ARN
+   - Prevents hitting 75 version limit
 
-2. **Layer Version Published EVERY Deploy** - Will hit 75 version limit
-   - `publish-layer-version` has no conditional, runs every deploy
-   - Creates new version even with identical content
-   - **Fix:** Add conditional to skip if layer unchanged
+3. **No Rollback Mechanism** - FIXED
+   - Added "Capture current Lambda state" step before deploy
+   - Added "Deployment failure recovery info" step (runs on failure)
+   - Provides manual recovery commands if deploy fails
 
-3. **No Rollback Mechanism** - No cleanup on failure
-   - If deploy fails mid-way, Lambda left in broken state
-   - **Fix:** Add `on: failure` cleanup or use CodeDeploy aliases
+**HIGH Issues - FIXED:**
 
-**HIGH (Should Fix):**
+4. **Terraform State Drift by Design** - DOCUMENTED (known behavior)
+   - `ignore_changes = [layers]` is intentional for CI/CD management
+   - Documented in comments
 
-4. **Terraform State Drift by Design**
-   - `ignore_changes = [layers]` means `terraform apply` could revert to old layer
-   - **Fix:** Document this behavior, consider removing ignore_changes
+5. **Missing Layer Output in Root Terraform** - FIXED
+   - Added `lambda_layer_arn`, `lambda_layer_version_arn`, `lambda_layer_version`
 
-5. **Missing Layer Output in Root Terraform**
-   - Module has outputs but root `outputs.tf` doesn't expose them
-   - **Fix:** Add `lambda_layer_arn` and `lambda_layer_version` to root outputs
+6. **Cleanup Lambda Doesn't Publish Version** - FIXED
+   - Added "Publish Cleanup Lambda version" step
 
-6. **Cleanup Lambda Doesn't Publish Version**
-   - Inconsistent with API/Worker Lambdas which publish versions
-   - **Fix:** Add publish-version step for cleanup Lambda
+**MEDIUM Issues - DEFERRED:**
 
-**MEDIUM (Consider Fixing):**
-
-7. **S3 Frontend Bucket for Lambda Artifacts** - Mixing concerns
-8. **No Verification of Layer Content** - No check for pydantic_core etc.
-9. **Hardcoded Python 3.12** - Scattered across 4+ files
+7. S3 Frontend Bucket for Lambda Artifacts - Low priority
+8. No Verification of Layer Content - Can add later
+9. Hardcoded Python 3.12 - Refactoring task
 
 ---
 
 ## Next Steps
 
-### Immediate: Fix Critical Issues
-Use `superpowers:receiving-code-review` skill to address feedback:
-
-1. Fix race condition - atomic deploy with versioning
-2. Add conditional to layer publish step
-3. Add rollback/cleanup on failure
-
-### After Fixes
-1. Push fixes to PR branch
-2. Re-request review
-3. After approval, merge to staging
-4. Watch CI/deploy workflow
-5. Verify in staging environment
+1. Wait for re-review of PR #684
+2. After approval, merge to staging
+3. Watch CI/deploy workflow
+4. Verify in staging environment
 
 ---
 
@@ -139,6 +123,8 @@ Use `superpowers:receiving-code-review` skill to address feedback:
 
 ## Commits
 ```
+44a3a78 fix: address code review issues for Lambda Layers
+4d8755b docs: update session log with code review issues
 68480b9 docs: add Lambda Layers implementation session log
 98d28e1 feat: add layers support to cleanup-lambda module
 4f8f648 feat: implement Lambda Layers in deploy workflow
