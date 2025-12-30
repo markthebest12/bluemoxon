@@ -335,11 +335,11 @@ describe("AcquisitionsView", () => {
       await flushPromises();
 
       // Ornament should exist and have hidden sm:inline
-      const ornament = wrapper.find("h1").element.parentElement?.querySelector("span");
-      expect(ornament).toBeTruthy();
-      expect(ornament?.classList.contains("hidden")).toBe(true);
-      expect(ornament?.classList.contains("sm:inline")).toBe(true);
-      expect(ornament?.textContent).toContain("❧");
+      const ornament = wrapper.find('[data-testid="victorian-ornament"]');
+      expect(ornament.exists()).toBe(true);
+      expect(ornament.classes()).toContain("hidden");
+      expect(ornament.classes()).toContain("sm:inline");
+      expect(ornament.text()).toContain("❧");
     });
   });
 
