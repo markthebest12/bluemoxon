@@ -185,7 +185,11 @@ async function fetchCostData() {
   loadingCost.value = true;
   costError.value = "";
   try {
-    const res = await api.get("/admin/costs");
+    // Add cache-busting timestamp to prevent browser/CDN caching
+    const res = await api.get("/admin/costs", {
+      params: { _t: Date.now() },
+      headers: { "Cache-Control": "no-cache" },
+    });
     costData.value = res.data;
   } catch (e) {
     costError.value = "Failed to load cost data";
