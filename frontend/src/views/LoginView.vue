@@ -143,7 +143,7 @@ function resetLogin() {
       </div>
 
       <!-- Error display -->
-      <div v-if="error" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-6">
+      <div v-if="error" class="bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] p-4 rounded-lg text-sm mb-6">
         {{ error }}
       </div>
 

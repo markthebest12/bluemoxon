@@ -366,8 +366,8 @@ async function handleArchiveSource(bookId: number) {
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <p class="text-red-700">{{ error }}</p>
+      <div v-if="error" class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg p-4 mb-6">
+        <p class="text-[var(--color-status-error-text)]">{{ error }}</p>
       </div>
 
       <!-- Loading State - skeleton kanban columns -->
@@ -459,7 +459,7 @@ async function handleArchiveSource(bookId: number) {
                 <button
                   @click="handleDelete(book.id)"
                   :disabled="deletingBook === book.id"
-                  class="px-2 py-1 text-red-600 text-xs hover:bg-red-50 rounded-sm disabled:opacity-50"
+                  class="px-2 py-1 text-[var(--color-status-error-accent)] text-xs hover:bg-[var(--color-status-error-bg)] rounded-sm disabled:opacity-50"
                 >
                   {{ deletingBook === book.id ? "Deleting..." : "Delete" }}
                 </button>
@@ -492,7 +492,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="text-xs text-red-600 flex items-center gap-1"
+                  class="text-xs text-[var(--color-status-error-accent)] flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
@@ -630,7 +630,7 @@ async function handleArchiveSource(bookId: number) {
               </p>
               <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
                 <span class="text-gray-500">Paid: {{ formatPrice(book.purchase_price) }}</span>
-                <span class="text-green-600 font-medium"
+                <span class="text-[var(--color-status-success-accent)] font-medium"
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
               </div>
@@ -773,7 +773,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="text-xs text-red-600 flex items-center gap-1"
+                  class="text-xs text-[var(--color-status-error-accent)] flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry
@@ -885,7 +885,7 @@ async function handleArchiveSource(bookId: number) {
         <div class="bg-white rounded-lg shadow-sm">
           <div class="p-4 border-b border-gray-200">
             <h2 class="font-semibold text-gray-900 flex items-center gap-2">
-              <span class="w-3 h-3 bg-green-400 rounded-full"></span>
+              <span class="w-3 h-3 bg-[var(--color-status-success-solid)] rounded-full"></span>
               Received (30d)
               <span class="ml-auto text-sm text-gray-500">{{ received.length }}</span>
             </h2>
@@ -911,7 +911,7 @@ async function handleArchiveSource(bookId: number) {
               </p>
               <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
                 <span class="text-gray-500">Paid: {{ formatPrice(book.purchase_price) }}</span>
-                <span class="text-green-600 font-medium"
+                <span class="text-[var(--color-status-success-accent)] font-medium"
                   >{{ formatDiscount(book.discount_pct) }} off</span
                 >
               </div>
@@ -968,7 +968,7 @@ async function handleArchiveSource(bookId: number) {
                 <!-- Analysis job failed indicator -->
                 <div
                   v-if="getJobStatus(book.id)?.status === 'failed'"
-                  class="text-xs text-red-600 flex items-center gap-1"
+                  class="text-xs text-[var(--color-status-error-accent)] flex items-center gap-1"
                   :title="getJobStatus(book.id)?.error_message || 'Analysis failed'"
                 >
                   ❌ Failed - click to retry

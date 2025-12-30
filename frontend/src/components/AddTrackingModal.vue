@@ -109,7 +109,7 @@ function handleClose() {
         <!-- Error Message -->
         <div
           v-if="errorMessage"
-          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+          class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] p-3 rounded-lg text-sm"
         >
           {{ errorMessage }}
         </div>

@@ -457,7 +457,7 @@ function openSourceUrl() {
       <div v-if="step === 'url'" class="p-4 flex flex-col gap-4">
         <div
           v-if="extractError"
-          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+          class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] p-3 rounded-lg text-sm"
         >
           {{ extractError }}
         </div>
@@ -469,7 +469,7 @@ function openSourceUrl() {
             type="url"
             placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
             class="input"
-            :class="{ 'border-red-500': extractError }"
+            :class="{ 'border-[var(--color-status-error-accent)]': extractError }"
             @keyup.enter="handleExtract"
           />
           <p class="mt-1 text-sm text-gray-500">
@@ -537,7 +537,7 @@ function openSourceUrl() {
         <!-- Error Message -->
         <div
           v-if="errorMessage"
-          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+          class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] p-3 rounded-lg text-sm"
         >
           {{ errorMessage }}
         </div>
@@ -547,15 +547,15 @@ function openSourceUrl() {
           <!-- Title -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Title <span class="text-red-500">*</span>
+              Title <span class="text-[var(--color-status-error-accent)]">*</span>
             </label>
             <input
               v-model="form.title"
               type="text"
               class="input"
-              :class="{ 'border-red-500': validationErrors.title }"
+              :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.title }"
             />
-            <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
+            <p v-if="validationErrors.title" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
               {{ validationErrors.title }}
             </p>
           </div>
@@ -570,10 +570,10 @@ function openSourceUrl() {
                 :suggested-name="suggestedAuthorName"
                 @create="handleCreateAuthor"
               />
-              <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
+              <p v-if="validationErrors.author" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
                 {{ validationErrors.author }}
               </p>
-              <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-green-600">
+              <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
                 Matched: {{ extractedData.matches.author.name }} ({{
                   Math.round(extractedData.matches.author.similarity * 100)
                 }}%)
@@ -593,7 +593,7 @@ function openSourceUrl() {
                 :suggested-name="suggestedPublisherName"
                 @create="handleCreatePublisher"
               />
-              <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-green-600">
+              <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
                 Matched: {{ extractedData.matches.publisher.name }}
               </p>
               <p
@@ -615,7 +615,7 @@ function openSourceUrl() {
                 :suggested-name="suggestedBinderName"
                 @create="handleCreateBinder"
               />
-              <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-green-600">
+              <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
                 Matched: {{ extractedData.matches.binder.name }}
               </p>
               <p
@@ -744,7 +744,7 @@ function openSourceUrl() {
             <div class="shrink-0 w-6 h-6 flex items-center justify-center">
               <svg
                 v-if="index < currentSavingStep"
-                class="w-5 h-5 text-green-500"
+                class="w-5 h-5 text-[var(--color-status-success-accent)]"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -762,7 +762,7 @@ function openSourceUrl() {
               :class="[
                 'text-sm',
                 index < currentSavingStep
-                  ? 'text-green-600'
+                  ? 'text-[var(--color-status-success-accent)]'
                   : index === currentSavingStep
                     ? 'text-victorian-hunter-600 font-medium'
                     : 'text-gray-400',

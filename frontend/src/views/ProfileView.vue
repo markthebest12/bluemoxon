@@ -86,11 +86,11 @@ async function handleChangePassword() {
     <div class="card mb-8">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Profile Information</h2>
 
-      <div v-if="profileError" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4">
+      <div v-if="profileError" class="bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] p-4 rounded-lg text-sm mb-4">
         {{ profileError }}
       </div>
 
-      <div v-if="profileSuccess" class="bg-green-50 text-green-700 p-4 rounded-lg text-sm mb-4">
+      <div v-if="profileSuccess" class="bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)] p-4 rounded-lg text-sm mb-4">
         {{ profileSuccess }}
       </div>
 
@@ -145,11 +145,11 @@ async function handleChangePassword() {
     <div class="card">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Change Password</h2>
 
-      <div v-if="error" class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4">
+      <div v-if="error" class="bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] p-4 rounded-lg text-sm mb-4">
         {{ error }}
       </div>
 
-      <div v-if="success" class="bg-green-50 text-green-700 p-4 rounded-lg text-sm mb-4">
+      <div v-if="success" class="bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)] p-4 rounded-lg text-sm mb-4">
         {{ success }}
       </div>
 
@@ -210,7 +210,7 @@ async function handleChangePassword() {
     <div class="card mt-8">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Security</h2>
       <div class="flex items-center text-sm">
-        <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <svg class="w-5 h-5 text-[var(--color-status-success-accent)] mr-2" fill="currentColor" viewBox="0 0 20 20">
           <path
             fill-rule="evenodd"
             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"

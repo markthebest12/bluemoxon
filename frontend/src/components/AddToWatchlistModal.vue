@@ -187,7 +187,7 @@ function openSourceUrl() {
         <!-- Error Message -->
         <div
           v-if="errorMessage"
-          class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm"
+          class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] text-[var(--color-status-error-text)] p-3 rounded-lg text-sm"
         >
           {{ errorMessage }}
         </div>
@@ -195,15 +195,15 @@ function openSourceUrl() {
         <!-- Title -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Title <span class="text-red-500">*</span>
+            Title <span class="text-[var(--color-status-error-accent)]">*</span>
           </label>
           <input
             v-model="form.title"
             type="text"
             class="input"
-            :class="{ 'border-red-500': validationErrors.title }"
+            :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.title }"
           />
-          <p v-if="validationErrors.title" class="mt-1 text-sm text-red-500">
+          <p v-if="validationErrors.title" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
             {{ validationErrors.title }}
           </p>
         </div>
@@ -217,7 +217,7 @@ function openSourceUrl() {
               v-model="form.author_id"
               @create="handleCreateAuthor"
             />
-            <p v-if="validationErrors.author" class="mt-1 text-sm text-red-500">
+            <p v-if="validationErrors.author" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
               {{ validationErrors.author }}
             </p>
           </div>
