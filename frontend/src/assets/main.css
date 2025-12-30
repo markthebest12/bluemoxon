@@ -142,6 +142,13 @@ layer(utilities);
   --color-border-default: #3d4a3d;
   --color-border-subtle: #2d3028;
 
+  /* Override Tailwind's default gray-200 for borders in dark mode.
+     This ensures ALL borders (including those using just `border` class
+     without explicit color) use our dark theme border color.
+     Fixes white borders appearing on cards in dark mode. */
+  --color-gray-200: #3d4a3d;
+  --color-gray-300: #4d5a4d;
+
   --color-accent-primary: var(--color-victorian-gold);
   --color-accent-highlight: var(--color-victorian-gold-light);
 
@@ -214,15 +221,33 @@ layer(utilities);
   /* Background overrides - Yellow/amber highlight rows */
   .bg-yellow-50 {
     background-color: #3d3a28;
+    color: var(--color-text-primary);
   }
   .bg-yellow-100 {
     background-color: #4a4530;
+    color: var(--color-text-primary);
   }
   .bg-amber-50 {
     background-color: #3d3828;
+    color: var(--color-text-primary);
   }
   .bg-amber-100 {
     background-color: #4a4330;
+    color: var(--color-text-primary);
+  }
+
+  /* Text color overrides - Yellow/amber for star indicators and highlights */
+  .text-yellow-600 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-yellow-500 {
+    color: var(--color-victorian-gold);
+  }
+  .text-amber-600 {
+    color: var(--color-victorian-gold-light);
+  }
+  .text-amber-500 {
+    color: var(--color-victorian-gold);
   }
 
   /* Text color overrides - Tailwind grays */
