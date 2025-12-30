@@ -342,25 +342,30 @@ async function handleArchiveSource(bookId: number) {
   <div class="min-h-screen bg-gray-50 p-6">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
-      <div class="mb-6 flex items-start justify-between">
+      <div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
-          <p class="text-gray-600">Track books from watchlist through delivery</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
+            <span class="hidden sm:inline text-victorian-gold-500 opacity-60">❧</span>
+          </div>
+          <p class="hidden sm:block text-gray-600">Track books from watchlist through delivery</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 mt-3 sm:mt-0">
           <button
             data-testid="import-from-ebay"
             @click="openImportModal"
             class="btn-primary text-sm flex items-center gap-2"
           >
-            🔗 Import from eBay
+            <span>🔗</span>
+            <span class="hidden sm:inline">Import from eBay</span>
           </button>
           <button
             data-testid="add-to-watchlist"
             @click="openWatchlistModal"
             class="btn-secondary text-sm flex items-center gap-2"
           >
-            + Add Manually
+            <span>+</span>
+            <span class="hidden sm:inline">Add Manually</span>
           </button>
         </div>
       </div>
