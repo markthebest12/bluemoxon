@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { ref, nextTick } from "vue";
+import { refDebounced } from "@vueuse/core";
 import EntityManagementTable from "../EntityManagementTable.vue";
 
 const mockEntities = [
@@ -151,6 +153,75 @@ describe("EntityManagementTable", () => {
       const rows = wrapper.findAll("tbody tr");
       expect(rows).toHaveLength(1);
       expect(rows[0].text()).toContain("Author Two");
+    });
+  });
+
+  describe("search debounce (#667)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("refDebounced delays search query updates", async () => {
+      const searchInput = ref("");
+      const debouncedSearch = refDebounced(searchInput, 300);
+
+      // Simulate rapid typing
+      searchInput.value = "A";
+      await nextTick();
+      expect(debouncedSearch.value).toBe(""); // Not yet debounced
+
+      searchInput.value = "Au";
+      await nextTick();
+      expect(debouncedSearch.value).toBe(""); // Still not debounced
+
+      searchInput.value = "Aut";
+      await nextTick();
+      expect(debouncedSearch.value).toBe(""); // Still not debounced
+
+      // Fast forward time
+      vi.advanceTimersByTime(300);
+      await nextTick();
+      expect(debouncedSearch.value).toBe("Aut"); // Now debounced
+    });
+
+    it("filters entities only after debounce delay", async () => {
+      const searchQuery = ref("");
+      const debouncedQuery = refDebounced(searchQuery, 300);
+
+      const wrapper = mount(EntityManagementTable, {
+        props: {
+          entityType: "author",
+          entities: mockEntities,
+          loading: false,
+          canEdit: true,
+          searchQuery: debouncedQuery.value,
+          savingIds: new Set<string>(),
+        },
+      });
+
+      // Initially shows all 3 entities
+      expect(wrapper.findAll("tbody tr")).toHaveLength(3);
+
+      // Type in search
+      searchQuery.value = "Two";
+      await nextTick();
+
+      // Still shows all entities (debounce not elapsed)
+      await wrapper.setProps({ searchQuery: debouncedQuery.value });
+      expect(wrapper.findAll("tbody tr")).toHaveLength(3);
+
+      // After debounce delay
+      vi.advanceTimersByTime(300);
+      await nextTick();
+
+      // Now debounced value is updated
+      await wrapper.setProps({ searchQuery: debouncedQuery.value });
+      expect(wrapper.findAll("tbody tr")).toHaveLength(1);
+      expect(wrapper.find("tbody tr").text()).toContain("Author Two");
     });
   });
 });

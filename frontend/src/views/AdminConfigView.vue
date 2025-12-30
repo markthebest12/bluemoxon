@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { refDebounced } from "@vueuse/core";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
 import type {
@@ -42,8 +43,15 @@ const entityError = ref<string | null>(null);
 // Track entities currently being saved (for per-row loading indicator)
 const savingEntityIds = ref<Set<string>>(new Set());
 
-// Search filters
-const searchFilters = ref({ authors: "", publishers: "", binders: "" });
+// Search filters - individual refs for debouncing
+const authorSearch = ref("");
+const publisherSearch = ref("");
+const binderSearch = ref("");
+
+// Debounced search filters (300ms delay for performance)
+const debouncedAuthorSearch = refDebounced(authorSearch, 300);
+const debouncedPublisherSearch = refDebounced(publisherSearch, 300);
+const debouncedBinderSearch = refDebounced(binderSearch, 300);
 
 // Collapsed sections
 const collapsedSections = ref({ authors: false, publishers: false, binders: false });
@@ -916,7 +924,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.authors" class="p-6">
           <input
-            v-model="searchFilters.authors"
+            v-model="authorSearch"
             type="text"
             placeholder="Search authors..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -926,7 +934,7 @@ function getBarWidth(cost: number): string {
             :entities="authors"
             :loading="loadingEntities.authors"
             :can-edit="canEdit"
-            :search-query="searchFilters.authors"
+            :search-query="debouncedAuthorSearch"
             :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('author', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('author', id, pref)"
@@ -961,7 +969,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.publishers" class="p-6">
           <input
-            v-model="searchFilters.publishers"
+            v-model="publisherSearch"
             type="text"
             placeholder="Search publishers..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -971,7 +979,7 @@ function getBarWidth(cost: number): string {
             :entities="publishers"
             :loading="loadingEntities.publishers"
             :can-edit="canEdit"
-            :search-query="searchFilters.publishers"
+            :search-query="debouncedPublisherSearch"
             :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('publisher', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('publisher', id, pref)"
@@ -1006,7 +1014,7 @@ function getBarWidth(cost: number): string {
         </button>
         <div v-if="!collapsedSections.binders" class="p-6">
           <input
-            v-model="searchFilters.binders"
+            v-model="binderSearch"
             type="text"
             placeholder="Search binders..."
             class="mb-4 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
@@ -1016,7 +1024,7 @@ function getBarWidth(cost: number): string {
             :entities="binders"
             :loading="loadingEntities.binders"
             :can-edit="canEdit"
-            :search-query="searchFilters.binders"
+            :search-query="debouncedBinderSearch"
             :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('binder', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('binder', id, pref)"
