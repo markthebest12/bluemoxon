@@ -578,7 +578,7 @@ module "cleanup_lambda" {
   count  = local.cleanup_lambda_enabled ? 1 : 0
   source = "./modules/cleanup-lambda"
 
-  function_name = "${local.name_prefix}-cleanup"
+  function_name = coalesce(var.cleanup_function_name_override, "${local.name_prefix}-cleanup")
   environment   = var.environment
 
   package_path     = var.lambda_package_path
