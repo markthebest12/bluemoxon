@@ -6,10 +6,7 @@ import { createFocusTrap, type FocusTrap, type Options } from "focus-trap";
  * Uses focus-trap directly instead of @vueuse/integrations to avoid
  * bundle bloat from multiple VueUse versions.
  */
-export function useFocusTrap(
-  target: Ref<HTMLElement | null>,
-  options: Partial<Options> = {}
-) {
+export function useFocusTrap(target: Ref<HTMLElement | null>, options: Partial<Options> = {}) {
   let trap: FocusTrap | null = null;
 
   function activate() {
