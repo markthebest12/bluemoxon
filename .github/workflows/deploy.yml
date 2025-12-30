@@ -59,6 +59,7 @@ jobs:
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
       eval_runbook_worker_function_name: ${{ steps.config.outputs.eval_runbook_worker_function_name }}
+      cleanup_function_name: ${{ steps.config.outputs.cleanup_function_name }}
       scraper_function_name: ${{ steps.config.outputs.scraper_function_name }}
       scraper_ecr_repository: ${{ steps.config.outputs.scraper_ecr_repository }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
@@ -282,6 +283,9 @@ jobs:
           echo "worker_function_name=$(terraform output -raw analysis_worker_function_name)" >> $GITHUB_OUTPUT
           echo "eval_runbook_worker_function_name=$(terraform output -raw eval_runbook_worker_function_name)" >> $GITHUB_OUTPUT
 
+          # Cleanup Lambda (may not exist in all envs)
+          echo "cleanup_function_name=$(terraform output -raw cleanup_lambda_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
           # Scraper (may not exist in all envs)
           echo "scraper_function_name=$(terraform output -raw scraper_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "scraper_ecr_repository=$(terraform output -raw scraper_ecr_repository 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
@@ -371,7 +375,84 @@ jobs:
           echo "deployed_at=$DEPLOYED_AT" >> $GITHUB_OUTPUT
 
   # ============================================
-  # Build Lambda Package
+  # Build Lambda Layer (dependencies only)
+  # ============================================
+
+  build-layer:
+    name: Build Lambda Layer
+    runs-on: ubuntu-latest
+    needs: [ci, configure]
+    outputs:
+      layer_s3_key: ${{ steps.layer-check.outputs.layer_s3_key }}
+      layer_exists: ${{ steps.layer-check.outputs.exists }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if layer needs rebuild
+        id: layer-check
+        run: |
+          # Get poetry.lock hash (first 16 chars of sha256)
+          LOCK_HASH=$(sha256sum backend/poetry.lock | cut -d' ' -f1 | head -c 16)
+          echo "lock_hash=$LOCK_HASH" >> $GITHUB_OUTPUT
+          echo "layer_s3_key=lambda/layer-${LOCK_HASH}.zip" >> $GITHUB_OUTPUT
+
+          # Check if layer already exists in S3
+          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+          if aws s3 ls "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip" 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Layer already exists for this poetry.lock hash: $LOCK_HASH"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Layer needs to be built for hash: $LOCK_HASH"
+          fi
+
+      - name: Build layer with Docker
+        if: steps.layer-check.outputs.exists == 'false'
+        run: |
+          echo "Building Lambda layer with dependencies..."
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v ${{ github.workspace }}/backend:/app:ro \
+            -v /tmp/layer-build:/output \
+            --platform linux/amd64 \
+            public.ecr.aws/lambda/python:3.12 \
+            -c "
+              mkdir -p /output/python
+              pip install -q -t /output/python -r /app/requirements.txt
+            "
+
+      - name: Create layer zip
+        if: steps.layer-check.outputs.exists == 'false'
+        run: |
+          cd /tmp/layer-build
+          # Keep .dist-info for importlib.metadata (pydantic needs it)
+          zip -q -r ${{ github.workspace }}/layer.zip python \
+            -x "*.pyc" -x "*__pycache__*"
+          ls -lh ${{ github.workspace }}/layer.zip
+
+      - name: Upload layer to S3
+        if: steps.layer-check.outputs.exists == 'false'
+        run: |
+          LOCK_HASH=${{ steps.layer-check.outputs.lock_hash }}
+          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+
+          # Upload with hash for caching
+          aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
+
+          # Also copy to layer.zip for Terraform reference
+          aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer.zip"
+
+          echo "Layer uploaded to s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
+
+  # ============================================
+  # Build Lambda Package (code only, deps in layer)
   # ============================================
 
   build-backend:
@@ -398,7 +479,7 @@ jobs:
 
       - name: Build Lambda package with Docker
         run: |
-          # Use Lambda Python 3.12 image for binary compatibility
+          # Copy application code only (dependencies are in the layer)
           docker run --rm \
             --entrypoint /bin/bash \
             -v ${{ github.workspace }}/backend:/app:ro \
@@ -408,8 +489,8 @@ jobs:
             --platform linux/amd64 \
             public.ecr.aws/lambda/python:3.12 \
             -c "
-              pip install -q -t /output -r /app/requirements.txt
               cp -r /app/app /output/
+              cp -r /app/lambdas /output/
               cp /VERSION /output/
               cp /version_info.json /output/
             "
@@ -417,12 +498,10 @@ jobs:
       - name: Create deployment zip
         run: |
           cd /tmp/lambda-deploy
-          # Note: Keep .dist-info directories - required for importlib.metadata
-          # (pydantic uses this to check if email-validator is installed)
           zip -q -r ${{ github.workspace }}/lambda-package.zip . \
             -x "*.pyc" -x "*__pycache__*"
 
-          # Report package size
+          # Report package size (should be <1MB now)
           ls -lh ${{ github.workspace }}/lambda-package.zip
 
       - name: Upload Lambda artifact
@@ -533,12 +612,13 @@ jobs:
   deploy:
     name: Deploy to ${{ needs.configure.outputs.environment }}
     runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-backend, build-frontend, build-scraper]
+    needs: [configure, generate-version, build-backend, build-frontend, build-scraper, build-layer]
     # Always run if build jobs succeed, even if build-scraper was skipped
     if: |
       always() &&
       needs.build-backend.result == 'success' &&
       needs.build-frontend.result == 'success' &&
+      needs.build-layer.result == 'success' &&
       (needs.build-scraper.result == 'success' || needs.build-scraper.result == 'skipped')
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
@@ -546,6 +626,7 @@ jobs:
       worker_lambda_version: ${{ steps.worker-version.outputs.version }}
       eval_worker_lambda_version: ${{ steps.eval-runbook-version.outputs.version }}
       scraper_lambda_version: ${{ steps.scraper-version.outputs.version }}
+      layer_version_arn: ${{ steps.publish-layer.outputs.layer_arn }}
 
     steps:
       - uses: actions/checkout@v6
@@ -569,25 +650,63 @@ jobs:
           name: frontend-dist
           path: frontend-dist
 
+      # ---- Publish Lambda Layer ----
+      - name: Publish new layer version
+        id: publish-layer
+        run: |
+          ENV="${{ needs.configure.outputs.environment }}"
+          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+          LAYER_S3_KEY="${{ needs.build-layer.outputs.layer_s3_key }}"
+          LAYER_NAME="bluemoxon-${ENV}-deps"
+
+          echo "Publishing layer from s3://${S3_BUCKET}/${LAYER_S3_KEY}"
+
+          LAYER_ARN=$(aws lambda publish-layer-version \
+            --layer-name "$LAYER_NAME" \
+            --description "Python dependencies for BlueMoxon Lambdas" \
+            --content S3Bucket=${S3_BUCKET},S3Key=${LAYER_S3_KEY} \
+            --compatible-runtimes python3.12 \
+            --query 'LayerVersionArn' \
+            --output text)
+
+          echo "Published layer: $LAYER_ARN"
+          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
+
       # ---- Deploy Lambda ----
       - name: Upload Lambda to S3
         run: |
           aws s3 cp lambda-package.zip \
             s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
 
-      - name: Update Lambda function
+      - name: Update Lambda function code
         run: |
           aws lambda update-function-code \
             --function-name ${{ needs.configure.outputs.lambda_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Lambda update
+      - name: Wait for Lambda code update
         run: |
           echo "Waiting for Lambda function to be ready..."
           aws lambda wait function-updated \
             --function-name ${{ needs.configure.outputs.lambda_function_name }}
-          echo "Lambda function updated successfully"
+          echo "Lambda function code updated successfully"
+
+      - name: Update Lambda with new layer
+        run: |
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name ${{ needs.configure.outputs.lambda_function_name }} \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Lambda config update
+        run: |
+          echo "Waiting for Lambda configuration update..."
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.lambda_function_name }}
+          echo "Lambda function layer updated successfully"
 
       - name: Publish Lambda version
         id: lambda-version
@@ -667,13 +786,31 @@ jobs:
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Worker Lambda update
+      - name: Wait for Worker Lambda code update
         if: needs.configure.outputs.worker_function_name != ''
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           echo "Waiting for Worker Lambda to be ready..."
           aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Worker Lambda updated successfully"
+          echo "Worker Lambda code updated successfully"
+
+      - name: Update Worker Lambda with layer
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Worker Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$WORKER_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Worker Lambda config update
+        if: needs.configure.outputs.worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          echo "Worker Lambda layer updated successfully"
 
       - name: Publish Worker Lambda version
         if: needs.configure.outputs.worker_function_name != ''
@@ -703,13 +840,31 @@ jobs:
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Eval Runbook Worker Lambda update
+      - name: Wait for Eval Runbook Worker Lambda code update
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
           echo "Waiting for Eval Runbook Worker Lambda to be ready..."
           aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
-          echo "Eval Runbook Worker Lambda updated successfully"
+          echo "Eval Runbook Worker Lambda code updated successfully"
+
+      - name: Update Eval Runbook Worker Lambda with layer
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Eval Runbook Worker Lambda config update
+        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
+        run: |
+          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
+          echo "Eval Runbook Worker Lambda layer updated successfully"
 
       - name: Publish Eval Runbook Worker Lambda version
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
@@ -726,6 +881,44 @@ jobs:
 
           echo "Published eval runbook worker version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ---- Deploy Cleanup Lambda (if configured) ----
+      - name: Update Cleanup Lambda function
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          echo "Deploying cleanup Lambda: $CLEANUP_FUNCTION"
+
+          aws lambda update-function-code \
+            --function-name "$CLEANUP_FUNCTION" \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/backend.zip
+
+      - name: Wait for Cleanup Lambda code update
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          echo "Waiting for Cleanup Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
+          echo "Cleanup Lambda code updated successfully"
+
+      - name: Update Cleanup Lambda with layer
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$CLEANUP_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Cleanup Lambda config update
+        if: needs.configure.outputs.cleanup_function_name != ''
+        run: |
+          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
+          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
+          echo "Cleanup Lambda layer updated successfully"
 
       # ---- Deploy Scraper Lambda (if configured) ----
       - name: Update Scraper Lambda function
