@@ -204,6 +204,12 @@ variable "cleanup_schedule_expression" {
   default     = null # No schedule by default - triggered via admin API
 }
 
+variable "cleanup_function_name_override" {
+  type        = string
+  description = "Override cleanup Lambda function name (for legacy naming, e.g., bluemoxon-production-cleanup)"
+  default     = null
+}
+
 variable "external_lambda_role_name" {
   type        = string
   description = "External Lambda IAM role name for SQS send permissions (used when enable_lambda=false)"
