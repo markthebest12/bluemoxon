@@ -419,7 +419,9 @@ function getBarWidth(cost: number): string {
       <div class="flex items-center gap-2 text-[var(--color-status-error-text)]">
         <span class="text-xl">⚠️</span>
         <span class="font-medium">System health issues detected</span>
-        <span class="text-sm text-[var(--color-status-error-accent)]"> ({{ systemInfo.health.overall }}) </span>
+        <span class="text-sm text-[var(--color-status-error-accent)]">
+          ({{ systemInfo.health.overall }})
+        </span>
       </div>
     </div>
 
@@ -520,7 +522,9 @@ function getBarWidth(cost: number): string {
         <button @click="saveConfig" :disabled="saving" class="btn-primary">
           {{ saving ? "Saving..." : "Save" }}
         </button>
-        <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{ settingsMessage }}</span>
+        <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{
+          settingsMessage
+        }}</span>
       </div>
     </div>
 
@@ -536,7 +540,10 @@ function getBarWidth(cost: number): string {
         </button>
       </div>
 
-      <div v-if="infoError" class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm">
+      <div
+        v-if="infoError"
+        class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm"
+      >
         {{ infoError }}
       </div>
 
@@ -996,7 +1003,10 @@ function getBarWidth(cost: number): string {
         </button>
       </div>
 
-      <div v-if="costError" class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm">
+      <div
+        v-if="costError"
+        class="p-4 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm"
+      >
         {{ costError }}
       </div>
 

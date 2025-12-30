@@ -75,7 +75,9 @@ function getConfidenceIcon(field: string): string {
 
 function getConfidenceClass(field: string): string {
   const conf = extractedData.value?.field_confidence[field] || 0;
-  return conf >= 0.8 ? "text-[var(--color-status-success-accent)]" : "text-[var(--color-status-warning-accent)]";
+  return conf >= 0.8
+    ? "text-[var(--color-status-success-accent)]"
+    : "text-[var(--color-status-warning-accent)]";
 }
 
 async function copyTracking() {
@@ -372,7 +374,12 @@ function handleClose() {
         </div>
 
         <div class="text-xs text-gray-500 flex items-center gap-2">
-          <svg class="w-4 h-4 text-[var(--color-status-success-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-4 h-4 text-[var(--color-status-success-accent)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

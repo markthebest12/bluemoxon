@@ -299,8 +299,14 @@ function formatDate(dateStr: string | null): string {
               <div class="text-xs text-gray-500 break-all sm:truncate">
                 {{ user.first_name ? user.email : "" }} ID: {{ user.id }}
                 <span v-if="user.mfa_enabled !== undefined" class="ml-2">
-                  <span v-if="user.mfa_enabled" class="text-[var(--color-status-success-accent)]">MFA Active</span>
-                  <span v-else-if="user.mfa_configured" class="text-[var(--color-status-warning-accent)]">MFA Off</span>
+                  <span v-if="user.mfa_enabled" class="text-[var(--color-status-success-accent)]"
+                    >MFA Active</span
+                  >
+                  <span
+                    v-else-if="user.mfa_configured"
+                    class="text-[var(--color-status-warning-accent)]"
+                    >MFA Off</span
+                  >
                   <span v-else class="text-[var(--color-text-muted)]">MFA Pending</span>
                 </span>
               </div>
@@ -478,7 +484,11 @@ function formatDate(dateStr: string | null): string {
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="px-2 py-1 text-xs rounded-full"
-                  :class="key.is_active ? 'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]' : 'bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]'"
+                  :class="
+                    key.is_active
+                      ? 'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]'
+                      : 'bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]'
+                  "
                 >
                   {{ key.is_active ? "Active" : "Revoked" }}
                 </span>

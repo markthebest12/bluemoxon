@@ -228,7 +228,10 @@ function handlePasteApply(data: any) {
               }})</span
             >
           </div>
-          <p v-if="estimatedDiscount" class="mt-1 text-sm text-[var(--color-status-success-accent)]">
+          <p
+            v-if="estimatedDiscount"
+            class="mt-1 text-sm text-[var(--color-status-success-accent)]"
+          >
             {{ estimatedDiscount }}% discount from FMV (${{ valueMidNumeric?.toFixed(2) }})
           </p>
         </div>

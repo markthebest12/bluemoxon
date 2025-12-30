@@ -300,7 +300,10 @@ function formatFileSize(bytes: number): string {
               <p class="text-sm font-medium text-gray-800 truncate">
                 {{ file.file.name }}
               </p>
-              <p v-if="file.status === 'error'" class="text-xs text-[var(--color-status-error-accent)]">
+              <p
+                v-if="file.status === 'error'"
+                class="text-xs text-[var(--color-status-error-accent)]"
+              >
                 {{ file.error }}
               </p>
               <p v-else class="text-xs text-gray-500">
@@ -341,7 +344,11 @@ function formatFileSize(bytes: number): string {
         <div
           v-if="allComplete && hasFiles"
           class="mt-4 p-3 rounded-lg"
-          :class="errorCount > 0 ? 'bg-[var(--color-status-warning-bg)]' : 'bg-[var(--color-status-success-bg)]'"
+          :class="
+            errorCount > 0
+              ? 'bg-[var(--color-status-warning-bg)]'
+              : 'bg-[var(--color-status-success-bg)]'
+          "
         >
           <p class="text-sm">
             <span v-if="successCount > 0" class="text-[var(--color-status-success-text)]">

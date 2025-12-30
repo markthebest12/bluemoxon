@@ -366,7 +366,10 @@ async function handleArchiveSource(bookId: number) {
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg p-4 mb-6">
+      <div
+        v-if="error"
+        class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg p-4 mb-6"
+      >
         <p class="text-[var(--color-status-error-text)]">{{ error }}</p>
       </div>
 

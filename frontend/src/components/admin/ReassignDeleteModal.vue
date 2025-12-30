@@ -74,7 +74,10 @@ function handleDelete() {
       <!-- Content -->
       <div class="px-6 py-4">
         <!-- Error -->
-        <div v-if="error" class="mb-4 p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded text-sm">
+        <div
+          v-if="error"
+          class="mb-4 p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded text-sm"
+        >
           {{ error }}
         </div>
 
@@ -135,7 +138,11 @@ function handleDelete() {
           @click="handleDelete"
           :disabled="processing || (hasBooks && !selectedTargetId)"
           class="px-4 py-2 text-sm text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          :class="confirmDelete ? 'bg-[var(--color-status-error-solid)] hover:opacity-90' : 'bg-[var(--color-status-error-accent)] hover:opacity-90'"
+          :class="
+            confirmDelete
+              ? 'bg-[var(--color-status-error-solid)] hover:opacity-90'
+              : 'bg-[var(--color-status-error-accent)] hover:opacity-90'
+          "
         >
           {{
             processing

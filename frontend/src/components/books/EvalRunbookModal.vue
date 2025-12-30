@@ -72,15 +72,41 @@ const tierBadgeConfig = computed(() => {
   if (!runbook.value?.recommendation_tier) {
     // Fallback to legacy recommendation
     return runbook.value?.recommendation === "ACQUIRE"
-      ? { bg: "bg-[var(--color-status-success-bg)]", text: "text-[var(--color-status-success-text)]", label: "ACQUIRE", icon: "" }
-      : { bg: "bg-[var(--color-status-warning-bg)]", text: "text-[var(--color-status-warning-text)]", label: "PASS", icon: "" };
+      ? {
+          bg: "bg-[var(--color-status-success-bg)]",
+          text: "text-[var(--color-status-success-text)]",
+          label: "ACQUIRE",
+          icon: "",
+        }
+      : {
+          bg: "bg-[var(--color-status-warning-bg)]",
+          text: "text-[var(--color-status-warning-text)]",
+          label: "PASS",
+          icon: "",
+        };
   }
 
   const configs: Record<string, { bg: string; text: string; icon: string }> = {
-    STRONG_BUY: { bg: "bg-[var(--color-status-success-solid)]", text: "text-[var(--color-status-success-solid-text)]", icon: "✓✓" },
-    BUY: { bg: "bg-[var(--color-status-success-bg)]", text: "text-[var(--color-status-success-text)]", icon: "✓" },
-    CONDITIONAL: { bg: "bg-[var(--color-status-warning-bg)]", text: "text-[var(--color-status-warning-text)]", icon: "⚠" },
-    PASS: { bg: "bg-[var(--color-surface-secondary)]", text: "text-[var(--color-text-secondary)]", icon: "✗" },
+    STRONG_BUY: {
+      bg: "bg-[var(--color-status-success-solid)]",
+      text: "text-[var(--color-status-success-solid-text)]",
+      icon: "✓✓",
+    },
+    BUY: {
+      bg: "bg-[var(--color-status-success-bg)]",
+      text: "text-[var(--color-status-success-text)]",
+      icon: "✓",
+    },
+    CONDITIONAL: {
+      bg: "bg-[var(--color-status-warning-bg)]",
+      text: "text-[var(--color-status-warning-text)]",
+      icon: "⚠",
+    },
+    PASS: {
+      bg: "bg-[var(--color-surface-secondary)]",
+      text: "text-[var(--color-text-secondary)]",
+      icon: "✗",
+    },
   };
 
   const config = configs[runbook.value.recommendation_tier] || configs.PASS;
@@ -322,7 +348,12 @@ function formatCurrency(value: number | null | undefined): string {
             v-if="refreshError"
             class="bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg p-3 mb-4 flex items-center gap-2"
           >
-            <svg class="w-5 h-5 text-[var(--color-status-error-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-5 h-5 text-[var(--color-status-error-accent)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -351,7 +382,9 @@ function formatCurrency(value: number | null | undefined): string {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span class="text-sm text-[var(--color-status-success-text)]">Full analysis completed successfully!</span>
+            <span class="text-sm text-[var(--color-status-success-text)]"
+              >Full analysis completed successfully!</span
+            >
           </div>
 
           <!-- Score Summary -->
@@ -393,7 +426,10 @@ function formatCurrency(value: number | null | undefined): string {
                     :style="{ width: `${runbook.quality_score}%` }"
                   ></div>
                 </div>
-                <div v-if="runbook.quality_floor_applied" class="text-xs text-[var(--color-status-error-accent)] mt-1">
+                <div
+                  v-if="runbook.quality_floor_applied"
+                  class="text-xs text-[var(--color-status-error-accent)] mt-1"
+                >
                   ⚠ Below quality threshold
                 </div>
               </div>
@@ -407,11 +443,18 @@ function formatCurrency(value: number | null | undefined): string {
                 <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     class="h-full"
-                    :class="runbook.strategic_fit_score < 30 ? 'bg-[var(--color-status-error-solid)]' : 'bg-[var(--color-status-success-solid)]'"
+                    :class="
+                      runbook.strategic_fit_score < 30
+                        ? 'bg-[var(--color-status-error-solid)]'
+                        : 'bg-[var(--color-status-success-solid)]'
+                    "
                     :style="{ width: `${runbook.strategic_fit_score}%` }"
                   ></div>
                 </div>
-                <div v-if="runbook.strategic_floor_applied" class="text-xs text-[var(--color-status-error-accent)] mt-1">
+                <div
+                  v-if="runbook.strategic_floor_applied"
+                  class="text-xs text-[var(--color-status-error-accent)] mt-1"
+                >
                   ⚠ Below strategic fit threshold
                 </div>
               </div>
@@ -451,7 +494,8 @@ function formatCurrency(value: number | null | undefined): string {
                 <span class="text-gray-600">Price Position:</span>
                 <span
                   :class="{
-                    'text-[var(--color-status-success-accent)] font-medium': runbook.price_position === 'EXCELLENT',
+                    'text-[var(--color-status-success-accent)] font-medium':
+                      runbook.price_position === 'EXCELLENT',
                     'text-[var(--color-status-success-text)]': runbook.price_position === 'GOOD',
                     'text-[var(--color-status-warning-accent)]': runbook.price_position === 'FAIR',
                     'text-[var(--color-status-error-accent)]': runbook.price_position === 'POOR',
@@ -511,7 +555,11 @@ function formatCurrency(value: number | null | undefined): string {
                 <div class="text-gray-500">Delta</div>
                 <div
                   class="font-medium"
-                  :class="priceDelta && priceDelta < 0 ? 'text-[var(--color-status-error-accent)]' : 'text-[var(--color-status-success-accent)]'"
+                  :class="
+                    priceDelta && priceDelta < 0
+                      ? 'text-[var(--color-status-error-accent)]'
+                      : 'text-[var(--color-status-success-accent)]'
+                  "
                 >
                   {{ priceDelta ? formatCurrency(priceDelta) : "-" }}
                 </div>
@@ -566,7 +614,9 @@ function formatCurrency(value: number | null | undefined): string {
               class="p-3 pt-0 border-t border-gray-200 text-sm"
             >
               <div v-if="runbook.condition_positives?.length" class="mb-2">
-                <div class="font-medium text-[var(--color-status-success-text)] mb-1">Positives</div>
+                <div class="font-medium text-[var(--color-status-success-text)] mb-1">
+                  Positives
+                </div>
                 <ul class="list-disc list-inside text-gray-600">
                   <li v-for="(item, i) in runbook.condition_positives" :key="i">{{ item }}</li>
                 </ul>
@@ -607,7 +657,11 @@ function formatCurrency(value: number | null | undefined): string {
                     <td class="py-2">{{ key }}</td>
                     <td
                       class="py-2 text-center"
-                      :class="item.points > 0 ? 'text-[var(--color-status-success-accent)] font-medium' : 'text-gray-400'"
+                      :class="
+                        item.points > 0
+                          ? 'text-[var(--color-status-success-accent)] font-medium'
+                          : 'text-gray-400'
+                      "
                     >
                       {{ item.points > 0 ? `+${item.points}` : item.points }}
                     </td>
@@ -686,7 +740,10 @@ function formatCurrency(value: number | null | undefined): string {
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
             >
               <span class="font-medium">Critical Issues & Recommendation</span>
-              <span v-if="runbook.critical_issues?.length" class="text-sm text-[var(--color-status-warning-accent)] mr-2">
+              <span
+                v-if="runbook.critical_issues?.length"
+                class="text-sm text-[var(--color-status-warning-accent)] mr-2"
+              >
                 {{ runbook.critical_issues.length }} issues
               </span>
             </button>
@@ -794,7 +851,13 @@ function formatCurrency(value: number | null | undefined): string {
             <div class="font-medium mb-1">Score Impact Preview</div>
             <div>
               Current: {{ runbook?.total_score }} pts → New: {{ priceUpdatePreview.newScore }} pts
-              <span :class="priceUpdatePreview.scoreDelta >= 0 ? 'text-[var(--color-status-success-accent)]' : 'text-[var(--color-status-error-accent)]'">
+              <span
+                :class="
+                  priceUpdatePreview.scoreDelta >= 0
+                    ? 'text-[var(--color-status-success-accent)]'
+                    : 'text-[var(--color-status-error-accent)]'
+                "
+              >
                 ({{ priceUpdatePreview.scoreDelta >= 0 ? "+" : ""
                 }}{{ priceUpdatePreview.scoreDelta }})
               </span>

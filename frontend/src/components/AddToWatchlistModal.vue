@@ -203,7 +203,10 @@ function openSourceUrl() {
             class="input"
             :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.title }"
           />
-          <p v-if="validationErrors.title" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
+          <p
+            v-if="validationErrors.title"
+            class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+          >
             {{ validationErrors.title }}
           </p>
         </div>
@@ -217,7 +220,10 @@ function openSourceUrl() {
               v-model="form.author_id"
               @create="handleCreateAuthor"
             />
-            <p v-if="validationErrors.author" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
+            <p
+              v-if="validationErrors.author"
+              class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+            >
               {{ validationErrors.author }}
             </p>
           </div>

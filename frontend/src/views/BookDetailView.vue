@@ -876,11 +876,15 @@ function printPage() {
             </div>
             <div v-if="booksStore.currentBook.discount_pct">
               <dt class="text-sm text-gray-500">Discount</dt>
-              <dd class="font-medium text-[var(--color-status-success-accent)]">{{ booksStore.currentBook.discount_pct }}%</dd>
+              <dd class="font-medium text-[var(--color-status-success-accent)]">
+                {{ booksStore.currentBook.discount_pct }}%
+              </dd>
             </div>
             <div v-if="booksStore.currentBook.roi_pct">
               <dt class="text-sm text-gray-500">ROI</dt>
-              <dd class="font-medium text-[var(--color-status-success-accent)]">{{ booksStore.currentBook.roi_pct }}%</dd>
+              <dd class="font-medium text-[var(--color-status-success-accent)]">
+                {{ booksStore.currentBook.roi_pct }}%
+              </dd>
             </div>
           </dl>
         </div>
@@ -985,7 +989,9 @@ function printPage() {
                 class="w-32 h-32 object-cover rounded-sm"
               />
             </div>
-            <p class="text-sm text-[var(--color-status-error-accent)] mt-3 text-center">This action cannot be undone.</p>
+            <p class="text-sm text-[var(--color-status-error-accent)] mt-3 text-center">
+              This action cannot be undone.
+            </p>
           </div>
 
           <div

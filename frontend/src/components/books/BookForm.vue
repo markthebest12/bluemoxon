@@ -650,10 +650,13 @@ function cancel() {
                   <span
                     class="px-2 py-0.5 text-xs rounded-sm"
                     :class="{
-                      'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]': match.status === 'ON_HAND',
+                      'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]':
+                        match.status === 'ON_HAND',
                       'badge-transit': match.status === 'IN_TRANSIT',
-                      'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning-text)]': match.status === 'EVALUATING',
-                      'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)]': match.status === 'SOLD',
+                      'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning-text)]':
+                        match.status === 'EVALUATING',
+                      'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)]':
+                        match.status === 'SOLD',
                     }"
                   >
                     {{ match.status }}

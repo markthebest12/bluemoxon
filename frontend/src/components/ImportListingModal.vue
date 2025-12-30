@@ -555,7 +555,10 @@ function openSourceUrl() {
               class="input"
               :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.title }"
             />
-            <p v-if="validationErrors.title" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
+            <p
+              v-if="validationErrors.title"
+              class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+            >
               {{ validationErrors.title }}
             </p>
           </div>
@@ -570,10 +573,16 @@ function openSourceUrl() {
                 :suggested-name="suggestedAuthorName"
                 @create="handleCreateAuthor"
               />
-              <p v-if="validationErrors.author" class="mt-1 text-sm text-[var(--color-status-error-accent)]">
+              <p
+                v-if="validationErrors.author"
+                class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+              >
                 {{ validationErrors.author }}
               </p>
-              <p v-if="extractedData?.matches?.author" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
+              <p
+                v-if="extractedData?.matches?.author"
+                class="mt-1 text-xs text-[var(--color-status-success-accent)]"
+              >
                 Matched: {{ extractedData.matches.author.name }} ({{
                   Math.round(extractedData.matches.author.similarity * 100)
                 }}%)
@@ -593,7 +602,10 @@ function openSourceUrl() {
                 :suggested-name="suggestedPublisherName"
                 @create="handleCreatePublisher"
               />
-              <p v-if="extractedData?.matches?.publisher" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
+              <p
+                v-if="extractedData?.matches?.publisher"
+                class="mt-1 text-xs text-[var(--color-status-success-accent)]"
+              >
                 Matched: {{ extractedData.matches.publisher.name }}
               </p>
               <p
@@ -615,7 +627,10 @@ function openSourceUrl() {
                 :suggested-name="suggestedBinderName"
                 @create="handleCreateBinder"
               />
-              <p v-if="extractedData?.matches?.binder" class="mt-1 text-xs text-[var(--color-status-success-accent)]">
+              <p
+                v-if="extractedData?.matches?.binder"
+                class="mt-1 text-xs text-[var(--color-status-success-accent)]"
+              >
                 Matched: {{ extractedData.matches.binder.name }}
               </p>
               <p

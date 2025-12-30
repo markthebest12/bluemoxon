@@ -369,7 +369,9 @@ const exportCSV = () => {
         >
           <strong>Recommended Insurance Coverage:</strong>
           {{ formatCurrency(stats.totalValueHigh * 1.1) }}
-          <span class="text-sm text-[var(--color-status-success-text)]">(High estimate + 10% buffer)</span>
+          <span class="text-sm text-[var(--color-status-success-text)]"
+            >(High estimate + 10% buffer)</span
+          >
         </p>
       </section>
 
