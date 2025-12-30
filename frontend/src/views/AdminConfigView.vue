@@ -39,6 +39,9 @@ const binders = ref<BinderEntity[]>([]);
 const loadingEntities = ref({ authors: false, publishers: false, binders: false });
 const entityError = ref<string | null>(null);
 
+// Track entities currently being saved (for per-row loading indicator)
+const savingEntityIds = ref<Set<string>>(new Set());
+
 // Search filters
 const searchFilters = ref({ authors: "", publishers: "", binders: "" });
 
@@ -201,9 +204,23 @@ function showEntityError(message: string) {
   }, 5000);
 }
 
-// Inline update handlers
+// Helper to create entity saving key
+function getSavingKey(type: EntityType, id: number): string {
+  return `${type}-${id}`;
+}
+
+// Inline update handlers with lock to prevent race conditions
 async function handleTierUpdate(type: EntityType, id: number, tier: string | null) {
+  const key = getSavingKey(type, id);
+
+  // Lock: if already saving this entity, ignore the request
+  if (savingEntityIds.value.has(key)) {
+    return;
+  }
+
   entityError.value = null;
+  savingEntityIds.value = new Set([...savingEntityIds.value, key]);
+
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { tier });
@@ -216,11 +233,24 @@ async function handleTierUpdate(type: EntityType, id: number, tier: string | nul
     showEntityError(`Failed to update tier. Please try again.`);
     // Reload to revert
     await loadEntities();
+  } finally {
+    const newSet = new Set(savingEntityIds.value);
+    newSet.delete(key);
+    savingEntityIds.value = newSet;
   }
 }
 
 async function handlePreferredUpdate(type: EntityType, id: number, preferred: boolean) {
+  const key = getSavingKey(type, id);
+
+  // Lock: if already saving this entity, ignore the request
+  if (savingEntityIds.value.has(key)) {
+    return;
+  }
+
   entityError.value = null;
+  savingEntityIds.value = new Set([...savingEntityIds.value, key]);
+
   const endpoint = `/${type}s/${id}`;
   try {
     await api.put(endpoint, { preferred });
@@ -232,6 +262,10 @@ async function handlePreferredUpdate(type: EntityType, id: number, preferred: bo
     console.error(`Failed to update ${type} preferred:`, e);
     showEntityError(`Failed to update preferred status. Please try again.`);
     await loadEntities();
+  } finally {
+    const newSet = new Set(savingEntityIds.value);
+    newSet.delete(key);
+    savingEntityIds.value = newSet;
   }
 }
 
@@ -893,6 +927,7 @@ function getBarWidth(cost: number): string {
             :loading="loadingEntities.authors"
             :can-edit="canEdit"
             :search-query="searchFilters.authors"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('author', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('author', id, pref)"
             @edit="(e) => openEditModal('author', e)"
@@ -937,6 +972,7 @@ function getBarWidth(cost: number): string {
             :loading="loadingEntities.publishers"
             :can-edit="canEdit"
             :search-query="searchFilters.publishers"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('publisher', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('publisher', id, pref)"
             @edit="(e) => openEditModal('publisher', e)"
@@ -981,6 +1017,7 @@ function getBarWidth(cost: number): string {
             :loading="loadingEntities.binders"
             :can-edit="canEdit"
             :search-query="searchFilters.binders"
+            :saving-ids="savingEntityIds"
             @update:tier="(id, tier) => handleTierUpdate('binder', id, tier)"
             @update:preferred="(id, pref) => handlePreferredUpdate('binder', id, pref)"
             @edit="(e) => openEditModal('binder', e)"
