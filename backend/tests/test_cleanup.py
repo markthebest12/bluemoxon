@@ -494,6 +494,101 @@ class TestCleanupOrphanedImages:
         # Verify orphans_by_prefix shows all 4 items under books/
         assert result["orphans_by_prefix"] == {"books/": 4}
 
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_key_format_s3_prefix_stripped_for_db_comparison(self, mock_boto_client, db):
+        """Explicit test: S3 'books/515/image.webp' matches DB '515/image.webp'.
+
+        This is the exact bug that caused the 2025-12-30 incident.
+        S3 stores with prefix, DB stores without - comparison must handle this.
+        """
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # S3 stores WITH books/ prefix
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/515/image_00.webp"},
+                    {"Key": "books/515/image_01.webp"},
+                    {"Key": "books/999/orphan.webp"},  # Not in DB
+                ]
+            }
+        ]
+
+        from app.models.image import BookImage
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # DB stores WITHOUT books/ prefix - this is the key format difference
+        image1 = BookImage(book_id=book.id, s3_key="515/image_00.webp")
+        image2 = BookImage(book_id=book.id, s3_key="515/image_01.webp")
+        db.add_all([image1, image2])
+        db.commit()
+
+        result = cleanup_orphaned_images(db, bucket="test-bucket")
+
+        # Only the orphan should be found (books/999/orphan.webp)
+        # The two images with matching DB keys should NOT be orphans
+        assert result["orphans_found"] == 1
+        assert "books/999/orphan.webp" in result["keys"]
+        # Verify the matched images are NOT in orphans
+        assert "books/515/image_00.webp" not in result["keys"]
+        assert "books/515/image_01.webp" not in result["keys"]
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_max_deletions_guard_stops_at_limit(self, mock_boto_client, db):
+        """Test that deletion stops at max_deletions limit.
+
+        Prevents accidental mass deletion even if orphan detection is correct.
+        """
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # 10 orphans in S3
+        mock_paginator.paginate.return_value = [
+            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
+        ]
+
+        # No images in DB - all 10 are orphans
+        result = cleanup_orphaned_images(db, bucket="test-bucket", delete=True, max_deletions=5)
+
+        # Should only delete 5, even though 10 orphans found
+        assert result["orphans_found"] == 10
+        assert result["deleted"] == 5
+        assert mock_s3.delete_object.call_count == 5
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_max_deletions_guard_allows_override(self, mock_boto_client, db):
+        """Test that force_delete=True allows exceeding max_deletions.
+
+        For intentional bulk cleanup operations.
+        """
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # 10 orphans in S3
+        mock_paginator.paginate.return_value = [
+            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
+        ]
+
+        # No images in DB - all 10 are orphans
+        result = cleanup_orphaned_images(
+            db, bucket="test-bucket", delete=True, max_deletions=5, force_delete=True
+        )
+
+        # Should delete all 10 with force_delete override
+        assert result["orphans_found"] == 10
+        assert result["deleted"] == 10
+        assert mock_s3.delete_object.call_count == 10
+
 
 class TestCleanupHandler:
     """Tests for the main Lambda handler function."""

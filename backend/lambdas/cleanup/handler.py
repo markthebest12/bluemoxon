@@ -95,7 +95,13 @@ def check_expired_sources(db: Session) -> tuple[int, int]:
     return checked, expired
 
 
-def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> dict:
+def cleanup_orphaned_images(
+    db: Session,
+    bucket: str,
+    delete: bool = False,
+    max_deletions: int = 100,
+    force_delete: bool = False,
+) -> dict:
     """Find and optionally delete orphaned images in S3.
 
     Uses pagination to handle buckets with more than 1000 objects.
@@ -106,6 +112,10 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
         db: Database session
         bucket: S3 bucket name
         delete: If True, delete orphaned images. Otherwise dry run.
+        max_deletions: Maximum number of deletions allowed (default 100).
+            Prevents accidental mass deletion.
+        force_delete: If True, ignore max_deletions limit for intentional
+            bulk cleanup operations.
 
     Returns:
         Dict with found, deleted counts and list of orphaned keys
@@ -144,7 +154,10 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
 
     deleted = 0
     if delete:
+        deletion_limit = None if force_delete else max_deletions
         for key in orphaned_full_keys:
+            if deletion_limit is not None and deleted >= deletion_limit:
+                break
             s3.delete_object(Bucket=bucket, Key=key)
             deleted += 1
 
