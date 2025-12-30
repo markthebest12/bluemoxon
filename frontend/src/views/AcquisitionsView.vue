@@ -1079,7 +1079,6 @@ async function handleArchiveSource(bookId: number) {
           </div>
         </div>
       </div>
-
     </div>
 
     <!-- Acquire Modal -->

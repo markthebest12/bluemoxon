@@ -32,9 +32,7 @@ class TestAdminCleanupEndpoint:
                 ),
             }
 
-            response = client.post(
-                "/api/v1/admin/cleanup", json={"action": "all"}
-            )
+            response = client.post("/api/v1/admin/cleanup", json={"action": "all"})
 
             assert response.status_code == 200
             data = response.json()
@@ -52,15 +50,11 @@ class TestAdminCleanupEndpoint:
             mock_lambda.invoke.return_value = {
                 "StatusCode": 200,
                 "Payload": MagicMock(
-                    read=lambda: json.dumps(
-                        {"stale_evaluations_archived": 3}
-                    ).encode()
+                    read=lambda: json.dumps({"stale_evaluations_archived": 3}).encode()
                 ),
             }
 
-            response = client.post(
-                "/api/v1/admin/cleanup", json={"action": "stale"}
-            )
+            response = client.post("/api/v1/admin/cleanup", json={"action": "stale"})
 
             assert response.status_code == 200
             # Verify Lambda was called with correct action
@@ -76,9 +70,7 @@ class TestAdminCleanupEndpoint:
             mock_lambda.invoke.return_value = {
                 "StatusCode": 200,
                 "Payload": MagicMock(
-                    read=lambda: json.dumps(
-                        {"orphans_found": 5, "orphans_deleted": 5}
-                    ).encode()
+                    read=lambda: json.dumps({"orphans_found": 5, "orphans_deleted": 5}).encode()
                 ),
             }
 
@@ -98,9 +90,7 @@ class TestAdminCleanupEndpoint:
 
     def test_cleanup_invalid_action(self, client: TestClient):
         """Test cleanup with invalid action returns validation error."""
-        response = client.post(
-            "/api/v1/admin/cleanup", json={"action": "invalid"}
-        )
+        response = client.post("/api/v1/admin/cleanup", json={"action": "invalid"})
         assert response.status_code == 422
 
     def test_cleanup_lambda_error(self, client: TestClient):
@@ -117,9 +107,7 @@ class TestAdminCleanupEndpoint:
                 ),
             }
 
-            response = client.post(
-                "/api/v1/admin/cleanup", json={"action": "all"}
-            )
+            response = client.post("/api/v1/admin/cleanup", json={"action": "all"})
 
             assert response.status_code == 500
             data = response.json()
@@ -133,9 +121,7 @@ class TestAdminCleanupEndpoint:
             mock_lambda.invoke.return_value = {
                 "StatusCode": 200,
                 "Payload": MagicMock(
-                    read=lambda: json.dumps(
-                        {"stale_evaluations_archived": 0}
-                    ).encode()
+                    read=lambda: json.dumps({"stale_evaluations_archived": 0}).encode()
                 ),
             }
 
