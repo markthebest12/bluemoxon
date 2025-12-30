@@ -275,12 +275,15 @@ describe("AcquisitionsView", () => {
       const importButton = wrapper.find('[data-testid="import-from-ebay"]');
       const spans = importButton.findAll("span");
 
-      // Should have icon span and text span
-      expect(spans.length).toBeGreaterThanOrEqual(2);
-      // Text span should have hidden sm:inline for responsive
-      const textSpan = spans.find((s) => s.text().includes("Import"));
-      expect(textSpan?.classes()).toContain("hidden");
-      expect(textSpan?.classes()).toContain("sm:inline");
+      // Should have icon span, mobile text span, and desktop text span
+      expect(spans.length).toBeGreaterThanOrEqual(3);
+      // Mobile text span should have sm:hidden (visible on mobile only)
+      const mobileSpan = spans.find((s) => s.text() === "Import");
+      expect(mobileSpan?.classes()).toContain("sm:hidden");
+      // Desktop text span should have hidden sm:inline (visible on desktop only)
+      const desktopSpan = spans.find((s) => s.text().includes("from eBay"));
+      expect(desktopSpan?.classes()).toContain("hidden");
+      expect(desktopSpan?.classes()).toContain("sm:inline");
     });
 
     it("has icon and text spans in Add button for responsive visibility", async () => {
@@ -297,12 +300,15 @@ describe("AcquisitionsView", () => {
       const addButton = wrapper.find('[data-testid="add-to-watchlist"]');
       const spans = addButton.findAll("span");
 
-      // Should have icon span and text span
-      expect(spans.length).toBeGreaterThanOrEqual(2);
-      // Text span should have hidden sm:inline for responsive
-      const textSpan = spans.find((s) => s.text().includes("Add") || s.text().includes("Manually"));
-      expect(textSpan?.classes()).toContain("hidden");
-      expect(textSpan?.classes()).toContain("sm:inline");
+      // Should have icon span, mobile text span, and desktop text span
+      expect(spans.length).toBeGreaterThanOrEqual(3);
+      // Mobile text span should have sm:hidden (visible on mobile only)
+      const mobileSpan = spans.find((s) => s.text() === "Add");
+      expect(mobileSpan?.classes()).toContain("sm:hidden");
+      // Desktop text span should have hidden sm:inline (visible on desktop only)
+      const desktopSpan = spans.find((s) => s.text().includes("Manually"));
+      expect(desktopSpan?.classes()).toContain("hidden");
+      expect(desktopSpan?.classes()).toContain("sm:inline");
     });
 
     it("has subtitle with responsive visibility", async () => {
