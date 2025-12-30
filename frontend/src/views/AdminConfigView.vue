@@ -16,7 +16,44 @@ import EntityFormModal from "@/components/admin/EntityFormModal.vue";
 import ReassignDeleteModal from "@/components/admin/ReassignDeleteModal.vue";
 
 // Tab state
-const activeTab = ref<"settings" | "status" | "scoring" | "reference" | "costs">("settings");
+const activeTab = ref<"settings" | "status" | "scoring" | "reference" | "costs" | "maintenance">(
+  "settings"
+);
+
+// Cleanup panel state
+const cleanupExpanded = ref(false);
+const cleanupLoading = ref<string | null>(null);
+const cleanupResult = ref<{
+  stale_archived?: number;
+  sources_checked?: number;
+  sources_expired?: number;
+  orphans_found?: number;
+  orphans_deleted?: number;
+  archives_retried?: number;
+  archives_succeeded?: number;
+  archives_failed?: number;
+} | null>(null);
+const cleanupError = ref<string | null>(null);
+
+async function runCleanup(action: string, deleteOrphans = false) {
+  if (cleanupLoading.value) return;
+  cleanupLoading.value = action;
+  cleanupResult.value = null;
+  cleanupError.value = null;
+
+  try {
+    const response = await api.post("/admin/cleanup", {
+      action,
+      delete_orphans: deleteOrphans,
+    });
+    cleanupResult.value = response.data;
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    cleanupError.value = err.response?.data?.detail || err.message || "Cleanup failed";
+  } finally {
+    cleanupLoading.value = null;
+  }
+}
 
 // Settings tab (existing functionality)
 const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
@@ -532,6 +569,17 @@ function getBarWidth(cost: number): string {
           ]"
         >
           Costs
+        </button>
+        <button
+          @click="activeTab = 'maintenance'"
+          :class="[
+            'py-4 px-1 border-b-2 font-medium text-sm',
+            activeTab === 'maintenance'
+              ? 'border-victorian-hunter-500 text-victorian-hunter-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+          ]"
+        >
+          Maintenance
         </button>
       </nav>
     </div>
@@ -1148,6 +1196,183 @@ function getBarWidth(cost: number): string {
           <p class="mt-2 text-xs text-gray-400">
             Cached at: {{ formatDeployTime(costData.cached_at) }}
           </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maintenance Tab -->
+    <div v-else-if="activeTab === 'maintenance'" class="flex flex-col gap-6">
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <button
+          @click="cleanupExpanded = !cleanupExpanded"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
+        >
+          <span class="font-semibold text-gray-900 flex items-center gap-2">
+            <span class="text-lg" aria-hidden="true">🧹</span>
+            Cleanup Tools
+          </span>
+          <svg
+            class="w-5 h-5 text-gray-500 transition-transform"
+            :class="{ 'rotate-180': cleanupExpanded }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        <div v-if="cleanupExpanded" class="px-6 pb-6 border-t border-gray-100">
+          <p class="text-sm text-gray-600 mt-4 mb-4">
+            Maintenance operations for cleaning up stale data. Use with caution.
+          </p>
+
+          <!-- Cleanup Buttons -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Run All -->
+            <button
+              @click="runCleanup('all')"
+              :disabled="!!cleanupLoading"
+              class="btn-primary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <span v-if="cleanupLoading === 'all'" class="animate-spin" aria-hidden="true"
+                >⏳</span
+              >
+              <span v-else aria-hidden="true">🔄</span>
+              Run All
+            </button>
+
+            <!-- Archive Stale -->
+            <button
+              @click="runCleanup('stale')"
+              :disabled="!!cleanupLoading"
+              class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              title="Archive books stuck in EVALUATING for 30+ days"
+            >
+              <span v-if="cleanupLoading === 'stale'" class="animate-spin" aria-hidden="true"
+                >⏳</span
+              >
+              <span v-else aria-hidden="true">📦</span>
+              Archive Stale
+            </button>
+
+            <!-- Check Expired -->
+            <button
+              @click="runCleanup('expired')"
+              :disabled="!!cleanupLoading"
+              class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              title="Check source URLs and mark expired ones"
+            >
+              <span v-if="cleanupLoading === 'expired'" class="animate-spin" aria-hidden="true"
+                >⏳</span
+              >
+              <span v-else aria-hidden="true">🔗</span>
+              Check Sources
+            </button>
+
+            <!-- Retry Archives -->
+            <button
+              @click="runCleanup('archives')"
+              :disabled="!!cleanupLoading"
+              class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              title="Retry failed Wayback archives"
+            >
+              <span v-if="cleanupLoading === 'archives'" class="animate-spin" aria-hidden="true"
+                >⏳</span
+              >
+              <span v-else aria-hidden="true">🗄️</span>
+              Retry Archives
+            </button>
+          </div>
+
+          <!-- Orphan Images Section -->
+          <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Orphaned Images</h4>
+            <p class="text-xs text-gray-600 mb-3">
+              Find S3 images not referenced by any book. Scan first, then delete if needed.
+            </p>
+            <div class="flex gap-2">
+              <button
+                @click="runCleanup('orphans', false)"
+                :disabled="!!cleanupLoading"
+                class="btn-secondary py-1.5 px-3 text-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
+                  >⏳</span
+                >
+                <span v-else aria-hidden="true">🔍</span>
+                Scan Only
+              </button>
+              <button
+                @click="runCleanup('orphans', true)"
+                :disabled="!!cleanupLoading"
+                class="py-1.5 px-3 text-sm text-white bg-[var(--color-status-error-accent)] hover:bg-red-700 rounded-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
+                  >⏳</span
+                >
+                <span v-else aria-hidden="true">🗑️</span>
+                Delete Orphans
+              </button>
+            </div>
+          </div>
+
+          <!-- Results Display -->
+          <div
+            v-if="cleanupResult"
+            class="mt-4 p-4 bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)] rounded-lg"
+          >
+            <h4 class="text-sm font-medium text-[var(--color-status-success-text)] mb-2">
+              Cleanup Results
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div v-if="cleanupResult.stale_archived !== undefined">
+                <span class="text-gray-600">Stale Archived:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.stale_archived }}</span>
+              </div>
+              <div v-if="cleanupResult.sources_checked !== undefined">
+                <span class="text-gray-600">Sources Checked:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.sources_checked }}</span>
+              </div>
+              <div v-if="cleanupResult.sources_expired !== undefined">
+                <span class="text-gray-600">Sources Expired:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.sources_expired }}</span>
+              </div>
+              <div v-if="cleanupResult.orphans_found !== undefined">
+                <span class="text-gray-600">Orphans Found:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.orphans_found }}</span>
+              </div>
+              <div v-if="cleanupResult.orphans_deleted !== undefined">
+                <span class="text-gray-600">Orphans Deleted:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.orphans_deleted }}</span>
+              </div>
+              <div v-if="cleanupResult.archives_retried !== undefined">
+                <span class="text-gray-600">Archives Retried:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.archives_retried }}</span>
+              </div>
+              <div v-if="cleanupResult.archives_succeeded !== undefined">
+                <span class="text-gray-600">Archives Succeeded:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.archives_succeeded }}</span>
+              </div>
+              <div v-if="cleanupResult.archives_failed !== undefined">
+                <span class="text-gray-600">Archives Failed:</span>
+                <span class="ml-1 font-medium">{{ cleanupResult.archives_failed }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Display -->
+          <div
+            v-if="cleanupError"
+            class="mt-4 p-4 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-lg"
+          >
+            <p class="text-sm text-[var(--color-status-error-text)]">{{ cleanupError }}</p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,14 +1,20 @@
 """Cleanup Lambda handler for stale data maintenance."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import boto3
 import requests
 from sqlalchemy.orm import Session
 
+from app.db.session import SessionLocal
 from app.models import Book
 from app.models.image import BookImage
 from app.services.archive import archive_url
+
+# Batch size limits to prevent Lambda timeout (300s max)
+EXPIRED_CHECK_BATCH_SIZE = 25  # 10s timeout × 25 = ~250s max
+ARCHIVE_RETRY_BATCH_SIZE = 10  # Archive calls can be slow
 
 
 def cleanup_stale_evaluations(db: Session) -> int:
@@ -41,17 +47,21 @@ def cleanup_stale_evaluations(db: Session) -> int:
 def check_expired_sources(db: Session) -> tuple[int, int]:
     """Check source URLs for books and mark expired ones.
 
+    Only checks a batch per invocation to avoid Lambda timeout.
+    Transient network errors leave source_expired as None for retry.
+
     Args:
         db: Database session
 
     Returns:
         Tuple of (checked_count, expired_count)
     """
-    # Query books with source_url that haven't been checked
+    # Query books with source_url that haven't been checked (batch limited)
     books = (
         db.query(Book)
         .filter(Book.source_url.isnot(None))
         .filter(Book.source_expired.is_(None))
+        .limit(EXPIRED_CHECK_BATCH_SIZE)
         .all()
     )
 
@@ -67,19 +77,28 @@ def check_expired_sources(db: Session) -> tuple[int, int]:
                 expired += 1
             else:
                 book.source_expired = False
-        except requests.RequestException:
-            # Network error - mark as expired
-            book.source_expired = True
-            expired += 1
+        except requests.Timeout:
+            # Transient timeout - leave as None to retry later
+            pass
+        except requests.ConnectionError:
+            # Transient connection error - leave as None to retry later
+            pass
+        except requests.RequestException as e:
+            # Check if it's a definitive HTTP error in the exception
+            error_str = str(e).lower()
+            if "404" in error_str or "410" in error_str or "not found" in error_str:
+                book.source_expired = True
+                expired += 1
+            # else leave as None to retry later
 
     db.commit()
     return checked, expired
 
 
-def cleanup_orphaned_images(
-    db: Session, bucket: str, delete: bool = False
-) -> dict:
+def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> dict:
     """Find and optionally delete orphaned images in S3.
+
+    Uses pagination to handle buckets with more than 1000 objects.
 
     Args:
         db: Database session
@@ -89,14 +108,13 @@ def cleanup_orphaned_images(
     Returns:
         Dict with found, deleted counts and list of orphaned keys
     """
-    # Get S3 client
     s3 = boto3.client("s3")
 
-    # List all keys in S3 bucket
-    response = s3.list_objects_v2(Bucket=bucket)
+    # Use paginator to handle > 1000 objects
+    paginator = s3.get_paginator("list_objects_v2")
     s3_keys = set()
-    if "Contents" in response:
-        for obj in response["Contents"]:
+    for page in paginator.paginate(Bucket=bucket):
+        for obj in page.get("Contents", []):
             s3_keys.add(obj["Key"])
 
     # Get all image keys from database
@@ -122,6 +140,7 @@ async def retry_failed_archives(db: Session) -> dict:
     """Retry archiving for books with failed archive status.
 
     Only retries books with less than 3 attempts.
+    Batch limited to prevent Lambda timeout.
 
     Args:
         db: Database session
@@ -131,11 +150,12 @@ async def retry_failed_archives(db: Session) -> dict:
     """
     MAX_ATTEMPTS = 3
 
-    # Query books with failed archive status and < max attempts
+    # Query books with failed archive status and < max attempts (batch limited)
     books = (
         db.query(Book)
         .filter(Book.archive_status == "failed")
         .filter(Book.archive_attempts < MAX_ATTEMPTS)
+        .limit(ARCHIVE_RETRY_BATCH_SIZE)
         .all()
     )
 
@@ -167,23 +187,15 @@ async def retry_failed_archives(db: Session) -> dict:
     }
 
 
-async def handler(event: dict, context) -> dict:
-    """Cleanup Lambda handler.
-
-    Event payload:
-        action: "all" | "stale" | "expired" | "orphans" | "archives"
-        bucket: S3 bucket name (required for orphans action)
-        delete_orphans: bool (default False)
+async def _async_handler(event: dict) -> dict:
+    """Async implementation of cleanup handler.
 
     Args:
         event: Lambda event dict
-        context: Lambda context (unused)
 
     Returns:
         Dict with cleanup results
     """
-    from app.db.session import get_db
-
     action = event.get("action", "all")
     bucket = event.get("bucket")
     delete_orphans = event.get("delete_orphans", False)
@@ -197,8 +209,8 @@ async def handler(event: dict, context) -> dict:
 
     result = {}
 
-    # Get database session
-    db = next(get_db())
+    # Create database session directly (not via generator)
+    db = SessionLocal()
 
     try:
         if action in ("all", "stale"):
@@ -225,3 +237,21 @@ async def handler(event: dict, context) -> dict:
         db.close()
 
     return result
+
+
+def handler(event: dict, context) -> dict:
+    """Cleanup Lambda handler.
+
+    Event payload:
+        action: "all" | "stale" | "expired" | "orphans" | "archives"
+        bucket: S3 bucket name (required for orphans action)
+        delete_orphans: bool (default False)
+
+    Args:
+        event: Lambda event dict
+        context: Lambda context (unused)
+
+    Returns:
+        Dict with cleanup results
+    """
+    return asyncio.run(_async_handler(event))

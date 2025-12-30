@@ -29,9 +29,7 @@ class TestCleanupStaleEvaluations:
 
         # Manually set updated_at to 35 days ago
         stale_date = datetime.now(UTC) - timedelta(days=35)
-        db.query(Book).filter(Book.id == stale_book.id).update(
-            {"updated_at": stale_date}
-        )
+        db.query(Book).filter(Book.id == stale_book.id).update({"updated_at": stale_date})
         db.commit()
 
         # Run cleanup
@@ -54,9 +52,7 @@ class TestCleanupStaleEvaluations:
 
         # Set updated_at to 10 days ago (within threshold)
         recent_date = datetime.now(UTC) - timedelta(days=10)
-        db.query(Book).filter(Book.id == recent_book.id).update(
-            {"updated_at": recent_date}
-        )
+        db.query(Book).filter(Book.id == recent_book.id).update({"updated_at": recent_date})
         db.commit()
 
         # Run cleanup
@@ -79,9 +75,7 @@ class TestCleanupStaleEvaluations:
 
         # Manually set updated_at to 35 days ago
         stale_date = datetime.now(UTC) - timedelta(days=35)
-        db.query(Book).filter(Book.id == stale_book.id).update(
-            {"updated_at": stale_date}
-        )
+        db.query(Book).filter(Book.id == stale_book.id).update({"updated_at": stale_date})
         db.commit()
 
         # Run cleanup
@@ -261,18 +255,22 @@ class TestCleanupOrphanedImages:
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_finds_orphaned_images_dry_run(self, mock_boto_client, db):
         """Test that orphaned images are found but not deleted in dry run mode."""
-        # Setup mock S3 client
+        # Setup mock S3 client with paginator
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock S3 listing - 3 images in S3
-        mock_s3.list_objects_v2.return_value = {
-            "Contents": [
-                {"Key": "images/book1/photo1.jpg"},
-                {"Key": "images/book2/photo2.jpg"},
-                {"Key": "images/orphan/photo3.jpg"},  # Orphaned
-            ]
-        }
+        # Mock paginator for S3 listing - 3 images in S3
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "images/book1/photo1.jpg"},
+                    {"Key": "images/book2/photo2.jpg"},
+                    {"Key": "images/orphan/photo3.jpg"},  # Orphaned
+                ]
+            }
+        ]
 
         # Create book with 2 images in DB
         from app.models.image import BookImage
@@ -298,17 +296,21 @@ class TestCleanupOrphanedImages:
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_deletes_orphaned_images_when_enabled(self, mock_boto_client, db):
         """Test that orphaned images are deleted when delete=True."""
-        # Setup mock S3 client
+        # Setup mock S3 client with paginator
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock S3 listing - 2 images in S3
-        mock_s3.list_objects_v2.return_value = {
-            "Contents": [
-                {"Key": "images/book1/photo1.jpg"},
-                {"Key": "images/orphan/photo2.jpg"},  # Orphaned
-            ]
-        }
+        # Mock paginator for S3 listing - 2 images in S3
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "images/book1/photo1.jpg"},
+                    {"Key": "images/orphan/photo2.jpg"},  # Orphaned
+                ]
+            }
+        ]
 
         # Create book with 1 image in DB
         from app.models.image import BookImage
@@ -335,16 +337,20 @@ class TestCleanupOrphanedImages:
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_no_orphans_returns_empty(self, mock_boto_client, db):
         """Test that returns empty result when no orphans found."""
-        # Setup mock S3 client
+        # Setup mock S3 client with paginator
         mock_s3 = MagicMock()
         mock_boto_client.return_value = mock_s3
 
-        # Mock S3 listing - 1 image in S3
-        mock_s3.list_objects_v2.return_value = {
-            "Contents": [
-                {"Key": "images/book1/photo1.jpg"},
-            ]
-        }
+        # Mock paginator for S3 listing - 1 image in S3
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "images/book1/photo1.jpg"},
+                ]
+            }
+        ]
 
         # Create book with matching image in DB
         from app.models.image import BookImage
@@ -365,33 +371,68 @@ class TestCleanupOrphanedImages:
         assert result["deleted"] == 0
         assert result["keys"] == []
 
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_handles_multiple_pages(self, mock_boto_client, db):
+        """Test that S3 paginator handles multiple pages correctly."""
+        # Setup mock S3 client with paginator returning multiple pages
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Simulate multiple pages (> 1000 objects)
+        mock_paginator.paginate.return_value = [
+            {"Contents": [{"Key": "images/page1/photo1.jpg"}]},
+            {"Contents": [{"Key": "images/page2/photo2.jpg"}]},
+            {"Contents": [{"Key": "images/orphan/photo3.jpg"}]},  # Orphaned
+        ]
+
+        # Create book with 2 images in DB
+        from app.models.image import BookImage
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        image1 = BookImage(book_id=book.id, s3_key="images/page1/photo1.jpg")
+        image2 = BookImage(book_id=book.id, s3_key="images/page2/photo2.jpg")
+        db.add_all([image1, image2])
+        db.commit()
+
+        # Run cleanup
+        result = cleanup_orphaned_images(db, bucket="test-bucket")
+
+        # Verify paginator was used and found orphan across pages
+        mock_s3.get_paginator.assert_called_once_with("list_objects_v2")
+        assert result["found"] == 1
+        assert "images/orphan/photo3.jpg" in result["keys"]
+
 
 class TestCleanupHandler:
     """Tests for the main Lambda handler function."""
 
-    @pytest.mark.asyncio
-    @patch("app.db.session.get_db")
+    @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.cleanup_stale_evaluations")
     @patch("lambdas.cleanup.handler.check_expired_sources")
     @patch("lambdas.cleanup.handler.cleanup_orphaned_images")
     @patch("lambdas.cleanup.handler.retry_failed_archives")
-    async def test_handler_runs_all_actions(
-        self, mock_retry, mock_orphans, mock_expired, mock_stale, mock_get_db
+    def test_handler_runs_all_actions(
+        self, mock_retry, mock_orphans, mock_expired, mock_stale, mock_session_local
     ):
         """Test handler with action='all' runs all cleanup functions."""
         from lambdas.cleanup.handler import handler
 
         # Setup mocks
         mock_db = MagicMock()
-        mock_get_db.return_value = iter([mock_db])
+        mock_session_local.return_value = mock_db
         mock_stale.return_value = 2
         mock_expired.return_value = (10, 3)
         mock_orphans.return_value = {"found": 5, "deleted": 0, "keys": []}
         mock_retry.return_value = {"retried": 1, "succeeded": 1, "failed": 0}
 
-        # Run handler
+        # Run handler (sync now)
         event = {"action": "all", "bucket": "test-bucket"}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         # Verify all functions called
         mock_stale.assert_called_once()
@@ -406,56 +447,58 @@ class TestCleanupHandler:
         assert result["orphans_found"] == 5
         assert result["archives_retried"] == 1
 
-    @pytest.mark.asyncio
-    @patch("app.db.session.get_db")
+        # Verify session was closed
+        mock_db.close.assert_called_once()
+
+    @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.cleanup_stale_evaluations")
-    async def test_handler_runs_stale_action_only(self, mock_stale, mock_get_db):
+    def test_handler_runs_stale_action_only(self, mock_stale, mock_session_local):
         """Test handler with action='stale' only cleans stale evaluations."""
         from lambdas.cleanup.handler import handler
 
         mock_db = MagicMock()
-        mock_get_db.return_value = iter([mock_db])
+        mock_session_local.return_value = mock_db
         mock_stale.return_value = 3
 
         event = {"action": "stale"}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         mock_stale.assert_called_once()
         assert result["stale_evaluations_archived"] == 3
         assert "sources_checked" not in result
+        mock_db.close.assert_called_once()
 
-    @pytest.mark.asyncio
-    @patch("app.db.session.get_db")
+    @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.check_expired_sources")
-    async def test_handler_runs_expired_action_only(self, mock_expired, mock_get_db):
+    def test_handler_runs_expired_action_only(self, mock_expired, mock_session_local):
         """Test handler with action='expired' only checks expired sources."""
         from lambdas.cleanup.handler import handler
 
         mock_db = MagicMock()
-        mock_get_db.return_value = iter([mock_db])
+        mock_session_local.return_value = mock_db
         mock_expired.return_value = (15, 5)
 
         event = {"action": "expired"}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         mock_expired.assert_called_once()
         assert result["sources_checked"] == 15
         assert result["sources_expired"] == 5
         assert "stale_evaluations_archived" not in result
+        mock_db.close.assert_called_once()
 
-    @pytest.mark.asyncio
-    @patch("app.db.session.get_db")
+    @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.cleanup_orphaned_images")
-    async def test_handler_runs_orphans_action_with_delete(self, mock_orphans, mock_get_db):
+    def test_handler_runs_orphans_action_with_delete(self, mock_orphans, mock_session_local):
         """Test handler with action='orphans' and delete_orphans=True."""
         from lambdas.cleanup.handler import handler
 
         mock_db = MagicMock()
-        mock_get_db.return_value = iter([mock_db])
+        mock_session_local.return_value = mock_db
         mock_orphans.return_value = {"found": 10, "deleted": 10, "keys": ["a.jpg"]}
 
         event = {"action": "orphans", "bucket": "my-bucket", "delete_orphans": True}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         mock_orphans.assert_called_once()
         # Verify delete=True was passed
@@ -464,44 +507,43 @@ class TestCleanupHandler:
         assert call_args[1]["bucket"] == "my-bucket"
         assert result["orphans_found"] == 10
         assert result["orphans_deleted"] == 10
+        mock_db.close.assert_called_once()
 
-    @pytest.mark.asyncio
-    @patch("app.db.session.get_db")
+    @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.retry_failed_archives")
-    async def test_handler_runs_archives_action_only(self, mock_retry, mock_get_db):
+    def test_handler_runs_archives_action_only(self, mock_retry, mock_session_local):
         """Test handler with action='archives' only retries failed archives."""
         from lambdas.cleanup.handler import handler
 
         mock_db = MagicMock()
-        mock_get_db.return_value = iter([mock_db])
+        mock_session_local.return_value = mock_db
         mock_retry.return_value = {"retried": 2, "succeeded": 1, "failed": 1}
 
         event = {"action": "archives"}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         mock_retry.assert_called_once()
         assert result["archives_retried"] == 2
         assert result["archives_succeeded"] == 1
         assert result["archives_failed"] == 1
+        mock_db.close.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_handler_returns_error_for_invalid_action(self):
+    def test_handler_returns_error_for_invalid_action(self):
         """Test handler returns error for unknown action."""
         from lambdas.cleanup.handler import handler
 
         event = {"action": "invalid_action"}
-        result = await handler(event, None)
+        result = handler(event, None)
 
         assert "error" in result
         assert "invalid_action" in result["error"].lower() or "unknown" in result["error"].lower()
 
-    @pytest.mark.asyncio
-    async def test_handler_requires_bucket_for_orphans(self):
+    def test_handler_requires_bucket_for_orphans(self):
         """Test handler returns error when orphans action lacks bucket."""
         from lambdas.cleanup.handler import handler
 
         event = {"action": "orphans"}  # Missing bucket
-        result = await handler(event, None)
+        result = handler(event, None)
 
         assert "error" in result
         assert "bucket" in result["error"].lower()
