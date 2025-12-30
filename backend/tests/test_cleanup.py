@@ -311,6 +311,8 @@ class TestCleanupOrphanedImages:
         assert result["objects_in_database"] == 2
         assert "orphan_percentage" in result
         assert "sample_orphan_keys" in result
+        # Verify orphans_by_prefix breakdown
+        assert result["orphans_by_prefix"] == {"books/": 1}
 
     @patch("lambdas.cleanup.handler.boto3.client")
     def test_deletes_orphaned_images_when_enabled(self, mock_boto_client, db):
@@ -489,6 +491,8 @@ class TestCleanupOrphanedImages:
         assert result["orphan_percentage"] == 100.0
         assert "WARNING" in result
         assert "High orphan rate" in result["WARNING"]
+        # Verify orphans_by_prefix shows all 4 items under books/
+        assert result["orphans_by_prefix"] == {"books/": 4}
 
 
 class TestCleanupHandler:

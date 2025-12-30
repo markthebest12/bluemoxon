@@ -21,7 +21,19 @@ The cleanup Lambda's `cleanup_orphaned_images` function deleted ~6,892 objects f
 
 ## Root Cause Analysis
 
-### Primary Cause: No S3 Prefix Filter
+### Primary Cause: Key Format Mismatch
+
+S3 stores images with `books/` prefix, but database stores keys WITHOUT the prefix:
+
+```python
+# S3 stores: "books/515/image_00.webp"
+# DB stores: "515/image_00.webp"
+
+# BUG: Direct comparison never matches
+orphaned_keys = s3_keys - db_keys  # ALL S3 keys appear orphaned!
+```
+
+### Secondary Cause: No S3 Prefix Filter
 
 The function lists ALL objects in the bucket without filtering:
 
@@ -35,8 +47,8 @@ for page in paginator.paginate(Bucket=bucket):
 Should be:
 
 ```python
-# FIX: Only list objects in images prefix
-for page in paginator.paginate(Bucket=bucket, Prefix="images/"):
+# FIX: Only list objects in books/ prefix
+for page in paginator.paginate(Bucket=bucket, Prefix="books/"):
     for obj in page.get("Contents", []):
         s3_keys.add(obj["Key"])
 ```
@@ -60,22 +72,34 @@ If 6,892 is orphans but total objects is 7,000, that's a 98% orphan rate - an ob
 
 ## Fix Implementation Approach
 
-### 1. Add Prefix Filtering (Required)
+### 1. Add Prefix Filtering and Key Stripping (Required)
 
 ```python
+S3_BOOKS_PREFIX = "books/"
+
 def cleanup_orphaned_images(
     db: Session,
     bucket: str,
-    image_prefix: str = "images/",  # NEW: configurable prefix
     delete: bool = False
 ) -> dict:
     s3 = boto3.client("s3")
     paginator = s3.get_paginator("list_objects_v2")
 
-    s3_keys = set()
-    for page in paginator.paginate(Bucket=bucket, Prefix=image_prefix):  # FILTERED
+    s3_keys_full = set()      # Full keys for deletion
+    s3_keys_stripped = set()  # Stripped keys for comparison
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
         for obj in page.get("Contents", []):
-            s3_keys.add(obj["Key"])
+            full_key = obj["Key"]
+            s3_keys_full.add(full_key)
+            # Strip prefix to match DB format
+            if full_key.startswith(S3_BOOKS_PREFIX):
+                s3_keys_stripped.add(full_key[len(S3_BOOKS_PREFIX):])
+
+    # Compare stripped keys to DB keys
+    orphaned_stripped = s3_keys_stripped - db_keys
+    # Convert back to full keys for deletion
+    orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
 ```
 
 ### 2. Enhanced Dry Run Output (Required)
@@ -88,30 +112,25 @@ def cleanup_orphaned_images(...) -> dict:
 
     # Group orphans by top-level prefix for visibility
     orphans_by_prefix = {}
-    for key in orphaned_keys:
+    for key in orphaned_full_keys:
         prefix = key.split("/")[0] + "/" if "/" in key else "(root)"
         orphans_by_prefix[prefix] = orphans_by_prefix.get(prefix, 0) + 1
 
     # Build contextual response
     result = {
-        "scan_prefix": image_prefix,
-        "total_objects_scanned": len(s3_keys),
+        "scan_prefix": S3_BOOKS_PREFIX,
+        "total_objects_scanned": len(s3_keys_full),
         "objects_in_database": len(db_keys),
-        "orphans_found": len(orphaned_keys),
+        "orphans_found": len(orphaned_full_keys),
         "orphans_by_prefix": orphans_by_prefix,
-        "orphan_percentage": round(len(orphaned_keys) / len(s3_keys) * 100, 1) if s3_keys else 0,
-        "sample_orphan_keys": list(orphaned_keys)[:10],  # Show samples for sanity check
+        "orphan_percentage": round(len(orphaned_full_keys) / len(s3_keys_full) * 100, 1) if s3_keys_full else 0,
+        "sample_orphan_keys": list(orphaned_full_keys)[:10],  # Capped for response size
         "deleted": deleted,
     }
 
     # Add warning if high orphan rate
     if result["orphan_percentage"] > 50:
         result["WARNING"] = f"High orphan rate ({result['orphan_percentage']}%) - verify before deleting"
-
-    # Add warning if orphans outside expected prefix
-    unexpected_prefixes = [p for p in orphans_by_prefix.keys() if p != image_prefix]
-    if unexpected_prefixes:
-        result["WARNING"] = f"Found orphans in unexpected prefixes: {unexpected_prefixes}"
 
     return result
 ```
@@ -129,74 +148,42 @@ def cleanup_orphaned_images(...) -> dict:
 **After (actionable):**
 ```json
 {
-  "scan_prefix": "images/",
-  "total_objects_scanned": 300,
-  "objects_in_database": 285,
+  "scan_prefix": "books/",
+  "total_objects_scanned": 5089,
+  "objects_in_database": 5074,
   "orphans_found": 15,
-  "orphan_percentage": 5.0,
+  "orphan_percentage": 0.3,
   "orphans_by_prefix": {
-    "images/": 15
+    "books/": 15
   },
   "sample_orphan_keys": [
-    "images/orphan1.jpg",
-    "images/orphan2.jpg"
+    "books/orphan1/photo.jpg",
+    "books/orphan2/photo.jpg"
   ],
   "deleted": 0
 }
 ```
 
-If the bug still existed, the output would immediately reveal it:
+If the key mismatch bug existed, the output would reveal it:
 ```json
 {
-  "scan_prefix": "images/",
-  "total_objects_scanned": 6892,
-  "orphans_found": 6892,
+  "scan_prefix": "books/",
+  "total_objects_scanned": 5089,
+  "objects_in_database": 5089,
+  "orphans_found": 5089,
   "orphan_percentage": 100.0,
   "orphans_by_prefix": {
-    "books/": 5089,
-    "listings/": 1486,
-    "images/": 300,
-    "data-import/": 8,
-    "prompts/": 4,
-    "lambda/": 2
+    "books/": 5089
   },
-  "WARNING": "Found orphans in unexpected prefixes: ['books/', 'listings/', 'data-import/', 'prompts/', 'lambda/']"
+  "WARNING": "High orphan rate (100.0%) - verify before deleting"
 }
 ```
 
-### 4. API/Handler Changes
+### 4. Implementation Notes
 
-Update the handler to accept the image prefix:
-
-```python
-async def _async_handler(event: dict) -> dict:
-    # ... existing code ...
-    image_prefix = event.get("image_prefix", "images/")  # NEW
-
-    if action in ("all", "orphans"):
-        orphan_result = cleanup_orphaned_images(
-            db,
-            bucket=bucket,
-            image_prefix=image_prefix,  # NEW
-            delete=delete_orphans
-        )
-```
-
-### 5. Environment Variable for Default Prefix
-
-Add to Lambda environment (via Terraform):
-
-```hcl
-environment {
-  variables = merge(
-    {
-      ENVIRONMENT = var.environment
-      IMAGES_PREFIX = "images/"  # Default prefix for orphan scanning
-    },
-    var.environment_variables
-  )
-}
-```
+- Prefix is hardcoded as `S3_BOOKS_PREFIX = "books/"` since this matches the actual S3 structure
+- No configurable prefix needed - book images always live under `books/`
+- The `orphans_by_prefix` breakdown provides visibility into what's being detected
 
 ---
 
@@ -231,4 +218,4 @@ Before re-enabling orphan cleanup:
 |------|--------|
 | `backend/lambdas/cleanup/handler.py` | Add prefix filter, enhance dry run output |
 | `backend/tests/test_cleanup.py` | Add tests for prefix filtering and output format |
-| `infra/terraform/modules/cleanup-lambda/main.tf` | Add IMAGES_PREFIX env var |
+| `docs/postmortems/2025-12-30-cleanup-lambda-s3-deletion.md` | This postmortem document |

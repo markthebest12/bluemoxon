@@ -153,12 +153,20 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
         round(len(orphaned_full_keys) / len(s3_keys_full) * 100, 1) if s3_keys_full else 0
     )
 
+    # Group orphans by top-level prefix for visibility
+    # This helps catch bugs like "why are there orphans outside books/?"
+    orphans_by_prefix: dict[str, int] = {}
+    for key in orphaned_full_keys:
+        prefix = key.split("/")[0] + "/" if "/" in key else "(root)"
+        orphans_by_prefix[prefix] = orphans_by_prefix.get(prefix, 0) + 1
+
     # Build contextual response for dry run review
     result = {
         "scan_prefix": S3_BOOKS_PREFIX,
         "total_objects_scanned": len(s3_keys_full),
         "objects_in_database": len(db_keys),
         "orphans_found": len(orphaned_full_keys),
+        "orphans_by_prefix": orphans_by_prefix,
         "orphan_percentage": orphan_percentage,
         "sample_orphan_keys": list(orphaned_full_keys)[:10],
         "deleted": deleted,
@@ -168,9 +176,9 @@ def cleanup_orphaned_images(db: Session, bucket: str, delete: bool = False) -> d
     if orphan_percentage > 50:
         result["WARNING"] = f"High orphan rate ({orphan_percentage}%) - verify before deleting"
 
-    # Legacy keys for backward compatibility
+    # Legacy field for backward compatibility (capped to prevent huge responses)
     result["found"] = result["orphans_found"]
-    result["keys"] = list(orphaned_full_keys)
+    result["keys"] = list(orphaned_full_keys)[:100]
 
     return result
 
