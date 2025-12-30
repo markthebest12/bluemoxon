@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 import boto3
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -243,8 +243,9 @@ def get_scoring_config() -> dict:
 
 
 @router.get("/config", response_model=ConfigResponse)
-def get_config(db: Session = Depends(get_db)):
+def get_config(response: Response, db: Session = Depends(get_db)):
     """Get admin configuration."""
+    response.headers["Cache-Control"] = "no-store"
     result = db.execute(select(AdminConfig))
     configs = {c.key: c.value for c in result.scalars().all()}
     return ConfigResponse(
@@ -255,7 +256,10 @@ def get_config(db: Session = Depends(get_db)):
 
 @router.put("/config", response_model=ConfigResponse)
 def update_config(
-    updates: ConfigUpdate, db: Session = Depends(get_db), _user=Depends(require_admin)
+    updates: ConfigUpdate,
+    response: Response,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
 ):
     """Update admin configuration (admin only)."""
     for key, value in updates.model_dump(exclude_none=True).items():
@@ -265,11 +269,11 @@ def update_config(
         else:
             db.add(AdminConfig(key=key, value=value))
     db.commit()
-    return get_config(db)
+    return get_config(response, db)
 
 
 @router.get("/system-info", response_model=SystemInfoResponse)
-def get_system_info(db: Session = Depends(get_db)):
+def get_system_info(response: Response, db: Session = Depends(get_db)):
     """Get comprehensive system information for admin dashboard.
 
     Returns version info, health checks, infrastructure config,
@@ -279,6 +283,7 @@ def get_system_info(db: Session = Depends(get_db)):
 
     from app.config import get_settings
 
+    response.headers["Cache-Control"] = "no-store"
     settings = get_settings()
     start = time.time()
 
@@ -374,15 +379,16 @@ def get_system_info(db: Session = Depends(get_db)):
 
 
 @router.get("/costs", response_model=CostResponse)
-def get_costs():
+def get_costs(response: Response):
     """Get AWS cost data for admin dashboard.
 
     Returns Bedrock model costs with usage descriptions,
     daily trend, and other AWS service costs.
-    Cached for 1 hour.
+    Cached server-side for 1 hour (see cost_explorer.py).
     """
     from app.services.cost_explorer import get_costs as fetch_costs
 
+    response.headers["Cache-Control"] = "no-store"
     return CostResponse(**fetch_costs())
 
 
