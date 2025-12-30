@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
+import BookCountBadge from "@/components/books/BookCountBadge.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -323,9 +324,7 @@ function closeCarousel() {
       </div>
 
       <!-- Results count -->
-      <div class="ml-auto text-xs sm:text-sm text-[var(--color-text-muted)]">
-        {{ booksStore.total }}
-      </div>
+      <BookCountBadge :count="booksStore.total" class="ml-auto" />
     </div>
 
     <!-- Expandable Filter Panel -->
