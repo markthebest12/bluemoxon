@@ -243,6 +243,22 @@ module "database" {
 }
 
 # =============================================================================
+# Lambda Layer (shared Python dependencies)
+# =============================================================================
+
+module "lambda_layer" {
+  count  = var.enable_lambda ? 1 : 0
+  source = "./modules/lambda-layer"
+
+  layer_name  = "bluemoxon-${var.environment}-deps"
+  description = "Shared Python dependencies for BlueMoxon Lambdas"
+  s3_bucket   = module.frontend_bucket.bucket_id
+  s3_key      = "lambda/layer.zip"
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Lambda Function
 # =============================================================================
 
@@ -255,6 +271,7 @@ module "lambda" {
   environment      = var.environment
   package_path     = var.lambda_package_path
   source_code_hash = var.lambda_source_code_hash
+  layers           = [module.lambda_layer[0].layer_version_arn]
 
   runtime     = var.lambda_runtime
   memory_size = var.lambda_memory_size
@@ -567,6 +584,7 @@ module "cleanup_lambda" {
   package_path     = var.lambda_package_path
   source_code_hash = var.lambda_source_code_hash
   runtime          = var.lambda_runtime
+  layers           = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
 
   memory_size = 256
   timeout     = 300
