@@ -85,6 +85,17 @@ layer(utilities);
   --color-border-default: var(--color-victorian-paper-antique);
   --color-border-subtle: var(--color-gray-200);
 
+  /* Tailwind base colors - defined here to enable dark mode override via CSS variables.
+     These shadow Tailwind's defaults, allowing .dark to swap them globally. */
+  --color-white: #ffffff;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-900: #111827;
+
   --color-accent-primary: var(--color-victorian-hunter-600);
   --color-accent-highlight: var(--color-victorian-gold);
 
@@ -142,12 +153,22 @@ layer(utilities);
   --color-border-default: #3d4a3d;
   --color-border-subtle: #2d3028;
 
-  /* Override Tailwind's default gray-200 for borders in dark mode.
-     This ensures ALL borders (including those using just `border` class
-     without explicit color) use our dark theme border color.
-     Fixes white borders appearing on cards in dark mode. */
-  --color-gray-200: #3d4a3d;
-  --color-gray-300: #4d5a4d;
+  /* Tailwind base color overrides for dark mode.
+     These override the @theme definitions, making ALL Tailwind utilities
+     (bg-white, bg-gray-50, text-gray-900, etc.) automatically dark-mode aware.
+
+     Surface scale (dark to light): base < primary < secondary < elevated
+     - surface-primary: #1a2318 (darkest - main background)
+     - surface-secondary: #2d3028 (slightly lighter)
+     - surface-elevated: #343a30 (lighter - cards, raised elements) */
+  --color-white: var(--color-surface-primary);
+  --color-gray-50: #2a2d26;
+  --color-gray-100: var(--color-surface-secondary);
+  --color-gray-200: var(--color-surface-elevated);
+  --color-gray-300: #3d4a3d;
+  --color-gray-500: #6b7264;
+  --color-gray-600: #8a8d84;
+  --color-gray-900: var(--color-text-primary);
 
   --color-accent-primary: var(--color-victorian-gold);
   --color-accent-highlight: var(--color-victorian-gold-light);
@@ -184,20 +205,6 @@ layer(utilities);
   --color-status-info-solid: var(--color-victorian-gold);
   --color-status-info-solid-text: #1a1a18;
   --color-status-info-accent: var(--color-victorian-gold-light);
-
-  /* Background overrides - Tailwind grays */
-  .bg-white {
-    background-color: var(--color-surface-primary);
-  }
-  .bg-gray-50 {
-    background-color: var(--color-surface-secondary);
-  }
-  .bg-gray-100 {
-    background-color: var(--color-surface-secondary);
-  }
-  .bg-gray-200 {
-    background-color: var(--color-surface-elevated);
-  }
 
   /* Background overrides - Victorian paper colors */
   .bg-victorian-paper-white {
