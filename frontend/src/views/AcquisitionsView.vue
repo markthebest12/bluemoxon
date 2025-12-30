@@ -348,7 +348,7 @@ async function handleArchiveSource(bookId: number) {
             <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
             <span
               data-testid="victorian-ornament"
-              class="hidden sm:inline text-victorian-gold-500 opacity-60"
+              class="hidden sm:inline text-xl text-victorian-gold-500 opacity-75"
               >❧</span
             >
           </div>
@@ -361,6 +361,7 @@ async function handleArchiveSource(bookId: number) {
             class="btn-primary text-sm flex items-center gap-2"
           >
             <span>🔗</span>
+            <span class="sm:hidden">Import</span>
             <span class="hidden sm:inline">Import from eBay</span>
           </button>
           <button
@@ -369,6 +370,7 @@ async function handleArchiveSource(bookId: number) {
             class="btn-secondary text-sm flex items-center gap-2"
           >
             <span>+</span>
+            <span class="sm:hidden">Add</span>
             <span class="hidden sm:inline">Add Manually</span>
           </button>
         </div>
