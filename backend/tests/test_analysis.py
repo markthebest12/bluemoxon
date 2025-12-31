@@ -43,6 +43,44 @@ class TestGetAnalysis:
         parsed = datetime.fromisoformat(data["generated_at"])
         assert parsed.tzinfo is not None
 
+    def test_get_analysis_includes_model_id(self, client):
+        """Test that analysis response includes model_id field."""
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Upload analysis via PUT (simulates manual upload - no model_id)
+        client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content="# Test Analysis\n\n## Executive Summary\nTest content.",
+            headers={"Content-Type": "text/plain"},
+        )
+
+        response = client.get(f"/api/v1/books/{book_id}/analysis")
+        assert response.status_code == 200
+
+        data = response.json()
+        # model_id should be present in response (null for manual uploads)
+        assert "model_id" in data
+
+    def test_legacy_analysis_has_null_model_id(self, client):
+        """Test that existing/legacy analyses return null model_id."""
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Upload analysis without model_id (simulates legacy data)
+        client.put(
+            f"/api/v1/books/{book_id}/analysis",
+            content="# Legacy Analysis\n\n## Executive Summary\nOld content.",
+            headers={"Content-Type": "text/plain"},
+        )
+
+        response = client.get(f"/api/v1/books/{book_id}/analysis")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "model_id" in data
+        assert data["model_id"] is None  # Legacy should be null
+
 
 class TestGetAnalysisRaw:
     """Tests for GET /api/v1/books/{id}/analysis/raw."""

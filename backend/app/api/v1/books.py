@@ -1332,6 +1332,7 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
         "risk_factors": book.analysis.risk_factors,
         "source_filename": book.analysis.source_filename,
         "extraction_status": book.analysis.extraction_status,
+        "model_id": book.analysis.model_id,
         "generated_at": (
             book.analysis.updated_at.replace(tzinfo=UTC)
             if book.analysis.updated_at and book.analysis.updated_at.tzinfo is None
@@ -1622,6 +1623,7 @@ def generate_analysis(
         condition_assessment=parsed.condition_assessment,
         market_analysis=parsed.market_analysis,
         recommendations=parsed.recommendations,
+        model_id=model_id,
     )
     db.add(analysis)
 
