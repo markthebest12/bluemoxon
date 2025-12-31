@@ -266,3 +266,30 @@ class TestExtractRelevantHtml:
 
         # Set size should be extracted
         assert "Set Size: 6" in result
+
+
+class TestCollectedWorksTitleExtraction:
+    """Tests for collected works / multi-volume set title extraction (#729)."""
+
+    @patch("app.services.listing.invoke_bedrock_extraction")
+    def test_collected_works_extracts_works_of_author(self, mock_bedrock):
+        """Verify collected works sets extract as 'Works of [Author]'.
+
+        When eBay listings have titles like "Charles Dickens 10 Vol Set",
+        the extraction should return "Works of Charles Dickens" not "10 Vol Set".
+        """
+        mock_bedrock.return_value = {
+            "title": "Works of Charles Dickens",
+            "author": "Charles Dickens",
+            "publisher": "Chapman & Hall",
+            "price": 2500.00,
+            "currency": "USD",
+            "volumes": 10,
+        }
+
+        result = extract_listing_data("<html>Charles Dickens 10 Vol Set Chapman & Hall</html>")
+
+        assert result["title"] == "Works of Charles Dickens"
+        assert result["author"] == "Charles Dickens"
+        assert result["volumes"] == 10
+        mock_bedrock.assert_called_once()

@@ -232,7 +232,7 @@ def match_binder(name: str, db: Session, threshold: float = 0.7) -> dict | None:
 EXTRACTION_PROMPT = """Extract book listing details as JSON. Return ONLY valid JSON, no explanation.
 
 {{
-  "title": "book title only, no author/publisher/binder in title",
+  "title": "book title only (for collected works/sets without a specific title, use 'Works of [Author]' or 'Collected Works')",
   "author": "author name only, no dates (e.g., 'John Ruskin' not 'John Ruskin (1819-1900)')",
   "publisher": "original publisher name if mentioned (e.g., 'Chapman & Hall', 'Macmillan')",
   "binder": "bindery/bookbinder name if mentioned (Rivière, Zaehnsdorf, Bayntun, Sangorski)",
