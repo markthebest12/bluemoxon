@@ -7,6 +7,31 @@ import re
 logger = logging.getLogger(__name__)
 
 
+def strip_metadata_block(analysis_text: str) -> str:
+    """Strip the metadata block from analysis text before storage.
+
+    Removes the entire metadata section including:
+    - The --- separator before the metadata
+    - The <!-- METADATA_START --> marker
+    - The JSON content
+    - The <!-- METADATA_END --> marker
+    - Any trailing whitespace
+
+    Args:
+        analysis_text: Full analysis markdown text
+
+    Returns:
+        Analysis text with metadata block removed
+    """
+    # Pattern matches optional --- separator, metadata markers, and content between them
+    # The (?:\n---\n*)? matches an optional --- line before the metadata
+    pattern = r"\n*---\s*\n*<!-- METADATA_START -->\s*\{.*?\}\s*<!-- METADATA_END -->\s*"
+    cleaned = re.sub(pattern, "", analysis_text, flags=re.DOTALL)
+
+    # Strip trailing whitespace
+    return cleaned.rstrip()
+
+
 def extract_analysis_metadata(analysis_text: str) -> dict | None:
     """Extract structured metadata block from analysis response.
 
