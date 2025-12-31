@@ -266,3 +266,28 @@ class TestExtractRelevantHtml:
 
         # Set size should be extracted
         assert "Set Size: 6" in result
+
+
+class TestCollectedWorksTitleExtraction:
+    """Tests for collected works / multi-volume set title extraction (#729).
+
+    When eBay listings have titles like "Charles Dickens 10 Vol Set (1860s) Chapman & Hall",
+    the extraction prompt should guide Claude to use "Works of [Author]" instead of just
+    extracting "10 Vol Set" after stripping author/publisher.
+    """
+
+    def test_extraction_prompt_has_collected_works_guidance(self):
+        """Verify EXTRACTION_PROMPT includes guidance for collected works titles.
+
+        The prompt must tell Claude to use 'Works of [Author]' or 'Collected Works'
+        for multi-volume sets that lack a specific title.
+        """
+        from app.services.listing import EXTRACTION_PROMPT
+
+        # The prompt should include guidance for collected works
+        # This test will FAIL until we update the prompt
+        assert "Works of" in EXTRACTION_PROMPT or "Collected Works" in EXTRACTION_PROMPT, (
+            "EXTRACTION_PROMPT must include guidance for collected works titles. "
+            "When eBay listings like 'Charles Dickens 10 Vol Set' have author as title, "
+            "Claude should output 'Works of Charles Dickens' not just '10 Vol Set'."
+        )

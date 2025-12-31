@@ -43,6 +43,7 @@ const analysis = ref<string | null>(null);
 const editedAnalysis = ref<string>("");
 const extractionStatus = ref<string | null>(null); // "success", "degraded", "failed", or null (legacy)
 const generatedAt = ref<string | null>(null); // Analysis generation timestamp
+const modelId = ref<string | null>(null); // AI model used for generation
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
@@ -99,6 +100,7 @@ async function loadAnalysis() {
       const metaResponse = await api.get(`/books/${props.bookId}/analysis`);
       extractionStatus.value = metaResponse.data.extraction_status || null;
       generatedAt.value = metaResponse.data.generated_at || null;
+      modelId.value = metaResponse.data.model_id || null;
     } catch {
       // Metadata fetch failed, continue without extraction status
     }
@@ -292,6 +294,21 @@ function formatPacificTime(isoString: string): string {
     hour12: true,
   });
   return `${formatted} Pacific`;
+}
+
+function formatModelId(modelId: string): string {
+  // Convert "us.anthropic.claude-sonnet-4-5-20250929-v1:0" to "Claude Sonnet 4.5"
+  // or "us.anthropic.claude-opus-4-20250514-v1:0" to "Claude Opus 4"
+  if (modelId.includes("opus")) {
+    const match = modelId.match(/opus-(\d+)/);
+    return match ? `Claude Opus ${match[1]}` : "Claude Opus";
+  }
+  if (modelId.includes("sonnet")) {
+    const match = modelId.match(/sonnet-(\d+)-(\d+)/);
+    return match ? `Claude Sonnet ${match[1]}.${match[2]}` : "Claude Sonnet";
+  }
+  // Fallback: return last part of model ID
+  return modelId.split(".").pop() || modelId;
 }
 </script>
 
@@ -747,6 +764,7 @@ Detailed condition notes...
                 class="mt-8 pt-4 border-t border-[var(--color-border-default)] text-sm text-[var(--color-text-muted)] italic"
               >
                 Analysis generated: {{ formatPacificTime(generatedAt) }}
+                <span v-if="modelId" class="ml-2">| Model: {{ formatModelId(modelId) }}</span>
               </p>
             </div>
 
