@@ -35,6 +35,10 @@ class BookAnalysis(Base, TimestampMixin):
     #         "failed" (extraction error, no structured data), null (legacy/unknown)
     extraction_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    # AI model that generated this analysis (null for legacy/manual uploads)
+    # e.g., "us.anthropic.claude-opus-4-5-20251101-v1:0"
+    model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Full-text search (PostgreSQL only, nullable for SQLite tests)
     search_vector: Mapped[str | None] = mapped_column(Text, nullable=True)
 

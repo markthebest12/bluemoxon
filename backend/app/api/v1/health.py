@@ -562,6 +562,11 @@ MIGRATION_V5678901UVWX_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_expired BOOLEAN",
 ]
 
+# Migration SQL for 5d2aef44594e_add_model_id_to_analyses
+MIGRATION_5D2AEF44594E_SQL = [
+    "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS model_id VARCHAR(100)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -682,6 +687,9 @@ Migrations run in order:
 21. s2345678klmn - Add author tier column
 22. f4f2fbe81faa - Seed author/publisher/binder tier values
 23. t3456789opqr - Add preferred boolean to authors, publishers, binders
+24. u4567890stuv - Add archive_attempts counter for retry tracking
+25. v5678901uvwx - Add source_expired boolean for expired source URLs
+26. 5d2aef44594e - Add model_id column to book_analyses for AI model tracking
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -727,9 +735,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("t3456789opqr", MIGRATION_T3456789OPQR_SQL),
         ("u4567890stuv", MIGRATION_U4567890STUV_SQL),
         ("v5678901uvwx", MIGRATION_V5678901UVWX_SQL),
+        ("5d2aef44594e", MIGRATION_5D2AEF44594E_SQL),
     ]
 
-    final_version = "v5678901uvwx"
+    final_version = "5d2aef44594e"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

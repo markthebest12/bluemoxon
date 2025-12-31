@@ -21,6 +21,7 @@ from app.services.bedrock import (
     extract_structured_data,
     fetch_book_images_for_bedrock,
     fetch_source_url_content,
+    get_model_id,
     invoke_bedrock,
 )
 from app.services.reference import get_or_create_binder
@@ -217,6 +218,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             market_analysis=parsed.market_analysis,
             recommendations=parsed.recommendations,
             extraction_status=extraction_status,
+            model_id=get_model_id(model),
         )
         db.add(analysis)
 
