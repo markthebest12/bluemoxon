@@ -104,3 +104,41 @@ The book is in very good condition.
                     # Verify opus model was requested
                     call_args = mock_invoke.call_args
                     assert call_args[1]["model"] == "opus"
+
+    @patch("app.api.v1.books.invoke_bedrock")
+    @patch("app.api.v1.books.fetch_book_images_for_bedrock")
+    @patch("app.api.v1.books.fetch_source_url_content")
+    def test_generate_analysis_stores_model_id(
+        self,
+        mock_fetch_url,
+        mock_fetch_images,
+        mock_invoke,
+        client,
+    ):
+        """Test that model_id is stored in analysis and retrievable."""
+        mock_fetch_url.return_value = None
+        mock_fetch_images.return_value = []
+        mock_invoke.return_value = "# Test Analysis\n\n## Executive Summary\nContent."
+
+        # Create a book
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Generate analysis with opus model
+        response = client.post(
+            f"/api/v1/books/{book_id}/analysis/generate",
+            json={"model": "opus"},
+        )
+        assert response.status_code == 200
+
+        # Verify model_id is returned in generate response
+        assert "model_used" in response.json()
+        assert "opus" in response.json()["model_used"]
+
+        # Verify model_id is stored and returned via GET
+        response = client.get(f"/api/v1/books/{book_id}/analysis")
+        assert response.status_code == 200
+        data = response.json()
+        assert "model_id" in data
+        assert data["model_id"] is not None
+        assert "opus" in data["model_id"]
