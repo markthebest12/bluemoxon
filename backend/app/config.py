@@ -157,9 +157,13 @@ def get_scraper_environment() -> str:
 
     Uses BMX_SCRAPER_ENVIRONMENT if set (for prod where scraper Lambda is named
     bluemoxon-prod-scraper but BMX_ENVIRONMENT is "production"), otherwise
-    falls back to BMX_ENVIRONMENT.
+    falls back to BMX_ENVIRONMENT or ENVIRONMENT.
 
     Returns:
         Environment string for building scraper function name (e.g., "staging", "prod")
     """
-    return os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT", "staging")
+    return (
+        os.getenv("BMX_SCRAPER_ENVIRONMENT")
+        or os.getenv("BMX_ENVIRONMENT")
+        or os.getenv("ENVIRONMENT", "staging")
+    )
