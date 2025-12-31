@@ -269,25 +269,27 @@ class TestExtractRelevantHtml:
 
 
 class TestCollectedWorksTitleExtraction:
-    """Tests for collected works / multi-volume set title extraction (#729).
+    """Tests for collected works / multi-volume set title extraction (#729)."""
 
-    When eBay listings have titles like "Charles Dickens 10 Vol Set (1860s) Chapman & Hall",
-    the extraction prompt should guide Claude to use "Works of [Author]" instead of just
-    extracting "10 Vol Set" after stripping author/publisher.
-    """
+    @patch("app.services.listing.invoke_bedrock_extraction")
+    def test_collected_works_extracts_works_of_author(self, mock_bedrock):
+        """Verify collected works sets extract as 'Works of [Author]'.
 
-    def test_extraction_prompt_has_collected_works_guidance(self):
-        """Verify EXTRACTION_PROMPT includes guidance for collected works titles.
-
-        The prompt must tell Claude to use 'Works of [Author]' or 'Collected Works'
-        for multi-volume sets that lack a specific title.
+        When eBay listings have titles like "Charles Dickens 10 Vol Set",
+        the extraction should return "Works of Charles Dickens" not "10 Vol Set".
         """
-        from app.services.listing import EXTRACTION_PROMPT
+        mock_bedrock.return_value = {
+            "title": "Works of Charles Dickens",
+            "author": "Charles Dickens",
+            "publisher": "Chapman & Hall",
+            "price": 2500.00,
+            "currency": "USD",
+            "volumes": 10,
+        }
 
-        # The prompt should include guidance for collected works
-        # This test will FAIL until we update the prompt
-        assert "Works of" in EXTRACTION_PROMPT or "Collected Works" in EXTRACTION_PROMPT, (
-            "EXTRACTION_PROMPT must include guidance for collected works titles. "
-            "When eBay listings like 'Charles Dickens 10 Vol Set' have author as title, "
-            "Claude should output 'Works of Charles Dickens' not just '10 Vol Set'."
-        )
+        result = extract_listing_data("<html>Charles Dickens 10 Vol Set Chapman & Hall</html>")
+
+        assert result["title"] == "Works of Charles Dickens"
+        assert result["author"] == "Charles Dickens"
+        assert result["volumes"] == 10
+        mock_bedrock.assert_called_once()

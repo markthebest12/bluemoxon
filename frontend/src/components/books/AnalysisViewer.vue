@@ -297,17 +297,37 @@ function formatPacificTime(isoString: string): string {
 }
 
 function formatModelId(modelId: string): string {
-  // Convert "us.anthropic.claude-sonnet-4-5-20250929-v1:0" to "Claude Sonnet 4.5"
-  // or "us.anthropic.claude-opus-4-20250514-v1:0" to "Claude Opus 4"
-  if (modelId.includes("opus")) {
-    const match = modelId.match(/opus-(\d+)/);
-    return match ? `Claude Opus ${match[1]}` : "Claude Opus";
+  // Convert model IDs like:
+  // "us.anthropic.claude-sonnet-4-5-20250929-v1:0" → "Claude Sonnet 4.5"
+  // "us.anthropic.claude-opus-4-5-20251101-v1:0" → "Claude Opus 4.5"
+  // "claude-3-5-sonnet-20241022" → "Claude 3.5 Sonnet"
+
+  // Pattern: model-X or model-X-Y (where X and Y are single digits, before date)
+  const versionPattern = /-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?-\d{8}/i;
+  const match = modelId.match(versionPattern);
+
+  if (match) {
+    const [, model, major, minor] = match;
+    const modelName = model.charAt(0).toUpperCase() + model.slice(1).toLowerCase();
+    const version = minor ? `${major}.${minor}` : major;
+    return `Claude ${modelName} ${version}`;
   }
-  if (modelId.includes("sonnet")) {
-    const match = modelId.match(/sonnet-(\d+)-(\d+)/);
-    return match ? `Claude Sonnet ${match[1]}.${match[2]}` : "Claude Sonnet";
+
+  // Legacy format: claude-3-5-sonnet-date
+  const legacyPattern = /claude-(\d+)-(\d+)-(opus|sonnet|haiku)/i;
+  const legacyMatch = modelId.match(legacyPattern);
+
+  if (legacyMatch) {
+    const [, major, minor, model] = legacyMatch;
+    const modelName = model.charAt(0).toUpperCase() + model.slice(1).toLowerCase();
+    return `Claude ${major}.${minor} ${modelName}`;
   }
-  // Fallback: return last part of model ID
+
+  // Simple fallback for unknown formats
+  if (modelId.includes("opus")) return "Claude Opus";
+  if (modelId.includes("sonnet")) return "Claude Sonnet";
+  if (modelId.includes("haiku")) return "Claude Haiku";
+
   return modelId.split(".").pop() || modelId;
 }
 </script>
@@ -764,7 +784,7 @@ Detailed condition notes...
                 class="mt-8 pt-4 border-t border-[var(--color-border-default)] text-sm text-[var(--color-text-muted)] italic"
               >
                 Analysis generated: {{ formatPacificTime(generatedAt) }}
-                <span v-if="modelId" class="ml-2">| Model: {{ formatModelId(modelId) }}</span>
+                <span v-if="modelId" class="ml-2">· {{ formatModelId(modelId) }}</span>
               </p>
             </div>
 
