@@ -290,14 +290,28 @@ def _filter_listings_with_claude(
     metadata_str = "\n".join(meta_parts)
     listings_json = json.dumps(listings, indent=2)
 
-    # Build era guidance if we have a publication year
+    # Build filtering guidance focusing on binding and condition
     pub_year = book_metadata.get("publication_year")
-    era_guidance = ""
+    binding_type = book_metadata.get("binding_type", "")
+
+    # Build filtering guidance
+    filter_guidance_parts = []
+
     if pub_year:
-        era_guidance = f"""
-CRITICAL: The target book was published in {pub_year}. Modern reprints, facsimiles, or later editions
-from different eras are NOT comparable. A listing must be from a similar era (within ~50 years)
-to be rated HIGH. Modern reprints (post-1950) of antique books should be rated LOW."""
+        filter_guidance_parts.append(
+            f"The target book was published in {pub_year}. "
+            "Modern reprints and facsimiles should be noted but are still useful for price reference."
+        )
+
+    if binding_type:
+        # Per book-collection methodology: half leather is 50-60% of full morocco value
+        filter_guidance_parts.append(
+            f"BINDING TYPE is critical: target has {binding_type}. "
+            "Half leather vs full morocco is a 50-60% value difference. "
+            "Match binding type closely when rating relevance."
+        )
+
+    filter_guidance = "\n".join(filter_guidance_parts) if filter_guidance_parts else ""
 
     prompt = f"""Target book:
 {metadata_str}
@@ -306,10 +320,10 @@ Extracted listings:
 {listings_json}
 
 Task: Rate each listing's relevance to the target book as "high", "medium", or "low":
-- HIGH: Same work, same era/edition type, matching volume count (within 1), similar binding quality
-- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding) but from similar era
-- LOW: Different work entirely, single volume from a multi-volume set, OR modern reprint/later edition of an antique book
-{era_guidance}
+- HIGH: Same work, matching volume count (within 1), similar binding quality
+- MEDIUM: Same work, different format (e.g., fewer volumes, lesser binding)
+- LOW: Different work entirely, single volume from a multi-volume set
+{filter_guidance}
 Return a JSON array with all listings, adding a "relevance" field to each.
 Only include listings rated "high" or "medium" in your response.
 Return ONLY the JSON array, no other text."""
@@ -339,9 +353,33 @@ Return ONLY the JSON array, no other text."""
         # Extract JSON from response
         json_match = re.search(r"\[[\s\S]*\]", result_text)
         if json_match:
-            filtered = json.loads(json_match.group())
-            # Ensure only high/medium returned
-            return [item for item in filtered if item.get("relevance") in ("high", "medium")]
+            all_rated = json.loads(json_match.group())
+
+            # First try high/medium relevance
+            high_medium = [
+                item for item in all_rated if item.get("relevance") in ("high", "medium")
+            ]
+
+            if high_medium:
+                logger.info(f"Returning {len(high_medium)} high/medium relevance listings")
+                return high_medium
+
+            # Fallback: if all are "low", return top 5 by price proximity
+            # This prevents returning empty comparables when Claude is too strict
+            low_items = [item for item in all_rated if item.get("relevance") == "low"]
+            if low_items:
+                logger.warning(
+                    f"All {len(low_items)} listings rated 'low' relevance. "
+                    "Returning top 5 as fallback."
+                )
+                # Mark as fallback and return top 5
+                fallback = low_items[:5]
+                for item in fallback:
+                    item["relevance"] = "fallback"
+                return fallback
+
+            logger.warning("No listings with relevance ratings found")
+            return []
 
         logger.warning("No JSON array found in Claude filtering response")
         return []
@@ -372,6 +410,9 @@ def _calculate_weighted_fmv(listings: list[dict]) -> dict:
     # Separate by relevance
     high = [item for item in listings if item.get("relevance") == "high" and item.get("price")]
     medium = [item for item in listings if item.get("relevance") == "medium" and item.get("price")]
+    fallback = [
+        item for item in listings if item.get("relevance") == "fallback" and item.get("price")
+    ]
 
     # Determine which set to use
     if len(high) >= 2:
@@ -386,6 +427,11 @@ def _calculate_weighted_fmv(listings: list[dict]) -> dict:
         use_listings = high + medium
         confidence = "low"
         notes = f"Insufficient comparable data ({len(high)} high, {len(medium)} medium)"
+    elif fallback:
+        # Use fallback listings when no high/medium available
+        use_listings = fallback
+        confidence = "low"
+        notes = f"Based on {len(fallback)} fallback comparables (all others rated low relevance)"
     else:
         return {
             "fmv_low": None,
