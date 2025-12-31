@@ -222,3 +222,47 @@ class TestInvokeBedrockExtraction:
 
         with pytest.raises(ValueError, match="Failed to parse listing data"):
             invoke_bedrock_extraction("<html>test</html>")
+
+
+class TestExtractRelevantHtml:
+    """Tests for the extract_relevant_html function."""
+
+    def test_extracts_volume_count_from_item_specifics(self):
+        """Test that volume-related item specifics are extracted for Bedrock (#717)."""
+        from app.services.listing import extract_relevant_html
+
+        # Simulate eBay HTML with numberOfVolumes in item specifics
+        # This matches eBay's real JSON structure for item specifics
+        html_with_volumes = """
+        <html>
+        <head><title>Complete Works Set</title></head>
+        <body>
+        "numberOfVolumes":{"_type":"LabelsValues","labels":[],"values":[{"_type":"TextualDisplay","textSpans":[{"_type":"TextSpan","text":"8"}]}]}
+        </body>
+        </html>
+        """
+
+        result = extract_relevant_html(html_with_volumes)
+
+        # Volume info should be extracted as an Item Specific
+        # e.g., "Number Of Volumes: 8" in the item specifics section
+        assert "Number Of Volumes: 8" in result
+
+    def test_extracts_set_size_from_item_specifics(self):
+        """Test that setSize item specific is also extracted (#717)."""
+        from app.services.listing import extract_relevant_html
+
+        # eBay sometimes uses "setSize" instead of "numberOfVolumes"
+        html_with_set_size = """
+        <html>
+        <head><title>Complete Works</title></head>
+        <body>
+        "setSize":{"_type":"LabelsValues","labels":[],"values":[{"_type":"TextualDisplay","textSpans":[{"_type":"TextSpan","text":"6"}]}]}
+        </body>
+        </html>
+        """
+
+        result = extract_relevant_html(html_with_set_size)
+
+        # Set size should be extracted
+        assert "Set Size: 6" in result

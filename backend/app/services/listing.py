@@ -302,6 +302,8 @@ def extract_relevant_html(html: str) -> str:
         "language",
         "era",
         "features",
+        "numberOfVolumes",
+        "setSize",
     ]
 
     # Extract each key's value from the nested JSON structure
