@@ -1,10 +1,41 @@
 """Unit tests for scraper handler."""
 
 import io
+from unittest.mock import patch, MagicMock
 
 import pytest
-from handler import extract_item_id, is_ebay_us_short_url, is_likely_banner
+from handler import extract_item_id, is_ebay_us_short_url, is_likely_banner, handler
 from PIL import Image
+
+
+class TestHandlerExtractListingsMode:
+    """Tests for extract_listings mode in handler."""
+
+    def test_search_url_with_extract_listings_does_not_fail_on_item_id(self):
+        """When extract_listings=True, search URLs should not fail trying to extract item ID.
+
+        This is a regression test for the bug where FMV search URLs like
+        /sch/i.html?... would fail with "Could not extract eBay item ID".
+        """
+        search_url = "https://www.ebay.com/sch/i.html?_nkw=christmas+carol&LH_Complete=1&LH_Sold=1"
+        event = {
+            "url": search_url,
+            "fetch_images": False,
+            "extract_listings": True,
+        }
+
+        # The handler should NOT raise ValueError for search URL in extract_listings mode
+        # It will fail for other reasons (Playwright not available in tests),
+        # but not with "Could not extract eBay item ID"
+        try:
+            handler(event, None)
+        except ValueError as e:
+            if "Could not extract eBay item ID" in str(e):
+                pytest.fail(f"Handler should not try to extract item ID for search URLs when extract_listings=True: {e}")
+            # Other ValueErrors are fine (e.g., Playwright issues in test env)
+        except Exception:
+            # Non-ValueError exceptions are expected (Playwright not available)
+            pass
 
 
 class TestExtractItemId:
