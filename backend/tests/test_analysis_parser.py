@@ -4,7 +4,11 @@ Tests extraction of structured metadata from AI analysis responses
 and application of metadata to book models.
 """
 
-from app.services.analysis_parser import apply_metadata_to_book, extract_analysis_metadata
+from app.services.analysis_parser import (
+    apply_metadata_to_book,
+    extract_analysis_metadata,
+    strip_metadata_block,
+)
 
 
 class MockBook:
@@ -302,3 +306,95 @@ class TestApplyMetadataToBook:
         assert book.has_provenance is True
         assert book.provenance_tier is None
         assert "provenance_tier" in updated
+
+
+class TestStripMetadataBlock:
+    """Tests for stripping metadata block from analysis text."""
+
+    def test_strip_metadata_block(self):
+        """Test stripping metadata block from analysis text."""
+        analysis = """# Executive Summary
+
+This book is a first edition with notable provenance.
+
+---
+<!-- METADATA_START -->
+{
+  "is_first_edition": true,
+  "has_provenance": true,
+  "provenance_tier": "Tier 1"
+}
+<!-- METADATA_END -->
+"""
+        result = strip_metadata_block(analysis)
+
+        assert "METADATA_START" not in result
+        assert "METADATA_END" not in result
+        assert "is_first_edition" not in result
+        assert "Executive Summary" in result
+
+    def test_strip_no_metadata_block(self):
+        """Test returns unchanged text (minus trailing whitespace) when no metadata block."""
+        analysis = """# Executive Summary
+
+This is analysis without any metadata block.
+
+## Detailed Analysis
+
+More content here...
+"""
+        result = strip_metadata_block(analysis)
+        # Function strips trailing whitespace, so compare stripped versions
+        assert result == analysis.rstrip()
+
+    def test_strip_metadata_preserves_content_before(self):
+        """Test that content before metadata block is preserved."""
+        analysis = """# Section 13
+
+Some recommendations here.
+
+---
+<!-- METADATA_START -->
+{"is_first_edition": true}
+<!-- METADATA_END -->
+"""
+        result = strip_metadata_block(analysis)
+
+        assert "Section 13" in result
+        assert "recommendations" in result
+        assert "METADATA_START" not in result
+
+    def test_strip_metadata_removes_leading_separator(self):
+        """Test that the --- separator before metadata is also removed."""
+        analysis = """# Content
+
+Last section content.
+
+---
+<!-- METADATA_START -->
+{"is_first_edition": false}
+<!-- METADATA_END -->
+"""
+        result = strip_metadata_block(analysis)
+
+        # Should not have trailing --- before end of content
+        assert result.strip().endswith("content.")
+
+    def test_strip_metadata_handles_whitespace(self):
+        """Test handling of extra whitespace around metadata block."""
+        analysis = """# Content
+
+
+---
+
+<!-- METADATA_START -->
+{
+  "is_first_edition": true
+}
+<!-- METADATA_END -->
+
+"""
+        result = strip_metadata_block(analysis)
+
+        assert "METADATA_START" not in result
+        assert "Content" in result
