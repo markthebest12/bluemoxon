@@ -3,11 +3,12 @@
 Add model_id column to book_analyses table for tracking which AI model
 generated each analysis.
 
-Revision ID: w6789012wxyz
+Revision ID: 5d2aef44594e
 Revises: v5678901uvwx
-Create Date: 2025-12-31 00:00:00.000000
+Create Date: 2025-12-31 00:00:20.812404
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -15,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "w6789012wxyz"
+revision: str = "5d2aef44594e"
 down_revision: str | None = "v5678901uvwx"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
