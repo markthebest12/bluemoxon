@@ -226,6 +226,16 @@ resource "aws_iam_role_policy" "bedrock_access" {
           # Cross-region inference profiles (us.anthropic.* format)
           ["arn:aws:bedrock:*:*:inference-profile/us.anthropic.*"]
         )
+      },
+      {
+        # Required for Opus 4.5 model access verification at runtime
+        # Without these, InvokeModel fails with AccessDeniedException
+        Effect = "Allow"
+        Action = [
+          "aws-marketplace:ViewSubscriptions",
+          "aws-marketplace:Subscribe"
+        ]
+        Resource = "*"
       }
     ]
   })
