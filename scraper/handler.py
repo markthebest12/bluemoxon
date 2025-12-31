@@ -265,10 +265,16 @@ def handler(event, context):
     # Use item_id from API if provided (handles alphanumeric short IDs properly)
     provided_item_id = event.get("item_id")
 
+    # For extract_listings mode (search results), we don't need an item_id
+    # Search URLs like /sch/i.html?... don't have item IDs
+    is_short_url = False
+    if extract_listings:
+        item_id = None
+        logger.info(f"Extract listings mode: processing search URL {url}")
     # For ebay.us short URLs without a provided item_id, we need to navigate first
     # to follow redirects and extract the item_id from the final URL
-    is_short_url = is_ebay_us_short_url(url) and not provided_item_id
-    if is_short_url:
+    elif is_ebay_us_short_url(url) and not provided_item_id:
+        is_short_url = True
         logger.info(f"Short URL detected without item_id, will extract after navigation: {url}")
         item_id = "PENDING_EXTRACTION"  # Sentinel - causes type error if accidentally used
     else:
