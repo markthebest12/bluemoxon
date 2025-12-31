@@ -151,6 +151,87 @@ class TestFilterListingsWithClaude:
         assert len(result) == 1
         assert result[0]["relevance"] == "medium"
 
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_fallback_when_all_low_relevance(self, mock_model_id, mock_client):
+        """When Claude rates all listings as 'low', return top 5 as fallback."""
+        from app.services.fmv_lookup import _filter_listings_with_claude
+
+        # Mock Claude response - all listings rated "low"
+        low_listings = [
+            {"title": "Book 1", "price": 500, "relevance": "low"},
+            {"title": "Book 2", "price": 450, "relevance": "low"},
+            {"title": "Book 3", "price": 400, "relevance": "low"},
+            {"title": "Book 4", "price": 350, "relevance": "low"},
+            {"title": "Book 5", "price": 300, "relevance": "low"},
+            {"title": "Book 6", "price": 250, "relevance": "low"},
+        ]
+        mock_response = MagicMock()
+        mock_response.__getitem__ = lambda self, key: {
+            "body": MagicMock(
+                read=lambda: json.dumps({"content": [{"text": json.dumps(low_listings)}]}).encode()
+            )
+        }[key]
+        mock_client.return_value.invoke_model.return_value = mock_response
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        listings = [
+            {"title": "Book 1", "price": 500},
+            {"title": "Book 2", "price": 450},
+            {"title": "Book 3", "price": 400},
+            {"title": "Book 4", "price": 350},
+            {"title": "Book 5", "price": 300},
+            {"title": "Book 6", "price": 250},
+        ]
+        book_metadata = {
+            "title": "Origin of Species",
+            "author": "Darwin",
+            "publication_year": 1859,
+        }
+
+        result = _filter_listings_with_claude(listings, book_metadata)
+
+        # Should return top 5 low-relevance listings as fallback
+        assert len(result) == 5
+        # All should be marked as "low" relevance with fallback indicator
+        for item in result:
+            assert item["relevance"] in ("low", "fallback")
+
+    @patch("app.services.fmv_lookup.get_bedrock_client")
+    @patch("app.services.fmv_lookup.get_model_id")
+    def test_prompt_focuses_on_binding_not_era(self, mock_model_id, mock_client):
+        """Claude prompt should focus on binding type match, not strict era matching."""
+        from app.services.fmv_lookup import _filter_listings_with_claude
+
+        mock_response = MagicMock()
+        mock_response.__getitem__ = lambda self, key: {
+            "body": MagicMock(read=lambda: json.dumps({"content": [{"text": "[]"}]}).encode())
+        }[key]
+        mock_client.return_value.invoke_model.return_value = mock_response
+        mock_model_id.return_value = "anthropic.claude-3-sonnet"
+
+        listings = [{"title": "Test", "price": 100}]
+        book_metadata = {
+            "title": "Origin of Species",
+            "author": "Darwin",
+            "publication_year": 1859,
+            "binding_type": "Full morocco",
+        }
+
+        _filter_listings_with_claude(listings, book_metadata)
+
+        # Check the prompt sent to Claude
+        call_args = mock_client.return_value.invoke_model.call_args
+        body = json.loads(call_args.kwargs["body"])
+        prompt = body["messages"][0]["content"]
+
+        # Prompt should NOT contain strict era rejection language
+        assert "within ~50 years" not in prompt.lower()
+        assert "post-1950 are low" not in prompt.lower()
+
+        # Prompt SHOULD mention binding type matching
+        assert "binding" in prompt.lower()
+
 
 class TestCalculateWeightedFmv:
     """Tests for _calculate_weighted_fmv function."""
@@ -212,6 +293,27 @@ class TestCalculateWeightedFmv:
         assert result["fmv_low"] is None
         assert result["fmv_high"] is None
         assert result["fmv_confidence"] == "low"
+
+    def test_handles_fallback_relevance(self):
+        """Treats 'fallback' relevance as low confidence but usable."""
+        from app.services.fmv_lookup import _calculate_weighted_fmv
+
+        listings = [
+            {"price": 500, "relevance": "fallback"},
+            {"price": 400, "relevance": "fallback"},
+            {"price": 300, "relevance": "fallback"},
+        ]
+
+        result = _calculate_weighted_fmv(listings)
+
+        # Should use fallback listings with low confidence
+        assert result["fmv_low"] == 300
+        assert result["fmv_high"] == 500
+        assert result["fmv_confidence"] == "low"
+        assert (
+            "fallback" in result["fmv_notes"].lower()
+            or "insufficient" in result["fmv_notes"].lower()
+        )
 
 
 class TestExtractComparablesPrompt:
