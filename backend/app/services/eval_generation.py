@@ -878,7 +878,8 @@ Return ONLY valid JSON, no other text."""
         }
     )
 
-    num_images = len(images)
+    # Validate against fetched count (what Claude actually sees), not original count
+    num_images = len(image_blocks)
     last_error = None
 
     for attempt in range(max_retries + 1):
@@ -886,8 +887,10 @@ Return ONLY valid JSON, no other text."""
             if attempt > 0:
                 # Exponential backoff with jitter: base * 2^attempt + random(0-1)
                 delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                total_attempts = max_retries + 1
                 logger.info(
-                    f"Garbage detection retry attempt {attempt}/{max_retries} after {delay:.1f}s"
+                    f"Garbage detection attempt {attempt + 1}/{total_attempts} "
+                    f"(retry {attempt}/{max_retries}) after {delay:.1f}s"
                 )
                 time.sleep(delay)
 

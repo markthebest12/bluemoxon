@@ -52,7 +52,13 @@ class TestDetectGarbageImages:
             "app.services.eval_generation.delete_unrelated_images"
         ) as mock_delete:
             mock_client.return_value.invoke_model.return_value = mock_response
-            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            # Return 4 image blocks to match the 4 images - validation uses this count
+            mock_fetch.return_value = [
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+            ]
             mock_delete.return_value = {"deleted_count": 2, "deleted_keys": [], "errors": []}
 
             result = detect_garbage_images(
@@ -303,7 +309,11 @@ class TestDetectGarbageImages:
         assert "F. Scott Fitzgerald" in prompt_text
 
     def test_filters_invalid_indices(self, db, caplog):
-        """Test that invalid indices (out-of-bounds, non-integers) are filtered."""
+        """Test that invalid indices (out-of-bounds, non-integers) are filtered.
+
+        Note: Validation is against len(image_blocks) - the count of images
+        actually sent to Claude, not the original image count.
+        """
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
@@ -342,7 +352,13 @@ class TestDetectGarbageImages:
             "app.services.eval_generation.delete_unrelated_images"
         ) as mock_delete:
             mock_client.return_value.invoke_model.return_value = mock_response
-            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            # Return 4 image blocks to match the 4 images - validation uses this count
+            mock_fetch.return_value = [
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+            ]
             mock_delete.return_value = {"deleted_count": 2, "deleted_keys": [], "errors": []}
 
             with caplog.at_level(logging.WARNING):
@@ -366,7 +382,11 @@ class TestDetectGarbageImages:
         assert any("Filtered 4 invalid indices" in record.message for record in caplog.records)
 
     def test_all_indices_invalid_returns_empty(self, db, caplog):
-        """Test that when all returned indices are invalid, returns empty list."""
+        """Test that when all returned indices are invalid, returns empty list.
+
+        Note: Validation is against len(image_blocks) - the count of images
+        actually sent to Claude, not the original image count.
+        """
         book = Book(title="Test Book")
         db.add(book)
         db.commit()
@@ -402,7 +422,11 @@ class TestDetectGarbageImages:
             "app.services.eval_generation.delete_unrelated_images"
         ) as mock_delete:
             mock_client.return_value.invoke_model.return_value = mock_response
-            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            # Return 2 image blocks to match the 2 images - validation uses this count
+            mock_fetch.return_value = [
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+            ]
 
             with caplog.at_level(logging.WARNING):
                 result = detect_garbage_images(
@@ -470,7 +494,11 @@ class TestDetectGarbageImages:
                 throttle_error,
                 success_response,
             ]
-            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            # Return 2 image blocks to match the 2 images - validation uses this count
+            mock_fetch.return_value = [
+                {"type": "image", "source": {}},
+                {"type": "image", "source": {}},
+            ]
             mock_delete.return_value = {"deleted_count": 1, "deleted_keys": [], "errors": []}
 
             with caplog.at_level(logging.WARNING):
@@ -557,3 +585,72 @@ class TestDetectGarbageImages:
         assert any(
             "garbage detection failed" in record.message.lower() for record in caplog.records
         )
+
+    def test_validates_against_fetched_count_not_original(self, db, caplog):
+        """Test that index validation uses fetched image count, not original count.
+
+        This tests the P0 bug fix: If book has 30 images but only 20 are sent to
+        Claude (due to max_images limit), Claude indexes 0-19. If Claude returns
+        index 25, it should be filtered as invalid (>= 20), not accepted as valid
+        (< 30).
+        """
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create 30 images
+        images = []
+        for i in range(30):
+            img = BookImage(book_id=book.id, s3_key=f"img_{i}.jpg", display_order=i)
+            db.add(img)
+            images.append(img)
+        db.commit()
+        db.refresh(book)
+
+        # Claude returns indices that would be valid for 30 images (0-29)
+        # but invalid for 20 images (0-19)
+        mock_response = {
+            "body": MagicMock(
+                read=lambda: json.dumps(
+                    {
+                        "content": [
+                            # Indices 5, 25, 28 - only 5 is valid for 20 images
+                            {"text": '{"garbage_indices": [5, 25, 28]}'}
+                        ]
+                    }
+                ).encode()
+            )
+        }
+
+        with patch(
+            "app.services.eval_generation.get_bedrock_client"
+        ) as mock_client, patch(
+            "app.services.eval_generation.fetch_book_images_for_bedrock"
+        ) as mock_fetch, patch(
+            "app.services.eval_generation.delete_unrelated_images"
+        ) as mock_delete:
+            mock_client.return_value.invoke_model.return_value = mock_response
+            # Only 20 images are sent to Claude (due to max_images=20)
+            mock_fetch.return_value = [{"type": "image", "source": {}} for _ in range(20)]
+            mock_delete.return_value = {"deleted_count": 1, "deleted_keys": [], "errors": []}
+
+            with caplog.at_level(logging.WARNING):
+                result = detect_garbage_images(
+                    book_id=book.id,
+                    images=list(book.images),  # 30 images
+                    title="Test Book",
+                    author="Test Author",
+                    db=db,
+                )
+
+        # Should only return index 5 (valid for 20 images)
+        # Indices 25 and 28 should be filtered (>= 20)
+        assert result == [5]
+
+        # Should have called delete with only valid index
+        mock_delete.assert_called_once()
+        call_kwargs = mock_delete.call_args[1]
+        assert call_kwargs["unrelated_indices"] == [5]
+
+        # Should have logged warning about filtered indices
+        assert any("Filtered 2 invalid indices" in record.message for record in caplog.records)

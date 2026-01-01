@@ -84,7 +84,15 @@ def create_book_with_images_from_s3(db: Session) -> Book:
 
 
 class TestGarbageDetectionIntegration:
-    """Integration tests for garbage detection with real Claude API calls."""
+    """Integration tests for garbage detection with real Claude API calls.
+
+    DATA DEPENDENCY: These tests require specific S3 data to exist:
+    - S3 bucket: bluemoxon-images (staging)
+    - Path: listings/397448193086/image_{0-23}.jpg
+    - If S3 data is cleaned up, tests will fail with "Failed to load any images"
+
+    To restore test data, re-run eBay extraction for item 397448193086.
+    """
 
     def test_garbage_detection_identifies_known_garbage_images(self, db: Session):
         """
