@@ -198,13 +198,28 @@ def _parse_market_analysis(text: str) -> dict:
 def strip_structured_data(markdown: str) -> str:
     """Remove the structured data block from markdown for display.
 
-    Strips the entire block including markers:
-    ---STRUCTURED-DATA---
-    ...
-    ---END-STRUCTURED-DATA---
+    Strips two formats:
+    1. Explicit markers:
+       ---STRUCTURED-DATA---
+       ...
+       ---END-STRUCTURED-DATA---
+
+    2. Metadata Block section header (Napoleon v2 format):
+       ## 14. Metadata Block
+       ...
+       (to end of document)
     """
+    # Strip explicit STRUCTURED-DATA markers
     pattern = r"---STRUCTURED-DATA---\s*.*?\s*---END-STRUCTURED-DATA---\s*"
-    return re.sub(pattern, "", markdown, flags=re.DOTALL).strip()
+    result = re.sub(pattern, "", markdown, flags=re.DOTALL)
+
+    # Strip "## 14. Metadata Block" section and everything after it
+    # This is the Napoleon v2 format where metadata is section 14
+    metadata_idx = result.find("## 14. Metadata Block")
+    if metadata_idx != -1:
+        result = result[:metadata_idx]
+
+    return result.strip()
 
 
 def _parse_structured_data(markdown: str) -> dict | None:

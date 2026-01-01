@@ -540,6 +540,48 @@ A fine binding in excellent condition.
         result = strip_structured_data("")
         assert result == ""
 
+    def test_strips_metadata_block_section(self):
+        """Test that ## 14. Metadata Block section is stripped (Napoleon v2 format)."""
+        markdown = """## 13. Conclusions and Recommendations
+
+This is a fine acquisition worth the investment.
+
+## 14. Metadata Block
+
+CONDITION_GRADE: VG+
+BINDER_IDENTIFIED: Zaehnsdorf
+VALUATION_LOW: 200
+VALUATION_MID: 300
+"""
+        result = strip_structured_data(markdown)
+        assert "## 14. Metadata Block" not in result
+        assert "CONDITION_GRADE" not in result
+        assert "BINDER_IDENTIFIED" not in result
+        assert "## 13. Conclusions and Recommendations" in result
+        assert "This is a fine acquisition" in result
+
+    def test_strips_both_structured_data_and_metadata_block(self):
+        """Test that both formats are stripped when both present."""
+        markdown = """## Executive Summary
+
+A fine binding.
+
+---STRUCTURED-DATA---
+OLD_FORMAT_KEY: value
+---END-STRUCTURED-DATA---
+
+## 14. Metadata Block
+
+NEW_FORMAT_KEY: value
+"""
+        result = strip_structured_data(markdown)
+        assert "---STRUCTURED-DATA---" not in result
+        assert "OLD_FORMAT_KEY" not in result
+        assert "## 14. Metadata Block" not in result
+        assert "NEW_FORMAT_KEY" not in result
+        assert "## Executive Summary" in result
+        assert "A fine binding" in result
+
 
 class TestPublisherIdentification:
     """Test publisher identification extraction from markdown."""
