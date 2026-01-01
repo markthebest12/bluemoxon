@@ -35,8 +35,8 @@ MODEL_IDS = {
 
 # Model usage descriptions for admin dashboard
 MODEL_USAGE = {
-    "sonnet": "Napoleon analysis, Eval runbooks, FMV lookup, Listing extraction",
-    "opus": "Napoleon analysis (high quality option)",
+    "sonnet": "Eval runbooks, FMV lookup, Listing extraction, Napoleon analysis (optional)",
+    "opus": "Napoleon analysis (default)",
     "haiku": "Order data extraction",
 }
 
