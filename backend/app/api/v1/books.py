@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 settings = get_settings()
 
+# Analysis job timeout threshold (matches Lambda timeout)
+STALE_JOB_THRESHOLD_MINUTES = 15
+
 
 def _calculate_and_persist_scores(book: Book, db: Session) -> None:
     """Calculate and persist scores for a book."""

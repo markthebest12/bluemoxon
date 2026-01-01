@@ -51,9 +51,22 @@ def format_analysis_error(error: Exception, image_count: int = 0) -> str:
         Formatted error message with context for input-too-long errors,
         or the original error message for other errors.
     """
+    from botocore.exceptions import ClientError
+
     error_str = str(error)
 
-    if "Input is too long" in error_str or "ValidationException" in error_str:
+    # Check for Bedrock input size limit errors
+    is_input_size_error = False
+    if isinstance(error, ClientError):
+        error_code = error.response.get("Error", {}).get("Code", "")
+        error_message = error.response.get("Error", {}).get("Message", "")
+        if error_code == "ValidationException" and "too long" in error_message.lower():
+            is_input_size_error = True
+    # Fallback for string representation (e.g., in tests)
+    elif "Input is too long" in error_str or "ValidationException" in error_str:
+        is_input_size_error = True
+
+    if is_input_size_error:
         return (
             f"{error_str}. "
             f"This book has {image_count} images. "

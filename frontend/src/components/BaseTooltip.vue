@@ -17,6 +17,7 @@ const isVisible = ref(false);
     @mouseleave="isVisible = false"
     @focus="isVisible = true"
     @blur="isVisible = false"
+    @keydown.escape="isVisible = false"
   >
     <slot />
     <div
