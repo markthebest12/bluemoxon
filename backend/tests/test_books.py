@@ -697,3 +697,31 @@ class TestStaleJobAutoCleanup:
         response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
         assert response.status_code == 409
         assert "already in progress" in response.json()["detail"].lower()
+
+    def test_stale_pending_job_auto_failed_on_retrigger(self, client, db):
+        """Test that stale pending jobs are also auto-failed when re-triggering analysis."""
+        from app.models import AnalysisJob, Book
+
+        book = Book(title="Test Book Pending")
+        db.add(book)
+        db.commit()
+
+        stale_time = datetime.now(UTC) - timedelta(minutes=20)
+        stale_job = AnalysisJob(
+            id=uuid4(),
+            book_id=book.id,
+            status="pending",  # Test pending status
+            model="opus",
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        db.add(stale_job)
+        db.commit()
+
+        with patch("app.services.sqs.send_analysis_job"):
+            response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
+
+        assert response.status_code == 202
+        db.refresh(stale_job)
+        assert stale_job.status == "failed"
+        assert "timed out" in stale_job.error_message.lower()
