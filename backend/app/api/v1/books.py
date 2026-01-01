@@ -1,7 +1,7 @@
 """Books API endpoints."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import boto3
@@ -1978,6 +1978,24 @@ def generate_analysis_async(
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+
+    # Auto-fail stale jobs before checking for active jobs
+    stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
+    stale_jobs = (
+        db.query(AnalysisJob)
+        .filter(
+            AnalysisJob.book_id == book_id,
+            AnalysisJob.status.in_(["pending", "running"]),
+            AnalysisJob.updated_at < stale_threshold,
+        )
+        .all()
+    )
+    for stale_job in stale_jobs:
+        stale_job.status = "failed"
+        stale_job.error_message = f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes"
+        stale_job.completed_at = datetime.now(UTC)
+    if stale_jobs:
+        db.commit()
 
     # Check for existing active job
     active_job = (

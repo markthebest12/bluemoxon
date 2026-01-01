@@ -1,6 +1,8 @@
 """Book API tests."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from app.models import Book, BookImage
 from app.models.analysis import BookAnalysis
@@ -639,3 +641,59 @@ class TestGenerateAnalysisDefaults:
 
         job_create = AnalysisJobCreate()
         assert job_create.model == "opus"
+
+
+class TestStaleJobAutoCleanup:
+    """Tests for stale job auto-cleanup on re-trigger."""
+
+    def test_stale_running_job_auto_failed_on_retrigger(self, client, db):
+        """Test that stale running jobs are auto-failed when re-triggering analysis."""
+        from app.models import AnalysisJob, Book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        stale_time = datetime.now(UTC) - timedelta(minutes=20)
+        stale_job = AnalysisJob(
+            id=uuid4(),
+            book_id=book.id,
+            status="running",
+            model="opus",
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        db.add(stale_job)
+        db.commit()
+
+        with patch("app.services.sqs.send_analysis_job"):
+            response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
+
+        assert response.status_code == 202
+        db.refresh(stale_job)
+        assert stale_job.status == "failed"
+        assert "timed out" in stale_job.error_message.lower()
+
+    def test_fresh_running_job_blocks_retrigger(self, client, db):
+        """Test that fresh running jobs still block re-triggering."""
+        from app.models import AnalysisJob, Book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        fresh_time = datetime.now(UTC) - timedelta(minutes=5)
+        fresh_job = AnalysisJob(
+            id=uuid4(),
+            book_id=book.id,
+            status="running",
+            model="opus",
+            created_at=fresh_time,
+            updated_at=fresh_time,
+        )
+        db.add(fresh_job)
+        db.commit()
+
+        response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
+        assert response.status_code == 409
+        assert "already in progress" in response.json()["detail"].lower()
