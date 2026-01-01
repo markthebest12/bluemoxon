@@ -12,6 +12,7 @@ import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
+import AnalysisIssuesWarning from "@/components/AnalysisIssuesWarning.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -763,6 +764,7 @@ function printPage() {
                 >
                   View Analysis
                 </button>
+                <AnalysisIssuesWarning :issues="booksStore.currentBook?.analysis_issues" />
 
                 <!-- Model selector (editor/admin only, when not running) -->
                 <select

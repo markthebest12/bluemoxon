@@ -23,6 +23,7 @@ export interface AcquisitionBook {
   has_eval_runbook?: boolean;
   eval_runbook_job_status?: "pending" | "running" | null;
   analysis_job_status?: "pending" | "running" | null;
+  analysis_issues?: string[] | null; // truncated, degraded, missing_condition, missing_market
   investment_grade?: number | null;
   strategic_fit?: number | null;
   collection_impact?: number | null;

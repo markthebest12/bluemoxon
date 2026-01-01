@@ -150,6 +150,39 @@ def _get_active_analysis_job_status(book_id: int, db: Session) -> str | None:
     return active_job.status if active_job else None
 
 
+def _get_analysis_issues(book: Book) -> list[str] | None:
+    """Get list of analysis issues for a book.
+
+    Returns a list of issue codes or None if no issues:
+    - 'truncated': recommendations section missing (output token exhaustion)
+    - 'degraded': Stage 2 extraction used fallback parsing
+    - 'missing_condition': condition_assessment is null
+    - 'missing_market': market_analysis is null
+    """
+    if not book.analysis:
+        return None
+
+    issues = []
+
+    # Check for truncated output (recommendations never generated)
+    if book.analysis.recommendations is None:
+        issues.append("truncated")
+
+    # Check for degraded extraction (Stage 2 fallback)
+    if book.analysis.extraction_status == "degraded":
+        issues.append("degraded")
+
+    # Check for missing condition assessment
+    if book.analysis.condition_assessment is None:
+        issues.append("missing_condition")
+
+    # Check for missing market analysis
+    if book.analysis.market_analysis is None:
+        issues.append("missing_market")
+
+    return issues if issues else None
+
+
 def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
     """Copy images from listing folder to book folder and create BookImage records.
 
@@ -389,6 +422,7 @@ def list_books(
         book_dict["has_eval_runbook"] = book.eval_runbook is not None
         book_dict["eval_runbook_job_status"] = eval_job_status_map.get(book.id)
         book_dict["analysis_job_status"] = analysis_job_status_map.get(book.id)
+        book_dict["analysis_issues"] = _get_analysis_issues(book)
         book_dict["image_count"] = len(book.images) if book.images else 0
 
         # Get primary image URL
@@ -436,6 +470,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
     book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
+    book_dict["analysis_issues"] = _get_analysis_issues(book)
     book_dict["image_count"] = len(book.images) if book.images else 0
 
     # Get primary image URL
