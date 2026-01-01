@@ -34,6 +34,7 @@ mypy = "^1.19.1"
 httpx = "^0.28.1"
 pip-audit = "^2.10.0"
 bandit = "^1.7.0"  # Python SAST security scanner
+freezegun = "^1.5.5"
 
 [build-system]
 requires = ["poetry-core"]

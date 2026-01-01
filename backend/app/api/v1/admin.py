@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 import boto3
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -379,17 +379,28 @@ def get_system_info(response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/costs", response_model=CostResponse)
-def get_costs(response: Response):
+def get_costs(
+    response: Response,
+    timezone: str | None = Query(
+        None,
+        max_length=64,
+        description="IANA timezone name (e.g., 'America/Los_Angeles') for MTD calculation",
+    ),
+):
     """Get AWS cost data for admin dashboard.
 
     Returns Bedrock model costs with usage descriptions,
     daily trend, and other AWS service costs.
     Cached server-side for 1 hour (see cost_explorer.py).
+
+    Args:
+        timezone: Optional timezone for determining current month. If provided,
+                  uses browser's local time to calculate MTD instead of UTC.
     """
     from app.services.cost_explorer import get_costs as fetch_costs
 
     response.headers["Cache-Control"] = "no-store"
-    return CostResponse(**fetch_costs())
+    return CostResponse(**fetch_costs(timezone=timezone))
 
 
 @router.post("/cleanup", response_model=CleanupResult)

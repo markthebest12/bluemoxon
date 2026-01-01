@@ -185,7 +185,9 @@ async function fetchCostData() {
   loadingCost.value = true;
   costError.value = "";
   try {
-    const res = await api.get("/admin/costs");
+    // Pass browser timezone so MTD calculation uses local time
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const res = await api.get("/admin/costs", { params: { timezone } });
     costData.value = res.data;
   } catch (e) {
     costError.value = "Failed to load cost data";
