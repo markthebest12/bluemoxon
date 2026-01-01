@@ -9,10 +9,13 @@ This service generates the comprehensive evaluation report based on:
 
 import json
 import logging
+import random
 import re
+import time
 from datetime import datetime
 from decimal import Decimal
 
+from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
 from app.models import Book, BookImage, EvalRunbook
@@ -797,11 +800,15 @@ def detect_garbage_images(
     title: str,
     author: str | None,
     db: Session,
+    max_retries: int = 3,
+    base_delay: float = 2.0,
 ) -> list[int]:
     """Detect and remove images that don't show the specified book.
 
     Uses Claude Vision with an inverted prompt logic to identify images
     that do NOT show the specific book being listed.
+
+    Implements exponential backoff retry for throttling errors.
 
     Args:
         book_id: ID of the book
@@ -809,6 +816,8 @@ def detect_garbage_images(
         title: Title of the book for context
         author: Author name for context (optional)
         db: Database session
+        max_retries: Maximum number of retry attempts (default 3)
+        base_delay: Base delay in seconds for exponential backoff (default 2.0)
 
     Returns:
         List of 0-based indices of images that were identified as garbage
@@ -858,61 +867,113 @@ Return ONLY valid JSON, no other text."""
     content = [{"type": "text", "text": prompt}]
     content.extend(image_blocks)
 
-    try:
-        client = get_bedrock_client()
-        model_id = get_model_id("sonnet")
+    client = get_bedrock_client()
+    model_id = get_model_id("sonnet")
 
-        body = json.dumps(
-            {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": content}],
-            }
-        )
+    body = json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1000,
+            "messages": [{"role": "user", "content": content}],
+        }
+    )
 
-        logger.info(f"Invoking Claude for garbage detection ({len(image_blocks)} images)")
-        response = client.invoke_model(
-            modelId=model_id,
-            body=body,
-            contentType="application/json",
-            accept="application/json",
-        )
+    num_images = len(images)
+    last_error = None
 
-        response_body = json.loads(response["body"].read())
-        result_text = response_body["content"][0]["text"]
-
-        # Extract JSON from response
-        json_match = re.search(r"\{[\s\S]*\}", result_text)
-        if json_match:
-            result = json.loads(json_match.group())
-            garbage_indices = result.get("garbage_indices", [])
-
-            if garbage_indices:
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                # Exponential backoff with jitter: base * 2^attempt + random(0-1)
+                delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
                 logger.info(
-                    f"Garbage detection found {len(garbage_indices)} unrelated images: {garbage_indices}"
+                    f"Garbage detection retry attempt {attempt}/{max_retries} after {delay:.1f}s"
                 )
+                time.sleep(delay)
 
-                # Call delete_unrelated_images to handle deletion
-                cleanup_result = delete_unrelated_images(
-                    book_id=book_id,
-                    unrelated_indices=garbage_indices,
-                    unrelated_reasons={},  # No detailed reasons in this detection mode
-                    db=db,
+            logger.info(f"Invoking Claude for garbage detection ({len(image_blocks)} images)")
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+
+            response_body = json.loads(response["body"].read())
+            result_text = response_body["content"][0]["text"]
+
+            # Extract JSON from response
+            json_match = re.search(r"\{[\s\S]*\}", result_text)
+            if json_match:
+                result = json.loads(json_match.group())
+                raw_indices = result.get("garbage_indices", [])
+
+                # Validate indices: must be integers within bounds
+                garbage_indices = [
+                    idx
+                    for idx in raw_indices
+                    if isinstance(idx, int) and 0 <= idx < num_images
+                ]
+                if len(garbage_indices) != len(raw_indices):
+                    logger.warning(
+                        f"Filtered {len(raw_indices) - len(garbage_indices)} invalid indices "
+                        f"from garbage detection (raw: {raw_indices}, valid: {garbage_indices})"
+                    )
+
+                if garbage_indices:
+                    logger.info(
+                        f"Garbage detection found {len(garbage_indices)} unrelated images: "
+                        f"{garbage_indices}"
+                    )
+
+                    # Call delete_unrelated_images to handle deletion
+                    cleanup_result = delete_unrelated_images(
+                        book_id=book_id,
+                        unrelated_indices=garbage_indices,
+                        unrelated_reasons={},  # No detailed reasons in this detection mode
+                        db=db,
+                    )
+                    logger.info(
+                        f"Deleted {cleanup_result['deleted_count']} garbage images "
+                        f"from book {book_id}"
+                    )
+                else:
+                    logger.info(
+                        f"Garbage detection found no unrelated images for book {book_id}"
+                    )
+
+                return garbage_indices
+
+            logger.warning(
+                f"Garbage detection failed for book {book_id}: No JSON found in response"
+            )
+            return []
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException" and attempt < max_retries:
+                logger.warning(
+                    f"Garbage detection throttled (attempt {attempt + 1}/{max_retries + 1}): {e}"
                 )
-                logger.info(
-                    f"Deleted {cleanup_result['deleted_count']} garbage images from book {book_id}"
-                )
+                last_error = e
+                continue
             else:
-                logger.info(f"Garbage detection found no unrelated images for book {book_id}")
+                logger.warning(f"Garbage detection failed for book {book_id}: {e}")
+                return []
 
-            return garbage_indices
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"Garbage detection failed for book {book_id}: JSON parse error - {e}"
+            )
+            return []
 
-        logger.warning(f"Garbage detection failed for book {book_id}: No JSON found in response")
-        return []
+        except Exception as e:
+            logger.warning(f"Garbage detection failed for book {book_id}: {e}")
+            return []
 
-    except json.JSONDecodeError as e:
-        logger.warning(f"Garbage detection failed for book {book_id}: JSON parse error - {e}")
-        return []
-    except Exception as e:
-        logger.warning(f"Garbage detection failed for book {book_id}: {e}")
-        return []
+    # All retries exhausted
+    logger.warning(
+        f"Garbage detection failed after {max_retries + 1} attempts for book {book_id}: "
+        f"{last_error}"
+    )
+    return []

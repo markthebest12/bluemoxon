@@ -4,6 +4,8 @@ import json
 import logging
 from unittest.mock import MagicMock, patch
 
+from botocore.exceptions import ClientError
+
 from app.models import Book, BookImage
 from app.services.eval_generation import detect_garbage_images
 
@@ -299,3 +301,259 @@ class TestDetectGarbageImages:
         # Verify title and author are in the prompt
         assert "The Great Gatsby" in prompt_text
         assert "F. Scott Fitzgerald" in prompt_text
+
+    def test_filters_invalid_indices(self, db, caplog):
+        """Test that invalid indices (out-of-bounds, non-integers) are filtered."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create 4 images (valid indices are 0, 1, 2, 3)
+        images = [
+            BookImage(book_id=book.id, s3_key="img_0.jpg", display_order=0),
+            BookImage(book_id=book.id, s3_key="img_1.jpg", display_order=1),
+            BookImage(book_id=book.id, s3_key="img_2.jpg", display_order=2),
+            BookImage(book_id=book.id, s3_key="img_3.jpg", display_order=3),
+        ]
+        for img in images:
+            db.add(img)
+        db.commit()
+        db.refresh(book)
+
+        # Mock Claude to return invalid indices: -1 (negative), 99 (out of bounds),
+        # "foo" (string), 1.5 (float), plus valid indices 1 and 3
+        mock_response = {
+            "body": MagicMock(
+                read=lambda: json.dumps(
+                    {
+                        "content": [
+                            {"text": '{"garbage_indices": [-1, 1, 99, "foo", 1.5, 3]}'}
+                        ]
+                    }
+                ).encode()
+            )
+        }
+
+        with patch(
+            "app.services.eval_generation.get_bedrock_client"
+        ) as mock_client, patch(
+            "app.services.eval_generation.fetch_book_images_for_bedrock"
+        ) as mock_fetch, patch(
+            "app.services.eval_generation.delete_unrelated_images"
+        ) as mock_delete:
+            mock_client.return_value.invoke_model.return_value = mock_response
+            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            mock_delete.return_value = {"deleted_count": 2, "deleted_keys": [], "errors": []}
+
+            with caplog.at_level(logging.WARNING):
+                result = detect_garbage_images(
+                    book_id=book.id,
+                    images=list(book.images),
+                    title="Test Book",
+                    author="Test Author",
+                    db=db,
+                )
+
+        # Should only return valid indices [1, 3]
+        assert result == [1, 3]
+
+        # Should have called delete with only valid indices
+        mock_delete.assert_called_once()
+        call_kwargs = mock_delete.call_args[1]
+        assert call_kwargs["unrelated_indices"] == [1, 3]
+
+        # Should have logged a warning about filtered indices
+        assert any("Filtered 4 invalid indices" in record.message for record in caplog.records)
+
+    def test_all_indices_invalid_returns_empty(self, db, caplog):
+        """Test that when all returned indices are invalid, returns empty list."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create 2 images (valid indices are 0, 1)
+        images = [
+            BookImage(book_id=book.id, s3_key="img_0.jpg", display_order=0),
+            BookImage(book_id=book.id, s3_key="img_1.jpg", display_order=1),
+        ]
+        for img in images:
+            db.add(img)
+        db.commit()
+        db.refresh(book)
+
+        # Mock Claude to return only invalid indices
+        mock_response = {
+            "body": MagicMock(
+                read=lambda: json.dumps(
+                    {
+                        "content": [
+                            {"text": '{"garbage_indices": [-1, 99, "bad"]}'}
+                        ]
+                    }
+                ).encode()
+            )
+        }
+
+        with patch(
+            "app.services.eval_generation.get_bedrock_client"
+        ) as mock_client, patch(
+            "app.services.eval_generation.fetch_book_images_for_bedrock"
+        ) as mock_fetch, patch(
+            "app.services.eval_generation.delete_unrelated_images"
+        ) as mock_delete:
+            mock_client.return_value.invoke_model.return_value = mock_response
+            mock_fetch.return_value = [{"type": "image", "source": {}}]
+
+            with caplog.at_level(logging.WARNING):
+                result = detect_garbage_images(
+                    book_id=book.id,
+                    images=list(book.images),
+                    title="Test Book",
+                    author="Test Author",
+                    db=db,
+                )
+
+        # Should return empty list since all indices were invalid
+        assert result == []
+
+        # Should NOT have called delete since no valid indices
+        mock_delete.assert_not_called()
+
+        # Should have logged warning about filtered indices
+        assert any("Filtered 3 invalid indices" in record.message for record in caplog.records)
+
+    def test_retries_on_throttling(self, db, caplog):
+        """Test that throttling errors trigger retries with eventual success."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        images = [
+            BookImage(book_id=book.id, s3_key="img_0.jpg", display_order=0),
+            BookImage(book_id=book.id, s3_key="img_1.jpg", display_order=1),
+        ]
+        for img in images:
+            db.add(img)
+        db.commit()
+        db.refresh(book)
+
+        # Create throttling error
+        throttle_error = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+            "InvokeModel",
+        )
+
+        # Success response after throttling
+        success_response = {
+            "body": MagicMock(
+                read=lambda: json.dumps(
+                    {
+                        "content": [
+                            {"text": '{"garbage_indices": [1]}'}
+                        ]
+                    }
+                ).encode()
+            )
+        }
+
+        with patch(
+            "app.services.eval_generation.get_bedrock_client"
+        ) as mock_client, patch(
+            "app.services.eval_generation.fetch_book_images_for_bedrock"
+        ) as mock_fetch, patch(
+            "app.services.eval_generation.delete_unrelated_images"
+        ) as mock_delete, patch(
+            "app.services.eval_generation.time.sleep"
+        ) as mock_sleep:
+            # First call throttles, second succeeds
+            mock_client.return_value.invoke_model.side_effect = [
+                throttle_error,
+                success_response,
+            ]
+            mock_fetch.return_value = [{"type": "image", "source": {}}]
+            mock_delete.return_value = {"deleted_count": 1, "deleted_keys": [], "errors": []}
+
+            with caplog.at_level(logging.WARNING):
+                result = detect_garbage_images(
+                    book_id=book.id,
+                    images=list(book.images),
+                    title="Test Book",
+                    author="Test Author",
+                    db=db,
+                    max_retries=3,
+                    base_delay=0.1,
+                )
+
+        # Should succeed on retry
+        assert result == [1]
+
+        # Should have called invoke_model twice (throttled once, then succeeded)
+        assert mock_client.return_value.invoke_model.call_count == 2
+
+        # Should have slept once (before retry)
+        assert mock_sleep.call_count == 1
+
+        # Should have logged throttling warning
+        assert any("throttled" in record.message.lower() for record in caplog.records)
+
+    def test_gives_up_after_max_retries(self, db, caplog):
+        """Test that function gives up after max retries exhausted."""
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        images = [
+            BookImage(book_id=book.id, s3_key="img_0.jpg", display_order=0),
+        ]
+        for img in images:
+            db.add(img)
+        db.commit()
+        db.refresh(book)
+
+        # Create throttling error that persists
+        throttle_error = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+            "InvokeModel",
+        )
+
+        with patch(
+            "app.services.eval_generation.get_bedrock_client"
+        ) as mock_client, patch(
+            "app.services.eval_generation.fetch_book_images_for_bedrock"
+        ) as mock_fetch, patch(
+            "app.services.eval_generation.delete_unrelated_images"
+        ) as mock_delete, patch(
+            "app.services.eval_generation.time.sleep"
+        ) as mock_sleep:
+            # Always throttle
+            mock_client.return_value.invoke_model.side_effect = throttle_error
+            mock_fetch.return_value = [{"type": "image", "source": {}}]
+
+            with caplog.at_level(logging.WARNING):
+                result = detect_garbage_images(
+                    book_id=book.id,
+                    images=list(book.images),
+                    title="Test Book",
+                    author="Test Author",
+                    db=db,
+                    max_retries=2,
+                    base_delay=0.1,
+                )
+
+        # Should return empty list after exhausting retries
+        assert result == []
+
+        # Should have tried 3 times (initial + 2 retries)
+        assert mock_client.return_value.invoke_model.call_count == 3
+
+        # Should have slept twice (before each retry)
+        assert mock_sleep.call_count == 2
+
+        # Should NOT have called delete since it failed
+        mock_delete.assert_not_called()
+
+        # Should have logged throttling warnings and final failure
+        assert any("throttled" in record.message.lower() for record in caplog.records)
+        assert any(
+            "garbage detection failed" in record.message.lower() for record in caplog.records
+        )
