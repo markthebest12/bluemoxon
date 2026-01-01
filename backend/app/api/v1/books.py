@@ -2049,10 +2049,6 @@ def generate_analysis_async(
     return AnalysisJobResponse.from_orm_model(job)
 
 
-# Threshold for detecting stale "running" jobs (worker likely crashed/timed out)
-STALE_JOB_THRESHOLD_MINUTES = 15
-
-
 @router.get("/{book_id}/analysis/status")
 def get_analysis_job_status(
     book_id: int,
