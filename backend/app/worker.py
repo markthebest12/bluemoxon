@@ -11,7 +11,11 @@ from decimal import Decimal
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis
-from app.services.analysis_parser import apply_metadata_to_book, extract_analysis_metadata
+from app.services.analysis_parser import (
+    apply_metadata_to_book,
+    extract_analysis_metadata,
+    strip_metadata_block,
+)
 from app.services.analysis_summary import (
     extract_book_updates_from_yaml,
     parse_analysis_summary,
@@ -153,16 +157,30 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         analysis_text = invoke_bedrock(messages, model=model)
         logger.info(f"Bedrock returned {len(analysis_text)} chars for book {book_id}")
 
+        # Extract metadata BEFORE stripping (so we can still parse it)
+        metadata = extract_analysis_metadata(analysis_text)
+
+        # Strip metadata block from analysis for clean storage and display
+        clean_analysis_text, was_stripped = strip_metadata_block(analysis_text)
+        if was_stripped:
+            chars_removed = len(analysis_text) - len(clean_analysis_text)
+            logger.info(
+                f"Stripped metadata block ({chars_removed} chars removed), "
+                f"{len(clean_analysis_text)} chars remaining"
+            )
+        else:
+            logger.warning("No metadata block found to strip")
+
         # Stage 2: Extract structured data with focused prompt
         logger.info(f"Extracting structured data for book {book_id}")
-        extracted_data = extract_structured_data(analysis_text, model="sonnet")
+        extracted_data = extract_structured_data(clean_analysis_text, model="sonnet")
         if extracted_data:
             logger.info(f"Extracted {len(extracted_data)} fields for book {book_id}")
         else:
             logger.warning(f"No structured data extracted for book {book_id}")
 
         # Parse markdown to extract structured fields
-        parsed = parse_analysis_markdown(analysis_text)
+        parsed = parse_analysis_markdown(clean_analysis_text)
 
         # Prefer Stage 2 extraction, fall back to parsing analysis text
         # Track extraction status for UI indicator
@@ -198,7 +216,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             extraction_status = "success"
         else:
             # Fall back to parsing analysis text directly
-            yaml_data = parse_analysis_summary(analysis_text)
+            yaml_data = parse_analysis_summary(clean_analysis_text)
             book_updates = extract_book_updates_from_yaml(yaml_data)
             logger.info(f"Fell back to YAML parsing for book {book_id}")
             extraction_status = "degraded"
@@ -208,10 +226,10 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             db.delete(book.analysis)
             db.flush()
 
-        # Create new analysis
+        # Create new analysis (using clean text without metadata block)
         analysis = BookAnalysis(
             book_id=book_id,
-            full_markdown=analysis_text,
+            full_markdown=clean_analysis_text,
             executive_summary=parsed.executive_summary,
             historical_significance=parsed.historical_significance,
             condition_assessment=parsed.condition_assessment,
@@ -222,8 +240,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         )
         db.add(analysis)
 
-        # Extract and apply metadata (provenance, first edition)
-        metadata = extract_analysis_metadata(analysis_text)
+        # Apply metadata (already extracted before stripping)
         if metadata:
             updated_fields = apply_metadata_to_book(book, metadata)
             if updated_fields:
