@@ -24,9 +24,12 @@ const selectedCurrency = ref<Currency>("USD");
 const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
 const loadingRates = ref(false);
 
+// Get today's date in YYYY-MM-DD format using local timezone (not UTC)
+const getLocalDateString = () => new Date().toLocaleDateString("en-CA");
+
 const form = ref<AcquirePayload>({
   purchase_price: 0,
-  purchase_date: new Date().toISOString().split("T")[0],
+  purchase_date: getLocalDateString(),
   order_number: "",
   place_of_purchase: "eBay",
   estimated_delivery: undefined,
