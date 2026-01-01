@@ -383,6 +383,7 @@ def get_costs(
     response: Response,
     timezone: str | None = Query(
         None,
+        max_length=64,
         description="IANA timezone name (e.g., 'America/Los_Angeles') for MTD calculation",
     ),
 ):

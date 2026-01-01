@@ -25,7 +25,14 @@ const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
 const loadingRates = ref(false);
 
 // Get today's date in YYYY-MM-DD format using local timezone (not UTC)
-const getLocalDateString = () => new Date().toLocaleDateString("en-CA");
+// Uses explicit formatting to avoid locale-dependent behavior
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const form = ref<AcquirePayload>({
   purchase_price: 0,

@@ -49,15 +49,21 @@ OTHER_SERVICES = [
 ]
 
 
-def _get_cache_key() -> str:
-    """Generate cache key based on current month."""
+def _get_cache_key(timezone: str | None = None) -> str:
+    """Generate cache key based on current month and timezone.
+
+    Args:
+        timezone: IANA timezone name. Different timezones may see different
+                  "current month" at month boundaries, so we cache separately.
+    """
     now = datetime.now(UTC)
-    return f"costs_{now.year}_{now.month}"
+    tz_key = timezone or "UTC"
+    return f"costs_{now.year}_{now.month}_{tz_key}"
 
 
-def _is_cache_valid() -> bool:
-    """Check if cache is still valid."""
-    cache_key = _get_cache_key()
+def _is_cache_valid(timezone: str | None = None) -> bool:
+    """Check if cache is still valid for the given timezone."""
+    cache_key = _get_cache_key(timezone)
     if cache_key not in _cost_cache:
         return False
     cached_at = _cost_cache[cache_key].get("cached_at")
@@ -77,9 +83,9 @@ def get_costs(timezone: str | None = None) -> dict[str, Any]:
 
     Returns cached data if available and fresh, otherwise fetches from AWS.
     """
-    cache_key = _get_cache_key()
+    cache_key = _get_cache_key(timezone)
 
-    if _is_cache_valid():
+    if _is_cache_valid(timezone):
         return _cost_cache[cache_key]
 
     try:
@@ -159,8 +165,8 @@ def _fetch_costs_from_aws(timezone: str | None = None) -> dict[str, Any]:
         try:
             tz = ZoneInfo(timezone)
             now = datetime.now(tz)
-        except Exception:
-            # Invalid timezone, fall back to UTC
+        except KeyError:
+            logger.warning(f"Invalid timezone '{timezone}', falling back to UTC")
             now = datetime.now(UTC)
     else:
         now = datetime.now(UTC)
