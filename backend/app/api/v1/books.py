@@ -1,7 +1,7 @@
 """Books API endpoints."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import boto3
@@ -48,6 +48,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
+
+# Analysis job timeout threshold (matches Lambda timeout)
+STALE_JOB_THRESHOLD_MINUTES = 15
 
 
 def _calculate_and_persist_scores(book: Book, db: Session) -> None:
@@ -1574,7 +1577,7 @@ def reparse_book_analysis(
 class GenerateAnalysisRequest(BaseModel):
     """Request body for analysis generation."""
 
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["sonnet", "opus"] = "opus"
 
 
 @router.post("/{book_id}/analysis/generate")
@@ -1953,7 +1956,7 @@ def re_extract_all_degraded(
 class GenerateAnalysisAsyncRequest(BaseModel):
     """Request body for async analysis generation."""
 
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["sonnet", "opus"] = "opus"
 
 
 @router.post("/{book_id}/analysis/generate-async", status_code=202)
@@ -1978,6 +1981,24 @@ def generate_analysis_async(
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+
+    # Auto-fail stale jobs before checking for active jobs
+    stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
+    stale_jobs = (
+        db.query(AnalysisJob)
+        .filter(
+            AnalysisJob.book_id == book_id,
+            AnalysisJob.status.in_(["pending", "running"]),
+            AnalysisJob.updated_at < stale_threshold,
+        )
+        .all()
+    )
+    for stale_job in stale_jobs:
+        stale_job.status = "failed"
+        stale_job.error_message = f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes"
+        stale_job.completed_at = datetime.now(UTC)
+    if stale_jobs:
+        db.commit()
 
     # Check for existing active job
     active_job = (
@@ -2026,10 +2047,6 @@ def generate_analysis_async(
         ) from None
 
     return AnalysisJobResponse.from_orm_model(job)
-
-
-# Threshold for detecting stale "running" jobs (worker likely crashed/timed out)
-STALE_JOB_THRESHOLD_MINUTES = 15
 
 
 @router.get("/{book_id}/analysis/status")
