@@ -353,19 +353,26 @@ When analysis jobs fail with "Input is too long" errors, the total base64 payloa
 1. Check image count: `bmx-api --prod GET "/books/{BOOK_ID}/images" | jq 'length'`
 
 2. If > 12 images, resize to 800px:
-   ```bash
-   # Create temp directory
-   mkdir -p .tmp/book{BOOK_ID}
 
-   # Download images
-   AWS_PROFILE=bmx-prod aws s3 cp s3://bluemoxon-images/books/ .tmp/book{BOOK_ID}/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
+Create temp directory:
+```bash
+mkdir -p .tmp/book{BOOK_ID}
+```
 
-   # Resize to 800px max dimension
-   sips --resampleHeightWidthMax 800 .tmp/book{BOOK_ID}/*.jpeg
+Download images from S3:
+```bash
+AWS_PROFILE=bmx-prod aws s3 cp s3://bluemoxon-images/books/ .tmp/book{BOOK_ID}/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
+```
 
-   # Upload back
-   AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
-   ```
+Resize to 800px max dimension:
+```bash
+sips --resampleHeightWidthMax 800 .tmp/book{BOOK_ID}/*.jpeg
+```
+
+Upload back to S3:
+```bash
+AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
+```
 
 3. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
 
