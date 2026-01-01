@@ -406,7 +406,7 @@ def build_bedrock_messages(
 def invoke_bedrock(
     messages: list[dict],
     model: str = "sonnet",
-    max_tokens: int = 16000,
+    max_tokens: int = 32000,
     max_retries: int = 3,
     base_delay: float = 5.0,
 ) -> str:
@@ -461,9 +461,12 @@ def invoke_bedrock(
             )
 
             response_body = json.loads(response["body"].read())
+            stop_reason = response_body.get("stop_reason", "unknown")
             result_text = response_body["content"][0]["text"]
 
-            logger.info(f"Bedrock returned {len(result_text)} chars")
+            logger.info(f"Bedrock returned {len(result_text)} chars, stop_reason={stop_reason}")
+            if stop_reason == "max_tokens":
+                logger.warning("Output truncated - hit max_tokens limit")
             return result_text
 
         except ClientError as e:

@@ -155,6 +155,7 @@ class BookResponse(BookBase):
     has_eval_runbook: bool = False
     eval_runbook_job_status: str | None = None  # pending, running, or None
     analysis_job_status: str | None = None  # pending, running, or None
+    analysis_issues: list[str] | None = None  # truncated, degraded, missing_condition, etc.
     # Note: is_first_edition, has_provenance, provenance_tier inherited from BookBase
     image_count: int = 0
     primary_image_url: str | None = None

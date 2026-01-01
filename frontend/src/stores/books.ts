@@ -58,6 +58,7 @@ export interface Book {
   has_eval_runbook: boolean;
   analysis_job_status?: "pending" | "running" | null;
   eval_runbook_job_status?: "pending" | "running" | null;
+  analysis_issues?: string[] | null; // truncated, degraded, missing_condition, missing_market
   image_count: number;
   primary_image_url: string | null;
   investment_grade: number | null;

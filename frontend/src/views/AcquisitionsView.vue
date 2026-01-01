@@ -15,6 +15,7 @@ import ScoreCard from "@/components/ScoreCard.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
+import AnalysisIssuesWarning from "@/components/AnalysisIssuesWarning.vue";
 
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
@@ -489,6 +490,7 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <AnalysisIssuesWarning :issues="book.analysis_issues" />
                 <!-- Analysis job in progress indicator (check both in-memory and API status) -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
@@ -770,6 +772,7 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <AnalysisIssuesWarning :issues="book.analysis_issues" />
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
@@ -965,6 +968,7 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <AnalysisIssuesWarning :issues="book.analysis_issues" />
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
