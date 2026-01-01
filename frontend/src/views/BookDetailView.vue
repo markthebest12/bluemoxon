@@ -123,7 +123,6 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
-
 function openCarousel(index: number = 0) {
   carouselInitialIndex.value = index;
   carouselVisible.value = true;

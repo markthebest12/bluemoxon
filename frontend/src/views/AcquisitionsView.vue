@@ -190,7 +190,6 @@ function formatDateRange(startDate?: string, endDate?: string): string {
   return `${start} - ${end}`;
 }
 
-
 async function handleMarkReceived(bookId: number) {
   await acquisitionsStore.markReceived(bookId);
 }
