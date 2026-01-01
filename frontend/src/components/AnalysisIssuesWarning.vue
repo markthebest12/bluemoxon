@@ -8,17 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <BaseTooltip
-    v-if="issues?.length"
-    :content="formatAnalysisIssues(issues)"
-    position="top"
-  >
-    <span
-      class="text-amber-500 cursor-help"
-      role="img"
-      aria-label="Analysis has issues"
-    >
-      ⚠️
-    </span>
+  <BaseTooltip v-if="issues?.length" :content="formatAnalysisIssues(issues)" position="top">
+    <span class="text-amber-500 cursor-help" role="img" aria-label="Analysis has issues"> ⚠️ </span>
   </BaseTooltip>
 </template>
