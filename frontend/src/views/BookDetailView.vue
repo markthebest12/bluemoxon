@@ -12,6 +12,7 @@ import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
 import ArchiveStatusBadge from "@/components/ArchiveStatusBadge.vue";
+import AnalysisIssuesWarning from "@/components/AnalysisIssuesWarning.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -122,16 +123,6 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
-function formatAnalysisIssues(issues: string[] | null | undefined): string {
-  if (!issues || issues.length === 0) return "";
-  const labels: Record<string, string> = {
-    truncated: "Truncated: recommendations section missing",
-    degraded: "Degraded: fallback extraction used",
-    missing_condition: "Missing: condition assessment",
-    missing_market: "Missing: market analysis",
-  };
-  return issues.map((i) => labels[i] || i).join("\n");
-}
 
 function openCarousel(index: number = 0) {
   carouselInitialIndex.value = index;
@@ -774,17 +765,7 @@ function printPage() {
                 >
                   View Analysis
                 </button>
-                <!-- Analysis issues warning icon -->
-                <span
-                  v-if="
-                    booksStore.currentBook?.analysis_issues &&
-                    booksStore.currentBook.analysis_issues.length > 0
-                  "
-                  class="text-amber-500 cursor-help text-lg"
-                  :title="formatAnalysisIssues(booksStore.currentBook?.analysis_issues)"
-                >
-                  ⚠️
-                </span>
+                <AnalysisIssuesWarning :issues="booksStore.currentBook?.analysis_issues" />
 
                 <!-- Model selector (editor/admin only, when not running) -->
                 <select

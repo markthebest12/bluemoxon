@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from app.models import Book, BookImage
+from app.models.analysis import BookAnalysis
 
 
 class TestListBooks:
@@ -480,3 +481,136 @@ class TestCopyListingImagesToBook:
 
         # Thumbnail upload should not have been called
         mock_s3.upload_file.assert_not_called()
+
+
+class TestGetAnalysisIssues:
+    """Tests for _get_analysis_issues helper function."""
+
+    def test_no_analysis_returns_none(self, db):
+        """Book with no analysis returns None."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+        assert _get_analysis_issues(book) is None
+
+    def test_complete_analysis_returns_none(self, db):
+        """Book with all analysis fields present returns None."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations="Buy this book",
+            condition_assessment={"grade": "VG"},
+            market_analysis={"demand": "high"},
+            extraction_status="success",
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        assert _get_analysis_issues(book) is None
+
+    def test_truncated_recommendations(self, db):
+        """Book with recommendations=None returns ['truncated']."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations=None,
+            condition_assessment={"grade": "VG"},
+            market_analysis={"demand": "high"},
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        issues = _get_analysis_issues(book)
+        assert issues == ["truncated"]
+
+    def test_degraded_extraction(self, db):
+        """Book with extraction_status='degraded' returns ['degraded']."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations="Buy",
+            condition_assessment={"grade": "VG"},
+            market_analysis={"demand": "high"},
+            extraction_status="degraded",
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        issues = _get_analysis_issues(book)
+        assert issues == ["degraded"]
+
+    def test_missing_condition_assessment(self, db):
+        """Book with condition_assessment=None returns ['missing_condition']."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations="Buy",
+            condition_assessment=None,
+            market_analysis={"demand": "high"},
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        issues = _get_analysis_issues(book)
+        assert issues == ["missing_condition"]
+
+    def test_missing_market_analysis(self, db):
+        """Book with market_analysis=None returns ['missing_market']."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations="Buy",
+            condition_assessment={"grade": "VG"},
+            market_analysis=None,
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        issues = _get_analysis_issues(book)
+        assert issues == ["missing_market"]
+
+    def test_multiple_issues(self, db):
+        """Book with multiple issues returns all of them."""
+        from app.api.v1.books import _get_analysis_issues
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations=None,
+            condition_assessment=None,
+            market_analysis=None,
+            extraction_status="degraded",
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+        issues = _get_analysis_issues(book)
+        assert "truncated" in issues
+        assert "degraded" in issues
+        assert "missing_condition" in issues
+        assert "missing_market" in issues
+        assert len(issues) == 4
