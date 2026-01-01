@@ -6,6 +6,7 @@ Fixes #590: Management account detection for proper cost reporting.
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import boto3
 from botocore.exceptions import ClientError
@@ -48,15 +49,21 @@ OTHER_SERVICES = [
 ]
 
 
-def _get_cache_key() -> str:
-    """Generate cache key based on current month."""
+def _get_cache_key(timezone: str | None = None) -> str:
+    """Generate cache key based on current month and timezone.
+
+    Args:
+        timezone: IANA timezone name. Different timezones may see different
+                  "current month" at month boundaries, so we cache separately.
+    """
     now = datetime.now(UTC)
-    return f"costs_{now.year}_{now.month}"
+    tz_key = timezone or "UTC"
+    return f"costs_{now.year}_{now.month}_{tz_key}"
 
 
-def _is_cache_valid() -> bool:
-    """Check if cache is still valid."""
-    cache_key = _get_cache_key()
+def _is_cache_valid(timezone: str | None = None) -> bool:
+    """Check if cache is still valid for the given timezone."""
+    cache_key = _get_cache_key(timezone)
     if cache_key not in _cost_cache:
         return False
     cached_at = _cost_cache[cache_key].get("cached_at")
@@ -66,18 +73,23 @@ def _is_cache_valid() -> bool:
     return age < CACHE_TTL_SECONDS
 
 
-def get_costs() -> dict[str, Any]:
+def get_costs(timezone: str | None = None) -> dict[str, Any]:
     """Get cost data from AWS Cost Explorer.
+
+    Args:
+        timezone: Optional IANA timezone name (e.g., "America/Los_Angeles").
+                  If provided, uses that timezone to determine the current month.
+                  If None, uses UTC.
 
     Returns cached data if available and fresh, otherwise fetches from AWS.
     """
-    cache_key = _get_cache_key()
+    cache_key = _get_cache_key(timezone)
 
-    if _is_cache_valid():
+    if _is_cache_valid(timezone):
         return _cost_cache[cache_key]
 
     try:
-        costs = _fetch_costs_from_aws()
+        costs = _fetch_costs_from_aws(timezone=timezone)
         _cost_cache[cache_key] = costs
         return costs
     except ClientError as e:
@@ -129,8 +141,13 @@ def _is_management_account() -> bool:
         return False
 
 
-def _fetch_costs_from_aws() -> dict[str, Any]:
-    """Fetch cost data from AWS Cost Explorer."""
+def _fetch_costs_from_aws(timezone: str | None = None) -> dict[str, Any]:
+    """Fetch cost data from AWS Cost Explorer.
+
+    Args:
+        timezone: Optional IANA timezone name. If provided, uses that timezone
+                  to determine the current month for MTD calculations.
+    """
     client = boto3.client("ce", region_name="us-east-1")  # CE is only in us-east-1
 
     # Check if we're in the management account - if so, skip LINKED_ACCOUNT filter
@@ -143,7 +160,17 @@ def _fetch_costs_from_aws() -> dict[str, Any]:
         account_id = _get_current_account_id()
         account_filter = {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": [account_id]}}
 
-    now = datetime.now(UTC)
+    # Use provided timezone or default to UTC
+    if timezone:
+        try:
+            tz = ZoneInfo(timezone)
+            now = datetime.now(tz)
+        except KeyError:
+            logger.warning(f"Invalid timezone '{timezone}', falling back to UTC")
+            now = datetime.now(UTC)
+    else:
+        now = datetime.now(UTC)
+
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
     period_end = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
