@@ -1574,7 +1574,7 @@ def reparse_book_analysis(
 class GenerateAnalysisRequest(BaseModel):
     """Request body for analysis generation."""
 
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["sonnet", "opus"] = "opus"
 
 
 @router.post("/{book_id}/analysis/generate")
@@ -1953,7 +1953,7 @@ def re_extract_all_degraded(
 class GenerateAnalysisAsyncRequest(BaseModel):
     """Request body for async analysis generation."""
 
-    model: Literal["sonnet", "opus"] = "sonnet"
+    model: Literal["sonnet", "opus"] = "opus"
 
 
 @router.post("/{book_id}/analysis/generate-async", status_code=202)

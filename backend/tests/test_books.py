@@ -614,3 +614,28 @@ class TestGetAnalysisIssues:
         assert "missing_condition" in issues
         assert "missing_market" in issues
         assert len(issues) == 4
+
+
+class TestGenerateAnalysisDefaults:
+    """Tests for analysis generation default values."""
+
+    def test_sync_endpoint_defaults_to_opus(self):
+        """Test that sync analysis generation defaults to opus model."""
+        from app.api.v1.books import GenerateAnalysisRequest
+
+        request = GenerateAnalysisRequest()
+        assert request.model == "opus"
+
+    def test_async_endpoint_defaults_to_opus(self):
+        """Test that async analysis generation defaults to opus model."""
+        from app.api.v1.books import GenerateAnalysisAsyncRequest
+
+        request = GenerateAnalysisAsyncRequest()
+        assert request.model == "opus"
+
+    def test_analysis_job_create_defaults_to_opus(self):
+        """Test that AnalysisJobCreate schema defaults to opus model."""
+        from app.schemas.analysis_job import AnalysisJobCreate
+
+        job_create = AnalysisJobCreate()
+        assert job_create.model == "opus"

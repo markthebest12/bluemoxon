@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class AnalysisJobCreate(BaseModel):
     """Schema for creating an analysis job."""
 
-    model: str = "sonnet"
+    model: str = "opus"
 
 
 class AnalysisJobResponse(BaseModel):
