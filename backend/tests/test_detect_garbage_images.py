@@ -35,22 +35,16 @@ class TestDetectGarbageImages:
         mock_response = {
             "body": MagicMock(
                 read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": [1, 3]}'}
-                        ]
-                    }
+                    {"content": [{"text": '{"garbage_indices": [1, 3]}'}]}
                 ).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             # Return 4 image blocks to match the 4 images - validation uses this count
             mock_fetch.return_value = [
@@ -96,23 +90,15 @@ class TestDetectGarbageImages:
         # Mock Claude to return empty garbage_indices
         mock_response = {
             "body": MagicMock(
-                read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": []}'}
-                        ]
-                    }
-                ).encode()
+                read=lambda: json.dumps({"content": [{"text": '{"garbage_indices": []}'}]}).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             mock_fetch.return_value = [{"type": "image", "source": {}}]
 
@@ -144,16 +130,12 @@ class TestDetectGarbageImages:
         db.commit()
         db.refresh(book)
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
-            mock_client.return_value.invoke_model.side_effect = Exception(
-                "Bedrock API error"
-            )
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
+            mock_client.return_value.invoke_model.side_effect = Exception("Bedrock API error")
             mock_fetch.return_value = [{"type": "image", "source": {}}]
 
             with caplog.at_level(logging.WARNING):
@@ -180,11 +162,10 @@ class TestDetectGarbageImages:
         db.add(book)
         db.commit()
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             result = detect_garbage_images(
                 book_id=book.id,
                 images=[],
@@ -220,22 +201,16 @@ class TestDetectGarbageImages:
         mock_response = {
             "body": MagicMock(
                 read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": "This is not valid JSON at all"}
-                        ]
-                    }
+                    {"content": [{"text": "This is not valid JSON at all"}]}
                 ).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             mock_fetch.return_value = [{"type": "image", "source": {}}]
 
@@ -273,21 +248,14 @@ class TestDetectGarbageImages:
 
         mock_response = {
             "body": MagicMock(
-                read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": []}'}
-                        ]
-                    }
-                ).encode()
+                read=lambda: json.dumps({"content": [{"text": '{"garbage_indices": []}'}]}).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             mock_fetch.return_value = [{"type": "image", "source": {}}]
 
@@ -335,22 +303,16 @@ class TestDetectGarbageImages:
         mock_response = {
             "body": MagicMock(
                 read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": [-1, 1, 99, "foo", 1.5, 3]}'}
-                        ]
-                    }
+                    {"content": [{"text": '{"garbage_indices": [-1, 1, 99, "foo", 1.5, 3]}'}]}
                 ).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             # Return 4 image blocks to match the 4 images - validation uses this count
             mock_fetch.return_value = [
@@ -405,22 +367,16 @@ class TestDetectGarbageImages:
         mock_response = {
             "body": MagicMock(
                 read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": [-1, 99, "bad"]}'}
-                        ]
-                    }
+                    {"content": [{"text": '{"garbage_indices": [-1, 99, "bad"]}'}]}
                 ).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             # Return 2 image blocks to match the 2 images - validation uses this count
             mock_fetch.return_value = [
@@ -471,24 +427,17 @@ class TestDetectGarbageImages:
         success_response = {
             "body": MagicMock(
                 read=lambda: json.dumps(
-                    {
-                        "content": [
-                            {"text": '{"garbage_indices": [1]}'}
-                        ]
-                    }
+                    {"content": [{"text": '{"garbage_indices": [1]}'}]}
                 ).encode()
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete, patch(
-            "app.services.eval_generation.time.sleep"
-        ) as mock_sleep:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+            patch("app.services.eval_generation.time.sleep") as mock_sleep,
+        ):
             # First call throttles, second succeeds
             mock_client.return_value.invoke_model.side_effect = [
                 throttle_error,
@@ -544,15 +493,12 @@ class TestDetectGarbageImages:
             "InvokeModel",
         )
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete, patch(
-            "app.services.eval_generation.time.sleep"
-        ) as mock_sleep:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+            patch("app.services.eval_generation.time.sleep") as mock_sleep,
+        ):
             # Always throttle
             mock_client.return_value.invoke_model.side_effect = throttle_error
             mock_fetch.return_value = [{"type": "image", "source": {}}]
@@ -622,13 +568,11 @@ class TestDetectGarbageImages:
             )
         }
 
-        with patch(
-            "app.services.eval_generation.get_bedrock_client"
-        ) as mock_client, patch(
-            "app.services.eval_generation.fetch_book_images_for_bedrock"
-        ) as mock_fetch, patch(
-            "app.services.eval_generation.delete_unrelated_images"
-        ) as mock_delete:
+        with (
+            patch("app.services.eval_generation.get_bedrock_client") as mock_client,
+            patch("app.services.eval_generation.fetch_book_images_for_bedrock") as mock_fetch,
+            patch("app.services.eval_generation.delete_unrelated_images") as mock_delete,
+        ):
             mock_client.return_value.invoke_model.return_value = mock_response
             # Only 20 images are sent to Claude (due to max_images=20)
             mock_fetch.return_value = [{"type": "image", "source": {}} for _ in range(20)]

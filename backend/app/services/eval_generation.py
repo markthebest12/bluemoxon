@@ -913,9 +913,7 @@ Return ONLY valid JSON, no other text."""
 
                 # Validate indices: must be integers within bounds
                 garbage_indices = [
-                    idx
-                    for idx in raw_indices
-                    if isinstance(idx, int) and 0 <= idx < num_images
+                    idx for idx in raw_indices if isinstance(idx, int) and 0 <= idx < num_images
                 ]
                 if len(garbage_indices) != len(raw_indices):
                     logger.warning(
@@ -941,9 +939,7 @@ Return ONLY valid JSON, no other text."""
                         f"from book {book_id}"
                     )
                 else:
-                    logger.info(
-                        f"Garbage detection found no unrelated images for book {book_id}"
-                    )
+                    logger.info(f"Garbage detection found no unrelated images for book {book_id}")
 
                 return garbage_indices
 
@@ -965,9 +961,7 @@ Return ONLY valid JSON, no other text."""
                 return []
 
         except json.JSONDecodeError as e:
-            logger.warning(
-                f"Garbage detection failed for book {book_id}: JSON parse error - {e}"
-            )
+            logger.warning(f"Garbage detection failed for book {book_id}: JSON parse error - {e}")
             return []
 
         except Exception as e:
