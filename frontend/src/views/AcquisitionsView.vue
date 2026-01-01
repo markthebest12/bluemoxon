@@ -189,6 +189,17 @@ function formatDateRange(startDate?: string, endDate?: string): string {
   return `${start} - ${end}`;
 }
 
+function formatAnalysisIssues(issues: string[] | null | undefined): string {
+  if (!issues || issues.length === 0) return "";
+  const labels: Record<string, string> = {
+    truncated: "Truncated: recommendations section missing",
+    degraded: "Degraded: fallback extraction used",
+    missing_condition: "Missing: condition assessment",
+    missing_market: "Missing: market analysis",
+  };
+  return issues.map((i) => labels[i] || i).join("\n");
+}
+
 async function handleMarkReceived(bookId: number) {
   await acquisitionsStore.markReceived(bookId);
 }
@@ -489,6 +500,14 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <!-- Analysis issues warning icon -->
+                <span
+                  v-if="book.analysis_issues && book.analysis_issues.length > 0"
+                  class="text-amber-500 cursor-help"
+                  :title="formatAnalysisIssues(book.analysis_issues)"
+                >
+                  ⚠️
+                </span>
                 <!-- Analysis job in progress indicator (check both in-memory and API status) -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
@@ -770,6 +789,14 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <!-- Analysis issues warning icon -->
+                <span
+                  v-if="book.analysis_issues && book.analysis_issues.length > 0"
+                  class="text-amber-500 cursor-help"
+                  :title="formatAnalysisIssues(book.analysis_issues)"
+                >
+                  ⚠️
+                </span>
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"
@@ -965,6 +992,14 @@ async function handleArchiveSource(bookId: number) {
                 >
                   📄 View Analysis
                 </button>
+                <!-- Analysis issues warning icon -->
+                <span
+                  v-if="book.analysis_issues && book.analysis_issues.length > 0"
+                  class="text-amber-500 cursor-help"
+                  :title="formatAnalysisIssues(book.analysis_issues)"
+                >
+                  ⚠️
+                </span>
                 <!-- Analysis job in progress indicator -->
                 <div
                   v-if="isAnalysisRunning(book.id) || book.analysis_job_status"

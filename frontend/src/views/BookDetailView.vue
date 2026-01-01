@@ -122,6 +122,17 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
+function formatAnalysisIssues(issues: string[] | null | undefined): string {
+  if (!issues || issues.length === 0) return "";
+  const labels: Record<string, string> = {
+    truncated: "Truncated: recommendations section missing",
+    degraded: "Degraded: fallback extraction used",
+    missing_condition: "Missing: condition assessment",
+    missing_market: "Missing: market analysis",
+  };
+  return issues.map((i) => labels[i] || i).join("\n");
+}
+
 function openCarousel(index: number = 0) {
   carouselInitialIndex.value = index;
   carouselVisible.value = true;
@@ -763,6 +774,17 @@ function printPage() {
                 >
                   View Analysis
                 </button>
+                <!-- Analysis issues warning icon -->
+                <span
+                  v-if="
+                    booksStore.currentBook?.analysis_issues &&
+                    booksStore.currentBook.analysis_issues.length > 0
+                  "
+                  class="text-amber-500 cursor-help text-lg"
+                  :title="formatAnalysisIssues(booksStore.currentBook?.analysis_issues)"
+                >
+                  ⚠️
+                </span>
 
                 <!-- Model selector (editor/admin only, when not running) -->
                 <select
