@@ -12,6 +12,7 @@ const isVisible = ref(false);
 <template>
   <div
     class="relative inline-block"
+    tabindex="0"
     @mouseenter="isVisible = true"
     @mouseleave="isVisible = false"
     @focus="isVisible = true"
