@@ -213,11 +213,11 @@ def strip_structured_data(markdown: str) -> str:
     pattern = r"---STRUCTURED-DATA---\s*.*?\s*---END-STRUCTURED-DATA---\s*"
     result = re.sub(pattern, "", markdown, flags=re.DOTALL)
 
-    # Strip "## 14. Metadata Block" section and everything after it
-    # This is the Napoleon v2 format where metadata is section 14
-    metadata_idx = result.find("## 14. Metadata Block")
-    if metadata_idx != -1:
-        result = result[:metadata_idx]
+    # Strip "## N. Metadata Block" section and everything after it
+    # This is the Napoleon v2 format - uses regex for case-insensitivity
+    # and to handle any section number (typically 14, but could vary)
+    metadata_pattern = r"\n*## \d+\.\s*Metadata Block.*"
+    result = re.sub(metadata_pattern, "", result, flags=re.DOTALL | re.IGNORECASE)
 
     return result.strip()
 
