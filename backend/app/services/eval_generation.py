@@ -789,3 +789,130 @@ def generate_eval_runbook_quick(
         run_ai_analysis=False,
         run_fmv_lookup=False,
     )
+
+
+def detect_garbage_images(
+    book_id: int,
+    images: list[BookImage],
+    title: str,
+    author: str | None,
+    db: Session,
+) -> list[int]:
+    """Detect and remove images that don't show the specified book.
+
+    Uses Claude Vision with an inverted prompt logic to identify images
+    that do NOT show the specific book being listed.
+
+    Args:
+        book_id: ID of the book
+        images: List of BookImage objects to analyze
+        title: Title of the book for context
+        author: Author name for context (optional)
+        db: Database session
+
+    Returns:
+        List of 0-based indices of images that were identified as garbage
+        and removed. Returns empty list on failure (non-blocking).
+    """
+    if not images:
+        logger.info(f"Starting garbage detection for book {book_id} (0 images)")
+        return []
+
+    logger.info(f"Starting garbage detection for book {book_id} ({len(images)} images)")
+
+    # Load images for Bedrock
+    image_blocks = fetch_book_images_for_bedrock(images, max_images=20)
+
+    if not image_blocks:
+        logger.warning(f"Failed to load any images for garbage detection on book {book_id}")
+        return []
+
+    # Build the inverted prompt - asking if each image shows THIS SPECIFIC book
+    author_str = f" by {author}" if author else ""
+    prompt = f"""You are examining images from an online book listing.
+
+The listing is for: "{title}"{author_str}
+
+For each image, determine if it shows THIS SPECIFIC BOOK.
+
+Answer YES if the image shows:
+- The cover of "{title}"{author_str}
+- Interior pages of this book
+- The spine showing this title
+- Multiple angles of this specific book
+
+Answer NO if the image shows:
+- A completely different book (different title or author)
+- Objects that are not books (yarn, buttons, clothing, etc.)
+- Seller promotional material or store banners
+- Generic stock photos
+- Shipping/contact information graphics
+
+Return a JSON object with garbage_indices array of image indices (0-based) that should be REMOVED.
+Example: {{"garbage_indices": [3, 7, 12]}} means images 3, 7, and 12 are NOT this book.
+Return {{"garbage_indices": []}} if all images show the correct book.
+
+Return ONLY valid JSON, no other text."""
+
+    # Build message with images
+    content = [{"type": "text", "text": prompt}]
+    content.extend(image_blocks)
+
+    try:
+        client = get_bedrock_client()
+        model_id = get_model_id("sonnet")
+
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,
+                "messages": [{"role": "user", "content": content}],
+            }
+        )
+
+        logger.info(f"Invoking Claude for garbage detection ({len(image_blocks)} images)")
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+
+        response_body = json.loads(response["body"].read())
+        result_text = response_body["content"][0]["text"]
+
+        # Extract JSON from response
+        json_match = re.search(r"\{[\s\S]*\}", result_text)
+        if json_match:
+            result = json.loads(json_match.group())
+            garbage_indices = result.get("garbage_indices", [])
+
+            if garbage_indices:
+                logger.info(
+                    f"Garbage detection found {len(garbage_indices)} unrelated images: {garbage_indices}"
+                )
+
+                # Call delete_unrelated_images to handle deletion
+                cleanup_result = delete_unrelated_images(
+                    book_id=book_id,
+                    unrelated_indices=garbage_indices,
+                    unrelated_reasons={},  # No detailed reasons in this detection mode
+                    db=db,
+                )
+                logger.info(
+                    f"Deleted {cleanup_result['deleted_count']} garbage images from book {book_id}"
+                )
+            else:
+                logger.info(f"Garbage detection found no unrelated images for book {book_id}")
+
+            return garbage_indices
+
+        logger.warning(f"Garbage detection failed for book {book_id}: No JSON found in response")
+        return []
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Garbage detection failed for book {book_id}: JSON parse error - {e}")
+        return []
+    except Exception as e:
+        logger.warning(f"Garbage detection failed for book {book_id}: {e}")
+        return []
