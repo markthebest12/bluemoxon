@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatAnalysisIssues } from "@/composables/useFormatters";
+import BaseTooltip from "./BaseTooltip.vue";
 
 defineProps<{
   issues: string[] | null | undefined;
@@ -7,13 +8,17 @@ defineProps<{
 </script>
 
 <template>
-  <span
+  <BaseTooltip
     v-if="issues?.length"
-    class="text-amber-500"
-    role="img"
-    aria-label="Analysis has issues"
-    :title="formatAnalysisIssues(issues)"
+    :content="formatAnalysisIssues(issues)"
+    position="top"
   >
-    ⚠️
-  </span>
+    <span
+      class="text-amber-500 cursor-help"
+      role="img"
+      aria-label="Analysis has issues"
+    >
+      ⚠️
+    </span>
+  </BaseTooltip>
 </template>
