@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 
 from app.db import SessionLocal
 from app.models import Book, EvalRunbookJob
-from app.services.eval_generation import generate_eval_runbook
+from app.services.eval_generation import detect_garbage_images, generate_eval_runbook
 from app.version import get_version
 
 # Configure logging
@@ -113,6 +113,20 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
             "publisher": book.publisher.name if book.publisher else None,
             "description": book.condition_notes,  # Use condition notes as description context
         }
+
+        # Run garbage detection BEFORE eval runbook generation
+        # This removes seller promotional images, different books, etc.
+        if book.images:
+            listing_title = book.title or listing_data.get("title", "")
+            garbage_indices = detect_garbage_images(
+                book_id=book.id,
+                images=list(book.images),
+                title=listing_title,
+                author=book.author.name if book.author else None,
+                db=db,
+            )
+            if garbage_indices:
+                logger.info(f"Removed {len(garbage_indices)} garbage images from book {book_id}")
 
         logger.info(
             f"Generating eval runbook for book {book_id} with full AI analysis and FMV lookup"
