@@ -161,8 +161,15 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         metadata = extract_analysis_metadata(analysis_text)
 
         # Strip metadata block from analysis for clean storage and display
-        clean_analysis_text = strip_metadata_block(analysis_text)
-        logger.info(f"Stripped metadata block, {len(clean_analysis_text)} chars remaining")
+        clean_analysis_text, was_stripped = strip_metadata_block(analysis_text)
+        if was_stripped:
+            chars_removed = len(analysis_text) - len(clean_analysis_text)
+            logger.info(
+                f"Stripped metadata block ({chars_removed} chars removed), "
+                f"{len(clean_analysis_text)} chars remaining"
+            )
+        else:
+            logger.warning("No metadata block found to strip")
 
         # Stage 2: Extract structured data with focused prompt
         logger.info(f"Extracting structured data for book {book_id}")
