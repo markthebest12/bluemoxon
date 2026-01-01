@@ -582,6 +582,36 @@ NEW_FORMAT_KEY: value
         assert "## Executive Summary" in result
         assert "A fine binding" in result
 
+    def test_strips_metadata_block_case_insensitive(self):
+        """Test that metadata block stripping is case-insensitive (P0 fix)."""
+        markdown = """## 13. Conclusions
+
+Good acquisition.
+
+## 14. METADATA BLOCK
+
+CONDITION_GRADE: VG+
+"""
+        result = strip_structured_data(markdown)
+        assert "METADATA BLOCK" not in result
+        assert "CONDITION_GRADE" not in result
+        assert "## 13. Conclusions" in result
+
+    def test_strips_metadata_block_any_section_number(self):
+        """Test that metadata block is stripped regardless of section number."""
+        markdown = """## 12. Conclusions
+
+Good acquisition.
+
+## 13. Metadata Block
+
+CONDITION_GRADE: VG+
+"""
+        result = strip_structured_data(markdown)
+        assert "## 13. Metadata Block" not in result
+        assert "CONDITION_GRADE" not in result
+        assert "## 12. Conclusions" in result
+
 
 class TestPublisherIdentification:
     """Test publisher identification extraction from markdown."""
