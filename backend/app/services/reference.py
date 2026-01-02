@@ -29,15 +29,22 @@ TIER_2_BINDERS = {
 }
 
 
-def normalize_binder_name(name: str) -> tuple[str, str | None]:
+def normalize_binder_name(name: str) -> tuple[str | None, str | None]:
     """Normalize binder name and determine tier.
 
     Args:
         name: Raw binder name from analysis
 
     Returns:
-        Tuple of (canonical_name, tier) where tier is TIER_1, TIER_2, or None
+        Tuple of (canonical_name, tier) where tier is TIER_1, TIER_2, or None.
+        Returns (None, None) for unidentified/unknown binders.
     """
+    # Filter out unidentified/unknown variants (with or without parenthetical descriptions)
+    # Examples: "Unidentified", "UNKNOWN", "Unidentified (no signature visible)"
+    name_lower = name.lower().strip()
+    if name_lower.startswith(("unidentified", "unknown", "none")):
+        return None, None
+
     # Check Tier 1 first
     for variant, canonical in TIER_1_BINDERS.items():
         if variant.lower() in name.lower() or name.lower() in variant.lower():
@@ -74,6 +81,10 @@ def get_or_create_binder(
 
     # Normalize name and get tier
     canonical_name, tier = normalize_binder_name(name)
+
+    # If normalization returned None (unidentified/unknown), don't create a binder
+    if canonical_name is None:
+        return None
 
     # Look up existing binder
     binder = db.query(Binder).filter(Binder.name == canonical_name).first()
