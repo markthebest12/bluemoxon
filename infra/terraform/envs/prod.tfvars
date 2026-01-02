@@ -228,3 +228,6 @@ staging_api_gateway_domain_zone_id = "Z2OJLYMUO9EFXC"
 # Required for terraform plan during drift detection in deploy workflow
 terraform_state_bucket_arn         = "arn:aws:s3:::bluemoxon-terraform-state"
 terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:266672885920:table/bluemoxon-terraform-locks"
+
+# GitHub OIDC Drift Detection - read-only permissions for pre-deploy drift check
+enable_github_oidc_drift_detection = true
