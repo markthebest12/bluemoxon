@@ -76,6 +76,54 @@ def _check_publisher_matches_author(author_name: str | None, publisher_name: str
     return required.lower() in publisher_name.lower()
 
 
+def _sanitize_for_prompt(text: str | None, max_length: int = 200) -> str:
+    """Sanitize user-provided text before inserting into Claude prompts.
+
+    Prevents prompt injection by:
+    - Truncating to reasonable length
+    - Removing markdown/prompt-like patterns
+    - Stripping whitespace
+
+    Args:
+        text: Text to sanitize (title, author, etc.)
+        max_length: Maximum allowed length (default 200)
+
+    Returns:
+        Sanitized text, or empty string if input is None/empty
+    """
+    if not text:
+        return ""
+
+    # Strip whitespace
+    sanitized = text.strip()
+
+    # Truncate to max length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+
+    # Remove patterns that could be interpreted as prompt instructions
+    # These patterns are case-insensitive
+    injection_patterns = [
+        r"```",  # Code blocks
+        r"IGNORE\s+(PREVIOUS|ABOVE|ALL)",  # Common injection phrases
+        r"DISREGARD\s+(PREVIOUS|ABOVE|ALL)",
+        r"FORGET\s+(PREVIOUS|ABOVE|ALL)",
+        r"NEW\s+INSTRUCTIONS?:",
+        r"SYSTEM\s*:",
+        r"ASSISTANT\s*:",
+        r"USER\s*:",
+        r"</?(?:system|user|assistant|prompt|instruction)>",  # XML-like tags
+    ]
+
+    for pattern in injection_patterns:
+        sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
+
+    # Clean up any resulting double spaces
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+
+    return sanitized
+
+
 def _calculate_publisher_score(book: Book) -> tuple[int, str]:
     """Calculate Tier 1 Publisher score (max 20 points)."""
     if book.publisher and hasattr(book.publisher, "tier") and book.publisher.tier == "TIER_1":
@@ -892,15 +940,18 @@ def detect_garbage_images(
         return None
 
     # Build the inverted prompt - asking if each image shows THIS SPECIFIC book
-    author_str = f" by {author}" if author else ""
+    # Sanitize title and author to prevent prompt injection from malicious listings
+    safe_title = _sanitize_for_prompt(title, max_length=200)
+    safe_author = _sanitize_for_prompt(author, max_length=100)
+    author_str = f" by {safe_author}" if safe_author else ""
     prompt = f"""You are examining images from an online book listing.
 
-The listing is for: "{title}"{author_str}
+The listing is for: "{safe_title}"{author_str}
 
 For each image, determine if it shows THIS SPECIFIC BOOK.
 
 Answer YES if the image shows:
-- The cover of "{title}"{author_str}
+- The cover of "{safe_title}"{author_str}
 - Interior pages of this book
 - The spine showing this title
 - Multiple angles of this specific book
