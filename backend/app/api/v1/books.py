@@ -745,11 +745,11 @@ def update_book_status(
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
-    """Update book status (IN_TRANSIT, ON_HAND, SOLD, REMOVED).
+    """Update book status (EVALUATING, IN_TRANSIT, ON_HAND, REMOVED).
 
     Returns the full book object with relationships for frontend state updates.
     """
-    valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
+    valid_statuses = ["EVALUATING", "IN_TRANSIT", "ON_HAND", "REMOVED"]
     if status not in valid_statuses:
         raise HTTPException(
             status_code=400,
@@ -1295,7 +1295,7 @@ def bulk_update_status(
     _user=Depends(require_editor),
 ):
     """Bulk update status for multiple books."""
-    valid_statuses = ["IN_TRANSIT", "ON_HAND", "SOLD", "REMOVED"]
+    valid_statuses = ["EVALUATING", "IN_TRANSIT", "ON_HAND", "REMOVED"]
     if status not in valid_statuses:
         raise HTTPException(
             status_code=400,
