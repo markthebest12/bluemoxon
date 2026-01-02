@@ -82,14 +82,10 @@ jobs:
         run: |
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
-            echo "tf_backend_bucket=bluemoxon-terraform-state" >> $GITHUB_OUTPUT
-            echo "tf_backend_key=bluemoxon/prod/terraform.tfstate" >> $GITHUB_OUTPUT
-            echo "tf_dynamodb_table=bluemoxon-terraform-locks" >> $GITHUB_OUTPUT
+            echo "tf_backend_file=backends/prod.hcl" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "tf_backend_bucket=bluemoxon-terraform-state-staging" >> $GITHUB_OUTPUT
-            echo "tf_backend_key=bluemoxon/staging/terraform.tfstate" >> $GITHUB_OUTPUT
-            echo "tf_dynamodb_table=bluemoxon-terraform-locks" >> $GITHUB_OUTPUT
+            echo "tf_backend_file=backends/staging.hcl" >> $GITHUB_OUTPUT
           else
             echo "ERROR: Unknown branch ${{ github.ref_name }}"
             exit 1
@@ -109,11 +105,8 @@ jobs:
       - name: Initialize Terraform
         working-directory: infra/terraform
         run: |
-          terraform init \
-            -backend-config="bucket=${{ steps.env.outputs.tf_backend_bucket }}" \
-            -backend-config="key=${{ steps.env.outputs.tf_backend_key }}" \
-            -backend-config="region=${{ env.AWS_REGION }}" \
-            -backend-config="dynamodb_table=${{ steps.env.outputs.tf_dynamodb_table }}"
+          # Use backend config files as single source of truth (DRY)
+          terraform init -backend-config="${{ steps.env.outputs.tf_backend_file }}"
 
       - name: Check for infrastructure drift
         id: drift
