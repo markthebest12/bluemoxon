@@ -612,6 +612,32 @@ CONDITION_GRADE: VG+
         assert "CONDITION_GRADE" not in result
         assert "## 12. Conclusions" in result
 
+    def test_preserves_content_after_metadata_block(self):
+        """Test that content after metadata block is preserved (P1 fix).
+
+        Napoleon prompt says metadata MUST be last, but we should be defensive
+        in case Claude outputs content after it.
+        """
+        markdown = """## 13. Conclusions
+
+Good acquisition.
+
+## 14. Metadata Block
+
+CONDITION_GRADE: VG+
+VALUATION_MID: 300
+
+## 15. Appendix
+
+Additional notes about provenance.
+"""
+        result = strip_structured_data(markdown)
+        assert "## 14. Metadata Block" not in result
+        assert "CONDITION_GRADE" not in result
+        assert "## 13. Conclusions" in result
+        assert "## 15. Appendix" in result  # Content after should be preserved
+        assert "Additional notes about provenance" in result
+
 
 class TestPublisherIdentification:
     """Test publisher identification extraction from markdown."""
