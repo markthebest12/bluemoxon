@@ -303,7 +303,10 @@ def _parse_binder_identification(text: str) -> dict | None:
     name_match = re.search(r"\*\*Name:\*\*\s*(.+)", text)
     if name_match:
         name = name_match.group(1).strip()
-        if name.lower() not in ("unidentified", "unknown", "none"):
+        # Filter out unidentified/unknown variants (with or without parenthetical descriptions)
+        # Examples: "Unidentified", "UNKNOWN", "Unidentified (no signature visible)"
+        name_lower = name.lower()
+        if not name_lower.startswith(("unidentified", "unknown", "none")):
             result["name"] = name
 
     confidence_match = re.search(r"\*\*Confidence:\*\*\s*(\w+)", text)
@@ -404,14 +407,20 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
     # Extract binder identification from full text
     binder_identification = _parse_binder_identification(markdown)
 
-    # If structured data has binder info, merge it
+    # If structured data has binder info, merge it (filtering unidentified variants)
     if structured_data and structured_data.get("binder_identified"):
-        if not binder_identification:
-            binder_identification = {}
-        if "name" not in binder_identification:
-            binder_identification["name"] = structured_data["binder_identified"]
-        if "confidence" not in binder_identification and structured_data.get("binder_confidence"):
-            binder_identification["confidence"] = structured_data["binder_confidence"]
+        binder_name = structured_data["binder_identified"]
+        # Filter out unidentified/unknown variants
+        binder_lower = binder_name.lower() if binder_name else ""
+        if not binder_lower.startswith(("unidentified", "unknown", "none")):
+            if not binder_identification:
+                binder_identification = {}
+            if "name" not in binder_identification:
+                binder_identification["name"] = binder_name
+            if "confidence" not in binder_identification and structured_data.get(
+                "binder_confidence"
+            ):
+                binder_identification["confidence"] = structured_data["binder_confidence"]
 
     # Extract publisher identification from text patterns
     publisher_identification = _parse_publisher_identification(markdown)

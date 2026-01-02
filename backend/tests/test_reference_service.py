@@ -71,9 +71,34 @@ class TestNormalizeBinderName:
         assert name == "Stikeman"
         assert tier == "TIER_2"
 
-    def test_unknown_binder_no_tier(self):
+    def test_unknown_binder_returns_none(self):
+        """Unknown/Unidentified variants should return None to prevent proliferation."""
         name, tier = normalize_binder_name("Unknown Bindery")
-        assert name == "Unknown Bindery"
+        assert name is None
+        assert tier is None
+
+    def test_unidentified_variants_return_none(self):
+        """All Unidentified variants with descriptions should return None."""
+        variants = [
+            "Unidentified",
+            "UNIDENTIFIED",
+            "Unidentified (no signature visible)",
+            "Unidentified (Publisher's Binding)",
+            "Unknown",
+            "UNKNOWN",
+            "Unknown (commercial trade binding)",
+            "None",
+            "none",
+        ]
+        for variant in variants:
+            name, tier = normalize_binder_name(variant)
+            assert name is None, f"Expected None for '{variant}', got '{name}'"
+            assert tier is None
+
+    def test_actual_binder_not_filtered(self):
+        """Actual binder names should not be filtered."""
+        name, tier = normalize_binder_name("Smith & Sons")
+        assert name == "Smith & Sons"
         assert tier is None
 
     def test_case_insensitive(self):
