@@ -54,7 +54,7 @@ const showPreview = ref(true);
 const showMobileMenu = ref(false);
 
 // Generate controls
-const selectedModel = ref<"sonnet" | "opus">("sonnet");
+const selectedModel = ref<"sonnet" | "opus">("opus");
 const generating = ref(false);
 const generateError = ref<string | null>(null);
 
