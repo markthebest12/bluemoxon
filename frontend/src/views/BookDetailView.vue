@@ -71,8 +71,13 @@ const deleteModalVisible = ref(false);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
 
-// Status management
-const statusOptions = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
+// Status management (value sent to backend, label displayed to user)
+const statusOptions = [
+  { value: "EVALUATING", label: "EVAL" },
+  { value: "ON_HAND", label: "ON HAND" },
+  { value: "IN_TRANSIT", label: "IN TRANSIT" },
+  { value: "REMOVED", label: "REMOVED" },
+];
 const updatingStatus = ref(false);
 
 // Computed property for back link that preserves filter state
@@ -297,17 +302,22 @@ async function saveProvenance() {
 
 function getStatusColor(status: string): string {
   switch (status) {
+    case "EVALUATING":
+      return "bg-blue-100 text-blue-800";
     case "ON_HAND":
       return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
     case "IN_TRANSIT":
       return "badge-transit";
-    case "SOLD":
-      return "bg-gray-100 text-gray-800";
     case "REMOVED":
       return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
     default:
       return "bg-gray-100 text-gray-800";
   }
+}
+
+function getStatusLabel(statusValue: string): string {
+  const option = statusOptions.find((s) => s.value === statusValue);
+  return option ? option.label : statusValue.replace("_", " ");
 }
 
 // Print function
@@ -568,8 +578,8 @@ function printPage() {
                     updatingStatus ? 'opacity-50' : '',
                   ]"
                 >
-                  <option v-for="status in statusOptions" :key="status" :value="status">
-                    {{ status.replace("_", " ") }}
+                  <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                    {{ status.label }}
                   </option>
                 </select>
                 <!-- Print-only status text for editors -->
@@ -580,7 +590,7 @@ function printPage() {
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
-                  {{ booksStore.currentBook.status.replace("_", " ") }}
+                  {{ getStatusLabel(booksStore.currentBook.status) }}
                 </span>
                 <!-- Viewers see read-only badge -->
                 <span
@@ -590,7 +600,7 @@ function printPage() {
                     getStatusColor(booksStore.currentBook.status),
                   ]"
                 >
-                  {{ booksStore.currentBook.status.replace("_", " ") }}
+                  {{ getStatusLabel(booksStore.currentBook.status) }}
                 </span>
               </dd>
             </div>
