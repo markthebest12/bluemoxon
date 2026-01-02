@@ -122,8 +122,13 @@ const categories = [
   "Literature",
 ];
 
-// Status options
-const statuses = ["ON_HAND", "IN_TRANSIT", "SOLD", "REMOVED"];
+// Status options (value sent to backend, label displayed to user)
+const statuses = [
+  { value: "EVALUATING", label: "EVAL" },
+  { value: "ON_HAND", label: "ON HAND" },
+  { value: "IN_TRANSIT", label: "IN TRANSIT" },
+  { value: "REMOVED", label: "REMOVED" },
+];
 
 onMounted(async () => {
   // Fetch reference data for dropdowns and exchange rates
@@ -357,8 +362,8 @@ function cancel() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <select v-model="form.status" class="input w-full">
-            <option v-for="status in statuses" :key="status" :value="status">
-              {{ status.replace("_", " ") }}
+            <option v-for="status in statuses" :key="status.value" :value="status.value">
+              {{ status.label }}
             </option>
           </select>
         </div>
