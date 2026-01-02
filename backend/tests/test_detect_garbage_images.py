@@ -826,4 +826,3 @@ class TestSanitizeForPrompt:
         result = _sanitize_for_prompt(text)
         # The pattern should be removed regardless of case
         assert "ignore previous" not in result.lower()
-
