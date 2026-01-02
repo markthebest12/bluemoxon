@@ -1,7 +1,10 @@
 """Parse markdown analysis documents into structured fields."""
 
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -212,13 +215,18 @@ def strip_structured_data(markdown: str) -> str:
     # Strip explicit STRUCTURED-DATA markers
     pattern = r"---STRUCTURED-DATA---\s*.*?\s*---END-STRUCTURED-DATA---\s*"
     result = re.sub(pattern, "", markdown, flags=re.DOTALL)
+    if result != markdown:
+        logger.debug("Stripped STRUCTURED-DATA markers from markdown")
 
     # Strip "## N. Metadata Block" section up to next section header or end
     # This is the Napoleon v2 format - uses regex for case-insensitivity
     # and to handle any section number (typically 14, but could vary)
     # Uses non-greedy match and lookahead to preserve content after metadata
     metadata_pattern = r"\n*## \d+\.\s*Metadata Block.*?(?=\n## |\Z)"
+    before_metadata_strip = result
     result = re.sub(metadata_pattern, "", result, flags=re.DOTALL | re.IGNORECASE)
+    if result != before_metadata_strip:
+        logger.debug("Stripped Metadata Block section from markdown")
 
     return result.strip()
 
