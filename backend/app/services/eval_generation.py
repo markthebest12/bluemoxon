@@ -996,10 +996,10 @@ Return ONLY valid JSON, no other text."""
                         f"Deleted {cleanup_result['deleted_count']} garbage images "
                         f"from book {book_id}"
                     )
+                    return cleanup_result.get("deleted_indices", garbage_indices)
                 else:
                     logger.info(f"Garbage detection found no unrelated images for book {book_id}")
-
-                return garbage_indices
+                    return []
 
             logger.warning(
                 f"Garbage detection failed for book {book_id}: No JSON found in response"
