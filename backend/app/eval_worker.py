@@ -125,7 +125,9 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
                 author=book.author.name if book.author else None,
                 db=db,
             )
-            if garbage_indices:
+            if garbage_indices is None:
+                logger.warning(f"Garbage detection failed for book {book_id}, proceeding without cleanup")
+            elif garbage_indices:
                 logger.info(f"Removed {len(garbage_indices)} garbage images from book {book_id}")
 
         logger.info(
