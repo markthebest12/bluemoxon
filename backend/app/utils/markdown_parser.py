@@ -417,7 +417,9 @@ def parse_analysis_markdown(markdown: str) -> ParsedAnalysis:
                 binder_identification = {}
             if "name" not in binder_identification:
                 binder_identification["name"] = binder_name
-            if "confidence" not in binder_identification and structured_data.get("binder_confidence"):
+            if "confidence" not in binder_identification and structured_data.get(
+                "binder_confidence"
+            ):
                 binder_identification["confidence"] = structured_data["binder_confidence"]
 
     # Extract publisher identification from text patterns
