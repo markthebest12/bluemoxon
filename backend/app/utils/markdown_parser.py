@@ -1,4 +1,23 @@
-"""Parse markdown analysis documents into structured fields."""
+"""Markdown parser utilities for extracting structured data from AI analysis.
+
+METADATA FORMATS:
+This module handles metadata embedded in analysis markdown for DISPLAY purposes.
+See analysis_parser.py for metadata EXTRACTION (JSON parsing).
+
+Display stripping formats (strip_structured_data):
+1. STRUCTURED-DATA markers (legacy v1): Delimited block with key:value pairs
+   ---STRUCTURED-DATA---
+   KEY: value
+   ---END-STRUCTURED-DATA---
+
+2. Metadata Block section (Napoleon v2): Section header with key:value content
+   ## 14. Metadata Block
+   KEY: value
+   (Note: Section number may vary; stripping is case-insensitive)
+
+Processing order: STRUCTURED-DATA is stripped first, then Metadata Block.
+Both formats may be present in analyses generated during format transitions.
+"""
 
 import logging
 import re
