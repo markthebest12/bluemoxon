@@ -59,10 +59,9 @@ jobs:
       - name: Terraform Init
         working-directory: infra/terraform
         run: |
-          terraform init \
-            -backend-config="bucket=bluemoxon-terraform-state-${{ matrix.environment == 'production' && 'prod' || 'staging' }}" \
-            -backend-config="key=bluemoxon/${{ matrix.environment == 'production' && 'prod' || 'staging' }}/terraform.tfstate" \
-            -backend-config="region=${{ env.AWS_REGION }}"
+          # Use backend config files as single source of truth (DRY)
+          BACKEND_FILE="backends/${{ matrix.environment == 'production' && 'prod' || 'staging' }}.hcl"
+          terraform init -backend-config="$BACKEND_FILE"
 
       - name: Terraform Plan (Drift Check)
         id: plan
