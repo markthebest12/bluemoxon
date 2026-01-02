@@ -57,10 +57,10 @@ watch(
 
 // Analysis generation state
 const startingAnalysis = ref(false);
-const selectedModel = ref<"sonnet" | "opus">("sonnet");
+const selectedModel = ref<"sonnet" | "opus">("opus");
 const modelOptions = [
-  { value: "sonnet", label: "Sonnet 4.5" },
   { value: "opus", label: "Opus 4.5" },
+  { value: "sonnet", label: "Sonnet 4.5" },
 ];
 
 // Eval Runbook state
