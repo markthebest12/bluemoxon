@@ -17,6 +17,11 @@ from app.version import get_version
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Minimum number of images required to run garbage detection.
+# Books with few images (e.g., just cover/spine) rarely have garbage,
+# so we skip the expensive API call for them.
+MIN_IMAGES_FOR_GARBAGE_DETECTION = 5
+
 
 def handler(event: dict, context) -> dict:
     """Lambda handler for SQS eval runbook job messages.
@@ -116,7 +121,8 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
 
         # Run garbage detection BEFORE eval runbook generation
         # This removes seller promotional images, different books, etc.
-        if book.images:
+        # Skip for books with few images - they rarely have garbage (usually just cover/spine)
+        if book.images and len(book.images) >= MIN_IMAGES_FOR_GARBAGE_DETECTION:
             listing_title = book.title or listing_data.get("title", "")
             garbage_indices = detect_garbage_images(
                 book_id=book.id,
@@ -129,6 +135,10 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
                 logger.warning(f"Garbage detection failed for book {book_id}, proceeding without cleanup")
             elif garbage_indices:
                 logger.info(f"Removed {len(garbage_indices)} garbage images from book {book_id}")
+        elif book.images:
+            logger.info(
+                f"Skipping garbage detection for book {book_id}: only {len(book.images)} images"
+            )
 
         logger.info(
             f"Generating eval runbook for book {book_id} with full AI analysis and FMV lookup"
