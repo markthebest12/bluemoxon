@@ -330,6 +330,67 @@ See [ROLLBACK.md](ROLLBACK.md) for database recovery procedures.
 
 ---
 
+## Analysis Troubleshooting
+
+### Image Size Issues
+
+When analysis jobs fail with "Input is too long" errors, the total base64 payload size exceeds Bedrock's input limit. This is caused by:
+- Too many images
+- Large image file sizes (high-quality JPEGs)
+
+**Confirmed Working Thresholds:**
+
+| Max Dimension | Max Images | Notes |
+|---------------|------------|-------|
+| 1600px | 12 | Works for low-quality JPEGs |
+| 1200px | 16-18 | Works for moderate-quality JPEGs |
+| 800px | 18-20 | **Reliable floor** - works regardless of JPEG quality |
+
+**Root cause:** Base64 payload size matters more than pixel count. High-quality JPEGs (675KB-1.8MB per image) fail even at 1200px dimensions.
+
+**Resolution workflow:**
+
+1. Check image count: `bmx-api --prod GET "/books/{BOOK_ID}/images" | jq 'length'`
+
+2. If > 12 images, resize to 800px:
+
+Create temp directory:
+```bash
+mkdir -p .tmp/book{BOOK_ID}
+```
+
+Download images from S3:
+```bash
+AWS_PROFILE=bmx-prod aws s3 cp s3://bluemoxon-images/books/ .tmp/book{BOOK_ID}/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
+```
+
+Resize to 800px max dimension:
+```bash
+sips --resampleHeightWidthMax 800 .tmp/book{BOOK_ID}/*.jpeg
+```
+
+Upload back to S3:
+```bash
+AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
+```
+
+3. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
+
+4. Verify success: `bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'`
+
+### Stale Analysis Jobs
+
+Jobs that show as "running" for more than 15 minutes are automatically marked as failed:
+- On `GET /analysis/status` call
+- On `POST /analysis/generate-async` re-trigger (allows immediate retry)
+
+To check for stale jobs:
+```bash
+bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
+```
+
+---
+
 ## Staging Environment
 
 ### URLs

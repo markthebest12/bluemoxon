@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import AnalysisJob, Book, BookAnalysis
+from app.models import AnalysisJob, Book, BookAnalysis, BookImage
 from app.services.analysis_parser import (
     apply_metadata_to_book,
     extract_analysis_metadata,
@@ -38,6 +38,42 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 settings = get_settings()
+
+
+def format_analysis_error(error: Exception, image_count: int = 0) -> str:
+    """Format error message with helpful context for analysis failures.
+
+    Args:
+        error: The exception that occurred
+        image_count: Number of images associated with the book
+
+    Returns:
+        Formatted error message with context for input-too-long errors,
+        or the original error message for other errors.
+    """
+    from botocore.exceptions import ClientError
+
+    error_str = str(error)
+
+    # Check for Bedrock input size limit errors
+    is_input_size_error = False
+    if isinstance(error, ClientError):
+        error_code = error.response.get("Error", {}).get("Code", "")
+        error_message = error.response.get("Error", {}).get("Message", "")
+        if error_code == "ValidationException" and "too long" in error_message.lower():
+            is_input_size_error = True
+    # Fallback for string representation (e.g., in tests)
+    elif "Input is too long" in error_str or "ValidationException" in error_str:
+        is_input_size_error = True
+
+    if is_input_size_error:
+        return (
+            f"{error_str}. "
+            f"This book has {image_count} images. "
+            f"Try resizing images to 800px max dimension to reduce payload size."
+        )
+
+    return error_str
 
 
 def handler(event: dict, context) -> dict:
@@ -321,7 +357,8 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         # Mark job as failed
         if job:
             job.status = "failed"
-            job.error_message = str(e)[:1000]  # Truncate long errors
+            image_count = db.query(BookImage).filter(BookImage.book_id == book_id).count()
+            job.error_message = format_analysis_error(e, image_count)[:1000]
             job.updated_at = datetime.now(UTC)
             db.commit()
 
