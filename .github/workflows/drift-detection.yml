@@ -60,7 +60,7 @@ jobs:
         working-directory: infra/terraform
         run: |
           terraform init \
-            -backend-config="bucket=bluemoxon-terraform-state-${{ matrix.environment == 'production' && 'prod' || 'staging' }}" \
+            -backend-config="bucket=${{ matrix.environment == 'production' && 'bluemoxon-terraform-state' || 'bluemoxon-terraform-state-staging' }}" \
             -backend-config="key=bluemoxon/${{ matrix.environment == 'production' && 'prod' || 'staging' }}/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}"
 
