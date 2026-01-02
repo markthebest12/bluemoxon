@@ -1,4 +1,17 @@
-"""Parser for extracting structured metadata from AI analysis responses."""
+"""Parser for extracting structured metadata from AI analysis responses.
+
+METADATA EXTRACTION vs DISPLAY STRIPPING:
+- This module EXTRACTS metadata as JSON for storage in database fields
+- markdown_parser.py STRIPS metadata for display purposes
+
+This module handles HTML comment marker format:
+<!-- METADATA_START -->
+{"condition_grade": "VG+", "valuation_mid": 300}
+<!-- METADATA_END -->
+
+This format allows structured JSON extraction while remaining invisible
+in rendered markdown.
+"""
 
 import json
 import logging

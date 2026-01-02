@@ -1,7 +1,29 @@
-"""Parse markdown analysis documents into structured fields."""
+"""Markdown parser utilities for extracting structured data from AI analysis.
 
+METADATA FORMATS:
+This module handles metadata embedded in analysis markdown for DISPLAY purposes.
+See analysis_parser.py for metadata EXTRACTION (JSON parsing).
+
+Display stripping formats (strip_structured_data):
+1. STRUCTURED-DATA markers (legacy v1): Delimited block with key:value pairs
+   ---STRUCTURED-DATA---
+   KEY: value
+   ---END-STRUCTURED-DATA---
+
+2. Metadata Block section (Napoleon v2): Section header with key:value content
+   ## 14. Metadata Block
+   KEY: value
+   (Note: Section number may vary; stripping is case-insensitive)
+
+Processing order: STRUCTURED-DATA is stripped first, then Metadata Block.
+Both formats may be present in analyses generated during format transitions.
+"""
+
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -212,12 +234,18 @@ def strip_structured_data(markdown: str) -> str:
     # Strip explicit STRUCTURED-DATA markers
     pattern = r"---STRUCTURED-DATA---\s*.*?\s*---END-STRUCTURED-DATA---\s*"
     result = re.sub(pattern, "", markdown, flags=re.DOTALL)
+    if result != markdown:
+        logger.debug("Stripped STRUCTURED-DATA markers from markdown")
 
-    # Strip "## N. Metadata Block" section and everything after it
+    # Strip "## N. Metadata Block" section up to next section header or end
     # This is the Napoleon v2 format - uses regex for case-insensitivity
     # and to handle any section number (typically 14, but could vary)
-    metadata_pattern = r"\n*## \d+\.\s*Metadata Block.*"
+    # Uses non-greedy match and lookahead to preserve content after metadata
+    metadata_pattern = r"\n*## \d+\.\s*Metadata Block.*?(?=\n## |\Z)"
+    before_metadata_strip = result
     result = re.sub(metadata_pattern, "", result, flags=re.DOTALL | re.IGNORECASE)
+    if result != before_metadata_strip:
+        logger.debug("Stripped Metadata Block section from markdown")
 
     return result.strip()
 

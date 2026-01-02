@@ -10,7 +10,7 @@ import {
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
-defineProps<{
+const props = defineProps<{
   visible: boolean;
 }>();
 
@@ -87,6 +87,43 @@ onUnmounted(() => {
 onMounted(() => {
   void refsStore.fetchAll();
 });
+
+// Reset modal state when opened
+function resetState() {
+  step.value = "url";
+  urlInput.value = "";
+  extracting.value = false;
+  extractError.value = null;
+  currentItemId.value = null;
+  extractionStatus.value = null;
+  extractedData.value = null;
+  submitting.value = false;
+  errorMessage.value = null;
+  validationErrors.value = {};
+  currentSavingStep.value = 0;
+  form.value = {
+    title: "",
+    author_id: null,
+    publisher_id: null,
+    binder_id: null,
+    publication_date: "",
+    volumes: 1,
+    source_url: "",
+    purchase_price: null,
+    binding_type: "",
+    condition_notes: "",
+  };
+}
+
+// Watch for modal opening to reset state
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      resetState();
+    }
+  }
+);
 
 // Computed: Is the URL a valid eBay URL?
 // Accepts both standard ebay.com/itm/... URLs and ebay.us short URLs

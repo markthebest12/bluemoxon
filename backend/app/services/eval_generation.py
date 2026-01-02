@@ -76,6 +76,54 @@ def _check_publisher_matches_author(author_name: str | None, publisher_name: str
     return required.lower() in publisher_name.lower()
 
 
+def _sanitize_for_prompt(text: str | None, max_length: int = 200) -> str:
+    """Sanitize user-provided text before inserting into Claude prompts.
+
+    Prevents prompt injection by:
+    - Truncating to reasonable length
+    - Removing markdown/prompt-like patterns
+    - Stripping whitespace
+
+    Args:
+        text: Text to sanitize (title, author, etc.)
+        max_length: Maximum allowed length (default 200)
+
+    Returns:
+        Sanitized text, or empty string if input is None/empty
+    """
+    if not text:
+        return ""
+
+    # Strip whitespace
+    sanitized = text.strip()
+
+    # Truncate to max length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+
+    # Remove patterns that could be interpreted as prompt instructions
+    # These patterns are case-insensitive
+    injection_patterns = [
+        r"```",  # Code blocks
+        r"IGNORE\s+(PREVIOUS|ABOVE|ALL)",  # Common injection phrases
+        r"DISREGARD\s+(PREVIOUS|ABOVE|ALL)",
+        r"FORGET\s+(PREVIOUS|ABOVE|ALL)",
+        r"NEW\s+INSTRUCTIONS?:",
+        r"SYSTEM\s*:",
+        r"ASSISTANT\s*:",
+        r"USER\s*:",
+        r"</?(?:system|user|assistant|prompt|instruction)>",  # XML-like tags
+    ]
+
+    for pattern in injection_patterns:
+        sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
+
+    # Clean up any resulting double spaces
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+
+    return sanitized
+
+
 def _calculate_publisher_score(book: Book) -> tuple[int, str]:
     """Calculate Tier 1 Publisher score (max 20 points)."""
     if book.publisher and hasattr(book.publisher, "tier") and book.publisher.tier == "TIER_1":
@@ -794,6 +842,56 @@ def generate_eval_runbook_quick(
     )
 
 
+def _sample_images_for_analysis(
+    images: list[BookImage], max_images: int = 20
+) -> tuple[list[BookImage], list[int]]:
+    """Sample images from start, middle, and end for comprehensive coverage.
+
+    When there are more images than max_images, samples strategically:
+    - First 7 images (35%): Catches main book content, covers, title pages
+    - Middle 6 images (30%): Catches interior content, provenance markers
+    - Last 7 images (35%): Catches seller promotional images, garbage at end
+
+    Args:
+        images: List of BookImage objects sorted by display_order
+        max_images: Maximum number of images to sample (default 20)
+
+    Returns:
+        Tuple of (sampled_images, original_indices) where original_indices
+        maps each sampled image back to its position in the input list.
+    """
+    if len(images) <= max_images:
+        return images, list(range(len(images)))
+
+    # Sample strategy: 35% start, 30% middle, 35% end
+    first_count = 7
+    middle_count = 6
+    last_count = 7
+
+    # Get indices for each section
+    first_indices = list(range(first_count))
+
+    # Middle indices - centered in the remaining images
+    middle_start = len(images) // 2 - middle_count // 2
+    middle_indices = list(range(middle_start, middle_start + middle_count))
+
+    last_indices = list(range(len(images) - last_count, len(images)))
+
+    # Combine and deduplicate while preserving order
+    all_indices = []
+    seen = set()
+    for idx in first_indices + middle_indices + last_indices:
+        if idx not in seen and 0 <= idx < len(images):
+            all_indices.append(idx)
+            seen.add(idx)
+
+    # Sort to maintain display order
+    all_indices.sort()
+
+    sampled_images = [images[i] for i in all_indices]
+    return sampled_images, all_indices
+
+
 def detect_garbage_images(
     book_id: int,
     images: list[BookImage],
@@ -802,7 +900,7 @@ def detect_garbage_images(
     db: Session,
     max_retries: int = 3,
     base_delay: float = 2.0,
-) -> list[int]:
+) -> list[int] | None:
     """Detect and remove images that don't show the specified book.
 
     Uses Claude Vision with an inverted prompt logic to identify images
@@ -821,7 +919,8 @@ def detect_garbage_images(
 
     Returns:
         List of 0-based indices of images that were identified as garbage
-        and removed. Returns empty list on failure (non-blocking).
+        and removed. Returns None on failure (allows caller to distinguish
+        failure from success-with-no-garbage).
     """
     if not images:
         logger.info(f"Starting garbage detection for book {book_id} (0 images)")
@@ -829,23 +928,30 @@ def detect_garbage_images(
 
     logger.info(f"Starting garbage detection for book {book_id} ({len(images)} images)")
 
-    # Load images for Bedrock
-    image_blocks = fetch_book_images_for_bedrock(images, max_images=20)
+    # Sample images strategically from start, middle, and end
+    # This ensures garbage at any position can be detected
+    sampled_images, original_indices = _sample_images_for_analysis(images, max_images=20)
+
+    # Load sampled images for Bedrock
+    image_blocks = fetch_book_images_for_bedrock(sampled_images, max_images=len(sampled_images))
 
     if not image_blocks:
         logger.warning(f"Failed to load any images for garbage detection on book {book_id}")
-        return []
+        return None
 
     # Build the inverted prompt - asking if each image shows THIS SPECIFIC book
-    author_str = f" by {author}" if author else ""
+    # Sanitize title and author to prevent prompt injection from malicious listings
+    safe_title = _sanitize_for_prompt(title, max_length=200)
+    safe_author = _sanitize_for_prompt(author, max_length=100)
+    author_str = f" by {safe_author}" if safe_author else ""
     prompt = f"""You are examining images from an online book listing.
 
-The listing is for: "{title}"{author_str}
+The listing is for: "{safe_title}"{author_str}
 
 For each image, determine if it shows THIS SPECIFIC BOOK.
 
 Answer YES if the image shows:
-- The cover of "{title}"{author_str}
+- The cover of "{safe_title}"{author_str}
 - Interior pages of this book
 - The spine showing this title
 - Multiple angles of this specific book
@@ -911,20 +1017,23 @@ Return ONLY valid JSON, no other text."""
                 result = json.loads(json_match.group())
                 raw_indices = result.get("garbage_indices", [])
 
-                # Validate indices: must be integers within bounds
-                garbage_indices = [
+                # Validate indices: must be integers within bounds of sampled images
+                valid_sampled_indices = [
                     idx for idx in raw_indices if isinstance(idx, int) and 0 <= idx < num_images
                 ]
-                if len(garbage_indices) != len(raw_indices):
+                if len(valid_sampled_indices) != len(raw_indices):
                     logger.warning(
-                        f"Filtered {len(raw_indices) - len(garbage_indices)} invalid indices "
-                        f"from garbage detection (raw: {raw_indices}, valid: {garbage_indices})"
+                        f"Filtered {len(raw_indices) - len(valid_sampled_indices)} invalid indices "
+                        f"from garbage detection (raw: {raw_indices}, valid: {valid_sampled_indices})"
                     )
+
+                # Map sampled indices back to original image indices
+                garbage_indices = [original_indices[idx] for idx in valid_sampled_indices]
 
                 if garbage_indices:
                     logger.info(
                         f"Garbage detection found {len(garbage_indices)} unrelated images: "
-                        f"{garbage_indices}"
+                        f"{garbage_indices} (sampled indices: {valid_sampled_indices})"
                     )
 
                     # Call delete_unrelated_images to handle deletion
@@ -938,10 +1047,10 @@ Return ONLY valid JSON, no other text."""
                         f"Deleted {cleanup_result['deleted_count']} garbage images "
                         f"from book {book_id}"
                     )
+                    return cleanup_result.get("deleted_indices", garbage_indices)
                 else:
                     logger.info(f"Garbage detection found no unrelated images for book {book_id}")
-
-                return garbage_indices
+                    return []
 
             logger.warning(
                 f"Garbage detection failed for book {book_id}: No JSON found in response"
@@ -958,19 +1067,19 @@ Return ONLY valid JSON, no other text."""
                 continue
             else:
                 logger.warning(f"Garbage detection failed for book {book_id}: {e}")
-                return []
+                return None
 
         except json.JSONDecodeError as e:
             logger.warning(f"Garbage detection failed for book {book_id}: JSON parse error - {e}")
-            return []
+            return None
 
         except Exception as e:
             logger.warning(f"Garbage detection failed for book {book_id}: {e}")
-            return []
+            return None
 
     # All retries exhausted
     logger.warning(
         f"Garbage detection failed after {max_retries + 1} attempts for book {book_id}: "
         f"{last_error}"
     )
-    return []
+    return None

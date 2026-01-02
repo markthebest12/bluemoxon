@@ -1983,6 +1983,7 @@ def generate_analysis_async(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # Auto-fail stale jobs before checking for active jobs
+    # Use FOR UPDATE SKIP LOCKED to prevent race condition with worker completing
     stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
     stale_jobs = (
         db.query(AnalysisJob)
@@ -1991,6 +1992,7 @@ def generate_analysis_async(
             AnalysisJob.status.in_(["pending", "running"]),
             AnalysisJob.updated_at < stale_threshold,
         )
+        .with_for_update(skip_locked=True)
         .all()
     )
     for stale_job in stale_jobs:
