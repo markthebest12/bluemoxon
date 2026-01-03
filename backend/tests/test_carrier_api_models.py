@@ -421,10 +421,14 @@ class TestDataMigrationBehavior:
         db.refresh(book)
 
         # Should be findable by the poller
-        active_books = db.query(Book).filter(
-            Book.tracking_active.is_(True),
-            Book.tracking_number.isnot(None),
-        ).all()
+        active_books = (
+            db.query(Book)
+            .filter(
+                Book.tracking_active.is_(True),
+                Book.tracking_number.isnot(None),
+            )
+            .all()
+        )
         assert len(active_books) == 1
         assert active_books[0].id == book.id
 
@@ -440,9 +444,13 @@ class TestDataMigrationBehavior:
         db.add(book)
         db.commit()
 
-        active_books = db.query(Book).filter(
-            Book.tracking_active.is_(True),
-        ).all()
+        active_books = (
+            db.query(Book)
+            .filter(
+                Book.tracking_active.is_(True),
+            )
+            .all()
+        )
         assert len(active_books) == 0
 
     def test_books_without_tracking_should_not_be_active(self, db: Session):
@@ -455,9 +463,13 @@ class TestDataMigrationBehavior:
         db.add(book)
         db.commit()
 
-        active_books = db.query(Book).filter(
-            Book.tracking_active.is_(True),
-        ).all()
+        active_books = (
+            db.query(Book)
+            .filter(
+                Book.tracking_active.is_(True),
+            )
+            .all()
+        )
         assert len(active_books) == 0
 
     def test_migration_activates_correct_subset(self, db: Session):
@@ -489,12 +501,14 @@ class TestDataMigrationBehavior:
             status="EVALUATING",
             tracking_active=False,
         )
-        db.add_all([
-            in_transit_with_tracking,
-            in_transit_no_tracking,
-            on_hand_with_tracking,
-            evaluating_with_tracking,
-        ])
+        db.add_all(
+            [
+                in_transit_with_tracking,
+                in_transit_no_tracking,
+                on_hand_with_tracking,
+                evaluating_with_tracking,
+            ]
+        )
         db.commit()
 
         # Simulate the migration's UPDATE query
@@ -511,8 +525,12 @@ class TestDataMigrationBehavior:
         db.commit()
 
         # Refresh all books
-        for book in [in_transit_with_tracking, in_transit_no_tracking,
-                     on_hand_with_tracking, evaluating_with_tracking]:
+        for book in [
+            in_transit_with_tracking,
+            in_transit_no_tracking,
+            on_hand_with_tracking,
+            evaluating_with_tracking,
+        ]:
             db.refresh(book)
 
         # Only in_transit_with_tracking should be activated
