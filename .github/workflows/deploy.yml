@@ -397,19 +397,20 @@ jobs:
       - name: Check if layer needs rebuild
         id: layer-check
         run: |
-          # Get poetry.lock hash (first 16 chars of sha256)
-          LOCK_HASH=$(sha256sum backend/poetry.lock | cut -d' ' -f1 | head -c 16)
-          echo "lock_hash=$LOCK_HASH" >> $GITHUB_OUTPUT
-          echo "layer_s3_key=lambda/layer-${LOCK_HASH}.zip" >> $GITHUB_OUTPUT
+          # Get requirements.txt hash (first 16 chars of sha256)
+          # Note: Layer is built from requirements.txt, so cache key must match
+          REQ_HASH=$(sha256sum backend/requirements.txt | cut -d' ' -f1 | head -c 16)
+          echo "lock_hash=$REQ_HASH" >> $GITHUB_OUTPUT
+          echo "layer_s3_key=lambda/layer-${REQ_HASH}.zip" >> $GITHUB_OUTPUT
 
           # Check if layer already exists in S3
           S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
-          if aws s3 ls "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip" 2>/dev/null; then
+          if aws s3 ls "s3://${S3_BUCKET}/lambda/layer-${REQ_HASH}.zip" 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Layer already exists for this poetry.lock hash: $LOCK_HASH"
+            echo "Layer already exists for requirements.txt hash: $REQ_HASH"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Layer needs to be built for hash: $LOCK_HASH"
+            echo "Layer needs to be built for hash: $REQ_HASH"
           fi
 
       - name: Build layer with Docker

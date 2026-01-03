@@ -110,8 +110,94 @@ Implementing carrier API support for tracking shipments across multiple carriers
 - Phase 2: 51 additional tests (31 notifications + 20 polling)
 - All linting passing
 
-## Next Steps
+## Additional Changes
 
-1. Wait for Phase 3 frontend agents to complete
-2. Run full test suite
-3. Create PR for user review (NOT auto-merge - user requested review)
+### Data Migration for Existing In-Transit Books
+Since the carrier API migration already ran in production without the backfill,
+created a **separate migration** (`d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py`):
+- Sets `tracking_active = true` for existing books where:
+  - `tracking_number IS NOT NULL`
+  - `status = 'IN_TRANSIT'`
+  - `tracking_active = false`
+- This ensures existing in-transit shipments are picked up by the hourly polling job
+
+Added tests in `TestDataMigrationBehavior`:
+- `test_in_transit_books_with_tracking_should_be_active`
+- `test_delivered_books_should_not_be_active`
+- `test_books_without_tracking_should_not_be_active`
+- `test_migration_activates_correct_subset`
+
+**Migration file:** `alembic/versions/d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py`
+
+## Current Status (as of chat compaction)
+
+### PR #777 - Backfill tracking_active
+- **Branch:** `fix/backfill-tracking-active`
+- **PR:** https://github.com/markthebest12/bluemoxon/pull/777
+- **Status:** CI FAILED - needs investigation
+- **Failed jobs:** Backend Lint, Backend Tests, Backend Validation
+- **CI Run:** https://github.com/markthebest12/bluemoxon/actions/runs/20680478300
+
+### What This PR Does
+Adds migration `d3b3c3c4dd80` to backfill `tracking_active=true` for existing IN_TRANSIT books with tracking numbers. The carrier API feature deployed without this backfill, so existing shipments weren't being polled.
+
+### Next Steps
+1. **Fix CI failures** - Check failed logs: `gh run view 20680478300 --log-failed`
+2. **Push fix and wait for CI**
+3. **Merge to staging** - `gh pr merge 777 --squash --delete-branch`
+4. **Verify in staging** - Check that in-transit books have `tracking_active=true`
+5. **Promote to prod** - Create staging→main PR
+
+### Post-Deploy Cleanup Discussion
+User asked about removing migration after it runs (one-time backfill). Decision: Leave migration file - it's historical record and Alembic needs the revision chain intact.
+
+---
+
+## CRITICAL SESSION RULES (MUST FOLLOW)
+
+### 1. Superpowers Skills - USE AT ALL STAGES
+**Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke.
+- brainstorming: Before any creative/feature work
+- TDD: Before writing implementation code
+- verification-before-completion: Before claiming work is done
+- code-reviewer: After significant code changes
+
+### 2. Bash Command Rules (AVOID PERMISSION PROMPTS)
+**NEVER use:**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
+
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls
+
+### 3. PR Review Gates
+- User reviews PR before staging merge
+- User reviews staging→main PR before prod merge
+- No auto-merging without explicit approval
+
+---
+
+## Background Context
+
+### Issue #516 - Carrier API Support
+Full tracking feature set for multiple carriers:
+- UPS (existing), USPS, FedEx, DHL, Royal Mail, Pitney Bowes
+- Hourly polling via EventBridge + Lambda
+- Notifications: in-app + email (SES) + SMS (SNS)
+- Already deployed to prod (PR #773)
+
+### The Backfill Problem
+Migration `w6789012wxyz` added `tracking_active` column defaulting to `false`. Existing IN_TRANSIT books weren't set to `true`, so they aren't being polled. Migration `d3b3c3c4dd80` fixes this.
+
+---
+
+## Files Modified in PR #777
+- `backend/alembic/versions/d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py` (NEW)
+- `backend/alembic/versions/w6789012wxyz_add_carrier_api_support.py` (comment added)
+- `backend/tests/test_carrier_api_models.py` (4 new tests in TestDataMigrationBehavior)
+- `docs/SESSION_LOG_2026-01-02_carrier_api_support.md`

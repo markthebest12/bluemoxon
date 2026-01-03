@@ -85,6 +85,10 @@ def upgrade() -> None:
         postgresql_where=sa.text("read = false"),
     )
 
+    # NOTE: Data migration for existing in-transit books is in a separate
+    # migration (d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py)
+    # since this migration was deployed before the backfill was added.
+
 
 def downgrade() -> None:
     """Remove carrier API support tables and columns."""
