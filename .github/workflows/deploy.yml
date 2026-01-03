@@ -60,6 +60,8 @@ jobs:
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
       eval_runbook_worker_function_name: ${{ steps.config.outputs.eval_runbook_worker_function_name }}
       cleanup_function_name: ${{ steps.config.outputs.cleanup_function_name }}
+      tracking_dispatcher_function_name: ${{ steps.config.outputs.tracking_dispatcher_function_name }}
+      tracking_worker_function_name: ${{ steps.config.outputs.tracking_worker_function_name }}
       scraper_function_name: ${{ steps.config.outputs.scraper_function_name }}
       scraper_ecr_repository: ${{ steps.config.outputs.scraper_ecr_repository }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
@@ -278,6 +280,10 @@ jobs:
 
           # Cleanup Lambda (may not exist in all envs)
           echo "cleanup_function_name=$(terraform output -raw cleanup_lambda_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
+          # Tracking Lambdas (may not exist in all envs)
+          echo "tracking_dispatcher_function_name=$(terraform output -raw tracking_dispatcher_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "tracking_worker_function_name=$(terraform output -raw tracking_worker_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
           # Scraper (may not exist in all envs)
           echo "scraper_function_name=$(terraform output -raw scraper_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
@@ -618,6 +624,9 @@ jobs:
       api_lambda_version: ${{ steps.lambda-version.outputs.version }}
       worker_lambda_version: ${{ steps.worker-version.outputs.version }}
       eval_worker_lambda_version: ${{ steps.eval-runbook-version.outputs.version }}
+      cleanup_lambda_version: ${{ steps.cleanup-version.outputs.version }}
+      tracking_dispatcher_lambda_version: ${{ steps.tracking-dispatcher-version.outputs.version }}
+      tracking_worker_lambda_version: ${{ steps.tracking-worker-version.outputs.version }}
       scraper_lambda_version: ${{ steps.scraper-version.outputs.version }}
       layer_version_arn: ${{ steps.publish-layer.outputs.layer_arn }}
 
@@ -994,6 +1003,116 @@ jobs:
             --output text)
 
           echo "Published cleanup version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ---- Deploy Tracking Dispatcher Lambda (if configured) ----
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      - name: Update Tracking Dispatcher Lambda with layer
+        if: needs.configure.outputs.tracking_dispatcher_function_name != ''
+        run: |
+          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Tracking Dispatcher Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$DISPATCHER_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Tracking Dispatcher Lambda config update
+        if: needs.configure.outputs.tracking_dispatcher_function_name != ''
+        run: |
+          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          aws lambda wait function-updated --function-name "$DISPATCHER_FUNCTION"
+          echo "Tracking Dispatcher Lambda layer updated successfully"
+
+      - name: Update Tracking Dispatcher Lambda function
+        if: needs.configure.outputs.tracking_dispatcher_function_name != ''
+        run: |
+          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          echo "Deploying tracking dispatcher Lambda: $DISPATCHER_FUNCTION"
+
+          aws lambda update-function-code \
+            --function-name "$DISPATCHER_FUNCTION" \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/backend.zip
+
+      - name: Wait for Tracking Dispatcher Lambda code update
+        if: needs.configure.outputs.tracking_dispatcher_function_name != ''
+        run: |
+          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          echo "Waiting for Tracking Dispatcher Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$DISPATCHER_FUNCTION"
+          echo "Tracking Dispatcher Lambda code updated successfully"
+
+      - name: Publish Tracking Dispatcher Lambda version
+        if: needs.configure.outputs.tracking_dispatcher_function_name != ''
+        id: tracking-dispatcher-version
+        run: |
+          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          echo "Publishing new Tracking Dispatcher Lambda version..."
+
+          VERSION=$(aws lambda publish-version \
+            --function-name "$DISPATCHER_FUNCTION" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published tracking dispatcher version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ---- Deploy Tracking Worker Lambda (if configured) ----
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      - name: Update Tracking Worker Lambda with layer
+        if: needs.configure.outputs.tracking_worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
+          echo "Updating Tracking Worker Lambda with layer: $LAYER_ARN"
+
+          aws lambda update-function-configuration \
+            --function-name "$WORKER_FUNCTION" \
+            --layers "$LAYER_ARN"
+
+      - name: Wait for Tracking Worker Lambda config update
+        if: needs.configure.outputs.tracking_worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          echo "Tracking Worker Lambda layer updated successfully"
+
+      - name: Update Tracking Worker Lambda function
+        if: needs.configure.outputs.tracking_worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          echo "Deploying tracking worker Lambda: $WORKER_FUNCTION"
+
+          aws lambda update-function-code \
+            --function-name "$WORKER_FUNCTION" \
+            --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
+            --s3-key lambda/backend.zip
+
+      - name: Wait for Tracking Worker Lambda code update
+        if: needs.configure.outputs.tracking_worker_function_name != ''
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          echo "Waiting for Tracking Worker Lambda to be ready..."
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          echo "Tracking Worker Lambda code updated successfully"
+
+      - name: Publish Tracking Worker Lambda version
+        if: needs.configure.outputs.tracking_worker_function_name != ''
+        id: tracking-worker-version
+        run: |
+          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          echo "Publishing new Tracking Worker Lambda version..."
+
+          VERSION=$(aws lambda publish-version \
+            --function-name "$WORKER_FUNCTION" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+
+          echo "Published tracking worker version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Deploy Scraper Lambda (if configured) ----
@@ -1750,11 +1869,15 @@ jobs:
           SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          TRACKING_DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          TRACKING_WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
 
           # Lambda published versions from deploy job
           API_LAMBDA_VER="${{ needs.deploy.outputs.api_lambda_version }}"
           WORKER_LAMBDA_VER="${{ needs.deploy.outputs.worker_lambda_version }}"
           EVAL_WORKER_LAMBDA_VER="${{ needs.deploy.outputs.eval_worker_lambda_version }}"
+          TRACKING_DISPATCHER_LAMBDA_VER="${{ needs.deploy.outputs.tracking_dispatcher_lambda_version }}"
+          TRACKING_WORKER_LAMBDA_VER="${{ needs.deploy.outputs.tracking_worker_lambda_version }}"
           SCRAPER_LAMBDA_VER="${{ needs.deploy.outputs.scraper_lambda_version }}"
 
           echo "========================================"
@@ -1781,6 +1904,12 @@ jobs:
           fi
           if [[ -n "$EVAL_RUNBOOK_FUNCTION" && -n "$EVAL_WORKER_LAMBDA_VER" ]]; then
             echo "  Eval Runbook Worker: $EVAL_RUNBOOK_FUNCTION (v$EVAL_WORKER_LAMBDA_VER)"
+          fi
+          if [[ -n "$TRACKING_DISPATCHER_FUNCTION" && -n "$TRACKING_DISPATCHER_LAMBDA_VER" ]]; then
+            echo "  Tracking Dispatcher: $TRACKING_DISPATCHER_FUNCTION (v$TRACKING_DISPATCHER_LAMBDA_VER)"
+          fi
+          if [[ -n "$TRACKING_WORKER_FUNCTION" && -n "$TRACKING_WORKER_LAMBDA_VER" ]]; then
+            echo "  Tracking Worker: $TRACKING_WORKER_FUNCTION (v$TRACKING_WORKER_LAMBDA_VER)"
           fi
           if [[ -n "$SCRAPER_FUNCTION" && -n "$SCRAPER_LAMBDA_VER" ]]; then
             echo "  Scraper: $SCRAPER_FUNCTION (v$SCRAPER_LAMBDA_VER)"
