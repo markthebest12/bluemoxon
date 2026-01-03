@@ -68,9 +68,7 @@ class TestFetchTracking:
         }
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
             result = client.fetch_tracking("UPAA1234567890")
 
@@ -92,9 +90,7 @@ class TestFetchTracking:
         }
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
             result = client.fetch_tracking("UPAA1234567890")
 
@@ -115,9 +111,7 @@ class TestFetchTracking:
         }
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
             result = client.fetch_tracking("UPAA1234567890")
 
@@ -133,9 +127,7 @@ class TestFetchTracking:
         mock_response.raise_for_status.side_effect = Exception("Internal Server Error")
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
             mock_client.return_value.__enter__.return_value.get.return_value.raise_for_status.side_effect = Exception(
                 "Internal Server Error"
             )
@@ -153,9 +145,7 @@ class TestFetchTracking:
         mock_response.raise_for_status.side_effect = Exception("Not Found")
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
             mock_client.return_value.__enter__.return_value.get.return_value.raise_for_status.side_effect = Exception(
                 "Not Found"
             )
@@ -214,9 +204,7 @@ class TestFetchTracking:
         }
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
             result = client.fetch_tracking("UPAA1234567890")
 
@@ -234,9 +222,7 @@ class TestFetchTracking:
         }
 
         with patch("httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
             result = client.fetch_tracking("UPAA1234567890")
 

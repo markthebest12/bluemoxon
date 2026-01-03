@@ -85,9 +85,7 @@ class TestUPSCarrierFetchTracking:
             mock_response_obj = MagicMock()
             mock_response_obj.json.return_value = mock_response
             mock_response_obj.raise_for_status = MagicMock()
-            mock_client.return_value.__enter__.return_value.post.return_value = (
-                mock_response_obj
-            )
+            mock_client.return_value.__enter__.return_value.post.return_value = mock_response_obj
 
             carrier = UPSCarrier()
             result = carrier.fetch_tracking("1Z12345E0205271688")
@@ -114,9 +112,7 @@ class TestUPSCarrierFetchTracking:
             mock_response_obj = MagicMock()
             mock_response_obj.json.return_value = mock_response
             mock_response_obj.raise_for_status = MagicMock()
-            mock_client.return_value.__enter__.return_value.post.return_value = (
-                mock_response_obj
-            )
+            mock_client.return_value.__enter__.return_value.post.return_value = mock_response_obj
 
             carrier = UPSCarrier()
             result = carrier.fetch_tracking("1Z12345E0205271688")
@@ -142,9 +138,7 @@ class TestUPSCarrierFetchTracking:
             mock_response_obj = MagicMock()
             mock_response_obj.json.return_value = mock_response
             mock_response_obj.raise_for_status = MagicMock()
-            mock_client.return_value.__enter__.return_value.post.return_value = (
-                mock_response_obj
-            )
+            mock_client.return_value.__enter__.return_value.post.return_value = mock_response_obj
 
             carrier = UPSCarrier()
             result = carrier.fetch_tracking("1Z12345E0205271688")
@@ -202,9 +196,7 @@ class TestUPSCarrierFetchTracking:
             mock_response_obj = MagicMock()
             mock_response_obj.json.return_value = mock_response
             mock_response_obj.raise_for_status = MagicMock()
-            mock_client.return_value.__enter__.return_value.post.return_value = (
-                mock_response_obj
-            )
+            mock_client.return_value.__enter__.return_value.post.return_value = mock_response_obj
 
             carrier = UPSCarrier()
             result = carrier.fetch_tracking("1Z12345E0205271688")
@@ -215,17 +207,13 @@ class TestUPSCarrierFetchTracking:
         """Tracking number is normalized before API call."""
         from app.services.carriers.ups import UPSCarrier
 
-        mock_response = {
-            "trackDetails": [{"packageStatus": "In Transit"}]
-        }
+        mock_response = {"trackDetails": [{"packageStatus": "In Transit"}]}
 
         with patch("httpx.Client") as mock_client:
             mock_response_obj = MagicMock()
             mock_response_obj.json.return_value = mock_response
             mock_response_obj.raise_for_status = MagicMock()
-            mock_client.return_value.__enter__.return_value.post.return_value = (
-                mock_response_obj
-            )
+            mock_client.return_value.__enter__.return_value.post.return_value = mock_response_obj
 
             carrier = UPSCarrier()
             carrier.fetch_tracking("1z 1234-5e02 0527-1688")

@@ -23,7 +23,7 @@ def is_circuit_open(db: Session, carrier_name: str) -> bool:
     Returns:
         True if circuit is open (still within timeout), False otherwise
     """
-    circuit = db.query(CarrierCircuit).get(carrier_name)
+    circuit = db.get(CarrierCircuit, carrier_name)
     if not circuit or not circuit.circuit_open_until:
         return False
     # Handle both naive and aware datetimes
@@ -42,7 +42,7 @@ def record_failure(db: Session, carrier_name: str) -> None:
 
     Opens the circuit if failure count reaches threshold.
     """
-    circuit = db.query(CarrierCircuit).get(carrier_name)
+    circuit = db.get(CarrierCircuit, carrier_name)
     if not circuit:
         circuit = CarrierCircuit(carrier_name=carrier_name, failure_count=0)
         db.add(circuit)
@@ -64,7 +64,7 @@ def record_success(db: Session, carrier_name: str) -> None:
         db: Database session
         carrier_name: Name of the carrier
     """
-    circuit = db.query(CarrierCircuit).get(carrier_name)
+    circuit = db.get(CarrierCircuit, carrier_name)
     if not circuit:
         return
     circuit.failure_count = 0

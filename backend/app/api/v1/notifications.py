@@ -55,9 +55,7 @@ class UpdatePreferencesRequest(BaseModel):
         if v is None or v == "":
             return None
         if not E164_PATTERN.match(v):
-            raise ValueError(
-                "Phone number must be in E.164 format (e.g., +14155551234)"
-            )
+            raise ValueError("Phone number must be in E.164 format (e.g., +14155551234)")
         return v
 
 

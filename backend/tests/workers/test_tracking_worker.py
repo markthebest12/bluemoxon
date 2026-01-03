@@ -1,12 +1,12 @@
 """Tests for tracking worker Lambda handler."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.models import Book, CarrierCircuit
+from app.models import Book
 from app.workers.tracking_worker import handler, process_tracking_job
 
 

@@ -98,9 +98,7 @@ class PitneyBowesClient(CarrierClient):
             try:
                 estimated_delivery = date.fromisoformat(estimated_date_str)
             except ValueError:
-                logger.debug(
-                    f"Could not parse estimated delivery date: {estimated_date_str}"
-                )
+                logger.debug(f"Could not parse estimated delivery date: {estimated_date_str}")
 
         # Parse delivered timestamp
         delivered_at = None

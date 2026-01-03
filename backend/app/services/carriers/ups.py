@@ -103,9 +103,7 @@ class UPSCarrier(CarrierClient):
         scheduled_delivery = detail.get("scheduledDeliveryDate")
         if scheduled_delivery:
             try:
-                estimated_delivery = datetime.strptime(
-                    scheduled_delivery, "%m/%d/%Y"
-                ).date()
+                estimated_delivery = datetime.strptime(scheduled_delivery, "%m/%d/%Y").date()
             except ValueError:
                 pass
 

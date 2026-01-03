@@ -57,7 +57,7 @@ class TestRecordFailure:
     def test_records_first_failure(self, db):
         """Records first failure for new carrier."""
         record_failure(db, "UPS")
-        circuit = db.query(CarrierCircuit).get("UPS")
+        circuit = db.get(CarrierCircuit, "UPS")
         assert circuit is not None
         assert circuit.failure_count == 1
         assert circuit.last_failure_at is not None
@@ -92,7 +92,7 @@ class TestRecordFailure:
         """Sets circuit_open_until to correct duration from now."""
         before = datetime.now(UTC)
         record_failure(db, "DHL")
-        circuit = db.query(CarrierCircuit).get("DHL")
+        circuit = db.get(CarrierCircuit, "DHL")
         # Manually trigger threshold
         circuit.failure_count = FAILURE_THRESHOLD
         record_failure(db, "DHL")
@@ -207,7 +207,7 @@ class TestRecordSuccess:
     def test_noop_for_nonexistent_carrier(self, db):
         """Does nothing when carrier has no state."""
         record_success(db, "NONEXISTENT")
-        circuit = db.query(CarrierCircuit).get("NONEXISTENT")
+        circuit = db.get(CarrierCircuit, "NONEXISTENT")
         assert circuit is None
 
     def test_updates_updated_at(self, db):
@@ -248,7 +248,7 @@ class TestCircuitBreakerIntegration:
         record_success(db, carrier)
         assert is_circuit_open(db, carrier) is False
 
-        circuit = db.query(CarrierCircuit).get(carrier)
+        circuit = db.get(CarrierCircuit, carrier)
         assert circuit.failure_count == 0
 
     def test_multiple_carriers_independent_state(self, db):
