@@ -8,6 +8,7 @@ from app.models.author import Author
 from app.models.base import Base
 from app.models.binder import Binder
 from app.models.book import Book
+from app.models.carrier_circuit import CarrierCircuit
 from app.models.eval_runbook import EvalPriceHistory, EvalRunbook
 from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
@@ -20,6 +21,7 @@ __all__ = [
     "AnalysisJob",
     "APIKey",
     "Base",
+    "CarrierCircuit",
     "Notification",
     "Publisher",
     "Author",
