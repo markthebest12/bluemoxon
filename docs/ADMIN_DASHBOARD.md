@@ -15,6 +15,8 @@ The Admin Dashboard provides system monitoring, configuration management, and co
 | **Models** | AI model configuration | Read-only |
 | **Scoring Config** | Recommendation algorithm settings | Read-only |
 | **Entity Tiers** | Author/Publisher/Binder tiers | Read-only |
+| **Reference Data** | CRUD for Authors/Publishers/Binders | Real-time |
+| **Maintenance** | Database cleanup, orphan detection | Manual trigger |
 | **Cost** | AWS Bedrock usage costs | Cached 1 hour |
 
 ---
@@ -121,6 +123,88 @@ Lists all entities with assigned tiers, grouped by type:
 - **Authors** - e.g., Darwin, Dickens, Lyell
 - **Publishers** - e.g., John Murray, Chapman & Hall
 - **Binders** - e.g., Zaehnsdorf, Rivière & Son
+
+---
+
+## Reference Data Tab
+
+Full CRUD interface for managing reference entities (Authors, Publishers, Binders).
+
+### Entity Lists
+Three sub-tabs for each entity type:
+- **Authors** - Manage author records
+- **Publishers** - Manage publisher records
+- **Binders** - Manage binder/bindery records
+
+### Entity Actions
+
+| Action | Description | Requirements |
+|--------|-------------|--------------|
+| **Create** | Add new entity | Editor role |
+| **Edit** | Modify entity fields | Editor role |
+| **Delete** | Remove entity (if no books) | Editor role |
+| **Reassign** | Move books to another entity, then delete | Editor role |
+
+### Entity Fields
+
+**Authors:**
+- Name (required)
+- Birth/Death years
+- Era (Victorian, Romantic, etc.)
+- Tier (Tier 1/2/3)
+- Preferred (bonus scoring)
+- Priority Score
+
+**Publishers:**
+- Name (required)
+- Founded year
+- Description
+- Tier (Tier 1/2/3)
+- Preferred (bonus scoring)
+
+**Binders:**
+- Name (required)
+- Full Name (e.g., "Rivière & Son")
+- Authentication Markers
+- Tier (Tier 1/2/3)
+- Preferred (bonus scoring)
+
+### Reassignment
+
+Use reassignment when merging duplicate entities:
+
+1. Click the **Reassign** button (↔️) on the source entity
+2. Select the target entity from the dropdown
+3. Confirm the operation
+4. All books are moved to target, source is deleted
+
+**Example:** Merge "W.M. Thackeray" into "William Makepeace Thackeray"
+
+---
+
+## Maintenance Tab
+
+Database maintenance and cleanup operations.
+
+### Orphan Detection
+Identifies database records without proper relationships:
+- Images without books
+- Analyses without books
+- Jobs without books
+
+### Cleanup Operations
+
+| Operation | Description | Safety |
+|-----------|-------------|--------|
+| **Cleanup Orphans** | Remove orphaned records | Safe - only removes broken refs |
+| **Vacuum Database** | Reclaim disk space | Safe - PostgreSQL maintenance |
+| **Refresh Stats** | Update query planner stats | Safe - improves performance |
+
+### Garbage Image Review
+Review images flagged as "garbage" by AI:
+- View flagged images
+- Override classification if incorrect
+- Permanently delete confirmed garbage
 
 ---
 

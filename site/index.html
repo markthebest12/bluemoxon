@@ -1036,11 +1036,11 @@
         <!-- Stats -->
         <div class="stats-bar">
             <div class="stat-item">
-                <div class="value">122</div>
+                <div class="value">150+</div>
                 <div class="label">Books Cataloged</div>
             </div>
             <div class="stat-item">
-                <div class="value">500+</div>
+                <div class="value">600+</div>
                 <div class="label">Images Stored</div>
             </div>
             <div class="stat-item">
@@ -1222,6 +1222,34 @@
                     <p>Tune Quality Score and Strategic Fit point values, thresholds, and offer discount tiers.</p>
                 </div>
             </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/dark-mode-dashboard.png" alt="Victorian Dark Mode Dashboard">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Victorian Dark Mode</h4>
+                    <p>Deep burgundy and aged parchment theme inspired by antique bookbinding aesthetics.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/dark-mode-acquisitions.png" alt="Dark Mode Acquisitions">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Acquisitions in Dark Mode</h4>
+                    <p>Kanban board with shipment tracking status badges, rendered in the Victorian dark theme.</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1293,6 +1321,68 @@
             <a href="admin-guide.html" class="btn btn-secondary" style="margin-left: 1rem;">
                 Admin Guide →
             </a>
+        </div>
+    </section>
+
+    <!-- New Features (2026) -->
+    <section id="new-features">
+        <div class="section-header">
+            <h2>Latest Features</h2>
+            <p>Recent additions to the BlueMoxon platform</p>
+        </div>
+
+        <div class="name-origin" style="margin-bottom: 3rem;">
+            <div class="name-grid">
+                <div class="name-card">
+                    <h3>Victorian Dark Mode</h3>
+                    <p>
+                        A carefully crafted <strong>dark theme</strong> with deep burgundy backgrounds, aged parchment text,
+                        and antique gold accents. Inspired by Victorian bookbinding aesthetics. Respects system preferences
+                        and persists your choice.
+                    </p>
+                    <p class="quote">
+                        "A theme befitting a collection of antiquarian books - elegant, timeless, and easy on the eyes."
+                    </p>
+                </div>
+                <div class="name-card">
+                    <h3>Entity Management</h3>
+                    <p>
+                        Full <strong>CRUD interface</strong> for Authors, Publishers, and Binders. Merge duplicate entries
+                        with the reassignment feature. Mark entities as "preferred" for scoring bonuses. Manage your
+                        reference library with precision.
+                    </p>
+                    <p class="quote">
+                        "Build your collection around the publishers and binderies that matter to you."
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="name-origin" style="margin-bottom: 2rem;">
+            <div class="name-grid">
+                <div class="name-card">
+                    <h3>Shipment Tracking</h3>
+                    <p>
+                        Track your acquisitions from purchase to delivery. <strong>Auto-detects carriers</strong> from
+                        tracking numbers (USPS, UPS, FedEx, Royal Mail, DHL). One-click refresh to fetch latest status.
+                        See delivery estimates right in the Kanban board.
+                    </p>
+                    <p class="quote">
+                        "Know exactly when your next treasure will arrive."
+                    </p>
+                </div>
+                <div class="name-card">
+                    <h3>Async AI Analysis</h3>
+                    <p>
+                        Napoleon valuations now run <strong>asynchronously via SQS</strong>. Start an analysis and continue
+                        working - poll for completion or get notified when ready. No more blocking the UI during long
+                        Opus analyses.
+                    </p>
+                    <p class="quote">
+                        "Queue up analyses for your entire collection and let the AI work in the background."
+                    </p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1599,26 +1689,25 @@ flowchart LR
             <div class="terminal-body">
 <pre class="json-display">{
   <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-  <span class="key">"timestamp"</span>: <span class="string">"2025-12-05T04:12:57.196850+00:00"</span>,
-  <span class="key">"version"</span>: <span class="string">"0.1.0"</span>,
-  <span class="key">"environment"</span>: <span class="string">"development"</span>,
-  <span class="key">"total_latency_ms"</span>: <span class="number">877.41</span>,
+  <span class="key">"timestamp"</span>: <span class="string">"2026-01-02T15:30:00.000000+00:00"</span>,
+  <span class="key">"version"</span>: <span class="string">"2026.01.02-9033e57"</span>,
+  <span class="key">"environment"</span>: <span class="string">"production"</span>,
+  <span class="key">"total_latency_ms"</span>: <span class="number">145.2</span>,
   <span class="key">"checks"</span>: {
     <span class="key">"database"</span>: {
       <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-      <span class="key">"latency_ms"</span>: <span class="number">459.8</span>,
-      <span class="key">"book_count"</span>: <span class="number">122</span>
+      <span class="key">"latency_ms"</span>: <span class="number">45.8</span>,
+      <span class="key">"book_count"</span>: <span class="number">152</span>
     },
     <span class="key">"s3"</span>: {
       <span class="key">"status"</span>: <span class="string">"healthy"</span>,
       <span class="key">"bucket"</span>: <span class="string">"bluemoxon-images"</span>,
-      <span class="key">"latency_ms"</span>: <span class="number">263.81</span>,
+      <span class="key">"latency_ms"</span>: <span class="number">52.3</span>,
       <span class="key">"has_objects"</span>: <span class="boolean">true</span>
     },
-    <span class="key">"config"</span>: {
+    <span class="key">"cognito"</span>: {
       <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-      <span class="key">"environment"</span>: <span class="string">"development"</span>,
-      <span class="key">"debug"</span>: <span class="boolean">false</span>
+      <span class="key">"latency_ms"</span>: <span class="number">47.1</span>
     }
   }
 }</pre>
@@ -1630,7 +1719,7 @@ flowchart LR
     <section id="api">
         <div class="section-header">
             <h2>REST API</h2>
-            <p>50+ endpoints for complete collection management</p>
+            <p>60+ endpoints for complete collection management</p>
         </div>
 
         <h4 style="color: var(--accent-blue-light); margin-bottom: 1rem;">Books & Collection</h4>
