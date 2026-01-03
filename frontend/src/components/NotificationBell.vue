@@ -70,12 +70,7 @@ onMounted(() => {
       aria-label="Notifications"
     >
       <!-- Bell Icon -->
-      <svg
-        class="w-6 h-6"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -153,10 +148,7 @@ onMounted(() => {
           </template>
 
           <!-- Empty State -->
-          <div
-            v-else
-            class="px-4 py-8 text-center text-[var(--color-text-secondary)]"
-          >
+          <div v-else class="px-4 py-8 text-center text-[var(--color-text-secondary)]">
             <svg
               class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600"
               fill="none"

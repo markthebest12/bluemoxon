@@ -30,10 +30,7 @@ const hasTracking = computed(() => {
 });
 
 const isDelivered = computed(() => {
-  return (
-    !props.trackingActive &&
-    props.trackingStatus?.toLowerCase().includes("delivered")
-  );
+  return !props.trackingActive && props.trackingStatus?.toLowerCase().includes("delivered");
 });
 
 const showRefreshButton = computed(() => {

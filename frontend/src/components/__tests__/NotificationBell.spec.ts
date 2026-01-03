@@ -19,8 +19,8 @@ vi.mock("vue-router", () => ({
   }),
   RouterLink: {
     name: "RouterLink",
-    template: '<a><slot /></a>',
-    props: ['to'],
+    template: "<a><slot /></a>",
+    props: ["to"],
   },
 }));
 
@@ -46,9 +46,7 @@ describe("NotificationBell", () => {
   it("shows unread count badge when there are unread notifications", async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        notifications: [
-          { id: 1, title: "Test", message: "Test message", read: false },
-        ],
+        notifications: [{ id: 1, title: "Test", message: "Test message", read: false }],
         unread_count: 3,
       },
     });
@@ -77,9 +75,7 @@ describe("NotificationBell", () => {
   it("opens dropdown when bell is clicked", async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        notifications: [
-          { id: 1, title: "Test", message: "Test message", read: false },
-        ],
+        notifications: [{ id: 1, title: "Test", message: "Test message", read: false }],
         unread_count: 1,
       },
     });
@@ -122,9 +118,7 @@ describe("NotificationBell", () => {
   it("marks notification as read when clicked", async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        notifications: [
-          { id: 1, title: "Test", message: "Test message", read: false },
-        ],
+        notifications: [{ id: 1, title: "Test", message: "Test message", read: false }],
         unread_count: 1,
       },
     });
@@ -164,9 +158,7 @@ describe("NotificationBell", () => {
   it("has View All link to notifications page", async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        notifications: [
-          { id: 1, title: "Test", message: "Test message", read: false },
-        ],
+        notifications: [{ id: 1, title: "Test", message: "Test message", read: false }],
         unread_count: 1,
       },
     });
@@ -186,9 +178,7 @@ describe("NotificationBell", () => {
   it("closes dropdown when clicking outside", async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
-        notifications: [
-          { id: 1, title: "Test", message: "Test message", read: false },
-        ],
+        notifications: [{ id: 1, title: "Test", message: "Test message", read: false }],
         unread_count: 1,
       },
     });

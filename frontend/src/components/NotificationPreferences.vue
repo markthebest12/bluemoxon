@@ -103,10 +103,7 @@ onMounted(() => {
       <!-- Email Notifications Toggle -->
       <div class="flex items-center justify-between">
         <div>
-          <label
-            for="email-toggle"
-            class="text-sm font-medium text-[var(--color-text-primary)]"
-          >
+          <label for="email-toggle" class="text-sm font-medium text-[var(--color-text-primary)]">
             Email Notifications
           </label>
           <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
@@ -131,10 +128,7 @@ onMounted(() => {
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
           <div>
-            <label
-              for="sms-toggle"
-              class="text-sm font-medium text-[var(--color-text-primary)]"
-            >
+            <label for="sms-toggle" class="text-sm font-medium text-[var(--color-text-primary)]">
               SMS Notifications
             </label>
             <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">

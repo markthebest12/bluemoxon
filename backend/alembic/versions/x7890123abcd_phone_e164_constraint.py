@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "x7890123abcd"
-down_revision: str | None = "w6789012wxyz"
+down_revision: tuple[str, ...] = ("w6789012wxyz", "5d2aef44594e")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
