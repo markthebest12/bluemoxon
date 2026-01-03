@@ -11,6 +11,7 @@ from app.models.book import Book
 from app.models.eval_runbook import EvalPriceHistory, EvalRunbook
 from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
+from app.models.notification import Notification
 from app.models.publisher import Publisher
 from app.models.user import User
 
@@ -19,6 +20,7 @@ __all__ = [
     "AnalysisJob",
     "APIKey",
     "Base",
+    "Notification",
     "Publisher",
     "Author",
     "Binder",

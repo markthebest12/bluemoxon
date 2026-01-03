@@ -97,6 +97,8 @@ class Book(Base, TimestampMixin):
     tracking_url: Mapped[str | None] = mapped_column(String(500))
     tracking_status: Mapped[str | None] = mapped_column(String(100))
     tracking_last_checked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tracking_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    tracking_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ship_date: Mapped[date | None] = mapped_column(Date)
 
     # Acquisition scoring (captured at purchase time)
@@ -166,6 +168,12 @@ class Book(Base, TimestampMixin):
         "EvalRunbookJob",
         back_populates="book",
         order_by="EvalRunbookJob.created_at.desc()",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="book",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )

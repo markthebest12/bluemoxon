@@ -141,6 +141,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_EVAL_RUNBOOK_QUEUE_NAME", "EVAL_RUNBOOK_QUEUE_NAME"),
     )
 
+    # Notifications
+    notification_from_email: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BMX_NOTIFICATION_FROM_EMAIL", "NOTIFICATION_FROM_EMAIL"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

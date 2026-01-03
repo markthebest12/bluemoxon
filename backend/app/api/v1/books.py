@@ -1036,19 +1036,13 @@ def refresh_tracking(
     Refresh tracking status from carrier API.
 
     Fetches the latest tracking status and updates estimated delivery date
-    if available from the carrier.
+    if available from the carrier. Activates tracking polling if not already active.
     """
-    from app.services.tracking import fetch_tracking_status
+    from app.services.tracking_poller import refresh_single_book_tracking
 
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-
-    if book.status != "IN_TRANSIT":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Can only refresh tracking for IN_TRANSIT books. Current status: {book.status}",
-        )
 
     if not book.tracking_number or not book.tracking_carrier:
         raise HTTPException(
@@ -1056,21 +1050,23 @@ def refresh_tracking(
             detail="Book has no tracking number or carrier set",
         )
 
-    # Fetch tracking status from carrier
-    tracking_info = fetch_tracking_status(book.tracking_number, book.tracking_carrier)
-
-    # Update book with tracking info
-    if tracking_info.status:
-        book.tracking_status = tracking_info.status
-    if tracking_info.estimated_delivery:
-        book.estimated_delivery = tracking_info.estimated_delivery
-    if tracking_info.estimated_delivery_end:
-        book.estimated_delivery_end = tracking_info.estimated_delivery_end
-    if tracking_info.last_checked:
-        book.tracking_last_checked = tracking_info.last_checked
-
-    db.commit()
-    db.refresh(book)
+    try:
+        refresh_single_book_tracking(db, book_id)
+        # Refresh the book to get updated values
+        db.refresh(book)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
+    except KeyError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported carrier: {book.tracking_carrier}",
+        ) from None
+    except Exception as e:
+        logger.error(f"Error refreshing tracking for book {book_id}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch tracking status: {e}",
+        ) from None
 
     # Build response with image info (matching get_book pattern)
     book_dict = BookResponse.model_validate(book).model_dump()
