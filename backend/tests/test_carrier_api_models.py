@@ -516,7 +516,7 @@ class TestDataMigrationBehavior:
             sa.text(
                 """
                 UPDATE books
-                SET tracking_active = 1
+                SET tracking_active = true
                 WHERE tracking_number IS NOT NULL
                   AND status = 'IN_TRANSIT'
                 """
