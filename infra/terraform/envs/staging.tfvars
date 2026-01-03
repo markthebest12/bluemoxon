@@ -36,6 +36,10 @@ enable_cost_explorer_access = true
 enable_github_oidc                 = true
 enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check
 
+# Tracking worker - hourly sync of shipments and inventory updates
+enable_tracking_worker       = true
+tracking_schedule_expression = "rate(1 hour)"
+
 # Terraform state access for GitHub Actions deploy workflow
 # Points to staging state bucket in same account (for reading terraform outputs during deploy)
 terraform_state_bucket_arn         = "arn:aws:s3:::bluemoxon-terraform-state-staging"

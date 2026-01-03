@@ -116,5 +116,5 @@ async def health_check():
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
-# Lambda handler
+# Mangum handler for HTTP requests from API Gateway
 handler = Mangum(app, lifespan="off")
