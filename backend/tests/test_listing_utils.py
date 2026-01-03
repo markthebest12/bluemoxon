@@ -42,6 +42,20 @@ class TestEbayUrlParsing:
         assert is_valid_ebay_url("https://amazon.com/item/123") is False
         assert is_valid_ebay_url("not a url") is False
 
+    def test_ebay_co_uk_url_validation(self):
+        """Test that ebay.co.uk URLs are recognized as valid."""
+        assert is_valid_ebay_url("https://www.ebay.co.uk/itm/123456789") is True
+        assert is_valid_ebay_url("https://ebay.co.uk/itm/123456789") is True
+        assert is_valid_ebay_url("https://m.ebay.co.uk/itm/123456789") is True
+        assert is_valid_ebay_url("https://www.ebay.co.uk/itm/Book-Title/123456789") is True
+
+    def test_ebay_co_uk_url_normalization(self):
+        """Test that ebay.co.uk URLs normalize correctly."""
+        url = "https://www.ebay.co.uk/itm/Antique-Book/317495720025?hash=abc"
+        normalized, item_id = normalize_ebay_url(url)
+        assert normalized == "https://www.ebay.com/itm/317495720025"
+        assert item_id == "317495720025"
+
     def test_ebay_us_short_url_validation(self):
         """Test that ebay.us short URLs are recognized as valid."""
         assert is_valid_ebay_url("https://ebay.us/m/9R8Zfd") is True
