@@ -254,14 +254,16 @@ jobs:
 
           print(f'Migration head: {heads[0]}')
 
-          # Verify each revision has valid down_revision
+          # Verify each revision has valid down_revision (handles merge migrations with tuple)
           for rev in revisions:
               if rev.down_revision is not None:
-                  try:
-                      script.get_revision(rev.down_revision)
-                  except:
-                      print(f'::error::Migration {rev.revision} references invalid down_revision {rev.down_revision}')
-                      sys.exit(1)
+                  down_revs = rev.down_revision if isinstance(rev.down_revision, tuple) else (rev.down_revision,)
+                  for down_rev in down_revs:
+                      try:
+                          script.get_revision(down_rev)
+                      except:
+                          print(f'::error::Migration {rev.revision} references invalid down_revision {down_rev}')
+                          sys.exit(1)
 
           print('Migration chain is valid!')
           "
