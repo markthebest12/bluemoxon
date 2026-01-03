@@ -139,7 +139,8 @@ const isValidEbayUrl = computed(() => {
 
     // Standard eBay URLs must have /itm/ pattern
     const isEbayHost =
-      hostname === "ebay.com" || hostname === "www.ebay.com" || hostname === "m.ebay.com";
+      hostname === "ebay.com" || hostname === "www.ebay.com" || hostname === "m.ebay.com" ||
+      hostname === "ebay.co.uk" || hostname === "www.ebay.co.uk" || hostname === "m.ebay.co.uk";
     return isEbayHost && url.pathname.includes("/itm/");
   } catch {
     return false;
@@ -504,13 +505,13 @@ function openSourceUrl() {
           <input
             v-model="urlInput"
             type="url"
-            placeholder="https://www.ebay.com/itm/... or https://ebay.us/..."
+            placeholder="https://www.ebay.com/itm/... or https://www.ebay.co.uk/itm/..."
             class="input"
             :class="{ 'border-[var(--color-status-error-accent)]': extractError }"
             @keyup.enter="handleExtract"
           />
           <p class="mt-1 text-sm text-gray-500">
-            Paste an eBay listing URL (including short URLs like ebay.us/xxx)
+            Paste an eBay listing URL (US, UK, or short URLs like ebay.us/xxx)
           </p>
         </div>
 
