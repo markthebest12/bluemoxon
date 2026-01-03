@@ -566,6 +566,63 @@ module "eval_runbook_worker" {
 }
 
 # =============================================================================
+# Tracking Worker (async tracking updates with SQS)
+# =============================================================================
+# EventBridge schedule → Dispatcher → SQS → Worker
+# Can be enabled independently of main Lambda using enable_tracking_worker.
+# When enable_lambda=false, uses external_lambda_role_name and
+# external_lambda_security_group_id for permissions and VPC config.
+
+module "tracking_worker" {
+  count  = local.tracking_worker_enabled ? 1 : 0
+  source = "./modules/tracking-worker"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  package_path     = var.lambda_package_path
+  source_code_hash = var.lambda_source_code_hash
+  runtime          = var.lambda_runtime
+
+  # Match API Lambda timeout + buffer for SQS visibility
+  timeout_dispatcher     = 60
+  timeout_worker         = 60
+  memory_size_dispatcher = 256
+  memory_size_worker     = 512
+  reserved_concurrency   = 10
+
+  # VPC configuration - use external security group if Lambda is managed externally
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # Secrets Manager access - use prod secret ARN pattern for external Lambda
+  secrets_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+    ] : (
+    # For prod with external Lambda, use the secret ARN pattern directly
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
+
+  # Environment variables
+  environment_variables = merge(
+    {},
+    # Database secret ARN (use module output for staging, explicit ARN for prod)
+    var.enable_database ? {
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
+  )
+
+  # EventBridge schedule for tracking dispatch
+  schedule_expression = var.tracking_schedule_expression
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Cleanup Lambda (stale data maintenance)
 # =============================================================================
 # Handles cleanup tasks:

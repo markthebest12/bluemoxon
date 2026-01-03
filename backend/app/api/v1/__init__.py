@@ -12,6 +12,7 @@ from app.api.v1 import (
     health,
     images,
     listings,
+    notifications,
     orders,
     placeholder,
     publishers,
@@ -36,6 +37,7 @@ router.include_router(authors.router, prefix="/authors", tags=["authors"])
 router.include_router(binders.router, prefix="/binders", tags=["binders"])
 router.include_router(export.router, prefix="/export", tags=["export"])
 router.include_router(users.router, prefix="/users", tags=["users"])
+router.include_router(notifications.router, prefix="/users/me", tags=["notifications"])
 router.include_router(listings.router, prefix="/listings", tags=["listings"])
 router.include_router(admin.router, prefix="/admin", tags=["admin"])
 router.include_router(orders.router, prefix="/orders", tags=["orders"])

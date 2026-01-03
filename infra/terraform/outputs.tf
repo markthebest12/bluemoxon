@@ -199,6 +199,25 @@ output "eval_runbook_dlq_url" {
 }
 
 # =============================================================================
+# Tracking Worker Outputs
+# =============================================================================
+
+output "tracking_dispatcher_function_name" {
+  description = "Tracking dispatcher Lambda function name"
+  value       = local.tracking_worker_enabled ? module.tracking_worker[0].dispatcher_function_name : null
+}
+
+output "tracking_worker_function_name" {
+  description = "Tracking worker Lambda function name"
+  value       = local.tracking_worker_enabled ? module.tracking_worker[0].worker_function_name : null
+}
+
+output "tracking_queue_url" {
+  description = "Tracking jobs SQS queue URL"
+  value       = local.tracking_worker_enabled ? module.tracking_worker[0].queue_url : null
+}
+
+# =============================================================================
 # Cleanup Lambda Outputs
 # =============================================================================
 

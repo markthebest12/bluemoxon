@@ -210,6 +210,18 @@ variable "cleanup_function_name_override" {
   default     = null
 }
 
+variable "enable_tracking_worker" {
+  type        = bool
+  description = "Enable tracking worker Lambda + SQS for async tracking updates (can be enabled independently of main Lambda)"
+  default     = null # Defaults to enable_lambda value when null
+}
+
+variable "tracking_schedule_expression" {
+  type        = string
+  description = "EventBridge schedule expression for tracking dispatcher (e.g., 'rate(1 hour)')"
+  default     = "rate(1 hour)"
+}
+
 variable "external_lambda_role_name" {
   type        = string
   description = "External Lambda IAM role name for SQS send permissions (used when enable_lambda=false)"
