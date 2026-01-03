@@ -40,7 +40,7 @@ async function markAsRead(notification: Notification) {
   if (notification.read) return;
 
   try {
-    await api.patch(`/users/me/notifications/${notification.id}`, { read: true });
+    await api.post(`/users/me/notifications/${notification.id}/read`);
     notification.read = true;
     unreadCount.value = Math.max(0, unreadCount.value - 1);
   } catch (e) {

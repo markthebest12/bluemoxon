@@ -3,6 +3,21 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime
+from enum import StrEnum
+
+
+class TrackingStatus(StrEnum):
+    """Standard tracking status values.
+
+    All carrier implementations should normalize their status to these values.
+    """
+
+    IN_TRANSIT = "In Transit"
+    OUT_FOR_DELIVERY = "Out for Delivery"
+    DELIVERED = "Delivered"
+    EXCEPTION = "Exception"
+    PENDING = "Pending"
+    UNKNOWN = "Unknown"
 
 
 @dataclass

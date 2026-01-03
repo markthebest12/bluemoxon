@@ -6,9 +6,12 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.models import Book, Notification, User
-from app.services.carriers import get_carrier
+from app.services.carriers import TrackingStatus, get_carrier
 
 logger = logging.getLogger(__name__)
+
+# Default batch size for polling - prevents Lambda timeout with many active shipments
+DEFAULT_BATCH_SIZE = 50
 
 
 def notify_status_change(
@@ -39,26 +42,45 @@ def notify_status_change(
     logger.info(f"Created notification for user {user.id}: {message}")
 
 
-def poll_all_active_tracking(db: Session) -> dict:
+def poll_all_active_tracking(db: Session, batch_size: int = DEFAULT_BATCH_SIZE) -> dict:
     """Poll all active tracking numbers and update statuses.
+
+    Processes books in batches to prevent Lambda timeout with large datasets.
+    Each carrier API call can take up to 15 seconds, so batch_size controls
+    the maximum number of books processed per invocation.
 
     Args:
         db: Database session
+        batch_size: Maximum books to process per invocation (default 50)
 
     Returns:
-        dict with stats: {"checked": N, "changed": N, "errors": N, "deactivated": N}
+        dict with stats: {"checked": N, "changed": N, "errors": N, "deactivated": N, "remaining": N}
     """
-    stats = {"checked": 0, "changed": 0, "errors": 0, "deactivated": 0}
+    stats = {"checked": 0, "changed": 0, "errors": 0, "deactivated": 0, "remaining": 0}
 
-    # Query books with active tracking
+    # Query books with active tracking, limited to batch_size
+    # Order by tracking_last_checked ASC NULLS FIRST to prioritize never-checked books
     active_books = (
         db.query(Book)
         .filter(
             Book.tracking_active == True,  # noqa: E712
             Book.tracking_number.isnot(None),
         )
+        .order_by(Book.tracking_last_checked.asc().nullsfirst())
+        .limit(batch_size)
         .all()
     )
+
+    # Count remaining books beyond this batch
+    total_active = (
+        db.query(Book)
+        .filter(
+            Book.tracking_active == True,  # noqa: E712
+            Book.tracking_number.isnot(None),
+        )
+        .count()
+    )
+    stats["remaining"] = max(0, total_active - len(active_books))
 
     for book in active_books:
         stats["checked"] += 1
@@ -77,7 +99,7 @@ def poll_all_active_tracking(db: Session) -> dict:
                 book.tracking_status = result.status
 
             # Handle delivery tracking
-            if result.status == "Delivered":
+            if result.status == TrackingStatus.DELIVERED:
                 if book.tracking_delivered_at is None:
                     book.tracking_delivered_at = datetime.now(UTC)
                     logger.info(f"Book {book.id} marked as delivered")
@@ -143,7 +165,7 @@ def refresh_single_book_tracking(db: Session, book_id: int) -> dict:
         book.tracking_active = True
 
     # Handle delivery
-    if result.status == "Delivered" and book.tracking_delivered_at is None:
+    if result.status == TrackingStatus.DELIVERED and book.tracking_delivered_at is None:
         book.tracking_delivered_at = datetime.now(UTC)
 
     db.commit()

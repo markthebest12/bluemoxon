@@ -190,9 +190,8 @@ class TestMarkNotificationRead:
 
         try:
             with TestClient(app) as client:
-                response = client.patch(
-                    f"/api/v1/users/me/notifications/{notification.id}",
-                    json={"read": True},
+                response = client.post(
+                    f"/api/v1/users/me/notifications/{notification.id}/read",
                 )
                 assert response.status_code == 200
                 data = response.json()
@@ -236,9 +235,8 @@ class TestMarkNotificationRead:
 
         try:
             with TestClient(app) as client:
-                response = client.patch(
-                    f"/api/v1/users/me/notifications/{notification.id}",
-                    json={"read": True},
+                response = client.post(
+                    f"/api/v1/users/me/notifications/{notification.id}/read",
                 )
                 assert response.status_code == 404
         finally:
@@ -269,9 +267,8 @@ class TestMarkNotificationRead:
 
         try:
             with TestClient(app) as client:
-                response = client.patch(
-                    "/api/v1/users/me/notifications/99999",
-                    json={"read": True},
+                response = client.post(
+                    "/api/v1/users/me/notifications/99999/read",
                 )
                 assert response.status_code == 404
         finally:

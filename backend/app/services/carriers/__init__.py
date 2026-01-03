@@ -1,6 +1,6 @@
 """Carrier plugins for tracking API integration."""
 
-from app.services.carriers.base import CarrierClient, TrackingResult
+from app.services.carriers.base import CarrierClient, TrackingResult, TrackingStatus
 from app.services.carriers.dhl import DHLClient
 from app.services.carriers.royal_mail import RoyalMailClient
 from app.services.carriers.ups import UPSCarrier
@@ -60,6 +60,7 @@ def detect_and_get_carrier(tracking_number: str) -> CarrierClient | None:
 __all__ = [
     "CarrierClient",
     "TrackingResult",
+    "TrackingStatus",
     "DHLClient",
     "RoyalMailClient",
     "UPSCarrier",

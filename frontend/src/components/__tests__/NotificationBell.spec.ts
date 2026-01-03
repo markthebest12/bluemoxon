@@ -8,7 +8,7 @@ import { api } from "@/services/api";
 vi.mock("@/services/api", () => ({
   api: {
     get: vi.fn(),
-    patch: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
@@ -128,7 +128,7 @@ describe("NotificationBell", () => {
         unread_count: 1,
       },
     });
-    vi.mocked(api.patch).mockResolvedValueOnce({
+    vi.mocked(api.post).mockResolvedValueOnce({
       data: { id: 1, read: true },
     });
 
@@ -142,8 +142,8 @@ describe("NotificationBell", () => {
     const notificationItem = wrapper.find('[data-testid="notification-item-1"]');
     await notificationItem.trigger("click");
 
-    // Should call PATCH to mark as read
-    expect(api.patch).toHaveBeenCalledWith("/users/me/notifications/1", { read: true });
+    // Should call POST to mark as read
+    expect(api.post).toHaveBeenCalledWith("/users/me/notifications/1/read");
   });
 
   it("shows empty state when no notifications", async () => {

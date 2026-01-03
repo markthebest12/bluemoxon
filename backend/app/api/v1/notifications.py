@@ -1,7 +1,9 @@
 """Notifications API endpoints."""
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.auth import CurrentUser, get_current_user
@@ -12,6 +14,9 @@ from app.services.notifications import (
     get_user_notifications,
     mark_notification_read,
 )
+
+# E.164 phone number format: + followed by 1-15 digits
+E164_PATTERN = re.compile(r"^\+[1-9]\d{1,14}$")
 
 router = APIRouter()
 
@@ -36,18 +41,24 @@ class NotificationsListResponse(BaseModel):
     unread_count: int
 
 
-class MarkReadRequest(BaseModel):
-    """Request to mark notification as read."""
-
-    read: bool
-
-
 class UpdatePreferencesRequest(BaseModel):
     """Request to update notification preferences."""
 
     notify_tracking_email: bool | None = None
     notify_tracking_sms: bool | None = None
     phone_number: str | None = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: str | None) -> str | None:
+        """Validate phone number is E.164 format if provided."""
+        if v is None or v == "":
+            return None
+        if not E164_PATTERN.match(v):
+            raise ValueError(
+                "Phone number must be in E.164 format (e.g., +14155551234)"
+            )
+        return v
 
 
 class PreferencesResponse(BaseModel):
@@ -99,17 +110,16 @@ async def list_notifications(
     }
 
 
-@router.patch("/notifications/{notification_id}", response_model=NotificationResponse)
-async def update_notification(
+@router.post("/notifications/{notification_id}/read", response_model=NotificationResponse)
+async def mark_notification_as_read(
     notification_id: int,
-    request: MarkReadRequest,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """
-    Mark a notification as read or unread.
+    Mark a notification as read.
 
-    Only the notification owner can update it.
+    Only the notification owner can mark it as read.
     """
     if not current_user.db_user:
         raise HTTPException(status_code=404, detail="User not found")

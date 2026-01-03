@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.models.book import Book
 from app.models.notification import Notification
 from app.models.user import User
+from app.services.carriers import TrackingStatus
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -144,9 +145,9 @@ def send_tracking_notification(
         detail: Optional detail message (e.g., exception reason)
     """
     # Format message based on status
-    if new_status.lower() == "delivered":
+    if new_status == TrackingStatus.DELIVERED:
         message = f"Your book '{book.title}' has been delivered!"
-    elif new_status.lower() == "exception":
+    elif new_status == TrackingStatus.EXCEPTION:
         detail_text = f": {detail}" if detail else ""
         message = f"Alert: '{book.title}' shipment exception{detail_text}"
     else:
