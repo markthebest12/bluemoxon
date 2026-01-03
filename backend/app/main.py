@@ -9,8 +9,6 @@ from mangum import Mangum
 from app.api.v1 import router as api_router
 from app.cold_start import clear_cold_start, get_cold_start_status
 from app.config import get_settings
-from app.db import SessionLocal
-from app.services.tracking_poller import poll_all_active_tracking
 from app.version import get_version
 
 # Configure logging for Lambda - set level on root logger directly
@@ -118,27 +116,5 @@ async def health_check():
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
-# Mangum handler for HTTP requests
-_http_handler = Mangum(app, lifespan="off")
-
-
-def handler(event: dict, context):
-    """Lambda handler that routes between HTTP and EventBridge events.
-
-    For HTTP events (API Gateway), delegates to Mangum.
-    For EventBridge events with action="poll_tracking", runs the tracking poller.
-    """
-    # Check if this is an EventBridge event with poll_tracking action
-    action = event.get("action")
-    if action == "poll_tracking":
-        logger.info("Received poll_tracking event from EventBridge")
-        db = SessionLocal()
-        try:
-            result = poll_all_active_tracking(db)
-            logger.info(f"Tracking poll complete: {result}")
-            return result
-        finally:
-            db.close()
-
-    # Otherwise, treat as HTTP event
-    return _http_handler(event, context)
+# Mangum handler for HTTP requests from API Gateway
+handler = Mangum(app, lifespan="off")
