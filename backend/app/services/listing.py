@@ -14,9 +14,14 @@ from app.services.bedrock import get_bedrock_client
 logger = logging.getLogger(__name__)
 
 EBAY_HOSTS = {
-    "ebay.com", "www.ebay.com", "m.ebay.com",
-    "ebay.co.uk", "www.ebay.co.uk", "m.ebay.co.uk",
-    "ebay.us", "www.ebay.us",
+    "ebay.com",
+    "www.ebay.com",
+    "m.ebay.com",
+    "ebay.co.uk",
+    "www.ebay.co.uk",
+    "m.ebay.co.uk",
+    "ebay.us",
+    "www.ebay.us",
 }
 EBAY_ITEM_PATTERN = re.compile(r"/itm/(?:[^/]+/)?(\d+)")
 # Pattern to detect alphanumeric short IDs (must contain at least one letter)
