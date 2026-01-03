@@ -645,6 +645,7 @@
             <ul>
                 <li><a href="#acquisitions-dashboard">Acquisitions Dashboard</a></li>
                 <li><a href="#ebay-import">eBay Import</a></li>
+                <li><a href="#shipment-tracking">Shipment Tracking</a></li>
                 <li><a href="#investment-scoring">Investment Scoring</a></li>
                 <li><a href="#wayback-archive">Wayback Archive</a></li>
             </ul>
@@ -656,17 +657,31 @@
                 <li><a href="#image-gallery">Image Gallery</a></li>
             </ul>
 
-            <h3>Analysis Documents</h3>
+            <h3>AI Analysis</h3>
             <ul>
                 <li><a href="#analysis-editor">Analysis Editor</a></li>
+                <li><a href="#async-analysis">Async Generation</a></li>
                 <li><a href="#markdown-formatting">Markdown Formatting</a></li>
             </ul>
 
             <h3>Reference Data</h3>
             <ul>
+                <li><a href="#entity-management">Entity Management</a></li>
                 <li><a href="#authors">Authors</a></li>
                 <li><a href="#publishers">Publishers</a></li>
                 <li><a href="#binders">Binders</a></li>
+                <li><a href="#entity-reassignment">Entity Reassignment</a></li>
+            </ul>
+
+            <h3>Maintenance</h3>
+            <ul>
+                <li><a href="#garbage-review">Garbage Image Review</a></li>
+                <li><a href="#orphan-cleanup">Orphan Cleanup</a></li>
+            </ul>
+
+            <h3>Appearance</h3>
+            <ul>
+                <li><a href="#dark-mode">Victorian Dark Mode</a></li>
             </ul>
 
             <h3>Dashboard</h3>
@@ -1120,6 +1135,73 @@
                 </p>
             </section>
 
+            <!-- Shipment Tracking Section -->
+            <section id="shipment-tracking">
+                <h2>Shipment Tracking</h2>
+                <p>
+                    Track your in-transit acquisitions with automatic carrier detection and real-time status updates.
+                    Add a tracking number to any book and BlueMoxon generates the tracking URL automatically.
+                </p>
+
+                <h3>Adding Tracking Information</h3>
+                <ol class="steps">
+                    <li>Navigate to the book detail page for an in-transit acquisition</li>
+                    <li>Click <strong>Add Tracking</strong> in the status section</li>
+                    <li>Enter the tracking number - the carrier is detected automatically</li>
+                    <li>Click <strong>Save</strong> to store the tracking information</li>
+                    <li>Click the tracking link to open the carrier's tracking page</li>
+                </ol>
+
+                <h3>Supported Carriers</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Carrier</th>
+                            <th>Detection Pattern</th>
+                            <th>Example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>USPS</strong></td>
+                            <td>20-22 digits starting with 9</td>
+                            <td>9400111899223100123456</td>
+                        </tr>
+                        <tr>
+                            <td><strong>UPS</strong></td>
+                            <td>1Z followed by alphanumeric</td>
+                            <td>1Z999AA10123456784</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FedEx</strong></td>
+                            <td>12-15 or 20-22 digits</td>
+                            <td>123456789012</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Royal Mail</strong></td>
+                            <td>2 letters + 9 digits + GB</td>
+                            <td>AB123456789GB</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DHL</strong></td>
+                            <td>10 digits</td>
+                            <td>1234567890</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Tracking Status</h3>
+                <p>
+                    Click <strong>Refresh Status</strong> to update the tracking status from the carrier.
+                    Status values include: pending, in_transit, out_for_delivery, delivered, exception.
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Tip:</strong> When a package shows as "delivered", you'll see a prompt to mark
+                    the book as ON_HAND and move it to your collection.
+                </div>
+            </section>
+
             <!-- Uploading Images Section -->
             <section id="uploading-images">
                 <h2>Uploading Images</h2>
@@ -1201,6 +1283,65 @@
                 </ul>
             </section>
 
+            <!-- Async Analysis Section -->
+            <section id="async-analysis">
+                <h2>Async Analysis Generation</h2>
+                <p>
+                    For complex analyses that require extended processing time, BlueMoxon uses asynchronous
+                    generation via SQS queues. This allows analyses to run without timeout limits and provides
+                    real-time progress updates.
+                </p>
+
+                <h3>How Async Analysis Works</h3>
+                <ol class="steps">
+                    <li>Click <strong>Generate Analysis</strong> on a book detail page</li>
+                    <li>Select your preferred model (Sonnet for speed, Opus for quality)</li>
+                    <li>The job is submitted to the analysis queue</li>
+                    <li>Monitor progress in real-time - status updates every few seconds</li>
+                    <li>When complete, the analysis appears automatically</li>
+                </ol>
+
+                <h3>Job Status</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-amber">pending</span></td>
+                            <td>Job submitted, waiting in queue</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">running</span></td>
+                            <td>Analysis in progress</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">completed</span></td>
+                            <td>Analysis finished successfully</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-red">failed</span></td>
+                            <td>Error occurred - check error message</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Async generation is automatically used for Opus model requests
+                    and for books with many images. Simpler analyses may complete synchronously.
+                </div>
+
+                <h3>Model Version Tracking</h3>
+                <p>
+                    Each analysis records the AI model version used (e.g., "claude-sonnet-4-20250514").
+                    This allows you to track which model generated each analysis and compare results
+                    over time as models improve.
+                </p>
+            </section>
+
             <!-- Markdown Formatting Section -->
             <section id="markdown-formatting">
                 <h2>Markdown Formatting</h2>
@@ -1225,6 +1366,69 @@ Brief overview of the book's significance...
 - **High estimate:** $350</code></pre>
             </section>
 
+            <!-- Entity Management Section -->
+            <section id="entity-management">
+                <h2>Entity Management</h2>
+                <p>
+                    The Reference Data tab in the Admin Config provides a full CRUD interface for managing
+                    authors, publishers, and binders. Access it from <strong>Config → Reference Data</strong>.
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>Create Entities</h4>
+                        <p>Add new authors, publishers, or binders with all relevant metadata fields.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Edit Entities</h4>
+                        <p>Update entity details, set tier classifications, mark as preferred.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Delete Entities</h4>
+                        <p>Remove entities with no associated books. Entities with books must be reassigned first.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Reassign Books</h4>
+                        <p>Move all books from one entity to another, then delete the source entity.</p>
+                    </div>
+                </div>
+
+                <h3>Preferred Entities</h3>
+                <p>
+                    Mark entities as "preferred" to give books by that author, publisher, or binder a
+                    <strong>+10 point bonus</strong> in investment scoring. Use this for collection priorities
+                    that don't fit into the tier system.
+                </p>
+
+                <h3>Tier Classifications</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tier</th>
+                            <th>Bonus</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-green">Tier 1</span></td>
+                            <td>+15 pts</td>
+                            <td>Premium/most desirable (e.g., Dickens, Zaehnsdorf)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">Tier 2</span></td>
+                            <td>+10 pts</td>
+                            <td>Notable/collectible (e.g., Darwin, Rivière)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-amber">Tier 3</span></td>
+                            <td>+5 pts</td>
+                            <td>Of interest (e.g., lesser-known Victorian authors)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
             <!-- Authors Section -->
             <section id="authors">
                 <h2>Authors</h2>
@@ -1238,7 +1442,10 @@ Brief overview of the book's significance...
                     <li><strong>Name:</strong> Full name (e.g., "Charles Dickens")</li>
                     <li><strong>Birth Year:</strong> Optional birth year</li>
                     <li><strong>Death Year:</strong> Optional death year</li>
-                    <li><strong>Notes:</strong> Additional biographical information</li>
+                    <li><strong>Era:</strong> Victorian, Romantic, Georgian, etc.</li>
+                    <li><strong>Tier:</strong> Tier 1, 2, or 3 classification</li>
+                    <li><strong>Preferred:</strong> Mark for +10 scoring bonus</li>
+                    <li><strong>Priority Score:</strong> Numeric priority for target acquisitions</li>
                 </ul>
             </section>
 
@@ -1249,6 +1456,15 @@ Brief overview of the book's significance...
                     Publishers include both the company name and location. Common formats include
                     "Chapman and Hall, London" or "Scribner's, New York".
                 </p>
+
+                <h3>Publisher Fields</h3>
+                <ul>
+                    <li><strong>Name:</strong> Publisher name (e.g., "John Murray")</li>
+                    <li><strong>Founded:</strong> Year founded (optional)</li>
+                    <li><strong>Description:</strong> Notes about the publisher</li>
+                    <li><strong>Tier:</strong> Tier 1, 2, or 3 classification</li>
+                    <li><strong>Preferred:</strong> Mark for +10 scoring bonus</li>
+                </ul>
             </section>
 
             <!-- Binders Section -->
@@ -1259,9 +1475,49 @@ Brief overview of the book's significance...
                     Rivière, Zaehnsdorf, Sangorski & Sutcliffe, and Root & Son.
                 </p>
 
+                <h3>Binder Fields</h3>
+                <ul>
+                    <li><strong>Name:</strong> Short name (e.g., "Rivière")</li>
+                    <li><strong>Full Name:</strong> Complete name (e.g., "Rivière & Son")</li>
+                    <li><strong>Authentication Markers:</strong> How to identify genuine bindings</li>
+                    <li><strong>Tier:</strong> Tier 1, 2, or 3 classification</li>
+                    <li><strong>Preferred:</strong> Mark for +10 scoring bonus</li>
+                </ul>
+
                 <div class="alert alert-info">
                     <strong>Note:</strong> A binder of "Unknown" is used for books with fine bindings
                     where the binder cannot be identified. Leave blank for trade bindings.
+                </div>
+            </section>
+
+            <!-- Entity Reassignment Section -->
+            <section id="entity-reassignment">
+                <h2>Entity Reassignment</h2>
+                <p>
+                    Use reassignment to merge duplicate or variant entities. All books are transferred
+                    from the source entity to the target, then the source is deleted.
+                </p>
+
+                <h3>Common Use Cases</h3>
+                <ul>
+                    <li><strong>Merge duplicates:</strong> "W.M. Thackeray" → "William Makepeace Thackeray"</li>
+                    <li><strong>Consolidate variants:</strong> "Riviere" → "Rivière & Son"</li>
+                    <li><strong>Fix typos:</strong> "Chapmn and Hall" → "Chapman and Hall"</li>
+                </ul>
+
+                <h3>How to Reassign</h3>
+                <ol class="steps">
+                    <li>Navigate to <strong>Config → Reference Data</strong></li>
+                    <li>Select the entity type tab (Authors, Publishers, or Binders)</li>
+                    <li>Find the source entity (the one to be merged away)</li>
+                    <li>Click the <strong>Reassign</strong> button (↔️ icon)</li>
+                    <li>Select the target entity from the dropdown</li>
+                    <li>Confirm the operation</li>
+                </ol>
+
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> Reassignment is irreversible. All books will be permanently
+                    moved to the target entity and the source entity will be deleted.
                 </div>
             </section>
 
@@ -1404,6 +1660,141 @@ aws cognito-idp admin-add-user-to-group \
   --user-pool-id us-west-2_XXXXX \
   --username user@example.com \
   --group-name Admin</code></pre>
+            </section>
+
+            <!-- Garbage Image Review Section -->
+            <section id="garbage-review">
+                <h2>Garbage Image Review</h2>
+                <p>
+                    BlueMoxon's AI automatically flags images that don't appear to be book photographs.
+                    The Maintenance tab lets you review these flagged images and confirm or override the classification.
+                </p>
+
+                <h3>What Gets Flagged</h3>
+                <ul>
+                    <li><strong>Seller logos:</strong> Watermarks and branding images</li>
+                    <li><strong>Screenshots:</strong> Computer or phone screenshots</li>
+                    <li><strong>Text images:</strong> Scanned text or certificates</li>
+                    <li><strong>Unrelated photos:</strong> Non-book images in listings</li>
+                </ul>
+
+                <h3>Reviewing Flagged Images</h3>
+                <ol class="steps">
+                    <li>Navigate to <strong>Config → Maintenance</strong></li>
+                    <li>View the list of images flagged as garbage</li>
+                    <li>For each image, choose to <strong>Confirm</strong> (delete) or <strong>Keep</strong> (override)</li>
+                    <li>Confirmed garbage images are permanently deleted</li>
+                </ol>
+
+                <div class="alert alert-info">
+                    <strong>Tip:</strong> Images are flagged during AI analysis. If an image is incorrectly
+                    flagged, click "Keep" to override and the flag will be removed.
+                </div>
+            </section>
+
+            <!-- Orphan Cleanup Section -->
+            <section id="orphan-cleanup">
+                <h2>Orphan Cleanup</h2>
+                <p>
+                    The Maintenance tab identifies and helps clean up orphaned database records -
+                    data that has lost its parent relationship.
+                </p>
+
+                <h3>Types of Orphans</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Safe to Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Orphan Images</strong></td>
+                            <td>Images with no associated book</td>
+                            <td>Yes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orphan Analyses</strong></td>
+                            <td>Analysis documents with no book</td>
+                            <td>Yes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orphan Jobs</strong></td>
+                            <td>Analysis jobs with no book</td>
+                            <td>Yes</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Running Cleanup</h3>
+                <ol class="steps">
+                    <li>Navigate to <strong>Config → Maintenance</strong></li>
+                    <li>Click <strong>Detect Orphans</strong> to scan the database</li>
+                    <li>Review the list of orphaned records</li>
+                    <li>Click <strong>Cleanup Orphans</strong> to remove them</li>
+                </ol>
+
+                <div class="alert alert-success">
+                    <strong>Safety:</strong> Orphan cleanup only removes records that have no parent.
+                    It will never delete images or analyses that belong to existing books.
+                </div>
+            </section>
+
+            <!-- Dark Mode Section -->
+            <section id="dark-mode">
+                <h2>Victorian Dark Mode</h2>
+                <p>
+                    BlueMoxon features an elegant dark theme inspired by Victorian aesthetics.
+                    Deep burgundy backgrounds, parchment-colored text, and gold accents create
+                    a distinguished reading experience.
+                </p>
+
+                <h3>Enabling Dark Mode</h3>
+                <ul>
+                    <li><strong>Toggle:</strong> Click the moon/sun icon in the navigation bar</li>
+                    <li><strong>System sync:</strong> Automatically follows your OS preference</li>
+                    <li><strong>Persistence:</strong> Your choice is saved and applied on every visit</li>
+                </ul>
+
+                <h3>Color Palette</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Element</th>
+                            <th>Light Mode</th>
+                            <th>Dark Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Background</strong></td>
+                            <td>White (#ffffff)</td>
+                            <td>Deep burgundy (#1a0a0f)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Surface</strong></td>
+                            <td>Gray (#f8f9fa)</td>
+                            <td>Dark burgundy (#2d1a20)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Text</strong></td>
+                            <td>Dark gray (#1f2937)</td>
+                            <td>Parchment (#e8dcc8)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Accent</strong></td>
+                            <td>Blue (#3b82f6)</td>
+                            <td>Gold (#c9a227)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-info">
+                    <strong>Accessibility:</strong> Dark mode respects the <code>prefers-reduced-motion</code>
+                    setting. If you have motion reduction enabled, transitions will be minimized.
+                </div>
             </section>
 
         </main>
