@@ -110,6 +110,25 @@ Implementing carrier API support for tracking shipments across multiple carriers
 - Phase 2: 51 additional tests (31 notifications + 20 polling)
 - All linting passing
 
+## Additional Changes
+
+### Data Migration for Existing In-Transit Books
+Since the carrier API migration already ran in production without the backfill,
+created a **separate migration** (`d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py`):
+- Sets `tracking_active = true` for existing books where:
+  - `tracking_number IS NOT NULL`
+  - `status = 'IN_TRANSIT'`
+  - `tracking_active = false`
+- This ensures existing in-transit shipments are picked up by the hourly polling job
+
+Added tests in `TestDataMigrationBehavior`:
+- `test_in_transit_books_with_tracking_should_be_active`
+- `test_delivered_books_should_not_be_active`
+- `test_books_without_tracking_should_not_be_active`
+- `test_migration_activates_correct_subset`
+
+**Migration file:** `alembic/versions/d3b3c3c4dd80_backfill_tracking_active_for_in_transit_.py`
+
 ## Next Steps
 
 1. Wait for Phase 3 frontend agents to complete

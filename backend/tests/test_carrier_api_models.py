@@ -11,6 +11,7 @@ Following TDD approach: write tests first, then implement to pass.
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import sqlalchemy as sa
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
@@ -390,6 +391,135 @@ class TestNotificationModel:
         result = db.query(Notification).filter(Notification.id == notification_id).first()
         assert result is not None
         assert result.book_id is None
+
+
+class TestDataMigrationBehavior:
+    """Tests for data migration: existing in-transit books with tracking numbers.
+
+    The migration sets tracking_active=True for books where:
+    - tracking_number IS NOT NULL
+    - status = 'IN_TRANSIT'
+
+    Since unit tests use SQLite without running Alembic migrations, we test
+    the expected behavior that the migration enables.
+    """
+
+    def test_in_transit_books_with_tracking_should_be_active(self, db: Session):
+        """In-transit books with tracking numbers should have tracking_active=True.
+
+        This tests the behavior the migration provides for new books.
+        """
+        book = Book(
+            title="In Transit Book",
+            tracking_number="1Z999AA10123456784",
+            tracking_carrier="UPS",
+            status="IN_TRANSIT",
+            tracking_active=True,  # Migration would set this
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        # Should be findable by the poller
+        active_books = db.query(Book).filter(
+            Book.tracking_active.is_(True),
+            Book.tracking_number.isnot(None),
+        ).all()
+        assert len(active_books) == 1
+        assert active_books[0].id == book.id
+
+    def test_delivered_books_should_not_be_active(self, db: Session):
+        """Delivered books should not have tracking_active=True."""
+        book = Book(
+            title="Delivered Book",
+            tracking_number="1Z999AA10123456784",
+            tracking_carrier="UPS",
+            status="ON_HAND",  # Already received
+            tracking_active=False,
+        )
+        db.add(book)
+        db.commit()
+
+        active_books = db.query(Book).filter(
+            Book.tracking_active.is_(True),
+        ).all()
+        assert len(active_books) == 0
+
+    def test_books_without_tracking_should_not_be_active(self, db: Session):
+        """Books without tracking numbers should not have tracking_active=True."""
+        book = Book(
+            title="No Tracking Book",
+            status="IN_TRANSIT",
+            tracking_active=False,  # No tracking number = no active tracking
+        )
+        db.add(book)
+        db.commit()
+
+        active_books = db.query(Book).filter(
+            Book.tracking_active.is_(True),
+        ).all()
+        assert len(active_books) == 0
+
+    def test_migration_activates_correct_subset(self, db: Session):
+        """Test the exact query the migration uses to activate tracking.
+
+        This simulates the migration logic to verify it targets the right books.
+        """
+        # Create test books in various states
+        in_transit_with_tracking = Book(
+            title="Should Activate",
+            tracking_number="1Z999AA10123456784",
+            status="IN_TRANSIT",
+            tracking_active=False,
+        )
+        in_transit_no_tracking = Book(
+            title="No Tracking Number",
+            status="IN_TRANSIT",
+            tracking_active=False,
+        )
+        on_hand_with_tracking = Book(
+            title="Already Delivered",
+            tracking_number="1Z888BB20987654321",
+            status="ON_HAND",
+            tracking_active=False,
+        )
+        evaluating_with_tracking = Book(
+            title="Still Evaluating",
+            tracking_number="1Z777CC30567891234",
+            status="EVALUATING",
+            tracking_active=False,
+        )
+        db.add_all([
+            in_transit_with_tracking,
+            in_transit_no_tracking,
+            on_hand_with_tracking,
+            evaluating_with_tracking,
+        ])
+        db.commit()
+
+        # Simulate the migration's UPDATE query
+        db.execute(
+            sa.text(
+                """
+                UPDATE books
+                SET tracking_active = 1
+                WHERE tracking_number IS NOT NULL
+                  AND status = 'IN_TRANSIT'
+                """
+            )
+        )
+        db.commit()
+
+        # Refresh all books
+        for book in [in_transit_with_tracking, in_transit_no_tracking,
+                     on_hand_with_tracking, evaluating_with_tracking]:
+            db.refresh(book)
+
+        # Only in_transit_with_tracking should be activated
+        assert in_transit_with_tracking.tracking_active is True
+        assert in_transit_no_tracking.tracking_active is False
+        assert on_hand_with_tracking.tracking_active is False
+        assert evaluating_with_tracking.tracking_active is False
 
 
 class TestNotificationRelationships:
