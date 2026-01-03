@@ -244,12 +244,120 @@ sequenceDiagram
 
 ---
 
+## Shipment Tracking
+
+### Package Tracking
+- **Tracking Number Entry** - Add tracking number to IN_TRANSIT books
+- **Carrier Auto-Detection** - Automatically identifies carrier from tracking number format:
+  - USPS (20-22 digits starting with 9)
+  - UPS (1Z prefix)
+  - FedEx (12-15 digits)
+  - Royal Mail (13 chars ending in GB)
+  - DHL, Parcelforce
+- **Tracking URL Generation** - Creates direct carrier tracking links
+- **Status Refresh** - Fetch latest status from carrier API
+
+### Tracking Status Display
+Acquisitions Kanban board shows tracking status badges:
+- 📦 **Pending** - Label created, awaiting pickup
+- 🚚 **In Transit** - Package moving through carrier network
+- 📬 **Out for Delivery** - Delivery expected today
+- ✅ **Delivered** - Package delivered
+- ⚠️ **Exception** - Delivery issue requiring attention
+
+---
+
+## Victorian Dark Mode
+
+### Theme System
+- **Victorian Aesthetic** - Deep burgundy, aged parchment, and antique gold color palette
+- **CSS Variables** - Comprehensive custom property system for theming
+- **System Preference** - Respects `prefers-color-scheme` by default
+- **Manual Toggle** - Override system preference via profile menu
+- **Persistent State** - Theme preference saved to localStorage
+
+### Dark Mode Colors
+
+| Element | Light Mode | Dark Mode |
+|---------|------------|-----------|
+| Background | White (#ffffff) | Deep burgundy (#1a0a0f) |
+| Surface | Gray (#f8f9fa) | Dark burgundy (#2d1a20) |
+| Text | Dark gray (#1f2937) | Parchment (#e8dcc8) |
+| Accent | Blue (#3b82f6) | Antique gold (#c9a55c) |
+| Border | Gray (#e5e7eb) | Burgundy border (#4a2a35) |
+
+### Component Theming
+All components are theme-aware:
+- Dashboard cards and charts
+- Data tables and forms
+- Modals and overlays
+- Navigation and sidebars
+- Toast notifications
+
+---
+
+## Animation System
+
+### Micro-Interactions
+- **Hover Effects** - Subtle scale and shadow transitions
+- **Click Feedback** - Button press animations
+- **Loading States** - Skeleton loaders and spinners
+- **Page Transitions** - Smooth route change animations
+
+### Accessibility
+- **Reduced Motion** - Respects `prefers-reduced-motion`
+- **Skip Animations** - CSS class to disable animations
+- **Focus Indicators** - Animated focus rings for keyboard navigation
+
+---
+
+## Entity Management
+
+### Reference Data CRUD
+Full create, read, update, delete for reference entities:
+- **Authors** - Name, birth/death years, era, tier, preferred status
+- **Publishers** - Name, tier, description, preferred status
+- **Binders** - Name, full name, tier, authentication markers, preferred
+
+### Entity Reassignment
+Merge duplicate entities:
+1. Select source entity (the duplicate)
+2. Select target entity (the canonical version)
+3. All books automatically reassigned to target
+4. Source entity deleted
+
+### Preferred Entity Bonus
+Mark entities as "preferred" for +10 scoring bonus:
+- Encourages acquisitions from favored publishers/binders
+- Visual indicator in entity lists
+- Reflected in investment scoring
+
+---
+
+## AI-Powered Image Analysis
+
+### Garbage Image Detection
+AI filters out non-book images during eBay import:
+- **Auto-Classification** - Claude Haiku analyzes each image
+- **Garbage Categories** - Detects seller logos, shipping labels, QR codes, etc.
+- **Soft Delete** - Images marked `is_garbage=true` but preserved
+- **Review Interface** - Admin can override classifications
+
+### Model Version Tracking
+Analyses store the AI model version used:
+- **Model ID** - Full Bedrock model identifier
+- **Comparison** - Compare analyses across model versions
+- **Audit Trail** - Know which model generated each analysis
+
+---
+
 ## Web Application
 
 ### Responsive Design
 - Desktop-optimized dashboard layouts
 - Mobile-friendly book browsing
 - Touch-friendly image galleries
+- **Container Queries** - Responsive thumbnails adapt to container size
 
 ### Real-time Updates
 - Optimistic UI updates
@@ -259,3 +367,9 @@ sequenceDiagram
 ### Keyboard Navigation
 - Shortcuts for common actions
 - Form navigation support
+
+### Frontend Stack (2026)
+- **Vue 3** with Composition API
+- **Tailwind CSS v4** with CSS-first configuration
+- **Vite 6** build system
+- **TypeScript** for type safety

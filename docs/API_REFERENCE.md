@@ -190,6 +190,93 @@ Response:
 
 ---
 
+### Add Shipment Tracking
+```
+PATCH /books/{book_id}/tracking
+```
+
+**Authentication Required:** Editor or Admin role
+
+Add or update shipment tracking information for an IN_TRANSIT book. Auto-detects carrier from tracking number format and generates tracking URL.
+
+Request Body:
+```json
+{
+  "tracking_number": "9400111899223033005436",
+  "tracking_carrier": "usps",
+  "tracking_url": null
+}
+```
+
+Fields:
+- `tracking_number` (optional) - Carrier tracking number
+- `tracking_carrier` (optional) - Carrier name: `usps`, `ups`, `fedex`, `dhl`, `royal_mail`, `parcelforce`
+- `tracking_url` (optional) - Direct tracking URL (for unsupported carriers)
+
+**Carrier Auto-Detection:**
+| Pattern | Carrier |
+|---------|---------|
+| 20-22 digits starting with 9 | USPS |
+| 1Z followed by alphanumeric | UPS |
+| 12-15 digits | FedEx |
+| 10 digits | DHL |
+| 13 chars ending in GB | Royal Mail |
+
+Example:
+```bash
+curl -X PATCH "https://api.bluemoxon.com/api/v1/books/407/tracking" \
+  -H "X-API-Key: $BMX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"tracking_number": "9400111899223033005436"}'
+```
+
+Response: Returns full BookResponse with updated tracking fields.
+
+Error Responses:
+- 400 Bad Request - Book not IN_TRANSIT or missing tracking data
+- 404 Not Found - Book not found
+
+---
+
+### Refresh Tracking Status
+```
+POST /books/{book_id}/tracking/refresh
+```
+
+**Authentication Required:** Editor or Admin role
+
+Fetches latest tracking status from carrier API and updates estimated delivery date.
+
+Example:
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/books/407/tracking/refresh" \
+  -H "X-API-Key: $BMX_API_KEY"
+```
+
+Response:
+```json
+{
+  "tracking_status": "in_transit",
+  "tracking_status_detail": "In Transit to Next Facility",
+  "estimated_delivery": "2026-01-05",
+  "last_updated": "2026-01-02T12:30:00Z"
+}
+```
+
+Tracking Status Values:
+- `pending` - Label created, not yet received by carrier
+- `in_transit` - Package in transit
+- `out_for_delivery` - Out for delivery today
+- `delivered` - Package delivered
+- `exception` - Delivery exception (delay, failed attempt)
+- `unknown` - Status not available
+
+Error Responses:
+- 400 Bad Request - Book not IN_TRANSIT or no tracking number set
+- 404 Not Found - Book not found
+
+---
+
 ### Update Inventory Type
 ```
 PATCH /books/{book_id}/inventory-type?inventory_type={type}
@@ -471,6 +558,89 @@ Response:
 ```
 
 **Note:** This endpoint saves progress after each successful extraction, so partial results are preserved if the operation is interrupted.
+
+---
+
+### Generate Analysis (Async)
+```
+POST /books/{book_id}/analysis/generate-async
+```
+
+**Authentication Required:** Admin role
+
+Starts asynchronous analysis generation via SQS queue. Returns immediately with a job ID for polling. This is the preferred method for generating analyses as it doesn't block the API.
+
+Request Body:
+```json
+{
+  "model": "sonnet",
+  "force": false
+}
+```
+
+Fields:
+- `model` (optional, default: "sonnet") - AI model: `sonnet` or `opus`
+- `force` (optional, default: false) - Replace existing analysis if present
+
+Example:
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/books/407/analysis/generate-async" \
+  -H "X-API-Key: $BMX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "opus"}'
+```
+
+Response (202 Accepted):
+```json
+{
+  "id": 123,
+  "book_id": 407,
+  "status": "pending",
+  "model": "opus",
+  "created_at": "2026-01-02T15:30:00Z"
+}
+```
+
+Job Statuses:
+- `pending` - Job queued, waiting for worker
+- `running` - Worker processing analysis
+- `completed` - Analysis generated successfully
+- `failed` - Generation failed (see error message)
+
+Error Responses:
+- 400 Bad Request - Analysis exists and force=false
+- 404 Not Found - Book not found
+- 409 Conflict - Active job already exists for this book
+
+---
+
+### Get Analysis Job Status
+```
+GET /books/{book_id}/analysis/status
+```
+
+Returns the status of the latest analysis job for a book.
+
+Example:
+```bash
+curl "https://api.bluemoxon.com/api/v1/books/407/analysis/status" \
+  -H "X-API-Key: $BMX_API_KEY"
+```
+
+Response:
+```json
+{
+  "id": 123,
+  "book_id": 407,
+  "status": "completed",
+  "model": "opus",
+  "model_version": "anthropic.claude-opus-4-5-20250514-v1:0",
+  "created_at": "2026-01-02T15:30:00Z",
+  "completed_at": "2026-01-02T15:31:45Z",
+  "duration_seconds": 105,
+  "error_message": null
+}
+```
 
 ---
 
@@ -1035,26 +1205,105 @@ Returns full JSON export with all book details.
 
 ## Reference Data APIs
 
+Reference entities (Authors, Publishers, Binders) support CRUD operations and entity reassignment.
+
+### Common Entity Fields
+
+All reference entities include:
+- `id` (int) - Unique identifier
+- `name` (string) - Entity name
+- `tier` (string, optional) - Quality tier: `TIER_1`, `TIER_2`, `TIER_3`
+- `preferred` (bool, default: false) - Marks entity as preferred (+10 scoring bonus)
+- `book_count` (int, computed) - Number of associated books
+
 ### Authors
-- `GET /authors` - List all authors
-- `GET /authors/{id}` - Get author by ID
-- `POST /authors` - Create author
-- `PUT /authors/{id}` - Update author
-- `DELETE /authors/{id}` - Delete author
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/authors` | GET | List all authors |
+| `/authors/{id}` | GET | Get author by ID |
+| `/authors` | POST | Create author |
+| `/authors/{id}` | PUT | Update author |
+| `/authors/{id}` | DELETE | Delete author |
+| `/authors/{id}/reassign` | POST | Reassign books to another author |
+
+**Author-specific fields:**
+- `birth_year` (int, optional)
+- `death_year` (int, optional)
+- `era` (string, optional) - e.g., "Victorian", "Romantic"
+- `first_acquired_date` (date, optional)
+- `priority_score` (int, default: 0)
 
 ### Publishers
-- `GET /publishers` - List all publishers
-- `GET /publishers/{id}` - Get publisher by ID
-- `POST /publishers` - Create publisher
-- `PUT /publishers/{id}` - Update publisher
-- `DELETE /publishers/{id}` - Delete publisher
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/publishers` | GET | List all publishers |
+| `/publishers/{id}` | GET | Get publisher by ID |
+| `/publishers` | POST | Create publisher |
+| `/publishers/{id}` | PUT | Update publisher |
+| `/publishers/{id}` | DELETE | Delete publisher |
+| `/publishers/{id}/reassign` | POST | Reassign books to another publisher |
+
+**Publisher-specific fields:**
+- `founded_year` (int, optional)
+- `description` (string, optional)
 
 ### Binders
-- `GET /binders` - List all binders
-- `GET /binders/{id}` - Get binder by ID
-- `POST /binders` - Create binder
-- `PUT /binders/{id}` - Update binder
-- `DELETE /binders/{id}` - Delete binder
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/binders` | GET | List all binders |
+| `/binders/{id}` | GET | Get binder by ID |
+| `/binders` | POST | Create binder |
+| `/binders/{id}` | PUT | Update binder |
+| `/binders/{id}` | DELETE | Delete binder |
+| `/binders/{id}/reassign` | POST | Reassign books to another binder |
+
+**Binder-specific fields:**
+- `full_name` (string, optional) - e.g., "Rivière & Son"
+- `authentication_markers` (string, optional) - Identifying characteristics
+
+---
+
+### Reassign Entity Books
+```
+POST /{entity_type}/{id}/reassign
+```
+
+**Authentication Required:** Editor or Admin role
+
+Reassigns all books from one entity to another, then deletes the source entity. Useful for merging duplicate entries.
+
+Entity types: `authors`, `publishers`, `binders`
+
+Request Body:
+```json
+{
+  "target_id": 42
+}
+```
+
+Example:
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/authors/15/reassign" \
+  -H "X-API-Key: $BMX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"target_id": 3}'
+```
+
+Response:
+```json
+{
+  "reassigned_count": 5,
+  "deleted_entity": "W.M. Thackeray",
+  "target_entity": "William Makepeace Thackeray"
+}
+```
+
+Error Responses:
+- 400 Bad Request - Cannot reassign to same entity / Target not found
+- 404 Not Found - Source entity not found
 
 ---
 

@@ -61,11 +61,12 @@ Both environments are deployed via Terraform with isolated resources (separate C
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Compute | AWS Lambda | Cost-effective for low traffic, cold starts acceptable |
+| Compute | AWS Lambda + Layers | Cost-effective for low traffic, layers for shared dependencies |
 | Database | Aurora Serverless v2 | PostgreSQL for full-text search, scales to zero |
 | Auth | Cognito + MFA | Managed auth, built-in 2FA, admin invite only |
 | AI Analysis | AWS Bedrock (Claude 4.5) | Napoleon Framework valuations via managed Claude models |
-| Frontend | Vue 3 + Vite | User preference, modern tooling |
+| Async Jobs | SQS + Worker Lambda | Decoupled analysis generation, retry handling |
+| Frontend | Vue 3 + Vite + Tailwind v4 | User preference, modern tooling, CSS-first configuration |
 | Backend | FastAPI | Fast, modern Python, auto-generated docs |
 | IaC | **Terraform** | Declarative, well-documented, dual-environment support |
 
@@ -125,6 +126,130 @@ flowchart TD
 | `s3` | Buckets for frontend, images, logs |
 | `secrets` | Secrets Manager secret + IAM policy |
 | `vpc-networking` | VPC endpoints, NAT gateway, route tables |
+| `lambda-layers` | Shared Python dependencies layer |
+| `sqs` | Analysis and eval runbook job queues |
+| `cleanup-lambda` | Database maintenance Lambda |
+| `eval-worker-lambda` | Async analysis/eval processing |
+
+## Lambda Architecture
+
+BlueMoxon uses multiple Lambda functions with shared dependency layers:
+
+```mermaid
+flowchart TB
+    subgraph Layers["Lambda Layers"]
+        deps["Dependencies Layer<br/>(boto3, pydantic, sqlalchemy)"]
+    end
+
+    subgraph Lambdas["Lambda Functions"]
+        api["API Lambda<br/>(FastAPI + Mangum)"]
+        worker["Eval Worker Lambda<br/>(SQS Consumer)"]
+        cleanup["Cleanup Lambda<br/>(Scheduled)"]
+        dbsync["DB Sync Lambda<br/>(Manual Trigger)"]
+    end
+
+    subgraph Triggers["Triggers"]
+        apigw["API Gateway"]
+        sqs["SQS Queues"]
+        eventbridge["EventBridge<br/>(Daily Schedule)"]
+    end
+
+    deps --> api
+    deps --> worker
+    deps --> cleanup
+
+    apigw --> api
+    sqs --> worker
+    eventbridge --> cleanup
+```
+
+### Lambda Functions
+
+| Function | Purpose | Trigger | Memory | Timeout |
+|----------|---------|---------|--------|---------|
+| **API** | FastAPI REST endpoints | API Gateway | 512 MB | 30s |
+| **Eval Worker** | Napoleon analysis generation | SQS | 1024 MB | 10 min |
+| **Cleanup** | Database maintenance, orphan cleanup | EventBridge (daily) | 256 MB | 5 min |
+| **DB Sync** | Copy prod data to staging | Manual | 512 MB | 15 min |
+
+### Lambda Layers
+
+Shared dependencies are packaged in a Lambda Layer to reduce deployment size and cold start time:
+
+```
+bluemoxon-deps-layer/
+├── python/
+│   └── lib/
+│       └── python3.12/
+│           └── site-packages/
+│               ├── boto3/
+│               ├── pydantic/
+│               ├── sqlalchemy/
+│               └── ...
+```
+
+**Layer benefits:**
+- Reduces API Lambda package from ~80MB to ~5MB
+- Shared across all Lambdas (deploy once)
+- Faster cold starts (cached by AWS)
+- Independent versioning (update deps without code changes)
+
+## SQS Job Processing
+
+Async analysis generation uses SQS for reliability and decoupling:
+
+```mermaid
+flowchart LR
+    subgraph API["API Lambda"]
+        create["POST /analysis/generate-async"]
+        status["GET /analysis/status"]
+    end
+
+    subgraph Queue["SQS"]
+        analysisq["Analysis Queue<br/>(5 min visibility)"]
+        dlq["Dead Letter Queue<br/>(3 retries)"]
+    end
+
+    subgraph Worker["Eval Worker Lambda"]
+        process["Process Job"]
+        bedrock["Call Bedrock"]
+        save["Save Analysis"]
+    end
+
+    subgraph DB["Aurora"]
+        jobs["analysis_jobs"]
+        analyses["book_analyses"]
+    end
+
+    create -->|Send message| analysisq
+    create -->|Create job| jobs
+    analysisq -->|Trigger| Worker
+    process --> bedrock
+    bedrock --> save
+    save --> analyses
+    save -->|Update status| jobs
+    status -->|Read| jobs
+    analysisq -->|After 3 failures| dlq
+```
+
+### SQS Queues
+
+| Queue | Purpose | Visibility | DLQ Retries |
+|-------|---------|------------|-------------|
+| `analysis-jobs` | Napoleon analysis generation | 5 min | 3 |
+| `eval-runbook-jobs` | Evaluation runbook generation | 5 min | 3 |
+
+### Job States
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Job created
+    pending --> running: Worker picks up
+    running --> completed: Success
+    running --> failed: Error
+    failed --> pending: Manual retry
+    pending --> failed: Stale (>15 min)
+```
 
 ## Application Architecture
 
@@ -253,6 +378,7 @@ flowchart LR
 erDiagram
     BOOKS ||--o{ IMAGES : has
     BOOKS ||--o| ANALYSES : has
+    BOOKS ||--o{ ANALYSIS_JOBS : has
     BOOKS }o--|| AUTHORS : written_by
     BOOKS }o--|| PUBLISHERS : published_by
     BOOKS }o--o| BINDERS : bound_by
@@ -269,25 +395,36 @@ erDiagram
         decimal purchase_price
         string status
         string inventory_type
+        string tracking_number
+        string tracking_carrier
+        string tracking_url
+        string tracking_status
+        date ship_date
     }
 
     AUTHORS {
         int id PK
         string name
-        string birth_year
-        string death_year
+        int birth_year
+        int death_year
+        string tier
+        boolean preferred
+        int priority_score
     }
 
     PUBLISHERS {
         int id PK
         string name
         string tier
+        boolean preferred
     }
 
     BINDERS {
         int id PK
         string name
-        boolean is_premium
+        string tier
+        boolean preferred
+        string full_name
     }
 
     IMAGES {
@@ -296,15 +433,43 @@ erDiagram
         string s3_key
         int display_order
         boolean is_primary
+        boolean is_garbage
     }
 
     ANALYSES {
         int id PK
         int book_id FK
         text content
+        string model_version
         timestamp updated_at
     }
+
+    ANALYSIS_JOBS {
+        int id PK
+        int book_id FK
+        string status
+        string model
+        string model_version
+        string error_message
+        timestamp created_at
+        timestamp completed_at
+    }
 ```
+
+### Entity Scoring
+
+Reference entities (Authors, Publishers, Binders) support:
+- **Tiers**: TIER_1 (+15 pts), TIER_2 (+10 pts), TIER_3 (+5 pts)
+- **Preferred**: +10 pts bonus for preferred entities
+
+### Tracking Status Values
+
+Books with `status=IN_TRANSIT` can have tracking information:
+- `pending` - Label created
+- `in_transit` - Package in transit
+- `out_for_delivery` - Out for delivery
+- `delivered` - Delivered
+- `exception` - Delivery issue
 
 ## Authentication Flow
 
@@ -393,4 +558,4 @@ These Mermaid diagrams render in:
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: January 2026*

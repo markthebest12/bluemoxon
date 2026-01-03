@@ -491,7 +491,8 @@
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">🏷️</span> Reference Library</h3>
-                    <p>Maintain catalogs of authors, publishers, and binders with tier classifications. Priority scoring for target acquisitions.</p>
+                    <p>Full CRUD for authors, publishers, and binders with tier classifications. Reassign books between entities, mark preferred entries for +10 scoring bonus.</p>
+                    <span class="tag new">Enhanced</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">🔍</span> Search & Filter</h3>
@@ -515,6 +516,11 @@
                     <h3><span class="icon">📋</span> Kanban Workflow</h3>
                     <p>Three-column board showing items by status: Watchlist (evaluating), In Transit (purchased), and Recently Received. Drag cards between columns, see key metrics at a glance, and never lose track of pending acquisitions.</p>
                     <span class="tag new">New in 1.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📦</span> Shipment Tracking</h3>
+                    <p>Add tracking numbers with automatic carrier detection (USPS, UPS, FedEx, Royal Mail, DHL). One-click tracking URL, real-time status updates, delivery countdown timer.</p>
+                    <span class="tag new">New</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">🔗</span> eBay Import</h3>
@@ -564,8 +570,14 @@
                     <span class="tag ai">Vision</span>
                 </div>
                 <div class="feature-card">
-                    <h3><span class="icon">⚡</span> On-Demand Generation</h3>
-                    <p>Generate analysis for any book with one click. Auto-triggers for high-value items over $450.</p>
+                    <h3><span class="icon">⚡</span> Async Generation</h3>
+                    <p>Generate analysis asynchronously via SQS queue. Real-time progress updates, automatic retry on failure, no timeout limits.</p>
+                    <span class="tag new">New</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🗑️</span> Garbage Detection</h3>
+                    <p>AI automatically flags non-book images (logos, screenshots, text). Review and confirm in Maintenance tab. Keeps your gallery clean.</p>
+                    <span class="tag ai">Vision</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">📖</span> Markdown Rendering</h3>
@@ -673,6 +685,38 @@
                 <div class="feature-card">
                     <h3><span class="icon">📱</span> Mobile Friendly</h3>
                     <p>Responsive design works on any device. Browse your collection and track acquisitions from anywhere.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Theming & Accessibility -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </div>
+                <h2>Theming & Accessibility</h2>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card highlight-card">
+                    <h3><span class="icon">🌙</span> Victorian Dark Mode</h3>
+                    <p>Elegant dark theme inspired by Victorian-era aesthetics. Deep burgundy backgrounds, parchment text, and gold accents create a distinguished reading experience. Toggle with one click, syncs with system preference.</p>
+                    <span class="tag new">New</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">✨</span> Animation System</h3>
+                    <p>Subtle micro-interactions enhance the experience: button feedback, card hovers, smooth transitions. Respects prefers-reduced-motion for accessibility.</p>
+                    <span class="tag new">New</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">🎨</span> Theme Persistence</h3>
+                    <p>Your theme preference is saved locally. Dark mode applies instantly on page load - no flash of light mode. Works across all pages.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">📐</span> Container Queries</h3>
+                    <p>Modern responsive design using container queries for component-level responsiveness. Cards and grids adapt to their container, not just viewport.</p>
                 </div>
             </div>
         </section>
