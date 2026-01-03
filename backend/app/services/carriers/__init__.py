@@ -38,25 +38,6 @@ def get_carrier(name: str) -> CarrierClient:
     raise KeyError(f"Unknown carrier: {name}")
 
 
-def detect_and_get_carrier(tracking_number: str) -> CarrierClient | None:
-    """Detect carrier from tracking number and return client.
-
-    Args:
-        tracking_number: The tracking number to analyze
-
-    Returns:
-        Carrier client if pattern matches, None otherwise
-    """
-    if not tracking_number or not tracking_number.strip():
-        return None
-
-    for carrier_cls in _CARRIERS.values():
-        if carrier_cls.can_handle(tracking_number):
-            return carrier_cls()
-
-    return None
-
-
 __all__ = [
     "CarrierClient",
     "TrackingResult",
@@ -66,5 +47,4 @@ __all__ = [
     "UPSCarrier",
     "USPSClient",
     "get_carrier",
-    "detect_and_get_carrier",
 ]
