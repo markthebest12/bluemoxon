@@ -567,6 +567,45 @@ MIGRATION_5D2AEF44594E_SQL = [
     "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS model_id VARCHAR(100)",
 ]
 
+# Migration SQL for w6789012wxyz_add_carrier_api_support
+MIGRATION_W6789012WXYZ_SQL = [
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_active BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS tracking_delivered_at TIMESTAMPTZ",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_tracking_email BOOLEAN DEFAULT TRUE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_tracking_sms BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)",
+    """CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER REFERENCES books(id) ON DELETE SET NULL,
+        message TEXT NOT NULL,
+        read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications (user_id, read) WHERE read = false",
+]
+
+# Migration SQL for x7890123abcd_phone_e164_constraint
+MIGRATION_X7890123ABCD_SQL = [
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_number_e164'
+        ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_phone_number_e164
+            CHECK (phone_number IS NULL OR phone_number ~ '^\\+[1-9]\\d{1,14}$');
+        END IF;
+    END $$""",
+    """CREATE TABLE IF NOT EXISTS carrier_circuit_state (
+        carrier_name VARCHAR(50) PRIMARY KEY,
+        failure_count INTEGER NOT NULL DEFAULT 0,
+        last_failure_at TIMESTAMPTZ,
+        circuit_open_until TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    )""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -690,6 +729,8 @@ Migrations run in order:
 24. u4567890stuv - Add archive_attempts counter for retry tracking
 25. v5678901uvwx - Add source_expired boolean for expired source URLs
 26. 5d2aef44594e - Add model_id column to book_analyses for AI model tracking
+27. w6789012wxyz - Add carrier API support (tracking_active, notifications table)
+28. x7890123abcd - Add E.164 phone constraint and carrier_circuit_state table
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -736,9 +777,11 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("u4567890stuv", MIGRATION_U4567890STUV_SQL),
         ("v5678901uvwx", MIGRATION_V5678901UVWX_SQL),
         ("5d2aef44594e", MIGRATION_5D2AEF44594E_SQL),
+        ("w6789012wxyz", MIGRATION_W6789012WXYZ_SQL),
+        ("x7890123abcd", MIGRATION_X7890123ABCD_SQL),
     ]
 
-    final_version = "5d2aef44594e"
+    final_version = "x7890123abcd"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
