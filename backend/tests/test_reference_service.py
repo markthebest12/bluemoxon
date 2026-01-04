@@ -56,10 +56,11 @@ class TestNormalizeBinderName:
         assert name == "Root & Son"
         assert tier == "TIER_2"
 
-    def test_tier_2_bayntun(self):
+    def test_tier_1_bayntun(self):
+        """Bayntun is TIER_1 - prestigious Bath bindery, still operating."""
         name, tier = normalize_binder_name("Bayntun")
         assert name == "Bayntun"
-        assert tier == "TIER_2"
+        assert tier == "TIER_1"
 
     def test_tier_2_tout(self):
         name, tier = normalize_binder_name("Tout")
@@ -130,9 +131,9 @@ class TestGetOrCreateBinder:
         assert result.id is not None
 
     def test_creates_tier_2_binder(self, db):
-        result = get_or_create_binder(db, {"name": "Bayntun"})
+        result = get_or_create_binder(db, {"name": "Morrell"})
         assert result is not None
-        assert result.name == "Bayntun"
+        assert result.name == "Morrell"
         assert result.tier == "TIER_2"
 
     def test_creates_unknown_binder_no_tier(self, db):
