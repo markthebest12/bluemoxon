@@ -1,8 +1,8 @@
-# Session Log: Analysis Model Default Fix + Discount Bug
+# Session Log: Analysis Model Default Fix
 
-**Date**: 2026-01-03 / 2026-01-04
-**PRs**: #794 (merged), #795 (merged to production)
-**Issues**: #796 (discount_pct recalculation - pending)
+**Date**: 2026-01-03
+**PR**: #794 (pending CI, merge approved)
+**Branch**: `fix/analysis-model-default-complete`
 
 ---
 
@@ -14,7 +14,6 @@
 - `superpowers:test-driven-development` - Before writing implementation code
 - `superpowers:verification-before-completion` - Before claiming work is done
 - `superpowers:systematic-debugging` - Before proposing fixes for any bug
-- `superpowers:finishing-a-development-branch` - When completing work
 - `superpowers:code-reviewer` - After significant code changes
 
 **RED FLAGS - If you think these, STOP and invoke the skill:**
@@ -42,7 +41,7 @@
 
 ---
 
-## COMPLETED: Analysis Model Default Fix
+## Issue Summary
 
 ### Problem
 Books 578, 579, 581 failed analysis generation with Bedrock timeout (540s) using wrong model.
@@ -50,68 +49,90 @@ Books 578, 579, 581 failed analysis generation with Bedrock timeout (540s) using
 ### Root Cause
 **AcquisitionsView.vue bypassed the store and hardcoded `model: "sonnet"`**
 
+The frontend had inconsistent defaults:
+- `AcquisitionsView.vue:237` - hardcoded `"sonnet"` (P0 - actual bug path)
+- `stores/books.ts:239,265` - defaulted to `"sonnet"`
+- UI components - defaulted to `"opus"` (correct but overridden)
+
+Backend also had inconsistent defaults:
+- `models/analysis_job.py:35` - `default="sonnet"`
+- `services/bedrock.py:408,540` - `model: str = "sonnet"`
+- `worker.py:114` - `body.get("model", "sonnet")`
+- Alembic migration - `server_default='sonnet'`
+
 ### Solution Applied
-Created `DEFAULT_ANALYSIS_MODEL = "opus"` constant in both frontend and backend, fixed ALL locations.
+Created `DEFAULT_ANALYSIS_MODEL` constant in both frontend and backend, then fixed ALL locations:
 
-### Deployment Status
-| Step | Status | Date |
-|------|--------|------|
-| PR #794 merged to staging | Done | 2026-01-04 |
-| Staging deploy + smoke tests | Done | 2026-01-04 |
-| Staging migration `7a6d67bc123e` | Done | 2026-01-04 |
-| Staging verification (book 476) | Done | model: "opus" confirmed |
-| PR #795 merged to main | Done | 2026-01-04 |
-| Production deploy + smoke tests | Done | 2026-01-04 |
-| Production migration | Done | 2026-01-04 |
-| Production verification (book 581) | Done | model: "opus" confirmed |
+**Frontend (7 files):**
+| File | Change |
+|------|--------|
+| `config.ts` | Added `DEFAULT_ANALYSIS_MODEL = "opus"` constant |
+| `AcquisitionsView.vue:237` | Use constant instead of hardcoded "sonnet" |
+| `stores/books.ts` | Both function defaults use constant |
+| `BookDetailView.vue` | `selectedModel` uses constant |
+| `AnalysisViewer.vue` | `selectedModel` uses constant |
+| `vitest.config.ts` | Added `__APP_VERSION__` define for tests |
+| `books-generate.spec.ts` | Updated tests to expect opus + correct model IDs |
 
-### Verification Evidence
-```json
-// Staging - book 476 analysis job
-{"model":"opus","status":"pending","book_id":476}
+**Backend (5 files):**
+| File | Change |
+|------|--------|
+| `constants.py` | NEW - `DEFAULT_ANALYSIS_MODEL = "opus"` |
+| `models/analysis_job.py` | Column default uses constant |
+| `services/bedrock.py` | Both function defaults use constant |
+| `worker.py` | Job processing default uses constant |
+| `health.py` | Registered migration `7a6d67bc123e` |
 
-// Production - book 581 analysis job
-{"model":"opus","status":"pending","book_id":581}
-```
+**Migration:**
+- `7a6d67bc123e` - `ALTER TABLE analysis_jobs ALTER COLUMN model SET DEFAULT 'opus'`
+
+**Sync Test:**
+- `test_constants_sync.py` - Verifies frontend/backend constants match
 
 ---
 
-## PENDING: Stale discount_pct Bug (#796)
+## Current Status
 
-### Problem
-Book 572 displays "-692% off" in Acquisitions view.
+### PR #794
+- **Status**: CI running, merge approved by user
+- **Branch**: `fix/analysis-model-default-complete`
+- **Last CI run**: 20685313082 (all checks passing so far)
 
-### Root Cause (Found via systematic-debugging skill)
-- `discount_pct` is calculated once at acquisition based on `value_mid`
-- When FMV is later updated, `discount_pct` is NOT recalculated
-- Book 572: FMV was $53 at acquisition (wrong), now $950 (corrected)
-- Calculation: `(53 - 420) / 53 * 100 = -692%` (stale)
-- Should be: `(950 - 420) / 950 * 100 = 56%`
+### Verification
+- 202 frontend tests pass
+- 63+ backend tests pass
+- Lint/type-check clean
+- Migration registered in health.py
 
-### Scope
-29 books have stale discount_pct values (>5% difference)
+---
 
-Worst cases:
-| Book | Current | Correct |
-|------|---------|---------|
-| 572 | -691.7% | 55.8% |
-| 554 | -50.1% | 56.6% |
-| 533 | 6.7% | -68.0% |
-| 500 | 64.7% | 22.4% |
-| 494 | 67.1% | 26.8% |
+## Next Steps (After Merge)
 
-### Solution (Not Yet Implemented)
-1. **One-time fix**: Add `/health/recalculate-discounts` endpoint
-2. **Ongoing fix**: Recalculate discount_pct whenever `value_mid` is updated
+1. **Watch deploy workflow** after merge to staging
+   ```bash
+   gh run list --workflow Deploy --limit 1
+   gh run watch <run-id> --exit-status
+   ```
 
-### Files to Modify
-- `app/api/v1/health.py` - Add maintenance endpoint
-- `app/api/v1/books.py` - Recalculate on FMV update (lines 1484, 1678, 1786, 1895)
-- `app/worker.py` - Recalculate when analysis updates FMV (line 300)
-- `app/eval_worker.py` - Recalculate when eval runbook updates FMV (line 173)
+2. **Run migration** on staging
+   ```bash
+   curl -s https://staging.api.bluemoxon.com/api/v1/health/migrate
+   ```
 
-### GitHub Issue
-https://github.com/markthebest12/bluemoxon/issues/796
+3. **Test analysis generation** for book 581
+   ```bash
+   bmx-api POST /books/581/analysis/generate-async
+   ```
+
+4. **Verify Lambda logs** show opus model
+   ```bash
+   AWS_PROFILE=bmx-staging aws logs filter-log-events --log-group-name /aws/lambda/bluemoxon-staging-analysis-worker --filter-pattern "opus" --limit 10
+   ```
+
+5. **Promote to production** after staging validation
+   ```bash
+   gh pr create --base main --head staging --title "chore: Promote analysis model fix to production"
+   ```
 
 ---
 
@@ -139,8 +160,6 @@ https://github.com/markthebest12/bluemoxon/issues/796
 3. **Use constants** - Prevents drift when updating for future models
 4. **Add sync tests** - Catches frontend/backend constant mismatches
 5. **Register migrations in health.py** - CI validation catches this
-6. **Use systematic-debugging skill** - Found discount_pct root cause quickly
-7. **Check data at API level first** - The -692% came from API, not frontend
 
 ---
 
@@ -149,7 +168,7 @@ https://github.com/markthebest12/bluemoxon/issues/796
 ### Carrier API (Separate Project)
 GitHub issues #780-792 created with `carrier-api` label. Not blocked by this fix.
 
-### Books Affected by Analysis Fix
+### Books Affected
 - Book 581: "A Naturalists Voyage / Journal of Researches"
 - Book 578: "The Book of Snobs"
 - Book 579: "The History of Pendennis..."
