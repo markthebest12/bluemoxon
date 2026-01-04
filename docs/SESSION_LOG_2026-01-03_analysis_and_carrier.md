@@ -1,7 +1,8 @@
-# Session Log: Analysis Generation Fix + Carrier API Issues
+# Session Log: Analysis Model Default Fix
 
 **Date**: 2026-01-03
-**Issues**: Analysis timeout, Carrier API (#516)
+**PR**: #794 (pending CI, merge approved)
+**Branch**: `fix/analysis-model-default-complete`
 
 ---
 
@@ -40,167 +41,134 @@
 
 ---
 
+## Issue Summary
+
+### Problem
+Books 578, 579, 581 failed analysis generation with Bedrock timeout (540s) using wrong model.
+
+### Root Cause
+**AcquisitionsView.vue bypassed the store and hardcoded `model: "sonnet"`**
+
+The frontend had inconsistent defaults:
+- `AcquisitionsView.vue:237` - hardcoded `"sonnet"` (P0 - actual bug path)
+- `stores/books.ts:239,265` - defaulted to `"sonnet"`
+- UI components - defaulted to `"opus"` (correct but overridden)
+
+Backend also had inconsistent defaults:
+- `models/analysis_job.py:35` - `default="sonnet"`
+- `services/bedrock.py:408,540` - `model: str = "sonnet"`
+- `worker.py:114` - `body.get("model", "sonnet")`
+- Alembic migration - `server_default='sonnet'`
+
+### Solution Applied
+Created `DEFAULT_ANALYSIS_MODEL` constant in both frontend and backend, then fixed ALL locations:
+
+**Frontend (7 files):**
+| File | Change |
+|------|--------|
+| `config.ts` | Added `DEFAULT_ANALYSIS_MODEL = "opus"` constant |
+| `AcquisitionsView.vue:237` | Use constant instead of hardcoded "sonnet" |
+| `stores/books.ts` | Both function defaults use constant |
+| `BookDetailView.vue` | `selectedModel` uses constant |
+| `AnalysisViewer.vue` | `selectedModel` uses constant |
+| `vitest.config.ts` | Added `__APP_VERSION__` define for tests |
+| `books-generate.spec.ts` | Updated tests to expect opus + correct model IDs |
+
+**Backend (5 files):**
+| File | Change |
+|------|--------|
+| `constants.py` | NEW - `DEFAULT_ANALYSIS_MODEL = "opus"` |
+| `models/analysis_job.py` | Column default uses constant |
+| `services/bedrock.py` | Both function defaults use constant |
+| `worker.py` | Job processing default uses constant |
+| `health.py` | Registered migration `7a6d67bc123e` |
+
+**Migration:**
+- `7a6d67bc123e` - `ALTER TABLE analysis_jobs ALTER COLUMN model SET DEFAULT 'opus'`
+
+**Sync Test:**
+- `test_constants_sync.py` - Verifies frontend/backend constants match
+
+---
+
 ## Current Status
 
-### ISSUE 1: Analysis Generation Failing (ACTIVE)
+### PR #794
+- **Status**: CI running, merge approved by user
+- **Branch**: `fix/analysis-model-default-complete`
+- **Last CI run**: 20685313082 (all checks passing so far)
 
-**Symptom:** Books 578, 579, 581 show "Failed - click to retry" for analysis generation.
+### Verification
+- 202 frontend tests pass
+- 63+ backend tests pass
+- Lint/type-check clean
+- Migration registered in health.py
 
-**Root Cause Investigation (Phase 1 Complete):**
+---
 
-| Finding | Evidence |
-|---------|----------|
-| Bedrock timeout | `ReadTimeoutError` after 540 seconds |
-| Wrong model | Jobs running with `sonnet` instead of `opus` |
-| Frontend bug | `stores/books.ts` defaults to "sonnet", ignoring UI |
+## Next Steps (After Merge)
 
-**Lambda Logs Evidence:**
-```
-[ERROR] Read timeout on endpoint URL: "https://bedrock-runtime.us-west-2.amazonaws.com/model/us.anthropic.claude-sonnet-4-5-20250929-v1:0/invoke"
-Read timed out. (read timeout=540)
-```
-
-**Two Bugs Found:**
-
-1. **Frontend store default wrong** (stores/books.ts:239, 265)
-   ```javascript
-   // CURRENT - wrong
-   model: "sonnet" | "opus" = "sonnet"
-
-   // SHOULD BE
-   model: "sonnet" | "opus" = "opus"
+1. **Watch deploy workflow** after merge to staging
+   ```bash
+   gh run list --workflow Deploy --limit 1
+   gh run watch <run-id> --exit-status
    ```
 
-2. **Bedrock 9-minute timeout** - May need:
-   - Reduced input size (eBay pages are huge)
-   - Increased timeout
-   - Better error handling
+2. **Run migration** on staging
+   ```bash
+   curl -s https://staging.api.bluemoxon.com/api/v1/health/migrate
+   ```
 
-**Books Affected:**
-- Book 581: "A Naturalists Voyage / Journal of Researches"
-- Book 578: "The Book of Snobs"
-- Book 579: "The History of Pendennis..."
-- All have `analysis_status: null`, 0 images, eBay source URLs
+3. **Test analysis generation** for book 581
+   ```bash
+   bmx-api POST /books/581/analysis/generate-async
+   ```
 
----
+4. **Verify Lambda logs** show opus model
+   ```bash
+   AWS_PROFILE=bmx-staging aws logs filter-log-events --log-group-name /aws/lambda/bluemoxon-staging-analysis-worker --filter-pattern "opus" --limit 10
+   ```
 
-### ISSUE 2: Carrier API Project (#516)
-
-**Status:** Phase 1 complete, Phase 2 issues created.
-
-**Key Finding:** Tracking worker infrastructure NOT deployed (intentional - carriers broken).
-
-**GitHub Issues Created (label: `carrier-api`):**
-
-| Issue | Title | Priority |
-|-------|-------|----------|
-| #783 | Replace web scraping with official APIs | Critical |
-| #784 | Carrier credential management via SSM | High |
-| #785 | Wire email/SMS in tracking poller | High |
-| #786 | Configure SES/SNS | High |
-| #787 | Register FedEx/Pitney Bowes | Medium |
-| #788 | Add circuit breaker | Medium |
-| #789 | Stop polling delivered books | Low |
-| #790 | CloudWatch metrics/alarms | Medium |
-| #791 | Integration tests with mocks | Medium |
-| #792 | Deploy tracking worker infra | Blocked |
-| #780 | UI: NotificationPreferences | Blocked by #781 |
-| #781 | API: GET /preferences endpoint | Medium |
-
-**Carrier API Root Cause:**
-All carriers scrape public websites instead of official APIs:
-- USPS: HTTP 302 (redirect)
-- UPS: Timeout
-- Royal Mail: HTTP 403 (blocked)
-
----
-
-## Next Steps (Priority Order)
-
-### Immediate: Fix Analysis Generation
-
-1. **Fix frontend model default** (TDD approach)
-   - File: `frontend/src/stores/books.ts`
-   - Change lines 239 and 265: `"sonnet"` -> `"opus"`
-   - Write test first, then fix
-   - Create PR for review
-
-2. **Investigate Bedrock timeout**
-   - Check if eBay content is too large
-   - Consider streaming or chunking
-   - May need to increase boto3 read_timeout
-
-### After Analysis Fix: Carrier API Phase 2
-
-Follow dependency chain:
-```
-#784 (credentials) -> #783 (official APIs) -> #792 (deploy)
-#786 (SES/SNS) -> #785 (wire notifications)
-#781 (GET endpoint) -> #780 (UI)
-```
+5. **Promote to production** after staging validation
+   ```bash
+   gh pr create --base main --head staging --title "chore: Promote analysis model fix to production"
+   ```
 
 ---
 
 ## Files Reference
 
-### Analysis Generation
-- `frontend/src/stores/books.ts` - Model default bug (lines 239, 265)
-- `backend/app/services/bedrock.py` - Bedrock client config
-- `backend/app/worker.py` - Analysis worker
+### Constants (Single Source of Truth)
+- `frontend/src/config.ts` - `DEFAULT_ANALYSIS_MODEL`
+- `backend/app/constants.py` - `DEFAULT_ANALYSIS_MODEL`
 
-### Carrier API
-- `backend/app/services/carriers/*.py` - Carrier implementations
-- `backend/app/services/carriers/__init__.py` - Carrier registry
-- `backend/app/services/tracking_poller.py` - Polling logic
-- `backend/app/services/notifications.py` - Notification sending
-- `infra/terraform/modules/tracking-worker/` - Infrastructure
+### Intentional Sonnet Usage (DO NOT CHANGE)
+- `services/fmv_lookup.py` - FMV lookup
+- `services/eval_generation.py` - Eval runbooks
+- `api/v1/books.py` - `extract_structured_data` calls
 
----
-
-## API Testing Commands
-
-```bash
-# Check book status
-bmx-api --prod GET /books/581
-
-# Trigger analysis (will fail until fixed)
-bmx-api --prod POST /books/581/analysis/generate
-
-# Check Lambda logs (get timestamp first)
-date +%s000
-AWS_PROFILE=bmx-prod aws logs filter-log-events --log-group-name /aws/lambda/bluemoxon-prod-analysis-worker --filter-pattern "ERROR" --start-time 1767480000000 --limit 10
-
-# Check Bedrock models
-AWS_PROFILE=bmx-prod aws bedrock list-foundation-models --query "modelSummaries[?contains(modelId, 'sonnet')]" --output table --region us-west-2
-```
+### Model IDs (from bedrock.py)
+- opus: `us.anthropic.claude-opus-4-5-20251101-v1:0`
+- sonnet: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
 
 ---
 
-## Lambda Configuration
+## Lessons Learned
 
-| Function | Timeout | Memory |
-|----------|---------|--------|
-| bluemoxon-prod-analysis-worker | 600s | 256MB |
-| Bedrock client read_timeout | 540s | - |
-
----
-
-## Session History
-
-1. Resumed from carrier API session
-2. User reported analysis generation failing for 3 books
-3. Invoked `systematic-debugging` skill
-4. Found Bedrock timeout errors in Lambda logs
-5. Discovered frontend model default bug
-6. Created carrier API GitHub issues (#780-792)
-7. Preparing session log for compaction
+1. **Always trace complete data flow** - First fix only covered store, not direct API calls
+2. **Search ALL occurrences** before fixing - Use `grep` across entire codebase
+3. **Use constants** - Prevents drift when updating for future models
+4. **Add sync tests** - Catches frontend/backend constant mismatches
+5. **Register migrations in health.py** - CI validation catches this
 
 ---
 
-## Verification Checklist (Before Claiming Complete)
+## Related Issues
 
-- [ ] Run tests: `npm run --prefix frontend test`
-- [ ] Run lint: `npm run --prefix frontend lint`
-- [ ] Verify analysis generates successfully for book 581
-- [ ] Check Lambda logs show correct model (opus)
-- [ ] No Bedrock timeout errors
+### Carrier API (Separate Project)
+GitHub issues #780-792 created with `carrier-api` label. Not blocked by this fix.
+
+### Books Affected
+- Book 581: "A Naturalists Voyage / Journal of Researches"
+- Book 578: "The Book of Snobs"
+- Book 579: "The History of Pendennis..."
