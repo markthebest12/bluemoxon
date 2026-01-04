@@ -640,6 +640,12 @@ def update_book(
         if not book.has_provenance:
             book.provenance_tier = None
 
+    # Recalculate discount_pct if value_mid changed
+    if "value_mid" in update_data or "value_low" in update_data or "value_high" in update_data:
+        from app.services.scoring import recalculate_discount_pct
+
+        recalculate_discount_pct(book)
+
     db.commit()
     db.refresh(book)
 
@@ -1489,6 +1495,12 @@ def update_book_analysis(
                 book.value_high = new_high
                 values_changed = True
 
+    # Recalculate discount_pct if FMV values changed
+    if values_changed:
+        from app.services.scoring import recalculate_discount_pct
+
+        recalculate_discount_pct(book)
+
     # Always recalculate scores when analysis is created/updated
     # Analysis content affects scoring (condition, market data, comparables)
     _calculate_and_persist_scores(book, db)
@@ -1683,6 +1695,12 @@ def generate_analysis(
                 book.value_high = new_high
                 values_changed = True
 
+    # Recalculate discount_pct if FMV values changed
+    if values_changed:
+        from app.services.scoring import recalculate_discount_pct
+
+        recalculate_discount_pct(book)
+
     # Always recalculate scores when analysis is generated
     # Analysis content affects scoring (condition, market data, comparables)
     _calculate_and_persist_scores(book, db)
@@ -1810,6 +1828,16 @@ def re_extract_structured_data(
     # Update extraction status
     analysis.extraction_status = "success"
 
+    # Recalculate discount_pct if FMV values changed
+    if (
+        "value_mid" in fields_updated
+        or "value_low" in fields_updated
+        or "value_high" in fields_updated
+    ):
+        from app.services.scoring import recalculate_discount_pct
+
+        recalculate_discount_pct(book)
+
     # Recalculate scores with new values
     _calculate_and_persist_scores(book, db)
 
@@ -1918,6 +1946,16 @@ def re_extract_all_degraded(
 
         # Update extraction status
         analysis.extraction_status = "success"
+
+        # Recalculate discount_pct if FMV values changed
+        if (
+            "value_mid" in fields_updated
+            or "value_low" in fields_updated
+            or "value_high" in fields_updated
+        ):
+            from app.services.scoring import recalculate_discount_pct
+
+            recalculate_discount_pct(book)
 
         # Recalculate scores
         _calculate_and_persist_scores(book, db)

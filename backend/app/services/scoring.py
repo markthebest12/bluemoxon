@@ -91,6 +91,30 @@ def calculate_investment_grade(
         return 0
 
 
+def recalculate_discount_pct(book: Book) -> None:
+    """Recalculate discount_pct based on current value_mid and purchase_price.
+
+    Updates book.discount_pct in place. Does NOT commit the session.
+
+    Args:
+        book: Book model instance to update
+
+    Formula: discount = (value_mid - purchase_price) / value_mid * 100
+    """
+    # Cannot calculate without both values
+    if book.purchase_price is None or book.value_mid is None:
+        return
+
+    # Invalid value_mid (zero or negative) - clear discount
+    if book.value_mid <= 0:
+        book.discount_pct = None
+        return
+
+    # Calculate fresh discount
+    discount = (float(book.value_mid) - float(book.purchase_price)) / float(book.value_mid) * 100
+    book.discount_pct = Decimal(str(round(discount, 2)))
+
+
 def author_tier_to_score(tier: str | None) -> int:
     """Convert author tier to priority score.
 
