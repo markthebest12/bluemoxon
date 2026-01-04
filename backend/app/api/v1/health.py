@@ -712,6 +712,50 @@ async def cleanup_orphans(db: Session = Depends(get_db)):
 
 
 @router.post(
+    "/recalculate-discounts",
+    summary="Recalculate stale discount percentages",
+    description="""
+Recalculate discount_pct for all books where the value may be stale.
+
+This is needed when FMV (value_mid) is updated after acquisition but
+discount_pct was not recalculated. For example, a book acquired with
+placeholder FMV of $53 later updated to $950 would have stale discount.
+
+Returns count of books updated.
+    """,
+    response_description="Recalculation results",
+    tags=["health"],
+)
+async def recalculate_discounts(db: Session = Depends(get_db)):
+    """Recalculate discount_pct for all books with both purchase_price and value_mid."""
+    from app.services.scoring import recalculate_discount_pct
+
+    # Get all books with both purchase_price and value_mid
+    books = (
+        db.query(Book)
+        .filter(Book.purchase_price.isnot(None))
+        .filter(Book.value_mid.isnot(None))
+        .filter(Book.value_mid > 0)
+        .all()
+    )
+
+    updated_count = 0
+    for book in books:
+        old_discount = book.discount_pct
+        recalculate_discount_pct(book)
+        if book.discount_pct != old_discount:
+            updated_count += 1
+
+    db.commit()
+
+    return {
+        "status": "completed",
+        "books_checked": len(books),
+        "books_updated": updated_count,
+    }
+
+
+@router.post(
     "/migrate",
     summary="Run database migrations",
     description="""
