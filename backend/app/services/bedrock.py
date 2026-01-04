@@ -14,6 +14,7 @@ from botocore.exceptions import ClientError
 from PIL import Image
 
 from app.config import get_settings
+from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.models import BookImage
 
 # Claude's maximum image size limit (base64 encoded) is 5MB
@@ -405,7 +406,7 @@ def build_bedrock_messages(
 
 def invoke_bedrock(
     messages: list[dict],
-    model: str = "sonnet",
+    model: str = DEFAULT_ANALYSIS_MODEL,
     max_tokens: int = 32000,
     max_retries: int = 3,
     base_delay: float = 5.0,
@@ -537,7 +538,7 @@ def load_extraction_prompt() -> str:
 
 def extract_structured_data(
     analysis_text: str | None,
-    model: str = "sonnet",
+    model: str = DEFAULT_ANALYSIS_MODEL,
     max_retries: int = 3,
     base_delay: float = 2.0,
 ) -> dict | None:

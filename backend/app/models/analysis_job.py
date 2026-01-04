@@ -7,6 +7,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.models.base import Base
 
 
@@ -32,7 +33,7 @@ class AnalysisJob(Base):
     model: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="sonnet",
+        default=DEFAULT_ANALYSIS_MODEL,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

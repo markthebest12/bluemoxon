@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.config import get_settings
+from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis, BookImage
 from app.services.analysis_parser import (
@@ -111,7 +112,7 @@ def handler(event: dict, context) -> dict:
             body = json.loads(record["body"])
             job_id = body["job_id"]
             book_id = body["book_id"]
-            model = body.get("model", "sonnet")
+            model = body.get("model", DEFAULT_ANALYSIS_MODEL)
 
             logger.info(f"Processing job {job_id} for book {book_id}, model={model}")
 

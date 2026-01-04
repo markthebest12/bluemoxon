@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { api } from "@/services/api";
+import { DEFAULT_ANALYSIS_MODEL } from "@/config";
 import AcquireModal from "@/components/AcquireModal.vue";
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 import EditWatchlistModal from "@/components/EditWatchlistModal.vue";
@@ -234,7 +235,7 @@ async function handleGenerateAnalysis(bookId: number) {
 
   startingAnalysis.value = bookId;
   try {
-    await api.post(`/books/${bookId}/analysis/generate-async`, { model: "sonnet" });
+    await api.post(`/books/${bookId}/analysis/generate-async`, { model: DEFAULT_ANALYSIS_MODEL });
     const poller = getOrCreateAnalysisPoller(bookId);
     poller.start(bookId);
   } catch (e: any) {
