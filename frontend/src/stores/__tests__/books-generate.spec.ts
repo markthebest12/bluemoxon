@@ -25,7 +25,7 @@ describe("books store - generateAnalysis", () => {
       data: {
         id: 1,
         book_id: 42,
-        model_used: "anthropic.claude-sonnet-4-5-20240929",
+        model_used: "us.anthropic.claude-opus-4-5-20251101-v1:0",
         full_markdown: "# Test Analysis",
       },
     };
@@ -35,27 +35,27 @@ describe("books store - generateAnalysis", () => {
     const result = await store.generateAnalysis(42);
 
     expect(api.post).toHaveBeenCalledWith("/books/42/analysis/generate", {
-      model: "sonnet",
+      model: "opus",
     });
     expect(result.full_markdown).toBe("# Test Analysis");
   });
 
-  it("generates analysis with opus model", async () => {
+  it("generates analysis with sonnet model", async () => {
     const mockResponse = {
       data: {
         id: 1,
         book_id: 42,
-        model_used: "anthropic.claude-opus-4-5-20251101",
-        full_markdown: "# Opus Analysis",
+        model_used: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        full_markdown: "# Sonnet Analysis",
       },
     };
     vi.mocked(api.post).mockResolvedValue(mockResponse);
 
     const store = useBooksStore();
-    await store.generateAnalysis(42, "opus");
+    await store.generateAnalysis(42, "sonnet");
 
     expect(api.post).toHaveBeenCalledWith("/books/42/analysis/generate", {
-      model: "opus",
+      model: "sonnet",
     });
   });
 

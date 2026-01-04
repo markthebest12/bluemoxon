@@ -606,6 +606,22 @@ MIGRATION_X7890123ABCD_SQL = [
     )""",
 ]
 
+# Migration SQL for d3b3c3c4dd80_backfill_tracking_active_for_in_transit_books
+# Data migration - sets tracking_active=true for existing in-transit books with tracking numbers
+MIGRATION_D3B3C3C4DD80_SQL = [
+    """UPDATE books
+       SET tracking_active = true
+       WHERE tracking_number IS NOT NULL
+         AND status = 'IN_TRANSIT'
+         AND tracking_active = false""",
+]
+
+# Migration SQL for 7a6d67bc123e_change_analysis_job_model_default_to_opus
+# Changes the database-level default for analysis_jobs.model from 'sonnet' to 'opus'
+MIGRATION_7A6D67BC123E_SQL = [
+    "ALTER TABLE analysis_jobs ALTER COLUMN model SET DEFAULT 'opus'",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -731,6 +747,7 @@ Migrations run in order:
 26. 5d2aef44594e - Add model_id column to book_analyses for AI model tracking
 27. w6789012wxyz - Add carrier API support (tracking_active, notifications table)
 28. x7890123abcd - Add E.164 phone constraint and carrier_circuit_state table
+29. d3b3c3c4dd80 - Backfill tracking_active for existing in-transit books
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -779,9 +796,11 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("5d2aef44594e", MIGRATION_5D2AEF44594E_SQL),
         ("w6789012wxyz", MIGRATION_W6789012WXYZ_SQL),
         ("x7890123abcd", MIGRATION_X7890123ABCD_SQL),
+        ("d3b3c3c4dd80", MIGRATION_D3B3C3C4DD80_SQL),
+        ("7a6d67bc123e", MIGRATION_7A6D67BC123E_SQL),
     ]
 
-    final_version = "x7890123abcd"
+    final_version = "7a6d67bc123e"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
