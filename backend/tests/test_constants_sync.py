@@ -24,9 +24,7 @@ class TestConstantsSync:
         content = frontend_config.read_text()
 
         # Extract: export const DEFAULT_ANALYSIS_MODEL: AnalysisModel = "opus";
-        match = re.search(
-            r'export const DEFAULT_ANALYSIS_MODEL.*?=\s*["\'](\w+)["\']', content
-        )
+        match = re.search(r'export const DEFAULT_ANALYSIS_MODEL.*?=\s*["\'](\w+)["\']', content)
         assert match, "DEFAULT_ANALYSIS_MODEL not found in frontend/src/config.ts"
 
         frontend_default = match.group(1)
@@ -39,6 +37,5 @@ class TestConstantsSync:
         """Ensure DEFAULT_ANALYSIS_MODEL is a valid model name."""
         valid_models = {"sonnet", "opus", "haiku"}
         assert DEFAULT_ANALYSIS_MODEL in valid_models, (
-            f"DEFAULT_ANALYSIS_MODEL={DEFAULT_ANALYSIS_MODEL!r} "
-            f"not in valid models: {valid_models}"
+            f"DEFAULT_ANALYSIS_MODEL={DEFAULT_ANALYSIS_MODEL!r} not in valid models: {valid_models}"
         )

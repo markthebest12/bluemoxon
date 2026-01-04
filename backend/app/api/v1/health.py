@@ -616,6 +616,12 @@ MIGRATION_D3B3C3C4DD80_SQL = [
          AND tracking_active = false""",
 ]
 
+# Migration SQL for 7a6d67bc123e_change_analysis_job_model_default_to_opus
+# Changes the database-level default for analysis_jobs.model from 'sonnet' to 'opus'
+MIGRATION_7A6D67BC123E_SQL = [
+    "ALTER TABLE analysis_jobs ALTER COLUMN model SET DEFAULT 'opus'",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -791,9 +797,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("w6789012wxyz", MIGRATION_W6789012WXYZ_SQL),
         ("x7890123abcd", MIGRATION_X7890123ABCD_SQL),
         ("d3b3c3c4dd80", MIGRATION_D3B3C3C4DD80_SQL),
+        ("7a6d67bc123e", MIGRATION_7A6D67BC123E_SQL),
     ]
 
-    final_version = "d3b3c3c4dd80"
+    final_version = "7a6d67bc123e"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
