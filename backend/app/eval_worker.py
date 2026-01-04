@@ -177,7 +177,11 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
             updates_applied.append("condition_grade")
 
         # Recalculate discount_pct if FMV values changed
-        if "value_mid" in updates_applied or "value_low" in updates_applied or "value_high" in updates_applied:
+        if (
+            "value_mid" in updates_applied
+            or "value_low" in updates_applied
+            or "value_high" in updates_applied
+        ):
             from app.services.scoring import recalculate_discount_pct
 
             recalculate_discount_pct(book)

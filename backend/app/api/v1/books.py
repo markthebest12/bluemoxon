@@ -1829,7 +1829,11 @@ def re_extract_structured_data(
     analysis.extraction_status = "success"
 
     # Recalculate discount_pct if FMV values changed
-    if "value_mid" in fields_updated or "value_low" in fields_updated or "value_high" in fields_updated:
+    if (
+        "value_mid" in fields_updated
+        or "value_low" in fields_updated
+        or "value_high" in fields_updated
+    ):
         from app.services.scoring import recalculate_discount_pct
 
         recalculate_discount_pct(book)
@@ -1944,7 +1948,11 @@ def re_extract_all_degraded(
         analysis.extraction_status = "success"
 
         # Recalculate discount_pct if FMV values changed
-        if "value_mid" in fields_updated or "value_low" in fields_updated or "value_high" in fields_updated:
+        if (
+            "value_mid" in fields_updated
+            or "value_low" in fields_updated
+            or "value_high" in fields_updated
+        ):
             from app.services.scoring import recalculate_discount_pct
 
             recalculate_discount_pct(book)

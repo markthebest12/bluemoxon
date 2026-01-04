@@ -111,11 +111,7 @@ def recalculate_discount_pct(book: Book) -> None:
         return
 
     # Calculate fresh discount
-    discount = (
-        (float(book.value_mid) - float(book.purchase_price))
-        / float(book.value_mid)
-        * 100
-    )
+    discount = (float(book.value_mid) - float(book.purchase_price)) / float(book.value_mid) * 100
     book.discount_pct = Decimal(str(round(discount, 2)))
 
 
