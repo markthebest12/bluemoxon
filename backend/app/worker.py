@@ -299,6 +299,12 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             if "value_mid" in book_updates:
                 book.value_mid = book_updates["value_mid"]
 
+            # Recalculate discount_pct if FMV values changed
+            if "value_mid" in book_updates or "value_low" in book_updates or "value_high" in book_updates:
+                from app.services.scoring import recalculate_discount_pct
+
+                recalculate_discount_pct(book)
+
             # Update condition_grade
             if "condition_grade" in book_updates:
                 book.condition_grade = book_updates["condition_grade"]
