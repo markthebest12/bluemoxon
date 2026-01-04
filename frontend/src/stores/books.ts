@@ -236,7 +236,7 @@ export const useBooksStore = defineStore("books", () => {
 
   async function generateAnalysis(
     bookId: number,
-    model: "sonnet" | "opus" = "sonnet"
+    model: "sonnet" | "opus" = "opus"
   ): Promise<{
     id: number;
     book_id: number;
@@ -262,7 +262,7 @@ export const useBooksStore = defineStore("books", () => {
    */
   async function generateAnalysisAsync(
     bookId: number,
-    model: "sonnet" | "opus" = "sonnet"
+    model: "sonnet" | "opus" = "opus"
   ): Promise<AnalysisJob> {
     const response = await api.post(`/books/${bookId}/analysis/generate-async`, { model });
     const job = response.data as AnalysisJob;
