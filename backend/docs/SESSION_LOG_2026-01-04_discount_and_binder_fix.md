@@ -89,7 +89,11 @@ After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 ## Pending Work
 
 ### PR #799 - Binder Proliferation Fix
-**Status:** CI running after merge conflict resolution
+**Status:** CI running after test fix (Bayntun moved from TIER_2 to TIER_1)
+
+**Test fix made:** Updated `tests/test_reference_service.py`:
+- `test_tier_2_bayntun` → `test_tier_1_bayntun`
+- `test_creates_tier_2_binder` now uses Morrell instead of Bayntun
 
 **Next Steps:**
 1. Wait for CI to pass on PR #799
