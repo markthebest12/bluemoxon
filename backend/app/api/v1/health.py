@@ -756,6 +756,145 @@ async def recalculate_discounts(db: Session = Depends(get_db)):
 
 
 @router.post(
+    "/merge-binders",
+    summary="Merge duplicate binders to canonical names",
+    description="""
+Merge duplicate binder entries to their canonical names based on the
+normalization rules in reference.py.
+
+For example:
+- "Francis Bedford" -> "Bedford"
+- "James Hayday" -> "Hayday"
+- "Birdsall of Northampton" -> "Birdsall"
+
+Books are reassigned to the canonical binder, and empty duplicates are deleted.
+Returns list of merges performed.
+    """,
+    response_description="Merge results",
+    tags=["health"],
+)
+async def merge_binders(db: Session = Depends(get_db)):
+    """Merge duplicate binders to canonical names."""
+    from app.models.binder import Binder
+    from app.services.reference import normalize_binder_name
+
+    results = []
+    errors = []
+
+    # Get all binders
+    all_binders = db.query(Binder).all()
+
+    # Group by canonical name
+    canonical_map: dict[str, list[Binder]] = {}
+    for binder in all_binders:
+        canonical_name, tier = normalize_binder_name(binder.name)
+        if canonical_name is None:
+            continue
+        if canonical_name not in canonical_map:
+            canonical_map[canonical_name] = []
+        canonical_map[canonical_name].append((binder, tier))
+
+    # Process each group
+    for canonical_name, binder_list in canonical_map.items():
+        if len(binder_list) <= 1:
+            # No duplicates, but may need tier update
+            binder, tier = binder_list[0]
+            if tier and not binder.tier:
+                binder.tier = tier
+                results.append(
+                    {
+                        "action": "tier_update",
+                        "binder": binder.name,
+                        "new_tier": tier,
+                    }
+                )
+            continue
+
+        # Find or create canonical binder
+        canonical_binder = None
+        duplicates = []
+        best_tier = None
+
+        for binder, tier in binder_list:
+            if tier:
+                best_tier = tier
+            if binder.name == canonical_name:
+                canonical_binder = binder
+            else:
+                duplicates.append(binder)
+
+        # If canonical doesn't exist, use first binder and rename it
+        if canonical_binder is None:
+            canonical_binder = binder_list[0][0]
+            old_name = canonical_binder.name
+            canonical_binder.name = canonical_name
+            duplicates = [b for b, _ in binder_list[1:]]
+            results.append(
+                {
+                    "action": "rename",
+                    "from": old_name,
+                    "to": canonical_name,
+                }
+            )
+
+        # Update tier if needed
+        if best_tier and not canonical_binder.tier:
+            canonical_binder.tier = best_tier
+
+        # Merge books from duplicates to canonical
+        for dup_binder in duplicates:
+            # Reassign books
+            book_count = 0
+            for book in dup_binder.books:
+                book.binder_id = canonical_binder.id
+                book_count += 1
+
+            if book_count > 0:
+                results.append(
+                    {
+                        "action": "merge",
+                        "from": dup_binder.name,
+                        "to": canonical_name,
+                        "books_moved": book_count,
+                    }
+                )
+
+            # Delete the duplicate binder
+            try:
+                db.delete(dup_binder)
+                results.append(
+                    {
+                        "action": "delete",
+                        "binder": dup_binder.name,
+                    }
+                )
+            except Exception as e:
+                errors.append(
+                    {
+                        "action": "delete",
+                        "binder": dup_binder.name,
+                        "error": str(e),
+                    }
+                )
+
+    try:
+        db.commit()
+    except Exception as e:
+        errors.append({"action": "commit", "error": str(e)})
+        return {
+            "status": "failed",
+            "results": results,
+            "errors": errors,
+        }
+
+    return {
+        "status": "success" if not errors else "partial",
+        "results": results,
+        "errors": errors if errors else None,
+    }
+
+
+@router.post(
     "/migrate",
     summary="Run database migrations",
     description="""

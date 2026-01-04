@@ -5,27 +5,76 @@ from sqlalchemy.orm import Session
 from app.models.binder import Binder
 
 # Binder tier mappings based on market recognition and historical significance
+# Each variant maps to a canonical name. The normalization function checks if
+# any variant is contained within the input name (case-insensitive).
 TIER_1_BINDERS = {
+    # Sangorski & Sutcliffe - premier 20th century bindery
     "Sangorski & Sutcliffe": "Sangorski & Sutcliffe",
     "Sangorski": "Sangorski & Sutcliffe",
+    # Rivière & Son - leading Victorian/Edwardian bindery
     "Rivière & Son": "Rivière & Son",
     "Rivière": "Rivière & Son",
     "Riviere & Son": "Rivière & Son",
     "Riviere": "Rivière & Son",
+    # Zaehnsdorf - prestigious Victorian bindery
     "Zaehnsdorf": "Zaehnsdorf",
+    # Cobden-Sanderson / Doves Bindery - Arts & Crafts masterworks
     "Cobden-Sanderson": "Cobden-Sanderson",
     "Doves Bindery": "Cobden-Sanderson",
+    "Doves": "Cobden-Sanderson",
+    # Bedford - Francis Bedford, leading Victorian binder
     "Bedford": "Bedford",
+    "Francis Bedford": "Bedford",
+    # Hayday - James Hayday, prestigious Victorian binder
+    "Hayday": "Hayday",
+    "James Hayday": "Hayday",
+    # Leighton - John Leighton family, top Victorian binders
+    "Leighton": "Leighton",
+    "J. Leighton": "Leighton",
+    "John Leighton": "Leighton",
+    "Leighton, Son & Hodge": "Leighton",
+    # Charles Lewis - prestigious early Victorian binder
+    "Charles Lewis": "Charles Lewis",
+    "C. Lewis": "Charles Lewis",
+    # Bayntun - moved to TIER_1 (prestigious Bath bindery, still operating)
+    "Bayntun": "Bayntun",
+    "Bayntun-Riviere": "Bayntun",
+    "Bayntun Riviere": "Bayntun",
 }
 
 TIER_2_BINDERS = {
+    # Morrell - quality Victorian/Edwardian bindery
     "Morrell": "Morrell",
+    # Root & Son - good Victorian trade bindery
     "Root & Son": "Root & Son",
     "Root": "Root & Son",
-    "Bayntun": "Bayntun",
-    "Bayntun-Riviere": "Bayntun",
+    # Tout - quality Victorian trade bindery
     "Tout": "Tout",
+    "Tout & Sons": "Tout",
+    # Stikeman - American fine binder
     "Stikeman": "Stikeman",
+    # Birdsall - quality Northampton bindery
+    "Birdsall": "Birdsall",
+    "Birdsall of Northampton": "Birdsall",
+    "Birdsall, Northampton": "Birdsall",
+    # David Bryce & Son - Scottish miniature book specialists
+    "David Bryce": "David Bryce & Son",
+    "Bryce": "David Bryce & Son",
+    # Sotheran - primarily booksellers but quality bindings
+    "Sotheran": "H. Sotheran & Co.",
+    "H. Sotheran": "H. Sotheran & Co.",
+    # Roger de Coverly - Arts & Crafts movement binder
+    "Roger de Coverly": "Roger de Coverly",
+    "de Coverly": "Roger de Coverly",
+    # Cedric Chivers - known for vellucent/transparent bindings
+    "Cedric Chivers": "Cedric Chivers",
+    "Chivers": "Cedric Chivers",
+    # Bumpus - quality London bookseller/binder
+    "Bumpus": "J. & E. Bumpus",
+    "J. & E. Bumpus": "J. & E. Bumpus",
+    "John Bumpus": "J. & E. Bumpus",
+    # Thurnam - Carlisle binder
+    "Thurnam": "Thurnam",
 }
 
 
