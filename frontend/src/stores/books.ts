@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 
 export interface AnalysisJob {
   job_id: string;
@@ -236,7 +237,7 @@ export const useBooksStore = defineStore("books", () => {
 
   async function generateAnalysis(
     bookId: number,
-    model: "sonnet" | "opus" = "sonnet"
+    model: AnalysisModel = DEFAULT_ANALYSIS_MODEL
   ): Promise<{
     id: number;
     book_id: number;
@@ -262,7 +263,7 @@ export const useBooksStore = defineStore("books", () => {
    */
   async function generateAnalysisAsync(
     bookId: number,
-    model: "sonnet" | "opus" = "sonnet"
+    model: AnalysisModel = DEFAULT_ANALYSIS_MODEL
   ): Promise<AnalysisJob> {
     const response = await api.post(`/books/${bookId}/analysis/generate-async`, { model });
     const job = response.data as AnalysisJob;

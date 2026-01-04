@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 
 const props = defineProps<{
   bookId: number;
@@ -54,7 +55,7 @@ const showPreview = ref(true);
 const showMobileMenu = ref(false);
 
 // Generate controls
-const selectedModel = ref<"sonnet" | "opus">("opus");
+const selectedModel = ref<AnalysisModel>(DEFAULT_ANALYSIS_MODEL);
 const generating = ref(false);
 const generateError = ref<string | null>(null);
 

@@ -5,6 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
@@ -57,7 +58,7 @@ watch(
 
 // Analysis generation state
 const startingAnalysis = ref(false);
-const selectedModel = ref<"sonnet" | "opus">("opus");
+const selectedModel = ref<AnalysisModel>(DEFAULT_ANALYSIS_MODEL);
 const modelOptions = [
   { value: "opus", label: "Opus 4.5" },
   { value: "sonnet", label: "Sonnet 4.5" },
