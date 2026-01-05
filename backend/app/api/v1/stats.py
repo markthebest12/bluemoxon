@@ -237,8 +237,10 @@ def get_by_publisher(db: Session = Depends(get_db)):
 def get_by_author(db: Session = Depends(get_db)):
     """Get counts by author with sample book titles.
 
-    Returns individual book counts (volumes), not set counts.
-    For example, a 24-volume set counts as 24, not 1.
+    Returns:
+        - count: Number of book records (a 24-volume set counts as 1)
+        - total_volumes: Sum of all volumes (a 24-volume set contributes 24)
+        - titles: Same as count, number of distinct book records
     """
     from app.models import Author
 
@@ -246,21 +248,21 @@ def get_by_author(db: Session = Depends(get_db)):
         db.query(
             Author.id,
             Author.name,
-            func.count(Book.id),  # Number of titles/sets
+            func.count(Book.id),  # Number of book records
             func.sum(Book.value_mid),
-            func.sum(Book.volumes),  # Total individual books
+            func.sum(Book.volumes),  # Total volumes across all records
         )
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
         .group_by(Author.id)
-        .order_by(func.sum(Book.volumes).desc())  # Order by total volumes
+        .order_by(func.count(Book.id).desc())  # Order by record count
         .all()
     )
 
     # For each author, get sample book titles (up to 5)
     author_data = []
     for row in results:
-        author_id, author_name, title_count, value, volumes = row
+        author_id, author_name, record_count, value, volumes = row
 
         # Get sample book titles for this author
         sample_books = (
@@ -274,12 +276,13 @@ def get_by_author(db: Session = Depends(get_db)):
         author_data.append(
             {
                 "author": author_name,
-                "count": volumes or 0,  # Individual books, not sets
+                "count": record_count,  # Number of book records (fix #827)
                 "value": float(value or 0),
-                "volumes": volumes or 0,
-                "titles": title_count,  # Number of distinct titles/sets
+                "volumes": volumes or 0,  # Backward compat with frontend
+                "total_volumes": volumes or 0,  # New field, same value
+                "titles": record_count,  # Same as count for backward compat
                 "sample_titles": sample_titles,
-                "has_more": title_count > 5,
+                "has_more": record_count > 5,
             }
         )
 

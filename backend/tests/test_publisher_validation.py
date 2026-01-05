@@ -3,9 +3,11 @@
 import pytest
 
 from app.services.publisher_validation import (
+    PUBLISHER_CACHE_TTL_SECONDS,
     auto_correct_publisher_name,
     fuzzy_match_publisher,
     get_or_create_publisher,
+    invalidate_publisher_cache,
     normalize_publisher_name,
 )
 
@@ -194,6 +196,13 @@ class TestNormalizePublisherName:
 class TestFuzzyMatchPublisher:
     """Test fuzzy matching against existing publishers."""
 
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear cache before and after each test."""
+        invalidate_publisher_cache()
+        yield
+        invalidate_publisher_cache()
+
     def test_exact_match_returns_high_confidence(self, db):
         from app.models.publisher import Publisher
 
@@ -346,3 +355,99 @@ class TestGetOrCreatePublisher:
         assert result is not None
         assert result.description is None  # Not enriched yet
         # New publishers should exist but without enrichment
+
+
+class TestPublisherCaching:
+    """Test publisher caching for fuzzy matching performance."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear cache before each test."""
+        invalidate_publisher_cache()
+        yield
+        invalidate_publisher_cache()
+
+    def test_cache_avoids_repeated_db_queries(self, db):
+        """Verify that multiple fuzzy_match_publisher calls use cache, not DB."""
+        import app.services.publisher_validation as pv
+        from app.models.publisher import Publisher
+
+        # Create some publishers
+        db.add(Publisher(name="Harper & Brothers", tier="TIER_1"))
+        db.add(Publisher(name="Macmillan", tier="TIER_1"))
+        db.flush()
+
+        # Clear cache to start fresh
+        invalidate_publisher_cache()
+
+        # Verify cache is empty
+        assert pv._publisher_cache is None
+
+        # First call should populate cache
+        fuzzy_match_publisher(db, "Harper")
+
+        # Verify cache is now populated
+        assert pv._publisher_cache is not None
+        cache_after_first_call = pv._publisher_cache
+        cache_time_after_first = pv._publisher_cache_time
+
+        # Second call should use same cache (not re-query)
+        fuzzy_match_publisher(db, "Macmillan")
+
+        # Cache should be the exact same object (not re-queried)
+        assert pv._publisher_cache is cache_after_first_call
+        assert pv._publisher_cache_time == cache_time_after_first
+
+    def test_cache_invalidation_forces_db_query(self, db):
+        """Verify that invalidate_publisher_cache forces a fresh DB query."""
+        from app.models.publisher import Publisher
+
+        db.add(Publisher(name="Original Publisher", tier="TIER_1"))
+        db.flush()
+
+        # First call populates cache
+        matches1 = fuzzy_match_publisher(db, "Original Publisher")
+        assert len(matches1) >= 1
+
+        # Add new publisher
+        db.add(Publisher(name="New Publisher", tier="TIER_2"))
+        db.flush()
+
+        # Without invalidation, cache would miss the new publisher
+        # Invalidate cache
+        invalidate_publisher_cache()
+
+        # Now should see the new publisher
+        matches2 = fuzzy_match_publisher(db, "New Publisher")
+        assert len(matches2) >= 1
+        assert any(m.name == "New Publisher" for m in matches2)
+
+    def test_get_or_create_publisher_invalidates_cache_on_create(self, db):
+        """Verify that creating a new publisher invalidates the cache."""
+        from app.models.publisher import Publisher
+        from app.models.publisher_alias import PublisherAlias
+
+        # Seed an alias so normalize_publisher_name works
+        pub = Publisher(name="Existing Publisher", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+        db.add(PublisherAlias(alias_name="Existing Publisher", publisher_id=pub.id))
+        db.flush()
+
+        # Populate cache
+        fuzzy_match_publisher(db, "Existing Publisher")
+
+        # Create a new publisher via get_or_create_publisher
+        new_pub = get_or_create_publisher(db, "Brand New Publisher")
+        assert new_pub is not None
+        assert new_pub.name == "Brand New Publisher"
+
+        # The new publisher should be findable via fuzzy match
+        # (cache should have been invalidated)
+        matches = fuzzy_match_publisher(db, "Brand New Publisher")
+        assert len(matches) >= 1
+        assert any(m.name == "Brand New Publisher" for m in matches)
+
+    def test_cache_ttl_constant_is_set(self):
+        """Verify cache TTL is configured."""
+        assert PUBLISHER_CACHE_TTL_SECONDS == 300  # 5 minutes
