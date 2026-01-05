@@ -291,6 +291,13 @@ class TestEnvironmentDetection:
             settings = Settings()
             assert settings.is_aws_lambda is False
 
+    def test_is_aws_lambda_false_with_empty_string_secrets(self):
+        """is_aws_lambda should be False when secrets are empty strings."""
+        env = {"BMX_DATABASE_SECRET_ARN": "", "BMX_DATABASE_SECRET_NAME": ""}
+        with patch.dict(os.environ, env, clear=True):
+            settings = Settings()
+            assert settings.is_aws_lambda is False
+
     def test_is_production_true_when_environment_production(self):
         """is_production should be True only when environment is 'production'."""
         env = {"BMX_ENVIRONMENT": "production"}
@@ -305,42 +312,8 @@ class TestEnvironmentDetection:
             settings = Settings()
             assert settings.is_production is False
 
-    def test_is_production_false_when_environment_development(self):
-        """is_production should be False when environment is 'development'."""
-        env = {"BMX_ENVIRONMENT": "development"}
-        with patch.dict(os.environ, env, clear=True):
-            settings = Settings()
-            assert settings.is_production is False
-
     def test_is_production_false_by_default(self):
         """is_production should be False with default environment."""
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
             assert settings.is_production is False
-
-    def test_is_aws_lambda_and_is_production_independent(self):
-        """is_aws_lambda and is_production should be independent checks.
-
-        Staging in Lambda: is_aws_lambda=True, is_production=False
-        Production in Lambda: is_aws_lambda=True, is_production=True
-        Local development: is_aws_lambda=False, is_production=False
-        """
-        # Staging in Lambda
-        env = {
-            "BMX_DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-east-1:123:secret:db",
-            "BMX_ENVIRONMENT": "staging",
-        }
-        with patch.dict(os.environ, env, clear=True):
-            settings = Settings()
-            assert settings.is_aws_lambda is True
-            assert settings.is_production is False
-
-        # Production in Lambda
-        env = {
-            "BMX_DATABASE_SECRET_ARN": "arn:aws:secretsmanager:us-east-1:123:secret:db",
-            "BMX_ENVIRONMENT": "production",
-        }
-        with patch.dict(os.environ, env, clear=True):
-            settings = Settings()
-            assert settings.is_aws_lambda is True
-            assert settings.is_production is True

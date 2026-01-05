@@ -924,9 +924,10 @@ class TestBuildBookResponse:
 
     def test_builds_response_with_images(self, db):
         """Test primary_image_url and image_count with images."""
-        from unittest.mock import patch
+        from unittest.mock import PropertyMock, patch
 
         from app.api.v1.books import _build_book_response
+        from app.config import Settings
         from app.models import Book, BookImage
 
         book = Book(title="Test Book With Images")
@@ -949,28 +950,26 @@ class TestBuildBookResponse:
         db.commit()
         db.refresh(book)
 
-        from app.api.v1.books import settings
-
-        # Mock settings.is_aws_lambda by setting database_secret_arn
-        original_arn = settings.database_secret_arn
-        settings.database_secret_arn = "arn:aws:secretsmanager:test"
-        try:
-            with patch(
+        with (
+            patch.object(
+                Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True
+            ),
+            patch(
                 "app.api.v1.books.get_cloudfront_url",
                 return_value="https://cdn.example.com/images/img2.jpg",
-            ):
-                response = _build_book_response(book, db)
-        finally:
-            settings.database_secret_arn = original_arn
+            ),
+        ):
+            response = _build_book_response(book, db)
 
         assert response.image_count == 2
         assert response.primary_image_url == "https://cdn.example.com/images/img2.jpg"
 
     def test_builds_response_with_first_image_as_primary_fallback(self, db):
         """Test primary image falls back to first by display_order when none marked primary."""
-        from unittest.mock import patch
+        from unittest.mock import PropertyMock, patch
 
         from app.api.v1.books import _build_book_response
+        from app.config import Settings
         from app.models import Book, BookImage
 
         book = Book(title="Test Book Fallback Primary")
@@ -993,18 +992,15 @@ class TestBuildBookResponse:
         db.commit()
         db.refresh(book)
 
-        from app.api.v1.books import settings
-
-        # Mock settings.is_aws_lambda by setting database_secret_arn
-        original_arn = settings.database_secret_arn
-        settings.database_secret_arn = "arn:aws:secretsmanager:test"
-        try:
-            with patch("app.api.v1.books.get_cloudfront_url") as mock_cdn:
-                mock_cdn.return_value = "https://cdn.example.com/images/second.jpg"
-                response = _build_book_response(book, db)
-                mock_cdn.assert_called_once_with("images/second.jpg")
-        finally:
-            settings.database_secret_arn = original_arn
+        with (
+            patch.object(
+                Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True
+            ),
+            patch("app.api.v1.books.get_cloudfront_url") as mock_cdn,
+        ):
+            mock_cdn.return_value = "https://cdn.example.com/images/second.jpg"
+            response = _build_book_response(book, db)
+            mock_cdn.assert_called_once_with("images/second.jpg")
 
         assert response.primary_image_url == "https://cdn.example.com/images/second.jpg"
 

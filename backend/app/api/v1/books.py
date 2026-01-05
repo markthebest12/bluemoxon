@@ -115,8 +115,10 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
 def get_api_base_url() -> str:
     """Get the API base URL for constructing absolute URLs."""
-    if settings.is_aws_lambda:
+    if settings.is_production:
         return "https://api.bluemoxon.com"
+    elif settings.is_aws_lambda:
+        return "https://staging.api.bluemoxon.com"
     return ""  # Relative URLs for local dev
 
 
