@@ -308,6 +308,22 @@ async def version():
     return get_version_info()
 
 
+# =============================================================================
+# EMBEDDED MIGRATION SQL - DO NOT REFACTOR TO USE ALEMBIC PROGRAMMATICALLY
+# =============================================================================
+# These SQL constants are intentionally embedded here rather than calling
+# alembic.command.upgrade(). This is the correct design for Lambda because:
+#
+# 1. Lambda package only includes app/ and lambdas/ - NOT alembic.ini or alembic/
+# 2. Embedded SQL is self-contained with no external file dependencies
+# 3. All statements use IF NOT EXISTS for idempotency
+# 4. Per-statement results provide visibility into what ran
+# 5. Uses existing db session (no transaction corruption from separate connections)
+#
+# See: backend/docs/SESSION_LOG_2026-01-04_health_migration_refactor.md
+# See: GitHub issue #801 for full investigation
+# =============================================================================
+
 # Migration SQL for e44df6ab5669_add_acquisition_columns
 MIGRATION_E44DF6AB5669_SQL = [
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS source_url VARCHAR(500)",

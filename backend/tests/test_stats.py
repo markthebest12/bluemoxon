@@ -332,3 +332,19 @@ class TestValueByCategory:
         premium = next((c for c in data if c["category"] == "Premium Bindings"), None)
         assert premium is not None
         assert premium["value"] == 1000
+
+
+class TestSecurityEndpoints:
+    """Tests for endpoint security - issue #804."""
+
+    def test_fix_publisher_tiers_endpoint_removed(self, client):
+        """Verify /fix-publisher-tiers endpoint was removed (security fix #804).
+
+        This endpoint was an unauthenticated one-time migration that should
+        never have been a permanent API endpoint.
+        """
+        response = client.post("/api/v1/stats/fix-publisher-tiers")
+        assert response.status_code == 404, (
+            "fix-publisher-tiers endpoint should be removed - it was an "
+            "unauthenticated endpoint that could modify the database"
+        )
