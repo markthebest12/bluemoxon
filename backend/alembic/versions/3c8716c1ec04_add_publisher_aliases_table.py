@@ -59,11 +59,28 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+
+    # Index on alias_name for exact lookups (unique constraint)
     op.create_index(
         "ix_publisher_aliases_alias_name",
         "publisher_aliases",
         ["alias_name"],
         unique=True,
+    )
+
+    # Functional index for case-insensitive lookups
+    op.execute(
+        sa.text(
+            "CREATE INDEX ix_publisher_aliases_alias_name_lower "
+            "ON publisher_aliases (LOWER(alias_name))"
+        )
+    )
+
+    # Index on publisher_id for efficient cascade deletes
+    op.create_index(
+        "ix_publisher_aliases_publisher_id",
+        "publisher_aliases",
+        ["publisher_id"],
     )
 
     # Seed data using raw SQL for reliability
@@ -120,5 +137,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    conn = op.get_bind()
+
+    # Delete publishers that were seeded by this migration AND have no books
+    # This prevents orphaned data while being safe for publishers with books
+    seed_names = [name for name, _, _ in PUBLISHER_SEEDS]
+    for name in seed_names:
+        conn.execute(
+            sa.text(
+                "DELETE FROM publishers "
+                "WHERE name = :name "
+                "AND NOT EXISTS (SELECT 1 FROM books WHERE publisher_id = publishers.id)"
+            ),
+            {"name": name},
+        )
+
+    # Drop indexes and table
+    op.drop_index("ix_publisher_aliases_publisher_id", table_name="publisher_aliases")
+    op.execute(sa.text("DROP INDEX IF EXISTS ix_publisher_aliases_alias_name_lower"))
     op.drop_index("ix_publisher_aliases_alias_name", table_name="publisher_aliases")
     op.drop_table("publisher_aliases")

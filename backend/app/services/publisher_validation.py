@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from rapidfuzz import fuzz
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.publisher_alias import PublisherAlias
 
@@ -115,9 +115,10 @@ def normalize_publisher_name(db: Session, name: str) -> tuple[str, str | None]:
     # Apply auto-correction first
     corrected = auto_correct_publisher_name(name)
 
-    # Look up alias in database (case-insensitive)
+    # Look up alias in database (case-insensitive) with eager loading
     alias = (
         db.query(PublisherAlias)
+        .options(joinedload(PublisherAlias.publisher))
         .filter(func.lower(PublisherAlias.alias_name) == corrected.lower())
         .first()
     )
