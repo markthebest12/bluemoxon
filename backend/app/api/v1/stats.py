@@ -1,9 +1,10 @@
 """Statistics API endpoints."""
 
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -71,21 +72,28 @@ def get_overview(db: Session = Depends(get_db)):
     # Use purchase_date to find books acquired in the last 7 days
     one_week_ago = date.today() - timedelta(days=7)
 
-    # This week's acquisitions (books purchased in last 7 days)
-    week_arrivals = (
-        db.query(Book)
+    # Week delta calculation using SQL aggregation
+    week_delta = (
+        db.query(
+            func.count(Book.id).label("count"),
+            func.sum(func.coalesce(Book.volumes, 1)).label("volumes"),
+            func.coalesce(func.sum(Book.value_mid), 0).label("value"),
+            func.sum(case((Book.binding_authenticated.is_(True), 1), else_=0)).label(
+                "authenticated"
+            ),
+        )
         .filter(
             on_hand_filter,
             Book.purchase_date >= one_week_ago,
         )
-        .all()
+        .first()
     )
 
-    # Calculate deltas
-    week_count_delta = len(week_arrivals)
-    week_volumes_delta = sum(b.volumes or 1 for b in week_arrivals)
-    week_value_delta = sum(float(b.value_mid or 0) for b in week_arrivals)
-    week_premium_delta = sum(1 for b in week_arrivals if b.binding_authenticated)
+    # Extract values with defaults
+    week_count_delta = week_delta.count or 0
+    week_volumes_delta = int(week_delta.volumes or 0)
+    week_value_delta = float(week_delta.value or 0)
+    week_premium_delta = int(week_delta.authenticated or 0)
 
     return {
         "primary": {
@@ -117,9 +125,32 @@ def get_overview(db: Session = Depends(get_db)):
 @router.get("/metrics")
 def get_collection_metrics(db: Session = Depends(get_db)):
     """Get detailed collection metrics including Victorian %, ROI, discount averages."""
-    primary_books = db.query(Book).filter(Book.inventory_type == "PRIMARY").all()
+    # Victorian detection: year_start OR year_end in 1800-1901
+    victorian_case = case(
+        (
+            (Book.year_start.between(1800, 1901)) | (Book.year_end.between(1800, 1901)),
+            1,
+        ),
+        else_=0,
+    )
 
-    if not primary_books:
+    # Single aggregation query for all metrics
+    result = (
+        db.query(
+            func.count(Book.id).label("total"),
+            func.sum(victorian_case).label("victorian_count"),
+            func.avg(Book.discount_pct).label("avg_discount"),
+            func.avg(Book.roi_pct).label("avg_roi"),
+            func.sum(Book.purchase_price).label("total_purchase"),
+            func.sum(Book.value_mid).label("total_value"),
+        )
+        .filter(Book.inventory_type == "PRIMARY")
+        .first()
+    )
+
+    total_count = result.total or 0
+
+    if total_count == 0:
         return {
             "victorian_percentage": 0,
             "average_discount": 0,
@@ -131,26 +162,16 @@ def get_collection_metrics(db: Session = Depends(get_db)):
             "total_current_value": 0,
         }
 
-    total_count = len(primary_books)
-
-    # Victorian/Romantic era books (1800-1901)
-    victorian_count = 0
-    for book in primary_books:
-        if book.year_start and 1800 <= book.year_start <= 1901:
-            victorian_count += 1
-        elif book.year_end and 1800 <= book.year_end <= 1901:
-            victorian_count += 1
-
+    victorian_count = result.victorian_count or 0
     victorian_pct = (victorian_count / total_count * 100) if total_count > 0 else 0
 
-    # Average discount and ROI
-    discounts = [float(b.discount_pct) for b in primary_books if b.discount_pct is not None]
-    rois = [float(b.roi_pct) for b in primary_books if b.roi_pct is not None]
+    avg_discount = float(result.avg_discount or 0)
+    avg_roi = float(result.avg_roi or 0)
 
-    avg_discount = sum(discounts) / len(discounts) if discounts else 0
-    avg_roi = sum(rois) / len(rois) if rois else 0
+    total_purchase = float(result.total_purchase or 0)
+    total_value = float(result.total_value or 0)
 
-    # Tier 1 publisher count
+    # Tier 1 publisher count (separate query - requires JOIN to Publisher)
     tier_1_count = (
         db.query(Book)
         .join(Publisher)
@@ -162,10 +183,6 @@ def get_collection_metrics(db: Session = Depends(get_db)):
     )
 
     tier_1_pct = (tier_1_count / total_count * 100) if total_count > 0 else 0
-
-    # Total purchase cost and current value
-    total_purchase = sum(float(b.purchase_price) for b in primary_books if b.purchase_price)
-    total_value = sum(float(b.value_mid) for b in primary_books if b.value_mid)
 
     return {
         "victorian_percentage": round(victorian_pct, 1),
@@ -241,9 +258,12 @@ def get_by_author(db: Session = Depends(get_db)):
         - count: Number of book records (a 24-volume set counts as 1)
         - total_volumes: Sum of all volumes (a 24-volume set contributes 24)
         - titles: Same as count, number of distinct book records
+
+    Performance: Uses 2 batch queries instead of N+1 (one query per author).
     """
     from app.models import Author
 
+    # Query 1: Aggregation (unchanged)
     results = (
         db.query(
             Author.id,
@@ -259,19 +279,38 @@ def get_by_author(db: Session = Depends(get_db)):
         .all()
     )
 
-    # For each author, get sample book titles (up to 5)
+    # Collect author IDs
+    author_ids = [row[0] for row in results]
+
+    if not author_ids:
+        return []
+
+    # Query 2: Batch fetch sample titles using window function
+    subq = (
+        db.query(
+            Book.author_id,
+            Book.title,
+            func.row_number().over(partition_by=Book.author_id).label("rn"),
+        )
+        .filter(
+            Book.author_id.in_(author_ids),
+            Book.inventory_type == "PRIMARY",
+        )
+        .subquery()
+    )
+
+    sample_titles_rows = db.query(subq.c.author_id, subq.c.title).filter(subq.c.rn <= 5).all()
+
+    # Build lookup dict: author_id -> [titles]
+    titles_by_author = defaultdict(list)
+    for author_id, title in sample_titles_rows:
+        titles_by_author[author_id].append(title)
+
+    # Build response using the lookup
     author_data = []
     for row in results:
         author_id, author_name, record_count, value, volumes = row
-
-        # Get sample book titles for this author
-        sample_books = (
-            db.query(Book.title)
-            .filter(Book.author_id == author_id, Book.inventory_type == "PRIMARY")
-            .limit(5)
-            .all()
-        )
-        sample_titles = [b.title for b in sample_books]
+        sample_titles = titles_by_author.get(author_id, [])
 
         author_data.append(
             {
@@ -323,46 +362,37 @@ def get_bindings(db: Session = Depends(get_db)):
 @router.get("/by-era")
 def get_by_era(db: Session = Depends(get_db)):
     """Get counts by era (Victorian, Romantic, etc.)."""
-    primary_books = db.query(Book).filter(Book.inventory_type == "PRIMARY").all()
+    # Use COALESCE to prefer year_start, fall back to year_end
+    year_col = func.coalesce(Book.year_start, Book.year_end)
 
-    era_counts = {
-        "Romantic (1800-1837)": 0,
-        "Victorian (1837-1901)": 0,
-        "Edwardian (1901-1910)": 0,
-        "Post-1910": 0,
-        "Unknown": 0,
-    }
+    era_case = case(
+        (year_col.is_(None), literal("Unknown")),
+        (year_col < 1800, literal("Pre-Romantic (before 1800)")),
+        (year_col.between(1800, 1836), literal("Romantic (1800-1837)")),
+        (year_col.between(1837, 1901), literal("Victorian (1837-1901)")),
+        (year_col.between(1902, 1910), literal("Edwardian (1901-1910)")),
+        else_=literal("Post-1910"),
+    ).label("era")
 
-    era_values = dict.fromkeys(era_counts.keys(), 0.0)
-
-    for book in primary_books:
-        year = book.year_start or book.year_end
-        value = float(book.value_mid) if book.value_mid else 0
-
-        if not year:
-            era_counts["Unknown"] += 1
-            era_values["Unknown"] += value
-        elif 1800 <= year < 1837:
-            era_counts["Romantic (1800-1837)"] += 1
-            era_values["Romantic (1800-1837)"] += value
-        elif 1837 <= year <= 1901:
-            era_counts["Victorian (1837-1901)"] += 1
-            era_values["Victorian (1837-1901)"] += value
-        elif 1901 < year <= 1910:
-            era_counts["Edwardian (1901-1910)"] += 1
-            era_values["Edwardian (1901-1910)"] += value
-        else:
-            era_counts["Post-1910"] += 1
-            era_values["Post-1910"] += value
+    results = (
+        db.query(
+            era_case,
+            func.count(Book.id).label("count"),
+            func.sum(Book.value_mid).label("value"),
+        )
+        .filter(Book.inventory_type == "PRIMARY")
+        .group_by(era_case)
+        .all()
+    )
 
     return [
         {
-            "era": era,
-            "count": count,
-            "value": round(era_values[era], 2),
+            "era": row[0],
+            "count": row[1],
+            "value": round(float(row[2] or 0), 2),
         }
-        for era, count in era_counts.items()
-        if count > 0
+        for row in results
+        if row[1] > 0  # Only return eras with books
     ]
 
 
