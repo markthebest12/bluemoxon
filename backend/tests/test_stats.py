@@ -288,6 +288,46 @@ class TestByAuthor:
         data = response.json()
         assert data == []
 
+    def test_by_author_counts_volumes_not_sets(self, client, db):
+        """Test that count reflects individual books (volumes), not sets."""
+        from app.models import Author
+
+        author = Author(name="Charles Dickens")
+        db.add(author)
+        db.commit()
+
+        # Create 2 book records: one 24-volume set and one 1-volume book
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Works of Dickens",
+                "author_id": author.id,
+                "volumes": 24,
+                "value_mid": 1000,
+            },
+        )
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "A Christmas Carol",
+                "author_id": author.id,
+                "volumes": 1,
+                "value_mid": 100,
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        dickens = next((a for a in data if a["author"] == "Charles Dickens"), None)
+        assert dickens is not None
+        # Count should be 25 (24 + 1 volumes), not 2 (sets)
+        assert dickens["count"] == 25
+        assert dickens["titles"] == 2  # 2 distinct titles
+        assert dickens["volumes"] == 25
+        assert len(dickens["sample_titles"]) == 2
+
 
 class TestValueByCategory:
     """Tests for GET /api/v1/stats/value-by-category."""
