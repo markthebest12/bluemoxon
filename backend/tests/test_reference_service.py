@@ -107,6 +107,39 @@ class TestNormalizeBinderName:
         assert name == "Zaehnsdorf"
         assert tier == "TIER_1"
 
+    def test_no_false_positive_bedford_books_ltd(self):
+        """Bedford Books Ltd should NOT match Bedford TIER_1.
+
+        Regression test for issue #826: bidirectional substring matching
+        caused 'Bedford' to match any name containing 'Bedford'.
+        """
+        name, tier = normalize_binder_name("Bedford Books Ltd")
+        # Should NOT match Bedford (TIER_1) - this is a different company
+        assert name == "Bedford Books Ltd"
+        assert tier is None
+
+    def test_no_false_positive_single_letter(self):
+        """Single letter 'J' should NOT match 'J. Leighton' TIER_1.
+
+        Regression test for issue #826: bidirectional substring matching
+        caused short inputs to match long variants.
+        """
+        name, tier = normalize_binder_name("J")
+        # Should NOT match J. Leighton (TIER_1) - catastrophic false positive
+        assert name == "J"
+        assert tier is None
+
+    def test_no_false_positive_partial_name(self):
+        """'Root Beer Company' should NOT match 'Root & Son' TIER_2.
+
+        Regression test for issue #826: ensure substring matching only works
+        when the VARIANT is found in the INPUT, not vice versa.
+        """
+        name, tier = normalize_binder_name("Root Beer Company")
+        # Should NOT match Root & Son (TIER_2)
+        assert name == "Root Beer Company"
+        assert tier is None
+
 
 class TestGetOrCreateBinder:
     """Test binder lookup/creation from parsed analysis."""
