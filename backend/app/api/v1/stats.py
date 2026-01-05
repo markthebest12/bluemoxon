@@ -516,20 +516,6 @@ def get_acquisitions_daily(
     return result
 
 
-@router.post("/fix-publisher-tiers")
-def fix_publisher_tiers(db: Session = Depends(get_db)):
-    """One-time fix to set Tier 1 publisher tiers in the database."""
-    updated = []
-    for pub_name in TIER_1_PUBLISHERS:
-        publisher = db.query(Publisher).filter(Publisher.name == pub_name).first()
-        if publisher and publisher.tier != "TIER_1":
-            publisher.tier = "TIER_1"
-            updated.append(pub_name)
-
-    db.commit()
-    return {"updated": updated, "count": len(updated)}
-
-
 @router.get("/value-by-category")
 def get_value_by_category(db: Session = Depends(get_db)):
     """Get value distribution by major categories for pie chart."""
