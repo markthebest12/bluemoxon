@@ -725,3 +725,175 @@ class TestStaleJobAutoCleanup:
         db.refresh(stale_job)
         assert stale_job.status == "failed"
         assert "timed out" in stale_job.error_message.lower()
+
+
+class TestBuildBookResponse:
+    """Tests for _build_book_response helper function."""
+
+    def test_builds_response_with_basic_fields(self, db):
+        """Test that _build_book_response returns BookResponse with computed fields."""
+        from app.api.v1.books import _build_book_response
+        from app.models import Book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        response = _build_book_response(book, db)
+
+        assert response.id == book.id
+        assert response.title == "Test Book"
+        assert response.has_analysis is False
+        assert response.has_eval_runbook is False
+        assert response.eval_runbook_job_status is None
+        assert response.analysis_job_status is None
+        assert response.image_count == 0
+        assert response.primary_image_url is None
+
+    def test_builds_response_with_analysis(self, db):
+        """Test has_analysis is True when book has analysis."""
+        from app.api.v1.books import _build_book_response
+        from app.models import Book
+        from app.models.analysis import BookAnalysis
+
+        book = Book(title="Test Book With Analysis")
+        db.add(book)
+        db.commit()
+
+        analysis = BookAnalysis(book_id=book.id, recommendations="Buy it")
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+
+        response = _build_book_response(book, db)
+
+        assert response.has_analysis is True
+
+    def test_builds_response_with_images(self, db):
+        """Test primary_image_url and image_count with images."""
+        from unittest.mock import patch
+
+        from app.api.v1.books import _build_book_response
+        from app.models import Book, BookImage
+
+        book = Book(title="Test Book With Images")
+        db.add(book)
+        db.commit()
+
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="images/img1.jpg",
+            display_order=1,
+            is_primary=False,
+        )
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="images/img2.jpg",
+            display_order=2,
+            is_primary=True,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+        db.refresh(book)
+
+        with patch("app.api.v1.books.is_production", return_value=True):
+            with patch(
+                "app.api.v1.books.get_cloudfront_url",
+                return_value="https://cdn.example.com/images/img2.jpg",
+            ):
+                response = _build_book_response(book, db)
+
+        assert response.image_count == 2
+        assert response.primary_image_url == "https://cdn.example.com/images/img2.jpg"
+
+    def test_builds_response_with_first_image_as_primary_fallback(self, db):
+        """Test primary image falls back to first by display_order when none marked primary."""
+        from unittest.mock import patch
+
+        from app.api.v1.books import _build_book_response
+        from app.models import Book, BookImage
+
+        book = Book(title="Test Book Fallback Primary")
+        db.add(book)
+        db.commit()
+
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="images/first.jpg",
+            display_order=5,
+            is_primary=False,
+        )
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="images/second.jpg",
+            display_order=1,
+            is_primary=False,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+        db.refresh(book)
+
+        with patch("app.api.v1.books.is_production", return_value=True):
+            with patch("app.api.v1.books.get_cloudfront_url") as mock_cdn:
+                mock_cdn.return_value = "https://cdn.example.com/images/second.jpg"
+                response = _build_book_response(book, db)
+                mock_cdn.assert_called_once_with("images/second.jpg")
+
+        assert response.primary_image_url == "https://cdn.example.com/images/second.jpg"
+
+    def test_builds_response_with_analysis_issues(self, db):
+        """Test analysis_issues populated when analysis has problems."""
+        from app.api.v1.books import _build_book_response
+        from app.models import Book
+        from app.models.analysis import BookAnalysis
+
+        book = Book(title="Test Book Truncated Analysis")
+        db.add(book)
+        db.commit()
+
+        analysis = BookAnalysis(
+            book_id=book.id,
+            recommendations=None,  # Missing = truncated
+            condition_assessment=None,  # Missing condition
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(book)
+
+        response = _build_book_response(book, db)
+
+        assert response.analysis_issues is not None
+        assert "truncated" in response.analysis_issues
+        assert "missing_condition" in response.analysis_issues
+
+    def test_builds_response_with_active_job_status(self, db):
+        """Test job statuses populated when active jobs exist."""
+        from uuid import uuid4
+
+        from app.api.v1.books import _build_book_response
+        from app.models import AnalysisJob, Book, EvalRunbookJob
+
+        book = Book(title="Test Book With Jobs")
+        db.add(book)
+        db.commit()
+
+        analysis_job = AnalysisJob(
+            id=uuid4(),
+            book_id=book.id,
+            status="running",
+            model="opus",
+        )
+        eval_job = EvalRunbookJob(
+            id=uuid4(),
+            book_id=book.id,
+            status="pending",
+        )
+        db.add_all([analysis_job, eval_job])
+        db.commit()
+        db.refresh(book)
+
+        response = _build_book_response(book, db)
+
+        assert response.analysis_job_status == "running"
+        assert response.eval_runbook_job_status == "pending"
