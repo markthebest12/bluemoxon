@@ -191,9 +191,11 @@ def _parse_market_analysis(text: str) -> dict:
     result: dict = {"raw_text": text}
 
     # Extract valuation range from table or bold markers
-    low_match = re.search(r"Low\s*\|?\s*\$?([\d,]+)", text)
-    mid_match = re.search(r"Mid\s*\|?\s*\$?([\d,]+)", text)
-    high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
+    # Handle plain (Low), asterisk bold (**Low**), underscore bold (__Low__) - Issue #814
+    # Case-insensitive matching for robustness
+    low_match = re.search(r"(?:\*\*|__)?low(?:\*\*|__)?\s*\|?\s*\$?([\d,]+)", text, re.IGNORECASE)
+    mid_match = re.search(r"(?:\*\*|__)?mid(?:\*\*|__)?\s*\|?\s*\$?([\d,]+)", text, re.IGNORECASE)
+    high_match = re.search(r"(?:\*\*|__)?high(?:\*\*|__)?\s*\|?\s*\$?([\d,]+)", text, re.IGNORECASE)
 
     if low_match or mid_match or high_match:
         result["valuation"] = {}

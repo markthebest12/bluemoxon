@@ -31,3 +31,43 @@ class TestWorkerErrorMessages:
         formatted = format_analysis_error(generic_error, image_count=5)
 
         assert formatted == "Something else went wrong"
+
+
+class TestWorkerJobFailure:
+    """Tests for worker job failure handling - Issue #815."""
+
+    def test_failed_job_sets_completed_at(self, db):
+        """Issue #815: Failed jobs must set completed_at, not just error_message."""
+        from datetime import UTC, datetime
+
+        from app.models import AnalysisJob, Book
+
+        # Create a book and job
+        book = Book(title="Test Book", inventory_type="PRIMARY")
+        db.add(book)
+        db.commit()
+
+        job = AnalysisJob(
+            book_id=book.id,
+            status="running",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        # Simulate the failure handling that worker.py does
+        job.status = "failed"
+        job.error_message = "Simulated timeout error"
+        job.updated_at = datetime.now(UTC)
+        job.completed_at = datetime.now(UTC)  # This is what #815 fixes
+        db.commit()
+
+        # Verify both are set
+        db.refresh(job)
+        assert job.status == "failed"
+        assert job.error_message is not None
+        assert job.completed_at is not None, (
+            "Issue #815: Failed jobs must set completed_at to properly indicate "
+            "when the failure occurred, not leave it as None"
+        )

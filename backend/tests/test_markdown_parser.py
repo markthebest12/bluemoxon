@@ -241,6 +241,54 @@ class TestParseMarketAnalysis:
         result = _parse_market_analysis(text)
         assert result["raw_text"] == text
 
+    def test_extracts_valuation_with_bold_labels(self):
+        """Issue #814: Parser should handle bold markdown labels like **Low**."""
+        text = """| Estimate | Value |
+|----------|-------|
+| **Low** | $450 |
+| **Mid** | $650 |
+| **High** | $900 |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 450
+        assert result["valuation"]["mid"] == 650
+        assert result["valuation"]["high"] == 900
+
+    def test_extracts_valuation_with_bold_labels_and_notes(self):
+        """Issue #814: Handle bold labels with additional text in cells."""
+        text = """| **Low** | $400 | Normal market, buyer aware of conservation needs |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 400
+
+    def test_extracts_valuation_with_underscore_bold(self):
+        """Issue #814: Handle underscore bold formatting (__Low__)."""
+        text = """| __Low__ | $450 |
+| __Mid__ | $650 |
+| __High__ | $900 |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 450
+        assert result["valuation"]["mid"] == 650
+        assert result["valuation"]["high"] == 900
+
+    def test_extracts_valuation_case_insensitive(self):
+        """Issue #814: Handle case variations (LOW, low, Low)."""
+        text = """| LOW | $100 |
+| mid | $200 |
+| HIGH | $300 |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 100
+        assert result["valuation"]["mid"] == 200
+        assert result["valuation"]["high"] == 300
+
+    def test_extracts_valuation_mixed_bold_and_plain(self):
+        """Issue #814: Handle mixed formatting in same table."""
+        text = """| **Low** | $450 |
+| Mid | $650 |
+| **High** | $900 |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 450
+        assert result["valuation"]["mid"] == 650
+        assert result["valuation"]["high"] == 900
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
