@@ -288,8 +288,12 @@ class TestByAuthor:
         data = response.json()
         assert data == []
 
-    def test_by_author_counts_volumes_not_sets(self, client, db):
-        """Test that count reflects individual books (volumes), not sets."""
+    def test_by_author_count_is_records_total_volumes_is_sum(self, client, db):
+        """Test that count is record count, total_volumes is sum of volumes.
+
+        Issue #827: count was incorrectly returning sum of volumes.
+        A 24-volume encyclopedia should return count: 1, total_volumes: 24.
+        """
         from app.models import Author
 
         author = Author(name="Charles Dickens")
@@ -322,10 +326,11 @@ class TestByAuthor:
 
         dickens = next((a for a in data if a["author"] == "Charles Dickens"), None)
         assert dickens is not None
-        # Count should be 25 (24 + 1 volumes), not 2 (sets)
-        assert dickens["count"] == 25
+        # count should be number of book records (2), NOT sum of volumes
+        assert dickens["count"] == 2, "count should be record count, not volume sum"
+        # total_volumes should be the sum of volumes (24 + 1 = 25)
+        assert dickens["total_volumes"] == 25, "total_volumes should be sum of volumes"
         assert dickens["titles"] == 2  # 2 distinct titles
-        assert dickens["volumes"] == 25
         assert len(dickens["sample_titles"]) == 2
 
 

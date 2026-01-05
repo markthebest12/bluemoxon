@@ -1,6 +1,8 @@
 """Publisher validation service for normalizing and matching publisher names."""
 
 import re
+import threading
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -13,6 +15,62 @@ from app.models.publisher_alias import PublisherAlias
 
 if TYPE_CHECKING:
     from app.models.publisher import Publisher
+
+
+# Publisher cache for fuzzy matching - avoids O(n) DB queries per lookup
+# Cache is thread-safe and expires after 5 minutes
+_publisher_cache: list[tuple[int, str, str | None]] | None = None
+_publisher_cache_time: float = 0.0
+_publisher_cache_lock = threading.Lock()
+PUBLISHER_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _get_cached_publishers(db: Session) -> list[tuple[int, str, str | None]]:
+    """Get publishers from cache or DB, with TTL-based expiration.
+
+    Returns list of (id, name, tier) tuples for fuzzy matching.
+    Thread-safe with lock protection.
+    """
+    global _publisher_cache, _publisher_cache_time
+
+    current_time = time.monotonic()
+
+    # Check if cache is valid (double-checked locking pattern)
+    if (
+        _publisher_cache is not None
+        and (current_time - _publisher_cache_time) < PUBLISHER_CACHE_TTL_SECONDS
+    ):
+        return _publisher_cache
+
+    with _publisher_cache_lock:
+        # Re-check inside lock (another thread may have refreshed)
+        if (
+            _publisher_cache is not None
+            and (current_time - _publisher_cache_time) < PUBLISHER_CACHE_TTL_SECONDS
+        ):
+            return _publisher_cache
+
+        from app.models.publisher import Publisher
+
+        # Query only the fields needed for fuzzy matching (more efficient)
+        publishers = db.query(Publisher.id, Publisher.name, Publisher.tier).all()
+        _publisher_cache = [(p.id, p.name, p.tier) for p in publishers]
+        _publisher_cache_time = time.monotonic()
+
+        return _publisher_cache
+
+
+def invalidate_publisher_cache() -> None:
+    """Invalidate the publisher cache.
+
+    Call this when publishers are created, updated, or deleted.
+    """
+    global _publisher_cache, _publisher_cache_time
+
+    with _publisher_cache_lock:
+        _publisher_cache = None
+        _publisher_cache_time = 0.0
+
 
 # Location suffixes to remove (case-insensitive)
 LOCATION_SUFFIXES = [
@@ -148,6 +206,9 @@ def fuzzy_match_publisher(
 ) -> list[PublisherMatch]:
     """Find existing publishers that fuzzy-match the given name.
 
+    Uses cached publisher list to avoid O(n) DB queries per lookup.
+    Cache expires after PUBLISHER_CACHE_TTL_SECONDS.
+
     Args:
         db: Database session
         name: Publisher name to match
@@ -157,21 +218,19 @@ def fuzzy_match_publisher(
     Returns:
         List of PublisherMatch objects, sorted by confidence descending
     """
-    from app.models.publisher import Publisher
-
     # Apply auto-correction before matching
     corrected_name = auto_correct_publisher_name(name)
 
-    # Get all publishers
-    publishers = db.query(Publisher).all()
+    # Get publishers from cache (avoids repeated DB queries)
+    cached_publishers = _get_cached_publishers(db)
 
     matches = []
-    for pub in publishers:
+    for pub_id, pub_name, pub_tier in cached_publishers:
         # Calculate similarity ratio (0-100 scale from rapidfuzz)
-        ratio = fuzz.ratio(corrected_name.lower(), pub.name.lower()) / 100.0
+        ratio = fuzz.ratio(corrected_name.lower(), pub_name.lower()) / 100.0
 
         # Also try token sort ratio for word order independence
-        token_ratio = fuzz.token_sort_ratio(corrected_name.lower(), pub.name.lower()) / 100.0
+        token_ratio = fuzz.token_sort_ratio(corrected_name.lower(), pub_name.lower()) / 100.0
 
         # Use the higher of the two scores
         confidence = max(ratio, token_ratio)
@@ -179,9 +238,9 @@ def fuzzy_match_publisher(
         if confidence >= threshold:
             matches.append(
                 PublisherMatch(
-                    publisher_id=pub.id,
-                    name=pub.name,
-                    tier=pub.tier,
+                    publisher_id=pub_id,
+                    name=pub_name,
+                    tier=pub_tier,
                     confidence=confidence,
                 )
             )
@@ -246,6 +305,8 @@ def get_or_create_publisher(
         with db.begin_nested():  # Savepoint - only rolls back this block on error
             db.add(publisher)
             db.flush()
+        # New publisher created - invalidate cache so next lookup includes it
+        invalidate_publisher_cache()
     except IntegrityError as e:
         # Only handle unique constraint violation on name column
         # Re-raise if it's a different constraint (tier enum, future columns, etc.)

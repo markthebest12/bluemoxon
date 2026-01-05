@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.models.binder import Binder
 
 # Binder tier mappings based on market recognition and historical significance
-# Each variant maps to a canonical name. The normalization function checks if
-# any variant is contained within the input name (case-insensitive).
+# Each variant maps to a canonical name. The normalization function checks for
+# exact matches (case-insensitive) to avoid false positives.
 TIER_1_BINDERS = {
     # Sangorski & Sutcliffe - premier 20th century bindery
     "Sangorski & Sutcliffe": "Sangorski & Sutcliffe",
@@ -95,13 +95,17 @@ def normalize_binder_name(name: str) -> tuple[str | None, str | None]:
         return None, None
 
     # Check Tier 1 first
+    # Use exact matching (case-insensitive) to avoid false positives like:
+    # - "Bedford Books Ltd" matching "Bedford" (different company contains variant)
+    # - "J" matching "J. Leighton" (input is substring of variant - catastrophic!)
+    # The caller is responsible for extracting the binder name from surrounding text.
     for variant, canonical in TIER_1_BINDERS.items():
-        if variant.lower() in name.lower() or name.lower() in variant.lower():
+        if variant.lower() == name_lower:
             return canonical, "TIER_1"
 
     # Check Tier 2
     for variant, canonical in TIER_2_BINDERS.items():
-        if variant.lower() in name.lower() or name.lower() in variant.lower():
+        if variant.lower() == name_lower:
             return canonical, "TIER_2"
 
     # Unknown binder - use as-is with no tier
