@@ -125,16 +125,22 @@ def get_overview(db: Session = Depends(get_db)):
 @router.get("/metrics")
 def get_collection_metrics(db: Session = Depends(get_db)):
     """Get detailed collection metrics including Victorian %, ROI, discount averages."""
-    # Victorian detection: year_start OR year_end in 1800-1901
+    # Victorian detection: year_start OR year_end in 1837-1901 (matches get_by_era)
     victorian_case = case(
         (
-            (Book.year_start.between(1800, 1901)) | (Book.year_end.between(1800, 1901)),
+            (Book.year_start.between(1837, 1901)) | (Book.year_end.between(1837, 1901)),
             1,
         ),
         else_=0,
     )
 
-    # Single aggregation query for all metrics
+    # Tier 1 publisher detection (combined with main query via OUTER JOIN)
+    tier_1_case = case(
+        (Publisher.tier == "TIER_1", 1),
+        else_=0,
+    )
+
+    # Single aggregation query for all metrics (including Tier 1 via OUTER JOIN)
     result = (
         db.query(
             func.count(Book.id).label("total"),
@@ -143,7 +149,9 @@ def get_collection_metrics(db: Session = Depends(get_db)):
             func.avg(Book.roi_pct).label("avg_roi"),
             func.sum(Book.purchase_price).label("total_purchase"),
             func.sum(Book.value_mid).label("total_value"),
+            func.sum(tier_1_case).label("tier_1_count"),
         )
+        .outerjoin(Publisher)
         .filter(Book.inventory_type == "PRIMARY")
         .first()
     )
@@ -170,17 +178,7 @@ def get_collection_metrics(db: Session = Depends(get_db)):
 
     total_purchase = float(result.total_purchase or 0)
     total_value = float(result.total_value or 0)
-
-    # Tier 1 publisher count (separate query - requires JOIN to Publisher)
-    tier_1_count = (
-        db.query(Book)
-        .join(Publisher)
-        .filter(
-            Book.inventory_type == "PRIMARY",
-            Publisher.tier == "TIER_1",
-        )
-        .count()
-    )
+    tier_1_count = int(result.tier_1_count or 0)
 
     tier_1_pct = (tier_1_count / total_count * 100) if total_count > 0 else 0
 
@@ -290,7 +288,7 @@ def get_by_author(db: Session = Depends(get_db)):
         db.query(
             Book.author_id,
             Book.title,
-            func.row_number().over(partition_by=Book.author_id).label("rn"),
+            func.row_number().over(partition_by=Book.author_id, order_by=Book.id).label("rn"),
         )
         .filter(
             Book.author_id.in_(author_ids),
@@ -368,9 +366,9 @@ def get_by_era(db: Session = Depends(get_db)):
     era_case = case(
         (year_col.is_(None), literal("Unknown")),
         (year_col < 1800, literal("Pre-Romantic (before 1800)")),
-        (year_col.between(1800, 1836), literal("Romantic (1800-1837)")),
+        (year_col.between(1800, 1836), literal("Romantic (1800-1836)")),
         (year_col.between(1837, 1901), literal("Victorian (1837-1901)")),
-        (year_col.between(1902, 1910), literal("Edwardian (1901-1910)")),
+        (year_col.between(1902, 1910), literal("Edwardian (1902-1910)")),
         else_=literal("Post-1910"),
     ).label("era")
 
