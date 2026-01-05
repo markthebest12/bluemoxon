@@ -134,3 +134,87 @@ class TestServiceInfo:
 
         for feature, value in data["features"].items():
             assert isinstance(value, bool), f"Feature {feature} should be boolean"
+
+
+class TestMigrateEndpoint:
+    """Tests for database migration endpoint using Alembic programmatically.
+
+    These tests mock the Alembic command module to verify the endpoint
+    correctly invokes migrations without actually running them in tests.
+
+    The endpoint is expected to:
+    1. Call alembic.command.upgrade(config, "head")
+    2. Return previous_version and new_version in the response
+    3. Handle errors gracefully with proper error responses
+    """
+
+    def test_migrate_calls_alembic_upgrade(self, client, db):
+        """Verify endpoint calls alembic.command.upgrade(config, 'head')."""
+        from unittest.mock import MagicMock, patch
+
+        mock_config = MagicMock()
+
+        with patch("app.api.v1.health.command") as mock_command:
+            with patch("app.api.v1.health.Config", return_value=mock_config):
+                response = client.post("/api/v1/health/migrate")
+
+                assert response.status_code == 200
+                mock_command.upgrade.assert_called_once()
+                # Verify called with config and "head"
+                call_args = mock_command.upgrade.call_args
+                assert call_args[0][0] == mock_config
+                assert call_args[0][1] == "head"
+
+    def test_migrate_returns_version_info(self, client, db):
+        """Verify response includes previous_version and new_version."""
+        from unittest.mock import MagicMock, patch
+
+        mock_config = MagicMock()
+
+        with patch("app.api.v1.health.command"):
+            with patch("app.api.v1.health.Config", return_value=mock_config):
+                response = client.post("/api/v1/health/migrate")
+
+                assert response.status_code == 200
+                data = response.json()
+                assert "previous_version" in data
+                assert "new_version" in data
+
+    def test_migrate_handles_alembic_error(self, client, db):
+        """Verify proper error handling when Alembic fails."""
+        from unittest.mock import MagicMock, patch
+
+        from alembic.util.exc import CommandError
+
+        mock_config = MagicMock()
+
+        with patch("app.api.v1.health.command") as mock_command:
+            with patch("app.api.v1.health.Config", return_value=mock_config):
+                mock_command.upgrade.side_effect = CommandError("Migration failed")
+
+                response = client.post("/api/v1/health/migrate")
+
+                # Should return 200 with error status, not 500
+                assert response.status_code == 200
+                data = response.json()
+                assert data.get("status") in ("failed", "error")
+                assert "error" in data or "errors" in data
+
+    def test_migrate_returns_success_status(self, client, db):
+        """Verify successful response structure."""
+        from unittest.mock import MagicMock, patch
+
+        mock_config = MagicMock()
+
+        with patch("app.api.v1.health.command"):
+            with patch("app.api.v1.health.Config", return_value=mock_config):
+                response = client.post("/api/v1/health/migrate")
+
+                assert response.status_code == 200
+                data = response.json()
+
+                # Verify success response structure
+                assert "status" in data
+                assert data["status"] == "success"
+                assert "previous_version" in data
+                assert "new_version" in data
