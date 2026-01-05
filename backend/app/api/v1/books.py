@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.v1.images import get_cloudfront_url, is_production
+from app.api.v1.images import get_cloudfront_url
 from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
@@ -115,9 +115,7 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
 def get_api_base_url() -> str:
     """Get the API base URL for constructing absolute URLs."""
-    if (
-        settings.database_secret_arn is not None or settings.database_secret_name is not None
-    ):  # Production check
+    if settings.is_aws_lambda:
         return "https://api.bluemoxon.com"
     return ""  # Relative URLs for local dev
 
@@ -280,7 +278,7 @@ def _build_book_response(book: Book, db: Session) -> BookResponse:
             primary_image = min(book.images, key=lambda x: x.display_order)
 
     if primary_image:
-        if is_production():
+        if settings.is_aws_lambda:
             book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
         else:
             base_url = settings.base_url or "http://localhost:8000"
@@ -546,7 +544,7 @@ def list_books(
                 primary_image = min(book.images, key=lambda x: x.display_order)
 
         if primary_image:
-            if is_production():
+            if settings.is_aws_lambda:
                 # Use CloudFront CDN URL in production
                 book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
             else:
@@ -770,7 +768,7 @@ def delete_book(
         )
 
         # Delete physical image files from S3 (production uses S3)
-        if settings.database_secret_arn is not None or settings.database_secret_name is not None:
+        if settings.is_aws_lambda:
             # In production, delete from S3
             import os
 

@@ -147,6 +147,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_NOTIFICATION_FROM_EMAIL", "NOTIFICATION_FROM_EMAIL"),
     )
 
+    @property
+    def is_aws_lambda(self) -> bool:
+        """True when running in AWS Lambda (staging or production).
+
+        Detects AWS environment by checking for database secret configuration,
+        which is only set when running in Lambda with Secrets Manager.
+        Handles empty strings as "not set".
+        """
+        return bool(self.database_secret_arn) or bool(self.database_secret_name)
+
+    @property
+    def is_production(self) -> bool:
+        """True only in production environment."""
+        return self.environment == "production"
+
 
 @lru_cache
 def get_settings() -> Settings:

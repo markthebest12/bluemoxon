@@ -949,12 +949,19 @@ class TestBuildBookResponse:
         db.commit()
         db.refresh(book)
 
-        with patch("app.api.v1.books.is_production", return_value=True):
+        from app.api.v1.books import settings
+
+        # Mock settings.is_aws_lambda by setting database_secret_arn
+        original_arn = settings.database_secret_arn
+        settings.database_secret_arn = "arn:aws:secretsmanager:test"
+        try:
             with patch(
                 "app.api.v1.books.get_cloudfront_url",
                 return_value="https://cdn.example.com/images/img2.jpg",
             ):
                 response = _build_book_response(book, db)
+        finally:
+            settings.database_secret_arn = original_arn
 
         assert response.image_count == 2
         assert response.primary_image_url == "https://cdn.example.com/images/img2.jpg"
@@ -986,11 +993,18 @@ class TestBuildBookResponse:
         db.commit()
         db.refresh(book)
 
-        with patch("app.api.v1.books.is_production", return_value=True):
+        from app.api.v1.books import settings
+
+        # Mock settings.is_aws_lambda by setting database_secret_arn
+        original_arn = settings.database_secret_arn
+        settings.database_secret_arn = "arn:aws:secretsmanager:test"
+        try:
             with patch("app.api.v1.books.get_cloudfront_url") as mock_cdn:
                 mock_cdn.return_value = "https://cdn.example.com/images/second.jpg"
                 response = _build_book_response(book, db)
                 mock_cdn.assert_called_once_with("images/second.jpg")
+        finally:
+            settings.database_secret_arn = original_arn
 
         assert response.primary_image_url == "https://cdn.example.com/images/second.jpg"
 

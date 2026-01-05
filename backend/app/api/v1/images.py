@@ -49,11 +49,6 @@ def get_cloudfront_cdn_url() -> str:
     return "https://app.bluemoxon.com/book-images"
 
 
-def is_production() -> bool:
-    """Check if we're running in AWS (Lambda) - includes both prod and staging."""
-    return settings.database_secret_arn is not None or settings.database_secret_name is not None
-
-
 def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
     """Get the CloudFront CDN URL for an image.
 
@@ -134,7 +129,7 @@ def get_thumbnail_key(s3_key: str) -> str:
 
 def get_api_base_url() -> str:
     """Get the API base URL for constructing absolute URLs."""
-    if is_production():
+    if settings.is_aws_lambda:
         return "https://api.bluemoxon.com"
     return ""  # Relative URLs for local dev
 
@@ -157,7 +152,7 @@ def list_book_images(book_id: int, db: Session = Depends(get_db)):
 
     result = []
     for img in images:
-        if is_production():
+        if settings.is_aws_lambda:
             # Use CloudFront CDN URLs for caching
             url = get_cloudfront_url(img.s3_key)
             thumbnail_url = get_cloudfront_url(img.s3_key, is_thumbnail=True)
@@ -209,7 +204,7 @@ def get_primary_image(book_id: int, db: Session = Depends(get_db)):
     base_url = get_api_base_url()
 
     if image:
-        if is_production():
+        if settings.is_aws_lambda:
             # Use CloudFront CDN URLs for caching
             url = get_cloudfront_url(image.s3_key)
             thumbnail_url = get_cloudfront_url(image.s3_key, is_thumbnail=True)
@@ -286,7 +281,7 @@ def get_image_file(book_id: int, image_id: int, db: Session = Depends(get_db)):
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    if is_production():
+    if settings.is_aws_lambda:
         # In production, redirect to CloudFront CDN URL (cached)
         cloudfront_url = get_cloudfront_url(image.s3_key)
         return RedirectResponse(url=cloudfront_url, status_code=302)
@@ -313,7 +308,7 @@ def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_d
 
     thumbnail_key = get_thumbnail_key(image.s3_key)
 
-    if is_production():
+    if settings.is_aws_lambda:
         # In production, redirect to CloudFront CDN URL (cached)
         # CloudFront will return 404 if thumbnail doesn't exist, which is acceptable
         cloudfront_url = get_cloudfront_url(image.s3_key, is_thumbnail=True)
@@ -368,7 +363,7 @@ async def upload_image(
     if existing:
         # Return existing image info instead of uploading duplicate
         base_url = get_api_base_url()
-        if is_production():
+        if settings.is_aws_lambda:
             url = get_cloudfront_url(existing.s3_key)
         else:
             url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/file"
@@ -394,7 +389,7 @@ async def upload_image(
     generate_thumbnail(file_path, thumbnail_path)  # Best effort, ignore errors
 
     # Upload to S3 in production
-    if is_production():
+    if settings.is_aws_lambda:
         s3 = get_s3_client()
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
@@ -514,7 +509,7 @@ def delete_image(
         raise HTTPException(status_code=404, detail="Image not found")
 
     # Delete file and thumbnail from storage
-    if is_production():
+    if settings.is_aws_lambda:
         # In production, delete from S3
         s3 = get_s3_client()
         for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
@@ -595,7 +590,7 @@ def regenerate_thumbnails(
 
     Downloads each original image from S3, generates a thumbnail, and uploads it.
     """
-    if not is_production():
+    if not settings.is_aws_lambda:
         raise HTTPException(
             status_code=400, detail="Thumbnail regeneration only available in production"
         )
