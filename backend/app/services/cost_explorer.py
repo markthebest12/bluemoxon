@@ -73,27 +73,31 @@ def _is_cache_valid(timezone: str | None = None) -> bool:
     return age < CACHE_TTL_SECONDS
 
 
-def get_costs(timezone: str | None = None) -> dict[str, Any]:
+def get_costs(timezone: str | None = None, force_refresh: bool = False) -> dict[str, Any]:
     """Get cost data from AWS Cost Explorer.
 
     Args:
         timezone: Optional IANA timezone name (e.g., "America/Los_Angeles").
                   If provided, uses that timezone to determine the current month.
                   If None, uses UTC.
+        force_refresh: If True, bypass cache and fetch fresh data from AWS.
 
     Returns cached data if available and fresh, otherwise fetches from AWS.
     """
     cache_key = _get_cache_key(timezone)
 
-    if _is_cache_valid(timezone):
+    if not force_refresh and _is_cache_valid(timezone):
+        logger.info("Returning cached cost data")
         return _cost_cache[cache_key]
 
     try:
+        logger.info(f"Fetching fresh cost data from AWS (force_refresh={force_refresh})")
         costs = _fetch_costs_from_aws(timezone=timezone)
         _cost_cache[cache_key] = costs
         return costs
     except ClientError as e:
         # Return error response, cache for 5 minutes to avoid hammering
+        logger.error(f"AWS Cost Explorer API error: {e}")
         error_response = {
             "error": str(e),
             "cached_at": datetime.now(UTC).isoformat(),
