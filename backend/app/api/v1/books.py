@@ -2,7 +2,8 @@
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from decimal import Decimal
+from typing import Any, Literal
 
 import boto3
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -184,6 +185,63 @@ def _get_analysis_issues(book: Book) -> list[str] | None:
         issues.append("missing_market")
 
     return issues if issues else None
+
+
+def _apply_extracted_data_to_book(book: Book, extracted_data: dict[str, Any]) -> list[str]:
+    """Apply extracted structured data to book, return list of updated fields.
+
+    Maps AI-extracted fields to book model attributes. Used by re-extraction
+    endpoints to update book values from analysis text.
+
+    Args:
+        book: The Book model instance to update
+        extracted_data: Dict with keys like valuation_low, valuation_mid, etc.
+            Valid keys: valuation_low, valuation_mid, valuation_high,
+            condition_grade, binding_type, has_provenance, provenance_tier,
+            provenance_description, is_first_edition
+
+    Returns:
+        List of field names that were updated
+    """
+    fields_updated = []
+
+    # Valuation fields - use 'is not None' to allow zero values
+    if extracted_data.get("valuation_low") is not None:
+        book.value_low = Decimal(str(extracted_data["valuation_low"]))
+        fields_updated.append("value_low")
+    if extracted_data.get("valuation_high") is not None:
+        book.value_high = Decimal(str(extracted_data["valuation_high"]))
+        fields_updated.append("value_high")
+    if extracted_data.get("valuation_mid") is not None:
+        book.value_mid = Decimal(str(extracted_data["valuation_mid"]))
+        fields_updated.append("value_mid")
+    elif "value_low" in fields_updated and "value_high" in fields_updated:
+        book.value_mid = (book.value_low + book.value_high) / 2
+        fields_updated.append("value_mid")
+
+    # String fields - truthy check is fine (empty string means no value)
+    if extracted_data.get("condition_grade"):
+        book.condition_grade = extracted_data["condition_grade"]
+        fields_updated.append("condition_grade")
+    if extracted_data.get("binding_type"):
+        book.binding_type = extracted_data["binding_type"]
+        fields_updated.append("binding_type")
+    if extracted_data.get("provenance_tier"):
+        book.provenance_tier = extracted_data["provenance_tier"]
+        fields_updated.append("provenance_tier")
+    if extracted_data.get("provenance_description"):
+        book.provenance = extracted_data["provenance_description"]
+        fields_updated.append("provenance")
+
+    # Boolean fields - use 'is not None' to allow explicit False values
+    if extracted_data.get("has_provenance") is not None:
+        book.has_provenance = extracted_data["has_provenance"]
+        fields_updated.append("has_provenance")
+    if extracted_data.get("is_first_edition") is not None:
+        book.is_first_edition = extracted_data["is_first_edition"]
+        fields_updated.append("is_first_edition")
+
+    return fields_updated
 
 
 def _build_book_response(book: Book, db: Session) -> BookResponse:
@@ -1679,8 +1737,6 @@ def re_extract_structured_data(
     Uses existing analysis text without regenerating the full analysis.
     Useful for fixing 'degraded' extractions after throttling issues resolve.
     """
-    from decimal import Decimal
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1700,39 +1756,8 @@ def re_extract_structured_data(
             detail="Extraction failed - AI service may be throttled. Try again later.",
         )
 
-    # Map extracted fields to book update format
-    fields_updated = []
-
-    if extracted_data.get("valuation_low"):
-        book.value_low = Decimal(str(extracted_data["valuation_low"]))
-        fields_updated.append("value_low")
-    if extracted_data.get("valuation_high"):
-        book.value_high = Decimal(str(extracted_data["valuation_high"]))
-        fields_updated.append("value_high")
-    if extracted_data.get("valuation_mid"):
-        book.value_mid = Decimal(str(extracted_data["valuation_mid"]))
-        fields_updated.append("value_mid")
-    elif "value_low" in fields_updated and "value_high" in fields_updated:
-        book.value_mid = (book.value_low + book.value_high) / 2
-        fields_updated.append("value_mid")
-    if extracted_data.get("condition_grade"):
-        book.condition_grade = extracted_data["condition_grade"]
-        fields_updated.append("condition_grade")
-    if extracted_data.get("binding_type"):
-        book.binding_type = extracted_data["binding_type"]
-        fields_updated.append("binding_type")
-    if extracted_data.get("has_provenance") is True:
-        book.has_provenance = True
-        fields_updated.append("has_provenance")
-    if extracted_data.get("provenance_tier"):
-        book.provenance_tier = extracted_data["provenance_tier"]
-        fields_updated.append("provenance_tier")
-    if extracted_data.get("provenance_description"):
-        book.provenance = extracted_data["provenance_description"]
-        fields_updated.append("provenance")
-    if extracted_data.get("is_first_edition") is not None:
-        book.is_first_edition = extracted_data["is_first_edition"]
-        fields_updated.append("is_first_edition")
+    # Map extracted fields to book
+    fields_updated = _apply_extracted_data_to_book(book, extracted_data)
 
     # Update extraction status
     analysis.extraction_status = "success"
@@ -1770,8 +1795,6 @@ def re_extract_all_degraded(
     Processes books one at a time to avoid overwhelming Bedrock quota.
     Returns summary of successes and failures.
     """
-    from decimal import Decimal
-
     from app.models import BookAnalysis
 
     # Find all degraded analyses
@@ -1820,38 +1843,7 @@ def re_extract_all_degraded(
             continue
 
         # Map extracted fields to book
-        fields_updated = []
-
-        if extracted_data.get("valuation_low"):
-            book.value_low = Decimal(str(extracted_data["valuation_low"]))
-            fields_updated.append("value_low")
-        if extracted_data.get("valuation_high"):
-            book.value_high = Decimal(str(extracted_data["valuation_high"]))
-            fields_updated.append("value_high")
-        if extracted_data.get("valuation_mid"):
-            book.value_mid = Decimal(str(extracted_data["valuation_mid"]))
-            fields_updated.append("value_mid")
-        elif "value_low" in fields_updated and "value_high" in fields_updated:
-            book.value_mid = (book.value_low + book.value_high) / 2
-            fields_updated.append("value_mid")
-        if extracted_data.get("condition_grade"):
-            book.condition_grade = extracted_data["condition_grade"]
-            fields_updated.append("condition_grade")
-        if extracted_data.get("binding_type"):
-            book.binding_type = extracted_data["binding_type"]
-            fields_updated.append("binding_type")
-        if extracted_data.get("has_provenance") is True:
-            book.has_provenance = True
-            fields_updated.append("has_provenance")
-        if extracted_data.get("provenance_tier"):
-            book.provenance_tier = extracted_data["provenance_tier"]
-            fields_updated.append("provenance_tier")
-        if extracted_data.get("provenance_description"):
-            book.provenance = extracted_data["provenance_description"]
-            fields_updated.append("provenance")
-        if extracted_data.get("is_first_edition") is not None:
-            book.is_first_edition = extracted_data["is_first_edition"]
-            fields_updated.append("is_first_edition")
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
 
         # Update extraction status
         analysis.extraction_status = "success"
