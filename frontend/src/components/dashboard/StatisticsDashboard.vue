@@ -300,7 +300,9 @@ const authorChartOptions = computed(() => ({
           const author = authorData.value[authorIndex];
 
           if (author && author.sample_titles && author.sample_titles.length > 0) {
-            const lines = [`${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`];
+            const lines = [
+              `${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`,
+            ];
             author.sample_titles.forEach((title: string) => {
               // Truncate long titles
               const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
