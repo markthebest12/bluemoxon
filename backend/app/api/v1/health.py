@@ -638,6 +638,19 @@ MIGRATION_7A6D67BC123E_SQL = [
     "ALTER TABLE analysis_jobs ALTER COLUMN model SET DEFAULT 'opus'",
 ]
 
+# Migration SQL for 3c8716c1ec04_add_publisher_aliases_table
+# Creates publisher_aliases table for mapping variant names to canonical publishers
+MIGRATION_3C8716C1EC04_SQL = [
+    """CREATE TABLE IF NOT EXISTS publisher_aliases (
+        id SERIAL PRIMARY KEY,
+        alias_name VARCHAR(200) UNIQUE NOT NULL,
+        publisher_id INTEGER NOT NULL REFERENCES publishers(id) ON DELETE CASCADE
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_publisher_aliases_alias_name ON publisher_aliases(alias_name)",
+    "CREATE INDEX IF NOT EXISTS ix_publisher_aliases_alias_name_lower ON publisher_aliases (LOWER(alias_name))",
+    "CREATE INDEX IF NOT EXISTS ix_publisher_aliases_publisher_id ON publisher_aliases(publisher_id)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -997,9 +1010,10 @@ async def run_migrations(db: Session = Depends(get_db)):
         ("x7890123abcd", MIGRATION_X7890123ABCD_SQL),
         ("d3b3c3c4dd80", MIGRATION_D3B3C3C4DD80_SQL),
         ("7a6d67bc123e", MIGRATION_7A6D67BC123E_SQL),
+        ("3c8716c1ec04", MIGRATION_3C8716C1EC04_SQL),
     ]
 
-    final_version = "7a6d67bc123e"
+    final_version = "3c8716c1ec04"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

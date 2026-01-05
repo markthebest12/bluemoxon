@@ -11,17 +11,6 @@ from app.models import Binder, Book, Publisher
 
 router = APIRouter()
 
-# Tier 1 Victorian publishers - these are the premium publishers
-TIER_1_PUBLISHERS = [
-    "Smith Elder",
-    "Smith, Elder",
-    "Macmillan",
-    "John Murray",
-    "Edward Moxon",
-    "Chapman and Hall",
-    "Chapman & Hall",
-]
-
 
 @router.get("/overview")
 def get_overview(db: Session = Depends(get_db)):
@@ -246,28 +235,32 @@ def get_by_publisher(db: Session = Depends(get_db)):
 
 @router.get("/by-author")
 def get_by_author(db: Session = Depends(get_db)):
-    """Get counts by author with sample book titles."""
+    """Get counts by author with sample book titles.
+
+    Returns individual book counts (volumes), not set counts.
+    For example, a 24-volume set counts as 24, not 1.
+    """
     from app.models import Author
 
     results = (
         db.query(
             Author.id,
             Author.name,
-            func.count(Book.id),
+            func.count(Book.id),  # Number of titles/sets
             func.sum(Book.value_mid),
-            func.sum(Book.volumes),
+            func.sum(Book.volumes),  # Total individual books
         )
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
         .group_by(Author.id)
-        .order_by(func.count(Book.id).desc())
+        .order_by(func.sum(Book.volumes).desc())  # Order by total volumes
         .all()
     )
 
     # For each author, get sample book titles (up to 5)
     author_data = []
     for row in results:
-        author_id, author_name, count, value, volumes = row
+        author_id, author_name, title_count, value, volumes = row
 
         # Get sample book titles for this author
         sample_books = (
@@ -281,11 +274,12 @@ def get_by_author(db: Session = Depends(get_db)):
         author_data.append(
             {
                 "author": author_name,
-                "count": count,
+                "count": volumes or 0,  # Individual books, not sets
                 "value": float(value or 0),
                 "volumes": volumes or 0,
+                "titles": title_count,  # Number of distinct titles/sets
                 "sample_titles": sample_titles,
-                "has_more": count > 5,
+                "has_more": title_count > 5,
             }
         )
 

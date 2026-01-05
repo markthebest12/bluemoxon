@@ -66,9 +66,10 @@ interface PublisherData {
 
 interface AuthorData {
   author: string;
-  count: number;
+  count: number; // Total individual books (volumes)
   value: number;
   volumes: number;
+  titles: number; // Number of distinct titles/sets
   sample_titles: string[];
   has_more: boolean;
 }
@@ -273,11 +274,15 @@ const hasTier1Publishers = computed(() => {
   return publisherData.value.some((p) => p.tier === "TIER_1");
 });
 
+// Filter out "Various" from author data (not a real author)
+const variousEntry = computed(() => authorData.value.find((d) => d.author === "Various"));
+const filteredAuthorData = computed(() => authorData.value.filter((d) => d.author !== "Various"));
+
 const authorChartData = computed(() => ({
-  labels: authorData.value.slice(0, 8).map((d) => d.author),
+  labels: filteredAuthorData.value.slice(0, 8).map((d) => d.author),
   datasets: [
     {
-      data: authorData.value.slice(0, 8).map((d) => d.count),
+      data: filteredAuthorData.value.slice(0, 8).map((d) => d.count),
       backgroundColor: chartColors.burgundy,
       borderRadius: 4,
     },
@@ -296,17 +301,20 @@ const authorChartOptions = computed(() => ({
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
           const authorIndex = context.dataIndex;
-          const author = authorData.value[authorIndex];
+          const author = filteredAuthorData.value[authorIndex];
 
           if (author && author.sample_titles && author.sample_titles.length > 0) {
-            const lines = [`${value} ${value === 1 ? "book" : "books"}:`];
+            const lines = [
+              `${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`,
+            ];
             author.sample_titles.forEach((title: string) => {
               // Truncate long titles
               const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
               lines.push(`  • ${truncated}`);
             });
             if (author.has_more) {
-              lines.push(`  ...and ${value - author.sample_titles.length} more`);
+              const moreCount = author.titles - author.sample_titles.length;
+              lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
             }
             return lines;
           }
@@ -406,11 +414,18 @@ onMounted(async () => {
           Top Authors
         </h3>
         <div class="h-48 md:h-56">
-          <Bar v-if="authorData.length > 0" :data="authorChartData" :options="authorChartOptions" />
+          <Bar
+            v-if="filteredAuthorData.length > 0"
+            :data="authorChartData"
+            :options="authorChartOptions"
+          />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No author data available
           </p>
         </div>
+        <p v-if="variousEntry" class="text-xs text-victorian-ink-muted mt-2">
+          * Excludes {{ variousEntry.count }} books by various/multiple authors
+        </p>
       </div>
 
       <!-- Top Tier 1 Publishers -->

@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from rapidfuzz import fuzz
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+
+from app.models.publisher_alias import PublisherAlias
 
 if TYPE_CHECKING:
     from app.models.publisher import Publisher
@@ -97,58 +100,13 @@ def auto_correct_publisher_name(name: str) -> str:
     return result
 
 
-# Publisher tier mappings based on market recognition and historical significance
-# Maps variant names to (canonical_name, tier)
-TIER_1_PUBLISHERS = {
-    # Major Victorian/Edwardian publishers
-    "Macmillan and Co.": "Macmillan and Co.",
-    "Macmillan": "Macmillan and Co.",
-    "Chapman & Hall": "Chapman & Hall",
-    "Chapman and Hall": "Chapman & Hall",
-    "Smith, Elder & Co.": "Smith, Elder & Co.",
-    "Smith Elder": "Smith, Elder & Co.",
-    "John Murray": "John Murray",
-    "Murray": "John Murray",
-    "William Blackwood and Sons": "William Blackwood and Sons",
-    "Blackwood": "William Blackwood and Sons",
-    "Edward Moxon and Co.": "Edward Moxon and Co.",
-    "Moxon": "Edward Moxon and Co.",
-    "Oxford University Press": "Oxford University Press",
-    "OUP": "Oxford University Press",
-    "Clarendon Press": "Clarendon Press",
-    "Longmans, Green & Co.": "Longmans, Green & Co.",
-    "Longmans": "Longmans, Green & Co.",
-    "Longman": "Longmans, Green & Co.",
-    "Harper & Brothers": "Harper & Brothers",
-    "Harper": "Harper & Brothers",
-    "D. Appleton and Company": "D. Appleton and Company",
-    "Appleton": "D. Appleton and Company",
-    "Little, Brown, and Company": "Little, Brown, and Company",
-    "Little Brown": "Little, Brown, and Company",
-    "Richard Bentley": "Richard Bentley",
-    "Bentley": "Richard Bentley",
-}
+def normalize_publisher_name(db: Session, name: str) -> tuple[str, str | None]:
+    """Normalize publisher name and determine tier from database.
 
-TIER_2_PUBLISHERS = {
-    "Chatto and Windus": "Chatto and Windus",
-    "Chatto & Windus": "Chatto and Windus",
-    "George Allen": "George Allen",
-    "Cassell": "Cassell, Petter & Galpin",
-    "Cassell, Petter & Galpin": "Cassell, Petter & Galpin",
-    "Routledge": "Routledge",
-    "Ward, Lock & Co.": "Ward, Lock & Co.",
-    "Ward Lock": "Ward, Lock & Co.",
-    "Hurst & Company": "Hurst & Company",
-    "Grosset & Dunlap": "Grosset & Dunlap",
-}
-
-
-def normalize_publisher_name(name: str) -> tuple[str, str | None]:
-    """Normalize publisher name and determine tier.
-
-    Applies auto-correction rules first, then matches against known publishers.
+    Applies auto-correction rules first, then looks up alias in database.
 
     Args:
+        db: Database session
         name: Raw publisher name from analysis
 
     Returns:
@@ -157,15 +115,16 @@ def normalize_publisher_name(name: str) -> tuple[str, str | None]:
     # Apply auto-correction first
     corrected = auto_correct_publisher_name(name)
 
-    # Check Tier 1 first (exact match only, case-insensitive)
-    for variant, canonical in TIER_1_PUBLISHERS.items():
-        if variant.lower() == corrected.lower():
-            return canonical, "TIER_1"
+    # Look up alias in database (case-insensitive) with eager loading
+    alias = (
+        db.query(PublisherAlias)
+        .options(joinedload(PublisherAlias.publisher))
+        .filter(func.lower(PublisherAlias.alias_name) == corrected.lower())
+        .first()
+    )
 
-    # Check Tier 2 (exact match only, case-insensitive)
-    for variant, canonical in TIER_2_PUBLISHERS.items():
-        if variant.lower() == corrected.lower():
-            return canonical, "TIER_2"
+    if alias:
+        return alias.publisher.name, alias.publisher.tier
 
     # Unknown publisher - return corrected name with no tier
     return corrected, None
@@ -256,7 +215,7 @@ def get_or_create_publisher(
         return None
 
     # Normalize name and get suggested tier
-    canonical_name, tier = normalize_publisher_name(name)
+    canonical_name, tier = normalize_publisher_name(db, name)
 
     # Try exact match first
     publisher = db.query(Publisher).filter(Publisher.name == canonical_name).first()
