@@ -40,11 +40,31 @@
   - `merge_binders()` (line 812)
   - `run_migrations()` (line 979)
 
+### `backend/app/api/v1/listings.py`
+- Added `from app.auth import require_editor` import
+- Added `_user=Depends(require_editor)` to:
+  - `extract_listing()` - prevents DoS via scraper
+  - `extract_listing_async()` - prevents DoS via async scraper
+
+### `backend/app/api/v1/orders.py`
+- Added `from app.auth import require_editor` import
+- Added `_user=Depends(require_editor)` to:
+  - `extract_order()` - prevents DoS via Bedrock LLM
+
 ### `backend/tests/test_health.py`
 - Added `TestHealthAdminEndpointsSecurity` class with 8 tests
 - Tests verify 401 without auth and 200 with admin auth
 
+### `backend/tests/test_listings_api.py`
+- Updated `client` fixture to include auth overrides
+- Added `unauthenticated_client` fixture
+- Added `TestListingsEndpointsSecurity` class with 2 tests
+
+### `backend/tests/test_orders_api.py` (new)
+- Security test for orders extract endpoint
+
 ### `.github/workflows/deploy.yml`
+- Added pre-check step to verify API key secret exists
 - Added `BMX_API_KEY` env var with environment-conditional secret
 - Added `-H "X-API-Key: ${BMX_API_KEY}"` to migrate curl call
 

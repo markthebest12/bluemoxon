@@ -1159,6 +1159,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ---- Run Database Migrations ----
+      - name: Verify API key secret exists
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+        run: |
+          if [ -z "${BMX_API_KEY}" ]; then
+            echo "::error::BMX_API_KEY secret is not set for ${{ needs.configure.outputs.environment }}"
+            echo "Required secrets: BMX_API_KEY (production) or BMX_STAGING_API_KEY (staging)"
+            exit 1
+          fi
+          echo "API key secret verified"
+
       - name: Run database migrations
         env:
           BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
