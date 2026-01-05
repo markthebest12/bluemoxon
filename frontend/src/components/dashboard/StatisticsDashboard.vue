@@ -66,9 +66,10 @@ interface PublisherData {
 
 interface AuthorData {
   author: string;
-  count: number;
+  count: number; // Total individual books (volumes)
   value: number;
   volumes: number;
+  titles: number; // Number of distinct titles/sets
   sample_titles: string[];
   has_more: boolean;
 }
@@ -299,14 +300,15 @@ const authorChartOptions = computed(() => ({
           const author = authorData.value[authorIndex];
 
           if (author && author.sample_titles && author.sample_titles.length > 0) {
-            const lines = [`${value} ${value === 1 ? "book" : "books"}:`];
+            const lines = [`${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`];
             author.sample_titles.forEach((title: string) => {
               // Truncate long titles
               const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
               lines.push(`  • ${truncated}`);
             });
             if (author.has_more) {
-              lines.push(`  ...and ${value - author.sample_titles.length} more`);
+              const moreCount = author.titles - author.sample_titles.length;
+              lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
             }
             return lines;
           }
