@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.config import get_scraper_environment, get_settings
 from app.db import get_db
 from app.services.listing import (
@@ -91,6 +92,7 @@ class ExtractResponse(BaseModel):
 def extract_listing(
     request: ExtractRequest,
     db: Session = Depends(get_db),
+    _user=Depends(require_editor),
 ):
     """Extract data from an eBay listing URL.
 
@@ -214,6 +216,7 @@ class ExtractStatusResponse(BaseModel):
 @router.post("/extract-async", response_model=ExtractAsyncResponse, status_code=202)
 def extract_listing_async(
     request: ExtractRequest,
+    _user=Depends(require_editor),
 ):
     """Start async extraction of an eBay listing.
 

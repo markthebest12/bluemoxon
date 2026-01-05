@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.auth import require_editor
 from app.db import get_db
 from app.models.admin_config import AdminConfig
 from app.services.bedrock import get_bedrock_client
@@ -118,7 +119,11 @@ def get_conversion_rate(currency: str, db: Session) -> float:
 
 
 @router.post("/extract", response_model=ExtractResponse)
-async def extract_order(request: ExtractRequest, db: Session = Depends(get_db)):
+async def extract_order(
+    request: ExtractRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_editor),
+):
     """Extract order details from pasted text.
 
     Args:
