@@ -1,5 +1,11 @@
 """Health check endpoint tests."""
 
+import pytest
+from fastapi.testclient import TestClient
+
+from app.db import get_db
+from app.main import app
+
 
 class TestBasicHealth:
     """Tests for basic health endpoint."""
@@ -134,3 +140,82 @@ class TestServiceInfo:
 
         for feature, value in data["features"].items():
             assert isinstance(value, bool), f"Feature {feature} should be boolean"
+
+
+class TestHealthAdminEndpointsSecurity:
+    """Tests for admin-only health endpoints (issue #808).
+
+    These POST endpoints modify data and MUST require admin authentication:
+    - /health/cleanup-orphans - deletes orphaned records
+    - /health/recalculate-discounts - modifies book discount values
+    - /health/merge-binders - merges/deletes binder records
+    - /health/migrate - runs database migrations
+    """
+
+    @pytest.fixture
+    def unauthenticated_client(self, db):
+        """Create a test client WITHOUT auth overrides."""
+
+        def override_get_db():
+            try:
+                yield db
+            finally:
+                pass
+
+        app.dependency_overrides[get_db] = override_get_db
+        # Don't override require_admin - will require real auth
+        with TestClient(app) as test_client:
+            yield test_client
+        app.dependency_overrides.clear()
+
+    def test_cleanup_orphans_requires_admin_auth(self, unauthenticated_client):
+        """POST /health/cleanup-orphans requires admin authentication."""
+        response = unauthenticated_client.post("/api/v1/health/cleanup-orphans")
+        assert response.status_code == 401, (
+            f"Expected 401 Unauthorized, got {response.status_code}. "
+            "Endpoint must require authentication (issue #808)"
+        )
+
+    def test_recalculate_discounts_requires_admin_auth(self, unauthenticated_client):
+        """POST /health/recalculate-discounts requires admin authentication."""
+        response = unauthenticated_client.post("/api/v1/health/recalculate-discounts")
+        assert response.status_code == 401, (
+            f"Expected 401 Unauthorized, got {response.status_code}. "
+            "Endpoint must require authentication (issue #808)"
+        )
+
+    def test_merge_binders_requires_admin_auth(self, unauthenticated_client):
+        """POST /health/merge-binders requires admin authentication."""
+        response = unauthenticated_client.post("/api/v1/health/merge-binders")
+        assert response.status_code == 401, (
+            f"Expected 401 Unauthorized, got {response.status_code}. "
+            "Endpoint must require authentication (issue #808)"
+        )
+
+    def test_migrate_requires_admin_auth(self, unauthenticated_client):
+        """POST /health/migrate requires admin authentication."""
+        response = unauthenticated_client.post("/api/v1/health/migrate")
+        assert response.status_code == 401, (
+            f"Expected 401 Unauthorized, got {response.status_code}. "
+            "Endpoint must require authentication (issue #808)"
+        )
+
+    def test_cleanup_orphans_succeeds_with_admin(self, client):
+        """POST /health/cleanup-orphans succeeds with admin auth."""
+        response = client.post("/api/v1/health/cleanup-orphans")
+        assert response.status_code == 200
+
+    def test_recalculate_discounts_succeeds_with_admin(self, client):
+        """POST /health/recalculate-discounts succeeds with admin auth."""
+        response = client.post("/api/v1/health/recalculate-discounts")
+        assert response.status_code == 200
+
+    def test_merge_binders_succeeds_with_admin(self, client):
+        """POST /health/merge-binders succeeds with admin auth."""
+        response = client.post("/api/v1/health/merge-binders")
+        assert response.status_code == 200
+
+    def test_migrate_succeeds_with_admin(self, client):
+        """POST /health/migrate succeeds with admin auth."""
+        response = client.post("/api/v1/health/migrate")
+        assert response.status_code == 200

@@ -1160,6 +1160,8 @@ jobs:
 
       # ---- Run Database Migrations ----
       - name: Run database migrations
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           echo "Running database migrations..."
           API_URL="${{ needs.configure.outputs.api_url }}"
@@ -1168,7 +1170,8 @@ jobs:
           sleep 5
 
           # Call the migrate endpoint (api_url already includes /api/v1)
-          response=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/health/migrate")
+          # Auth required per issue #808 - health endpoints now require admin auth
+          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" -X POST "${API_URL}/health/migrate")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 

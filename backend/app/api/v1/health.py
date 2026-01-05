@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.auth import require_admin
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book
@@ -705,7 +706,10 @@ Returns count of deleted records from each table.
     response_description="Cleanup results",
     tags=["health"],
 )
-async def cleanup_orphans(db: Session = Depends(get_db)):
+async def cleanup_orphans(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
     """Clean up orphaned database records that reference non-existent books."""
     results = []
     errors = []
@@ -755,7 +759,10 @@ Returns count of books updated.
     response_description="Recalculation results",
     tags=["health"],
 )
-async def recalculate_discounts(db: Session = Depends(get_db)):
+async def recalculate_discounts(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
     """Recalculate discount_pct for all books with both purchase_price and value_mid."""
     from app.services.scoring import recalculate_discount_pct
 
@@ -802,7 +809,10 @@ Returns list of merges performed.
     response_description="Merge results",
     tags=["health"],
 )
-async def merge_binders(db: Session = Depends(get_db)):
+async def merge_binders(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
     """Merge duplicate binders to canonical names."""
     from app.models.binder import Binder
     from app.services.reference import normalize_binder_name
@@ -966,7 +976,10 @@ Returns the list of SQL statements executed and their results.
     response_description="Migration results",
     tags=["health"],
 )
-async def run_migrations(db: Session = Depends(get_db)):
+async def run_migrations(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
     """Run database migrations from Lambda (has VPC access to Aurora)."""
     results = []
     errors = []
