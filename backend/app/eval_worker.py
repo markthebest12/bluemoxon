@@ -200,10 +200,11 @@ def process_eval_runbook_job(job_id: str, book_id: int) -> None:
     except Exception as e:
         logger.error(f"Error processing eval runbook job {job_id}: {e}", exc_info=True)
 
-        # Mark job as failed
+        # Mark job as failed - Issue #815: must set completed_at too
         if job:
             job.status = "failed"
             job.error_message = str(e)[:1000]  # Truncate long errors
+            job.completed_at = datetime.now(UTC)
             job.updated_at = datetime.now(UTC)
             db.commit()
 
