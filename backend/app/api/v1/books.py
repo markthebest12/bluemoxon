@@ -187,9 +187,7 @@ def _get_analysis_issues(book: Book) -> list[str] | None:
     return issues if issues else None
 
 
-def _apply_extracted_data_to_book(
-    book: Book, extracted_data: dict[str, Any]
-) -> list[str]:
+def _apply_extracted_data_to_book(book: Book, extracted_data: dict[str, Any]) -> list[str]:
     """Apply extracted structured data to book, return list of updated fields.
 
     Maps AI-extracted fields to book model attributes. Used by re-extraction
