@@ -241,6 +241,24 @@ class TestParseMarketAnalysis:
         result = _parse_market_analysis(text)
         assert result["raw_text"] == text
 
+    def test_extracts_valuation_with_bold_labels(self):
+        """Issue #814: Parser should handle bold markdown labels like **Low**."""
+        text = """| Estimate | Value |
+|----------|-------|
+| **Low** | $450 |
+| **Mid** | $650 |
+| **High** | $900 |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 450
+        assert result["valuation"]["mid"] == 650
+        assert result["valuation"]["high"] == 900
+
+    def test_extracts_valuation_with_bold_labels_and_notes(self):
+        """Issue #814: Handle bold labels with additional text in cells."""
+        text = """| **Low** | $400 | Normal market, buyer aware of conservation needs |"""
+        result = _parse_market_analysis(text)
+        assert result["valuation"]["low"] == 400
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
