@@ -814,7 +814,7 @@ async def merge_binders(db: Session = Depends(get_db)):
     all_binders = db.query(Binder).all()
 
     # Group by canonical name
-    canonical_map: dict[str, list[Binder]] = {}
+    canonical_map: dict[str, list[tuple[Binder, str | None]]] = {}
     for binder in all_binders:
         canonical_name, tier = normalize_binder_name(binder.name)
         if canonical_name is None:

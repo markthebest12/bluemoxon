@@ -13,6 +13,7 @@ from app.schemas.reference import (
     ReassignRequest,
     ReassignResponse,
 )
+from app.services.publisher_validation import invalidate_publisher_cache
 
 router = APIRouter()
 
@@ -80,6 +81,9 @@ def create_publisher(
     db.commit()
     db.refresh(publisher)
 
+    # Invalidate cache since new publisher was created
+    invalidate_publisher_cache()
+
     return PublisherResponse(
         id=publisher.id,
         name=publisher.name,
@@ -109,6 +113,9 @@ def update_publisher(
 
     db.commit()
     db.refresh(publisher)
+
+    # Invalidate cache if name or tier changed (affects fuzzy matching)
+    invalidate_publisher_cache()
 
     return PublisherResponse(
         id=publisher.id,
@@ -141,6 +148,9 @@ def delete_publisher(
 
     db.delete(publisher)
     db.commit()
+
+    # Invalidate cache since publisher was deleted
+    invalidate_publisher_cache()
 
 
 @router.post("/{publisher_id}/reassign", response_model=ReassignResponse)
@@ -181,6 +191,9 @@ def reassign_publisher_books(
     # Delete source publisher
     db.delete(source)
     db.commit()
+
+    # Invalidate cache since publisher was deleted
+    invalidate_publisher_cache()
 
     return ReassignResponse(
         reassigned_count=book_count,
