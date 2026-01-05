@@ -14,6 +14,7 @@ from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
 from app.models.notification import Notification
 from app.models.publisher import Publisher
+from app.models.publisher_alias import PublisherAlias
 from app.models.user import User
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "CarrierCircuit",
     "Notification",
     "Publisher",
+    "PublisherAlias",
     "Author",
     "Binder",
     "Book",

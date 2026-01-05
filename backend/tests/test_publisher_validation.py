@@ -1,5 +1,7 @@
 """Tests for publisher validation service."""
 
+import pytest
+
 from app.services.publisher_validation import (
     auto_correct_publisher_name,
     fuzzy_match_publisher,
@@ -65,86 +67,128 @@ class TestAutoCorrectPublisherName:
 
 
 class TestNormalizePublisherName:
-    """Test publisher name normalization and tier assignment."""
+    """Test publisher name normalization and tier assignment (DB-backed)."""
 
-    def test_tier_1_macmillan(self):
-        name, tier = normalize_publisher_name("Macmillan and Co.")
+    @pytest.fixture(autouse=True)
+    def seed_aliases(self, db):
+        """Seed publisher aliases for tests."""
+        from app.models.publisher import Publisher
+        from app.models.publisher_alias import PublisherAlias
+
+        # Create publishers with tiers and their aliases
+        publishers_data = [
+            ("Macmillan and Co.", "TIER_1", ["Macmillan"]),
+            ("Chapman & Hall", "TIER_1", ["Chapman and Hall"]),
+            ("Smith, Elder & Co.", "TIER_1", ["Smith Elder"]),
+            ("John Murray", "TIER_1", ["Murray"]),
+            ("Oxford University Press", "TIER_1", ["OUP"]),
+            ("Longmans, Green & Co.", "TIER_1", ["Longmans", "Longman"]),
+            ("Harper & Brothers", "TIER_1", ["Harper"]),
+            ("D. Appleton and Company", "TIER_1", ["Appleton"]),
+            ("Chatto and Windus", "TIER_2", ["Chatto & Windus"]),
+            ("George Allen", "TIER_2", []),
+        ]
+
+        for name, tier, aliases in publishers_data:
+            pub = Publisher(name=name, tier=tier)
+            db.add(pub)
+            db.flush()
+            # Add canonical name as alias
+            db.add(PublisherAlias(alias_name=name, publisher_id=pub.id))
+            for alias in aliases:
+                db.add(PublisherAlias(alias_name=alias, publisher_id=pub.id))
+        db.flush()
+
+    def test_tier_1_macmillan(self, db):
+        name, tier = normalize_publisher_name(db, "Macmillan and Co.")
         assert name == "Macmillan and Co."
         assert tier == "TIER_1"
 
-    def test_tier_1_chapman_hall(self):
-        name, tier = normalize_publisher_name("Chapman & Hall")
+    def test_tier_1_chapman_hall(self, db):
+        name, tier = normalize_publisher_name(db, "Chapman & Hall")
         assert name == "Chapman & Hall"
         assert tier == "TIER_1"
 
-    def test_tier_1_smith_elder(self):
-        name, tier = normalize_publisher_name("Smith, Elder & Co.")
+    def test_tier_1_smith_elder(self, db):
+        name, tier = normalize_publisher_name(db, "Smith, Elder & Co.")
         assert name == "Smith, Elder & Co."
         assert tier == "TIER_1"
 
-    def test_tier_1_john_murray(self):
-        name, tier = normalize_publisher_name("John Murray")
+    def test_tier_1_john_murray(self, db):
+        name, tier = normalize_publisher_name(db, "John Murray")
         assert name == "John Murray"
         assert tier == "TIER_1"
 
-    def test_tier_1_oxford_university_press(self):
-        name, tier = normalize_publisher_name("Oxford University Press")
+    def test_tier_1_oxford_university_press(self, db):
+        name, tier = normalize_publisher_name(db, "Oxford University Press")
         assert name == "Oxford University Press"
         assert tier == "TIER_1"
 
-    def test_tier_1_longmans(self):
-        name, tier = normalize_publisher_name("Longmans, Green & Co.")
+    def test_tier_1_longmans(self, db):
+        name, tier = normalize_publisher_name(db, "Longmans, Green & Co.")
         assert name == "Longmans, Green & Co."
         assert tier == "TIER_1"
 
-    def test_tier_1_harper_brothers(self):
-        name, tier = normalize_publisher_name("Harper & Brothers")
+    def test_tier_1_harper_brothers(self, db):
+        name, tier = normalize_publisher_name(db, "Harper & Brothers")
         assert name == "Harper & Brothers"
         assert tier == "TIER_1"
 
-    def test_tier_2_chatto_windus(self):
-        name, tier = normalize_publisher_name("Chatto and Windus")
+    def test_tier_2_chatto_windus(self, db):
+        name, tier = normalize_publisher_name(db, "Chatto and Windus")
         assert name == "Chatto and Windus"
         assert tier == "TIER_2"
 
-    def test_tier_2_george_allen(self):
-        name, tier = normalize_publisher_name("George Allen")
+    def test_tier_2_george_allen(self, db):
+        name, tier = normalize_publisher_name(db, "George Allen")
         assert name == "George Allen"
         assert tier == "TIER_2"
 
-    def test_unknown_publisher_no_tier(self):
-        name, tier = normalize_publisher_name("Unknown Publisher")
+    def test_unknown_publisher_no_tier(self, db):
+        name, tier = normalize_publisher_name(db, "Unknown Publisher")
         assert name == "Unknown Publisher"
         assert tier is None
 
-    def test_applies_auto_correct_first(self):
+    def test_applies_auto_correct_first(self, db):
         # Should remove location suffix, then match tier
-        name, tier = normalize_publisher_name("Harper & Brothers, New York")
+        name, tier = normalize_publisher_name(db, "Harper & Brothers, New York")
         assert name == "Harper & Brothers"
         assert tier == "TIER_1"
 
-    def test_case_insensitive_matching(self):
-        name, tier = normalize_publisher_name("MACMILLAN AND CO.")
+    def test_case_insensitive_matching(self, db):
+        name, tier = normalize_publisher_name(db, "MACMILLAN AND CO.")
         assert name == "Macmillan and Co."
         assert tier == "TIER_1"
 
-    def test_no_substring_matching_murray(self):
+    def test_no_substring_matching_murray(self, db):
         # "Murray Printing Company" should NOT match "John Murray"
-        name, tier = normalize_publisher_name("Murray Printing Company")
+        name, tier = normalize_publisher_name(db, "Murray Printing Company")
         assert name == "Murray Printing Company"
         assert tier is None  # NOT TIER_1
 
-    def test_no_substring_matching_harper(self):
+    def test_no_substring_matching_harper(self, db):
         # "Harper's Magazine Press" should NOT match "Harper & Brothers"
-        name, tier = normalize_publisher_name("Harper's Magazine Press")
+        name, tier = normalize_publisher_name(db, "Harper's Magazine Press")
         assert name == "Harper's Magazine Press"
         assert tier is None  # NOT TIER_1
 
-    def test_no_substring_matching_appleton(self):
+    def test_no_substring_matching_appleton(self, db):
         # "Appleton Wisconsin Books" should NOT match "D. Appleton and Company"
-        name, tier = normalize_publisher_name("Appleton Wisconsin Books")
+        name, tier = normalize_publisher_name(db, "Appleton Wisconsin Books")
         assert name == "Appleton Wisconsin Books"
         assert tier is None  # NOT TIER_1
+
+    def test_alias_lookup_variant(self, db):
+        # "Macmillan" alias should resolve to "Macmillan and Co."
+        name, tier = normalize_publisher_name(db, "Macmillan")
+        assert name == "Macmillan and Co."
+        assert tier == "TIER_1"
+
+    def test_alias_lookup_variant_chapman(self, db):
+        # "Chapman and Hall" alias should resolve to "Chapman & Hall"
+        name, tier = normalize_publisher_name(db, "Chapman and Hall")
+        assert name == "Chapman & Hall"
+        assert tier == "TIER_1"
 
 
 class TestFuzzyMatchPublisher:
@@ -218,6 +262,27 @@ class TestFuzzyMatchPublisher:
 class TestGetOrCreatePublisher:
     """Test publisher lookup/creation from parsed data."""
 
+    @pytest.fixture(autouse=True)
+    def seed_aliases(self, db):
+        """Seed publisher aliases for tier lookup."""
+        from app.models.publisher import Publisher
+        from app.models.publisher_alias import PublisherAlias
+
+        # Create publishers with tiers and their aliases
+        publishers_data = [
+            ("Macmillan and Co.", "TIER_1", ["Macmillan"]),
+            ("Harper & Brothers", "TIER_1", ["Harper"]),
+        ]
+
+        for name, tier, aliases in publishers_data:
+            pub = Publisher(name=name, tier=tier)
+            db.add(pub)
+            db.flush()
+            db.add(PublisherAlias(alias_name=name, publisher_id=pub.id))
+            for alias in aliases:
+                db.add(PublisherAlias(alias_name=alias, publisher_id=pub.id))
+        db.flush()
+
     def test_returns_none_for_none_input(self, db):
         result = get_or_create_publisher(db, None)
         assert result is None
@@ -262,18 +327,19 @@ class TestGetOrCreatePublisher:
         assert result.name == "Harper & Brothers"
         assert result.tier == "TIER_1"
 
-    def test_updates_tier_if_missing(self, db):
-        from app.models.publisher import Publisher
-
-        # Create publisher without tier manually
-        pub = Publisher(name="Macmillan and Co.", tier=None)
-        db.add(pub)
-        db.flush()
-
-        # Get via service - should update tier
+    def test_returns_tier_from_db(self, db):
+        """Tier now comes from database, not hardcoded lookup."""
+        # The seeded "Macmillan and Co." has TIER_1 in the database
         result = get_or_create_publisher(db, "Macmillan and Co.")
-        assert result.id == pub.id
-        assert result.tier == "TIER_1"
+        assert result is not None
+        assert result.name == "Macmillan and Co."
+        assert result.tier == "TIER_1"  # Comes from DB, not hardcoded
+
+    def test_unknown_publisher_has_no_tier(self, db):
+        """Publishers not in aliases table get no tier."""
+        result = get_or_create_publisher(db, "Some Random Publisher")
+        assert result is not None
+        assert result.tier is None
 
     def test_flags_new_publisher_for_enrichment(self, db):
         result = get_or_create_publisher(db, "New Unknown Publisher")

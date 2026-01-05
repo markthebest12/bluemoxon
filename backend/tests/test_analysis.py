@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+import pytest
+
 
 class TestGetAnalysis:
     """Tests for GET /api/v1/books/{id}/analysis."""
@@ -168,6 +170,26 @@ Very good condition.
 
 class TestPublisherIntegration:
     """Tests for publisher extraction and integration when saving analysis."""
+
+    @pytest.fixture(autouse=True)
+    def seed_aliases(self, db):
+        """Seed publisher aliases for tier lookup."""
+        from app.models.publisher import Publisher
+        from app.models.publisher_alias import PublisherAlias
+
+        # Create publishers with tiers and their aliases
+        publishers_data = [
+            ("Harper & Brothers", "TIER_1", ["Harper"]),
+            ("Macmillan and Co.", "TIER_1", ["Macmillan"]),
+        ]
+        for name, tier, aliases in publishers_data:
+            pub = Publisher(name=name, tier=tier)
+            db.add(pub)
+            db.flush()
+            db.add(PublisherAlias(alias_name=name, publisher_id=pub.id))
+            for alias in aliases:
+                db.add(PublisherAlias(alias_name=alias, publisher_id=pub.id))
+        db.flush()
 
     def test_publisher_from_structured_data_updates_book(self, client, db):
         """Test that publisher from structured data updates book.publisher_id."""

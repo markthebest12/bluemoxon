@@ -19,4 +19,7 @@ class Publisher(Base):
     preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
+    aliases = relationship(
+        "PublisherAlias", back_populates="publisher", cascade="all, delete-orphan"
+    )
     books = relationship("Book", back_populates="publisher")
