@@ -618,6 +618,136 @@ class TestGetAnalysisIssues:
         assert len(issues) == 4
 
 
+class TestApplyExtractedDataToBook:
+    """Tests for _apply_extracted_data_to_book helper function."""
+
+    def test_applies_valuation_fields(self, db):
+        """Test that valuation_low, valuation_mid, valuation_high are applied."""
+        from decimal import Decimal
+
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        extracted_data = {
+            "valuation_low": 100,
+            "valuation_mid": 150,
+            "valuation_high": 200,
+        }
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.value_low == Decimal("100")
+        assert book.value_mid == Decimal("150")
+        assert book.value_high == Decimal("200")
+        assert "value_low" in fields_updated
+        assert "value_mid" in fields_updated
+        assert "value_high" in fields_updated
+
+    def test_calculates_mid_when_missing(self, db):
+        """Test that value_mid is auto-calculated when low and high are present but mid is not."""
+        from decimal import Decimal
+
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        extracted_data = {
+            "valuation_low": 100,
+            "valuation_high": 200,
+        }
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.value_low == Decimal("100")
+        assert book.value_high == Decimal("200")
+        assert book.value_mid == Decimal("150")
+        assert "value_mid" in fields_updated
+
+    def test_applies_condition_and_binding(self, db):
+        """Test that condition_grade and binding_type are applied."""
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        extracted_data = {
+            "condition_grade": "VG+",
+            "binding_type": "Full morocco",
+        }
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.condition_grade == "VG+"
+        assert book.binding_type == "Full morocco"
+        assert "condition_grade" in fields_updated
+        assert "binding_type" in fields_updated
+
+    def test_applies_provenance_fields(self, db):
+        """Test that provenance fields are applied correctly."""
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        extracted_data = {
+            "has_provenance": True,
+            "provenance_tier": "notable",
+            "provenance_description": "From the library of Lord Byron",
+        }
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.has_provenance is True
+        assert book.provenance_tier == "notable"
+        assert book.provenance == "From the library of Lord Byron"
+        assert "has_provenance" in fields_updated
+        assert "provenance_tier" in fields_updated
+        assert "provenance" in fields_updated
+
+    def test_applies_is_first_edition(self, db):
+        """Test that is_first_edition is applied (including False values)."""
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        extracted_data = {"is_first_edition": False}
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.is_first_edition is False
+        assert "is_first_edition" in fields_updated
+
+    def test_empty_extracted_data(self, db):
+        """Test that empty extracted_data returns empty list."""
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.flush()
+
+        fields_updated = _apply_extracted_data_to_book(book, {})
+
+        assert fields_updated == []
+
+    def test_has_provenance_false_not_applied(self, db):
+        """Test that has_provenance=False is not applied (only True triggers update)."""
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book", has_provenance=True)
+        db.add(book)
+        db.flush()
+
+        extracted_data = {"has_provenance": False}
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.has_provenance is True
+        assert "has_provenance" not in fields_updated
+
+
 class TestGenerateAnalysisDefaults:
     """Tests for analysis generation default values."""
 
