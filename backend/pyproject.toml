@@ -7,7 +7,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.127.0"
+fastapi = "^0.128.0"
 uvicorn = {extras = ["standard"], version = "^0.40.0"}
 sqlalchemy = "^2.0.45"
 alembic = "^1.13.1"
@@ -15,13 +15,13 @@ psycopg2-binary = "^2.9.9"
 pydantic = {extras = ["email"], version = "^2.5.0"}
 pydantic-settings = "^2.1.0"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-boto3 = "^1.42.14"
-mangum = "^0.19.0"
+boto3 = "^1.42.21"
+mangum = "^0.20.0"
 python-multipart = "^0.0.21"
 httpx = "^0.28.1"
 markdown = "^3.5.0"
 reportlab = "^4.4.7"
-pillow = "^12.0.0"
+pillow = "^12.1.0"
 rapidfuzz = "^3.14.3"
 defusedxml = "^0.7.1"  # Required by carriers/usps.py for safe XML parsing
 
