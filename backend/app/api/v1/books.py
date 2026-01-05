@@ -186,6 +186,53 @@ def _get_analysis_issues(book: Book) -> list[str] | None:
     return issues if issues else None
 
 
+def _build_book_response(book: Book, db: Session) -> BookResponse:
+    """Build a BookResponse with all computed fields.
+
+    This is the single source of truth for building BookResponse objects.
+    All endpoints returning a BookResponse should use this helper.
+
+    Computed fields:
+    - has_analysis: Whether book has analysis
+    - has_eval_runbook: Whether book has eval runbook
+    - eval_runbook_job_status: Status of active eval runbook job
+    - analysis_job_status: Status of active analysis job
+    - analysis_issues: List of analysis quality issues
+    - image_count: Number of images
+    - primary_image_url: URL to primary image (CloudFront in prod, API in dev)
+    """
+    book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["has_analysis"] = book.analysis is not None
+    book_dict["has_eval_runbook"] = book.eval_runbook is not None
+    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
+    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
+    book_dict["analysis_issues"] = _get_analysis_issues(book)
+    book_dict["image_count"] = len(book.images) if book.images else 0
+
+    # Get primary image URL
+    primary_image = None
+    if book.images:
+        # First try to find one marked as primary
+        for img in book.images:
+            if img.is_primary:
+                primary_image = img
+                break
+        # Otherwise use first image by display order
+        if not primary_image:
+            primary_image = min(book.images, key=lambda x: x.display_order)
+
+    if primary_image:
+        if is_production():
+            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
+        else:
+            base_url = settings.base_url or "http://localhost:8000"
+            book_dict["primary_image_url"] = (
+                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+            )
+
+    return BookResponse(**book_dict)
+
+
 def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: Session) -> None:
     """Copy images from listing folder to book folder and create BookImage records.
 
@@ -468,34 +515,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["analysis_issues"] = _get_analysis_issues(book)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    # Get primary image URL
-    primary_image = None
-    if book.images:
-        for img in book.images:
-            if img.is_primary:
-                primary_image = img
-                break
-        if not primary_image:
-            primary_image = min(book.images, key=lambda x: x.display_order)
-
-    if primary_image:
-        if is_production():
-            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
-        else:
-            base_url = settings.base_url or "http://localhost:8000"
-            book_dict["primary_image_url"] = (
-                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
-            )
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.post("/check-duplicate", response_model=DuplicateCheckResponse)
@@ -595,15 +615,7 @@ def create_book(
             # Log but don't fail book creation if job queuing fails
             logger.warning(f"Failed to queue eval runbook job for book {book.id}: {e}")
 
-    # Build response with job status (matching get_book pattern)
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.put("/{book_id}", response_model=BookResponse)
@@ -649,7 +661,7 @@ def update_book(
     db.commit()
     db.refresh(book)
 
-    return BookResponse.model_validate(book)
+    return _build_book_response(book, db)
 
 
 @router.delete("/{book_id}", status_code=204)
@@ -770,15 +782,7 @@ def update_book_status(
     db.commit()
     db.refresh(book)
 
-    # Build response with image info (matching get_book pattern)
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.patch("/{book_id}/inventory-type")
@@ -920,34 +924,7 @@ def acquire_book(
     db.commit()
     db.refresh(book)
 
-    # Build response with image info (matching get_book pattern)
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    # Get primary image URL
-    primary_image = None
-    if book.images:
-        for img in book.images:
-            if img.is_primary:
-                primary_image = img
-                break
-        if not primary_image:
-            primary_image = min(book.images, key=lambda x: x.display_order)
-
-    if primary_image:
-        if is_production():
-            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
-        else:
-            base_url = settings.base_url or "http://localhost:8000"
-            book_dict["primary_image_url"] = (
-                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
-            )
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.patch("/{book_id}/tracking", response_model=BookResponse)
@@ -1002,34 +979,7 @@ def add_tracking(
     db.commit()
     db.refresh(book)
 
-    # Build response with image info (matching get_book pattern)
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    # Get primary image URL
-    primary_image = None
-    if book.images:
-        for img in book.images:
-            if img.is_primary:
-                primary_image = img
-                break
-        if not primary_image:
-            primary_image = min(book.images, key=lambda x: x.display_order)
-
-    if primary_image:
-        if is_production():
-            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
-        else:
-            base_url = settings.base_url or "http://localhost:8000"
-            book_dict["primary_image_url"] = (
-                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
-            )
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.post("/{book_id}/tracking/refresh", response_model=BookResponse)
@@ -1074,34 +1024,7 @@ def refresh_tracking(
             detail=f"Failed to fetch tracking status: {e}",
         ) from None
 
-    # Build response with image info (matching get_book pattern)
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    # Get primary image URL
-    primary_image = None
-    if book.images:
-        for img in book.images:
-            if img.is_primary:
-                primary_image = img
-                break
-        if not primary_image:
-            primary_image = min(book.images, key=lambda x: x.display_order)
-
-    if primary_image:
-        if is_production():
-            book_dict["primary_image_url"] = get_cloudfront_url(primary_image.s3_key)
-        else:
-            base_url = settings.base_url or "http://localhost:8000"
-            book_dict["primary_image_url"] = (
-                f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
-            )
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.post("/{book_id}/archive-source", response_model=BookResponse)
@@ -1127,13 +1050,7 @@ async def archive_book_source(
 
     # If already successfully archived, return existing
     if book.archive_status == "success" and book.source_archived_url:
-        book_dict = BookResponse.model_validate(book).model_dump()
-        book_dict["has_analysis"] = book.analysis is not None
-        book_dict["has_eval_runbook"] = book.eval_runbook is not None
-        book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-        book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-        book_dict["image_count"] = len(book.images) if book.images else 0
-        return BookResponse(**book_dict)
+        return _build_book_response(book, db)
 
     # Set pending status
     book.archive_status = "pending"
@@ -1149,15 +1066,7 @@ async def archive_book_source(
     db.commit()
     db.refresh(book)
 
-    # Build response
-    book_dict = BookResponse.model_validate(book).model_dump()
-    book_dict["has_analysis"] = book.analysis is not None
-    book_dict["has_eval_runbook"] = book.eval_runbook is not None
-    book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
-    book_dict["analysis_job_status"] = _get_active_analysis_job_status(book.id, db)
-    book_dict["image_count"] = len(book.images) if book.images else 0
-
-    return BookResponse(**book_dict)
+    return _build_book_response(book, db)
 
 
 @router.post("/{book_id}/scores/calculate")
