@@ -365,11 +365,12 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
     except Exception as e:
         logger.error(f"Error processing job {job_id}: {e}", exc_info=True)
 
-        # Mark job as failed
+        # Mark job as failed - Issue #815: must set completed_at too
         if job:
             job.status = "failed"
             image_count = db.query(BookImage).filter(BookImage.book_id == book_id).count()
             job.error_message = format_analysis_error(e, image_count)[:1000]
+            job.completed_at = datetime.now(UTC)
             job.updated_at = datetime.now(UTC)
             db.commit()
 

@@ -2073,9 +2073,10 @@ def generate_analysis_async(
     try:
         send_analysis_job(job.id, book_id, request.model)
     except Exception as e:
-        # If SQS send fails, mark job as failed
+        # If SQS send fails, mark job as failed - Issue #815
         job.status = "failed"
         job.error_message = f"Failed to queue job: {e}"
+        job.completed_at = datetime.now(UTC)
         db.commit()
         raise HTTPException(
             status_code=502,
@@ -2130,6 +2131,7 @@ def get_analysis_job_status(
                 f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes "
                 "(worker likely crashed or timed out)"
             )
+            job.completed_at = datetime.now(UTC)
             job.updated_at = datetime.now(UTC)
             db.commit()
 
@@ -2196,9 +2198,10 @@ def generate_eval_runbook_job(
     try:
         send_eval_runbook_job(str(job.id), book_id)
     except Exception as e:
-        # If SQS send fails, mark job as failed
+        # If SQS send fails, mark job as failed - Issue #815
         job.status = "failed"
         job.error_message = f"Failed to queue job: {e}"
+        job.completed_at = datetime.now(UTC)
         db.commit()
         raise HTTPException(
             status_code=502,
@@ -2252,6 +2255,7 @@ def get_eval_runbook_job_status(
                 f"Job timed out after {STALE_EVAL_JOB_THRESHOLD_MINUTES} minutes "
                 "(worker likely crashed or timed out)"
             )
+            job.completed_at = datetime.now(UTC)
             job.updated_at = datetime.now(UTC)
             db.commit()
 
