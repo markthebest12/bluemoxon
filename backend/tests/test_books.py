@@ -733,8 +733,30 @@ class TestApplyExtractedDataToBook:
 
         assert fields_updated == []
 
-    def test_has_provenance_false_not_applied(self, db):
-        """Test that has_provenance=False is not applied (only True triggers update)."""
+    def test_zero_values_applied(self, db):
+        """Test that zero values are applied (not ignored as falsy).
+
+        Regression test: Using 'if value:' would skip zero values.
+        A book worth $0 (damaged, worthless reprint) should have its value updated.
+        """
+        from decimal import Decimal
+
+        from app.api.v1.books import _apply_extracted_data_to_book
+
+        book = Book(title="Test Book", value_low=Decimal("100"), value_mid=Decimal("150"))
+        db.add(book)
+        db.flush()
+
+        extracted_data = {"valuation_low": 0, "valuation_mid": 0}
+        fields_updated = _apply_extracted_data_to_book(book, extracted_data)
+
+        assert book.value_low == Decimal("0")
+        assert book.value_mid == Decimal("0")
+        assert "value_low" in fields_updated
+        assert "value_mid" in fields_updated
+
+    def test_has_provenance_false_applied(self, db):
+        """Test that has_provenance=False is applied (explicit False clears the flag)."""
         from app.api.v1.books import _apply_extracted_data_to_book
 
         book = Book(title="Test Book", has_provenance=True)
@@ -744,8 +766,8 @@ class TestApplyExtractedDataToBook:
         extracted_data = {"has_provenance": False}
         fields_updated = _apply_extracted_data_to_book(book, extracted_data)
 
-        assert book.has_provenance is True
-        assert "has_provenance" not in fields_updated
+        assert book.has_provenance is False
+        assert "has_provenance" in fields_updated
 
 
 class TestGenerateAnalysisDefaults:
