@@ -951,9 +951,7 @@ class TestBuildBookResponse:
         db.refresh(book)
 
         with (
-            patch.object(
-                Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True
-            ),
+            patch.object(Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True),
             patch(
                 "app.api.v1.books.get_cloudfront_url",
                 return_value="https://cdn.example.com/images/img2.jpg",
@@ -993,9 +991,7 @@ class TestBuildBookResponse:
         db.refresh(book)
 
         with (
-            patch.object(
-                Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True
-            ),
+            patch.object(Settings, "is_aws_lambda", new_callable=PropertyMock, return_value=True),
             patch("app.api.v1.books.get_cloudfront_url") as mock_cdn,
         ):
             mock_cdn.return_value = "https://cdn.example.com/images/second.jpg"
