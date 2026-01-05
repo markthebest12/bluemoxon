@@ -181,13 +181,17 @@ async function refreshSystemInfo() {
   await loadSystemInfo();
 }
 
-async function fetchCostData() {
+async function fetchCostData(forceRefresh = false) {
   loadingCost.value = true;
   costError.value = "";
   try {
     // Pass browser timezone so MTD calculation uses local time
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const res = await api.get("/admin/costs", { params: { timezone } });
+    const params: Record<string, string | boolean> = { timezone };
+    if (forceRefresh) {
+      params.refresh = true;
+    }
+    const res = await api.get("/admin/costs", { params });
     costData.value = res.data;
   } catch (e) {
     costError.value = "Failed to load cost data";
@@ -475,8 +479,14 @@ function formatCurrency(amount: number): string {
 }
 
 function formatCostDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // Parse as UTC date to avoid timezone shift (AWS returns dates like "2025-12-27")
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 const maxDailyCost = computed(() => {
@@ -1090,13 +1100,22 @@ function getBarWidth(cost: number): string {
 
     <!-- Costs Tab -->
     <div v-else-if="activeTab === 'costs'" class="flex flex-col gap-6">
-      <div class="flex justify-end">
+      <div class="flex justify-end gap-2">
         <button
-          @click="fetchCostData"
+          @click="fetchCostData(false)"
           :disabled="loadingCost"
           class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
+          title="Uses server cache (up to 1 hour old)"
         >
           {{ loadingCost ? "Loading..." : "Refresh" }}
+        </button>
+        <button
+          @click="fetchCostData(true)"
+          :disabled="loadingCost"
+          class="px-3 py-1 text-sm bg-victorian-hunter-100 hover:bg-victorian-hunter-200 text-victorian-hunter-700 rounded-sm"
+          title="Bypass server cache and fetch fresh data from AWS"
+        >
+          {{ loadingCost ? "Loading..." : "Force Refresh" }}
         </button>
       </div>
 
@@ -1151,7 +1170,7 @@ function getBarWidth(cost: number): string {
 
         <!-- Daily Trend -->
         <div v-if="costData.daily_trend.length > 0" class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-lg font-semibold mb-4">Daily Trend (Last 14 Days)</h3>
+          <h3 class="text-lg font-semibold mb-4">Daily Bedrock Trend (Last 14 Days)</h3>
           <div class="flex flex-col gap-2">
             <div
               v-for="day in costData.daily_trend"
@@ -1165,6 +1184,10 @@ function getBarWidth(cost: number): string {
               <span class="text-xs font-mono w-16 text-right">{{ formatCurrency(day.cost) }}</span>
             </div>
           </div>
+          <p class="mt-3 text-xs text-gray-400">
+            Only shows days with Bedrock API usage. Days with $0 Bedrock spend are not displayed.
+            AWS Cost Explorer data has a 24-48 hour delay.
+          </p>
         </div>
 
         <!-- Other AWS Costs -->
