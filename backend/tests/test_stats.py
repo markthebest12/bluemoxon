@@ -905,9 +905,7 @@ class TestByAuthor:
         assert prolific is not None
         assert prolific["count"] == 10, "Should have 10 book records"
         # sample_titles should be limited to 5
-        assert len(prolific["sample_titles"]) <= 5, (
-            "sample_titles should contain at most 5 titles"
-        )
+        assert len(prolific["sample_titles"]) <= 5, "sample_titles should contain at most 5 titles"
 
     def test_by_author_has_more_flag(self, client, db):
         """Test that has_more flag correctly indicates if more books exist.
@@ -953,15 +951,11 @@ class TestByAuthor:
 
         many = next((a for a in data if a["author"] == "Many Books Author"), None)
         assert many is not None
-        assert many["has_more"] is True, (
-            "has_more should be True when author has more than 5 books"
-        )
+        assert many["has_more"] is True, "has_more should be True when author has more than 5 books"
 
         few = next((a for a in data if a["author"] == "Few Books Author"), None)
         assert few is not None
-        assert few["has_more"] is False, (
-            "has_more should be False when author has 5 or fewer books"
-        )
+        assert few["has_more"] is False, "has_more should be False when author has 5 or fewer books"
 
     def test_by_author_multiple_authors_sample_titles(self, client, db):
         """Test that sample_titles works correctly for multiple authors.
