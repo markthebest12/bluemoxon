@@ -192,6 +192,9 @@ def reassign_publisher_books(
     db.delete(source)
     db.commit()
 
+    # Invalidate cache since publisher was deleted
+    invalidate_publisher_cache()
+
     return ReassignResponse(
         reassigned_count=book_count,
         deleted_entity=source_name,
