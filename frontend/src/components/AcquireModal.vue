@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useAcquisitionsStore, type AcquirePayload } from "@/stores/acquisitions";
-import { api } from "@/services/api";
+import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import PasteOrderModal from "./PasteOrderModal.vue";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -19,10 +19,8 @@ const emit = defineEmits<{
 
 const acquisitionsStore = useAcquisitionsStore();
 
-type Currency = "USD" | "GBP" | "EUR";
-const selectedCurrency = ref<Currency>("USD");
-const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
-const loadingRates = ref(false);
+const { selectedCurrency, exchangeRates, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 // Get today's date in YYYY-MM-DD format using local timezone (not UTC)
 // Uses explicit formatting to avoid locale-dependent behavior
@@ -48,28 +46,7 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const showPasteModal = ref(false);
 
-const currencySymbol = computed(() => {
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return "£";
-    case "EUR":
-      return "€";
-    default:
-      return "$";
-  }
-});
-
-const priceInUsd = computed(() => {
-  if (!form.value.purchase_price) return 0;
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
-    case "EUR":
-      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
-    default:
-      return form.value.purchase_price;
-  }
-});
+const priceInUsd = computed(() => convertToUsd(form.value.purchase_price) ?? 0);
 
 // Safely convert valueMid to number (API may return string)
 const valueMidNumeric = computed(() => {
@@ -83,18 +60,6 @@ const estimatedDiscount = computed(() => {
   const discount = ((valueMidNumeric.value - priceInUsd.value) / valueMidNumeric.value) * 100;
   return discount.toFixed(1);
 });
-
-async function loadExchangeRates() {
-  loadingRates.value = true;
-  try {
-    const res = await api.get("/admin/config");
-    exchangeRates.value = res.data;
-  } catch (e) {
-    console.error("Failed to load exchange rates:", e);
-  } finally {
-    loadingRates.value = false;
-  }
-}
 
 onMounted(() => {
   void loadExchangeRates();
