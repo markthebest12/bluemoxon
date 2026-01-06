@@ -19,13 +19,8 @@ const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
 
 // Currency conversion from composable
-const {
-  selectedCurrency,
-  exchangeRates,
-  currencySymbol,
-  convertToUsd,
-  loadExchangeRates,
-} = useCurrencyConversion();
+const { selectedCurrency, exchangeRates, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 const form = ref({
   value_low: props.book.value_low ?? null,

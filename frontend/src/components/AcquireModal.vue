@@ -19,13 +19,8 @@ const emit = defineEmits<{
 
 const acquisitionsStore = useAcquisitionsStore();
 
-const {
-  selectedCurrency,
-  exchangeRates,
-  currencySymbol,
-  convertToUsd,
-  loadExchangeRates,
-} = useCurrencyConversion();
+const { selectedCurrency, exchangeRates, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 // Get today's date in YYYY-MM-DD format using local timezone (not UTC)
 // Uses explicit formatting to avoid locale-dependent behavior

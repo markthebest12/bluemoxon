@@ -121,7 +121,7 @@ describe("useCurrencyConversion", () => {
 
   describe("loadExchangeRates", () => {
     it("loads rates from /admin/config", async () => {
-      const mockRates = { gbp_to_usd_rate: 1.30, eur_to_usd_rate: 1.15 };
+      const mockRates = { gbp_to_usd_rate: 1.3, eur_to_usd_rate: 1.15 };
       vi.mocked(api.get).mockResolvedValueOnce({ data: mockRates });
 
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
@@ -179,7 +179,7 @@ describe("useCurrencyConversion", () => {
     });
 
     it("caches rates and only makes one API call", async () => {
-      const mockRates = { gbp_to_usd_rate: 1.30, eur_to_usd_rate: 1.15 };
+      const mockRates = { gbp_to_usd_rate: 1.3, eur_to_usd_rate: 1.15 };
       vi.mocked(api.get).mockResolvedValue({ data: mockRates });
 
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
@@ -203,7 +203,7 @@ describe("useCurrencyConversion", () => {
     });
 
     it("shares exchange rates across instances", async () => {
-      const mockRates = { gbp_to_usd_rate: 1.30, eur_to_usd_rate: 1.15 };
+      const mockRates = { gbp_to_usd_rate: 1.3, eur_to_usd_rate: 1.15 };
       vi.mocked(api.get).mockResolvedValue({ data: mockRates });
 
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
