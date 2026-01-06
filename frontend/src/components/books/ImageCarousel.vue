@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/services/api";
 import { type BookImage } from "@/types/books";
+import { handleApiError } from "@/utils/errorHandler";
 
 const props = defineProps<{
   bookId: number;
@@ -52,8 +53,9 @@ async function loadImages() {
     if (props.initialIndex !== undefined) {
       currentIndex.value = props.initialIndex;
     }
-  } catch {
+  } catch (e) {
     images.value = [];
+    handleApiError(e, "Loading carousel images");
   } finally {
     loading.value = false;
   }

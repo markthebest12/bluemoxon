@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
 import NavBar from "@/components/layout/NavBar.vue";
+import ToastContainer from "@/components/ToastContainer.vue";
 </script>
 
 <template>
@@ -9,5 +10,6 @@ import NavBar from "@/components/layout/NavBar.vue";
     <main class="container mx-auto px-4 py-8">
       <RouterView />
     </main>
+    <ToastContainer />
   </div>
 </template>

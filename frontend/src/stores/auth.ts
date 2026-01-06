@@ -115,7 +115,9 @@ export const useAuthStore = defineStore("auth", () => {
         // User is MFA-exempt, skip MFA check
         mfaStep.value = "none";
       }
-    } catch {
+    } catch (e) {
+      // Session check failed - clear user but show toast for visibility
+      console.error("[Auth] Session check failed:", e);
       user.value = null;
     } finally {
       loading.value = false;
