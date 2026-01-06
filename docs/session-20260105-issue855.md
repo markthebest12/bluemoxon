@@ -26,9 +26,9 @@ Fix silent error handling (empty catch blocks) in frontend code that:
 
 - [x] Brainstorming complete
 - [x] Plan approved
-- [ ] Tests written (TDD)
-- [ ] Implementation complete
-- [ ] PR to staging created
+- [x] Tests written (TDD)
+- [x] Implementation complete
+- [x] PR to staging created (#875)
 - [ ] PR reviewed and merged to staging
 - [ ] Validated in staging
 - [ ] PR to main created
