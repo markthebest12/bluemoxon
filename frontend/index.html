@@ -29,9 +29,115 @@
         if (dark) document.documentElement.classList.add('dark');
       })();
     </script>
+
+    <!-- App Shell Critical CSS - shown immediately while Vue loads -->
+    <style>
+      /* App Shell - Light theme (default) */
+      .app-shell-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #f0ebe3;
+        border-bottom: 1px solid rgba(26, 26, 24, 0.1);
+        z-index: 1000;
+      }
+      .nav-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #722f37;
+        text-decoration: none;
+      }
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+      .nav-links a {
+        color: #1a1a18;
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+      .app-shell-main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 80px 1rem 2rem;
+      }
+      .skeleton-header {
+        height: 2rem;
+        width: 200px;
+        background: rgba(26, 26, 24, 0.1);
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      .skeleton-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+      }
+      .skeleton-card {
+        width: 100%;
+        aspect-ratio: 5/7;
+        background: rgba(26, 26, 24, 0.1);
+        border-radius: 8px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+
+      /* App Shell - Dark theme */
+      .dark .app-shell-nav {
+        background: #1a1a18;
+        border-bottom-color: rgba(240, 235, 227, 0.1);
+      }
+      .dark .nav-logo {
+        color: #d4a574;
+      }
+      .dark .nav-links a {
+        color: #f0ebe3;
+      }
+      .dark .skeleton-header,
+      .dark .skeleton-card {
+        background: rgba(240, 235, 227, 0.1);
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- App Shell - shown immediately, replaced when Vue mounts -->
+      <nav class="app-shell-nav">
+        <div class="nav-container">
+          <a href="/" class="nav-logo">BlueMoxon</a>
+          <div class="nav-links">
+            <a href="/">Collection</a>
+            <a href="/about">About</a>
+          </div>
+        </div>
+      </nav>
+      <main class="app-shell-main">
+        <div class="skeleton-header"></div>
+        <div class="skeleton-grid">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
