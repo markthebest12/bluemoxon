@@ -11,7 +11,7 @@ const { toasts, dismiss, pauseTimer, resumeTimer } = useToast();
         v-for="toast in toasts"
         :key="toast.id"
         :role="toast.type === 'error' ? 'alert' : 'status'"
-        class="toast rounded-lg border px-4 py-3 shadow-lg flex items-start gap-3"
+        class="toast rounded-lg border px-5 py-4 shadow-lg flex items-start gap-3"
         :class="[
           toast.type === 'error' ? 'toast-error' : 'toast-success',
           toast.type === 'error'
@@ -22,7 +22,7 @@ const { toasts, dismiss, pauseTimer, resumeTimer } = useToast();
         @mouseleave="resumeTimer(toast.id)"
       >
         <span
-          class="flex-shrink-0 text-lg"
+          class="flex-shrink-0 text-xl font-bold"
           :class="
             toast.type === 'error'
               ? 'text-[var(--color-status-error-accent)]'
@@ -35,10 +35,10 @@ const { toasts, dismiss, pauseTimer, resumeTimer } = useToast();
         <button
           type="button"
           aria-label="Dismiss notification"
-          class="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+          class="flex-shrink-0 ml-2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors font-bold text-lg"
           @click="dismiss(toast.id)"
         >
-          x
+          ×
         </button>
       </div>
     </TransitionGroup>
