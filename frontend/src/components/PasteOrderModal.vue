@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { api } from "@/services/api";
+import { getErrorMessage } from "@/types/errors";
 import TransitionModal from "./TransitionModal.vue";
 
 defineProps<{
@@ -51,14 +52,7 @@ async function handleExtract() {
       extractedData.value = null;
     }
   } catch (e: unknown) {
-    let errorMsg = "Extraction failed";
-    if (typeof e === "object" && e !== null && "response" in e) {
-      const response = (e as { response?: { data?: { detail?: string } } }).response;
-      if (response?.data?.detail) {
-        errorMsg = response.data.detail;
-      }
-    }
-    error.value = errorMsg;
+    error.value = getErrorMessage(e, "Extraction failed");
   } finally {
     extracting.value = false;
   }

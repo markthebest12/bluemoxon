@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAcquisitionsStore, type TrackingPayload } from "@/stores/acquisitions";
+import { getErrorMessage } from "@/types/errors";
 import TransitionModal from "./TransitionModal.vue";
 
 const props = defineProps<{
@@ -65,17 +66,7 @@ async function handleSubmit() {
     emit("added");
     emit("close");
   } catch (e: unknown) {
-    let detail = "Failed to add tracking";
-    if (e instanceof Error) {
-      detail = e.message;
-    }
-    if (typeof e === "object" && e !== null && "response" in e) {
-      const response = (e as { response?: { data?: { detail?: string } } }).response;
-      if (response?.data?.detail) {
-        detail = response.data.detail;
-      }
-    }
-    errorMessage.value = detail;
+    errorMessage.value = getErrorMessage(e, "Failed to add tracking");
   } finally {
     submitting.value = false;
   }

@@ -9,7 +9,7 @@ import {
 } from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
-import { getErrorMessage } from "@/types/errors";
+import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
 const props = defineProps<{
   visible: boolean;
@@ -275,10 +275,7 @@ async function handleExtract() {
     step.value = "extracting";
   } catch (e: unknown) {
     // Check for specific HTTP status codes
-    const status =
-      typeof e === "object" && e !== null && "response" in e
-        ? (e as { response?: { status?: number } }).response?.status
-        : undefined;
+    const status = getHttpStatus(e);
     if (status === 429) {
       extractError.value = "Rate limited by eBay. Please try again in a few minutes.";
     } else if (status === 400) {

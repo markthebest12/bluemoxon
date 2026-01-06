@@ -7,7 +7,7 @@ import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
-import { getErrorMessage } from "@/types/errors";
+import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
 const props = defineProps<{
   bookId: number;
@@ -108,10 +108,7 @@ async function loadAnalysis() {
     }
   } catch (e: unknown) {
     // Check for 404 status (no analysis yet)
-    const status =
-      typeof e === "object" && e !== null && "response" in e
-        ? (e as { response?: { status?: number } }).response?.status
-        : undefined;
+    const status = getHttpStatus(e);
     if (status === 404) {
       // No analysis yet - allow creating one if editor
       analysis.value = null;
