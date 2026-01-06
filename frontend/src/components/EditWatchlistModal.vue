@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
-import { api } from "@/services/api";
+import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import TransitionModal from "./TransitionModal.vue";
 
 const props = defineProps<{
@@ -18,46 +18,9 @@ const emit = defineEmits<{
 const acquisitionsStore = useAcquisitionsStore();
 const booksStore = useBooksStore();
 
-// Currency conversion state
-type Currency = "USD" | "GBP" | "EUR";
-const selectedCurrency = ref<Currency>("USD");
-const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
-const loadingRates = ref(false);
-
-const currencySymbol = computed(() => {
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return "£";
-    case "EUR":
-      return "€";
-    default:
-      return "$";
-  }
-});
-
-const priceInUsd = computed(() => {
-  if (!form.value.purchase_price) return 0;
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
-    case "EUR":
-      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
-    default:
-      return form.value.purchase_price;
-  }
-});
-
-async function loadExchangeRates() {
-  loadingRates.value = true;
-  try {
-    const res = await api.get("/admin/config");
-    exchangeRates.value = res.data;
-  } catch (e) {
-    console.error("Failed to load exchange rates:", e);
-  } finally {
-    loadingRates.value = false;
-  }
-}
+// Currency conversion from composable
+const { selectedCurrency, exchangeRates, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 const form = ref({
   value_low: props.book.value_low ?? null,
@@ -68,6 +31,9 @@ const form = ref({
   is_complete: props.book.is_complete ?? true,
   purchase_price: props.book.purchase_price ?? null,
 });
+
+// Computed USD price using composable's conversion
+const priceInUsd = computed(() => convertToUsd(form.value.purchase_price) ?? 0);
 
 // Track if price changed for eval runbook refresh
 const originalPrice = props.book.purchase_price ?? null;

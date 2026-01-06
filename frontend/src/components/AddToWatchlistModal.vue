@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
-import { api } from "@/services/api";
+import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -17,38 +17,8 @@ const emit = defineEmits<{
 
 const refsStore = useReferencesStore();
 const acquisitionsStore = useAcquisitionsStore();
-
-// Currency support
-type Currency = "USD" | "GBP" | "EUR";
-const selectedCurrency = ref<Currency>("USD");
-const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
-
-const currencySymbol = computed(() => {
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return "£";
-    case "EUR":
-      return "€";
-    default:
-      return "$";
-  }
-});
-
-const priceInUsd = computed(() => {
-  if (!form.value.purchase_price) return null;
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return (
-        Math.round(form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate * 100) / 100
-      );
-    case "EUR":
-      return (
-        Math.round(form.value.purchase_price * exchangeRates.value.eur_to_usd_rate * 100) / 100
-      );
-    default:
-      return form.value.purchase_price;
-  }
-});
+const { selectedCurrency, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 const form = ref({
   title: "",
@@ -65,14 +35,7 @@ const submitting = ref(false);
 const errorMessage = ref<string | null>(null);
 const validationErrors = ref<Record<string, string>>({});
 
-async function loadExchangeRates() {
-  try {
-    const res = await api.get("/admin/config");
-    exchangeRates.value = res.data;
-  } catch (e) {
-    console.error("Failed to load exchange rates:", e);
-  }
-}
+const priceInUsd = computed(() => convertToUsd(form.value.purchase_price));
 
 onMounted(() => {
   void refsStore.fetchAll();

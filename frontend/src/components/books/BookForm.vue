@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
-import { api } from "@/services/api";
+import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 
 const props = defineProps<{
   bookId?: number;
@@ -14,53 +14,8 @@ const booksStore = useBooksStore();
 const refsStore = useReferencesStore();
 
 // Currency conversion for acquisition fields
-type Currency = "USD" | "GBP" | "EUR";
-const selectedCurrency = ref<Currency>("USD");
-const exchangeRates = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
-
-const currencySymbol = computed(() => {
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return "£";
-    case "EUR":
-      return "€";
-    default:
-      return "$";
-  }
-});
-
-const purchasePriceInUsd = computed(() => {
-  if (!form.value.purchase_price) return 0;
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return form.value.purchase_price * exchangeRates.value.gbp_to_usd_rate;
-    case "EUR":
-      return form.value.purchase_price * exchangeRates.value.eur_to_usd_rate;
-    default:
-      return form.value.purchase_price;
-  }
-});
-
-const acquisitionCostInUsd = computed(() => {
-  if (!form.value.acquisition_cost) return 0;
-  switch (selectedCurrency.value) {
-    case "GBP":
-      return form.value.acquisition_cost * exchangeRates.value.gbp_to_usd_rate;
-    case "EUR":
-      return form.value.acquisition_cost * exchangeRates.value.eur_to_usd_rate;
-    default:
-      return form.value.acquisition_cost;
-  }
-});
-
-async function loadExchangeRates() {
-  try {
-    const res = await api.get("/admin/config");
-    exchangeRates.value = res.data;
-  } catch (e) {
-    console.error("Failed to load exchange rates:", e);
-  }
-}
+const { selectedCurrency, currencySymbol, convertToUsd, loadExchangeRates } =
+  useCurrencyConversion();
 
 const isEditing = computed(() => !!props.bookId);
 
@@ -93,6 +48,10 @@ const form = ref({
   has_provenance: false,
   provenance_tier: null as string | null,
 });
+
+// Computed properties for USD conversion (used by prepareFormData and template)
+const purchasePriceInUsd = computed(() => convertToUsd(form.value.purchase_price) ?? 0);
+const acquisitionCostInUsd = computed(() => convertToUsd(form.value.acquisition_cost) ?? 0);
 
 const saving = ref(false);
 const errorMessage = ref("");
