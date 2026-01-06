@@ -2,6 +2,7 @@
 import { ref, watch, computed } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "../TransitionModal.vue";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   bookId: number;
@@ -125,9 +126,9 @@ async function uploadFile(uploadFile: UploadFile) {
 
     uploadFile.status = "success";
     uploadFile.progress = 100;
-  } catch (e: any) {
+  } catch (e: unknown) {
     uploadFile.status = "error";
-    uploadFile.error = e.response?.data?.detail || e.message || "Upload failed";
+    uploadFile.error = getErrorMessage(e, "Upload failed");
   }
 }
 
@@ -165,9 +166,9 @@ function formatFileSize(bytes: number): string {
       <div class="flex items-center justify-between p-4 border-b">
         <h2 class="text-lg font-semibold text-gray-800">Upload Images</h2>
         <button
-          @click="close"
           :disabled="isUploading"
           class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          @click="close"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -207,7 +208,7 @@ function formatFileSize(bytes: number): string {
           </svg>
           <p class="text-gray-600 mb-2">
             Drag and drop images here, or
-            <button @click="openFileDialog" class="text-moxon-600 hover:text-moxon-800 font-medium">
+            <button class="text-moxon-600 hover:text-moxon-800 font-medium" @click="openFileDialog">
               browse
             </button>
           </p>
@@ -325,8 +326,8 @@ function formatFileSize(bytes: number): string {
             <!-- Remove Button (only if pending or error) -->
             <button
               v-if="file.status === 'pending' || file.status === 'error'"
-              @click="removeFile(file.id)"
               class="shrink-0 p-1 text-gray-400 hover:text-gray-600"
+              @click="removeFile(file.id)"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -363,15 +364,15 @@ function formatFileSize(bytes: number): string {
 
       <!-- Footer -->
       <div class="flex justify-end gap-3 p-4 border-t">
-        <button type="button" @click="close" :disabled="isUploading" class="btn-secondary">
+        <button type="button" :disabled="isUploading" class="btn-secondary" @click="close">
           {{ allComplete ? "Close" : "Cancel" }}
         </button>
         <button
           v-if="!allComplete"
           type="button"
-          @click="uploadAll"
           :disabled="!hasFiles || isUploading || files.every((f) => f.status !== 'pending')"
           class="btn-primary"
+          @click="uploadAll"
         >
           {{
             isUploading

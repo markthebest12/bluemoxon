@@ -69,7 +69,7 @@ function handleDelete() {
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h2 class="text-lg font-semibold text-gray-900">Delete {{ entityLabel }}</h2>
-        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
+        <button class="text-gray-400 hover:text-gray-600" @click="emit('close')">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -139,13 +139,12 @@ function handleDelete() {
       <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
         <button
           type="button"
-          @click="emit('close')"
           class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          @click="emit('close')"
         >
           Cancel
         </button>
         <button
-          @click="handleDelete"
           :disabled="processing || (hasBooks && !selectedTargetId)"
           class="px-4 py-2 text-sm text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           :class="
@@ -153,6 +152,7 @@ function handleDelete() {
               ? 'bg-[var(--color-status-error-solid)] hover:opacity-90'
               : 'bg-[var(--color-status-error-accent)] hover:opacity-90'
           "
+          @click="handleDelete"
         >
           {{
             processing

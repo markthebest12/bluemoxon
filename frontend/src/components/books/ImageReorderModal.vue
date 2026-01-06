@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { api } from "@/services/api";
 import TransitionModal from "../TransitionModal.vue";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   bookId: number;
@@ -166,9 +167,9 @@ async function save() {
 
     emit("reordered", updatedImages);
     emit("close");
-  } catch (e: any) {
-    console.error("[ImageReorder] Save error:", e.response?.status, e.response?.data, e.message);
-    error.value = e.response?.data?.detail || e.message || "Failed to save order";
+  } catch (e: unknown) {
+    console.error("[ImageReorder] Save error:", e);
+    error.value = getErrorMessage(e, "Failed to save order");
   } finally {
     saving.value = false;
   }
@@ -185,7 +186,7 @@ function close() {
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b">
         <h2 class="text-lg font-semibold text-gray-800">Reorder Images</h2>
-        <button @click="close" class="text-gray-500 hover:text-gray-700">
+        <button class="text-gray-500 hover:text-gray-700" @click="close">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -261,12 +262,12 @@ function close() {
             <!-- Up/Down Buttons -->
             <div class="flex flex-col gap-1 shrink-0">
               <button
-                @click.stop="moveUp(index)"
                 :disabled="index === 0"
                 :class="[
                   'p-1 rounded-sm hover:bg-gray-100',
                   index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500',
                 ]"
+                @click.stop="moveUp(index)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -278,7 +279,6 @@ function close() {
                 </svg>
               </button>
               <button
-                @click.stop="moveDown(index)"
                 :disabled="index === orderedImages.length - 1"
                 :class="[
                   'p-1 rounded-sm hover:bg-gray-100',
@@ -286,6 +286,7 @@ function close() {
                     ? 'text-gray-300 cursor-not-allowed'
                     : 'text-gray-500',
                 ]"
+                @click.stop="moveDown(index)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -311,10 +312,10 @@ function close() {
 
       <!-- Footer -->
       <div class="flex justify-end gap-3 p-4 border-t">
-        <button type="button" @click="close" :disabled="saving" class="btn-secondary">
+        <button type="button" :disabled="saving" class="btn-secondary" @click="close">
           Cancel
         </button>
-        <button type="button" @click="save" :disabled="saving" class="btn-primary">
+        <button type="button" :disabled="saving" class="btn-primary" @click="save">
           {{ saving ? "Saving..." : "Save Order" }}
         </button>
       </div>

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useAcquisitionsStore } from "../acquisitions";
+import { useAcquisitionsStore, type AcquisitionBook } from "../acquisitions";
 
 // Mock the API module
 vi.mock("@/services/api", () => ({
@@ -133,8 +133,8 @@ describe("Acquisitions Store", () => {
     it("moves book from evaluating to inTransit", async () => {
       const store = useAcquisitionsStore();
       store.evaluating = [
-        { id: 1, title: "Test Book", status: "EVALUATING" } as any,
-        { id: 2, title: "Other Book", status: "EVALUATING" } as any,
+        { id: 1, title: "Test Book", status: "EVALUATING" } as unknown as AcquisitionBook,
+        { id: 2, title: "Other Book", status: "EVALUATING" } as unknown as AcquisitionBook,
       ];
 
       const acquiredBook = {
@@ -166,8 +166,12 @@ describe("Acquisitions Store", () => {
 
     it("prepends acquired book to inTransit array", async () => {
       const store = useAcquisitionsStore();
-      store.evaluating = [{ id: 1, title: "New Book", status: "EVALUATING" } as any];
-      store.inTransit = [{ id: 2, title: "Old Book", status: "IN_TRANSIT" } as any];
+      store.evaluating = [
+        { id: 1, title: "New Book", status: "EVALUATING" } as unknown as AcquisitionBook,
+      ];
+      store.inTransit = [
+        { id: 2, title: "Old Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
+      ];
 
       const acquiredBook = { id: 1, title: "New Book", status: "IN_TRANSIT" };
       vi.mocked(api.patch).mockResolvedValueOnce({ data: acquiredBook });
@@ -188,8 +192,8 @@ describe("Acquisitions Store", () => {
     it("moves book from inTransit to received", async () => {
       const store = useAcquisitionsStore();
       store.inTransit = [
-        { id: 1, title: "Test Book", status: "IN_TRANSIT" } as any,
-        { id: 2, title: "Other Book", status: "IN_TRANSIT" } as any,
+        { id: 1, title: "Test Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
+        { id: 2, title: "Other Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
       ];
 
       const receivedBook = { id: 1, title: "Test Book", status: "ON_HAND" };
@@ -209,8 +213,12 @@ describe("Acquisitions Store", () => {
 
     it("prepends received book to received array", async () => {
       const store = useAcquisitionsStore();
-      store.inTransit = [{ id: 1, title: "New Book", status: "IN_TRANSIT" } as any];
-      store.received = [{ id: 2, title: "Old Book", status: "ON_HAND" } as any];
+      store.inTransit = [
+        { id: 1, title: "New Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
+      ];
+      store.received = [
+        { id: 2, title: "Old Book", status: "ON_HAND" } as unknown as AcquisitionBook,
+      ];
 
       const receivedBook = { id: 1, title: "New Book", status: "ON_HAND" };
       vi.mocked(api.patch).mockResolvedValueOnce({ data: receivedBook });
@@ -226,8 +234,8 @@ describe("Acquisitions Store", () => {
     it("removes book from inTransit and sets status to CANCELED", async () => {
       const store = useAcquisitionsStore();
       store.inTransit = [
-        { id: 1, title: "Test Book", status: "IN_TRANSIT" } as any,
-        { id: 2, title: "Other Book", status: "IN_TRANSIT" } as any,
+        { id: 1, title: "Test Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
+        { id: 2, title: "Other Book", status: "IN_TRANSIT" } as unknown as AcquisitionBook,
       ];
 
       const canceledBook = { id: 1, title: "Test Book", status: "CANCELED" };
@@ -247,8 +255,8 @@ describe("Acquisitions Store", () => {
     it("removes book from evaluating array", async () => {
       const store = useAcquisitionsStore();
       store.evaluating = [
-        { id: 1, title: "Test Book", status: "EVALUATING" } as any,
-        { id: 2, title: "Other Book", status: "EVALUATING" } as any,
+        { id: 1, title: "Test Book", status: "EVALUATING" } as unknown as AcquisitionBook,
+        { id: 2, title: "Other Book", status: "EVALUATING" } as unknown as AcquisitionBook,
       ];
 
       vi.mocked(api.delete).mockResolvedValueOnce({});
@@ -264,14 +272,17 @@ describe("Acquisitions Store", () => {
   describe("computed properties", () => {
     it("evaluatingCount returns length of evaluating array", () => {
       const store = useAcquisitionsStore();
-      store.evaluating = [{ id: 1, title: "Book 1" } as any, { id: 2, title: "Book 2" } as any];
+      store.evaluating = [
+        { id: 1, title: "Book 1" } as unknown as AcquisitionBook,
+        { id: 2, title: "Book 2" } as unknown as AcquisitionBook,
+      ];
 
       expect(store.evaluatingCount).toBe(2);
     });
 
     it("inTransitCount returns length of inTransit array", () => {
       const store = useAcquisitionsStore();
-      store.inTransit = [{ id: 1, title: "Book 1" } as any];
+      store.inTransit = [{ id: 1, title: "Book 1" } as unknown as AcquisitionBook];
 
       expect(store.inTransitCount).toBe(1);
     });
@@ -279,9 +290,9 @@ describe("Acquisitions Store", () => {
     it("receivedCount returns length of received array", () => {
       const store = useAcquisitionsStore();
       store.received = [
-        { id: 1, title: "Book 1" } as any,
-        { id: 2, title: "Book 2" } as any,
-        { id: 3, title: "Book 3" } as any,
+        { id: 1, title: "Book 1" } as unknown as AcquisitionBook,
+        { id: 2, title: "Book 2" } as unknown as AcquisitionBook,
+        { id: 3, title: "Book 3" } as unknown as AcquisitionBook,
       ];
 
       expect(store.receivedCount).toBe(3);

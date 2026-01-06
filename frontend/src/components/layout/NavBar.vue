@@ -93,9 +93,9 @@ function closeMobileMenu() {
             <template v-if="authStore.isAuthenticated">
               <div class="relative">
                 <button
-                  @click="showDropdown = !showDropdown"
                   class="text-sm text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors flex items-center gap-1"
                   :title="authStore.user?.email"
+                  @click="showDropdown = !showDropdown"
                 >
                   {{ displayName }}
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,8 +140,8 @@ function closeMobileMenu() {
                       Admin Settings
                     </RouterLink>
                     <button
-                      @click="handleSignOut"
                       class="block w-full text-left px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-black/10 dark:hover:bg-white/10"
+                      @click="handleSignOut"
                     >
                       Sign Out
                     </button>
@@ -167,9 +167,9 @@ function closeMobileMenu() {
           </div>
           <!-- Hamburger Menu Button - Mobile -->
           <button
-            @click="toggleMobileMenu"
             class="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 focus:outline-none"
             aria-label="Toggle menu"
+            @click="toggleMobileMenu"
           >
             <span
               class="block w-6 h-0.5 bg-slate-200 transition-all duration-300"
@@ -255,8 +255,8 @@ function closeMobileMenu() {
             Admin Settings
           </RouterLink>
           <button
-            @click="handleSignOut"
             class="block w-full text-left py-3 text-victorian-paper-cream/80 hover:text-victorian-burgundy-light"
+            @click="handleSignOut"
           >
             Sign Out
           </button>

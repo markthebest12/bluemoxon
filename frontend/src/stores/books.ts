@@ -134,8 +134,9 @@ export const useBooksStore = defineStore("books", () => {
       const response = await api.get("/books", { params });
       books.value = response.data.items;
       total.value = response.data.total;
-    } catch (e: any) {
-      error.value = e.message || "Failed to fetch books";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to fetch books";
+      error.value = message;
     } finally {
       loading.value = false;
     }
@@ -147,8 +148,9 @@ export const useBooksStore = defineStore("books", () => {
     try {
       const response = await api.get(`/books/${id}`);
       currentBook.value = response.data;
-    } catch (e: any) {
-      error.value = e.message || "Failed to fetch book";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to fetch book";
+      error.value = message;
     } finally {
       loading.value = false;
     }
@@ -160,8 +162,9 @@ export const useBooksStore = defineStore("books", () => {
     try {
       const response = await api.post("/books", bookData);
       return response.data;
-    } catch (e: any) {
-      error.value = e.message || "Failed to create book";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to create book";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -199,8 +202,9 @@ export const useBooksStore = defineStore("books", () => {
       const response = await api.put(`/books/${id}`, bookData);
       currentBook.value = response.data;
       return response.data;
-    } catch (e: any) {
-      error.value = e.message || "Failed to update book";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update book";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -212,8 +216,9 @@ export const useBooksStore = defineStore("books", () => {
     error.value = null;
     try {
       await api.delete(`/books/${id}`);
-    } catch (e: any) {
-      error.value = e.message || "Failed to delete book";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to delete book";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -229,8 +234,9 @@ export const useBooksStore = defineStore("books", () => {
       if (currentBook.value && currentBook.value.id === bookId) {
         currentBook.value.has_analysis = true;
       }
-    } catch (e: any) {
-      error.value = e.message || "Failed to update analysis";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update analysis";
+      error.value = message;
       throw e;
     }
   }

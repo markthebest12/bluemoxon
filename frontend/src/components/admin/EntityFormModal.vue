@@ -127,7 +127,7 @@ function handleSubmit() {
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h2 class="text-lg font-semibold text-gray-900">{{ title }}</h2>
-        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
+        <button class="text-gray-400 hover:text-gray-600" @click="emit('close')">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -140,7 +140,7 @@ function handleSubmit() {
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="px-6 py-4 flex flex-col gap-4">
+      <form class="px-6 py-4 flex flex-col gap-4" @submit.prevent="handleSubmit">
         <!-- Server Error -->
         <div
           v-if="error"
@@ -267,15 +267,15 @@ function handleSubmit() {
       <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
         <button
           type="button"
-          @click="emit('close')"
           class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          @click="emit('close')"
         >
           Cancel
         </button>
         <button
-          @click="handleSubmit"
           :disabled="saving || !form.name?.trim()"
           class="px-4 py-2 text-sm bg-victorian-hunter-600 text-white rounded hover:bg-victorian-hunter-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          @click="handleSubmit"
         >
           {{ saving ? "Saving..." : isEdit ? "Save Changes" : "Create" }}
         </button>

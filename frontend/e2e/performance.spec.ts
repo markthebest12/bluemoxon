@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 interface PerformanceMetrics {
   // Navigation timing
@@ -21,7 +21,7 @@ interface PerformanceMetrics {
   imageTransferSize: number;
 }
 
-async function measurePerformance(page: any): Promise<PerformanceMetrics> {
+async function measurePerformance(page: Page): Promise<PerformanceMetrics> {
   // Get navigation timing
   const navigationTiming = await page.evaluate(() => {
     const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;

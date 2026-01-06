@@ -6,7 +6,16 @@ import { api } from "@/services/api";
 const router = useRouter();
 const query = ref("");
 const scope = ref("all");
-const results = ref<any[]>([]);
+interface SearchResult {
+  id: number;
+  book_id?: number;
+  type: "book" | "analysis";
+  title: string;
+  author?: string;
+  snippet?: string;
+}
+
+const results = ref<SearchResult[]>([]);
 const loading = ref(false);
 const searched = ref(false);
 
@@ -23,7 +32,7 @@ async function search() {
       },
     });
     results.value = response.data.results;
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("Search failed", e);
     results.value = [];
   } finally {
@@ -31,7 +40,7 @@ async function search() {
   }
 }
 
-function viewResult(result: any) {
+function viewResult(result: SearchResult) {
   if (result.type === "book") {
     void router.push(`/books/${result.id}`);
   } else if (result.type === "analysis") {
@@ -46,7 +55,7 @@ function viewResult(result: any) {
 
     <!-- Search Form -->
     <div class="card mb-8">
-      <form @submit.prevent="search" class="flex gap-4">
+      <form class="flex gap-4" @submit.prevent="search">
         <input
           v-model="query"
           type="text"
@@ -79,8 +88,8 @@ function viewResult(result: any) {
       <div
         v-for="result in results"
         :key="`${result.type}-${result.id}`"
-        @click="viewResult(result)"
         class="card cursor-pointer hover:shadow-lg transition-shadow"
+        @click="viewResult(result)"
       >
         <div class="flex items-start justify-between">
           <div>

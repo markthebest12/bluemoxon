@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { api } from "@/services/api";
+import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
 export interface ScoreBreakdownItem {
   points: number;
@@ -107,12 +108,12 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.get(`/books/${bookId}/eval-runbook`);
       currentRunbook.value = response.data;
       return response.data;
-    } catch (e: any) {
-      if (e.response?.status === 404) {
+    } catch (e: unknown) {
+      if (getHttpStatus(e) === 404) {
         currentRunbook.value = null;
         return null;
       }
-      error.value = e.message || "Failed to fetch eval runbook";
+      error.value = getErrorMessage(e, "Failed to fetch eval runbook");
       throw e;
     } finally {
       loading.value = false;
@@ -129,8 +130,8 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.patch(`/books/${bookId}/eval-runbook/price`, payload);
       currentRunbook.value = response.data.runbook;
       return response.data;
-    } catch (e: any) {
-      error.value = e.message || "Failed to update price";
+    } catch (e: unknown) {
+      error.value = getErrorMessage(e, "Failed to update price");
       throw e;
     } finally {
       loading.value = false;
@@ -142,7 +143,7 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.get(`/books/${bookId}/eval-runbook/history`);
       priceHistory.value = response.data;
       return response.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to fetch price history:", e);
       return [];
     }
@@ -155,8 +156,8 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.post(`/books/${bookId}/eval-runbook/refresh`);
       currentRunbook.value = response.data.runbook;
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || e.message || "Failed to refresh analysis";
+    } catch (e: unknown) {
+      error.value = getErrorMessage(e, "Failed to refresh analysis");
       throw e;
     } finally {
       loading.value = false;

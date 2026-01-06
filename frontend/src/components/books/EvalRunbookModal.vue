@@ -6,6 +6,7 @@ import {
   type PriceUpdatePayload,
 } from "@/stores/evalRunbook";
 import TransitionModal from "../TransitionModal.vue";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   visible: boolean;
@@ -228,8 +229,8 @@ async function runFullAnalysis() {
     setTimeout(() => {
       refreshSuccess.value = false;
     }, 3000);
-  } catch (e: any) {
-    refreshError.value = e.response?.data?.detail || e.message || "Failed to run full analysis";
+  } catch (e: unknown) {
+    refreshError.value = getErrorMessage(e, "Failed to run full analysis");
   } finally {
     refreshing.value = false;
   }
@@ -259,7 +260,7 @@ function formatCurrency(value: number | null | undefined): string {
           <h2 class="text-lg font-semibold text-gray-900">Eval Runbook</h2>
           <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
         </div>
-        <button @click="handleClose" class="text-gray-500 hover:text-gray-700">
+        <button class="text-gray-500 hover:text-gray-700" @click="handleClose">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -311,8 +312,8 @@ function formatCurrency(value: number | null | undefined): string {
                   full analysis for detailed condition assessment and FMV comparables.
                 </p>
                 <button
-                  @click="runFullAnalysis"
                   class="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-sm hover:bg-amber-700 flex items-center gap-2"
+                  @click="runFullAnalysis"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -531,7 +532,7 @@ function formatCurrency(value: number | null | undefined): string {
                 <div class="text-gray-500">Asking</div>
                 <div class="font-medium flex items-center gap-1">
                   {{ formatCurrency(runbook.current_asking_price) }}
-                  <button @click="openPriceEdit" class="link" title="Edit price">
+                  <button class="link" title="Edit price" @click="openPriceEdit">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
@@ -571,8 +572,8 @@ function formatCurrency(value: number | null | undefined): string {
           <!-- Item Identification -->
           <div class="border border-gray-200 rounded-lg">
             <button
-              @click="toggleSection('identification')"
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+              @click="toggleSection('identification')"
             >
               <span class="font-medium">Item Identification</span>
               <svg
@@ -603,8 +604,8 @@ function formatCurrency(value: number | null | undefined): string {
           <!-- Condition Assessment -->
           <div class="border border-gray-200 rounded-lg">
             <button
-              @click="toggleSection('condition')"
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+              @click="toggleSection('condition')"
             >
               <span class="font-medium">Condition Assessment</span>
               <span class="text-sm text-gray-500 mr-2">{{ runbook.condition_grade || "-" }}</span>
@@ -633,8 +634,8 @@ function formatCurrency(value: number | null | undefined): string {
           <!-- Strategic Scoring -->
           <div class="border border-gray-200 rounded-lg">
             <button
-              @click="toggleSection('scoring')"
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+              @click="toggleSection('scoring')"
             >
               <span class="font-medium">Strategic Scoring</span>
               <span class="text-sm text-gray-500 mr-2">{{ runbook.total_score }} pts</span>
@@ -682,8 +683,8 @@ function formatCurrency(value: number | null | undefined): string {
           <!-- FMV Pricing -->
           <div class="border border-gray-200 rounded-lg">
             <button
-              @click="toggleSection('fmv')"
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+              @click="toggleSection('fmv')"
             >
               <span class="font-medium">FMV Pricing</span>
               <span class="text-sm text-gray-500 mr-2">{{ fmvRange || "-" }}</span>
@@ -736,8 +737,8 @@ function formatCurrency(value: number | null | undefined): string {
           <!-- Critical Issues -->
           <div class="border border-gray-200 rounded-lg">
             <button
-              @click="toggleSection('issues')"
               class="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+              @click="toggleSection('issues')"
             >
               <span class="font-medium">Critical Issues & Recommendation</span>
               <span
@@ -792,7 +793,7 @@ function formatCurrency(value: number | null | undefined): string {
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold">Update Asking Price</h3>
-          <button @click="closePriceEdit" class="text-gray-500 hover:text-gray-700">
+          <button class="text-gray-500 hover:text-gray-700" @click="closePriceEdit">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
@@ -804,7 +805,7 @@ function formatCurrency(value: number | null | undefined): string {
           </button>
         </div>
 
-        <form @submit.prevent="submitPriceUpdate" class="p-4 flex flex-col gap-4">
+        <form class="p-4 flex flex-col gap-4" @submit.prevent="submitPriceUpdate">
           <div>
             <div class="text-sm text-gray-500 mb-2">
               Original Listing Price: {{ formatCurrency(runbook?.original_asking_price) }}
@@ -872,7 +873,7 @@ function formatCurrency(value: number | null | undefined): string {
           </div>
 
           <div class="flex gap-3 pt-2">
-            <button type="button" @click="closePriceEdit" class="btn-secondary flex-1">
+            <button type="button" class="btn-secondary flex-1" @click="closePriceEdit">
               Cancel
             </button>
             <button type="submit" :disabled="updatingPrice" class="btn-primary flex-1">
