@@ -76,44 +76,47 @@ export const useAuthStore = defineStore("auth", () => {
         role: "viewer", // Default, will be updated from API
       };
 
-      // Fetch actual role and profile from our backend database FIRST
-      // (we need mfa_exempt before deciding on MFA requirement)
+      // Fetch user profile and MFA preference in parallel for better performance
+      // Both calls are independent - we'll use mfa_exempt from profile to decide
+      // whether to apply the MFA preference result
+      const [userResult, mfaPreference] = await Promise.all([
+        api.get("/users/me").catch((e) => {
+          console.warn("Could not fetch user profile from API:", e);
+          return null;
+        }),
+        fetchMFAPreference().catch((e) => {
+          console.warn("Could not fetch MFA preference:", e);
+          return null;
+        }),
+      ]);
+
+      // Apply user profile data
       let isMfaExempt = false;
-      try {
-        const response = await api.get("/users/me");
-        if (response.data.role) {
-          user.value.role = response.data.role;
+      if (userResult?.data) {
+        if (userResult.data.role) {
+          user.value.role = userResult.data.role;
         }
-        if (response.data.first_name) {
-          user.value.first_name = response.data.first_name;
+        if (userResult.data.first_name) {
+          user.value.first_name = userResult.data.first_name;
         }
-        if (response.data.last_name) {
-          user.value.last_name = response.data.last_name;
+        if (userResult.data.last_name) {
+          user.value.last_name = userResult.data.last_name;
         }
-        isMfaExempt = response.data.mfa_exempt === true;
+        isMfaExempt = userResult.data.mfa_exempt === true;
         user.value.mfa_exempt = isMfaExempt;
-      } catch (e) {
-        console.warn("Could not fetch user profile from API:", e);
       }
 
-      // Check if user has MFA set up (skip if MFA-exempt)
-      if (!isMfaExempt) {
-        try {
-          const mfaPreference = await fetchMFAPreference();
-          const hasMfa =
-            mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
-          if (!hasMfa) {
-            // User needs to set up MFA
-            mfaStep.value = "mfa_setup_required";
-          } else {
-            mfaStep.value = "none";
-          }
-        } catch (e) {
-          console.warn("Could not fetch MFA preference:", e);
+      // Apply MFA preference (only if not exempt and we got a result)
+      if (!isMfaExempt && mfaPreference) {
+        const hasMfa =
+          mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
+        if (!hasMfa) {
+          mfaStep.value = "mfa_setup_required";
+        } else {
           mfaStep.value = "none";
         }
       } else {
-        // User is MFA-exempt, skip MFA check
+        // User is MFA-exempt or MFA check failed - no MFA required
         mfaStep.value = "none";
       }
     } catch (e) {
