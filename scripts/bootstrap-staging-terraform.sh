@@ -16,7 +16,7 @@
 set -euo pipefail
 
 BUCKET_NAME="bluemoxon-staging-terraform-state"
-TABLE_NAME="bluemoxon-staging-terraform-locks"
+TABLE_NAME="bluemoxon-terraform-locks-staging"
 REGION="us-west-2"
 ACCOUNT_ID="652617421195"
 
