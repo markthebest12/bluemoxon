@@ -16,6 +16,13 @@ if ("scrollRestoration" in history) {
   history.scrollRestoration = "manual";
 }
 
+// Start prefetching HomeView immediately (don't await)
+// This loads the chunk while auth is in progress
+// Attach .catch() immediately to prevent unhandled rejection if import fails before initApp runs
+import("@/views/HomeView.vue").catch(() => {
+  // Ignore - router will handle loading if needed
+});
+
 // Configure Amplify
 Amplify.configure({
   Auth: {
