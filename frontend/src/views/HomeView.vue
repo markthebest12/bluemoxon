@@ -61,12 +61,7 @@ function getTrendArrow(value: number): string {
       class="card-static p-6 text-center"
     >
       <p class="text-victorian-burgundy">{{ dashboardStore.error }}</p>
-      <button
-        class="btn btn-primary mt-4"
-        @click="dashboardStore.loadDashboard()"
-      >
-        Retry
-      </button>
+      <button class="btn btn-primary mt-4" @click="dashboardStore.loadDashboard()">Retry</button>
     </div>
 
     <div v-else-if="dashboardStore.data" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
@@ -86,7 +81,10 @@ function getTrendArrow(value: number): string {
           </p>
           <span
             v-if="dashboardStore.data.overview.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(dashboardStore.data.overview.week_delta.count)]"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.count),
+            ]"
           >
             {{ getTrendArrow(dashboardStore.data.overview.week_delta.count) }}
             {{ formatDelta(dashboardStore.data.overview.week_delta.count) }}
@@ -116,7 +114,10 @@ function getTrendArrow(value: number): string {
           </p>
           <span
             v-if="dashboardStore.data.overview.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(dashboardStore.data.overview.week_delta.volumes)]"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.volumes),
+            ]"
           >
             {{ getTrendArrow(dashboardStore.data.overview.week_delta.volumes) }}
             {{ formatDelta(dashboardStore.data.overview.week_delta.volumes) }}
@@ -143,13 +144,21 @@ function getTrendArrow(value: number): string {
           </p>
           <span
             v-if="dashboardStore.data.overview.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(dashboardStore.data.overview.week_delta.value_mid)]"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.value_mid),
+            ]"
           >
             {{ getTrendArrow(dashboardStore.data.overview.week_delta.value_mid) }}
           </span>
         </div>
         <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
-          <span v-if="dashboardStore.data.overview.week_delta && dashboardStore.data.overview.week_delta.value_mid !== 0">
+          <span
+            v-if="
+              dashboardStore.data.overview.week_delta &&
+              dashboardStore.data.overview.week_delta.value_mid !== 0
+            "
+          >
             <span :class="getTrendClass(dashboardStore.data.overview.week_delta.value_mid)">
               {{ formatDelta(dashboardStore.data.overview.week_delta.value_mid, true) }}
             </span>

@@ -222,7 +222,9 @@ const hasTier1Publishers = computed(() => {
 
 // Filter out "Various" from author data (not a real author)
 const variousEntry = computed(() => props.data.by_author.find((d) => d.author === "Various"));
-const filteredAuthorData = computed(() => props.data.by_author.filter((d) => d.author !== "Various"));
+const filteredAuthorData = computed(() =>
+  props.data.by_author.filter((d) => d.author !== "Various")
+);
 
 const authorChartData = computed(() => ({
   labels: filteredAuthorData.value.slice(0, 8).map((d) => d.author),
@@ -317,7 +319,11 @@ const authorChartOptions = computed(() => ({
           Books by Era
         </h3>
         <div class="h-48 md:h-56">
-          <Bar v-if="props.data.by_era.length > 0" :data="eraChartData" :options="barChartOptions" />
+          <Bar
+            v-if="props.data.by_era.length > 0"
+            :data="eraChartData"
+            :options="barChartOptions"
+          />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No era data available
           </p>
