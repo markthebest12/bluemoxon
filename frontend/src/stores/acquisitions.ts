@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { PAGINATION } from "@/constants";
 
 export interface AcquisitionBook {
   id: number;
@@ -104,7 +105,7 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
           params: {
             status: "EVALUATING",
             inventory_type: "PRIMARY",
-            per_page: 100,
+            per_page: PAGINATION.DEFAULT_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
@@ -113,7 +114,7 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
           params: {
             status: "IN_TRANSIT",
             inventory_type: "PRIMARY",
-            per_page: 100,
+            per_page: PAGINATION.DEFAULT_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
@@ -122,7 +123,7 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
           params: {
             status: "ON_HAND",
             inventory_type: "PRIMARY",
-            per_page: 50,
+            per_page: PAGINATION.RECEIVED_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
@@ -132,9 +133,9 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
       evaluating.value = evalRes.data.items;
       inTransit.value = transitRes.data.items;
 
-      // Only show last 30 days of received items
+      // Only show last N days of received items
       const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - PAGINATION.RECEIVED_DAYS_LOOKBACK);
       received.value = receivedRes.data.items.filter((b: AcquisitionBook) => {
         if (!b.purchase_date) return false;
         return new Date(b.purchase_date) >= thirtyDaysAgo;
