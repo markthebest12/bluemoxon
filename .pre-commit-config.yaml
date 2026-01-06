@@ -29,6 +29,13 @@ repos:
         files: ^frontend/.*\.(vue|ts|tsx)$
         pass_filenames: false
 
+      - id: frontend-prettier
+        name: Frontend Prettier
+        entry: bash -c 'cd frontend && npx prettier --check "src/**/*.{ts,vue,css}"'
+        language: system
+        files: ^frontend/src/.*\.(vue|ts|css)$
+        pass_filenames: false
+
   # General
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

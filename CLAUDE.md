@@ -112,6 +112,7 @@ git checkout -b <type>/<description>
 poetry run ruff check backend/
 poetry run ruff format --check backend/
 npm run --prefix frontend lint
+npm run --prefix frontend format
 npm run --prefix frontend type-check
 
 # 4. Commit with conventional commit message
@@ -127,6 +128,19 @@ gh pr checks <pr-number> --watch
 # 7. Merge ONLY after CI passes (use auto-merge when available)
 gh pr merge <pr-number> --squash --delete-branch --auto
 ```
+
+### CRITICAL: Prettier Formatting (Prevents CI Failures)
+
+**ESLint and Prettier are SEPARATE checks in CI.** Running `npm run lint` does NOT fix Prettier issues.
+
+Before committing frontend changes, ALWAYS run:
+```bash
+npm run --prefix frontend format
+```
+
+This prevents the most common CI failure: "Check formatting with Prettier" failing after ESLint passes.
+
+**Pre-commit hook:** The `.pre-commit-config.yaml` includes Prettier check. Run `pre-commit install` to catch issues locally.
 
 ### Auto-Deploy Flow
 - Push to main triggers Deploy workflow
@@ -534,7 +548,8 @@ poetry run pytest           # Test
 # Frontend
 cd frontend
 npm install                 # Install deps
-npm run lint               # Lint + fix
+npm run lint               # Lint + fix (ESLint only)
+npm run format             # Format with Prettier (REQUIRED before commit)
 npm run type-check         # TypeScript check
 npm run build              # Production build
 npm run dev                # Dev server
