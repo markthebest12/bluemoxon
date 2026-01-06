@@ -818,7 +818,7 @@ class TestStaleJobAutoCleanup:
         db.add(stale_job)
         db.commit()
 
-        with patch("app.services.sqs.send_analysis_job"):
+        with patch("app.api.v1.books.send_analysis_job"):
             response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
 
         assert response.status_code == 202
@@ -870,7 +870,7 @@ class TestStaleJobAutoCleanup:
         db.add(stale_job)
         db.commit()
 
-        with patch("app.services.sqs.send_analysis_job"):
+        with patch("app.api.v1.books.send_analysis_job"):
             response = client.post(f"/api/v1/books/{book.id}/analysis/generate-async")
 
         assert response.status_code == 202

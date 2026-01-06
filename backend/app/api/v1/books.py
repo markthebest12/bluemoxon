@@ -1,21 +1,42 @@
 """Books API endpoints."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+import os
+import tempfile
+import traceback
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Literal
 
 import boto3
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import exists, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.v1.images import get_cloudfront_url
+from app.api.v1.images import (
+    LOCAL_IMAGES_PATH,
+    S3_IMAGES_PREFIX,
+    generate_thumbnail,
+    get_cloudfront_url,
+    get_thumbnail_key,
+)
 from app.auth import require_admin, require_editor
 from app.config import get_settings
 from app.db import get_db
-from app.models import AnalysisJob, Book, EvalRunbookJob
-from app.models.image import BookImage
+from app.models import (
+    AnalysisJob,
+    Author,
+    Book,
+    BookAnalysis,
+    BookImage,
+    EvalRunbook,
+    EvalRunbookJob,
+    Publisher,
+)
+from app.schemas.analysis_job import AnalysisJobResponse
 from app.schemas.book import (
     AcquireRequest,
     BookCreate,
@@ -27,6 +48,11 @@ from app.schemas.book import (
     DuplicateMatch,
     TrackingRequest,
 )
+from app.schemas.eval_runbook_job import EvalRunbookJobResponse
+from app.services.analysis_parser import (
+    apply_metadata_to_book,
+    extract_analysis_metadata,
+)
 from app.services.archive import archive_url
 from app.services.bedrock import (
     build_bedrock_messages,
@@ -36,14 +62,20 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.publisher_validation import get_or_create_publisher
+from app.services.reference import get_or_create_binder
 from app.services.scoring import (
     author_tier_to_score,
     calculate_all_scores,
     calculate_all_scores_with_breakdown,
     calculate_title_similarity,
     is_duplicate_title,
+    recalculate_discount_pct,
 )
-from app.services.sqs import send_eval_runbook_job
+from app.services.sqs import send_analysis_job, send_eval_runbook_job
+from app.services.tracking import process_tracking
+from app.services.tracking_poller import refresh_single_book_tracking
+from app.utils.markdown_parser import parse_analysis_markdown, strip_structured_data
 
 logger = logging.getLogger(__name__)
 
@@ -301,10 +333,6 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
         listing_s3_keys: S3 keys of images in listings/{item_id}/ format
         db: Database session
     """
-    from pathlib import Path
-
-    from app.api.v1.images import generate_thumbnail
-
     bucket_name = settings.images_bucket
     if not bucket_name:
         logger.warning("images_bucket not configured, skipping image copy")
@@ -333,8 +361,6 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
             )
 
             # Generate thumbnail: download, resize, upload
-            import tempfile
-
             with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp_img:
                 local_path = Path(tmp_img.name)
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_thumb:
@@ -407,16 +433,10 @@ def list_books(
     db: Session = Depends(get_db),
 ):
     """List books with filtering and pagination."""
-    from sqlalchemy import exists
-
-    from app.models import BookAnalysis, BookImage
-
     query = db.query(Book)
 
     # Apply search query
     if q:
-        from app.models import Author
-
         search_term = f"%{q}%"
         query = query.outerjoin(Author, Book.author_id == Author.id).filter(
             (Book.title.ilike(search_term))
@@ -435,8 +455,6 @@ def list_books(
     if publisher_id:
         query = query.filter(Book.publisher_id == publisher_id)
     if publisher_tier:
-        from app.models import Publisher
-
         query = query.join(Publisher).filter(Publisher.tier == publisher_tier)
     if author_id:
         query = query.filter(Book.author_id == author_id)
@@ -712,8 +730,6 @@ def update_book(
 
     # Recalculate discount_pct if value_mid changed
     if "value_mid" in update_data or "value_low" in update_data or "value_high" in update_data:
-        from app.services.scoring import recalculate_discount_pct
-
         recalculate_discount_pct(book)
 
     db.commit()
@@ -729,17 +745,6 @@ def delete_book(
     _user=Depends(require_editor),
 ):
     """Delete a book and all associated images/analysis. Requires editor role."""
-    import logging
-    import traceback
-
-    from app.models import BookImage
-    from app.models.analysis import BookAnalysis
-    from app.models.analysis_job import AnalysisJob
-    from app.models.eval_runbook import EvalRunbook
-    from app.models.eval_runbook_job import EvalRunbookJob
-
-    logger = logging.getLogger(__name__)
-
     try:
         book = db.query(Book).filter(Book.id == book_id).first()
         if not book:
@@ -772,12 +777,6 @@ def delete_book(
         # Delete physical image files from S3 (production uses S3)
         if settings.is_aws_lambda:
             # In production, delete from S3
-            import os
-
-            import boto3
-
-            from app.api.v1.images import S3_IMAGES_PREFIX, get_thumbnail_key
-
             region = os.environ.get("AWS_REGION", settings.aws_region)
             s3 = boto3.client("s3", region_name=region)
             bucket = settings.images_bucket
@@ -793,8 +792,6 @@ def delete_book(
                         logger.warning("Failed to delete S3 object %s: %s", key, str(e))
         else:
             # In development, delete from local filesystem
-            from app.api.v1.images import LOCAL_IMAGES_PATH, get_thumbnail_key
-
             for image in book_images:
                 for key in [image.s3_key, get_thumbnail_key(image.s3_key)]:
                     file_path = LOCAL_IMAGES_PATH / key
@@ -885,9 +882,6 @@ def acquire_book(
 
     Calculates discount percentage and creates scoring snapshot.
     """
-    from datetime import UTC, datetime
-    from decimal import Decimal
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -909,10 +903,6 @@ def acquire_book(
 
     # Process tracking information if provided
     if acquire_data.tracking_number or acquire_data.tracking_url:
-        from datetime import date as date_module
-
-        from app.services.tracking import process_tracking
-
         try:
             tracking_number, tracking_carrier, tracking_url = process_tracking(
                 acquire_data.tracking_number,
@@ -924,7 +914,7 @@ def acquire_book(
             book.tracking_url = tracking_url
 
             # Set ship_date to today when tracking is added
-            book.ship_date = date_module.today()
+            book.ship_date = date.today()
         except ValueError as e:
             # If tracking processing fails, log but don't fail the acquisition
             logger.warning(f"Failed to process tracking for book {book_id}: {e}")
@@ -945,8 +935,6 @@ def acquire_book(
         book.discount_pct = Decimal(str(round(discount, 2)))
 
     # Get collection stats for scoring
-    from sqlalchemy import func
-
     collection_stats = (
         db.query(
             func.count(Book.id).label("items"),
@@ -1002,8 +990,6 @@ def add_tracking(
     - tracking_number + optional tracking_carrier (URL auto-generated)
     - tracking_url directly (for unsupported carriers)
     """
-    from app.services.tracking import process_tracking
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1052,8 +1038,6 @@ def refresh_tracking(
     Fetches the latest tracking status and updates estimated delivery date
     if available from the carrier. Activates tracking polling if not already active.
     """
-    from app.services.tracking_poller import refresh_single_book_tracking
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1356,8 +1340,6 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
 
     Returns the analysis with structured data block stripped for display.
     """
-    from app.utils.markdown_parser import strip_structured_data
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1383,17 +1365,6 @@ def update_book_analysis(
     If binder is identified, associates binder with book.
     If metadata block is present, extracts provenance and first edition info.
     """
-    from decimal import Decimal
-
-    from app.models import BookAnalysis
-    from app.services.analysis_parser import (
-        apply_metadata_to_book,
-        extract_analysis_metadata,
-    )
-    from app.services.publisher_validation import get_or_create_publisher
-    from app.services.reference import get_or_create_binder
-    from app.utils.markdown_parser import parse_analysis_markdown
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1464,8 +1435,6 @@ def update_book_analysis(
 
     # Recalculate discount_pct if FMV values changed
     if values_changed:
-        from app.services.scoring import recalculate_discount_pct
-
         recalculate_discount_pct(book)
 
     # Always recalculate scores when analysis is created/updated
@@ -1513,8 +1482,6 @@ def reparse_book_analysis(
     Use this to backfill parsed fields for analyses uploaded before
     automatic parsing was implemented.
     """
-    from app.utils.markdown_parser import parse_analysis_markdown
-
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1566,11 +1533,6 @@ def generate_analysis(
 
     Requires admin role. Replaces existing analysis if present.
     """
-    from datetime import UTC, datetime
-
-    from app.models import BookAnalysis
-    from app.utils.markdown_parser import parse_analysis_markdown
-
     # Get book with relationships
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -1603,10 +1565,6 @@ def generate_analysis(
     # Build messages and invoke Bedrock
     messages = build_bedrock_messages(book_data, images, source_content)
     model_id = get_model_id(request.model)
-
-    import logging
-
-    logger = logging.getLogger(__name__)
 
     logger.warning(f"Starting Bedrock invocation for book {book_id}, model={request.model}")
     try:
@@ -1641,8 +1599,6 @@ def generate_analysis(
     db.add(analysis)
 
     # Check if valuation data was extracted and update book's FMV if different
-    from decimal import Decimal
-
     values_changed = False
     if parsed.market_analysis and "valuation" in parsed.market_analysis:
         valuation = parsed.market_analysis["valuation"]
@@ -1664,8 +1620,6 @@ def generate_analysis(
 
     # Recalculate discount_pct if FMV values changed
     if values_changed:
-        from app.services.scoring import recalculate_discount_pct
-
         recalculate_discount_pct(book)
 
     # Always recalculate scores when analysis is generated
@@ -1700,9 +1654,6 @@ def reparse_all_analyses(
 
     Batch operation to backfill parsed fields for all analyses.
     """
-    from app.models import BookAnalysis
-    from app.utils.markdown_parser import parse_analysis_markdown
-
     analyses = db.query(BookAnalysis).filter(BookAnalysis.full_markdown.isnot(None)).all()
 
     results = []
@@ -1768,8 +1719,6 @@ def re_extract_structured_data(
         or "value_low" in fields_updated
         or "value_high" in fields_updated
     ):
-        from app.services.scoring import recalculate_discount_pct
-
         recalculate_discount_pct(book)
 
     # Recalculate scores with new values
@@ -1795,8 +1744,6 @@ def re_extract_all_degraded(
     Processes books one at a time to avoid overwhelming Bedrock quota.
     Returns summary of successes and failures.
     """
-    from app.models import BookAnalysis
-
     # Find all degraded analyses
     degraded_analyses = (
         db.query(BookAnalysis).filter(BookAnalysis.extraction_status == "degraded").all()
@@ -1854,8 +1801,6 @@ def re_extract_all_degraded(
             or "value_low" in fields_updated
             or "value_high" in fields_updated
         ):
-            from app.services.scoring import recalculate_discount_pct
-
             recalculate_discount_pct(book)
 
         # Recalculate scores
@@ -1906,12 +1851,6 @@ def generate_analysis_async(
     Returns immediately with job ID. Poll /analysis/status for progress.
     Requires admin role.
     """
-    from sqlalchemy.exc import IntegrityError
-
-    from app.models import AnalysisJob
-    from app.schemas.analysis_job import AnalysisJobResponse
-    from app.services.sqs import send_analysis_job
-
     # Verify book exists
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -2001,11 +1940,6 @@ def get_analysis_job_status(
     stale if it has been in "running" status for more than 15 minutes without
     updates, indicating the worker likely crashed or timed out.
     """
-    from datetime import UTC, datetime, timedelta
-
-    from app.models import AnalysisJob
-    from app.schemas.analysis_job import AnalysisJobResponse
-
     # Verify book exists
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -2054,10 +1988,6 @@ def generate_eval_runbook_job(
     Returns immediately with job ID. Poll /eval-runbook/status for progress.
     Requires editor role.
     """
-    from sqlalchemy.exc import IntegrityError
-
-    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
-
     # Verify book exists
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -2126,10 +2056,6 @@ def get_eval_runbook_job_status(
     stale if it has been in "running" status for more than 15 minutes without
     updates, indicating the worker likely crashed or timed out.
     """
-    from datetime import UTC, timedelta
-
-    from app.schemas.eval_runbook_job import EvalRunbookJobResponse
-
     # Verify book exists
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
