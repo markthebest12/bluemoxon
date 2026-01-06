@@ -9,10 +9,12 @@ vi.mock("@/services/api", () => ({
 }));
 
 import { api } from "@/services/api";
+import { _resetCurrencyCache } from "../useCurrencyConversion";
 
 describe("useCurrencyConversion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetCurrencyCache(); // Reset module-level cache between tests
   });
 
   describe("currencySymbol", () => {
@@ -103,6 +105,18 @@ describe("useCurrencyConversion", () => {
       // 10.55 GBP * 1.287 = 13.57785 -> rounded to 13.58
       expect(convertToUsd(10.55)).toBe(13.58);
     });
+
+    it("rounds USD amounts to 2 decimal places", async () => {
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { selectedCurrency, convertToUsd } = useCurrencyConversion();
+
+      selectedCurrency.value = "USD";
+
+      // Edge case: 10.555 USD -> rounded to 10.56
+      expect(convertToUsd(10.555)).toBe(10.56);
+      // Edge case: 10.554 USD -> rounded to 10.55
+      expect(convertToUsd(10.554)).toBe(10.55);
+    });
   });
 
   describe("loadExchangeRates", () => {
@@ -162,6 +176,46 @@ describe("useCurrencyConversion", () => {
       await loadExchangeRates();
 
       expect(loadingRates.value).toBe(false);
+    });
+
+    it("caches rates and only makes one API call", async () => {
+      const mockRates = { gbp_to_usd_rate: 1.30, eur_to_usd_rate: 1.15 };
+      vi.mocked(api.get).mockResolvedValue({ data: mockRates });
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+
+      // Simulate multiple components calling loadExchangeRates
+      const instance1 = useCurrencyConversion();
+      const instance2 = useCurrencyConversion();
+      const instance3 = useCurrencyConversion();
+
+      await instance1.loadExchangeRates();
+      await instance2.loadExchangeRates();
+      await instance3.loadExchangeRates();
+
+      // Should only make ONE API call despite 3 calls
+      expect(api.get).toHaveBeenCalledTimes(1);
+
+      // All instances should have the cached rates
+      expect(instance1.exchangeRates.value).toEqual(mockRates);
+      expect(instance2.exchangeRates.value).toEqual(mockRates);
+      expect(instance3.exchangeRates.value).toEqual(mockRates);
+    });
+
+    it("shares exchange rates across instances", async () => {
+      const mockRates = { gbp_to_usd_rate: 1.30, eur_to_usd_rate: 1.15 };
+      vi.mocked(api.get).mockResolvedValue({ data: mockRates });
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+
+      const instance1 = useCurrencyConversion();
+      const instance2 = useCurrencyConversion();
+
+      // Load rates via instance1
+      await instance1.loadExchangeRates();
+
+      // instance2 should see the same rates (shared state)
+      expect(instance2.exchangeRates.value).toEqual(mockRates);
     });
   });
 

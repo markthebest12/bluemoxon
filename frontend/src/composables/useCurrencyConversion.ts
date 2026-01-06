@@ -8,13 +8,21 @@ export interface ExchangeRates {
   eur_to_usd_rate: number;
 }
 
+// Module-level cache to prevent duplicate API calls across components
+const DEFAULT_RATES: ExchangeRates = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+let cachedRates: ExchangeRates | null = null;
+let ratesLoadPromise: Promise<void> | null = null;
+
+// Shared reactive state across all composable instances
+const sharedExchangeRates = ref<ExchangeRates>(DEFAULT_RATES);
+const sharedLoadingRates = ref(false);
+
 export function useCurrencyConversion() {
   const selectedCurrency = ref<Currency>("USD");
-  const exchangeRates = ref<ExchangeRates>({
-    gbp_to_usd_rate: 1.28,
-    eur_to_usd_rate: 1.1,
-  });
-  const loadingRates = ref(false);
+
+  // Use shared refs for rates (prevents N components = N API calls)
+  const exchangeRates = sharedExchangeRates;
+  const loadingRates = sharedLoadingRates;
 
   const currencySymbol = computed(() => {
     switch (selectedCurrency.value) {
@@ -46,15 +54,34 @@ export function useCurrencyConversion() {
   }
 
   async function loadExchangeRates(): Promise<void> {
-    loadingRates.value = true;
-    try {
-      const res = await api.get("/admin/config");
-      exchangeRates.value = res.data;
-    } catch (e) {
-      console.error("Failed to load exchange rates:", e);
-    } finally {
-      loadingRates.value = false;
+    // Return cached rates if already loaded
+    if (cachedRates) {
+      exchangeRates.value = cachedRates;
+      return;
     }
+
+    // If a load is already in progress, wait for it
+    if (ratesLoadPromise) {
+      await ratesLoadPromise;
+      return;
+    }
+
+    // Start loading
+    loadingRates.value = true;
+    ratesLoadPromise = (async () => {
+      try {
+        const res = await api.get("/admin/config");
+        cachedRates = res.data;
+        exchangeRates.value = res.data;
+      } catch (e) {
+        console.error("Failed to load exchange rates:", e);
+      } finally {
+        loadingRates.value = false;
+        ratesLoadPromise = null;
+      }
+    })();
+
+    await ratesLoadPromise;
   }
 
   return {
@@ -65,4 +92,12 @@ export function useCurrencyConversion() {
     convertToUsd,
     loadExchangeRates,
   };
+}
+
+// For testing: reset module state
+export function _resetCurrencyCache(): void {
+  cachedRates = null;
+  ratesLoadPromise = null;
+  sharedExchangeRates.value = DEFAULT_RATES;
+  sharedLoadingRates.value = false;
 }
