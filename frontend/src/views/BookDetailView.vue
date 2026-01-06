@@ -8,6 +8,7 @@ import { getErrorMessage } from "@/types/errors";
 import { handleApiError, handleSuccess } from "@/utils/errorHandler";
 import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { invalidateDashboardCache } from "@/composables/useDashboardCache";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
@@ -253,6 +254,10 @@ async function confirmDelete() {
   try {
     await booksStore.deleteBook(booksStore.currentBook.id);
     deleteModalVisible.value = false;
+
+    // Invalidate dashboard cache since book data changed
+    invalidateDashboardCache();
+
     void router.push("/books");
   } catch (e: unknown) {
     deleteError.value = e instanceof Error ? e.message : "Failed to delete book";
