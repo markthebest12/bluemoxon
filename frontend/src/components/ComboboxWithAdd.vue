@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { UI_TIMING } from "@/constants";
 
 interface Option {
   id: number;
@@ -82,7 +83,7 @@ function handleBlur() {
       // Restore suggested name if field is empty and no selection made
       searchText.value = props.suggestedName;
     }
-  }, 200);
+  }, UI_TIMING.COMBOBOX_BLUR_DELAY_MS);
 }
 
 function selectOption(option: Option) {
