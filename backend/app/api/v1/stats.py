@@ -273,7 +273,7 @@ def get_by_author(db: Session = Depends(get_db)):
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
         .group_by(Author.id)
-        .order_by(func.count(Book.id).desc())  # Order by record count
+        .order_by(func.sum(Book.volumes).desc())  # Order by total volumes
         .all()
     )
 
@@ -313,11 +313,11 @@ def get_by_author(db: Session = Depends(get_db)):
         author_data.append(
             {
                 "author": author_name,
-                "count": record_count,  # Number of book records (fix #827)
+                "count": volumes or 0,  # Total individual books (volumes)
                 "value": float(value or 0),
                 "volumes": volumes or 0,  # Backward compat with frontend
                 "total_volumes": volumes or 0,  # New field, same value
-                "titles": record_count,  # Same as count for backward compat
+                "titles": record_count,  # Number of distinct titles/sets
                 "sample_titles": sample_titles,
                 "has_more": record_count > 5,
             }
