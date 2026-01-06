@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { BOOK_STATUSES, FILTERS, PAGINATION } from "@/constants";
 
 export interface AcquisitionBook {
   id: number;
@@ -102,27 +103,27 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
       const [evalRes, transitRes, receivedRes] = await Promise.all([
         api.get("/books", {
           params: {
-            status: "EVALUATING",
+            status: BOOK_STATUSES.EVALUATING,
             inventory_type: "PRIMARY",
-            per_page: 100,
+            per_page: PAGINATION.DEFAULT_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
         }),
         api.get("/books", {
           params: {
-            status: "IN_TRANSIT",
+            status: BOOK_STATUSES.IN_TRANSIT,
             inventory_type: "PRIMARY",
-            per_page: 100,
+            per_page: PAGINATION.DEFAULT_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
         }),
         api.get("/books", {
           params: {
-            status: "ON_HAND",
+            status: BOOK_STATUSES.ON_HAND,
             inventory_type: "PRIMARY",
-            per_page: 50,
+            per_page: PAGINATION.RECEIVED_PER_PAGE,
             sort_by: "updated_at",
             sort_order: "desc",
           },
@@ -132,12 +133,12 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
       evaluating.value = evalRes.data.items;
       inTransit.value = transitRes.data.items;
 
-      // Only show last 30 days of received items
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Only show items received within lookback window
+      const lookbackDate = new Date();
+      lookbackDate.setDate(lookbackDate.getDate() - FILTERS.RECEIVED_DAYS_LOOKBACK);
       received.value = receivedRes.data.items.filter((b: AcquisitionBook) => {
         if (!b.purchase_date) return false;
-        return new Date(b.purchase_date) >= thirtyDaysAgo;
+        return new Date(b.purchase_date) >= lookbackDate;
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed to load acquisitions";

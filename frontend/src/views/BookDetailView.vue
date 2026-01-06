@@ -8,6 +8,7 @@ import { getErrorMessage } from "@/types/errors";
 import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
@@ -74,13 +75,7 @@ const deleteModalVisible = ref(false);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
 
-// Status management (value sent to backend, label displayed to user)
-const statusOptions = [
-  { value: "EVALUATING", label: "EVAL" },
-  { value: "ON_HAND", label: "ON HAND" },
-  { value: "IN_TRANSIT", label: "IN TRANSIT" },
-  { value: "REMOVED", label: "REMOVED" },
-];
+// Status management
 const updatingStatus = ref(false);
 
 // Computed property for back link that preserves filter state
@@ -304,13 +299,13 @@ async function saveProvenance() {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case "EVALUATING":
+    case BOOK_STATUSES.EVALUATING:
       return "bg-blue-100 text-blue-800";
-    case "ON_HAND":
+    case BOOK_STATUSES.ON_HAND:
       return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
-    case "IN_TRANSIT":
+    case BOOK_STATUSES.IN_TRANSIT:
       return "badge-transit";
-    case "REMOVED":
+    case BOOK_STATUSES.REMOVED:
       return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
     default:
       return "bg-gray-100 text-gray-800";
@@ -318,7 +313,7 @@ function getStatusColor(status: string): string {
 }
 
 function getStatusLabel(statusValue: string): string {
-  const option = statusOptions.find((s) => s.value === statusValue);
+  const option = BOOK_STATUS_OPTIONS.find((s) => s.value === statusValue);
   return option ? option.label : statusValue.replace("_", " ");
 }
 
@@ -580,7 +575,11 @@ function printPage() {
                   ]"
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                 >
-                  <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                  <option
+                    v-for="status in BOOK_STATUS_OPTIONS"
+                    :key="status.value"
+                    :value="status.value"
+                  >
                     {{ status.label }}
                   </option>
                 </select>
