@@ -1,0 +1,104 @@
+"""Statistics schemas."""
+
+from pydantic import BaseModel, Field
+
+
+class PrimaryCounts(BaseModel):
+    """Primary collection counts and values."""
+
+    count: int
+    volumes: int
+    value_low: float
+    value_mid: float
+    value_high: float
+
+
+class SimpleCounts(BaseModel):
+    """Simple count wrapper."""
+
+    count: int
+
+
+class WeekDelta(BaseModel):
+    """Week-over-week changes."""
+
+    count: int
+    volumes: int
+    value_mid: float
+    authenticated_bindings: int
+
+
+class OverviewStats(BaseModel):
+    """Collection overview statistics."""
+
+    primary: PrimaryCounts
+    extended: SimpleCounts
+    flagged: SimpleCounts
+    total_items: int
+    authenticated_bindings: int
+    in_transit: int
+    week_delta: WeekDelta
+
+
+class BinderData(BaseModel):
+    """Authenticated binding data by binder."""
+
+    binder: str
+    full_name: str | None
+    count: int
+    value: float
+
+
+class EraData(BaseModel):
+    """Books grouped by era."""
+
+    era: str
+    count: int
+    value: float
+
+
+class PublisherData(BaseModel):
+    """Books grouped by publisher."""
+
+    publisher: str
+    tier: str | None
+    count: int
+    value: float
+    volumes: int
+
+
+class AuthorData(BaseModel):
+    """Books grouped by author."""
+
+    author: str
+    count: int
+    value: float
+    volumes: int
+    total_volumes: int = Field(default=0, description="Same as volumes, for backward compat")
+    titles: int = Field(description="Number of distinct book records")
+    sample_titles: list[str] = Field(default_factory=list)
+    has_more: bool = False
+
+
+class AcquisitionDay(BaseModel):
+    """Daily acquisition data."""
+
+    date: str
+    label: str
+    count: int
+    value: float
+    cost: float
+    cumulative_count: int
+    cumulative_value: float
+    cumulative_cost: float
+
+
+class DashboardResponse(BaseModel):
+    """Complete dashboard statistics response."""
+
+    overview: OverviewStats
+    bindings: list[BinderData]
+    by_era: list[EraData]
+    by_publisher: list[PublisherData]
+    by_author: list[AuthorData]
+    acquisitions_daily: list[AcquisitionDay]

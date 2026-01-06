@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import { api } from "@/services/api";
+import { computed } from "vue";
 import type { TooltipItem } from "chart.js";
+import type { DashboardStats, AcquisitionDay } from "@/types/dashboard";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,62 +31,10 @@ ChartJS.register(
   Filler
 );
 
-// Types
-interface AcquisitionDay {
-  date: string;
-  label: string;
-  count: number;
-  value: number;
-  cost: number;
-  cumulative_count: number;
-  cumulative_value: number;
-  cumulative_cost: number;
-}
-
-interface BinderData {
-  binder: string;
-  full_name: string;
-  count: number;
-  value: number;
-}
-
-interface EraData {
-  era: string;
-  count: number;
-  value: number;
-}
-
-interface PublisherData {
-  publisher: string;
-  tier: string;
-  count: number;
-  value: number;
-  volumes: number;
-}
-
-interface AuthorData {
-  author: string;
-  count: number; // Total individual books (volumes)
-  value: number;
-  volumes: number;
-  titles: number; // Number of distinct titles/sets
-  sample_titles: string[];
-  has_more: boolean;
-}
-
-// State
-const loading = ref(true);
-const acquisitionData = ref<AcquisitionDay[]>([]);
-const binderData = ref<BinderData[]>([]);
-const eraData = ref<EraData[]>([]);
-const publisherData = ref<PublisherData[]>([]);
-const authorData = ref<AuthorData[]>([]);
-
-// Get today's date in browser timezone (YYYY-MM-DD format)
-function getTodayLocal(): string {
-  const now = new Date();
-  return now.toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD format
-}
+// Props - receive data from parent
+const props = defineProps<{
+  data: DashboardStats;
+}>();
 
 // Colors - Victorian Design System
 const chartColors = {
@@ -107,7 +55,8 @@ const chartColors = {
 };
 
 // Chart options - mobile friendly
-const lineChartOptions = {
+// Note: lineChartOptions needs to be a computed to access props.data
+const lineChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -118,7 +67,7 @@ const lineChartOptions = {
       callbacks: {
         label: (context: TooltipItem<"line">) => {
           const dataIndex = context.dataIndex;
-          const day = acquisitionData.value[dataIndex];
+          const day: AcquisitionDay | undefined = props.data.acquisitions_daily[dataIndex];
           if (!day) return "";
           return [
             `Total: $${day.cumulative_value.toLocaleString()}`,
@@ -148,7 +97,7 @@ const lineChartOptions = {
       },
     },
   },
-};
+}));
 
 const doughnutOptions = {
   responsive: true,
@@ -208,36 +157,33 @@ const barChartOptions = {
 };
 
 // Computed chart data - cumulative value growth (daily, last 30 days)
-const acquisitionChartData = computed(() => {
-  // Data already has cumulative values from backend
-  return {
-    labels: acquisitionData.value.map((d) => d.label),
-    datasets: [
-      {
-        label: "Cumulative Value",
-        data: acquisitionData.value.map((d) => d.cumulative_value),
-        borderColor: chartColors.primary,
-        backgroundColor: chartColors.primaryLight,
-        fill: true,
-        tension: 0.3,
-        pointRadius: 2,
-        pointHoverRadius: 5,
-      },
-    ],
-  };
-});
-
-const binderChartData = computed(() => ({
-  labels: binderData.value.map((d) => d.binder),
+const acquisitionChartData = computed(() => ({
+  labels: props.data.acquisitions_daily.map((d) => d.label),
   datasets: [
     {
-      data: binderData.value.map((d) => d.count),
+      label: "Cumulative Value",
+      data: props.data.acquisitions_daily.map((d) => d.cumulative_value),
+      borderColor: chartColors.primary,
+      backgroundColor: chartColors.primaryLight,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+    },
+  ],
+}));
+
+const binderChartData = computed(() => ({
+  labels: props.data.bindings.map((d) => d.binder),
+  datasets: [
+    {
+      data: props.data.bindings.map((d) => d.count),
       backgroundColor: [
-        chartColors.burgundy, // Zaehnsdorf
-        chartColors.gold, // Rivière
-        chartColors.primary, // Sangorski
-        chartColors.hunter700, // Bayntun
-        chartColors.goldMuted, // Others
+        chartColors.burgundy,
+        chartColors.gold,
+        chartColors.primary,
+        chartColors.hunter700,
+        chartColors.goldMuted,
       ],
       borderWidth: 0,
     },
@@ -245,10 +191,10 @@ const binderChartData = computed(() => ({
 }));
 
 const eraChartData = computed(() => ({
-  labels: eraData.value.map((d) => d.era.split(" ")[0]), // Just "Victorian", "Romantic", etc.
+  labels: props.data.by_era.map((d) => d.era.split(" ")[0]),
   datasets: [
     {
-      data: eraData.value.map((d) => d.count),
+      data: props.data.by_era.map((d) => d.count),
       backgroundColor: chartColors.primary,
       borderRadius: 4,
     },
@@ -256,7 +202,7 @@ const eraChartData = computed(() => ({
 }));
 
 const publisherChartData = computed(() => {
-  const tier1 = publisherData.value.filter((p) => p.tier === "TIER_1");
+  const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
   return {
     labels: tier1.slice(0, 5).map((d) => d.publisher),
     datasets: [
@@ -271,12 +217,14 @@ const publisherChartData = computed(() => {
 
 // Check if there are any tier 1 publishers
 const hasTier1Publishers = computed(() => {
-  return publisherData.value.some((p) => p.tier === "TIER_1");
+  return props.data.by_publisher.some((p) => p.tier === "TIER_1");
 });
 
 // Filter out "Various" from author data (not a real author)
-const variousEntry = computed(() => authorData.value.find((d) => d.author === "Various"));
-const filteredAuthorData = computed(() => authorData.value.filter((d) => d.author !== "Various"));
+const variousEntry = computed(() => props.data.by_author.find((d) => d.author === "Various"));
+const filteredAuthorData = computed(() =>
+  props.data.by_author.filter((d) => d.author !== "Various")
+);
 
 const authorChartData = computed(() => ({
   labels: filteredAuthorData.value.slice(0, 8).map((d) => d.author),
@@ -339,32 +287,6 @@ const authorChartOptions = computed(() => ({
     },
   },
 }));
-
-// Fetch all data
-onMounted(async () => {
-  try {
-    // Get today's date in browser timezone for the daily chart
-    const today = getTodayLocal();
-
-    const [acqRes, binderRes, eraRes, pubRes, authorRes] = await Promise.all([
-      api.get(`/stats/acquisitions-daily?reference_date=${today}&days=30`),
-      api.get("/stats/bindings"),
-      api.get("/stats/by-era"),
-      api.get("/stats/by-publisher"),
-      api.get("/stats/by-author"),
-    ]);
-
-    acquisitionData.value = acqRes.data;
-    binderData.value = binderRes.data;
-    eraData.value = eraRes.data;
-    publisherData.value = pubRes.data;
-    authorData.value = authorRes.data;
-  } catch (e) {
-    console.error("Failed to load statistics", e);
-  } finally {
-    loading.value = false;
-  }
-});
 </script>
 
 <template>
@@ -373,11 +295,7 @@ onMounted(async () => {
       <h2>Collection Analytics</h2>
     </div>
 
-    <div v-if="loading" class="text-center py-8">
-      <p class="text-victorian-ink-muted">Loading charts...</p>
-    </div>
-
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- Premium Bindings Distribution -->
       <div class="card-static p-4!">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
@@ -385,7 +303,7 @@ onMounted(async () => {
         </h3>
         <div class="h-48 md:h-56">
           <Doughnut
-            v-if="binderData.length > 0"
+            v-if="props.data.bindings.length > 0"
             :data="binderChartData"
             :options="doughnutOptions"
           />
@@ -401,7 +319,11 @@ onMounted(async () => {
           Books by Era
         </h3>
         <div class="h-48 md:h-56">
-          <Bar v-if="eraData.length > 0" :data="eraChartData" :options="barChartOptions" />
+          <Bar
+            v-if="props.data.by_era.length > 0"
+            :data="eraChartData"
+            :options="barChartOptions"
+          />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No era data available
           </p>
@@ -448,7 +370,7 @@ onMounted(async () => {
         </h3>
         <div class="h-48 md:h-64">
           <Line
-            v-if="acquisitionData.length > 0"
+            v-if="props.data.acquisitions_daily.length > 0"
             :data="acquisitionChartData"
             :options="lineChartOptions"
           />
