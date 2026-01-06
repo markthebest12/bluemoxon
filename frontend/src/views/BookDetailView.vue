@@ -22,7 +22,6 @@ const router = useRouter();
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 
-
 // Image gallery state
 const images = ref<BookImage[]>([]);
 const carouselVisible = ref(false);

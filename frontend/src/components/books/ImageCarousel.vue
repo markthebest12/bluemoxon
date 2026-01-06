@@ -13,7 +13,6 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-
 const images = ref<BookImage[]>([]);
 const currentIndex = ref(0);
 const loading = ref(true);
