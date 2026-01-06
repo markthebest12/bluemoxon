@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { invalidateDashboardCache } from "@/composables/useDashboardCache";
 
 const DEV_API_KEY = import.meta.env.VITE_API_KEY || "";
 
@@ -309,6 +310,10 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (e) {
       console.warn("Error during sign out:", e);
     }
+
+    // Clear dashboard cache
+    invalidateDashboardCache();
+
     // Always clear local state
     user.value = null;
     mfaStep.value = "none";
