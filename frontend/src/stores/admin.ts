@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { getErrorMessage } from "@/types/errors";
 
 interface User {
   id: number;
@@ -51,8 +52,7 @@ export const useAdminStore = defineStore("admin", () => {
       const response = await api.get("/users");
       users.value = response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to fetch users";
+      error.value = getErrorMessage(e, "Failed to fetch users");
       throw e;
     } finally {
       loading.value = false;
@@ -69,8 +69,7 @@ export const useAdminStore = defineStore("admin", () => {
         user.role = role;
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to update role";
+      error.value = getErrorMessage(e, "Failed to update role");
       throw e;
     }
   }
@@ -82,8 +81,7 @@ export const useAdminStore = defineStore("admin", () => {
       // Remove from local state
       users.value = users.value.filter((u) => u.id !== userId);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to delete user";
+      error.value = getErrorMessage(e, "Failed to delete user");
       throw e;
     }
   }
@@ -95,8 +93,7 @@ export const useAdminStore = defineStore("admin", () => {
       const response = await api.get("/users/api-keys");
       apiKeys.value = response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to fetch API keys";
+      error.value = getErrorMessage(e, "Failed to fetch API keys");
       throw e;
     } finally {
       loading.value = false;
@@ -121,8 +118,7 @@ export const useAdminStore = defineStore("admin", () => {
       });
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to create API key";
+      error.value = getErrorMessage(e, "Failed to create API key");
       throw e;
     }
   }
@@ -137,8 +133,7 @@ export const useAdminStore = defineStore("admin", () => {
         key.is_active = false;
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to revoke API key";
+      error.value = getErrorMessage(e, "Failed to revoke API key");
       throw e;
     }
   }
@@ -151,8 +146,7 @@ export const useAdminStore = defineStore("admin", () => {
       await fetchUsers();
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to invite user";
+      error.value = getErrorMessage(e, "Failed to invite user");
       throw e;
     }
   }
@@ -176,8 +170,7 @@ export const useAdminStore = defineStore("admin", () => {
       }
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to get MFA status";
+      error.value = getErrorMessage(e, "Failed to get MFA status");
       throw e;
     }
   }
@@ -193,8 +186,7 @@ export const useAdminStore = defineStore("admin", () => {
         // mfa_configured stays true - they still have MFA set up
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to disable MFA";
+      error.value = getErrorMessage(e, "Failed to disable MFA");
       throw e;
     }
   }
@@ -209,8 +201,7 @@ export const useAdminStore = defineStore("admin", () => {
         user.mfa_enabled = true;
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to enable MFA";
+      error.value = getErrorMessage(e, "Failed to enable MFA");
       throw e;
     }
   }
@@ -222,8 +213,7 @@ export const useAdminStore = defineStore("admin", () => {
       impersonationCredentials.value = response.data;
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to impersonate user";
+      error.value = getErrorMessage(e, "Failed to impersonate user");
       throw e;
     }
   }
@@ -240,8 +230,7 @@ export const useAdminStore = defineStore("admin", () => {
       });
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || "Failed to reset password";
+      error.value = getErrorMessage(e, "Failed to reset password");
       throw e;
     }
   }

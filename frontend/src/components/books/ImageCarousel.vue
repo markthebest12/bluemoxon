@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/services/api";
+import { type BookImage } from "@/types/books";
 
 const props = defineProps<{
   bookId: number;
@@ -12,15 +13,6 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-interface BookImage {
-  id: number;
-  url: string;
-  thumbnail_url: string;
-  image_type: string;
-  caption: string | null;
-  display_order: number;
-  is_primary: boolean;
-}
 
 const images = ref<BookImage[]>([]);
 const currentIndex = ref(0);

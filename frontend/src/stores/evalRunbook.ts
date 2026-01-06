@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { api } from "@/services/api";
+import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
 export interface ScoreBreakdownItem {
   points: number;
@@ -108,12 +109,11 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       currentRunbook.value = response.data;
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { status?: number }; message?: string };
-      if (err.response?.status === 404) {
+      if (getHttpStatus(e) === 404) {
         currentRunbook.value = null;
         return null;
       }
-      error.value = err.message || "Failed to fetch eval runbook";
+      error.value = getErrorMessage(e, "Failed to fetch eval runbook");
       throw e;
     } finally {
       loading.value = false;
@@ -131,8 +131,7 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       currentRunbook.value = response.data.runbook;
       return response.data;
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Failed to update price";
-      error.value = message;
+      error.value = getErrorMessage(e, "Failed to update price");
       throw e;
     } finally {
       loading.value = false;
@@ -158,8 +157,7 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       currentRunbook.value = response.data.runbook;
       return response.data;
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err.response?.data?.detail || err.message || "Failed to refresh analysis";
+      error.value = getErrorMessage(e, "Failed to refresh analysis");
       throw e;
     } finally {
       loading.value = false;

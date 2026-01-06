@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from "vue";
 import { useAcquisitionsStore, type AcquisitionBook } from "@/stores/acquisitions";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
+import { getErrorMessage } from "@/types/errors";
 import { storeToRefs } from "pinia";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { api } from "@/services/api";
@@ -240,9 +241,7 @@ async function handleGenerateAnalysis(bookId: number) {
     poller.start(bookId);
   } catch (e: unknown) {
     console.error("Failed to start analysis:", e);
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    const message = err.response?.data?.detail || err.message || "Failed to start analysis";
-    alert(message);
+    alert(getErrorMessage(e, "Failed to start analysis"));
   } finally {
     startingAnalysis.value = null;
   }

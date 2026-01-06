@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
+import { getErrorMessage } from "@/types/errors";
+import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
@@ -20,16 +22,6 @@ const router = useRouter();
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 
-// Image type matching ImageReorderModal expected type
-interface BookImage {
-  id: number;
-  url: string;
-  thumbnail_url: string;
-  image_type: string;
-  caption: string | null;
-  display_order: number;
-  is_primary: boolean;
-}
 
 // Image gallery state
 const images = ref<BookImage[]>([]);
@@ -205,8 +197,7 @@ async function confirmDeleteImage() {
     images.value = images.value.filter((img) => img.id !== imageId);
     closeDeleteImageModal();
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    deleteImageError.value = err.response?.data?.detail || err.message || "Failed to delete image";
+    deleteImageError.value = getErrorMessage(e, "Failed to delete image");
   } finally {
     deletingImage.value = false;
   }
@@ -240,9 +231,7 @@ async function handleGenerateAnalysis() {
     analysisPoller.start(book.id);
   } catch (e: unknown) {
     console.error("Failed to start analysis:", e);
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    const message = err.response?.data?.detail || err.message || "Failed to start analysis";
-    alert(message);
+    alert(getErrorMessage(e, "Failed to start analysis"));
   } finally {
     startingAnalysis.value = false;
   }

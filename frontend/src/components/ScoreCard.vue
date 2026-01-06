@@ -34,6 +34,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  bookId: undefined,
+  investmentGrade: undefined,
+  strategicFit: undefined,
+  collectionImpact: undefined,
+  overallScore: undefined,
   compact: false,
 });
 

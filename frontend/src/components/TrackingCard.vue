@@ -15,6 +15,13 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  trackingStatus: undefined,
+  trackingCarrier: undefined,
+  trackingNumber: undefined,
+  trackingUrl: undefined,
+  trackingLastChecked: undefined,
+  estimatedDelivery: undefined,
+  trackingDeliveredAt: undefined,
   trackingActive: false,
 });
 

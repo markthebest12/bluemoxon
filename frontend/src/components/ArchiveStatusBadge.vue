@@ -10,6 +10,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  archivedUrl: undefined,
   showLabel: true,
   showArchiveButton: false,
   archiving: false,

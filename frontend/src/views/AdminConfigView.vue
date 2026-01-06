@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { refDebounced } from "@/composables/useDebounce";
 import { api } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
+import { getErrorMessage } from "@/types/errors";
 import type {
   SystemInfoResponse,
   CostResponse,
@@ -48,8 +49,7 @@ async function runCleanup(action: string, deleteOrphans = false) {
     });
     cleanupResult.value = response.data;
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    cleanupError.value = err.response?.data?.detail || err.message || "Cleanup failed";
+    cleanupError.value = getErrorMessage(e, "Cleanup failed");
   } finally {
     cleanupLoading.value = null;
   }
@@ -360,8 +360,7 @@ async function handleFormSave(type: EntityType, data: Partial<EntityTier>) {
     closeFormModal();
     await loadEntities();
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } };
-    formModal.value.error = err.response?.data?.detail || "Failed to save";
+    formModal.value.error = getErrorMessage(e, "Failed to save");
   } finally {
     formModal.value.saving = false;
   }
@@ -391,8 +390,7 @@ async function handleDeleteDirect(type: EntityType) {
     closeDeleteModal();
     await loadEntities();
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } };
-    deleteModal.value.error = err.response?.data?.detail || "Failed to delete";
+    deleteModal.value.error = getErrorMessage(e, "Failed to delete");
   } finally {
     deleteModal.value.processing = false;
   }
@@ -410,8 +408,7 @@ async function handleReassignDelete(type: EntityType, targetId: number) {
     closeDeleteModal();
     await loadEntities();
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } };
-    deleteModal.value.error = err.response?.data?.detail || "Failed to reassign and delete";
+    deleteModal.value.error = getErrorMessage(e, "Failed to reassign and delete");
     // Refresh entities so dropdown shows current state (target may have been deleted)
     await loadEntities();
   } finally {

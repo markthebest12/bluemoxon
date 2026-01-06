@@ -764,6 +764,7 @@ Detailed condition notes...
                     PREVIEW
                   </div>
                   <div class="flex-1 overflow-y-auto p-6">
+                    <!-- eslint-disable-next-line vue/no-v-html -- HTML from internal markdown conversion, not user input -->
                     <article class="analysis-content" v-html="previewHtml" />
                   </div>
                 </div>
@@ -783,6 +784,7 @@ Detailed condition notes...
 
             <!-- View Mode - Analysis content -->
             <div v-else-if="analysis" class="h-full overflow-y-auto p-6">
+              <!-- eslint-disable-next-line vue/no-v-html -- HTML from internal markdown conversion, not user input -->
               <article class="analysis-content" v-html="formattedAnalysis" />
               <!-- Generation timestamp footer -->
               <p
