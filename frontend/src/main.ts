@@ -18,7 +18,10 @@ if ("scrollRestoration" in history) {
 
 // Start prefetching HomeView immediately (don't await)
 // This loads the chunk while auth is in progress
-const homeViewPrefetch = import("@/views/HomeView.vue");
+// Attach .catch() immediately to prevent unhandled rejection if import fails before initApp runs
+import("@/views/HomeView.vue").catch(() => {
+  // Ignore - router will handle loading if needed
+});
 
 // Configure Amplify
 Amplify.configure({
@@ -44,11 +47,6 @@ async function initApp() {
   app.use(createPinia());
   app.use(router);
   app.mount("#app");
-
-  // Ensure prefetch promise is handled (likely already resolved)
-  homeViewPrefetch.catch(() => {
-    // Ignore - router will handle if needed
-  });
 }
 
 initApp().catch((error: unknown) => {

@@ -31,20 +31,30 @@
     </script>
 
     <!-- App Shell Critical CSS - shown immediately while Vue loads -->
+    <!-- SYNC WITH: src/assets/main.css - color values must match design tokens -->
+    <!-- SYNC WITH: src/components/layout/NavBar.vue - nav structure must match -->
     <style>
-      /* App Shell - Light theme (default) */
+      /*
+       * Color reference (from main.css):
+       * --color-victorian-hunter-900: #0f2318 (nav bg)
+       * --color-victorian-paper-cream: #f8f5f0 (nav text)
+       * --color-victorian-paper-aged: #f0ebe3 (page bg light)
+       * --color-victorian-ink-black: #1a1a18 (page bg dark)
+       */
+
+      /* NavBar: h-16 = 64px, sticky, dark green background */
       .app-shell-nav {
-        position: fixed;
+        position: sticky;
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
-        background: #f0ebe3;
-        border-bottom: 1px solid rgba(26, 26, 24, 0.1);
-        z-index: 1000;
+        height: 64px; /* h-16 = 4rem = 64px */
+        background: #0f2318; /* victorian-hunter-900 */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        z-index: 50;
       }
       .nav-container {
-        max-width: 1200px;
+        max-width: 80rem; /* container mx-auto */
         margin: 0 auto;
         padding: 0 1rem;
         height: 100%;
@@ -52,44 +62,86 @@
         align-items: center;
         justify-content: space-between;
       }
+      /* Logo placeholder - matches h-14 img */
       .nav-logo {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #722f37;
-        text-decoration: none;
+        height: 3.5rem; /* h-14 */
+        width: auto;
+        display: block;
       }
+      /* Desktop nav links - hidden on mobile (md:flex) */
       .nav-links {
-        display: flex;
+        display: none;
         gap: 1.5rem;
       }
-      .nav-links a {
-        color: #1a1a18;
-        text-decoration: none;
-        font-size: 0.9rem;
+      @media (min-width: 768px) {
+        .nav-links {
+          display: flex;
+        }
       }
+      .nav-links a {
+        color: rgba(248, 245, 240, 0.8); /* victorian-paper-cream/80 */
+        text-decoration: none;
+        font-size: 0.875rem;
+      }
+
+      /* Main content area - matches HomeView layout */
       .app-shell-main {
-        max-width: 1200px;
+        max-width: 80rem;
         margin: 0 auto;
-        padding: 80px 1rem 2rem;
+        padding: 1rem;
       }
       .skeleton-header {
         height: 2rem;
-        width: 200px;
+        width: 220px;
         background: rgba(26, 26, 24, 0.1);
         border-radius: 4px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.5rem;
         animation: pulse 1.5s ease-in-out infinite;
       }
-      .skeleton-grid {
+      /* Dashboard stat cards grid: grid-cols-2 lg:grid-cols-4 */
+      .skeleton-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
       }
-      .skeleton-card {
-        width: 100%;
-        aspect-ratio: 5/7;
-        background: rgba(26, 26, 24, 0.1);
+      @media (min-width: 1024px) {
+        .skeleton-stats {
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1.5rem;
+        }
+      }
+      .skeleton-stat {
+        background: rgba(26, 26, 24, 0.05);
         border-radius: 8px;
+        padding: 0.75rem;
+        min-height: 80px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @media (min-width: 768px) {
+        .skeleton-stat {
+          padding: 1.5rem;
+          min-height: 100px;
+        }
+      }
+      /* Quick links grid */
+      .skeleton-links {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-top: 2rem;
+      }
+      @media (min-width: 768px) {
+        .skeleton-links {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.5rem;
+          margin-top: 3rem;
+        }
+      }
+      .skeleton-link {
+        background: rgba(26, 26, 24, 0.05);
+        border-radius: 8px;
+        padding: 1rem;
+        min-height: 80px;
         animation: pulse 1.5s ease-in-out infinite;
       }
       @keyframes pulse {
@@ -97,44 +149,49 @@
         50% { opacity: 1; }
       }
 
-      /* App Shell - Dark theme */
-      .dark .app-shell-nav {
-        background: #1a1a18;
-        border-bottom-color: rgba(240, 235, 227, 0.1);
+      /* Dark theme - nav stays same (already dark), content bg changes */
+      .dark .app-shell-main {
+        background: #1a1a18; /* victorian-ink-black */
       }
-      .dark .nav-logo {
-        color: #d4a574;
+      .dark .skeleton-header {
+        background: rgba(248, 245, 240, 0.1);
       }
-      .dark .nav-links a {
-        color: #f0ebe3;
-      }
-      .dark .skeleton-header,
-      .dark .skeleton-card {
-        background: rgba(240, 235, 227, 0.1);
+      .dark .skeleton-stat,
+      .dark .skeleton-link {
+        background: rgba(248, 245, 240, 0.05);
       }
     </style>
   </head>
   <body>
     <div id="app">
       <!-- App Shell - shown immediately, replaced when Vue mounts -->
+      <!-- SYNC WITH: src/components/layout/NavBar.vue -->
       <nav class="app-shell-nav">
         <div class="nav-container">
-          <a href="/" class="nav-logo">BlueMoxon</a>
+          <a href="/">
+            <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="nav-logo" />
+          </a>
           <div class="nav-links">
-            <a href="/">Collection</a>
-            <a href="/about">About</a>
+            <a href="/">Dashboard</a>
+            <a href="/books">Collection</a>
+            <a href="/reports/insurance">Reports</a>
           </div>
         </div>
       </nav>
+      <!-- SYNC WITH: src/views/HomeView.vue - dashboard layout -->
       <main class="app-shell-main">
         <div class="skeleton-header"></div>
-        <div class="skeleton-grid">
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
+        <!-- 4 stat cards matching grid-cols-2 lg:grid-cols-4 -->
+        <div class="skeleton-stats">
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-stat"></div>
+        </div>
+        <!-- 2 quick link cards matching grid-cols-1 md:grid-cols-2 -->
+        <div class="skeleton-links">
+          <div class="skeleton-link"></div>
+          <div class="skeleton-link"></div>
         </div>
       </main>
     </div>
