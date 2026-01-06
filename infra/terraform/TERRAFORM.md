@@ -242,11 +242,11 @@ module "cloudfront" {
 
 State is stored in S3 with DynamoDB locking:
 
-| Component | Value |
-|-----------|-------|
-| Bucket | `bluemoxon-terraform-state` |
-| Lock Table | `bluemoxon-terraform-locks` |
-| Key Pattern | `bluemoxon/{environment}/terraform.tfstate` |
+| Component | Staging | Production |
+|-----------|---------|------------|
+| Bucket | `bluemoxon-terraform-state-staging` | `bluemoxon-terraform-state` |
+| Lock Table | `bluemoxon-terraform-locks-staging` | `bluemoxon-terraform-locks-prod` |
+| Key | `bluemoxon/staging/terraform.tfstate` | `bluemoxon/prod/terraform.tfstate` |
 
 Each environment has isolated state - changes to staging never affect production state.
 
