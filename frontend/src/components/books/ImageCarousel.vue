@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/services/api";
+import { type BookImage } from "@/types/books";
 
 const props = defineProps<{
   bookId: number;
@@ -11,16 +12,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
-
-interface BookImage {
-  id: number;
-  url: string;
-  thumbnail_url: string;
-  image_type: string;
-  caption: string | null;
-  display_order: number;
-  is_primary: boolean;
-}
 
 const images = ref<BookImage[]>([]);
 const currentIndex = ref(0);
@@ -150,8 +141,8 @@ function handleSwipe() {
       >
         <!-- Close button -->
         <button
-          @click="emit('close')"
           class="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+          @click="emit('close')"
         >
           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -204,8 +195,8 @@ function handleSwipe() {
           <!-- Navigation arrows - positioned inside on mobile, outside on desktop -->
           <button
             v-if="images.length > 1"
-            @click="prev"
             class="absolute left-2 md:left-0 top-1/2 -translate-y-1/2 md:-translate-x-12 text-white hover:text-gray-300 bg-black/40 md:bg-transparent rounded-full p-1 md:p-0"
+            @click="prev"
           >
             <svg
               class="w-8 h-8 md:w-10 md:h-10"
@@ -224,8 +215,8 @@ function handleSwipe() {
 
           <button
             v-if="images.length > 1"
-            @click="next"
             class="absolute right-2 md:right-0 top-1/2 -translate-y-1/2 md:translate-x-12 text-white hover:text-gray-300 bg-black/40 md:bg-transparent rounded-full p-1 md:p-0"
+            @click="next"
           >
             <svg
               class="w-8 h-8 md:w-10 md:h-10"
@@ -247,12 +238,12 @@ function handleSwipe() {
             <button
               v-for="(_, idx) in images"
               :key="idx"
-              @click="goTo(idx)"
               :class="[
                 'w-2.5 h-2.5 rounded-full transition-all',
                 idx === currentIndex ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/60',
               ]"
               :aria-label="`Go to image ${idx + 1}`"
+              @click="goTo(idx)"
             />
           </div>
 
@@ -269,13 +260,13 @@ function handleSwipe() {
             <button
               v-for="(img, idx) in images"
               :key="img.id"
-              @click="goTo(idx)"
               :class="[
                 'w-16 h-16 rounded-sm overflow-hidden border-2 transition-all shrink-0',
                 idx === currentIndex
                   ? 'border-white'
                   : 'border-transparent opacity-60 hover:opacity-100',
               ]"
+              @click="goTo(idx)"
             >
               <img
                 :src="img.thumbnail_url"

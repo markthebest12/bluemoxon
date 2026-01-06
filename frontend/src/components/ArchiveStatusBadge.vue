@@ -10,6 +10,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  archivedUrl: undefined,
   showLabel: true,
   showArchiveButton: false,
   archiving: false,
@@ -84,10 +85,10 @@ const iconPath = computed(() => {
     </component>
     <button
       v-if="canArchive"
-      @click="emit('archive')"
       :disabled="archiving"
       class="ml-1 text-xs link disabled:opacity-50"
       :title="status === 'failed' ? 'Retry archive' : 'Archive now'"
+      @click="emit('archive')"
     >
       <span v-if="archiving">⏳</span>
       <span v-else>📥 Archive</span>

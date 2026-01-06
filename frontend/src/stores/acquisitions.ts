@@ -139,8 +139,9 @@ export const useAcquisitionsStore = defineStore("acquisitions", () => {
         if (!b.purchase_date) return false;
         return new Date(b.purchase_date) >= thirtyDaysAgo;
       });
-    } catch (e: any) {
-      error.value = e.message || "Failed to load acquisitions";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to load acquisitions";
+      error.value = message;
     } finally {
       loading.value = false;
     }

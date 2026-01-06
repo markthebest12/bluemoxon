@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAcquisitionsStore, type TrackingPayload } from "@/stores/acquisitions";
+import { getErrorMessage } from "@/types/errors";
 import TransitionModal from "./TransitionModal.vue";
 
 const props = defineProps<{
@@ -64,9 +65,8 @@ async function handleSubmit() {
     await acquisitionsStore.addTracking(props.bookId, payload);
     emit("added");
     emit("close");
-  } catch (e: any) {
-    const detail = e.response?.data?.detail || e.message || "Failed to add tracking";
-    errorMessage.value = detail;
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to add tracking");
   } finally {
     submitting.value = false;
   }
@@ -89,9 +89,9 @@ function handleClose() {
           <p class="text-sm text-gray-600 truncate">{{ bookTitle }}</p>
         </div>
         <button
-          @click="handleClose"
           :disabled="submitting"
           class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          @click="handleClose"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -105,7 +105,7 @@ function handleClose() {
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
+      <form class="p-4 flex flex-col gap-4" @submit.prevent="handleSubmit">
         <!-- Error Message -->
         <div
           v-if="errorMessage"
@@ -118,25 +118,25 @@ function handleClose() {
         <div class="flex rounded-lg border border-gray-200 overflow-hidden">
           <button
             type="button"
-            @click="inputMode = 'number'"
             :class="[
               'flex-1 py-2 text-sm font-medium transition-colors',
               inputMode === 'number'
                 ? 'bg-victorian-hunter-600 text-white'
                 : 'bg-gray-50 text-gray-600 hover:bg-victorian-paper-aged',
             ]"
+            @click="inputMode = 'number'"
           >
             Tracking Number
           </button>
           <button
             type="button"
-            @click="inputMode = 'url'"
             :class="[
               'flex-1 py-2 text-sm font-medium transition-colors',
               inputMode === 'url'
                 ? 'bg-victorian-hunter-600 text-white'
                 : 'bg-gray-50 text-gray-600 hover:bg-victorian-paper-aged',
             ]"
+            @click="inputMode = 'url'"
           >
             Direct URL
           </button>
@@ -181,9 +181,9 @@ function handleClose() {
         <div class="flex gap-3 pt-4">
           <button
             type="button"
-            @click="handleClose"
             :disabled="submitting"
             class="btn-secondary flex-1"
+            @click="handleClose"
           >
             Cancel
           </button>

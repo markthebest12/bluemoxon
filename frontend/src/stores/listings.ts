@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
 export interface ImagePreview {
   s3_key: string;
@@ -77,18 +78,19 @@ export const useListingsStore = defineStore("listings", () => {
       const response = await api.post("/listings/extract", { url });
       lastExtraction.value = response.data;
       return response.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Handle specific error types
-      if (e.response?.status === 429) {
+      const status = getHttpStatus(e);
+      if (status === 429) {
         error.value = "Rate limited by eBay. Please try again in a few minutes.";
-      } else if (e.response?.status === 502) {
+      } else if (status === 502) {
         error.value = "Failed to scrape listing. The page may be unavailable.";
-      } else if (e.response?.status === 400) {
+      } else if (status === 400) {
         error.value = "Invalid eBay URL. Please check the URL and try again.";
-      } else if (e.response?.status === 422) {
+      } else if (status === 422) {
         error.value = "Could not extract listing data. The listing format may not be supported.";
       } else {
-        error.value = e.response?.data?.detail || e.message || "Failed to extract listing";
+        error.value = getErrorMessage(e, "Failed to extract listing");
       }
       throw e;
     } finally {
@@ -120,11 +122,12 @@ export const useListingsStore = defineStore("listings", () => {
       startExtractionPoller(job.item_id);
 
       return job;
-    } catch (e: any) {
-      if (e.response?.status === 400) {
+    } catch (e: unknown) {
+      const status = getHttpStatus(e);
+      if (status === 400) {
         error.value = "Invalid eBay URL. Please check the URL and try again.";
       } else {
-        error.value = e.response?.data?.detail || e.message || "Failed to start extraction";
+        error.value = getErrorMessage(e, "Failed to start extraction");
       }
       throw e;
     }

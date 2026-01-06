@@ -32,8 +32,8 @@ async function handleUpdateProfile() {
   try {
     await authStore.updateProfile(firstName.value, lastName.value);
     profileSuccess.value = "Profile updated successfully";
-  } catch (e: any) {
-    profileError.value = e.message || "Failed to update profile";
+  } catch (e: unknown) {
+    profileError.value = e instanceof Error ? e.message : "Failed to update profile";
   } finally {
     profileLoading.value = false;
   }
@@ -64,13 +64,14 @@ async function handleChangePassword() {
     currentPassword.value = "";
     newPassword.value = "";
     confirmPassword.value = "";
-  } catch (e: any) {
-    if (e.name === "NotAuthorizedException") {
+  } catch (e: unknown) {
+    const err = e as { name?: string; message?: string };
+    if (err.name === "NotAuthorizedException") {
       error.value = "Current password is incorrect";
-    } else if (e.name === "InvalidPasswordException") {
+    } else if (err.name === "InvalidPasswordException") {
       error.value = "Password does not meet requirements (8+ chars, upper, lower, number)";
     } else {
-      error.value = e.message || "Failed to change password";
+      error.value = err.message || "Failed to change password";
     }
   } finally {
     loading.value = false;
@@ -100,7 +101,7 @@ async function handleChangePassword() {
         {{ profileSuccess }}
       </div>
 
-      <form @submit.prevent="handleUpdateProfile" class="flex flex-col gap-4">
+      <form class="flex flex-col gap-4" @submit.prevent="handleUpdateProfile">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">
@@ -165,7 +166,7 @@ async function handleChangePassword() {
         {{ success }}
       </div>
 
-      <form @submit.prevent="handleChangePassword" class="flex flex-col gap-4">
+      <form class="flex flex-col gap-4" @submit.prevent="handleChangePassword">
         <div>
           <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">
             Current Password

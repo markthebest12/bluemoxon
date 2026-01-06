@@ -227,9 +227,9 @@ function closeCarousel() {
             />
           </div>
           <button
-            @click="applyFilters"
             class="btn-primary px-3 sm:px-4 text-sm"
             :disabled="booksStore.loading"
+            @click="applyFilters"
           >
             <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -244,8 +244,8 @@ function closeCarousel() {
         </div>
         <select
           v-model="booksStore.filters.inventory_type"
-          @change="applyFilters"
           class="input text-sm sm:text-base w-full sm:w-40"
+          @change="applyFilters"
         >
           <option value="">All Collections</option>
           <option value="PRIMARY">Primary</option>
@@ -260,8 +260,8 @@ function closeCarousel() {
     >
       <!-- Filter Toggle Button -->
       <button
-        @click="showFilters = !showFilters"
         class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] rounded-lg hover:bg-[var(--color-surface-elevated)] transition-colors text-sm text-[var(--color-text-primary)]"
+        @click="showFilters = !showFilters"
       >
         <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -285,18 +285,18 @@ function closeCarousel() {
         <!-- Mobile: Sort dropdown -->
         <select
           v-model="booksStore.sortBy"
-          @change="booksStore.setSort(booksStore.sortBy, booksStore.sortOrder)"
           class="sm:hidden input text-sm py-1.5"
+          @change="booksStore.setSort(booksStore.sortBy, booksStore.sortOrder)"
         >
           <option v-for="option in sortOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>
         <button
+          class="sm:hidden px-2 py-1.5 bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] rounded-lg text-sm text-[var(--color-text-primary)]"
           @click="
             booksStore.setSort(booksStore.sortBy, booksStore.sortOrder === 'asc' ? 'desc' : 'asc')
           "
-          class="sm:hidden px-2 py-1.5 bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] rounded-lg text-sm text-[var(--color-text-primary)]"
         >
           {{ booksStore.sortOrder === "asc" ? "↑" : "↓" }}
         </button>
@@ -307,13 +307,13 @@ function closeCarousel() {
           <button
             v-for="option in sortOptions"
             :key="option.value"
-            @click="toggleSort(option.value)"
             class="px-3 py-1.5 text-sm rounded-lg transition-colors"
             :class="
               booksStore.sortBy === option.value
                 ? 'bg-moxon-600 text-white'
                 : 'bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
             "
+            @click="toggleSort(option.value)"
           >
             {{ option.label }}
             <span v-if="booksStore.sortBy === option.value" class="ml-1">
@@ -548,8 +548,8 @@ function closeCarousel() {
 
       <!-- Filter Actions -->
       <div class="flex gap-2 mt-4 pt-4 border-t">
-        <button @click="applyFilters" class="btn-primary text-sm">Apply Filters</button>
-        <button @click="clearFilters" class="btn-secondary text-sm">Clear Filters</button>
+        <button class="btn-primary text-sm" @click="applyFilters">Apply Filters</button>
+        <button class="btn-secondary text-sm" @click="clearFilters">Clear Filters</button>
       </div>
     </div>
 
@@ -631,17 +631,17 @@ function closeCarousel() {
     <!-- Pagination -->
     <div v-if="booksStore.totalPages > 1" class="flex justify-center mt-8 gap-2">
       <button
-        @click="booksStore.setPage(booksStore.page - 1)"
         :disabled="booksStore.page === 1"
         class="btn-secondary disabled:opacity-50"
+        @click="booksStore.setPage(booksStore.page - 1)"
       >
         Previous
       </button>
       <span class="px-4 py-2"> Page {{ booksStore.page }} of {{ booksStore.totalPages }} </span>
       <button
-        @click="booksStore.setPage(booksStore.page + 1)"
         :disabled="booksStore.page === booksStore.totalPages"
         class="btn-secondary disabled:opacity-50"
+        @click="booksStore.setPage(booksStore.page + 1)"
       >
         Next
       </button>

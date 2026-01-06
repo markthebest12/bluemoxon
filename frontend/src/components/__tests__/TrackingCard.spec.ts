@@ -95,7 +95,7 @@ describe("TrackingCard", () => {
 
     it("calls refresh API when refresh button clicked", async () => {
       const { api } = await import("@/services/api");
-      (api.post as any).mockResolvedValue({ data: { ...defaultProps } });
+      vi.mocked(api.post).mockResolvedValue({ data: { ...defaultProps } });
 
       const wrapper = mount(TrackingCard, { props: defaultProps });
       const refreshButton = wrapper.find('[data-testid="refresh-button"]');
@@ -107,11 +107,11 @@ describe("TrackingCard", () => {
     it("shows loading state while refreshing", async () => {
       const { api } = await import("@/services/api");
       // Create a promise that won't resolve immediately
-      let resolvePromise: (value: any) => void;
-      const pendingPromise = new Promise((resolve) => {
+      let resolvePromise: (value: { data: Record<string, unknown> }) => void;
+      const pendingPromise = new Promise<{ data: Record<string, unknown> }>((resolve) => {
         resolvePromise = resolve;
       });
-      (api.post as any).mockReturnValue(pendingPromise);
+      vi.mocked(api.post).mockReturnValue(pendingPromise);
 
       const wrapper = mount(TrackingCard, { props: defaultProps });
       const refreshButton = wrapper.find('[data-testid="refresh-button"]');
@@ -127,7 +127,7 @@ describe("TrackingCard", () => {
     it("emits refreshed event with updated data on success", async () => {
       const { api } = await import("@/services/api");
       const updatedData = { ...defaultProps, trackingStatus: "Delivered" };
-      (api.post as any).mockResolvedValue({ data: updatedData });
+      vi.mocked(api.post).mockResolvedValue({ data: updatedData });
 
       const wrapper = mount(TrackingCard, { props: defaultProps });
       const refreshButton = wrapper.find('[data-testid="refresh-button"]');
@@ -141,7 +141,7 @@ describe("TrackingCard", () => {
 
     it("shows error message on refresh failure", async () => {
       const { api } = await import("@/services/api");
-      (api.post as any).mockRejectedValue(new Error("Network error"));
+      vi.mocked(api.post).mockRejectedValue(new Error("Network error"));
 
       const wrapper = mount(TrackingCard, { props: defaultProps });
       const refreshButton = wrapper.find('[data-testid="refresh-button"]');

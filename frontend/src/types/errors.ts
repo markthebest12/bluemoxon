@@ -19,7 +19,7 @@ export interface AxiosLikeError {
  * Validates at runtime rather than using unsafe type assertions.
  */
 export function isAxiosLikeError(e: unknown): e is AxiosLikeError {
-  return typeof e === "object" && e !== null && ("response" in e || "message" in e);
+  return typeof e === "object" && e !== null && "response" in e;
 }
 
 /**
@@ -30,10 +30,23 @@ export function isAxiosLikeError(e: unknown): e is AxiosLikeError {
  */
 export function getErrorMessage(e: unknown, fallback = "An error occurred"): string {
   if (isAxiosLikeError(e)) {
-    return e.response?.data?.detail || e.message || fallback;
+    return e.response?.data?.detail || (e instanceof Error ? e.message : fallback);
   }
   if (e instanceof Error) {
     return e.message;
   }
   return fallback;
+}
+
+/**
+ * Extract HTTP status code from unknown error.
+ * @param e - The caught error
+ * @returns The HTTP status code, or undefined if not available
+ */
+export function getHttpStatus(e: unknown): number | undefined {
+  if (typeof e === "object" && e !== null && "response" in e) {
+    const response = (e as { response?: { status?: number } }).response;
+    return response?.status;
+  }
+  return undefined;
 }
