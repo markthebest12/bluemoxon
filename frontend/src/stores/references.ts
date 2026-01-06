@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
+import { handleApiError } from "@/utils/errorHandler";
 
 export interface Author {
   id: number;
@@ -32,8 +33,8 @@ export const useReferencesStore = defineStore("references", () => {
     try {
       const response = await api.get("/authors");
       authors.value = response.data;
-    } catch {
-      console.error("Failed to fetch authors");
+    } catch (e) {
+      handleApiError(e, "Loading authors");
     }
   }
 
@@ -41,8 +42,8 @@ export const useReferencesStore = defineStore("references", () => {
     try {
       const response = await api.get("/publishers");
       publishers.value = response.data;
-    } catch {
-      console.error("Failed to fetch publishers");
+    } catch (e) {
+      handleApiError(e, "Loading publishers");
     }
   }
 
@@ -50,8 +51,8 @@ export const useReferencesStore = defineStore("references", () => {
     try {
       const response = await api.get("/binders");
       binders.value = response.data;
-    } catch {
-      console.error("Failed to fetch binders");
+    } catch (e) {
+      handleApiError(e, "Loading binders");
     }
   }
 

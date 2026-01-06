@@ -5,6 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/services/api";
 import { getErrorMessage } from "@/types/errors";
+import { handleApiError, handleSuccess } from "@/utils/errorHandler";
 import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
@@ -109,8 +110,9 @@ onMounted(async () => {
   try {
     const response = await api.get(`/books/${id}/images`);
     images.value = response.data;
-  } catch {
+  } catch (e) {
     images.value = [];
+    handleApiError(e, "Loading images");
   }
 });
 
@@ -161,8 +163,9 @@ async function handleImagesUploaded() {
     try {
       const response = await api.get(`/books/${booksStore.currentBook.id}/images`);
       images.value = response.data;
-    } catch {
-      // Keep existing images
+      handleSuccess("Images uploaded");
+    } catch (e) {
+      handleApiError(e, "Refreshing images");
     }
   }
 }
@@ -190,6 +193,7 @@ async function confirmDeleteImage() {
     // Remove from local array
     images.value = images.value.filter((img) => img.id !== imageId);
     closeDeleteImageModal();
+    handleSuccess("Image deleted");
   } catch (e: unknown) {
     deleteImageError.value = getErrorMessage(e, "Failed to delete image");
   } finally {
