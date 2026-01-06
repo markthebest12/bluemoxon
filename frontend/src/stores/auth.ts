@@ -163,8 +163,9 @@ export const useAuthStore = defineStore("auth", () => {
       if (result.isSignedIn) {
         await checkAuth();
       }
-    } catch (e: any) {
-      error.value = e.message || "Login failed";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Login failed";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -184,8 +185,9 @@ export const useAuthStore = defineStore("auth", () => {
         totpSetupUri.value = null;
         await checkAuth();
       }
-    } catch (e: any) {
-      error.value = e.message || "Invalid code";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Invalid code";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -214,8 +216,9 @@ export const useAuthStore = defineStore("auth", () => {
         mfaStep.value = "none";
         await checkAuth();
       }
-    } catch (e: any) {
-      error.value = e.message || "Failed to set new password";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to set new password";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -236,8 +239,9 @@ export const useAuthStore = defineStore("auth", () => {
         totpSetupUri.value = null;
         await checkAuth();
       }
-    } catch (e: any) {
-      error.value = e.message || "Invalid code";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Invalid code";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -256,18 +260,19 @@ export const useAuthStore = defineStore("auth", () => {
       totpSetupUri.value = totpSetupDetails.getSetupUri("BlueMoxon", username).toString();
       console.log("[Auth] TOTP setup URI generated successfully");
       mfaStep.value = "totp_setup";
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[Auth] Failed to initiate MFA setup:", e);
       // Provide more specific error messages
-      if (e.name === "InvalidParameterException") {
+      const err = e as { name?: string; message?: string };
+      if (err.name === "InvalidParameterException") {
         error.value = "MFA setup failed - please contact administrator";
-      } else if (e.message?.includes("not signed in")) {
+      } else if (err.message?.includes("not signed in")) {
         error.value = "Session expired. Please sign in again.";
         // Reset auth state
         user.value = null;
         mfaStep.value = "none";
       } else {
-        error.value = e.message || "Failed to initiate MFA setup";
+        error.value = err.message || "Failed to initiate MFA setup";
       }
       throw e;
     } finally {
@@ -286,8 +291,9 @@ export const useAuthStore = defineStore("auth", () => {
       await updateMFAPreference({ totp: "PREFERRED" });
       mfaStep.value = "none";
       totpSetupUri.value = null;
-    } catch (e: any) {
-      error.value = e.message || "Invalid code";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Invalid code";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;

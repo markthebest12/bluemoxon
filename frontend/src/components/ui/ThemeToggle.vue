@@ -7,10 +7,10 @@ const { isDark, toggle } = useTheme();
 <template>
   <button
     type="button"
-    @click="toggle"
     class="p-2 rounded-xs text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors focus:outline-none focus:ring-2 focus:ring-victorian-gold-muted"
     :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
     :title="isDark ? 'Light mode' : 'Dark mode'"
+    @click="toggle"
   >
     <!-- Sun icon (shown in dark mode - click for light) -->
     <svg

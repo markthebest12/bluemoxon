@@ -522,74 +522,74 @@ function getBarWidth(cost: number): string {
     <div class="border-b border-gray-200 mb-6 overflow-x-auto">
       <nav class="-mb-px flex gap-4 sm:gap-8 min-w-max">
         <button
-          @click="activeTab = 'settings'"
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'settings'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="activeTab = 'settings'"
         >
           Settings
         </button>
         <button
-          @click="activeTab = 'status'"
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'status'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="activeTab = 'status'"
         >
           System Status
         </button>
         <button
-          @click="activeTab = 'scoring'"
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'scoring'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="activeTab = 'scoring'"
         >
           Scoring Config
         </button>
         <button
-          @click="
-            activeTab = 'reference';
-            if (!authors.length) loadEntities();
-          "
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'reference'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="
+            activeTab = 'reference';
+            if (!authors.length) loadEntities();
+          "
         >
           Reference Data
         </button>
         <button
-          @click="
-            activeTab = 'costs';
-            if (!costData) fetchCostData();
-          "
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'costs'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="
+            activeTab = 'costs';
+            if (!costData) fetchCostData();
+          "
         >
           Costs
         </button>
         <button
-          @click="activeTab = 'maintenance'"
           :class="[
             'py-4 px-1 border-b-2 font-medium text-sm',
             activeTab === 'maintenance'
               ? 'border-victorian-hunter-500 text-victorian-hunter-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
+          @click="activeTab = 'maintenance'"
         >
           Maintenance
         </button>
@@ -623,7 +623,7 @@ function getBarWidth(cost: number): string {
         </label>
       </div>
       <div class="flex items-center gap-4">
-        <button @click="saveConfig" :disabled="saving" class="btn-primary">
+        <button :disabled="saving" class="btn-primary" @click="saveConfig">
           {{ saving ? "Saving..." : "Save" }}
         </button>
         <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{
@@ -636,9 +636,9 @@ function getBarWidth(cost: number): string {
     <div v-else-if="activeTab === 'status'" class="flex flex-col gap-6">
       <div class="flex justify-end">
         <button
-          @click="refreshSystemInfo"
           :disabled="loadingInfo"
           class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
+          @click="refreshSystemInfo"
         >
           {{ loadingInfo ? "Loading..." : "Refresh" }}
         </button>
@@ -825,9 +825,9 @@ function getBarWidth(cost: number): string {
       <div class="flex justify-between items-center">
         <p class="text-sm text-gray-500">★ = Key tunable</p>
         <button
-          @click="refreshSystemInfo"
           :disabled="loadingInfo"
           class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
+          @click="refreshSystemInfo"
         >
           {{ loadingInfo ? "Loading..." : "Refresh" }}
         </button>
@@ -965,8 +965,8 @@ function getBarWidth(cost: number): string {
       <!-- Authors Section -->
       <div class="bg-white rounded-lg shadow-sm">
         <button
-          @click="toggleSection('author')"
           class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
+          @click="toggleSection('author')"
         >
           <h3 class="text-lg font-semibold text-gray-900">Authors</h3>
           <svg
@@ -1010,8 +1010,8 @@ function getBarWidth(cost: number): string {
       <!-- Publishers Section -->
       <div class="bg-white rounded-lg shadow-sm">
         <button
-          @click="toggleSection('publisher')"
           class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
+          @click="toggleSection('publisher')"
         >
           <h3 class="text-lg font-semibold text-gray-900">Publishers</h3>
           <svg
@@ -1055,8 +1055,8 @@ function getBarWidth(cost: number): string {
       <!-- Binders Section -->
       <div class="bg-white rounded-lg shadow-sm">
         <button
-          @click="toggleSection('binder')"
           class="w-full px-6 py-4 flex items-center justify-between text-left border-b border-gray-200"
+          @click="toggleSection('binder')"
         >
           <h3 class="text-lg font-semibold text-gray-900">Binders</h3>
           <svg
@@ -1102,18 +1102,18 @@ function getBarWidth(cost: number): string {
     <div v-else-if="activeTab === 'costs'" class="flex flex-col gap-6">
       <div class="flex justify-end gap-2">
         <button
-          @click="fetchCostData(false)"
           :disabled="loadingCost"
           class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-sm"
           title="Uses server cache (up to 1 hour old)"
+          @click="fetchCostData(false)"
         >
           {{ loadingCost ? "Loading..." : "Refresh" }}
         </button>
         <button
-          @click="fetchCostData(true)"
           :disabled="loadingCost"
           class="px-3 py-1 text-sm bg-victorian-hunter-100 hover:bg-victorian-hunter-200 text-victorian-hunter-700 rounded-sm"
           title="Bypass server cache and fetch fresh data from AWS"
+          @click="fetchCostData(true)"
         >
           {{ loadingCost ? "Loading..." : "Force Refresh" }}
         </button>
@@ -1229,8 +1229,8 @@ function getBarWidth(cost: number): string {
     <div v-else-if="activeTab === 'maintenance'" class="flex flex-col gap-6">
       <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <button
-          @click="cleanupExpanded = !cleanupExpanded"
           class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
+          @click="cleanupExpanded = !cleanupExpanded"
         >
           <span class="font-semibold text-gray-900 flex items-center gap-2">
             <span class="text-lg" aria-hidden="true">🧹</span>
@@ -1261,9 +1261,9 @@ function getBarWidth(cost: number): string {
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <!-- Run All -->
             <button
-              @click="runCleanup('all')"
               :disabled="!!cleanupLoading"
               class="btn-primary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              @click="runCleanup('all')"
             >
               <span v-if="cleanupLoading === 'all'" class="animate-spin" aria-hidden="true"
                 >⏳</span
@@ -1274,10 +1274,10 @@ function getBarWidth(cost: number): string {
 
             <!-- Archive Stale -->
             <button
-              @click="runCleanup('stale')"
               :disabled="!!cleanupLoading"
               class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               title="Archive books stuck in EVALUATING for 30+ days"
+              @click="runCleanup('stale')"
             >
               <span v-if="cleanupLoading === 'stale'" class="animate-spin" aria-hidden="true"
                 >⏳</span
@@ -1288,10 +1288,10 @@ function getBarWidth(cost: number): string {
 
             <!-- Check Expired -->
             <button
-              @click="runCleanup('expired')"
               :disabled="!!cleanupLoading"
               class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               title="Check source URLs and mark expired ones"
+              @click="runCleanup('expired')"
             >
               <span v-if="cleanupLoading === 'expired'" class="animate-spin" aria-hidden="true"
                 >⏳</span
@@ -1302,10 +1302,10 @@ function getBarWidth(cost: number): string {
 
             <!-- Retry Archives -->
             <button
-              @click="runCleanup('archives')"
               :disabled="!!cleanupLoading"
               class="btn-secondary py-2 px-3 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               title="Retry failed Wayback archives"
+              @click="runCleanup('archives')"
             >
               <span v-if="cleanupLoading === 'archives'" class="animate-spin" aria-hidden="true"
                 >⏳</span
@@ -1323,9 +1323,9 @@ function getBarWidth(cost: number): string {
             </p>
             <div class="flex gap-2">
               <button
-                @click="runCleanup('orphans', false)"
                 :disabled="!!cleanupLoading"
                 class="btn-secondary py-1.5 px-3 text-sm disabled:opacity-50 flex items-center gap-2"
+                @click="runCleanup('orphans', false)"
               >
                 <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
                   >⏳</span
@@ -1334,9 +1334,9 @@ function getBarWidth(cost: number): string {
                 Scan Only
               </button>
               <button
-                @click="runCleanup('orphans', true)"
                 :disabled="!!cleanupLoading"
                 class="py-1.5 px-3 text-sm text-white bg-[var(--color-status-error-accent)] hover:bg-red-700 rounded-sm disabled:opacity-50 flex items-center gap-2"
+                @click="runCleanup('orphans', true)"
               >
                 <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
                   >⏳</span

@@ -171,15 +171,15 @@ function handleRecalculate() {
     <div class="mt-3 pt-2 border-t flex items-center justify-between">
       <button
         v-if="bookId"
-        @click="toggleBreakdown"
         class="text-xs link hover:underline"
         :disabled="loadingBreakdown"
+        @click="toggleBreakdown"
       >
         <span v-if="loadingBreakdown">Loading...</span>
         <span v-else-if="showBreakdown">Hide Details</span>
         <span v-else>Show Details</span>
       </button>
-      <button @click="handleRecalculate" class="text-xs link hover:underline">Recalculate</button>
+      <button class="text-xs link hover:underline" @click="handleRecalculate">Recalculate</button>
     </div>
 
     <!-- Detailed Breakdown -->

@@ -76,8 +76,8 @@ async function handleSubmit() {
     await acquisitionsStore.addToWatchlist(payload);
     emit("added");
     emit("close");
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to add to watchlist";
+  } catch (e: unknown) {
+    errorMessage.value = e instanceof Error ? e.message : "Failed to add to watchlist";
   } finally {
     submitting.value = false;
   }
@@ -93,8 +93,8 @@ async function handleCreateAuthor(name: string) {
   try {
     const author = await refsStore.createAuthor(name);
     form.value.author_id = author.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create author";
+  } catch (e: unknown) {
+    errorMessage.value = e instanceof Error ? e.message : "Failed to create author";
   }
 }
 
@@ -102,8 +102,8 @@ async function handleCreatePublisher(name: string) {
   try {
     const publisher = await refsStore.createPublisher(name);
     form.value.publisher_id = publisher.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create publisher";
+  } catch (e: unknown) {
+    errorMessage.value = e instanceof Error ? e.message : "Failed to create publisher";
   }
 }
 
@@ -111,8 +111,8 @@ async function handleCreateBinder(name: string) {
   try {
     const binder = await refsStore.createBinder(name);
     form.value.binder_id = binder.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create binder";
+  } catch (e: unknown) {
+    errorMessage.value = e instanceof Error ? e.message : "Failed to create binder";
   }
 }
 
@@ -130,9 +130,9 @@ function openSourceUrl() {
       <div class="flex items-center justify-between p-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold text-gray-900">Add to Watchlist</h2>
         <button
-          @click="handleClose"
           :disabled="submitting"
           class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          @click="handleClose"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -146,7 +146,7 @@ function openSourceUrl() {
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4">
+      <form class="p-4 flex flex-col gap-4" @submit.prevent="handleSubmit">
         <!-- Error Message -->
         <div
           v-if="errorMessage"
@@ -178,9 +178,9 @@ function openSourceUrl() {
         <div class="grid grid-cols-2 gap-4">
           <div>
             <ComboboxWithAdd
+              v-model="form.author_id"
               label="Author"
               :options="refsStore.authors"
-              v-model="form.author_id"
               @create="handleCreateAuthor"
             />
             <p
@@ -191,9 +191,9 @@ function openSourceUrl() {
             </p>
           </div>
           <ComboboxWithAdd
+            v-model="form.publisher_id"
             label="Publisher"
             :options="refsStore.publishers"
-            v-model="form.publisher_id"
             @create="handleCreatePublisher"
           />
         </div>
@@ -201,9 +201,9 @@ function openSourceUrl() {
         <!-- Binder & Publication Date Row -->
         <div class="grid grid-cols-2 gap-4">
           <ComboboxWithAdd
+            v-model="form.binder_id"
             label="Binder"
             :options="refsStore.binders"
-            v-model="form.binder_id"
             @create="handleCreateBinder"
           />
           <div>
@@ -260,9 +260,9 @@ function openSourceUrl() {
             <button
               type="button"
               :disabled="!form.source_url"
-              @click="openSourceUrl"
               class="btn-secondary px-3"
               title="Open URL"
+              @click="openSourceUrl"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -280,9 +280,9 @@ function openSourceUrl() {
         <div class="flex gap-3 pt-4">
           <button
             type="button"
-            @click="handleClose"
             :disabled="submitting"
             class="btn-secondary flex-1"
+            @click="handleClose"
           >
             Cancel
           </button>

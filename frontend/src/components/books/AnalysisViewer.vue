@@ -7,6 +7,7 @@ import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   bookId: number;
@@ -105,8 +106,13 @@ async function loadAnalysis() {
     } catch {
       // Metadata fetch failed, continue without extraction status
     }
-  } catch (e: any) {
-    if (e.response?.status === 404) {
+  } catch (e: unknown) {
+    // Check for 404 status (no analysis yet)
+    const status =
+      typeof e === "object" && e !== null && "response" in e
+        ? (e as { response?: { status?: number } }).response?.status
+        : undefined;
+    if (status === 404) {
       // No analysis yet - allow creating one if editor
       analysis.value = null;
       editedAnalysis.value = "";
@@ -141,8 +147,8 @@ async function saveAnalysis() {
     await booksStore.updateAnalysis(props.bookId, editedAnalysis.value);
     analysis.value = editedAnalysis.value;
     editMode.value = false;
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || e.message || "Failed to save analysis.";
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, "Failed to save analysis.");
   } finally {
     saving.value = false;
   }
@@ -163,8 +169,8 @@ async function deleteAnalysis() {
       booksStore.currentBook.has_analysis = false;
     }
     emit("deleted");
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || e.message || "Failed to delete analysis.";
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, "Failed to delete analysis.");
   } finally {
     deleting.value = false;
   }
@@ -182,9 +188,8 @@ async function generateAnalysis() {
     await booksStore.generateAnalysisAsync(props.bookId, selectedModel.value);
     // Start polling - onComplete callback will reload analysis and set generating=false
     analysisPoller.start(props.bookId);
-  } catch (e: any) {
-    generateError.value =
-      e.response?.data?.detail || e.message || "Failed to start analysis generation.";
+  } catch (e: unknown) {
+    generateError.value = getErrorMessage(e, "Failed to start analysis generation.");
     generating.value = false;
   }
   // Note: generating.value stays true until poller's onComplete/onError callback
@@ -368,7 +373,6 @@ function formatModelId(modelId: string): string {
                 <template v-if="editMode">
                   <!-- Preview toggle - hidden on mobile -->
                   <button
-                    @click="showPreview = !showPreview"
                     :class="[
                       'hidden sm:flex px-3 py-1.5 text-sm rounded-sm items-center gap-1',
                       showPreview
@@ -376,6 +380,7 @@ function formatModelId(modelId: string): string {
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
                     ]"
                     title="Toggle preview"
+                    @click="showPreview = !showPreview"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -394,16 +399,16 @@ function formatModelId(modelId: string): string {
                     Preview
                   </button>
                   <button
-                    @click="cancelEditing"
                     :disabled="saving"
                     class="px-2 sm:px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+                    @click="cancelEditing"
                   >
                     Cancel
                   </button>
                   <button
-                    @click="saveAnalysis"
                     :disabled="saving"
                     class="px-2 sm:px-3 py-1.5 text-sm bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90 disabled:opacity-50 flex items-center gap-1"
+                    @click="saveAnalysis"
                   >
                     <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle
@@ -435,9 +440,9 @@ function formatModelId(modelId: string): string {
                       <option value="opus">Opus 4.5</option>
                     </select>
                     <button
-                      @click="generateAnalysis"
                       :disabled="generating"
                       class="btn-primary px-3 py-1.5 text-sm disabled:opacity-50 flex items-center gap-1"
+                      @click="generateAnalysis"
                     >
                       <span v-if="generating" class="flex items-center gap-2">
                         <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -462,8 +467,8 @@ function formatModelId(modelId: string): string {
                     </button>
                   </div>
                   <button
-                    @click="startEditing"
                     class="hidden sm:flex px-3 py-1.5 text-sm text-victorian-burgundy hover:text-victorian-burgundy/80 items-center gap-1"
+                    @click="startEditing"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -478,9 +483,9 @@ function formatModelId(modelId: string): string {
                   <!-- Delete button (only if analysis exists) - hidden on mobile -->
                   <button
                     v-if="analysis"
-                    @click="showDeleteConfirm = true"
                     class="hidden sm:flex px-3 py-1.5 text-sm text-[var(--color-status-error-accent)] hover:opacity-80 items-center gap-1"
                     title="Delete analysis"
+                    @click="showDeleteConfirm = true"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -494,9 +499,9 @@ function formatModelId(modelId: string): string {
                   <!-- Mobile actions menu (3-dot menu) - visible only on mobile -->
                   <div class="relative sm:hidden">
                     <button
-                      @click="showMobileMenu = !showMobileMenu"
                       class="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full"
                       title="More actions"
+                      @click="showMobileMenu = !showMobileMenu"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
@@ -513,11 +518,11 @@ function formatModelId(modelId: string): string {
                       class="absolute right-0 mt-1 w-48 bg-[var(--color-surface-elevated)] rounded-lg shadow-lg border border-[var(--color-border-default)] py-1 z-20"
                     >
                       <button
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2"
                         @click="
                           startEditing();
                           showMobileMenu = false;
                         "
-                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -530,12 +535,12 @@ function formatModelId(modelId: string): string {
                         Edit
                       </button>
                       <button
+                        :disabled="generating"
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2 disabled:opacity-50"
                         @click="
                           generateAnalysis();
                           showMobileMenu = false;
                         "
-                        :disabled="generating"
-                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)] flex items-center gap-2 disabled:opacity-50"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -549,11 +554,11 @@ function formatModelId(modelId: string): string {
                       </button>
                       <button
                         v-if="analysis"
+                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-status-error-accent)] hover:bg-[var(--color-status-error-bg)] flex items-center gap-2"
                         @click="
                           showDeleteConfirm = true;
                           showMobileMenu = false;
                         "
-                        class="w-full px-4 py-2 text-left text-sm text-[var(--color-status-error-accent)] hover:bg-[var(--color-status-error-bg)] flex items-center gap-2"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -578,9 +583,9 @@ function formatModelId(modelId: string): string {
               <!-- Print button - visible in view mode when analysis exists -->
               <button
                 v-if="!editMode && analysis"
-                @click="printAnalysis"
                 class="no-print p-2 text-victorian-ink-muted hover:text-victorian-ink-dark hover:bg-victorian-paper-cream rounded-full transition-colors"
                 title="Print analysis"
+                @click="printAnalysis"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -593,9 +598,9 @@ function formatModelId(modelId: string): string {
               </button>
               <!-- Close button - always visible and prominent -->
               <button
-                @click="emit('close')"
                 class="no-print p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors ml-1 sm:ml-2"
                 title="Close"
+                @click="emit('close')"
               >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -649,16 +654,16 @@ function formatModelId(modelId: string): string {
               </div>
               <div class="flex justify-end gap-3">
                 <button
-                  @click="showDeleteConfirm = false"
                   :disabled="deleting"
                   class="px-4 py-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+                  @click="showDeleteConfirm = false"
                 >
                   Cancel
                 </button>
                 <button
-                  @click="deleteAnalysis"
                   :disabled="deleting"
                   class="px-4 py-2 bg-[var(--color-status-error-solid)] text-white rounded-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                  @click="deleteAnalysis"
                 >
                   <svg v-if="deleting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle
@@ -696,8 +701,8 @@ function formatModelId(modelId: string): string {
               <p class="text-[var(--color-text-muted)]">{{ error }}</p>
               <button
                 v-if="canEdit && !analysis"
-                @click="startEditing"
                 class="mt-4 px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
+                @click="startEditing"
               >
                 Create Analysis
               </button>
@@ -795,8 +800,8 @@ Detailed condition notes...
                 No analysis available for this book.
               </p>
               <button
-                @click="startEditing"
                 class="px-4 py-2 bg-victorian-burgundy text-white rounded-sm hover:bg-victorian-burgundy/90"
+                @click="startEditing"
               >
                 Create Analysis
               </button>

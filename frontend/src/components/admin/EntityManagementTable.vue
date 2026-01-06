@@ -92,8 +92,8 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
       </span>
       <button
         v-if="canEdit"
-        @click="emit('create')"
         class="px-3 py-1.5 text-sm bg-victorian-hunter-600 text-white rounded hover:bg-victorian-hunter-700 transition-colors"
+        @click="emit('create')"
       >
         + Add {{ entityLabel }}
       </button>
@@ -126,10 +126,10 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
         >
           <td class="py-2">
             <button
-              @click="emit('edit', entity)"
               class="text-left hover:text-victorian-hunter-600 transition-colors"
               :class="{ 'cursor-default': !canEdit }"
               :disabled="!canEdit"
+              @click="emit('edit', entity)"
             >
               {{ entity.name }}
             </button>
@@ -138,9 +138,9 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
             <div class="flex items-center gap-2">
               <select
                 :value="entity.tier || ''"
-                @change="handleTierChange(entity, $event)"
                 :disabled="!canEdit || isEntitySaving(entity)"
                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                @change="handleTierChange(entity, $event)"
               >
                 <option v-for="opt in tierOptions" :key="opt.label" :value="opt.value || ''">
                   {{ opt.label }}
@@ -174,9 +174,9 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
             <input
               type="checkbox"
               :checked="entity.preferred"
-              @change="handlePreferredChange(entity, $event)"
               :disabled="!canEdit || isEntitySaving(entity)"
               class="w-4 h-4 rounded border-gray-300 text-victorian-hunter-600 focus:ring-victorian-hunter-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              @change="handlePreferredChange(entity, $event)"
             />
           </td>
           <td class="py-2 text-right tabular-nums text-gray-600">{{ entity.book_count }}</td>
@@ -184,9 +184,9 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
             <div class="flex justify-end gap-2">
               <button
                 v-if="canEdit"
-                @click="emit('edit', entity)"
                 class="text-gray-500 hover:text-victorian-hunter-600"
                 title="Edit"
+                @click="emit('edit', entity)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -199,9 +199,9 @@ function handlePreferredChange(entity: EntityTier, event: Event) {
               </button>
               <button
                 v-if="canEdit"
-                @click="emit('delete', entity)"
                 class="text-gray-500 hover:text-[var(--color-status-error-accent)]"
                 title="Delete"
+                @click="emit('delete', entity)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path

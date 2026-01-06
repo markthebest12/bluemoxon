@@ -25,7 +25,7 @@ async function fetchPreferences() {
     notifyEmail.value = response.data.notify_tracking_email;
     notifySms.value = response.data.notify_tracking_sms;
     phoneNumber.value = response.data.phone_number;
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Failed to fetch preferences:", e);
     error.value = "Failed to load preferences";
   } finally {
@@ -53,7 +53,7 @@ async function savePreferences() {
     setTimeout(() => {
       success.value = null;
     }, 3000);
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Failed to save preferences:", e);
     error.value = "Failed to save preferences";
   } finally {
@@ -176,9 +176,9 @@ onMounted(() => {
     <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
       <button
         data-testid="save-button"
-        @click="savePreferences"
         :disabled="loading || saving"
         class="btn-primary"
+        @click="savePreferences"
       >
         {{ saving ? "Saving..." : "Save Preferences" }}
       </button>

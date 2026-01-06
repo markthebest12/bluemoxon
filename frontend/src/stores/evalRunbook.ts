@@ -107,12 +107,13 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.get(`/books/${bookId}/eval-runbook`);
       currentRunbook.value = response.data;
       return response.data;
-    } catch (e: any) {
-      if (e.response?.status === 404) {
+    } catch (e: unknown) {
+      const err = e as { response?: { status?: number }; message?: string };
+      if (err.response?.status === 404) {
         currentRunbook.value = null;
         return null;
       }
-      error.value = e.message || "Failed to fetch eval runbook";
+      error.value = err.message || "Failed to fetch eval runbook";
       throw e;
     } finally {
       loading.value = false;
@@ -129,8 +130,9 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.patch(`/books/${bookId}/eval-runbook/price`, payload);
       currentRunbook.value = response.data.runbook;
       return response.data;
-    } catch (e: any) {
-      error.value = e.message || "Failed to update price";
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update price";
+      error.value = message;
       throw e;
     } finally {
       loading.value = false;
@@ -142,7 +144,7 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.get(`/books/${bookId}/eval-runbook/history`);
       priceHistory.value = response.data;
       return response.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to fetch price history:", e);
       return [];
     }
@@ -155,8 +157,9 @@ export const useEvalRunbookStore = defineStore("evalRunbook", () => {
       const response = await api.post(`/books/${bookId}/eval-runbook/refresh`);
       currentRunbook.value = response.data.runbook;
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || e.message || "Failed to refresh analysis";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || err.message || "Failed to refresh analysis";
       throw e;
     } finally {
       loading.value = false;

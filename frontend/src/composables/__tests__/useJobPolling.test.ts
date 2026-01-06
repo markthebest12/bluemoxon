@@ -175,7 +175,7 @@ describe("useJobPolling", () => {
       const mockFetchBook = vi.fn();
       vi.mocked(useBooksStore).mockReturnValue({
         fetchBook: mockFetchBook,
-      } as any);
+      } as unknown as ReturnType<typeof useBooksStore>);
 
       vi.mocked(api.get)
         .mockResolvedValueOnce({ data: { status: "running" } })

@@ -231,7 +231,7 @@ function cancel() {
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="max-w-4xl mx-auto flex flex-col gap-8">
+  <form class="max-w-4xl mx-auto flex flex-col gap-8" @submit.prevent="handleSubmit">
     <!-- Error message -->
     <div
       v-if="errorMessage"
@@ -572,7 +572,7 @@ function cancel() {
 
     <!-- Actions -->
     <div class="flex justify-end gap-4">
-      <button type="button" @click="cancel" class="btn-secondary">Cancel</button>
+      <button type="button" class="btn-secondary" @click="cancel">Cancel</button>
       <button type="submit" :disabled="saving" class="btn-primary">
         {{ saving ? "Saving..." : isEditing ? "Update Book" : "Create Book" }}
       </button>
@@ -636,15 +636,15 @@ function cancel() {
           <div class="p-4 border-t border-gray-200 flex gap-3 justify-end">
             <button
               type="button"
-              @click="cancelDuplicateWarning"
               class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              @click="cancelDuplicateWarning"
             >
               Cancel
             </button>
             <button
               type="button"
-              @click="confirmCreateDuplicate"
               class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+              @click="confirmCreateDuplicate"
             >
               Create Anyway
             </button>

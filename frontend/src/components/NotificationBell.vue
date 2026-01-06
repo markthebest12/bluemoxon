@@ -65,9 +65,9 @@ onMounted(() => {
   <div class="relative">
     <!-- Bell Button -->
     <button
-      @click="toggleDropdown"
       class="relative p-2 text-victorian-paper-cream/80 hover:text-victorian-gold-light transition-colors"
       aria-label="Notifications"
+      @click="toggleDropdown"
     >
       <!-- Bell Icon -->
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,11 +123,11 @@ onMounted(() => {
               v-for="notification in notifications"
               :key="notification.id"
               :data-testid="`notification-item-${notification.id}`"
-              @click="markAsRead(notification)"
               :class="[
                 'px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
                 !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : '',
               ]"
+              @click="markAsRead(notification)"
             >
               <div class="flex items-start gap-3">
                 <!-- Unread indicator -->

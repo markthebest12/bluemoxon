@@ -20,8 +20,19 @@ const router = useRouter();
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
 
+// Image type matching ImageReorderModal expected type
+interface BookImage {
+  id: number;
+  url: string;
+  thumbnail_url: string;
+  image_type: string;
+  caption: string | null;
+  display_order: number;
+  is_primary: boolean;
+}
+
 // Image gallery state
-const images = ref<any[]>([]);
+const images = ref<BookImage[]>([]);
 const carouselVisible = ref(false);
 const carouselInitialIndex = ref(0);
 const reorderModalVisible = ref(false);
@@ -29,7 +40,7 @@ const uploadModalVisible = ref(false);
 
 // Image delete state
 const deleteImageModalVisible = ref(false);
-const imageToDelete = ref<any>(null);
+const imageToDelete = ref<BookImage | null>(null);
 const deletingImage = ref(false);
 const deleteImageError = ref<string | null>(null);
 
@@ -170,7 +181,7 @@ async function handleImagesUploaded() {
   }
 }
 
-function openDeleteImageModal(img: any) {
+function openDeleteImageModal(img: BookImage) {
   imageToDelete.value = img;
   deleteImageError.value = null;
   deleteImageModalVisible.value = true;
@@ -184,16 +195,18 @@ function closeDeleteImageModal() {
 async function confirmDeleteImage() {
   if (!booksStore.currentBook || !imageToDelete.value) return;
 
+  const imageId = imageToDelete.value.id;
   deletingImage.value = true;
   deleteImageError.value = null;
 
   try {
-    await api.delete(`/books/${booksStore.currentBook.id}/images/${imageToDelete.value.id}`);
+    await api.delete(`/books/${booksStore.currentBook.id}/images/${imageId}`);
     // Remove from local array
-    images.value = images.value.filter((img) => img.id !== imageToDelete.value.id);
+    images.value = images.value.filter((img) => img.id !== imageId);
     closeDeleteImageModal();
-  } catch (e: any) {
-    deleteImageError.value = e.response?.data?.detail || e.message || "Failed to delete image";
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    deleteImageError.value = err.response?.data?.detail || err.message || "Failed to delete image";
   } finally {
     deletingImage.value = false;
   }
@@ -254,8 +267,8 @@ async function confirmDelete() {
     await booksStore.deleteBook(booksStore.currentBook.id);
     deleteModalVisible.value = false;
     void router.push("/books");
-  } catch (e: any) {
-    deleteError.value = e.message || "Failed to delete book";
+  } catch (e: unknown) {
+    deleteError.value = e instanceof Error ? e.message : "Failed to delete book";
   } finally {
     deleting.value = false;
   }
@@ -268,7 +281,7 @@ async function updateStatus(newStatus: string) {
   try {
     await api.patch(`/books/${booksStore.currentBook.id}/status?status=${newStatus}`);
     booksStore.currentBook.status = newStatus;
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Failed to update status:", e);
   } finally {
     updatingStatus.value = false;
@@ -294,7 +307,7 @@ async function saveProvenance() {
       provenance: provenanceText.value || null,
     });
     provenanceEditing.value = false;
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Failed to save provenance:", e);
   } finally {
     savingProvenance.value = false;
@@ -345,9 +358,9 @@ function printPage() {
         <div class="flex gap-2">
           <!-- Print button (visible to all users) -->
           <button
-            @click="printPage"
             class="no-print text-victorian-ink-muted hover:text-victorian-ink-dark p-2 rounded-sm hover:bg-victorian-paper-cream transition-colors"
             title="Print this page"
+            @click="printPage"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -367,8 +380,8 @@ function printPage() {
               Edit Book
             </RouterLink>
             <button
-              @click="openDeleteModal"
               class="btn-danger text-sm sm:text-base px-3 sm:px-4 no-print"
+              @click="openDeleteModal"
             >
               Delete
             </button>
@@ -392,8 +405,8 @@ function printPage() {
             <h2 class="text-lg font-semibold text-gray-800">Images</h2>
             <div v-if="authStore.isEditor" class="flex items-center gap-3 no-print">
               <button
-                @click="openUploadModal"
                 class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
+                @click="openUploadModal"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -407,8 +420,8 @@ function printPage() {
               </button>
               <button
                 v-if="images.length > 1"
-                @click="openReorderModal"
                 class="text-sm text-moxon-600 hover:text-moxon-800 flex items-center gap-1"
+                @click="openReorderModal"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -429,8 +442,8 @@ function printPage() {
               class="relative group aspect-square rounded-sm overflow-hidden"
             >
               <button
-                @click="openCarousel(idx)"
                 class="w-full h-full hover:ring-2 hover:ring-moxon-500 transition-all"
+                @click="openCarousel(idx)"
               >
                 <img
                   :src="img.thumbnail_url"
@@ -461,9 +474,9 @@ function printPage() {
               <!-- Delete button (visible on hover, editors only) -->
               <button
                 v-if="authStore.isEditor"
-                @click.stop="openDeleteImageModal(img)"
                 class="absolute top-1 right-1 p-1 bg-[var(--color-status-error-solid)] text-[var(--color-status-error-solid-text)] rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:opacity-80 no-print"
                 title="Delete image"
+                @click.stop="openDeleteImageModal(img)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -571,13 +584,13 @@ function printPage() {
                 <select
                   v-if="authStore.isEditor"
                   :value="booksStore.currentBook.status"
-                  @change="updateStatus(($event.target as HTMLSelectElement).value)"
                   :disabled="updatingStatus"
                   :class="[
                     'px-2 py-1 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
                     getStatusColor(booksStore.currentBook.status),
                     updatingStatus ? 'opacity-50' : '',
                   ]"
+                  @change="updateStatus(($event.target as HTMLSelectElement).value)"
                 >
                   <option v-for="status in statusOptions" :key="status.value" :value="status.value">
                     {{ status.label }}
@@ -647,8 +660,8 @@ function printPage() {
             <h2 class="text-lg font-semibold text-gray-800">Provenance</h2>
             <button
               v-if="authStore.isEditor && !provenanceEditing"
-              @click="startProvenanceEdit"
               class="text-sm text-moxon-600 hover:text-moxon-800"
+              @click="startProvenanceEdit"
             >
               {{ booksStore.currentBook.provenance ? "Edit" : "Add provenance" }}
             </button>
@@ -675,16 +688,16 @@ function printPage() {
             ></textarea>
             <div class="flex justify-end gap-2 mt-3">
               <button
-                @click="cancelProvenanceEdit"
                 :disabled="savingProvenance"
                 class="btn-secondary text-sm"
+                @click="cancelProvenanceEdit"
               >
                 Cancel
               </button>
               <button
-                @click="saveProvenance"
                 :disabled="savingProvenance"
                 class="btn-primary text-sm"
+                @click="saveProvenance"
               >
                 {{ savingProvenance ? "Saving..." : "Save" }}
               </button>
@@ -704,8 +717,8 @@ function printPage() {
                 </p>
               </div>
               <button
-                @click="evalRunbookVisible = true"
                 class="btn-primary flex items-center gap-2"
+                @click="evalRunbookVisible = true"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -770,8 +783,8 @@ function printPage() {
                     !isAnalysisRunning() &&
                     !booksStore.currentBook?.analysis_job_status
                   "
-                  @click="openAnalysis"
                   class="btn-primary"
+                  @click="openAnalysis"
                 >
                   View Analysis
                 </button>
@@ -801,9 +814,9 @@ function printPage() {
                     !isAnalysisRunning() &&
                     !booksStore.currentBook?.analysis_job_status
                   "
-                  @click="handleGenerateAnalysis"
                   :disabled="startingAnalysis"
                   class="btn-primary flex items-center gap-1 disabled:opacity-50"
+                  @click="handleGenerateAnalysis"
                 >
                   <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
                   <span v-else>&#9889;</span>
@@ -818,10 +831,10 @@ function printPage() {
                     !isAnalysisRunning() &&
                     !booksStore.currentBook?.analysis_job_status
                   "
-                  @click="handleGenerateAnalysis"
                   :disabled="startingAnalysis"
                   class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-sm hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
                   title="Regenerate analysis with selected model"
+                  @click="handleGenerateAnalysis"
                 >
                   <span v-if="startingAnalysis" class="animate-spin">&#8987;</span>
                   <span v-else>&#128260;</span>
@@ -1015,10 +1028,10 @@ function printPage() {
           </div>
 
           <div class="flex justify-end gap-3">
-            <button @click="closeDeleteImageModal" :disabled="deletingImage" class="btn-secondary">
+            <button :disabled="deletingImage" class="btn-secondary" @click="closeDeleteImageModal">
               Cancel
             </button>
-            <button @click="confirmDeleteImage" :disabled="deletingImage" class="btn-danger">
+            <button :disabled="deletingImage" class="btn-danger" @click="confirmDeleteImage">
               {{ deletingImage ? "Deleting..." : "Delete Image" }}
             </button>
           </div>
@@ -1070,10 +1083,10 @@ function printPage() {
           </div>
 
           <div class="flex justify-end gap-3">
-            <button @click="closeDeleteModal" :disabled="deleting" class="btn-secondary">
+            <button :disabled="deleting" class="btn-secondary" @click="closeDeleteModal">
               Cancel
             </button>
-            <button @click="confirmDelete" :disabled="deleting" class="btn-danger">
+            <button :disabled="deleting" class="btn-danger" @click="confirmDelete">
               {{ deleting ? "Deleting..." : "Delete Book" }}
             </button>
           </div>

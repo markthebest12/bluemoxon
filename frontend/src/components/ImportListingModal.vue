@@ -4,11 +4,12 @@ import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import {
   useListingsStore,
-  type ImagePreview,
   type ExtractionStatusResponse,
+  type ExtractedListing,
 } from "@/stores/listings";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   visible: boolean;
@@ -36,14 +37,7 @@ const currentItemId = ref<string | null>(null);
 const extractionStatus = ref<ExtractionStatusResponse | null>(null);
 
 // Extracted data (using new S3-based image format)
-const extractedData = ref<{
-  listing_data: Record<string, any>;
-  images: ImagePreview[];
-  image_urls: string[];
-  matches: Record<string, { id: number; name: string; similarity: number }>;
-  ebay_url: string;
-  ebay_item_id: string;
-} | null>(null);
+const extractedData = ref<ExtractedListing | null>(null);
 
 // Form for editing
 const form = ref({
@@ -279,13 +273,18 @@ async function handleExtract() {
 
     // Transition to extracting step (shows progress)
     step.value = "extracting";
-  } catch (e: any) {
-    if (e.response?.status === 429) {
+  } catch (e: unknown) {
+    // Check for specific HTTP status codes
+    const status =
+      typeof e === "object" && e !== null && "response" in e
+        ? (e as { response?: { status?: number } }).response?.status
+        : undefined;
+    if (status === 429) {
       extractError.value = "Rate limited by eBay. Please try again in a few minutes.";
-    } else if (e.response?.status === 400) {
+    } else if (status === 400) {
       extractError.value = "Invalid eBay URL. Please check the URL and try again.";
     } else {
-      extractError.value = e.message || "Failed to start extraction";
+      extractError.value = getErrorMessage(e, "Failed to start extraction");
     }
     extracting.value = false;
     step.value = "url";
@@ -399,8 +398,8 @@ async function handleSubmit() {
 
     emit("added");
     emit("close");
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to add to watchlist";
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to add to watchlist");
     step.value = "review";
   } finally {
     submitting.value = false;
@@ -433,8 +432,8 @@ async function handleCreateAuthor(name: string) {
   try {
     const author = await refsStore.createAuthor(name);
     form.value.author_id = author.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create author";
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to create author");
   }
 }
 
@@ -442,8 +441,8 @@ async function handleCreatePublisher(name: string) {
   try {
     const publisher = await refsStore.createPublisher(name);
     form.value.publisher_id = publisher.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create publisher";
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to create publisher");
   }
 }
 
@@ -451,8 +450,8 @@ async function handleCreateBinder(name: string) {
   try {
     const binder = await refsStore.createBinder(name);
     form.value.binder_id = binder.id;
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to create binder";
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to create binder");
   }
 }
 
@@ -480,9 +479,9 @@ function openSourceUrl() {
           }}
         </h2>
         <button
-          @click="handleClose"
           :disabled="extracting || submitting"
           class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          @click="handleClose"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -522,17 +521,17 @@ function openSourceUrl() {
         <div class="flex gap-3">
           <button
             type="button"
-            @click="handleClose"
             :disabled="extracting"
             class="btn-secondary flex-1"
+            @click="handleClose"
           >
             Cancel
           </button>
           <button
             type="button"
-            @click="handleExtract"
             :disabled="extracting || !urlInput"
             class="btn-primary flex-1"
+            @click="handleExtract"
           >
             {{ extracting ? "Extracting..." : "Extract Details" }}
           </button>
@@ -552,7 +551,7 @@ function openSourceUrl() {
           }}
         </p>
         <p class="text-sm text-gray-500">This may take up to 2 minutes. Please wait.</p>
-        <button @click="goBack" class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800">
+        <button class="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800" @click="goBack">
           Cancel
         </button>
       </div>
@@ -585,7 +584,7 @@ function openSourceUrl() {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
           <!-- Title -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -609,9 +608,9 @@ function openSourceUrl() {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <ComboboxWithAdd
+                v-model="form.author_id"
                 label="Author"
                 :options="refsStore.authors"
-                v-model="form.author_id"
                 :suggested-name="suggestedAuthorName"
                 @create="handleCreateAuthor"
               />
@@ -638,9 +637,9 @@ function openSourceUrl() {
             </div>
             <div>
               <ComboboxWithAdd
+                v-model="form.publisher_id"
                 label="Publisher"
                 :options="refsStore.publishers"
-                v-model="form.publisher_id"
                 :suggested-name="suggestedPublisherName"
                 @create="handleCreatePublisher"
               />
@@ -663,9 +662,9 @@ function openSourceUrl() {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <ComboboxWithAdd
+                v-model="form.binder_id"
                 label="Binder"
                 :options="refsStore.binders"
-                v-model="form.binder_id"
                 :suggested-name="suggestedBinderName"
                 @create="handleCreateBinder"
               />
@@ -747,9 +746,9 @@ function openSourceUrl() {
               <button
                 type="button"
                 :disabled="!form.source_url"
-                @click="openSourceUrl"
                 class="btn-secondary px-3"
                 title="Open URL"
+                @click="openSourceUrl"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -765,14 +764,14 @@ function openSourceUrl() {
 
           <!-- Footer Buttons -->
           <div class="flex gap-3 pt-4">
-            <button type="button" @click="goBack" :disabled="submitting" class="btn-secondary">
+            <button type="button" :disabled="submitting" class="btn-secondary" @click="goBack">
               Back
             </button>
             <button
               type="button"
-              @click="handleClose"
               :disabled="submitting"
               class="btn-secondary flex-1"
+              @click="handleClose"
             >
               Cancel
             </button>

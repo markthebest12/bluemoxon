@@ -50,8 +50,15 @@ async function handleExtract() {
       error.value = "Could not extract order details. Try a different format.";
       extractedData.value = null;
     }
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || "Extraction failed";
+  } catch (e: unknown) {
+    let errorMsg = "Extraction failed";
+    if (typeof e === "object" && e !== null && "response" in e) {
+      const response = (e as { response?: { data?: { detail?: string } } }).response;
+      if (response?.data?.detail) {
+        errorMsg = response.data.detail;
+      }
+    }
+    error.value = errorMsg;
   } finally {
     extracting.value = false;
   }
@@ -111,9 +118,9 @@ function handleClose() {
           {{ extractedData ? "Extracted Order Details" : "Paste Order Details" }}
         </h2>
         <button
-          @click="handleClose"
           :disabled="extracting"
           class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          @click="handleClose"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -137,8 +144,8 @@ function handleClose() {
         ></textarea>
         <p v-if="error" class="text-sm text-[var(--color-status-error-accent)]">{{ error }}</p>
         <div class="flex justify-end gap-2">
-          <button @click="handleClose" class="btn-secondary">Cancel</button>
-          <button @click="handleExtract" :disabled="extracting" class="btn-primary">
+          <button class="btn-secondary" @click="handleClose">Cancel</button>
+          <button :disabled="extracting" class="btn-primary" @click="handleExtract">
             {{ extracting ? "Extracting..." : "Extract" }}
           </button>
         </div>
@@ -359,7 +366,7 @@ function handleClose() {
               <code class="text-xs bg-gray-100 px-2 py-1 rounded-sm">{{
                 extractedData.tracking_number
               }}</code>
-              <button @click="copyTracking" class="link text-xs" title="Copy">
+              <button class="link text-xs" title="Copy" @click="copyTracking">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"
@@ -406,8 +413,8 @@ function handleClose() {
         </div>
 
         <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="handleBack" class="btn-secondary">Back</button>
-          <button @click="handleApply" class="btn-primary">Apply to Form</button>
+          <button class="btn-secondary" @click="handleBack">Back</button>
+          <button class="btn-primary" @click="handleApply">Apply to Form</button>
         </div>
       </div>
     </div>

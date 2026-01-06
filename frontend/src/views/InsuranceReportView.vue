@@ -285,8 +285,8 @@ const exportCSV = () => {
       </div>
 
       <div class="flex gap-2 shrink-0">
-        <button @click="exportCSV" class="btn-secondary" :disabled="loading">Export CSV</button>
-        <button @click="printReport" class="btn-primary" :disabled="loading">Print Report</button>
+        <button class="btn-secondary" :disabled="loading" @click="exportCSV">Export CSV</button>
+        <button class="btn-primary" :disabled="loading" @click="printReport">Print Report</button>
       </div>
     </div>
 

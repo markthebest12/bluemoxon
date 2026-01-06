@@ -83,8 +83,8 @@ async function handleSubmit() {
     await acquisitionsStore.acquireBook(props.bookId, payload);
     emit("acquired");
     emit("close");
-  } catch (e: any) {
-    errorMessage.value = e.message || "Failed to acquire book";
+  } catch (e: unknown) {
+    errorMessage.value = e instanceof Error ? e.message : "Failed to acquire book";
   } finally {
     submitting.value = false;
   }
@@ -96,7 +96,15 @@ function handleClose() {
   }
 }
 
-function handlePasteApply(data: any) {
+interface ExtractedOrderData {
+  order_number?: string;
+  total_usd?: number;
+  total?: number;
+  purchase_date?: string;
+  estimated_delivery?: string;
+}
+
+function handlePasteApply(data: ExtractedOrderData) {
   if (data.order_number) {
     form.value.order_number = data.order_number;
   }
@@ -126,10 +134,10 @@ function handlePasteApply(data: any) {
         </div>
         <div class="flex items-center gap-2">
           <button
-            @click="showPasteModal = true"
             :disabled="submitting"
             class="text-sm text-victorian-hunter-600 hover:text-victorian-hunter-700 disabled:opacity-50 flex items-center gap-1"
             title="Paste order details from email"
+            @click="showPasteModal = true"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -142,9 +150,9 @@ function handlePasteApply(data: any) {
             Paste Order
           </button>
           <button
-            @click="handleClose"
             :disabled="submitting"
             class="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            @click="handleClose"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -159,7 +167,7 @@ function handlePasteApply(data: any) {
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
+      <form class="p-4 flex flex-col gap-4 overflow-y-auto flex-1" @submit.prevent="handleSubmit">
         <!-- Error Message -->
         <div
           v-if="errorMessage"
@@ -283,9 +291,9 @@ function handlePasteApply(data: any) {
         <div class="flex gap-3 pt-4">
           <button
             type="button"
-            @click="handleClose"
             :disabled="submitting"
             class="btn-secondary flex-1"
+            @click="handleClose"
           >
             Cancel
           </button>

@@ -215,24 +215,24 @@ function formatDate(dateStr: string | null): string {
     <!-- Tabs -->
     <div class="flex border-b mb-6">
       <button
-        @click="activeTab = 'users'"
         class="px-4 py-2 font-medium transition-colors"
         :class="
           activeTab === 'users'
             ? 'border-b-2 border-moxon-600 text-moxon-600'
             : 'text-gray-500 hover:text-gray-700'
         "
+        @click="activeTab = 'users'"
       >
         Users
       </button>
       <button
-        @click="activeTab = 'apikeys'"
         class="px-4 py-2 font-medium transition-colors"
         :class="
           activeTab === 'apikeys'
             ? 'border-b-2 border-moxon-600 text-moxon-600'
             : 'text-gray-500 hover:text-gray-700'
         "
+        @click="activeTab = 'apikeys'"
       >
         API Keys
       </button>
@@ -263,9 +263,9 @@ function formatDate(dateStr: string | null): string {
             <option value="admin">Admin</option>
           </select>
           <button
-            @click="inviteUser"
             class="btn-primary"
             :disabled="!inviteEmail.trim() || inviteLoading"
+            @click="inviteUser"
           >
             {{ inviteLoading ? "Sending..." : "Send Invite" }}
           </button>
@@ -314,13 +314,13 @@ function formatDate(dateStr: string | null): string {
             <div class="flex items-center gap-2 flex-wrap">
               <select
                 :value="user.role"
-                @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
                 class="text-sm border rounded-sm px-2 py-1"
                 :class="{
                   'bg-purple-100 text-purple-800': user.role === 'admin',
                   'badge-transit': user.role === 'editor',
                   'bg-gray-100 text-gray-800': user.role === 'viewer',
                 }"
+                @change="updateRole(user.id, ($event.target as HTMLSelectElement).value)"
               >
                 <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
@@ -328,7 +328,6 @@ function formatDate(dateStr: string | null): string {
               </select>
               <!-- MFA Toggle - enable/disable MFA for user -->
               <button
-                @click="toggleMfa(user.id, user.mfa_enabled)"
                 :disabled="mfaLoading === user.id || (!user.mfa_enabled && !user.mfa_configured)"
                 class="text-xs px-2 py-1 rounded-sm border"
                 :class="
@@ -345,6 +344,7 @@ function formatDate(dateStr: string | null): string {
                       ? 'Re-enable MFA for this user'
                       : 'User has not completed MFA setup yet'
                 "
+                @click="toggleMfa(user.id, user.mfa_enabled)"
               >
                 {{
                   mfaLoading === user.id
@@ -359,38 +359,38 @@ function formatDate(dateStr: string | null): string {
               <!-- Reset Password (not for self) -->
               <button
                 v-if="authStore.user?.email !== user.email"
-                @click="openResetPasswordModal(user.id, user.email)"
                 class="text-xs px-2 py-1 rounded-sm border border-amber-300 text-amber-700 hover:bg-amber-50"
+                @click="openResetPasswordModal(user.id, user.email)"
               >
                 Reset PW
               </button>
               <!-- Impersonate (not for self) -->
               <button
                 v-if="authStore.user?.email !== user.email"
-                @click="impersonateUser(user.id)"
                 class="text-xs px-2 py-1 rounded-sm border border-victorian-hunter-300 text-victorian-hunter-700 hover:bg-victorian-paper-aged"
+                @click="impersonateUser(user.id)"
               >
                 Login As
               </button>
               <!-- Delete -->
               <div v-if="confirmDeleteUser !== user.id">
                 <button
-                  @click="confirmDeleteUser = user.id"
                   class="text-[var(--color-status-error-accent)] hover:text-[var(--color-status-error-text)] text-sm"
+                  @click="confirmDeleteUser = user.id"
                 >
                   Delete
                 </button>
               </div>
               <div v-else class="flex items-center gap-2">
                 <button
-                  @click="deleteUser(user.id)"
                   class="px-2 py-1 bg-[var(--color-status-error-solid)] text-[var(--color-status-error-solid-text)] text-xs rounded-sm hover:opacity-90"
+                  @click="deleteUser(user.id)"
                 >
                   Yes
                 </button>
                 <button
-                  @click="confirmDeleteUser = null"
                   class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
+                  @click="confirmDeleteUser = null"
                 >
                   No
                 </button>
@@ -414,7 +414,7 @@ function formatDate(dateStr: string | null): string {
             class="flex-1 input"
             @keyup.enter="createKey"
           />
-          <button @click="createKey" class="btn-primary" :disabled="!newKeyName.trim()">
+          <button class="btn-primary" :disabled="!newKeyName.trim()" @click="createKey">
             Create Key
           </button>
         </div>
@@ -496,8 +496,8 @@ function formatDate(dateStr: string | null): string {
               <td class="px-6 py-4 whitespace-nowrap text-sm">
                 <button
                   v-if="key.is_active"
-                  @click="revokeKey(key.id)"
                   class="text-[var(--color-status-error-accent)] hover:text-[var(--color-status-error-text)]"
+                  @click="revokeKey(key.id)"
                 >
                   Revoke
                 </button>
@@ -532,8 +532,8 @@ function formatDate(dateStr: string | null): string {
           <div class="flex items-center gap-2">
             <code class="flex-1 text-sm break-all">{{ adminStore.newlyCreatedKey.key }}</code>
             <button
-              @click="copyToClipboard(adminStore.newlyCreatedKey!.key)"
               class="px-3 py-1 bg-moxon-600 text-white text-sm rounded-sm hover:bg-moxon-700"
+              @click="copyToClipboard(adminStore.newlyCreatedKey!.key)"
             >
               {{ copySuccess ? "Copied!" : "Copy" }}
             </button>
@@ -547,11 +547,11 @@ function formatDate(dateStr: string | null): string {
 
         <div class="flex justify-end">
           <button
+            class="btn-primary"
             @click="
               showNewKeyModal = false;
               adminStore.clearNewKey();
             "
-            class="btn-primary"
           >
             Done
           </button>
@@ -580,8 +580,8 @@ function formatDate(dateStr: string | null): string {
             <div class="flex items-center gap-2">
               <code class="flex-1 text-sm">{{ adminStore.impersonationCredentials.email }}</code>
               <button
-                @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
+                @click="copyToClipboard(adminStore.impersonationCredentials!.email)"
               >
                 {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
@@ -594,8 +594,8 @@ function formatDate(dateStr: string | null): string {
                 adminStore.impersonationCredentials.temp_password
               }}</code>
               <button
-                @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
                 class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-sm hover:bg-gray-300"
+                @click="copyToClipboard(adminStore.impersonationCredentials!.temp_password)"
               >
                 {{ copySuccess ? "Copied!" : "Copy" }}
               </button>
@@ -610,11 +610,11 @@ function formatDate(dateStr: string | null): string {
 
         <div class="flex justify-end gap-2">
           <button
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300"
             @click="
               showImpersonateModal = false;
               adminStore.clearImpersonation();
             "
-            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300"
           >
             Close
           </button>
@@ -650,8 +650,8 @@ function formatDate(dateStr: string | null): string {
 
         <form
           v-if="!resetPasswordSuccess"
-          @submit.prevent="handleResetPassword"
           class="flex flex-col gap-4"
+          @submit.prevent="handleResetPassword"
         >
           <div>
             <label for="resetNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
@@ -675,8 +675,8 @@ function formatDate(dateStr: string | null): string {
           <div class="flex justify-end gap-2">
             <button
               type="button"
-              @click="closeResetPasswordModal"
               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-sm hover:bg-gray-300"
+              @click="closeResetPasswordModal"
             >
               Cancel
             </button>
@@ -691,7 +691,7 @@ function formatDate(dateStr: string | null): string {
         </form>
 
         <div v-else class="flex justify-end">
-          <button @click="closeResetPasswordModal" class="btn-primary">Done</button>
+          <button class="btn-primary" @click="closeResetPasswordModal">Done</button>
         </div>
       </div>
     </div>

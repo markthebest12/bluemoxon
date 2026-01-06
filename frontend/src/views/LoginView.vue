@@ -26,13 +26,14 @@ async function handleLogin() {
       const redirect = (route.query.redirect as string) || "/";
       void router.push(redirect);
     }
-  } catch (e: any) {
-    if (e.name === "UserNotConfirmedException") {
+  } catch (e: unknown) {
+    const err = e as { name?: string; message?: string };
+    if (err.name === "UserNotConfirmedException") {
       localError.value = "Please verify your email first";
-    } else if (e.name === "NotAuthorizedException") {
+    } else if (err.name === "NotAuthorizedException") {
       localError.value = "Invalid email or password";
     } else {
-      localError.value = e.message || "Login failed";
+      localError.value = err.message || "Login failed";
     }
   }
 }
@@ -57,8 +58,8 @@ async function handleTotpSubmit() {
       const redirect = (route.query.redirect as string) || "/";
       void router.push(redirect);
     }
-  } catch (e: any) {
-    localError.value = e.message || "Invalid code";
+  } catch (e: unknown) {
+    localError.value = e instanceof Error ? e.message : "Invalid code";
   }
 }
 
@@ -66,8 +67,8 @@ async function handleInitiateMfaSetup() {
   localError.value = "";
   try {
     await authStore.initiateMfaSetup();
-  } catch (e: any) {
-    localError.value = e.message || "Failed to start MFA setup";
+  } catch (e: unknown) {
+    localError.value = e instanceof Error ? e.message : "Failed to start MFA setup";
   }
 }
 
@@ -106,8 +107,8 @@ async function handleNewPasswordSubmit() {
       const redirect = (route.query.redirect as string) || "/";
       void router.push(redirect);
     }
-  } catch (e: any) {
-    localError.value = e.message || "Failed to set new password";
+  } catch (e: unknown) {
+    localError.value = e instanceof Error ? e.message : "Failed to set new password";
   }
 }
 
@@ -153,8 +154,8 @@ function resetLogin() {
       <!-- Login form -->
       <form
         v-if="authStore.mfaStep === 'none'"
-        @submit.prevent="handleLogin"
         class="flex flex-col gap-6"
+        @submit.prevent="handleLogin"
       >
         <div>
           <label for="email" class="block text-sm font-medium text-gray-700 mb-1"> Email </label>
@@ -194,7 +195,7 @@ function resetLogin() {
           <p>Please create a new password to secure your account.</p>
         </div>
 
-        <form @submit.prevent="handleNewPasswordSubmit" class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" @submit.prevent="handleNewPasswordSubmit">
           <div>
             <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
               New Password
@@ -243,7 +244,7 @@ function resetLogin() {
           </button>
         </form>
 
-        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+        <button class="w-full text-sm text-gray-500 hover:text-gray-700" @click="resetLogin">
           Use a different account
         </button>
       </div>
@@ -259,14 +260,14 @@ function resetLogin() {
         </div>
 
         <button
-          @click="handleInitiateMfaSetup"
           class="btn-primary w-full"
           :disabled="authStore.loading"
+          @click="handleInitiateMfaSetup"
         >
           {{ authStore.loading ? "Setting up..." : "Set Up Authenticator App" }}
         </button>
 
-        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+        <button class="w-full text-sm text-gray-500 hover:text-gray-700" @click="resetLogin">
           Use a different account
         </button>
       </div>
@@ -300,7 +301,7 @@ function resetLogin() {
           </code>
         </details>
 
-        <form @submit.prevent="handleTotpSubmit" class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" @submit.prevent="handleTotpSubmit">
           <div>
             <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Enter 6-digit code from your app
@@ -328,7 +329,7 @@ function resetLogin() {
           </button>
         </form>
 
-        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+        <button class="w-full text-sm text-gray-500 hover:text-gray-700" @click="resetLogin">
           Cancel and start over
         </button>
       </div>
@@ -339,7 +340,7 @@ function resetLogin() {
           Enter the 6-digit code from your authenticator app
         </div>
 
-        <form @submit.prevent="handleTotpSubmit" class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" @submit.prevent="handleTotpSubmit">
           <div>
             <label for="totp" class="block text-sm font-medium text-gray-700 mb-1">
               Verification Code
@@ -367,7 +368,7 @@ function resetLogin() {
           </button>
         </form>
 
-        <button @click="resetLogin" class="w-full text-sm text-gray-500 hover:text-gray-700">
+        <button class="w-full text-sm text-gray-500 hover:text-gray-700" @click="resetLogin">
           Use a different account
         </button>
       </div>

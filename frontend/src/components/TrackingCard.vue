@@ -188,9 +188,9 @@ async function handleRefresh() {
         <button
           v-if="showRefreshButton"
           data-testid="refresh-button"
-          @click="handleRefresh"
           :disabled="refreshing"
           class="text-xs link hover:underline flex items-center gap-1 disabled:opacity-50"
+          @click="handleRefresh"
         >
           <svg
             :class="['w-3 h-3', { 'animate-spin': refreshing }]"

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useBooksStore } from "../books";
+import { useBooksStore, type Book } from "../books";
 
 // Mock the API
 vi.mock("@/services/api", () => ({
@@ -70,7 +70,7 @@ describe("books store - generateAnalysis", () => {
     vi.mocked(api.post).mockResolvedValue(mockResponse);
 
     const store = useBooksStore();
-    store.currentBook = { id: 42, title: "Test", has_analysis: false } as any;
+    store.currentBook = { id: 42, title: "Test", has_analysis: false } as unknown as Book;
 
     await store.generateAnalysis(42);
 

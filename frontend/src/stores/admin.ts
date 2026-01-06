@@ -50,8 +50,9 @@ export const useAdminStore = defineStore("admin", () => {
     try {
       const response = await api.get("/users");
       users.value = response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to fetch users";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to fetch users";
       throw e;
     } finally {
       loading.value = false;
@@ -67,8 +68,9 @@ export const useAdminStore = defineStore("admin", () => {
       if (user) {
         user.role = role;
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to update role";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to update role";
       throw e;
     }
   }
@@ -79,8 +81,9 @@ export const useAdminStore = defineStore("admin", () => {
       await api.delete(`/users/${userId}`);
       // Remove from local state
       users.value = users.value.filter((u) => u.id !== userId);
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to delete user";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to delete user";
       throw e;
     }
   }
@@ -91,8 +94,9 @@ export const useAdminStore = defineStore("admin", () => {
     try {
       const response = await api.get("/users/api-keys");
       apiKeys.value = response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to fetch API keys";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to fetch API keys";
       throw e;
     } finally {
       loading.value = false;
@@ -116,8 +120,9 @@ export const useAdminStore = defineStore("admin", () => {
         created_at: new Date().toISOString(),
       });
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to create API key";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to create API key";
       throw e;
     }
   }
@@ -131,8 +136,9 @@ export const useAdminStore = defineStore("admin", () => {
       if (key) {
         key.is_active = false;
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to revoke API key";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to revoke API key";
       throw e;
     }
   }
@@ -144,8 +150,9 @@ export const useAdminStore = defineStore("admin", () => {
       // Refresh users list to show the new user
       await fetchUsers();
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to invite user";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to invite user";
       throw e;
     }
   }
@@ -168,8 +175,9 @@ export const useAdminStore = defineStore("admin", () => {
         user.mfa_enabled = response.data.mfa_enabled;
       }
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to get MFA status";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to get MFA status";
       throw e;
     }
   }
@@ -184,8 +192,9 @@ export const useAdminStore = defineStore("admin", () => {
         user.mfa_enabled = false;
         // mfa_configured stays true - they still have MFA set up
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to disable MFA";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to disable MFA";
       throw e;
     }
   }
@@ -199,8 +208,9 @@ export const useAdminStore = defineStore("admin", () => {
       if (user) {
         user.mfa_enabled = true;
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to enable MFA";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to enable MFA";
       throw e;
     }
   }
@@ -211,8 +221,9 @@ export const useAdminStore = defineStore("admin", () => {
       const response = await api.post(`/users/${userId}/impersonate`);
       impersonationCredentials.value = response.data;
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to impersonate user";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to impersonate user";
       throw e;
     }
   }
@@ -228,8 +239,9 @@ export const useAdminStore = defineStore("admin", () => {
         new_password: newPassword,
       });
       return response.data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to reset password";
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      error.value = err.response?.data?.detail || "Failed to reset password";
       throw e;
     }
   }

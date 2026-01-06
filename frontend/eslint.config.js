@@ -16,8 +16,8 @@ const sharedTypeScriptRules = {
       caughtErrorsIgnorePattern: "^_",
     },
   ],
-  // Allow any for now (can tighten later)
-  "@typescript-eslint/no-explicit-any": "off",
+  // Disallow explicit any - use proper types instead
+  "@typescript-eslint/no-explicit-any": "error",
 };
 
 // Type-aware rules that catch real async bugs (#625)
@@ -40,8 +40,8 @@ export default [
   // TypeScript recommended rules (for .ts files)
   ...typescript.configs.recommended,
 
-  // Vue 3 essential rules
-  ...vue.configs["flat/essential"],
+  // Vue 3 recommended rules (stricter than essential)
+  ...vue.configs["flat/recommended"],
 
   // Vue files with TypeScript support
   {
