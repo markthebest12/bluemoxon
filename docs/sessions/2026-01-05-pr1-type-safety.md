@@ -19,7 +19,7 @@ Implementing PR 1 from refactor batch plan (`docs/plans/2026-01-05-refactor-batc
 ## Current State
 - Branch: `refactor/issue-854-constants`
 - PR #873: https://github.com/markthebest12/bluemoxon/pull/873
-- Status: **CODE REVIEW FEEDBACK RECEIVED - FIXES REQUIRED**
+- Status: **CODE REVIEW FIXES PUSHED - READY FOR RE-REVIEW**
 
 ## Code Review Feedback (7 items to fix)
 
@@ -84,3 +84,21 @@ Should be: `{ value: BOOK_STATUSES.EVALUATING, label: "EVAL" }`
 - 7 issues identified (see above)
 - All feedback is valid
 - Fixes in progress
+
+### 2026-01-05 - Code Review Fixes Complete
+All 7 code review items addressed:
+
+1. ✅ **BOOK_STATUSES now used everywhere**: Updated switch cases, status comparisons
+2. ✅ **Migration complete**: Updated acquisitions.ts, BookDetailView.vue, BooksView.vue, InsuranceReportView.vue, BookForm.vue
+3. ✅ **BOOK_STATUS_OPTIONS derived from BOOK_STATUSES**: Referential integrity maintained
+4. ✅ **RECEIVED_DAYS_LOOKBACK moved to FILTERS namespace**: New FILTERS constant object
+5. ✅ **Variable renamed**: `thirtyDaysAgo` → `lookbackDate`
+6. ✅ **books.ts updated**: Uses `PAGINATION.BOOKS_PER_PAGE`
+7. ✅ **Tests improved**: Replaced tautological tests with referential integrity checks
+
+Validation passed:
+- `npm run lint` ✅
+- `npm run type-check` ✅
+- `npm run test` ✅ (229 tests)
+
+Pushed commit `39e7ba7` to PR #873.
