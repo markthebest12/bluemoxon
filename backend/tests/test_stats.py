@@ -829,11 +829,11 @@ class TestByAuthor:
         data = response.json()
         assert data == []
 
-    def test_by_author_count_is_records_total_volumes_is_sum(self, client, db):
-        """Test that count is record count, total_volumes is sum of volumes.
+    def test_by_author_count_is_volumes_titles_is_records(self, client, db):
+        """Test that count is total volumes, titles is record count.
 
-        Issue #827: count was incorrectly returning sum of volumes.
-        A 24-volume encyclopedia should return count: 1, total_volumes: 24.
+        The chart displays total volumes per author (a 24-volume set counts as 24).
+        The 'titles' field shows number of distinct book records.
         """
         from app.models import Author
 
@@ -867,11 +867,12 @@ class TestByAuthor:
 
         dickens = next((a for a in data if a["author"] == "Charles Dickens"), None)
         assert dickens is not None
-        # count should be number of book records (2), NOT sum of volumes
-        assert dickens["count"] == 2, "count should be record count, not volume sum"
-        # total_volumes should be the sum of volumes (24 + 1 = 25)
+        # count should be total volumes (24 + 1 = 25) - this is what the chart displays
+        assert dickens["count"] == 25, "count should be total volumes for chart display"
+        # total_volumes is the same as count for backward compatibility
         assert dickens["total_volumes"] == 25, "total_volumes should be sum of volumes"
-        assert dickens["titles"] == 2  # 2 distinct titles
+        # titles should be number of book records (2)
+        assert dickens["titles"] == 2, "titles should be number of distinct book records"
         assert len(dickens["sample_titles"]) == 2
 
     def test_by_author_sample_titles_limit(self, client, db):
