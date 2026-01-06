@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
+import { invalidateDashboardCache } from "@/composables/useDashboardCache";
 import { getErrorMessage } from "@/types/errors";
 import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 
@@ -195,6 +196,9 @@ async function handleSubmit() {
 
     // Navigate to the book detail page
     void router.push(`/books/${result.id}`);
+
+    // Invalidate dashboard cache since book data changed
+    invalidateDashboardCache();
   } catch (e: unknown) {
     errorMessage.value = getErrorMessage(e, "Failed to save book");
   } finally {
