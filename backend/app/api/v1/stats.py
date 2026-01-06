@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Binder, Book, Publisher
+from app.schemas.stats import DashboardResponse
 
 router = APIRouter()
 
@@ -580,3 +581,35 @@ def get_value_by_category(db: Session = Depends(get_db)):
         {"category": "Tier 1 Publishers", "value": float(tier1_value)},
         {"category": "Other", "value": max(0, other_value)},
     ]
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+def get_dashboard(
+    db: Session = Depends(get_db),
+    reference_date: str = Query(
+        default=None,
+        description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
+    ),
+    days: int = Query(default=30, ge=7, le=90, description="Number of days for acquisitions"),
+) -> DashboardResponse:
+    """Get all dashboard statistics in a single request.
+
+    Combines: overview, bindings, by-era, by-publisher, by-author, acquisitions-daily.
+    This reduces 6 API calls to 1 for the dashboard.
+    """
+    # Reuse existing endpoint logic
+    overview = get_overview(db)
+    bindings = get_bindings(db)
+    by_era = get_by_era(db)
+    by_publisher = get_by_publisher(db)
+    by_author = get_by_author(db)
+    acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
+
+    return {
+        "overview": overview,
+        "bindings": bindings,
+        "by_era": by_era,
+        "by_publisher": by_publisher,
+        "by_author": by_author,
+        "acquisitions_daily": acquisitions_daily,
+    }

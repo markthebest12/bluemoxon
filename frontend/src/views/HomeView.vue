@@ -1,43 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { api } from "@/services/api";
+import { onMounted, onUnmounted } from "vue";
+import { useDashboardStore } from "@/stores/dashboard";
 import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
 
-interface WeekDelta {
-  count: number;
-  volumes: number;
-  value_mid: number;
-  authenticated_bindings: number;
-}
+const dashboardStore = useDashboardStore();
 
-interface Stats {
-  primary: {
-    count: number;
-    volumes: number;
-    value_low: number;
-    value_mid: number;
-    value_high: number;
-  };
-  extended: { count: number };
-  flagged: { count: number };
-  total_items: number;
-  authenticated_bindings: number;
-  in_transit: number;
-  week_delta: WeekDelta;
-}
+onMounted(() => {
+  void dashboardStore.loadDashboard();
+});
 
-const stats = ref<Stats | null>(null);
-const loading = ref(true);
-
-onMounted(async () => {
-  try {
-    const response = await api.get("/stats/overview");
-    stats.value = response.data;
-  } catch (e) {
-    console.error("Failed to load stats", e);
-  } finally {
-    loading.value = false;
-  }
+onUnmounted(() => {
+  dashboardStore.cleanup();
 });
 
 function formatCurrency(value: number): string {
@@ -75,12 +48,23 @@ function getTrendArrow(value: number): string {
     <div class="section-header">
       <h1>Collection Dashboard</h1>
     </div>
+    <div v-if="dashboardStore.isStale" class="text-xs text-victorian-ink-muted mb-2">
+      Updating...
+    </div>
 
-    <div v-if="loading" class="text-center py-12">
+    <div v-if="dashboardStore.loading" class="text-center py-12">
       <p class="text-victorian-ink-muted">Loading statistics...</p>
     </div>
 
-    <div v-else-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+    <div
+      v-else-if="dashboardStore.error && !dashboardStore.data"
+      class="card-static p-6 text-center"
+    >
+      <p class="text-victorian-burgundy">{{ dashboardStore.error }}</p>
+      <button class="btn btn-primary mt-4" @click="dashboardStore.loadDashboard()">Retry</button>
+    </div>
+
+    <div v-else-if="dashboardStore.data" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Collections -->
       <div class="card-static p-3! md:p-6! relative overflow-hidden">
         <div
@@ -93,20 +77,23 @@ function getTrendArrow(value: number): string {
         </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
-            {{ stats.primary.count }}
+            {{ dashboardStore.data.overview.primary.count }}
           </p>
           <span
-            v-if="stats.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.count)]"
+            v-if="dashboardStore.data.overview.week_delta"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.count),
+            ]"
           >
-            {{ getTrendArrow(stats.week_delta.count) }}
-            {{ formatDelta(stats.week_delta.count) }}
+            {{ getTrendArrow(dashboardStore.data.overview.week_delta.count) }}
+            {{ formatDelta(dashboardStore.data.overview.week_delta.count) }}
           </span>
         </div>
         <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
           Primary collection
-          <span v-if="stats.in_transit" class="text-victorian-ink-muted/60"
-            >({{ stats.in_transit }} in transit)</span
+          <span v-if="dashboardStore.data.overview.in_transit" class="text-victorian-ink-muted/60"
+            >({{ dashboardStore.data.overview.in_transit }} in transit)</span
           >
         </p>
       </div>
@@ -123,14 +110,17 @@ function getTrendArrow(value: number): string {
         </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
-            {{ stats.primary.volumes }}
+            {{ dashboardStore.data.overview.primary.volumes }}
           </p>
           <span
-            v-if="stats.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.volumes)]"
+            v-if="dashboardStore.data.overview.week_delta"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.volumes),
+            ]"
           >
-            {{ getTrendArrow(stats.week_delta.volumes) }}
-            {{ formatDelta(stats.week_delta.volumes) }}
+            {{ getTrendArrow(dashboardStore.data.overview.week_delta.volumes) }}
+            {{ formatDelta(dashboardStore.data.overview.week_delta.volumes) }}
           </span>
         </div>
         <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
@@ -150,25 +140,33 @@ function getTrendArrow(value: number): string {
         </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-xl md:text-3xl font-display text-victorian-gold-dark">
-            {{ formatCurrency(stats.primary.value_mid) }}
+            {{ formatCurrency(dashboardStore.data.overview.primary.value_mid) }}
           </p>
           <span
-            v-if="stats.week_delta"
-            :class="['text-xs md:text-sm font-medium', getTrendClass(stats.week_delta.value_mid)]"
+            v-if="dashboardStore.data.overview.week_delta"
+            :class="[
+              'text-xs md:text-sm font-medium',
+              getTrendClass(dashboardStore.data.overview.week_delta.value_mid),
+            ]"
           >
-            {{ getTrendArrow(stats.week_delta.value_mid) }}
+            {{ getTrendArrow(dashboardStore.data.overview.week_delta.value_mid) }}
           </span>
         </div>
         <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
-          <span v-if="stats.week_delta && stats.week_delta.value_mid !== 0">
-            <span :class="getTrendClass(stats.week_delta.value_mid)">
-              {{ formatDelta(stats.week_delta.value_mid, true) }}
+          <span
+            v-if="
+              dashboardStore.data.overview.week_delta &&
+              dashboardStore.data.overview.week_delta.value_mid !== 0
+            "
+          >
+            <span :class="getTrendClass(dashboardStore.data.overview.week_delta.value_mid)">
+              {{ formatDelta(dashboardStore.data.overview.week_delta.value_mid, true) }}
             </span>
             this week
           </span>
           <span v-else>
-            {{ formatCurrency(stats.primary.value_low) }} -
-            {{ formatCurrency(stats.primary.value_high) }}
+            {{ formatCurrency(dashboardStore.data.overview.primary.value_low) }} -
+            {{ formatCurrency(dashboardStore.data.overview.primary.value_high) }}
           </span>
         </p>
       </div>
@@ -185,17 +183,17 @@ function getTrendArrow(value: number): string {
         </h3>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-burgundy">
-            {{ stats.authenticated_bindings }}
+            {{ dashboardStore.data.overview.authenticated_bindings }}
           </p>
           <span
-            v-if="stats.week_delta"
+            v-if="dashboardStore.data.overview.week_delta"
             :class="[
               'text-xs md:text-sm font-medium',
-              getTrendClass(stats.week_delta.authenticated_bindings),
+              getTrendClass(dashboardStore.data.overview.week_delta.authenticated_bindings),
             ]"
           >
-            {{ getTrendArrow(stats.week_delta.authenticated_bindings) }}
-            {{ formatDelta(stats.week_delta.authenticated_bindings) }}
+            {{ getTrendArrow(dashboardStore.data.overview.week_delta.authenticated_bindings) }}
+            {{ formatDelta(dashboardStore.data.overview.week_delta.authenticated_bindings) }}
           </span>
         </div>
         <p class="text-xs md:text-sm text-victorian-ink-muted mt-1 hidden md:block">
@@ -227,7 +225,7 @@ function getTrendArrow(value: number): string {
       </RouterLink>
     </div>
 
-    <!-- Statistics Dashboard -->
-    <StatisticsDashboard />
+    <!-- Statistics Dashboard - pass data as prop -->
+    <StatisticsDashboard v-if="dashboardStore.data" :data="dashboardStore.data" />
   </div>
 </template>
