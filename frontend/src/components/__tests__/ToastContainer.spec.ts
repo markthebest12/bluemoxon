@@ -4,6 +4,8 @@ import { ref } from "vue";
 
 // Create shared mock state
 const mockToasts = ref<Array<{ id: number; type: string; message: string }>>([]);
+const mockPauseTimer = vi.fn();
+const mockResumeTimer = vi.fn();
 
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({
@@ -17,6 +19,8 @@ vi.mock("@/composables/useToast", () => ({
     dismiss: (id: number) => {
       mockToasts.value = mockToasts.value.filter((t) => t.id !== id);
     },
+    pauseTimer: mockPauseTimer,
+    resumeTimer: mockResumeTimer,
     _reset: () => {
       mockToasts.value = [];
     },
@@ -29,12 +33,15 @@ import { useToast } from "@/composables/useToast";
 describe("ToastContainer", () => {
   beforeEach(() => {
     mockToasts.value = [];
+    mockPauseTimer.mockClear();
+    mockResumeTimer.mockClear();
   });
 
   describe("rendering", () => {
     it("should render nothing when no toasts", () => {
       const wrapper = mount(ToastContainer);
       expect(wrapper.findAll('[role="alert"]')).toHaveLength(0);
+      expect(wrapper.findAll('[role="status"]')).toHaveLength(0);
     });
 
     it("should render error toast with correct styling", async () => {
@@ -57,7 +64,7 @@ describe("ToastContainer", () => {
       showSuccess("Success message");
       await flushPromises();
 
-      const toast = wrapper.find('[role="alert"]');
+      const toast = wrapper.find('[role="status"]');
       expect(toast.exists()).toBe(true);
       expect(toast.text()).toContain("Success message");
       expect(toast.classes()).toContain("toast-success");
@@ -71,13 +78,14 @@ describe("ToastContainer", () => {
       showSuccess("Success 1");
       await flushPromises();
 
-      const toasts = wrapper.findAll('[role="alert"]');
-      expect(toasts).toHaveLength(2);
+      const errorToasts = wrapper.findAll('[role="alert"]');
+      const successToasts = wrapper.findAll('[role="status"]');
+      expect(errorToasts.length + successToasts.length).toBe(2);
     });
   });
 
   describe("accessibility", () => {
-    it("should have role=alert on toast elements", async () => {
+    it("should have role=alert on error toasts", async () => {
       const wrapper = mount(ToastContainer);
       const { showError } = useToast();
 
@@ -85,6 +93,17 @@ describe("ToastContainer", () => {
       await flushPromises();
 
       const toast = wrapper.find('[role="alert"]');
+      expect(toast.exists()).toBe(true);
+    });
+
+    it("should have role=status on success toasts", async () => {
+      const wrapper = mount(ToastContainer);
+      const { showSuccess } = useToast();
+
+      showSuccess("Status message");
+      await flushPromises();
+
+      const toast = wrapper.find('[role="status"]');
       expect(toast.exists()).toBe(true);
     });
 
@@ -118,6 +137,34 @@ describe("ToastContainer", () => {
       await flushPromises();
 
       expect(wrapper.findAll('[role="alert"]')).toHaveLength(0);
+    });
+  });
+
+  describe("hover to pause", () => {
+    it("should call pauseTimer on mouseenter", async () => {
+      const wrapper = mount(ToastContainer);
+      const { showError } = useToast();
+
+      showError("Hover me");
+      await flushPromises();
+
+      const toast = wrapper.find('[role="alert"]');
+      await toast.trigger("mouseenter");
+
+      expect(mockPauseTimer).toHaveBeenCalled();
+    });
+
+    it("should call resumeTimer on mouseleave", async () => {
+      const wrapper = mount(ToastContainer);
+      const { showError } = useToast();
+
+      showError("Leave me");
+      await flushPromises();
+
+      const toast = wrapper.find('[role="alert"]');
+      await toast.trigger("mouseleave");
+
+      expect(mockResumeTimer).toHaveBeenCalled();
     });
   });
 

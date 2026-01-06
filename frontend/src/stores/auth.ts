@@ -116,7 +116,7 @@ export const useAuthStore = defineStore("auth", () => {
         mfaStep.value = "none";
       }
     } catch (e) {
-      // Session check failed - clear user but show toast for visibility
+      // Session check failed - clear user silently (no toast to avoid spam on page load)
       console.error("[Auth] Session check failed:", e);
       user.value = null;
     } finally {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useToast } from "@/composables/useToast";
 
-const { toasts, dismiss } = useToast();
+const { toasts, dismiss, pauseTimer, resumeTimer } = useToast();
 </script>
 
 <template>
@@ -13,7 +13,7 @@ const { toasts, dismiss } = useToast();
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        role="alert"
+        :role="toast.type === 'error' ? 'alert' : 'status'"
         class="toast rounded-lg border px-4 py-3 shadow-lg flex items-start gap-3"
         :class="[
           toast.type === 'error' ? 'toast-error' : 'toast-success',
@@ -21,6 +21,8 @@ const { toasts, dismiss } = useToast();
             ? 'bg-[var(--color-status-error-bg)] border-[var(--color-status-error-border)] text-[var(--color-status-error-text)]'
             : 'bg-[var(--color-status-success-bg)] border-[var(--color-status-success-border)] text-[var(--color-status-success-text)]',
         ]"
+        @mouseenter="pauseTimer(toast.id)"
+        @mouseleave="resumeTimer(toast.id)"
       >
         <span
           class="flex-shrink-0 text-lg"
@@ -30,7 +32,7 @@ const { toasts, dismiss } = useToast();
               : 'text-[var(--color-status-success-accent)]'
           "
         >
-          {{ toast.type === "error" ? "!" : "+" }}
+          {{ toast.type === "error" ? "\u2717" : "\u2713" }}
         </span>
         <span class="flex-1 text-sm">{{ toast.message }}</span>
         <button
@@ -53,6 +55,10 @@ const { toasts, dismiss } = useToast();
 
 .toast-leave-active {
   transition: all 0.2s ease-in;
+}
+
+.toast-move {
+  transition: transform 0.3s ease;
 }
 
 .toast-enter-from {
