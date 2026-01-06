@@ -575,7 +575,11 @@ function printPage() {
                   ]"
                   @change="updateStatus(($event.target as HTMLSelectElement).value)"
                 >
-                  <option v-for="status in BOOK_STATUS_OPTIONS" :key="status.value" :value="status.value">
+                  <option
+                    v-for="status in BOOK_STATUS_OPTIONS"
+                    :key="status.value"
+                    :value="status.value"
+                  >
                     {{ status.label }}
                   </option>
                 </select>

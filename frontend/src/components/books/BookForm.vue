@@ -83,7 +83,6 @@ const categories = [
   "Literature",
 ];
 
-
 onMounted(async () => {
   // Fetch reference data for dropdowns and exchange rates
   await Promise.all([refsStore.fetchAll(), loadExchangeRates()]);

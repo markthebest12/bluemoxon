@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  BOOK_STATUS_OPTIONS,
-  BOOK_STATUSES,
-  PAGINATION,
-  FILTERS,
-  UI_TIMING,
-} from "../index";
+import { BOOK_STATUS_OPTIONS, BOOK_STATUSES, PAGINATION, FILTERS, UI_TIMING } from "../index";
 
 describe("constants", () => {
   describe("BOOK_STATUS_OPTIONS", () => {
