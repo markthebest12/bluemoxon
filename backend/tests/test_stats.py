@@ -1095,3 +1095,71 @@ class TestSecurityEndpoints:
             "fix-publisher-tiers endpoint should be removed - it was an "
             "unauthenticated endpoint that could modify the database"
         )
+
+
+class TestDashboardBatch:
+    """Tests for GET /api/v1/stats/dashboard batch endpoint."""
+
+    def test_dashboard_returns_all_sections(self, client, db):
+        """Test that dashboard returns all required data sections."""
+        from app.models import Author, Binder, Publisher
+
+        # Create reference data
+        author = Author(name="Charles Dickens")
+        binder = Binder(name="Zaehnsdorf", full_name="Joseph Zaehnsdorf")
+        publisher = Publisher(name="Chapman & Hall", tier="TIER_1")
+        db.add_all([author, binder, publisher])
+        db.commit()
+
+        # Create a book with all associations
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "A Christmas Carol",
+                "author_id": author.id,
+                "publisher_id": publisher.id,
+                "binder_id": binder.id,
+                "binding_authenticated": True,
+                "publication_date": "1843",
+                "inventory_type": "PRIMARY",
+                "status": "ON_HAND",
+                "purchase_date": "2026-01-01",
+                "value_mid": 500,
+            },
+        )
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all sections exist
+        assert "overview" in data
+        assert "bindings" in data
+        assert "by_era" in data
+        assert "by_publisher" in data
+        assert "by_author" in data
+        assert "acquisitions_daily" in data
+
+        # Verify overview structure
+        assert "primary" in data["overview"]
+        assert "week_delta" in data["overview"]
+
+    def test_dashboard_accepts_query_params(self, client):
+        """Test reference_date and days parameters."""
+        response = client.get("/api/v1/stats/dashboard?reference_date=2026-01-06&days=14")
+        assert response.status_code == 200
+        data = response.json()
+        # Should have 14 days of acquisition data
+        assert len(data["acquisitions_daily"]) == 14
+
+    def test_dashboard_empty_database(self, client):
+        """Test dashboard with no books."""
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["overview"]["primary"]["count"] == 0
+        assert data["bindings"] == []
+        assert data["by_era"] == []
+        assert data["by_publisher"] == []
+        assert data["by_author"] == []
