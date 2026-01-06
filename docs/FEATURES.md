@@ -1,6 +1,19 @@
-# BlueMoxon 1.0 Features
+# BlueMoxon 1.1 Features
 
 **BlueMoxon** is a collection management system for antiquarian books, featuring AI-powered valuations, acquisition tracking, and investment scoring.
+
+## What's New in 1.1
+
+### Toast Notification System
+- **Error Feedback** - API errors now display user-friendly toast notifications instead of silent failures
+- **Success Confirmations** - Actions like image deletion show success toasts
+- **Smart Features**:
+  - Auto-dismiss after 5 seconds
+  - Hover-to-pause keeps toast visible while reading
+  - Duplicate suppression prevents notification spam
+  - Dismiss button for immediate removal
+- **Accessibility** - Uses ARIA `role="alert"` for screen readers
+- **Theme-Aware** - Works in both light and dark modes
 
 ---
 
@@ -362,7 +375,11 @@ Analyses store the AI model version used:
 ### Real-time Updates
 - Optimistic UI updates
 - Background data synchronization
-- Toast notifications for actions
+- **Toast Notifications** (v1.1)
+  - Error toasts for API failures with user-friendly messages
+  - Success toasts for completed actions
+  - Auto-dismiss with hover-to-pause
+  - Duplicate suppression within 2-second window
 
 ### Keyboard Navigation
 - Shortcuts for common actions
