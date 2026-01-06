@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Binder, Book, Publisher
+from app.schemas.stats import DashboardResponse
 
 router = APIRouter()
 
@@ -582,7 +583,7 @@ def get_value_by_category(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
     db: Session = Depends(get_db),
     reference_date: str = Query(
@@ -590,7 +591,7 @@ def get_dashboard(
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
     ),
     days: int = Query(default=30, ge=7, le=90, description="Number of days for acquisitions"),
-):
+) -> DashboardResponse:
     """Get all dashboard statistics in a single request.
 
     Combines: overview, bindings, by-era, by-publisher, by-author, acquisitions-daily.

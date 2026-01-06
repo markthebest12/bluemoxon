@@ -73,6 +73,7 @@ export interface DashboardStats {
 }
 
 export interface CachedDashboard {
+  version: number;
   data: DashboardStats;
   timestamp: number;
 }

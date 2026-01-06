@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
-import { invalidateDashboardCache } from "@/composables/useDashboardCache";
+import { invalidateDashboardCache } from "@/stores/dashboard";
 
 const DEV_API_KEY = import.meta.env.VITE_API_KEY || "";
 

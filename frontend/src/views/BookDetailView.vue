@@ -8,7 +8,7 @@ import { getErrorMessage } from "@/types/errors";
 import { handleApiError, handleSuccess } from "@/utils/errorHandler";
 import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
-import { invalidateDashboardCache } from "@/composables/useDashboardCache";
+import { invalidateDashboardCache } from "@/stores/dashboard";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";

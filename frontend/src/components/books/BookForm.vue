@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
-import { invalidateDashboardCache } from "@/composables/useDashboardCache";
+import { invalidateDashboardCache } from "@/stores/dashboard";
 import { getErrorMessage } from "@/types/errors";
 import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 
