@@ -59,7 +59,15 @@ This document tracks planned features, improvements, and technical debt for the 
 | **Carrier API Support** | USPS, FedEx, DHL tracking integration (#516) | Low | High | Planned |
 | **Tiered Recommendations** | Offer prices with reasoning in valuations | Medium | Medium | Planned |
 
-### Recently Completed (December 2025)
+### Recently Completed (January 2026)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Toast Notification System** | User-friendly error/success notifications with hover-to-pause, duplicate suppression | ✅ #855 |
+| **Shared Constants Extraction** | Centralized book status and dropdown constants in `frontend/src/constants/` | ✅ #854 |
+| **Strict ESLint Rules** | Enabled `@typescript-eslint/no-explicit-any` and `@typescript-eslint/explicit-function-return-type` | ✅ #870 |
+
+### Previously Completed (December 2025)
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -439,4 +447,4 @@ To stay within budget:
 
 ---
 
-**Last Updated:** 2025-12-22
+**Last Updated:** 2026-01-06
