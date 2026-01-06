@@ -43,7 +43,7 @@ tracking_schedule_expression = "rate(1 hour)"
 # Terraform state access for GitHub Actions deploy workflow
 # Points to staging state bucket in same account (for reading terraform outputs during deploy)
 terraform_state_bucket_arn         = "arn:aws:s3:::bluemoxon-terraform-state-staging"
-terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:652617421195:table/bluemoxon-terraform-lock-staging"
+terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:652617421195:table/bluemoxon-terraform-locks-staging"
 
 # Cognito MFA - OPTIONAL with TOTP enabled (matches prod)
 cognito_mfa_configuration = "OPTIONAL"
