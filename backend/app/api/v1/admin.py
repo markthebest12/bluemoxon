@@ -26,6 +26,7 @@ from app.services.bedrock import (
     MODEL_USAGE,
     PROMPT_CACHE_TTL,
 )
+from app.services.cost_explorer import get_costs as fetch_costs
 from app.version import get_version_info
 
 router = APIRouter()
@@ -399,8 +400,6 @@ def get_costs(
     daily trend, and other AWS service costs.
     Cached server-side for 1 hour (see cost_explorer.py).
     """
-    from app.services.cost_explorer import get_costs as fetch_costs
-
     response.headers["Cache-Control"] = "no-store"
     return CostResponse(**fetch_costs(timezone=timezone, force_refresh=refresh))
 
