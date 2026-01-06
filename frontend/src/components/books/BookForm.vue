@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
+import { getErrorMessage } from "@/types/errors";
 
 const props = defineProps<{
   bookId?: number;
@@ -109,24 +110,24 @@ function populateForm(book: Book) {
     publisher_id: book.publisher?.id || null,
     binder_id: book.binder?.id || null,
     publication_date: book.publication_date || "",
-    edition: (book as any).edition || "",
+    edition: book.edition || "",
     volumes: book.volumes || 1,
     category: book.category || "",
     inventory_type: book.inventory_type || "PRIMARY",
     binding_type: book.binding_type || "",
-    binding_description: (book as any).binding_description || "",
-    condition_grade: (book as any).condition_grade || "",
-    condition_notes: (book as any).condition_notes || "",
+    binding_description: book.binding_description || "",
+    condition_grade: book.condition_grade || "",
+    condition_notes: book.condition_notes || "",
     value_low: book.value_low,
     value_mid: book.value_mid,
     value_high: book.value_high,
-    purchase_price: (book as any).purchase_price || null,
-    acquisition_cost: (book as any).acquisition_cost || null,
-    purchase_date: (book as any).purchase_date || "",
-    purchase_source: (book as any).purchase_source || "",
+    purchase_price: book.purchase_price ?? null,
+    acquisition_cost: book.acquisition_cost ?? null,
+    purchase_date: book.purchase_date || "",
+    purchase_source: book.purchase_source || "",
     status: book.status || "ON_HAND",
     notes: book.notes || "",
-    provenance: (book as any).provenance || "",
+    provenance: book.provenance || "",
     is_first_edition: book.is_first_edition ?? null,
     has_provenance: book.has_provenance ?? false,
     provenance_tier: book.provenance_tier ?? null,
@@ -135,7 +136,7 @@ function populateForm(book: Book) {
 
 function prepareFormData() {
   // Prepare data - only include non-empty values
-  const data: any = {
+  const data: Record<string, unknown> = {
     title: form.value.title,
     volumes: form.value.volumes,
     inventory_type: form.value.inventory_type,
@@ -201,8 +202,8 @@ async function handleSubmit() {
 
     // Navigate to the book detail page
     void router.push(`/books/${result.id}`);
-  } catch (e: any) {
-    errorMessage.value = e.response?.data?.detail || e.message || "Failed to save book";
+  } catch (e: unknown) {
+    errorMessage.value = getErrorMessage(e, "Failed to save book");
   } finally {
     saving.value = false;
     skipDuplicateCheck.value = false;
