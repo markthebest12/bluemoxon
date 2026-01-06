@@ -8,7 +8,7 @@ import { getErrorMessage } from "@/types/errors";
 import { type BookImage } from "@/types/books";
 import { useJobPolling } from "@/composables/useJobPolling";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
-import { BOOK_STATUS_OPTIONS } from "@/constants";
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
@@ -299,13 +299,13 @@ async function saveProvenance() {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case "EVALUATING":
+    case BOOK_STATUSES.EVALUATING:
       return "bg-blue-100 text-blue-800";
-    case "ON_HAND":
+    case BOOK_STATUSES.ON_HAND:
       return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
-    case "IN_TRANSIT":
+    case BOOK_STATUSES.IN_TRANSIT:
       return "badge-transit";
-    case "REMOVED":
+    case BOOK_STATUSES.REMOVED:
       return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
     default:
       return "bg-gray-100 text-gray-800";

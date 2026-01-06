@@ -5,6 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
+import { BOOK_STATUSES } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -425,8 +426,8 @@ function closeCarousel() {
           >
           <select v-model="booksStore.filters.status" class="input text-sm">
             <option value="">All Statuses</option>
-            <option value="ON_HAND">On Hand</option>
-            <option value="IN_TRANSIT">In Transit</option>
+            <option :value="BOOK_STATUSES.ON_HAND">On Hand</option>
+            <option :value="BOOK_STATUSES.IN_TRANSIT">In Transit</option>
             <option value="SOLD">Sold</option>
           </select>
         </div>

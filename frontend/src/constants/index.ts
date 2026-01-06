@@ -17,13 +17,13 @@ export type BookStatus = (typeof BOOK_STATUSES)[keyof typeof BOOK_STATUSES];
 
 /**
  * Status dropdown options with display labels.
- * Used in BookDetailView.vue and BookForm.vue.
+ * Values derived from BOOK_STATUSES for single source of truth.
  */
 export const BOOK_STATUS_OPTIONS = [
-  { value: "EVALUATING", label: "EVAL" },
-  { value: "ON_HAND", label: "ON HAND" },
-  { value: "IN_TRANSIT", label: "IN TRANSIT" },
-  { value: "REMOVED", label: "REMOVED" },
+  { value: BOOK_STATUSES.EVALUATING, label: "EVAL" },
+  { value: BOOK_STATUSES.ON_HAND, label: "ON HAND" },
+  { value: BOOK_STATUSES.IN_TRANSIT, label: "IN TRANSIT" },
+  { value: BOOK_STATUSES.REMOVED, label: "REMOVED" },
 ] as const;
 
 export type BookStatusOption = (typeof BOOK_STATUS_OPTIONS)[number];
@@ -36,7 +36,15 @@ export const PAGINATION = {
   DEFAULT_PER_PAGE: 100,
   /** Items per page for received books list */
   RECEIVED_PER_PAGE: 50,
-  /** Days to look back for received items filter */
+  /** Default items per page for books list */
+  BOOKS_PER_PAGE: 20,
+} as const;
+
+/**
+ * Filter/business rule constants.
+ */
+export const FILTERS = {
+  /** Days to look back for received items */
   RECEIVED_DAYS_LOOKBACK: 30,
 } as const;
 

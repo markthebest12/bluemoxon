@@ -5,7 +5,7 @@ import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import { getErrorMessage } from "@/types/errors";
-import { BOOK_STATUS_OPTIONS } from "@/constants";
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 
 const props = defineProps<{
   bookId?: number;
@@ -43,7 +43,7 @@ const form = ref({
   acquisition_cost: null as number | null,
   purchase_date: "",
   purchase_source: "",
-  status: "ON_HAND",
+  status: BOOK_STATUSES.ON_HAND as string,
   notes: "",
   provenance: "",
   is_first_edition: null as boolean | null,
@@ -119,7 +119,7 @@ function populateForm(book: Book) {
     acquisition_cost: book.acquisition_cost ?? null,
     purchase_date: book.purchase_date || "",
     purchase_source: book.purchase_source || "",
-    status: book.status || "ON_HAND",
+    status: book.status || BOOK_STATUSES.ON_HAND,
     notes: book.notes || "",
     provenance: book.provenance || "",
     is_first_edition: book.is_first_edition ?? null,

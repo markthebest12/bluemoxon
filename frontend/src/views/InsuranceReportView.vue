@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
+import { BOOK_STATUSES, PAGINATION } from "@/constants";
 
 // Report type options
 type ReportType = "insurance" | "primary" | "extended" | "all";
@@ -43,7 +44,7 @@ async function fetchBooks() {
     while (hasMore) {
       const params: Record<string, unknown> = {
         page,
-        per_page: 100,
+        per_page: PAGINATION.DEFAULT_PER_PAGE,
         sort_by: "value_mid",
         sort_order: "desc",
       };
@@ -72,7 +73,7 @@ watch(reportType, () => fetchBooks(), { immediate: true });
 const filteredBooks = computed(() => {
   if (reportType.value === "insurance") {
     // Insurance report: only ON_HAND items
-    return books.value.filter((book) => book.status === "ON_HAND");
+    return books.value.filter((book) => book.status === BOOK_STATUSES.ON_HAND);
   }
   // All other reports: show all fetched items
   return books.value;

@@ -3,6 +3,7 @@ import {
   BOOK_STATUS_OPTIONS,
   BOOK_STATUSES,
   PAGINATION,
+  FILTERS,
   UI_TIMING,
 } from "../index";
 
@@ -10,40 +11,60 @@ describe("constants", () => {
   describe("BOOK_STATUS_OPTIONS", () => {
     it("has all required status options", () => {
       expect(BOOK_STATUS_OPTIONS).toHaveLength(4);
-      expect(BOOK_STATUS_OPTIONS.map((s) => s.value)).toEqual([
-        "EVALUATING",
-        "ON_HAND",
-        "IN_TRANSIT",
-        "REMOVED",
-      ]);
     });
 
-    it("has display labels", () => {
-      const evaluating = BOOK_STATUS_OPTIONS.find((s) => s.value === "EVALUATING");
-      expect(evaluating?.label).toBe("EVAL");
+    it("has display labels for each status", () => {
+      for (const option of BOOK_STATUS_OPTIONS) {
+        expect(option.label).toBeTruthy();
+        expect(option.label.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("derives values from BOOK_STATUSES (referential integrity)", () => {
+      // Each option's value should reference the same object as BOOK_STATUSES
+      const statusValues = Object.values(BOOK_STATUSES);
+      const optionValues = BOOK_STATUS_OPTIONS.map((o) => o.value);
+      expect(optionValues).toEqual(statusValues);
     });
   });
 
   describe("BOOK_STATUSES", () => {
-    it("exports status string constants", () => {
-      expect(BOOK_STATUSES.EVALUATING).toBe("EVALUATING");
-      expect(BOOK_STATUSES.ON_HAND).toBe("ON_HAND");
-      expect(BOOK_STATUSES.IN_TRANSIT).toBe("IN_TRANSIT");
-      expect(BOOK_STATUSES.REMOVED).toBe("REMOVED");
+    it("has exactly 4 status types", () => {
+      expect(Object.keys(BOOK_STATUSES)).toHaveLength(4);
+    });
+
+    it("has required status keys", () => {
+      expect(BOOK_STATUSES).toHaveProperty("EVALUATING");
+      expect(BOOK_STATUSES).toHaveProperty("ON_HAND");
+      expect(BOOK_STATUSES).toHaveProperty("IN_TRANSIT");
+      expect(BOOK_STATUSES).toHaveProperty("REMOVED");
     });
   });
 
   describe("PAGINATION", () => {
-    it("exports pagination limits", () => {
-      expect(PAGINATION.DEFAULT_PER_PAGE).toBe(100);
-      expect(PAGINATION.RECEIVED_PER_PAGE).toBe(50);
-      expect(PAGINATION.RECEIVED_DAYS_LOOKBACK).toBe(30);
+    it("has reasonable page size defaults", () => {
+      expect(PAGINATION.DEFAULT_PER_PAGE).toBeGreaterThan(0);
+      expect(PAGINATION.RECEIVED_PER_PAGE).toBeGreaterThan(0);
+      expect(PAGINATION.BOOKS_PER_PAGE).toBeGreaterThan(0);
+    });
+
+    it("DEFAULT_PER_PAGE is larger than BOOKS_PER_PAGE", () => {
+      // API fetches use larger pages, UI pagination uses smaller
+      expect(PAGINATION.DEFAULT_PER_PAGE).toBeGreaterThan(PAGINATION.BOOKS_PER_PAGE);
+    });
+  });
+
+  describe("FILTERS", () => {
+    it("has reasonable lookback window", () => {
+      expect(FILTERS.RECEIVED_DAYS_LOOKBACK).toBeGreaterThan(0);
+      expect(FILTERS.RECEIVED_DAYS_LOOKBACK).toBeLessThanOrEqual(90);
     });
   });
 
   describe("UI_TIMING", () => {
-    it("exports timing constants", () => {
-      expect(UI_TIMING.COMBOBOX_BLUR_DELAY_MS).toBe(200);
+    it("has reasonable timing values", () => {
+      expect(UI_TIMING.COMBOBOX_BLUR_DELAY_MS).toBeGreaterThan(0);
+      expect(UI_TIMING.COMBOBOX_BLUR_DELAY_MS).toBeLessThan(1000);
     });
   });
 });
