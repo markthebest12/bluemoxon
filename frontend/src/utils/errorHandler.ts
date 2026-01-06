@@ -22,11 +22,7 @@ function getDefaultShowSuccess(): SuccessCallback {
  * @param onError - Optional callback to show error (defaults to useToast().showError)
  * @returns The extracted error message (for inline display if needed)
  */
-export function handleApiError(
-  error: unknown,
-  context: string,
-  onError?: ErrorCallback
-): string {
+export function handleApiError(error: unknown, context: string, onError?: ErrorCallback): string {
   const message = getErrorMessage(error, `Failed: ${context}`);
   console.error(`[${context}]`, message, error);
 
@@ -42,10 +38,7 @@ export function handleApiError(
  * @param message - Success message to display
  * @param onSuccess - Optional callback to show success (defaults to useToast().showSuccess)
  */
-export function handleSuccess(
-  message: string,
-  onSuccess?: SuccessCallback
-): void {
+export function handleSuccess(message: string, onSuccess?: SuccessCallback): void {
   const showSuccess = onSuccess ?? getDefaultShowSuccess();
   showSuccess(message);
 }

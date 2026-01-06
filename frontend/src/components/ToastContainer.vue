@@ -5,10 +5,7 @@ const { toasts, dismiss, pauseTimer, resumeTimer } = useToast();
 </script>
 
 <template>
-  <div
-    class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm"
-    aria-live="polite"
-  >
+  <div class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm" aria-live="polite">
     <TransitionGroup name="toast">
       <div
         v-for="toast in toasts"

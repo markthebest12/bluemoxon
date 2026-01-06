@@ -69,11 +69,7 @@ describe("errorHandler", () => {
 
       handleApiError(error, "Querying");
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[Querying]",
-        "Database error",
-        error
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[Querying]", "Database error", error);
     });
 
     it("should return the extracted message", async () => {
@@ -111,9 +107,7 @@ describe("errorHandler", () => {
       const result = handleApiError(axiosError, "Form submission");
 
       expect(result).toBe("Validation failed: email is required");
-      expect(mockShowError).toHaveBeenCalledWith(
-        "Validation failed: email is required"
-      );
+      expect(mockShowError).toHaveBeenCalledWith("Validation failed: email is required");
     });
 
     it("should handle error without response", async () => {
