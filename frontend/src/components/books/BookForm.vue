@@ -5,6 +5,7 @@ import { useBooksStore, type Book } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import { getErrorMessage } from "@/types/errors";
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 
 const props = defineProps<{
   bookId?: number;
@@ -42,7 +43,7 @@ const form = ref({
   acquisition_cost: null as number | null,
   purchase_date: "",
   purchase_source: "",
-  status: "ON_HAND",
+  status: BOOK_STATUSES.ON_HAND as string,
   notes: "",
   provenance: "",
   is_first_edition: null as boolean | null,
@@ -82,14 +83,6 @@ const categories = [
   "Literature",
 ];
 
-// Status options (value sent to backend, label displayed to user)
-const statuses = [
-  { value: "EVALUATING", label: "EVAL" },
-  { value: "ON_HAND", label: "ON HAND" },
-  { value: "IN_TRANSIT", label: "IN TRANSIT" },
-  { value: "REMOVED", label: "REMOVED" },
-];
-
 onMounted(async () => {
   // Fetch reference data for dropdowns and exchange rates
   await Promise.all([refsStore.fetchAll(), loadExchangeRates()]);
@@ -125,7 +118,7 @@ function populateForm(book: Book) {
     acquisition_cost: book.acquisition_cost ?? null,
     purchase_date: book.purchase_date || "",
     purchase_source: book.purchase_source || "",
-    status: book.status || "ON_HAND",
+    status: book.status || BOOK_STATUSES.ON_HAND,
     notes: book.notes || "",
     provenance: book.provenance || "",
     is_first_edition: book.is_first_edition ?? null,
@@ -322,7 +315,7 @@ function cancel() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <select v-model="form.status" class="input w-full">
-            <option v-for="status in statuses" :key="status.value" :value="status.value">
+            <option v-for="status in BOOK_STATUS_OPTIONS" :key="status.value" :value="status.value">
               {{ status.label }}
             </option>
           </select>

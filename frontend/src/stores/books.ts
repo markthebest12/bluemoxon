@@ -2,6 +2,7 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/services/api";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
+import { PAGINATION } from "@/constants";
 
 export interface AnalysisJob {
   job_id: string;
@@ -112,7 +113,7 @@ export const useBooksStore = defineStore("books", () => {
   const activeEvalRunbookJobs = ref<Map<number, EvalRunbookJob>>(new Map());
 
   const page = ref(1);
-  const perPage = ref(20);
+  const perPage = ref(PAGINATION.BOOKS_PER_PAGE);
   const total = ref(0);
   const filters = ref<Filters>({});
   const sortBy = ref("title");
