@@ -2,79 +2,143 @@
 
 **Date:** 2026-01-06
 **Issue:** #861 - orders.py has hardcoded 2024 currency exchange rates
+**Branch:** `fix/exchange-rates-861`
+**PR:** #893 (targeting staging)
 
-## Problem
-`backend/app/api/v1/orders.py` line 118 has hardcoded exchange rates from 2024:
-- GBP: 1.28 (actual ~1.35)
-- EUR: 1.10 (actual ~1.17)
-- Unknown currencies silently return 1.0
+---
 
-## Solution Implemented
+## CRITICAL: Session Continuation Rules
 
-### Approach Chosen: Admin API + Logging + Script
-1. **Immediate fix**: Updated staging rates via admin API
-2. **Script**: Created `scripts/update-exchange-rates.sh` to fetch live rates
-3. **Logging**: Added warning logs when using fallback rates
-4. **Updated fallbacks**: Changed hardcoded values to Jan 2026 rates
+### 1. ALWAYS Use Superpowers Skills
+```
+IF task involves implementation → use superpowers:brainstorming FIRST
+IF task involves code changes → use superpowers:test-driven-development
+IF task involves debugging → use superpowers:systematic-debugging
+IF receiving feedback → use superpowers:receiving-code-review
+IF completing work → use superpowers:verification-before-completion
+```
+**This is not optional. Even 1% chance a skill applies = invoke it.**
 
-### Changes Made
-| File | Change |
+### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
+```bash
+# BAD - NEVER DO:
+# Comment lines before commands
+command1 \
+  --with-continuation    # Backslash continuations
+$(command substitution)  # $(...) syntax
+cmd1 && cmd2            # && chaining
+cmd1 || cmd2            # || chaining
+"string with !"         # ! in quoted strings
+```
+
+### 3. ALWAYS Use These Patterns
+```bash
+# GOOD - Simple single-line commands:
+bmx-api GET /books
+bmx-api PUT /admin/config '{"key": "value"}'
+git status
+poetry run pytest tests/test_orders_api.py -v
+
+# Multiple commands = separate Bash tool calls, NOT chained
+```
+
+---
+
+## Background
+
+**Original Problem:**
+- `backend/app/api/v1/orders.py:118` had hardcoded 2024 exchange rates
+- GBP: 1.28 (stale), EUR: 1.10 (stale)
+- Unknown currencies silently returned 1.0 with no logging
+- AdminConfig DB table was source of truth but fallbacks were outdated
+
+**Architecture (unchanged):**
+1. Primary: DB lookup via AdminConfig table
+2. Fallback: Hardcoded rates in code (safety net only)
+
+---
+
+## What Was Done
+
+### Commit 1: Backend + Script
+- Updated fallback rates to Jan 2026 values (GBP: 1.35, EUR: 1.17)
+- Added warning logging when using fallback rates
+- Created `scripts/update-exchange-rates.sh` to fetch live rates
+- Added tests for logging behavior
+
+### Commit 2: Frontend fetchLiveRate (REMOVED)
+- Added fetchLiveRate() to call frankfurter.app from browser
+- **PROBLEM**: Dead code (never wired up), external API risk, CORS issues
+
+### Commit 3: Code Review Fixes
+Addressed all P0/P1/P3 issues from code review:
+
+| Issue | Fix |
+|-------|-----|
+| P0: Dead fetchLiveRate code | Removed entirely (YAGNI) |
+| P0: Log spam (WARNING per request) | One-time warning per Lambda instance |
+| P1: Script missing jq/bc checks | Added dependency validation |
+| P1: Script missing auth check | Added API key existence check |
+| P3: Loose test assertion | Changed to exact value assertions |
+| P3: Stale date comment | Removed, clarified DB is source of truth |
+
+---
+
+## Current State
+
+### Files Changed (Final)
+| File | Status |
 |------|--------|
-| `backend/app/api/v1/orders.py` | Added warning logging, updated fallback rates |
-| `backend/app/api/v1/admin.py` | Updated fallback rates |
-| `backend/tests/test_orders_api.py` | Added tests for logging behavior |
-| `scripts/update-exchange-rates.sh` | New script to fetch live rates |
+| `backend/app/api/v1/orders.py` | One-time warning logging, updated fallbacks |
+| `backend/app/api/v1/admin.py` | Updated fallbacks (1.35, 1.17) |
+| `backend/tests/test_orders_api.py` | Tests for exact values + one-time warning |
+| `frontend/src/composables/useCurrencyConversion.ts` | Updated DEFAULT_RATES only |
+| `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts` | Updated test values |
+| `scripts/update-exchange-rates.sh` | Dependency + auth checks added |
 
-### TDD Cycle
-1. **RED**: Wrote failing tests for logging behavior
-2. **GREEN**: Implemented logging, tests pass
-3. **REFACTOR**: Updated other fallback locations
+### Tests
+- Backend: 5 passing
+- Frontend: 18 passing
 
-## Session Progress
+### Staging DB
+- Rates already updated via API: GBP=1.3513, EUR=1.1706
 
-### Phase 1: Brainstorming & Design
-- [x] Understand current code
-- [x] Choose approach (Admin API + logging + script)
-- [x] Create design doc (this file)
+---
 
-### Phase 2: TDD Implementation
-- [x] Write failing tests
-- [x] Implement solution
-- [x] Verify tests pass
+## Next Steps
 
-### Phase 3: PR & Review
-- [ ] Create PR to staging
-- [ ] Review before merge
-- [ ] Deploy to staging
-- [ ] Validate
-- [ ] PR to main
-- [ ] Review before prod
+### Immediate (Before Merge)
+1. Push latest commit: `git push`
+2. Wait for CI to pass on PR #893
+3. User reviews PR before merge to staging
+
+### After Staging Merge
+1. Validate in staging environment
+2. Create PR from staging → main
+3. User reviews before production merge
+4. After prod merge: `./scripts/update-exchange-rates.sh --prod`
+
+### Future
+- Consider periodic cron job to run update script
+- Monitor CloudWatch for fallback warnings (indicates DB config missing)
+
+---
+
+## Key Decisions
+
+1. **No external API from frontend** - Too risky (CORS, firewalls, no SLA)
+2. **DB is source of truth** - Code fallbacks are emergency safety net only
+3. **One-time warnings** - Log once per Lambda instance, not per request
+4. **Script with guards** - Check dependencies and auth before making changes
+
+---
 
 ## Usage
 
-Update rates periodically:
 ```bash
-./scripts/update-exchange-rates.sh        # Staging
-./scripts/update-exchange-rates.sh --prod # Production
+./scripts/update-exchange-rates.sh        # Update staging
+./scripts/update-exchange-rates.sh --prod # Update production
 ```
 
-## Notes
-- Live rates fetched from frankfurter.app (free, no auth)
-- Staging updated: GBP=1.3513, EUR=1.1706
-
-## Additional Feature: Live Rate Fetch on Currency Selection
-
-Added hybrid approach for frontend:
-1. When user selects GBP/EUR, fetch live rate from frankfurter.app
-2. If external API fails, fall back to backend `/admin/config`
-3. If both fail, use DEFAULT_RATES
-
-### New Function: `fetchLiveRate(currency)`
-- Added to `useCurrencyConversion` composable
-- Call on currency change to get real-time rates
-- TDD: 5 new tests added
-
-### PR #893 Changes
-**Commit 1**: Backend logging + script + fallback updates
-**Commit 2**: Frontend fetchLiveRate with hybrid fallback
+Requires: `jq`, `bc`, `curl`, and valid API key at `~/.bmx/{env}.key`
 
