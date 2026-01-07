@@ -114,8 +114,23 @@ def get_conversion_rate(currency: str, db: Session) -> float:
     if config:
         return float(config.value)
 
-    # Fallback defaults
-    return {"GBP": 1.28, "EUR": 1.10}.get(currency, 1.0)
+    # Fallback defaults (update via scripts/update-exchange-rates.sh)
+    fallback_rates = {"GBP": 1.35, "EUR": 1.17}
+    rate = fallback_rates.get(currency)
+
+    if rate is not None:
+        logger.warning(
+            "Using fallback exchange rate for %s: %.4f (no DB config found)",
+            currency,
+            rate,
+        )
+        return rate
+
+    logger.warning(
+        "Unknown currency %s, defaulting to 1.0 (no conversion)",
+        currency,
+    )
+    return 1.0
 
 
 @router.post("/extract", response_model=ExtractResponse)
