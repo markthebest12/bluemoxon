@@ -9,7 +9,8 @@ export interface ExchangeRates {
 }
 
 // Module-level cache to prevent duplicate API calls across components
-const DEFAULT_RATES: ExchangeRates = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+// Fallback rates used only if DB lookup fails (DB is source of truth)
+const DEFAULT_RATES: ExchangeRates = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 let cachedRates: ExchangeRates | null = null;
 let ratesLoadPromise: Promise<void> | null = null;
 

@@ -78,10 +78,10 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "GBP";
-      exchangeRates.value = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 
-      // 100 GBP * 1.28 = 128 USD
-      expect(convertToUsd(100)).toBe(128);
+      // 100 GBP * 1.35 = 135 USD
+      expect(convertToUsd(100)).toBe(135);
     });
 
     it("converts EUR to USD using exchange rate", async () => {
@@ -89,10 +89,10 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "EUR";
-      exchangeRates.value = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 
-      // 100 EUR * 1.1 = 110 USD
-      expect(convertToUsd(100)).toBe(110);
+      // 100 EUR * 1.17 = 117 USD
+      expect(convertToUsd(100)).toBe(117);
     });
 
     it("rounds to 2 decimal places", async () => {
@@ -100,7 +100,7 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "GBP";
-      exchangeRates.value = { gbp_to_usd_rate: 1.287, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.287, eur_to_usd_rate: 1.17 };
 
       // 10.55 GBP * 1.287 = 13.57785 -> rounded to 13.58
       expect(convertToUsd(10.55)).toBe(13.58);
@@ -148,7 +148,7 @@ describe("useCurrencyConversion", () => {
       const loadPromise = loadExchangeRates();
       expect(loadingRates.value).toBe(true);
 
-      resolvePromise!({ data: { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 } });
+      resolvePromise!({ data: { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 } });
       await loadPromise;
 
       expect(loadingRates.value).toBe(false);
@@ -227,12 +227,13 @@ describe("useCurrencyConversion", () => {
       expect(selectedCurrency.value).toBe("USD");
     });
 
-    it("has fallback exchange rates", async () => {
+    it("has fallback exchange rates matching DEFAULT_RATES", async () => {
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
       const { exchangeRates } = useCurrencyConversion();
 
-      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.28);
-      expect(exchangeRates.value.eur_to_usd_rate).toBe(1.1);
+      // These must match DEFAULT_RATES in useCurrencyConversion.ts
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.35);
+      expect(exchangeRates.value.eur_to_usd_rate).toBe(1.17);
     });
   });
 });

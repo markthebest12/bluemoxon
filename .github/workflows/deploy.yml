@@ -1221,7 +1221,8 @@ jobs:
             --delete \
             --cache-control "max-age=31536000,public" \
             --exclude "index.html" \
-            --exclude "*.json"
+            --exclude "*.json" \
+            --exclude "lambda/*"
 
           # Upload index.html and JSON with no-cache
           aws s3 cp frontend-dist/index.html \
