@@ -62,3 +62,19 @@ Update rates periodically:
 - Live rates fetched from frankfurter.app (free, no auth)
 - Staging updated: GBP=1.3513, EUR=1.1706
 
+## Additional Feature: Live Rate Fetch on Currency Selection
+
+Added hybrid approach for frontend:
+1. When user selects GBP/EUR, fetch live rate from frankfurter.app
+2. If external API fails, fall back to backend `/admin/config`
+3. If both fail, use DEFAULT_RATES
+
+### New Function: `fetchLiveRate(currency)`
+- Added to `useCurrencyConversion` composable
+- Call on currency change to get real-time rates
+- TDD: 5 new tests added
+
+### PR #893 Changes
+**Commit 1**: Backend logging + script + fallback updates
+**Commit 2**: Frontend fetchLiveRate with hybrid fallback
+

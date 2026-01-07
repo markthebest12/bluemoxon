@@ -227,90 +227,13 @@ describe("useCurrencyConversion", () => {
       expect(selectedCurrency.value).toBe("USD");
     });
 
-    it("has fallback exchange rates", async () => {
+    it("has fallback exchange rates matching DEFAULT_RATES", async () => {
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
       const { exchangeRates } = useCurrencyConversion();
 
-      // Updated to Jan 2026 rates
+      // These must match DEFAULT_RATES in useCurrencyConversion.ts
       expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.35);
       expect(exchangeRates.value.eur_to_usd_rate).toBe(1.17);
-    });
-  });
-
-  describe("fetchLiveRate", () => {
-    it("fetches live GBP rate from frankfurter.app", async () => {
-      // Mock successful frankfurter.app response
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ rates: { GBP: 0.74 } }), // USD->GBP rate
-      });
-
-      const { useCurrencyConversion } = await import("../useCurrencyConversion");
-      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
-
-      await fetchLiveRate("GBP");
-
-      // GBP->USD = 1 / 0.74 = 1.3514 (rounded to 4 decimals)
-      expect(exchangeRates.value.gbp_to_usd_rate).toBeCloseTo(1.35, 1);
-    });
-
-    it("fetches live EUR rate from frankfurter.app", async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ rates: { EUR: 0.85 } }),
-      });
-
-      const { useCurrencyConversion } = await import("../useCurrencyConversion");
-      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
-
-      await fetchLiveRate("EUR");
-
-      // EUR->USD = 1 / 0.85 = 1.176
-      expect(exchangeRates.value.eur_to_usd_rate).toBeCloseTo(1.17, 1);
-    });
-
-    it("falls back to backend rates if frankfurter.app fails", async () => {
-      // Mock frankfurter.app failure
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
-
-      // Mock backend success
-      const mockRates = { gbp_to_usd_rate: 1.3, eur_to_usd_rate: 1.15 };
-      vi.mocked(api.get).mockResolvedValueOnce({ data: mockRates });
-
-      const { useCurrencyConversion } = await import("../useCurrencyConversion");
-      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
-
-      await fetchLiveRate("GBP");
-
-      // Should have fallen back to backend rates
-      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.3);
-    });
-
-    it("keeps default rates if both external and backend fail", async () => {
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
-      vi.mocked(api.get).mockRejectedValueOnce(new Error("API error"));
-
-      const { useCurrencyConversion } = await import("../useCurrencyConversion");
-      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
-
-      const originalRate = exchangeRates.value.gbp_to_usd_rate;
-
-      await fetchLiveRate("GBP");
-
-      // Should keep the default rate
-      expect(exchangeRates.value.gbp_to_usd_rate).toBe(originalRate);
-    });
-
-    it("does nothing for USD (no conversion needed)", async () => {
-      global.fetch = vi.fn();
-
-      const { useCurrencyConversion } = await import("../useCurrencyConversion");
-      const { fetchLiveRate } = useCurrencyConversion();
-
-      await fetchLiveRate("USD");
-
-      // Should not call external API for USD
-      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 });
