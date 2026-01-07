@@ -30,9 +30,25 @@ function saveProvenance() {
   const trimmedText = provenanceText.value.trim();
   const valueToEmit = trimmedText === "" ? null : trimmedText;
   emit("provenance-saved", valueToEmit);
+  // Note: UI stays open - parent will call onSaveSuccess/onSaveError
+}
+
+// Exposed methods for parent to call after async save completes
+function onSaveSuccess() {
   provenanceEditing.value = false;
   savingProvenance.value = false;
+  provenanceText.value = "";
 }
+
+function onSaveError() {
+  savingProvenance.value = false;
+  // Keep edit mode open so user can retry
+}
+
+defineExpose({
+  onSaveSuccess,
+  onSaveError,
+});
 </script>
 
 <template>
@@ -41,7 +57,7 @@ function saveProvenance() {
       <h2 class="text-lg font-semibold text-gray-800">Provenance</h2>
       <button
         v-if="isEditor && !provenanceEditing"
-        class="text-sm text-blue-600 hover:text-blue-800"
+        class="text-sm text-moxon-600 hover:text-moxon-800"
         @click="startEdit"
       >
         {{ provenance ? "Edit" : "Add provenance" }}
@@ -58,7 +74,7 @@ function saveProvenance() {
     <div v-else>
       <textarea
         v-model="provenanceText"
-        class="w-full rounded-lg border border-gray-300 p-3 text-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        class="w-full rounded-lg border border-gray-300 p-3 text-gray-700 focus:border-moxon-500 focus:ring-1 focus:ring-moxon-500"
         rows="4"
         placeholder="Enter provenance information..."
       ></textarea>
@@ -70,7 +86,7 @@ function saveProvenance() {
           Cancel
         </button>
         <button
-          class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          class="rounded-lg bg-moxon-600 px-4 py-2 text-white hover:bg-moxon-700 disabled:opacity-50"
           :disabled="savingProvenance"
           @click="saveProvenance"
         >

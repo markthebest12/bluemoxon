@@ -145,7 +145,7 @@ describe("ProvenanceSection", () => {
     expect(emitted![0]).toEqual(["New provenance text"]);
   });
 
-  it('save button shows "Saving..." when savingProvenance is true', async () => {
+  it('save button shows "Saving..." while waiting for parent callback', async () => {
     const wrapper = mount(ProvenanceSection, {
       props: defaultProps,
     });
@@ -154,17 +154,21 @@ describe("ProvenanceSection", () => {
     await wrapper.find("button").trigger("click");
 
     // Find save button before clicking
-    const buttons = wrapper.findAll("button");
+    let buttons = wrapper.findAll("button");
     const saveButton = buttons.find((btn) => btn.text() === "Save");
     expect(saveButton).toBeDefined();
 
-    // Click save - it should show "Saving..." briefly
+    // Click save - it should show "Saving..." and stay in that state
     await saveButton!.trigger("click");
 
-    // The button should show "Saving..." while in saving state
-    // Since the component manages its own state, we need to check during the save
-    // For this test, we'll verify the emit happened and the edit mode closed
+    // Verify emit happened
     expect(wrapper.emitted("provenance-saved")).toBeTruthy();
+
+    // Button should show "Saving..." while waiting for parent callback
+    buttons = wrapper.findAll("button");
+    const savingButton = buttons.find((btn) => btn.text() === "Saving...");
+    expect(savingButton).toBeDefined();
+    expect(savingButton!.attributes("disabled")).toBeDefined();
   });
 
   it("empty text emits null for provenance-saved", async () => {
@@ -211,7 +215,32 @@ describe("ProvenanceSection", () => {
     expect(emitted![0]).toEqual([null]);
   });
 
-  it("closes edit mode after saving", async () => {
+  it("closes edit mode only after parent calls onSaveSuccess", async () => {
+    const wrapper = mount(ProvenanceSection, {
+      props: defaultProps,
+    });
+
+    // Enter edit mode
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.find("textarea").exists()).toBe(true);
+
+    // Save - edit mode should NOT close yet
+    const buttons = wrapper.findAll("button");
+    const saveButton = buttons.find((btn) => btn.text() === "Save");
+    await saveButton!.trigger("click");
+
+    // Edit mode should still be open (waiting for parent callback)
+    expect(wrapper.find("textarea").exists()).toBe(true);
+
+    // Parent calls onSaveSuccess
+    wrapper.vm.onSaveSuccess();
+    await wrapper.vm.$nextTick();
+
+    // Now edit mode should be closed
+    expect(wrapper.find("textarea").exists()).toBe(false);
+  });
+
+  it("keeps edit mode open when parent calls onSaveError", async () => {
     const wrapper = mount(ProvenanceSection, {
       props: defaultProps,
     });
@@ -225,8 +254,17 @@ describe("ProvenanceSection", () => {
     const saveButton = buttons.find((btn) => btn.text() === "Save");
     await saveButton!.trigger("click");
 
-    // Edit mode should be closed
-    expect(wrapper.find("textarea").exists()).toBe(false);
+    // Parent calls onSaveError
+    wrapper.vm.onSaveError();
+    await wrapper.vm.$nextTick();
+
+    // Edit mode should still be open for retry
+    expect(wrapper.find("textarea").exists()).toBe(true);
+
+    // But save button should be enabled again (not showing "Saving...")
+    const retryButtons = wrapper.findAll("button");
+    const retrySaveButton = retryButtons.find((btn) => btn.text() === "Save");
+    expect(retrySaveButton).toBeDefined();
   });
 
   it("renders the Provenance heading", () => {

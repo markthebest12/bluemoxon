@@ -16,6 +16,7 @@ import BookMetadataSection from "@/components/book-detail/BookMetadataSection.vu
 import ProvenanceSection from "@/components/book-detail/ProvenanceSection.vue";
 import AnalysisSection from "@/components/book-detail/AnalysisSection.vue";
 import BookSidebarSection from "@/components/book-detail/BookSidebarSection.vue";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -34,6 +35,9 @@ const deleteError = ref<string | null>(null);
 
 // Status management state
 const updatingStatus = ref(false);
+
+// Component refs for callback pattern
+const provenanceSectionRef = ref<InstanceType<typeof ProvenanceSection> | null>(null);
 
 // Computed property for back link that preserves filter state
 const backToCollectionLink = computed(() => {
@@ -89,9 +93,9 @@ async function handleStatusChanged(newStatus: string) {
   updatingStatus.value = true;
   try {
     await api.patch(`/books/${booksStore.currentBook.id}/status?status=${newStatus}`);
-    booksStore.currentBook.status = newStatus;
+    booksStore.setCurrentBookStatus(newStatus);
   } catch (e: unknown) {
-    console.error("Failed to update status:", e);
+    handleApiError(e, "Updating status");
   } finally {
     updatingStatus.value = false;
   }
@@ -105,8 +109,12 @@ async function handleProvenanceSaved(newProvenance: string | null) {
     await booksStore.updateBook(booksStore.currentBook.id, {
       provenance: newProvenance,
     });
+    // Notify child of success - closes edit mode
+    provenanceSectionRef.value?.onSaveSuccess();
   } catch (e: unknown) {
-    console.error("Failed to save provenance:", e);
+    handleApiError(e, "Saving provenance");
+    // Notify child of error - keeps edit mode open for retry
+    provenanceSectionRef.value?.onSaveError();
   }
 }
 
@@ -196,6 +204,7 @@ function printPage() {
         />
 
         <ProvenanceSection
+          ref="provenanceSectionRef"
           :book-id="booksStore.currentBook.id"
           :provenance="booksStore.currentBook.provenance"
           :is-editor="authStore.isEditor"
@@ -218,43 +227,19 @@ function printPage() {
     />
 
     <!-- Delete Confirmation Modal -->
-    <Teleport to="body">
-      <div v-if="deleteModalVisible" class="fixed inset-0 z-50 flex items-center justify-center">
-        <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50" @click="closeDeleteModal"></div>
-
-        <!-- Modal -->
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-          <h3 class="text-xl font-semibold text-gray-800 mb-4">Delete Book</h3>
-
-          <div class="mb-6">
-            <p class="text-gray-600 mb-3">Are you sure you want to delete this book?</p>
-            <p class="font-medium text-gray-800 mb-2">"{{ booksStore.currentBook.title }}"</p>
-            <p class="text-sm text-[var(--color-status-error-accent)]">
-              This will permanently delete the book along with all associated images ({{
-                images.length
-              }}) and analysis data.
-            </p>
-          </div>
-
-          <div
-            v-if="deleteError"
-            class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
-          >
-            {{ deleteError }}
-          </div>
-
-          <div class="flex justify-end gap-3">
-            <button :disabled="deleting" class="btn-secondary" @click="closeDeleteModal">
-              Cancel
-            </button>
-            <button :disabled="deleting" class="btn-danger" @click="confirmDelete">
-              {{ deleting ? "Deleting..." : "Delete Book" }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <ConfirmDeleteModal
+      :visible="deleteModalVisible"
+      title="Delete Book"
+      message="Are you sure you want to delete this book?"
+      :warning-text="`This will permanently delete the book along with all associated images (${images.length}) and analysis data.`"
+      confirm-button-text="Delete Book"
+      :loading="deleting"
+      :error="deleteError"
+      @close="closeDeleteModal"
+      @confirm="confirmDelete"
+    >
+      <p class="font-medium text-gray-800 mb-2">"{{ booksStore.currentBook.title }}"</p>
+    </ConfirmDeleteModal>
   </div>
 </template>
 
@@ -272,13 +257,13 @@ function printPage() {
     border: 1px solid #ddd !important;
   }
 
-  /* Hide select dropdowns - use no-print class for buttons */
-  select {
+  /* Hide select dropdowns in child components - use :deep() to pierce scoping */
+  :deep(select) {
     display: none !important;
   }
 
-  /* Show print-only status text */
-  .print-only {
+  /* Show print-only status text in child components */
+  :deep(.print-only) {
     display: inline !important;
   }
 

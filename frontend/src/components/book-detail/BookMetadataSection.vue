@@ -1,3 +1,51 @@
+<script setup lang="ts">
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
+import type { Book } from "@/stores/books";
+
+// Props
+withDefaults(
+  defineProps<{
+    book: Book;
+    isEditor: boolean;
+    updatingStatus?: boolean;
+  }>(),
+  {
+    updatingStatus: false,
+  }
+);
+
+// Emits
+const emit = defineEmits<{
+  "status-changed": [newStatus: string];
+}>();
+
+// Helper functions
+function getStatusColor(status: string): string {
+  switch (status) {
+    case BOOK_STATUSES.EVALUATING:
+      return "bg-blue-100 text-blue-800";
+    case BOOK_STATUSES.ON_HAND:
+      return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
+    case BOOK_STATUSES.IN_TRANSIT:
+      return "badge-transit";
+    case BOOK_STATUSES.REMOVED:
+      return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
+function getStatusLabel(statusValue: string): string {
+  const option = BOOK_STATUS_OPTIONS.find((s) => s.value === statusValue);
+  return option ? option.label : statusValue.replace("_", " ");
+}
+
+// Event handlers
+function onStatusChange(newStatus: string) {
+  emit("status-changed", newStatus);
+}
+</script>
+
 <template>
   <div class="space-y-6">
     <!-- Publication Details -->
@@ -146,54 +194,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
-import type { Book } from "@/stores/books";
-
-// Props
-const props = withDefaults(
-  defineProps<{
-    book: Book;
-    isEditor: boolean;
-    updatingStatus?: boolean;
-  }>(),
-  {
-    updatingStatus: false,
-  }
-);
-
-// Emits
-const emit = defineEmits<{
-  "status-changed": [newStatus: string];
-}>();
-
-// Helper functions
-function getStatusColor(status: string): string {
-  switch (status) {
-    case BOOK_STATUSES.EVALUATING:
-      return "bg-blue-100 text-blue-800";
-    case BOOK_STATUSES.ON_HAND:
-      return "bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]";
-    case BOOK_STATUSES.IN_TRANSIT:
-      return "badge-transit";
-    case BOOK_STATUSES.REMOVED:
-      return "bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)]";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-}
-
-function getStatusLabel(statusValue: string): string {
-  const option = BOOK_STATUS_OPTIONS.find((s) => s.value === statusValue);
-  return option ? option.label : statusValue.replace("_", " ");
-}
-
-// Event handlers
-function onStatusChange(newStatus: string) {
-  emit("status-changed", newStatus);
-}
-
-// Suppress unused var warning - props is used in template
-void props;
-</script>

@@ -7,6 +7,7 @@ import { type BookImage } from "@/types/books";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import ImageReorderModal from "@/components/books/ImageReorderModal.vue";
 import ImageUploadModal from "@/components/books/ImageUploadModal.vue";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal.vue";
 
 const props = defineProps<{
   bookId: number;
@@ -222,45 +223,23 @@ function openCarousel(index: number) {
   />
 
   <!-- Delete Image Confirmation Modal -->
-  <Teleport to="body">
-    <div v-if="deleteImageModalVisible" class="fixed inset-0 z-50 flex items-center justify-center">
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="closeDeleteImageModal"></div>
-
-      <!-- Modal -->
-      <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">Delete Image</h3>
-
-        <div class="mb-6">
-          <p class="text-gray-600 mb-3">Are you sure you want to delete this image?</p>
-          <div v-if="imageToDelete" class="flex justify-center">
-            <img
-              :src="imageToDelete.thumbnail_url"
-              :alt="imageToDelete.caption || 'Image'"
-              class="w-32 h-32 object-cover rounded-sm"
-            />
-          </div>
-          <p class="text-sm text-[var(--color-status-error-accent)] mt-3 text-center">
-            This action cannot be undone.
-          </p>
-        </div>
-
-        <div
-          v-if="deleteImageError"
-          class="mb-4 p-3 bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)] rounded-sm text-[var(--color-status-error-text)] text-sm"
-        >
-          {{ deleteImageError }}
-        </div>
-
-        <div class="flex justify-end gap-3">
-          <button :disabled="deletingImage" class="btn-secondary" @click="closeDeleteImageModal">
-            Cancel
-          </button>
-          <button :disabled="deletingImage" class="btn-danger" @click="confirmDeleteImage">
-            {{ deletingImage ? "Deleting..." : "Delete Image" }}
-          </button>
-        </div>
-      </div>
+  <ConfirmDeleteModal
+    :visible="deleteImageModalVisible"
+    title="Delete Image"
+    message="Are you sure you want to delete this image?"
+    warning-text="This action cannot be undone."
+    confirm-button-text="Delete Image"
+    :loading="deletingImage"
+    :error="deleteImageError"
+    @close="closeDeleteImageModal"
+    @confirm="confirmDeleteImage"
+  >
+    <div v-if="imageToDelete" class="flex justify-center">
+      <img
+        :src="imageToDelete.thumbnail_url"
+        :alt="imageToDelete.caption || 'Image'"
+        class="w-32 h-32 object-cover rounded-sm"
+      />
     </div>
-  </Teleport>
+  </ConfirmDeleteModal>
 </template>

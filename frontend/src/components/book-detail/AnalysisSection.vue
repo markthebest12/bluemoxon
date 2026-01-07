@@ -27,6 +27,7 @@ const modelOptions = [
 ];
 
 // Analysis polling setup
+// Note: useJobPolling auto-cleans up via onUnmounted in the composable
 const analysisPoller = useJobPolling("analysis");
 
 // Computed for whether analysis exists
@@ -112,9 +113,13 @@ async function handleGenerateAnalysis() {
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-gray-800">Detailed Analysis</h2>
-          <!-- State: Job running -->
+          <!-- State: Job running or pending -->
           <div
-            v-if="isAnalysisRunning() || book?.analysis_job_status"
+            v-if="
+              isAnalysisRunning() ||
+              book?.analysis_job_status === 'running' ||
+              book?.analysis_job_status === 'pending'
+            "
             class="text-sm text-status-running mt-1 flex items-center gap-1"
           >
             <span class="animate-spin">&#8987;</span>
@@ -126,7 +131,7 @@ async function handleGenerateAnalysis() {
               }}
             </span>
           </div>
-          <!-- State: Job failed -->
+          <!-- State: Job failed (failed status only comes from poller, not book.analysis_job_status) -->
           <p
             v-else-if="getJobStatus()?.status === 'failed'"
             class="text-sm text-[var(--color-status-error-accent)] mt-1"
