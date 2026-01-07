@@ -60,11 +60,38 @@ The function correctly used `await file.read()` but performed blocking operation
 5. Implemented #858 fix (async wrapping)
 6. Verified all existing tests still pass
 
-## Code Review Feedback Addressed
+## Code Review Feedback Addressed (Round 1)
 1. Added `thumbnail_generated: None` to duplicate image response for API consistency
 2. Moved logger to module level for efficiency
+
+## Code Review Feedback Addressed (Round 2)
+User raised 10 issues. After discussion:
+- #3, #4, #5, #10 withdrawn (YAGNI or correct existing approach)
+- #1, #2, #6, #9 implemented:
+
+### Changes Made:
+1. **Created `ImageUploadResponse` Pydantic model** (`app/schemas/image.py`)
+2. **Replaced bool|None with enum**: `thumbnail_status: Literal["generated", "failed", "skipped"]`
+3. **Added `thumbnail_error` field** (populated when status is "failed")
+4. **Added test for duplicate path** returning `thumbnail_status: "skipped"`
+
+### API Response Now:
+```json
+{
+  "id": 1,
+  "url": "...",
+  "thumbnail_url": "...",
+  "image_type": "cover",
+  "is_primary": true,
+  "thumbnail_status": "generated",  // or "failed" or "skipped"
+  "thumbnail_error": null,          // contains error msg when "failed"
+  "duplicate": false,
+  "message": null
+}
+```
 
 ## PR Ready for Review
 - **PR #913**: https://github.com/markthebest12/bluemoxon/pull/913
 - **Target**: staging branch
 - **Status**: Awaiting user approval
+- **Tests**: 1101 passed, 4 skipped
