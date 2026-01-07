@@ -1,6 +1,8 @@
 """Book Images API endpoints."""
 
+import asyncio
 import hashlib
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -15,6 +17,10 @@ from app.auth import require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
+from app.schemas.image import ImageUploadResponse
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Thumbnail settings
 THUMBNAIL_SIZE = (300, 300)  # Max width/height for thumbnails
@@ -335,7 +341,7 @@ def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_d
         return FileResponse(thumbnail_path)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=ImageUploadResponse)
 async def upload_image(
     book_id: int,
     file: UploadFile = File(...),
@@ -344,7 +350,7 @@ async def upload_image(
     caption: str = Query(default=None),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
-):
+) -> ImageUploadResponse:
     """Upload a new image for a book. Requires editor role."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -367,46 +373,62 @@ async def upload_image(
         base_url = get_api_base_url()
         if settings.is_aws_lambda:
             url = get_cloudfront_url(existing.s3_key)
+            thumbnail_url = get_cloudfront_url(existing.s3_key, is_thumbnail=True)
         else:
             url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/file"
-        return {
-            "id": existing.id,
-            "url": url,
-            "duplicate": True,
-            "message": "Image already exists (identical content)",
-        }
+            thumbnail_url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/thumbnail"
+        return ImageUploadResponse(
+            id=existing.id,
+            url=url,
+            thumbnail_url=thumbnail_url,
+            image_type=existing.image_type,
+            is_primary=existing.is_primary,
+            thumbnail_status="skipped",
+            duplicate=True,
+            message="Image already exists (identical content)",
+        )
 
     # Generate unique filename
     ext = Path(file.filename).suffix or ".jpg"
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
     file_path = LOCAL_IMAGES_PATH / unique_name
 
-    # Save file (write content we already read)
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    # Save file (write content we already read) - Issue #858: use async I/O
+    def write_file():
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
 
-    # Generate thumbnail
+    await asyncio.to_thread(write_file)
+
+    # Generate thumbnail - capture result for response (Issue #866)
+    # Issue #858: run blocking PIL operations in thread pool
     thumbnail_name = get_thumbnail_key(unique_name)
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
-    generate_thumbnail(file_path, thumbnail_path)  # Best effort, ignore errors
+    thumbnail_success, thumbnail_error = await asyncio.to_thread(
+        generate_thumbnail, file_path, thumbnail_path
+    )
+    if not thumbnail_success:
+        logger.warning(f"Thumbnail generation failed for book {book_id}: {thumbnail_error}")
 
-    # Upload to S3 in production
+    # Upload to S3 in production - Issue #858: wrap blocking boto3 calls
     if settings.is_aws_lambda:
         s3 = get_s3_client()
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
 
-        # Upload main image
-        s3.upload_file(
+        # Upload main image (blocking -> thread pool)
+        await asyncio.to_thread(
+            s3.upload_file,
             str(file_path),
             settings.images_bucket,
             s3_key,
             ExtraArgs={"ContentType": "image/jpeg"},
         )
 
-        # Upload thumbnail
+        # Upload thumbnail (blocking -> thread pool)
         if thumbnail_path.exists():
-            s3.upload_file(
+            await asyncio.to_thread(
+                s3.upload_file,
                 str(thumbnail_path),
                 settings.images_bucket,
                 s3_thumbnail_key,
@@ -441,13 +463,15 @@ async def upload_image(
     db.commit()
     db.refresh(image)
 
-    return {
-        "id": image.id,
-        "url": f"/api/v1/books/{book_id}/images/{image.id}/file",
-        "thumbnail_url": f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
-        "image_type": image.image_type,
-        "is_primary": image.is_primary,
-    }
+    return ImageUploadResponse(
+        id=image.id,
+        url=f"/api/v1/books/{book_id}/images/{image.id}/file",
+        thumbnail_url=f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
+        image_type=image.image_type,
+        is_primary=image.is_primary,
+        thumbnail_status="generated" if thumbnail_success else "failed",
+        thumbnail_error=thumbnail_error if not thumbnail_success else None,
+    )
 
 
 @router.put("/{image_id}")
