@@ -17,6 +17,7 @@ from app.auth import require_editor
 from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
+from app.schemas.image import ImageUploadResponse
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -340,7 +341,7 @@ def get_image_thumbnail(book_id: int, image_id: int, db: Session = Depends(get_d
         return FileResponse(thumbnail_path)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=ImageUploadResponse)
 async def upload_image(
     book_id: int,
     file: UploadFile = File(...),
@@ -349,7 +350,7 @@ async def upload_image(
     caption: str = Query(default=None),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
-):
+) -> ImageUploadResponse:
     """Upload a new image for a book. Requires editor role."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -372,15 +373,20 @@ async def upload_image(
         base_url = get_api_base_url()
         if settings.is_aws_lambda:
             url = get_cloudfront_url(existing.s3_key)
+            thumbnail_url = get_cloudfront_url(existing.s3_key, is_thumbnail=True)
         else:
             url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/file"
-        return {
-            "id": existing.id,
-            "url": url,
-            "duplicate": True,
-            "message": "Image already exists (identical content)",
-            "thumbnail_generated": None,  # No generation attempted for duplicate
-        }
+            thumbnail_url = f"{base_url}/api/v1/books/{book_id}/images/{existing.id}/thumbnail"
+        return ImageUploadResponse(
+            id=existing.id,
+            url=url,
+            thumbnail_url=thumbnail_url,
+            image_type=existing.image_type,
+            is_primary=existing.is_primary,
+            thumbnail_status="skipped",
+            duplicate=True,
+            message="Image already exists (identical content)",
+        )
 
     # Generate unique filename
     ext = Path(file.filename).suffix or ".jpg"
@@ -457,14 +463,15 @@ async def upload_image(
     db.commit()
     db.refresh(image)
 
-    return {
-        "id": image.id,
-        "url": f"/api/v1/books/{book_id}/images/{image.id}/file",
-        "thumbnail_url": f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
-        "image_type": image.image_type,
-        "is_primary": image.is_primary,
-        "thumbnail_generated": thumbnail_success,  # Issue #866: Report thumbnail status
-    }
+    return ImageUploadResponse(
+        id=image.id,
+        url=f"/api/v1/books/{book_id}/images/{image.id}/file",
+        thumbnail_url=f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
+        image_type=image.image_type,
+        is_primary=image.is_primary,
+        thumbnail_status="generated" if thumbnail_success else "failed",
+        thumbnail_error=thumbnail_error if not thumbnail_success else None,
+    )
 
 
 @router.put("/{image_id}")

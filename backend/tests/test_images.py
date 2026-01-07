@@ -167,8 +167,8 @@ class TestPlaceholder:
 class TestThumbnailGeneration:
     """Tests for thumbnail generation status in upload response (Issue #866)."""
 
-    def test_upload_image_returns_thumbnail_generated_field(self, client):
-        """Test that upload response includes thumbnail_generated field."""
+    def test_upload_image_returns_thumbnail_status_field(self, client):
+        """Test that upload response includes thumbnail_status field."""
         # Create a book
         response = client.post("/api/v1/books", json={"title": "Test Book"})
         book_id = response.json()["id"]
@@ -189,19 +189,17 @@ class TestThumbnailGeneration:
         assert response.status_code == 201
         data = response.json()
 
-        # Issue #866: Response MUST include thumbnail_generated field
-        assert "thumbnail_generated" in data, (
-            "Response missing 'thumbnail_generated' field (Issue #866)"
-        )
-        assert isinstance(data["thumbnail_generated"], bool)
+        # Issue #866: Response MUST include thumbnail_status field
+        assert "thumbnail_status" in data, "Response missing 'thumbnail_status' field (Issue #866)"
+        assert data["thumbnail_status"] in ("generated", "failed", "skipped")
 
-    def test_upload_image_thumbnail_generated_true_on_success(self, client):
-        """Test thumbnail_generated is True when thumbnail generation succeeds."""
+    def test_upload_image_thumbnail_status_generated_on_success(self, client):
+        """Test thumbnail_status is 'generated' when thumbnail generation succeeds."""
         # Create a book
         response = client.post("/api/v1/books", json={"title": "Test Book"})
         book_id = response.json()["id"]
 
-        # Create a valid 10x10 RGB JPEG (more realistic for thumbnail gen)
+        # Create a valid 100x100 RGB JPEG (realistic for thumbnail gen)
         from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="red")
@@ -218,10 +216,11 @@ class TestThumbnailGeneration:
         data = response.json()
 
         # Should succeed with valid image
-        assert data.get("thumbnail_generated") is True
+        assert data["thumbnail_status"] == "generated"
+        assert data.get("thumbnail_error") is None
 
-    def test_upload_image_thumbnail_generated_false_on_failure(self, client, monkeypatch):
-        """Test thumbnail_generated is False when thumbnail generation fails."""
+    def test_upload_image_thumbnail_status_failed_with_error(self, client, monkeypatch):
+        """Test thumbnail_status is 'failed' with error message when generation fails."""
         # Mock generate_thumbnail to fail
         monkeypatch.setattr(
             "app.api.v1.images.generate_thumbnail",
@@ -248,5 +247,42 @@ class TestThumbnailGeneration:
         assert response.status_code == 201
         data = response.json()
 
-        # Issue #866: Should report thumbnail failure
-        assert data.get("thumbnail_generated") is False
+        # Issue #866: Should report thumbnail failure with error detail
+        assert data["thumbnail_status"] == "failed"
+        assert data["thumbnail_error"] == "Simulated failure"
+
+    def test_upload_duplicate_image_thumbnail_status_skipped(self, client):
+        """Test thumbnail_status is 'skipped' for duplicate image uploads."""
+        # Create a book
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create a valid image
+        from PIL import Image
+
+        img = Image.new("RGB", (50, 50), color="blue")
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG")
+        image_bytes = buffer.getvalue()
+
+        # First upload
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("test.jpg", io.BytesIO(image_bytes), "image/jpeg")},
+        )
+        assert response.status_code == 201
+        first_data = response.json()
+        assert first_data["thumbnail_status"] == "generated"
+
+        # Second upload (duplicate)
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("test2.jpg", io.BytesIO(image_bytes), "image/jpeg")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+
+        # Duplicate should have thumbnail_status: skipped
+        assert data["duplicate"] is True
+        assert data["thumbnail_status"] == "skipped"
+        assert data.get("thumbnail_error") is None
