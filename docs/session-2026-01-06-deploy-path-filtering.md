@@ -2,6 +2,7 @@
 
 **Date:** 2026-01-06
 **Issue:** https://github.com/markthebest12/bluemoxon/issues/907
+**PR:** https://github.com/markthebest12/bluemoxon/pull/908 (MERGED to staging)
 
 ---
 
@@ -11,9 +12,9 @@
 **Invoke relevant skills BEFORE any action.** Even 1% chance a skill applies = invoke it.
 
 Key skills for this task:
-- `superpowers:dispatching-parallel-agents` - for parallel agent work
+- `superpowers:systematic-debugging` - USE THIS for the layer S3 bug
 - `superpowers:verification-before-completion` - before claiming done
-- `superpowers:systematic-debugging` - if tests fail
+- `superpowers:dispatching-parallel-agents` - for parallel agent work
 
 ### 2. Bash Command Rules (NEVER VIOLATE)
 
@@ -40,126 +41,128 @@ aws lambda get-function-configuration --function-name my-function
 
 ---
 
-## Background
-
-**Issue #907:** Add path-based filtering to deploy workflow to skip unnecessary builds/deploys when only specific components change.
-
-**Goal:** 40-60% time reduction for partial deploys by:
-- Detecting which paths changed (backend/frontend/scraper)
-- Skipping builds for unchanged components
-- Running deploy jobs only for changed components
-- Always running smoke tests if ANY deploy succeeded
-
 ## Current Status
 
 ### Completed
 - [x] Design document: `docs/plans/2026-01-06-deploy-path-filtering-design.md`
 - [x] Implementation using 4 parallel subagents
 - [x] All 13 tasks from design implemented
-- [x] YAML syntax validated
-- [x] File staged for commit
+- [x] P0/P1/P2 code review fixes applied
+- [x] PR #908 merged to staging
 
-### In Progress
-- [ ] **Commit and push branch** (on `feat/deploy-path-filtering` from staging)
-- [ ] Create PR to staging
+### P0/P1/P2 Fixes Applied
+| Priority | Issue | Fix |
+|----------|-------|-----|
+| **P0-1** | Layer ARN race condition | Pass layer ARN via `deploy-api-lambda.outputs.layer_arn` instead of querying |
+| **P0-2** | Version skew on partial deploy | Only run version check if `deploy-api-lambda.result == 'success'` |
+| **P0-3** | Inconsistent path filters | Added `pyproject.toml`, `package.json`, `package-lock.json` to deploy filters |
+| **P1-1** | `always()` masks upstream failures | Added `needs.configure.result == 'success'` to all deploy jobs |
+| **P1-2** | No atomicity check | Added "Check for partial deploy failures" step in smoke-test |
+| **P2-3** | Version cleanup only on API Lambda | Added cleanup step to all 7 Lambda deploy jobs |
 
-### Remaining
-- [ ] Test in staging environment
-- [ ] Create PR from staging → main (production)
+### BLOCKING BUG - In Progress
+- [ ] **Debug layer S3 file not found issue** (pre-existing bug surfaced by #907)
+
+---
+
+## BLOCKING BUG: Layer S3 File Not Found
+
+### Symptoms
+Two deploy runs failed:
+1. **Run 1:** Worker Lambda jobs failed with `NoSuchKey` for `lambda/backend.zip`
+2. **Run 2 (force_full_deploy):** Deploy-api-lambda failed with `NoSuchKey` for `lambda/layer-d7e43d653da49bc1.zip`
+
+### Error Message
+```
+An error occurred (InvalidParameterValueException) when calling the PublishLayerVersion operation:
+Error occurred while GetObject. S3 Error Code: NoSuchKey.
+S3 Error Message: The specified key does not exist.
+```
+
+### Key Facts
+- `build-layer` job shows `✓ Upload layer to S3` (succeeded)
+- `deploy-api-lambda` job can't find the file immediately after
+- Layer S3 key computed from: `sha256sum backend/requirements.txt | cut -d' ' -f1 | head -c 16`
+- Key format: `lambda/layer-${REQ_HASH}.zip`
+- The atomicity check IS working - it correctly caught partial failures
+
+### Investigation To Do
+1. Check S3 bucket contents:
+```bash
+AWS_PROFILE=bmx-staging aws s3 ls s3://bluemoxon-frontend-staging/lambda/
+```
+
+2. Verify requirements.txt hash:
+```bash
+sha256sum backend/requirements.txt
+```
+
+3. Compare build-layer job S3 key vs deploy-api-lambda expected key
+
+### Possible Causes
+1. Hash computed differently between build-layer and deploy-api-lambda
+2. Build-layer skipped upload (exists=true but file doesn't exist)
+3. S3 bucket/key mismatch between jobs
+4. configure.outputs.s3_frontend_bucket different between jobs
+
+### Files to Check
+- `.github/workflows/deploy.yml` lines 437-493 (build-layer job)
+- `.github/workflows/deploy.yml` lines 687-711 (deploy-api-lambda layer handling)
+
+---
+
+## Next Steps
+
+### Immediate (Debug Layer Bug)
+1. Use `superpowers:systematic-debugging` skill
+2. Check S3 bucket contents
+3. Compare hashes between jobs
+4. Fix the root cause
+5. Re-run deploy workflow
+
+### After Bug Fix
+1. Verify staging deploy succeeds
+2. Test path filtering (frontend-only change should skip backend)
+3. Create PR from staging → main
+
+---
 
 ## Implementation Summary
 
-**4 parallel agents implemented:**
-1. Agent 1 (Tasks 1-2): `changes` job + conditional build jobs
-2. Agent 2 (Tasks 3-8): 6 backend Lambda deploy jobs
-3. Agent 3 (Tasks 9-10): scraper + frontend deploy jobs
-4. Agent 4 (Tasks 11-13): run-migrations + smoke-test updates
-
-**New workflow structure:**
+**Workflow structure:**
 ```
 ci → changes → configure → generate-version
          ↓
    build-layer, build-backend, build-frontend, build-scraper (conditional)
          ↓
-   deploy-api-lambda (leader, publishes layer)
+   deploy-api-lambda (leader, publishes layer, outputs layer_arn)
          ↓
    deploy-worker-lambda, deploy-eval-worker-lambda, deploy-cleanup-lambda,
-   deploy-tracking-dispatcher-lambda, deploy-tracking-worker-lambda (parallel)
+   deploy-tracking-dispatcher-lambda, deploy-tracking-worker-lambda (use layer_arn from api-lambda)
          ↓
    deploy-scraper-lambda, deploy-frontend (independent)
          ↓
-   run-migrations → smoke-test → create-release
+   run-migrations → smoke-test (includes atomicity check) → create-release
 ```
 
 **Key features:**
 - `dorny/paths-filter@v3` for path detection
 - `force_full_deploy` workflow_dispatch input for override
-- Jobs skip when component unchanged AND force_full_deploy=false
-- smoke-test runs if ANY deploy job succeeded (uses `always()`)
-
-## Next Steps
-
-### Immediate (Complete the PR)
-```bash
-# 1. Commit (files already staged)
-git commit -m "feat: Add path-based filtering to deploy workflow (#907)"
-
-# 2. Push branch
-git push -u origin feat/deploy-path-filtering
-
-# 3. Create PR to staging
-gh pr create --base staging --title "feat: Add path-based filtering to deploy workflow (#907)" --body "..."
-```
-
-### After PR Created
-1. Wait for CI to pass on PR
-2. Merge to staging
-3. Monitor staging deploy workflow
-4. Verify path filtering works (frontend-only change should skip backend)
-5. Create PR from staging → main
-
-## Files Modified
-
-- `.github/workflows/deploy.yml` - Complete rewrite with path filtering
-- `docs/session-2026-01-06-deploy-path-filtering.md` - This file
-- `docs/plans/2026-01-06-deploy-path-filtering-design.md` - Design document
-
-## Git State
-
-- **Branch:** `feat/deploy-path-filtering` (from `origin/staging`)
-- **Files staged:** deploy.yml, session log, design doc
-- **Ready for:** commit and push
+- Layer ARN passed via outputs (not queried) - fixes P0-1
+- Atomicity check fails workflow if ANY deploy job failed
+- Version cleanup on ALL Lambda jobs (not just API)
 
 ---
 
-## Design Decisions (Completed)
+## Git State
 
-1. **Layer handling:** Skip entirely when backend unchanged
-2. **Deploy granularity:** Per-Lambda jobs (7+ jobs) for max parallelism
-3. **Smoke tests:** Always run full suite
-4. **Force override:** Boolean `force_full_deploy` input
-5. **Path categories:** Backend/Frontend/Scraper only (3 categories)
+- **Branch:** `staging` (PR #908 merged)
+- **Last commit:** `51c6154` - feat: Add path-based filtering to deploy workflow (#907)
+- **Deploy runs:** 2 failed (layer S3 bug)
 
-## Design Document
-See: `docs/plans/2026-01-06-deploy-path-filtering-design.md`
+---
 
-## Implementation Plan for New Session
+## Deferred Work
 
-Start new session with:
-```
-Implement #907 deploy path-based filtering per design in docs/plans/2026-01-06-deploy-path-filtering-design.md
-
-Use subagents in parallel for:
-- Task 1-2: Path filter + conditional builds (one agent)
-- Tasks 3-8: Backend Lambda deploy jobs (one agent - 6 jobs)
-- Tasks 9-10: Scraper + Frontend deploy jobs (one agent)
-- Tasks 11-13: Migrations, smoke-test, release updates (one agent)
-
-Session log: docs/session-2026-01-06-deploy-path-filtering.md
-```
-
-## Notes
-
-- Current deploy.yml is ~2000 lines
-- Splitting into 8 deploy jobs will increase lines but improve parallelism
-- Layer ARN must be passed from build-layer to all Lambda deploy jobs
+- **P2-1**: Refactor Lambda deploys to matrix strategy
+- **P2-2**: Changes job placement optimization
