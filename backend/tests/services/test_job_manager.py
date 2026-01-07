@@ -111,3 +111,116 @@ class TestHandleStaleJobs:
             handle_stale_jobs(db, AnalysisJob, book_id=test_book.id)
 
         assert exc_info.value.status_code == 409
+
+    def test_job_just_under_threshold_is_active(self, db):
+        """Job just under threshold is considered active (not stale)."""
+        test_book = create_test_book(db)
+
+        # 1 second under threshold - should be active
+        just_under = datetime.now(UTC) - timedelta(
+            minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=-1
+        )
+        job = AnalysisJob(
+            book_id=test_book.id,
+            status="running",
+            created_at=just_under,
+            updated_at=just_under,
+        )
+        db.add(job)
+        db.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            handle_stale_jobs(db, AnalysisJob, book_id=test_book.id)
+
+        assert exc_info.value.status_code == 409
+        # Job should NOT be marked failed
+        db.refresh(job)
+        assert job.status == "running"
+
+    def test_job_just_over_threshold_is_stale(self, db):
+        """Job just over threshold is considered stale."""
+        test_book = create_test_book(db)
+
+        # 1 second over threshold - should be stale
+        just_over = datetime.now(UTC) - timedelta(
+            minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=1
+        )
+        job = AnalysisJob(
+            book_id=test_book.id,
+            status="running",
+            created_at=just_over,
+            updated_at=just_over,
+        )
+        db.add(job)
+        db.commit()
+
+        # Should not raise (job gets auto-failed)
+        handle_stale_jobs(db, AnalysisJob, book_id=test_book.id)
+
+        db.refresh(job)
+        assert job.status == "failed"
+
+    def test_multiple_stale_and_one_active(self, db):
+        """Multiple stale jobs get failed, but active job still raises 409."""
+        test_book = create_test_book(db)
+
+        stale_time = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES + 10)
+        recent_time = datetime.now(UTC) - timedelta(minutes=1)
+
+        # Two stale jobs
+        stale_job1 = AnalysisJob(
+            book_id=test_book.id,
+            status="running",
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        stale_job2 = AnalysisJob(
+            book_id=test_book.id,
+            status="pending",
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        # One active job
+        active_job = AnalysisJob(
+            book_id=test_book.id,
+            status="running",
+            created_at=recent_time,
+            updated_at=recent_time,
+        )
+        db.add_all([stale_job1, stale_job2, active_job])
+        db.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            handle_stale_jobs(db, AnalysisJob, book_id=test_book.id)
+
+        assert exc_info.value.status_code == 409
+
+        # Stale jobs should be marked failed
+        db.refresh(stale_job1)
+        db.refresh(stale_job2)
+        db.refresh(active_job)
+        assert stale_job1.status == "failed"
+        assert stale_job2.status == "failed"
+        # Active job unchanged
+        assert active_job.status == "running"
+
+    def test_job_type_name_in_error_message(self, db):
+        """Custom job_type_name appears in error message."""
+        test_book = create_test_book(db)
+
+        recent_time = datetime.now(UTC) - timedelta(minutes=1)
+        job = AnalysisJob(
+            book_id=test_book.id,
+            status="running",
+            created_at=recent_time,
+            updated_at=recent_time,
+        )
+        db.add(job)
+        db.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            handle_stale_jobs(
+                db, AnalysisJob, book_id=test_book.id, job_type_name="Analysis job"
+            )
+
+        assert "Analysis job already in progress" in exc_info.value.detail

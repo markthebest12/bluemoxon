@@ -46,13 +46,3 @@ class SortOrder(StrEnum):
 
     ASC = "asc"
     DESC = "desc"
-
-
-class BookSortField(StrEnum):
-    """Fields available for sorting book queries."""
-
-    TITLE = "title"
-    CREATED_AT = "created_at"
-    UPDATED_AT = "updated_at"
-    YEAR_START = "year_start"
-    VALUE_MID = "value_mid"

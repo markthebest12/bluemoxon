@@ -13,12 +13,15 @@ STALE_JOB_THRESHOLD_MINUTES = 15
 JobModel = TypeVar("JobModel", AnalysisJob, EvalRunbookJob)
 
 
-def _normalize_datetime(dt: datetime) -> datetime:
+def _normalize_datetime(dt: datetime | None) -> datetime:
     """Ensure datetime is timezone-aware (UTC).
 
     Handles both naive datetimes (from legacy code using utcnow)
-    and timezone-aware datetimes.
+    and timezone-aware datetimes. Returns epoch if None.
     """
+    if dt is None:
+        # Treat None as very old (will be marked stale)
+        return datetime(1970, 1, 1, tzinfo=UTC)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
     return dt
@@ -29,6 +32,7 @@ def handle_stale_jobs(
     job_model: type[JobModel],
     book_id: int,
     *,
+    job_type_name: str = "Job",
     use_skip_locked: bool = False,
 ) -> None:
     """Check for stale jobs and auto-fail them, or raise 409 if active job exists.
@@ -37,6 +41,7 @@ def handle_stale_jobs(
         db: Database session
         job_model: AnalysisJob or EvalRunbookJob class
         book_id: Book ID to check
+        job_type_name: Human-readable job type for error messages (e.g., "Analysis job")
         use_skip_locked: Use FOR UPDATE SKIP LOCKED (for job creation endpoints)
 
     Raises:
@@ -64,8 +69,11 @@ def handle_stale_jobs(
         job.completed_at = datetime.now(UTC)
 
     if stale_jobs:
-        db.commit()
+        db.flush()  # Let caller commit - avoid orphaned state if caller fails
 
     # Raise if active job exists
     if active_jobs:
-        raise HTTPException(status_code=409, detail="Job already in progress for this book")
+        raise HTTPException(
+            status_code=409,
+            detail=f"{job_type_name} already in progress for this book",
+        )

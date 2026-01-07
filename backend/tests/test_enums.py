@@ -4,7 +4,6 @@ Following TDD: These tests are written first, before the implementation.
 """
 
 from app.enums import (
-    BookSortField,
     BookStatus,
     ConditionGrade,
     InventoryType,
@@ -104,23 +103,3 @@ class TestSortOrder:
     def test_string_serialization(self):
         """StrEnum should serialize to string values."""
         assert str(SortOrder.ASC) == "asc"
-
-
-class TestBookSortField:
-    """Tests for BookSortField enum."""
-
-    def test_values(self):
-        """Verify all BookSortField values are correct (lowercase for API)."""
-        assert BookSortField.TITLE == "title"
-        assert BookSortField.CREATED_AT == "created_at"
-        assert BookSortField.UPDATED_AT == "updated_at"
-        assert BookSortField.YEAR_START == "year_start"
-        assert BookSortField.VALUE_MID == "value_mid"
-
-    def test_all_values_accounted_for(self):
-        """Ensure no values are missing from tests."""
-        assert len(BookSortField) == 5
-
-    def test_string_serialization(self):
-        """StrEnum should serialize to string values."""
-        assert str(BookSortField.CREATED_AT) == "created_at"

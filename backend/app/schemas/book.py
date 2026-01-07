@@ -6,7 +6,6 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from app.enums import (
-    BookSortField,
     BookStatus,
     ConditionGrade,
     InventoryType,
@@ -51,8 +50,8 @@ class BookListParams(BaseModel):
     has_provenance: bool | None = None
     is_first_edition: bool | None = None
 
-    # Sorting with enum validation
-    sort_by: BookSortField = BookSortField.TITLE
+    # Sorting - allows any valid Book column, falls back to title
+    sort_by: str = "title"
     sort_order: SortOrder = SortOrder.ASC
 
 

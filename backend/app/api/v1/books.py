@@ -1836,7 +1836,9 @@ def generate_analysis_async(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # Auto-fail stale jobs and check for active jobs
-    handle_stale_jobs(db, AnalysisJob, book_id, use_skip_locked=True)
+    handle_stale_jobs(
+        db, AnalysisJob, book_id, job_type_name="Analysis job", use_skip_locked=True
+    )
 
     # Create job record
     job = AnalysisJob(
@@ -1940,8 +1942,20 @@ def generate_eval_runbook_job(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Auto-fail stale jobs and check for active jobs
-    handle_stale_jobs(db, EvalRunbookJob, book_id, use_skip_locked=True)
+    # Check for existing active job (no stale handling - eval runbooks may run longer)
+    active_job = (
+        db.query(EvalRunbookJob)
+        .filter(
+            EvalRunbookJob.book_id == book_id,
+            EvalRunbookJob.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail="Eval runbook job already in progress for this book",
+        )
 
     # Create job record
     job = EvalRunbookJob(
