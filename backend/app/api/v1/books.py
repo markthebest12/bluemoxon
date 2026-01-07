@@ -40,6 +40,7 @@ from app.schemas.analysis_job import AnalysisJobResponse
 from app.schemas.book import (
     AcquireRequest,
     BookCreate,
+    BookListParams,
     BookListResponse,
     BookResponse,
     BookUpdate,
@@ -62,6 +63,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.job_manager import handle_stale_jobs
 from app.services.publisher_validation import get_or_create_publisher
 from app.services.reference import get_or_create_binder
 from app.services.scoring import (
@@ -406,38 +408,15 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
 
 @router.get("", response_model=BookListResponse)
 def list_books(
-    page: int = Query(default=1, ge=1),
-    per_page: int = Query(default=20, ge=1, le=100),
-    q: str | None = Query(default=None, description="Search query for title, author, notes"),
-    inventory_type: str | None = None,
-    category: str | None = None,
-    status: str | None = None,
-    publisher_id: int | None = None,
-    publisher_tier: str | None = None,
-    author_id: int | None = None,
-    binder_id: int | None = None,
-    binding_authenticated: bool | None = None,
-    binding_type: str | None = None,
-    condition_grade: str | None = None,
-    min_value: float | None = None,
-    max_value: float | None = None,
-    year_start: int | None = None,
-    year_end: int | None = None,
-    has_images: bool | None = None,
-    has_analysis: bool | None = None,
-    has_provenance: bool | None = None,
-    provenance_tier: str | None = None,
-    is_first_edition: bool | None = None,
-    sort_by: str = "title",
-    sort_order: str = "asc",
+    params: BookListParams = Depends(),
     db: Session = Depends(get_db),
 ):
     """List books with filtering and pagination."""
     query = db.query(Book)
 
     # Apply search query
-    if q:
-        search_term = f"%{q}%"
+    if params.q:
+        search_term = f"%{params.q}%"
         query = query.outerjoin(Author, Book.author_id == Author.id).filter(
             (Book.title.ilike(search_term))
             | (Author.name.ilike(search_term))
@@ -446,75 +425,75 @@ def list_books(
         )
 
     # Apply filters
-    if inventory_type:
-        query = query.filter(Book.inventory_type == inventory_type)
-    if category:
-        query = query.filter(Book.category == category)
-    if status:
-        query = query.filter(Book.status == status)
-    if publisher_id:
-        query = query.filter(Book.publisher_id == publisher_id)
-    if publisher_tier:
-        query = query.join(Publisher).filter(Publisher.tier == publisher_tier)
-    if author_id:
-        query = query.filter(Book.author_id == author_id)
-    if binder_id:
-        query = query.filter(Book.binder_id == binder_id)
-    if binding_authenticated is not None:
-        query = query.filter(Book.binding_authenticated == binding_authenticated)
-    if binding_type:
-        query = query.filter(Book.binding_type == binding_type)
-    if condition_grade:
-        query = query.filter(Book.condition_grade == condition_grade)
-    if min_value is not None:
-        query = query.filter(Book.value_mid >= min_value)
-    if max_value is not None:
-        query = query.filter(Book.value_mid <= max_value)
-    if year_start is not None:
-        query = query.filter(Book.year_start >= year_start)
-    if year_end is not None:
-        query = query.filter(Book.year_end <= year_end)
+    if params.inventory_type:
+        query = query.filter(Book.inventory_type == params.inventory_type)
+    if params.category:
+        query = query.filter(Book.category == params.category)
+    if params.status:
+        query = query.filter(Book.status == params.status)
+    if params.publisher_id:
+        query = query.filter(Book.publisher_id == params.publisher_id)
+    if params.publisher_tier:
+        query = query.join(Publisher).filter(Publisher.tier == params.publisher_tier)
+    if params.author_id:
+        query = query.filter(Book.author_id == params.author_id)
+    if params.binder_id:
+        query = query.filter(Book.binder_id == params.binder_id)
+    if params.binding_authenticated is not None:
+        query = query.filter(Book.binding_authenticated == params.binding_authenticated)
+    if params.binding_type:
+        query = query.filter(Book.binding_type == params.binding_type)
+    if params.condition_grade:
+        query = query.filter(Book.condition_grade == params.condition_grade)
+    if params.min_value is not None:
+        query = query.filter(Book.value_mid >= params.min_value)
+    if params.max_value is not None:
+        query = query.filter(Book.value_mid <= params.max_value)
+    if params.year_start is not None:
+        query = query.filter(Book.year_start >= params.year_start)
+    if params.year_end is not None:
+        query = query.filter(Book.year_end <= params.year_end)
 
     # Filter by has_images
-    if has_images is not None:
+    if params.has_images is not None:
         image_exists = exists().where(BookImage.book_id == Book.id)
-        if has_images:
+        if params.has_images:
             query = query.filter(image_exists)
         else:
             query = query.filter(~image_exists)
 
     # Filter by has_analysis
-    if has_analysis is not None:
+    if params.has_analysis is not None:
         analysis_exists = exists().where(BookAnalysis.book_id == Book.id)
-        if has_analysis:
+        if params.has_analysis:
             query = query.filter(analysis_exists)
         else:
             query = query.filter(~analysis_exists)
 
     # Filter by has_provenance (boolean field)
-    if has_provenance is not None:
-        query = query.filter(Book.has_provenance == has_provenance)
+    if params.has_provenance is not None:
+        query = query.filter(Book.has_provenance == params.has_provenance)
 
     # Filter by provenance_tier
-    if provenance_tier:
-        query = query.filter(Book.provenance_tier == provenance_tier)
+    if params.provenance_tier:
+        query = query.filter(Book.provenance_tier == params.provenance_tier)
 
     # Filter by is_first_edition
-    if is_first_edition is not None:
-        query = query.filter(Book.is_first_edition == is_first_edition)
+    if params.is_first_edition is not None:
+        query = query.filter(Book.is_first_edition == params.is_first_edition)
 
     # Get total count
     total = query.count()
 
     # Apply sorting
-    sort_column = getattr(Book, sort_by, Book.title)
-    if sort_order == "desc":
+    sort_column = getattr(Book, params.sort_by, Book.title)
+    if params.sort_order == "desc":
         sort_column = sort_column.desc()
     query = query.order_by(sort_column)
 
     # Apply pagination
-    offset = (page - 1) * per_page
-    books = query.offset(offset).limit(per_page).all()
+    offset = (params.page - 1) * params.per_page
+    books = query.offset(offset).limit(params.per_page).all()
 
     # Build response
     base_url = get_api_base_url()
@@ -578,9 +557,9 @@ def list_books(
     return BookListResponse(
         items=items,
         total=total,
-        page=page,
-        per_page=per_page,
-        pages=(total + per_page - 1) // per_page,
+        page=params.page,
+        per_page=params.per_page,
+        pages=(total + params.per_page - 1) // params.per_page,
     )
 
 
@@ -1856,40 +1835,8 @@ def generate_analysis_async(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Auto-fail stale jobs before checking for active jobs
-    # Use FOR UPDATE SKIP LOCKED to prevent race condition with worker completing
-    stale_threshold = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES)
-    stale_jobs = (
-        db.query(AnalysisJob)
-        .filter(
-            AnalysisJob.book_id == book_id,
-            AnalysisJob.status.in_(["pending", "running"]),
-            AnalysisJob.updated_at < stale_threshold,
-        )
-        .with_for_update(skip_locked=True)
-        .all()
-    )
-    for stale_job in stale_jobs:
-        stale_job.status = "failed"
-        stale_job.error_message = f"Job timed out after {STALE_JOB_THRESHOLD_MINUTES} minutes"
-        stale_job.completed_at = datetime.now(UTC)
-    if stale_jobs:
-        db.commit()
-
-    # Check for existing active job
-    active_job = (
-        db.query(AnalysisJob)
-        .filter(
-            AnalysisJob.book_id == book_id,
-            AnalysisJob.status.in_(["pending", "running"]),
-        )
-        .first()
-    )
-    if active_job:
-        raise HTTPException(
-            status_code=409,
-            detail="Analysis job already in progress for this book",
-        )
+    # Auto-fail stale jobs and check for active jobs
+    handle_stale_jobs(db, AnalysisJob, book_id, job_type_name="Analysis job", use_skip_locked=True)
 
     # Create job record
     job = AnalysisJob(
@@ -1993,7 +1940,7 @@ def generate_eval_runbook_job(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Check for existing active job
+    # Check for existing active job (no stale handling - eval runbooks may run longer)
     active_job = (
         db.query(EvalRunbookJob)
         .filter(
