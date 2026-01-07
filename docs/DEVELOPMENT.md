@@ -120,11 +120,32 @@ npm run test:coverage
 
 ## Code Quality
 
+### Pre-commit Hooks (Recommended)
+
+Install pre-commit hooks to catch issues before CI:
+
+```bash
+# One-time setup
+pip install pre-commit
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+**Hooks configured:**
+| Hook | Purpose |
+|------|---------|
+| Ruff | Python linting + formatting |
+| ESLint | TypeScript/Vue linting |
+| Prettier | Frontend formatting |
+| Mypy | Python type checking |
+
 ### Backend
 
 ```bash
 cd backend
-poetry run black .           # Format
+poetry run ruff format .     # Format
 poetry run ruff check .      # Lint
 poetry run mypy .            # Type check
 ```
@@ -134,9 +155,16 @@ poetry run mypy .            # Type check
 ```bash
 cd frontend
 npm run lint                 # ESLint
-npm run format               # Prettier
+npm run format               # Prettier (REQUIRED before commit)
 npm run type-check           # TypeScript
 ```
+
+### Strict TypeScript Rules
+
+ESLint is configured with strict rules (#808):
+- `@typescript-eslint/no-explicit-any` - Warns on `any` usage
+- `@typescript-eslint/explicit-function-return-types` - Requires return types
+- Type-safe Vue component props
 
 ## Docker Compose (Full Stack)
 

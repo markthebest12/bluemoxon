@@ -1,112 +1,195 @@
 # CI/CD Pipeline
 
-BlueMoxon uses GitHub Actions for continuous integration and deployment with a staging-first approach. The pipeline ensures code quality, security, and reliable deployments.
+BlueMoxon uses GitHub Actions for continuous integration and deployment with a staging-first approach. The pipeline is optimized for speed through path-based filtering and parallel execution.
 
-## Overview
+## Pipeline Architecture
 
+```mermaid
+flowchart TB
+    subgraph Triggers
+        PR[Pull Request]
+        Push[Push to Branch]
+    end
+
+    subgraph "CI Workflow"
+        Changes[Detect Changes]
+
+        subgraph "Backend Jobs"
+            BQ[backend-quality<br/>lint + typecheck]
+            BT[backend-test]
+        end
+
+        subgraph "Frontend Jobs"
+            FQ[frontend-quality<br/>lint + typecheck + audit]
+            FT[frontend-test]
+            FB[frontend-build]
+        end
+
+        subgraph "Security Jobs"
+            SAST[sast-scan]
+            DEP[dependency-scan]
+            SEC[secret-scan]
+        end
+
+        subgraph "Infrastructure"
+            TF[terraform-validate]
+        end
+
+        Complete[ci-complete]
+    end
+
+    PR --> Changes
+    Push --> Changes
+    Changes -->|backend changed| BQ & BT
+    Changes -->|frontend changed| FQ & FT & FB
+    Changes -->|any change| SAST & DEP & SEC
+    Changes -->|infra changed| TF
+    BQ & BT & FQ & FT & FB & SAST & DEP & SEC & TF --> Complete
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           GitHub Repository                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-        ┌───────────────────────────┼───────────────────────────┐
-        │                           │                           │
-┌───────▼───────┐          ┌────────▼────────┐         ┌────────▼────────┐
-│ Pull Request  │          │ Push to staging │         │  Push to main   │
-└───────┬───────┘          └────────┬────────┘         └────────┬────────┘
-        │                           │                           │
-┌───────▼───────┐          ┌────────▼────────┐         ┌────────▼────────┐
-│  CI Workflow  │          │  CI Workflow    │         │  CI Workflow    │
-│               │          │       +         │         │       +         │
-│  • Lint       │          │  Deploy Staging │         │  Deploy Prod    │
-│  • Test       │          │                 │         │                 │
-│  • TypeCheck  │          │  • Build Lambda │         │  • Build Lambda │
-│  • Security   │          │  • Build Frontend│        │  • Build Frontend│
-│  • Build      │          │  • Upload to S3 │         │  • Upload to S3 │
-└───────┬───────┘          │  • Smoke Tests  │         │  • Smoke Tests  │
-        │                  └────────┬────────┘         │  • Create Tag   │
-┌───────▼───────┐                   │                  └────────┬────────┘
-│  PR Checks    │          ┌────────▼────────┐                  │
-│    Pass       │          │    Staging      │         ┌────────▼────────┐
-└───────────────┘          │   Environment   │         │   Production    │
-                           └─────────────────┘         │   Environment   │
-                                                       └─────────────────┘
+
+## Path-Based Filtering
+
+The CI workflow uses `dorny/paths-filter` to skip irrelevant jobs, reducing average CI time significantly.
+
+```mermaid
+flowchart LR
+    subgraph "Changed Files"
+        BE[backend/**]
+        FE[frontend/**]
+        INF[infra/**]
+    end
+
+    subgraph "Jobs Run"
+        BE -->|triggers| B1[backend-quality]
+        BE -->|triggers| B2[backend-test]
+        FE -->|triggers| F1[frontend-quality]
+        FE -->|triggers| F2[frontend-test]
+        FE -->|triggers| F3[frontend-build]
+        INF -->|triggers| T1[terraform-validate]
+    end
+
+    subgraph "Always Run"
+        SEC[Security Scans]
+    end
 ```
 
-## Workflows
+**Path Filters:**
+| Filter | Paths | Jobs Triggered |
+|--------|-------|----------------|
+| `backend` | `backend/**`, `poetry.lock`, `pyproject.toml` | backend-quality, backend-test |
+| `frontend` | `frontend/**`, `package*.json` | frontend-quality, frontend-test, frontend-build |
+| `infra` | `infra/**` | terraform-validate |
 
-### CI Workflow (`ci.yml`)
+## CI Workflow (`ci.yml`)
 
-Runs on all pull requests to `staging` or `main`. Ensures code quality before merge.
+Runs on all pull requests to `staging` or `main`. Jobs run in parallel where possible.
 
-**Jobs:**
+```mermaid
+flowchart TB
+    subgraph "Stage 1: Detection"
+        C[changes<br/>dorny/paths-filter]
+    end
 
-| Job | Description | Blocking |
-|-----|-------------|----------|
-| `backend-lint` | Ruff linting and format check (incl. security rules) | Yes |
-| `backend-test` | Pytest with PostgreSQL | Yes |
-| `backend-typecheck` | Mypy type checking | No |
-| `frontend-lint` | ESLint + Prettier | Yes |
-| `frontend-typecheck` | Vue-tsc | Yes |
-| `frontend-test` | Vitest | No |
-| `frontend-build` | Production build | Yes |
-| `sast-scan` | Bandit + Semgrep SAST analysis | **Yes** |
-| `dependency-scan` | pip-audit + npm audit | **Yes** |
-| `secret-scan` | Trivy + Gitleaks | **Yes** |
+    subgraph "Stage 2: Quality Gates (Parallel)"
+        BQ[backend-quality<br/>Ruff lint + format<br/>Mypy typecheck]
+        FQ[frontend-quality<br/>ESLint + Prettier<br/>Vue-tsc + npm audit]
+        SAST[sast-scan<br/>Bandit + Semgrep]
+        DEP[dependency-scan<br/>pip-audit + npm audit]
+        SEC[secret-scan<br/>Trivy + Gitleaks]
+    end
 
-### Deploy Staging Workflow (`deploy-staging.yml`)
+    subgraph "Stage 3: Testing (Parallel)"
+        BT[backend-test<br/>pytest + PostgreSQL]
+        FT[frontend-test<br/>Vitest]
+    end
 
-Runs on push to `staging` branch. Deploys to staging environment.
+    subgraph "Stage 4: Build"
+        FB[frontend-build<br/>Vite production build]
+        LC[build-layer-cache<br/>Lambda dependencies]
+    end
 
-**Jobs:**
+    subgraph "Stage 5: Gate"
+        CI[ci-complete<br/>Required status check]
+    end
 
-| Job | Description |
-|-----|-------------|
-| `ci` | Runs full CI workflow |
-| `build-backend` | Creates Lambda deployment package |
-| `build-frontend` | Builds Vue app with staging config |
-| `deploy` | Uploads to S3, updates Lambda |
-| `smoke-test` | Verifies staging API and frontend |
+    C --> BQ & FQ & SAST & DEP & SEC
+    C --> BT & FT
+    BQ --> FB
+    FQ --> FB
+    BT --> LC
+    BQ & BT & FQ & FT & FB & SAST & DEP & SEC --> CI
+```
 
-### Deploy Production Workflow (`deploy.yml`)
+**Consolidated Jobs:**
 
-Runs on push to `main` branch. Deploys to production environment.
+| Job | Combines | Runs If |
+|-----|----------|---------|
+| `backend-quality` | lint + typecheck | backend changed |
+| `frontend-quality` | lint + typecheck + npm audit | frontend changed |
+| `build-layer-cache` | Lambda layer caching | backend changed |
 
-**Jobs:**
+## Deploy Workflow (`deploy.yml`)
 
-| Job | Description |
-|-----|-------------|
-| `ci` | Runs full CI workflow |
-| `build-backend` | Creates Lambda deployment package |
-| `build-frontend` | Builds Vue app with production config |
-| `deploy` | Uploads to S3, updates Lambda, invalidates CloudFront |
-| `smoke-test` | Verifies production API and frontend |
-| `tag-release` | Creates version tag (YYYY.MM.DD-sha) |
+Runs on push to `main`. Uses parallel Lambda deployment for ~50% faster deploys.
 
-### Deploy Site Workflow (`deploy-site.yml`)
+```mermaid
+flowchart TB
+    subgraph "Stage 1: CI"
+        CI[ci workflow<br/>All quality gates]
+    end
 
-Runs on push to `main` when `site/*` files change. Deploys marketing site.
+    subgraph "Stage 2: Build (Parallel)"
+        BL[build-layer<br/>Lambda dependencies<br/>~60s]
+        BF[build-frontend<br/>Vite build<br/>~45s]
+    end
 
-| Job | Description |
-|-----|-------------|
-| `deploy-landing` | Uploads to S3, invalidates CloudFront |
+    subgraph "Stage 3: Deploy Layer"
+        DL[deploy-layer<br/>Upload to S3<br/>~15s]
+    end
 
-### Terraform Workflow (`terraform.yml`)
+    subgraph "Stage 4: Deploy Lambdas (Parallel)"
+        DA[deploy-api-lambda<br/>Main API]
+        DW[deploy-workers<br/>Analysis worker]
+        DU[deploy-utility-lambdas<br/>Scraper, Archiver,<br/>Migration]
+    end
 
-Runs on PRs with `infra/terraform/**` changes. Plans infrastructure changes.
+    subgraph "Stage 5: Deploy Frontend"
+        DF[deploy-frontend<br/>S3 + CloudFront]
+    end
 
-| Job | Description |
-|-----|-------------|
-| `plan` | Runs `terraform plan` on staging |
+    subgraph "Stage 6: Validate"
+        SM[smoke-test<br/>Health, API, Frontend]
+        TAG[tag-release<br/>v{date}-{sha}]
+    end
+
+    CI --> BL & BF
+    BL --> DL
+    DL --> DA & DW & DU
+    BF --> DF
+    DA & DW & DU & DF --> SM
+    SM --> TAG
+```
+
+**Parallel Deploy Benefits:**
+- Previous: Sequential Lambda deploys (~7 min total)
+- Current: Parallel deploys (~3-4 min total)
+- Layer deployed once, shared across all Lambdas
 
 ## Branch Strategy
 
-```
-main ─────●─────●─────●─────→  [Production: app.bluemoxon.com]
-           \     \     \
-staging ────●─────●─────●────→  [Staging: staging.app.bluemoxon.com]
-             \   / \   /
-feature ──────●     ●────────→  [Feature branches]
+```mermaid
+gitGraph
+    commit id: "initial"
+    branch staging
+    checkout staging
+    commit id: "staging setup"
+    branch feat/feature-1
+    checkout feat/feature-1
+    commit id: "implement feature"
+    checkout staging
+    merge feat/feature-1 id: "PR merge" tag: "CI + staging deploy"
+    checkout main
+    merge staging id: "promote" tag: "CI + prod deploy + v2025.01.06"
 ```
 
 | Branch | Purpose | Protection | Deploy Target |
@@ -129,15 +212,19 @@ feature ──────●     ●────────→  [Feature branc
 
 We use AWS OIDC (OpenID Connect) for secure, keyless authentication. No long-lived AWS credentials are stored in GitHub.
 
-### OIDC Configuration
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions
+    participant OIDC as AWS OIDC Provider
+    participant STS as AWS STS
+    participant AWS as AWS Services
 
-GitHub Actions authenticates to AWS using:
-- **OIDC Identity Provider** - Allows GitHub to authenticate with AWS
-- **IAM Role** - `github-actions-deploy` with permissions for:
-  - Lambda code updates
-  - S3 bucket access (frontend, deploy, images)
-  - CloudFront invalidation
-  - Secrets Manager read access
+    GH->>OIDC: Request token (repo, branch)
+    OIDC->>GH: JWT token
+    GH->>STS: AssumeRoleWithWebIdentity
+    STS->>GH: Temporary credentials
+    GH->>AWS: Deploy (S3, Lambda, CloudFront)
+```
 
 ### GitHub Secrets
 
@@ -196,10 +283,8 @@ After deployment, automated smoke tests verify:
 
 1. **API Health** - `GET /api/v1/health/deep` returns 200
 2. **Books API** - `GET /api/v1/books` returns valid pagination
-3. **API Schema Validation** - Required fields exist on book responses (`id`, `title`, `status`, `inventory_type`)
-4. **Data Integrity** - Validates data quality:
-   - `source_url` format (must be full HTTP URL with item ID, not short alphanumeric - see #497)
-   - `purchase_price` values (warns on `$0` prices - see #498)
+3. **API Schema Validation** - Required fields exist on book responses
+4. **Data Integrity** - Validates source_url format, purchase_price values
 5. **Frontend** - App loads with expected content
 6. **Images** - Image URLs return proper `Content-Type: image/*`
 
@@ -229,30 +314,14 @@ Dependabot creates PRs targeting `staging` branch:
 
 Updates flow: Dependabot PR → staging → test → promote to main
 
-## Local Development
-
-The CI/CD pipeline doesn't affect local development:
-
-```bash
-# Backend
-cd backend
-poetry install
-poetry run uvicorn app.main:app --reload
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-```
-
 ## Files
 
 ```
 .github/
 ├── workflows/
-│   ├── ci.yml              # CI checks (PRs + pushes)
-│   ├── deploy.yml          # Production deploy
-│   ├── deploy-staging.yml  # Staging deploy (if exists separately)
+│   ├── ci.yml              # CI checks with path filtering
+│   ├── deploy.yml          # Production deploy (parallel)
+│   ├── deploy-staging.yml  # Staging deploy
 │   ├── deploy-site.yml     # Marketing site deploy
 │   └── terraform.yml       # Infrastructure plan
 ├── dependabot.yml          # Dependency updates (targets staging)
@@ -295,4 +364,4 @@ npm run dev
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: January 2026*

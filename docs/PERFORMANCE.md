@@ -22,6 +22,31 @@ Measured via Playwright against production (bluemoxon.com):
 | **LCP** (Largest Contentful Paint) | < 2.5s | < 4.0s | > 4.0s | ✅ ~1.0s |
 | **CLS** (Cumulative Layout Shift) | < 0.1 | < 0.25 | > 0.25 | ✅ Minimal |
 
+## Recent Optimizations (January 2026)
+
+### App Shell Architecture (#876)
+- Skeleton loading shows immediately while data loads
+- Improved perceived performance on initial page load
+- CSS-only skeletons (no JavaScript blocking)
+
+### Dashboard API Batching (#877, #878)
+- Consolidated 6 dashboard API calls into single `/dashboard/batch` endpoint
+- Reduced network round trips from 6 to 1
+- ~40% faster dashboard load time
+
+### Vue 3 Composables (#879)
+- `useDashboardCache` - Client-side caching with 5-minute TTL
+- `useCurrencyConversion` - Memoized currency calculations
+- `useToast` - Centralized notification management
+- Reduced redundant API calls and computations
+
+### BookDetailView Refactor (#807)
+- Split monolithic component into focused sub-components
+- Improved code splitting and lazy loading
+- Better memory management for image galleries
+
+---
+
 ## Optimization Strategies
 
 ### 1. Code Splitting

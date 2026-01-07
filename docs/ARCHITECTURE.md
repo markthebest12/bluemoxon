@@ -296,6 +296,69 @@ flowchart TB
     Vue -->|Auth| Cognito
 ```
 
+## Frontend Architecture
+
+The Vue 3 frontend uses Composition API with shared composables for state management and reusable logic.
+
+### Composable Architecture
+
+```mermaid
+flowchart TB
+    subgraph Views["Views"]
+        BooksView["BooksView"]
+        BookDetailView["BookDetailView"]
+        AdminDashboard["AdminDashboard"]
+    end
+
+    subgraph Composables["Composables"]
+        useToast["useToast<br/>(notifications)"]
+        useDashboardCache["useDashboardCache<br/>(API caching)"]
+        useCurrencyConversion["useCurrencyConversion<br/>(GBP/EUR → USD)"]
+        useBookImages["useBookImages<br/>(gallery state)"]
+    end
+
+    subgraph Services["Services"]
+        api["api.ts<br/>(Axios client)"]
+        auth["auth.ts<br/>(Cognito)"]
+    end
+
+    subgraph State["Pinia Stores"]
+        authStore["authStore"]
+        toastStore["toastStore"]
+    end
+
+    BooksView --> useCurrencyConversion
+    BookDetailView --> useBookImages
+    AdminDashboard --> useDashboardCache
+    Views --> useToast
+    useToast --> toastStore
+    Views --> api
+    api --> authStore
+```
+
+### Key Composables
+
+| Composable | Purpose | Features |
+|------------|---------|----------|
+| `useToast` | Toast notifications | Auto-dismiss, duplicate suppression, hover-to-pause |
+| `useDashboardCache` | Dashboard API caching | 5-minute TTL, batch endpoint |
+| `useCurrencyConversion` | Currency conversion | Memoized calculations, reactive rates |
+| `useBookImages` | Image gallery state | Lightbox, reordering, lazy loading |
+
+### Component Structure
+
+BookDetailView was refactored (#807) into focused sub-components:
+
+```
+BookDetailView/
+├── BookDetailView.vue      # Container + routing
+├── BookHeader.vue          # Title, status, metadata
+├── BookImages.vue          # Gallery + lightbox
+├── BookAnalysis.vue        # Napoleon analysis viewer
+├── BookScoring.vue         # Investment score breakdown
+└── BookActions.vue         # Status changes, edit, delete
+```
+
 ## Request Flow
 
 ```mermaid

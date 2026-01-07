@@ -1,6 +1,39 @@
-# BlueMoxon 1.1 Features
+# BlueMoxon 1.2 Features
 
 **BlueMoxon** is a collection management system for antiquarian books, featuring AI-powered valuations, acquisition tracking, and investment scoring.
+
+## What's New in 1.2
+
+### App Shell Architecture
+- **Skeleton Loading** - Instant visual feedback while data loads
+- **CSS-only Skeletons** - No JavaScript blocking for perceived performance
+- **Layout Stability** - Prevents content shift as data arrives
+
+### Dashboard Performance
+- **API Batching** - Single `/dashboard/batch` endpoint replaces 6 individual calls
+- **Client-side Caching** - `useDashboardCache` composable with 5-minute TTL
+- **~40% Faster** - Reduced network round trips
+
+### Vue 3 Composables
+- **`useToast`** - Centralized toast notifications with duplicate suppression
+- **`useDashboardCache`** - Dashboard data caching
+- **`useCurrencyConversion`** - Memoized GBP/EUR to USD conversion
+
+### BookDetailView Refactor
+- Split monolithic 800+ line component into focused sub-components
+- Improved code splitting and maintainability
+- Better memory management for image galleries
+
+### CI/CD Improvements
+- **Path-based Filtering** - Skip irrelevant CI jobs (backend-only changes skip frontend checks)
+- **Parallel Lambda Deploys** - Deploy time reduced from ~7min to ~3-4min
+- **Consolidated Jobs** - Combined lint + typecheck jobs reduce setup overhead
+
+### Code Quality
+- **Pre-commit Hooks** - Ruff, ESLint, Prettier, Mypy run before commit
+- **Strict TypeScript** - `@typescript-eslint/no-explicit-any` enforced
+
+---
 
 ## What's New in 1.1
 
