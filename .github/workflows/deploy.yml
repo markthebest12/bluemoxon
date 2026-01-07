@@ -410,8 +410,8 @@ jobs:
           LOCK_HASH=${{ steps.layer-check.outputs.lock_hash }}
           S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
 
-          aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
-          aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer.zip"
+          aws s3 cp ${{ github.workspace }}/layer.zip "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
+          aws s3 cp ${{ github.workspace }}/layer.zip "s3://${S3_BUCKET}/lambda/layer.zip"
 
   build-backend:
     name: Build Lambda Package
