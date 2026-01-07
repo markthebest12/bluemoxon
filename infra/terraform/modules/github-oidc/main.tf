@@ -129,6 +129,23 @@ resource "aws_iam_role_policy" "deploy" {
           )
         }
       ] : [],
+      # S3 Artifacts bucket permissions (Lambda packages, layers)
+      length(var.artifacts_bucket_arns) > 0 ? [
+        {
+          Sid    = "S3ArtifactsAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:PutObject",
+            "s3:GetObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ]
+          Resource = concat(
+            var.artifacts_bucket_arns,
+            [for arn in var.artifacts_bucket_arns : "${arn}/*"]
+          )
+        }
+      ] : [],
       # CloudFront invalidation permissions
       length(var.cloudfront_distribution_arns) > 0 ? [
         {
