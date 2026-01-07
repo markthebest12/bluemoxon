@@ -1425,11 +1425,25 @@ jobs:
 
           echo "Version and environment validation passed!"
 
-      - name: Skip version check (frontend-only deploy)
-        if: needs.deploy-api-lambda.result != 'success'
+      - name: Skip version check (no backend changes)
+        if: needs.deploy-api-lambda.result == 'skipped'
         run: |
-          echo "⏭️ Skipping version check - API Lambda was not deployed in this run"
-          echo "This is expected for frontend-only or scraper-only changes"
+          echo "⏭️ Skipping version check - no backend changes detected"
+          echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
+
+      - name: API Lambda deploy failed
+        if: needs.deploy-api-lambda.result == 'failure'
+        run: |
+          echo "❌ API Lambda deployment failed - cannot validate version"
+          echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
+          exit 1
+
+      - name: API Lambda deploy cancelled
+        if: needs.deploy-api-lambda.result == 'cancelled'
+        run: |
+          echo "⚠️ API Lambda deployment was cancelled"
+          echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
+          exit 1
 
       - name: Test API deep health check
         run: |
@@ -1504,11 +1518,25 @@ jobs:
 
           echo "Frontend validation passed!"
 
-      - name: Skip frontend config check (backend-only deploy)
-        if: needs.deploy-frontend.result != 'success'
+      - name: Skip frontend config check (no frontend changes)
+        if: needs.deploy-frontend.result == 'skipped'
         run: |
-          echo "⏭️ Skipping frontend config validation - frontend was not deployed in this run"
-          echo "This is expected for backend-only or scraper-only changes"
+          echo "⏭️ Skipping frontend config validation - no frontend changes detected"
+          echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
+
+      - name: Frontend deploy failed
+        if: needs.deploy-frontend.result == 'failure'
+        run: |
+          echo "❌ Frontend deployment failed - cannot validate frontend config"
+          echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
+          exit 1
+
+      - name: Frontend deploy cancelled
+        if: needs.deploy-frontend.result == 'cancelled'
+        run: |
+          echo "⚠️ Frontend deployment was cancelled"
+          echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
+          exit 1
 
       - name: Test image endpoint
         run: |
