@@ -74,11 +74,15 @@ jobs:
             backend:
               - 'backend/**'
               - 'poetry.lock'
+              - 'pyproject.toml'
               - 'requirements.txt'
             frontend:
               - 'frontend/**'
+              - 'package.json'
+              - 'package-lock.json'
             scraper:
               - 'scraper/**'
+              - 'backend/app/scraper/**'
 
   # ============================================
   # Environment Configuration
@@ -655,12 +659,14 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes]
     if: |
       always() &&
+      needs.configure.result == 'success' &&
       needs.build-backend.result == 'success' &&
       needs.build-layer.result == 'success' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       version: ${{ steps.publish-version.outputs.version }}
+      layer_arn: ${{ steps.publish-layer.outputs.layer_arn }}
 
     steps:
       - name: Configure AWS credentials via OIDC
@@ -785,8 +791,8 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
+      needs.configure.result == 'success' &&
+      needs.deploy-api-lambda.result == 'success' &&
       needs.configure.outputs.worker_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -800,19 +806,10 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get layer ARN
-        id: layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_ARN=$(aws lambda list-layer-versions --layer-name "$LAYER_NAME" --max-items 1 --query 'LayerVersions[0].LayerVersionArn' --output text)
-          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "Using layer: $LAYER_ARN"
-
       - name: Update Worker Lambda with layer
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
+          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
           echo "Updating Worker Lambda with layer: $LAYER_ARN"
           aws lambda update-function-configuration --function-name "$WORKER_FUNCTION" --layers "$LAYER_ARN"
 
@@ -844,6 +841,22 @@ jobs:
           echo "Published worker version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Worker Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.worker_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Eval Runbook Worker Lambda
   # ============================================
@@ -854,8 +867,8 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
+      needs.configure.result == 'success' &&
+      needs.deploy-api-lambda.result == 'success' &&
       needs.configure.outputs.eval_runbook_worker_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -869,19 +882,10 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get layer ARN
-        id: layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_ARN=$(aws lambda list-layer-versions --layer-name "$LAYER_NAME" --max-items 1 --query 'LayerVersions[0].LayerVersionArn' --output text)
-          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "Using layer: $LAYER_ARN"
-
       - name: Update Eval Runbook Worker Lambda with layer
         run: |
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
+          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
           echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
           aws lambda update-function-configuration --function-name "$EVAL_RUNBOOK_FUNCTION" --layers "$LAYER_ARN"
 
@@ -913,6 +917,22 @@ jobs:
           echo "Published eval runbook worker version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Eval Runbook Worker Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Eval Runbook Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Cleanup Lambda
   # ============================================
@@ -923,8 +943,8 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
+      needs.configure.result == 'success' &&
+      needs.deploy-api-lambda.result == 'success' &&
       needs.configure.outputs.cleanup_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -938,19 +958,10 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get layer ARN
-        id: layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_ARN=$(aws lambda list-layer-versions --layer-name "$LAYER_NAME" --max-items 1 --query 'LayerVersions[0].LayerVersionArn' --output text)
-          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "Using layer: $LAYER_ARN"
-
       - name: Update Cleanup Lambda with layer
         run: |
           CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
+          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
           echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
           aws lambda update-function-configuration --function-name "$CLEANUP_FUNCTION" --layers "$LAYER_ARN"
 
@@ -982,6 +993,22 @@ jobs:
           echo "Published cleanup version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Cleanup Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.cleanup_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Cleanup Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Tracking Dispatcher Lambda
   # ============================================
@@ -992,8 +1019,8 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
+      needs.configure.result == 'success' &&
+      needs.deploy-api-lambda.result == 'success' &&
       needs.configure.outputs.tracking_dispatcher_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -1007,19 +1034,10 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get layer ARN
-        id: layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_ARN=$(aws lambda list-layer-versions --layer-name "$LAYER_NAME" --max-items 1 --query 'LayerVersions[0].LayerVersionArn' --output text)
-          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "Using layer: $LAYER_ARN"
-
       - name: Update Tracking Dispatcher Lambda with layer
         run: |
           DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
+          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
           echo "Updating Tracking Dispatcher Lambda with layer: $LAYER_ARN"
           aws lambda update-function-configuration --function-name "$DISPATCHER_FUNCTION" --layers "$LAYER_ARN"
 
@@ -1051,6 +1069,22 @@ jobs:
           echo "Published tracking dispatcher version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Tracking Dispatcher Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Tracking Dispatcher Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Tracking Worker Lambda
   # ============================================
@@ -1061,8 +1095,8 @@ jobs:
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
+      needs.configure.result == 'success' &&
+      needs.deploy-api-lambda.result == 'success' &&
       needs.configure.outputs.tracking_worker_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -1076,19 +1110,10 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get layer ARN
-        id: layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_ARN=$(aws lambda list-layer-versions --layer-name "$LAYER_NAME" --max-items 1 --query 'LayerVersions[0].LayerVersionArn' --output text)
-          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "Using layer: $LAYER_ARN"
-
       - name: Update Tracking Worker Lambda with layer
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          LAYER_ARN="${{ steps.layer.outputs.layer_arn }}"
+          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
           echo "Updating Tracking Worker Lambda with layer: $LAYER_ARN"
           aws lambda update-function-configuration --function-name "$WORKER_FUNCTION" --layers "$LAYER_ARN"
 
@@ -1120,6 +1145,22 @@ jobs:
           echo "Published tracking worker version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Tracking Worker Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.tracking_worker_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Tracking Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Scraper Lambda
   # ============================================
@@ -1130,6 +1171,7 @@ jobs:
     needs: [configure, generate-version, build-scraper, changes]
     if: |
       always() &&
+      needs.configure.result == 'success' &&
       needs.build-scraper.result == 'success' &&
       needs.configure.outputs.scraper_function_name != '' &&
       (needs.changes.outputs.scraper == 'true' || github.event.inputs.force_full_deploy == 'true')
@@ -1172,6 +1214,22 @@ jobs:
           echo "Published scraper version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Cleanup old Scraper Lambda versions
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.scraper_function_name }}"
+          KEEP_VERSIONS=3
+          echo "Cleaning up old Scraper Lambda versions (keeping last $KEEP_VERSIONS)..."
+          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+          if [ -z "$VERSIONS_TO_DELETE" ]; then
+            echo "No old versions to delete"
+          else
+            for VERSION in $VERSIONS_TO_DELETE; do
+              echo "Deleting version $VERSION"
+              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+            done
+          fi
+
   # ============================================
   # Deploy Frontend
   # ============================================
@@ -1182,6 +1240,7 @@ jobs:
     needs: [configure, generate-version, build-frontend, changes]
     if: |
       always() &&
+      needs.configure.result == 'success' &&
       needs.build-frontend.result == 'success' &&
       (needs.changes.outputs.frontend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
@@ -1358,6 +1417,51 @@ jobs:
             echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check for partial deploy failures (atomicity)
+        run: |
+          echo "Checking for partial deploy failures..."
+          FAILED_JOBS=""
+
+          API_RESULT="${{ needs.deploy-api-lambda.result }}"
+          WORKER_RESULT="${{ needs.deploy-worker-lambda.result }}"
+          EVAL_RESULT="${{ needs.deploy-eval-worker-lambda.result }}"
+          CLEANUP_RESULT="${{ needs.deploy-cleanup-lambda.result }}"
+          DISPATCHER_RESULT="${{ needs.deploy-tracking-dispatcher-lambda.result }}"
+          TRACKING_RESULT="${{ needs.deploy-tracking-worker-lambda.result }}"
+          SCRAPER_RESULT="${{ needs.deploy-scraper-lambda.result }}"
+          FRONTEND_RESULT="${{ needs.deploy-frontend.result }}"
+
+          echo "Deploy results:"
+          echo "  API Lambda: $API_RESULT"
+          echo "  Worker Lambda: $WORKER_RESULT"
+          echo "  Eval Worker Lambda: $EVAL_RESULT"
+          echo "  Cleanup Lambda: $CLEANUP_RESULT"
+          echo "  Tracking Dispatcher Lambda: $DISPATCHER_RESULT"
+          echo "  Tracking Worker Lambda: $TRACKING_RESULT"
+          echo "  Scraper Lambda: $SCRAPER_RESULT"
+          echo "  Frontend: $FRONTEND_RESULT"
+
+          if [[ "$API_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-api-lambda"; fi
+          if [[ "$WORKER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-worker-lambda"; fi
+          if [[ "$EVAL_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-eval-worker-lambda"; fi
+          if [[ "$CLEANUP_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-cleanup-lambda"; fi
+          if [[ "$DISPATCHER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-dispatcher-lambda"; fi
+          if [[ "$TRACKING_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-worker-lambda"; fi
+          if [[ "$SCRAPER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-scraper-lambda"; fi
+          if [[ "$FRONTEND_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-frontend"; fi
+
+          if [[ -n "$FAILED_JOBS" ]]; then
+            echo ""
+            echo "CRITICAL: Partial deploy detected - some jobs FAILED while others succeeded!"
+            echo "Failed jobs:$FAILED_JOBS"
+            echo ""
+            echo "This indicates an inconsistent deployment state."
+            echo "Review the failed jobs and consider running force_full_deploy to restore consistency."
+            exit 1
+          fi
+
+          echo "✅ No partial failures detected"
+
       - name: Test API liveness
         run: |
           echo "Testing API liveness probe..."
@@ -1376,6 +1480,7 @@ jobs:
           echo "API liveness check passed!"
 
       - name: Validate version and environment
+        if: needs.deploy-api-lambda.result == 'success'
         run: |
           echo "Validating deployed version and environment..."
 
@@ -1427,6 +1532,12 @@ jobs:
           fi
 
           echo "✅ Version and environment validation passed!"
+
+      - name: Skip version check (frontend-only deploy)
+        if: needs.deploy-api-lambda.result != 'success'
+        run: |
+          echo "⏭️ Skipping version check - API Lambda was not deployed in this run"
+          echo "This is expected for frontend-only or scraper-only changes"
 
       - name: Test API deep health check
         run: |
