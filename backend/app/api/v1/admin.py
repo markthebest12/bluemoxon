@@ -250,8 +250,8 @@ def get_config(response: Response, db: Session = Depends(get_db)):
     result = db.execute(select(AdminConfig))
     configs = {c.key: c.value for c in result.scalars().all()}
     return ConfigResponse(
-        gbp_to_usd_rate=float(configs.get("gbp_to_usd_rate", 1.28)),
-        eur_to_usd_rate=float(configs.get("eur_to_usd_rate", 1.10)),
+        gbp_to_usd_rate=float(configs.get("gbp_to_usd_rate", 1.35)),
+        eur_to_usd_rate=float(configs.get("eur_to_usd_rate", 1.17)),
     )
 
 

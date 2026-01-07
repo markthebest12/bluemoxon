@@ -17,6 +17,16 @@ from app.services.order_extractor import extract_with_regex
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Track which currencies we've already warned about (prevents log spam)
+_warned_fallback_currencies: set[str] = set()
+_warned_unknown_currencies: set[str] = set()
+
+
+def _reset_warning_state() -> None:
+    """Reset warning state for testing. Not for production use."""
+    _warned_fallback_currencies.clear()
+    _warned_unknown_currencies.clear()
+
 
 class ExtractRequest(BaseModel):
     """Request to extract order details from text."""
@@ -114,8 +124,28 @@ def get_conversion_rate(currency: str, db: Session) -> float:
     if config:
         return float(config.value)
 
-    # Fallback defaults
-    return {"GBP": 1.28, "EUR": 1.10}.get(currency, 1.0)
+    # Fallback defaults - DB is source of truth, these are safety nets
+    fallback_rates = {"GBP": 1.35, "EUR": 1.17}
+    rate = fallback_rates.get(currency)
+
+    if rate is not None:
+        if currency not in _warned_fallback_currencies:
+            _warned_fallback_currencies.add(currency)
+            logger.warning(
+                "Using fallback exchange rate for %s: %.4f (no DB config found). "
+                "Run scripts/update-exchange-rates.sh to populate DB.",
+                currency,
+                rate,
+            )
+        return rate
+
+    if currency not in _warned_unknown_currencies:
+        _warned_unknown_currencies.add(currency)
+        logger.warning(
+            "Unknown currency %s, defaulting to 1.0 (no conversion)",
+            currency,
+        )
+    return 1.0
 
 
 @router.post("/extract", response_model=ExtractResponse)
