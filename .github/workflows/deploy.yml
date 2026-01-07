@@ -1261,7 +1261,7 @@ jobs:
       - name: Sync frontend to S3 (hashed assets)
         run: |
           echo "Syncing hashed assets with long cache..."
-          aws s3 sync frontend-dist/ s3://${{ needs.configure.outputs.s3_frontend_bucket }}/ --delete --cache-control "max-age=31536000,public" --exclude "index.html" --exclude "*.json"
+          aws s3 sync frontend-dist/ s3://${{ needs.configure.outputs.s3_frontend_bucket }}/ --delete --cache-control "max-age=31536000,public" --exclude "index.html" --exclude "*.json" --exclude "lambda/*"
 
       - name: Upload index.html with no-cache
         run: |
