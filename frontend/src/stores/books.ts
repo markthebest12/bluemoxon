@@ -392,6 +392,16 @@ export const useBooksStore = defineStore("books", () => {
     return response.data;
   }
 
+  /**
+   * Update the status of the current book in local state.
+   * Use after successfully calling the status API endpoint.
+   */
+  function setCurrentBookStatus(newStatus: string) {
+    if (currentBook.value) {
+      currentBook.value = { ...currentBook.value, status: newStatus };
+    }
+  }
+
   function setFilters(newFilters: Filters) {
     filters.value = newFilters;
     page.value = 1;
@@ -445,6 +455,7 @@ export const useBooksStore = defineStore("books", () => {
     calculateScores,
     fetchScoreBreakdown,
     archiveSource,
+    setCurrentBookStatus,
     setFilters,
     setSort,
     setPage,
