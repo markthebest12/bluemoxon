@@ -1,6 +1,8 @@
 """Book Images API endpoints."""
 
+import asyncio
 import hashlib
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -381,32 +383,43 @@ async def upload_image(
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
     file_path = LOCAL_IMAGES_PATH / unique_name
 
-    # Save file (write content we already read)
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    # Save file (write content we already read) - Issue #858: use async I/O
+    def write_file():
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
 
-    # Generate thumbnail
+    await asyncio.to_thread(write_file)
+
+    # Generate thumbnail - capture result for response (Issue #866)
+    # Issue #858: run blocking PIL operations in thread pool
     thumbnail_name = get_thumbnail_key(unique_name)
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
-    generate_thumbnail(file_path, thumbnail_path)  # Best effort, ignore errors
+    thumbnail_success, thumbnail_error = await asyncio.to_thread(
+        generate_thumbnail, file_path, thumbnail_path
+    )
+    if not thumbnail_success:
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Thumbnail generation failed for book {book_id}: {thumbnail_error}")
 
-    # Upload to S3 in production
+    # Upload to S3 in production - Issue #858: wrap blocking boto3 calls
     if settings.is_aws_lambda:
         s3 = get_s3_client()
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
 
-        # Upload main image
-        s3.upload_file(
+        # Upload main image (blocking -> thread pool)
+        await asyncio.to_thread(
+            s3.upload_file,
             str(file_path),
             settings.images_bucket,
             s3_key,
             ExtraArgs={"ContentType": "image/jpeg"},
         )
 
-        # Upload thumbnail
+        # Upload thumbnail (blocking -> thread pool)
         if thumbnail_path.exists():
-            s3.upload_file(
+            await asyncio.to_thread(
+                s3.upload_file,
                 str(thumbnail_path),
                 settings.images_bucket,
                 s3_thumbnail_key,
@@ -447,6 +460,7 @@ async def upload_image(
         "thumbnail_url": f"/api/v1/books/{book_id}/images/{image.id}/thumbnail",
         "image_type": image.image_type,
         "is_primary": image.is_primary,
+        "thumbnail_generated": thumbnail_success,  # Issue #866: Report thumbnail status
     }
 
 

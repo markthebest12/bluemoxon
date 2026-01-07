@@ -162,3 +162,91 @@ class TestPlaceholder:
         assert response.status_code == 200
         assert response.headers["content-type"] == "image/svg+xml"
         assert b"<svg" in response.content
+
+
+class TestThumbnailGeneration:
+    """Tests for thumbnail generation status in upload response (Issue #866)."""
+
+    def test_upload_image_returns_thumbnail_generated_field(self, client):
+        """Test that upload response includes thumbnail_generated field."""
+        # Create a book
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create a simple test image (1x1 PNG)
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
+            b"\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18"
+            b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        # Upload
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("test.png", io.BytesIO(png_data), "image/png")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+
+        # Issue #866: Response MUST include thumbnail_generated field
+        assert "thumbnail_generated" in data, (
+            "Response missing 'thumbnail_generated' field (Issue #866)"
+        )
+        assert isinstance(data["thumbnail_generated"], bool)
+
+    def test_upload_image_thumbnail_generated_true_on_success(self, client):
+        """Test thumbnail_generated is True when thumbnail generation succeeds."""
+        # Create a book
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create a valid 10x10 RGB JPEG (more realistic for thumbnail gen)
+        from PIL import Image
+
+        img = Image.new("RGB", (100, 100), color="red")
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        # Upload
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("test.jpg", buffer, "image/jpeg")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+
+        # Should succeed with valid image
+        assert data.get("thumbnail_generated") is True
+
+    def test_upload_image_thumbnail_generated_false_on_failure(self, client, monkeypatch):
+        """Test thumbnail_generated is False when thumbnail generation fails."""
+        # Mock generate_thumbnail to fail
+        monkeypatch.setattr(
+            "app.api.v1.images.generate_thumbnail",
+            lambda *args, **kwargs: (False, "Simulated failure"),
+        )
+
+        # Create a book
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create a simple test image
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
+            b"\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18"
+            b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        # Upload
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("test.png", io.BytesIO(png_data), "image/png")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+
+        # Issue #866: Should report thumbnail failure
+        assert data.get("thumbnail_generated") is False
