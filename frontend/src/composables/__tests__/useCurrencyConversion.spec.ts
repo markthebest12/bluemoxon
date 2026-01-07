@@ -78,10 +78,10 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "GBP";
-      exchangeRates.value = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 
-      // 100 GBP * 1.28 = 128 USD
-      expect(convertToUsd(100)).toBe(128);
+      // 100 GBP * 1.35 = 135 USD
+      expect(convertToUsd(100)).toBe(135);
     });
 
     it("converts EUR to USD using exchange rate", async () => {
@@ -89,10 +89,10 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "EUR";
-      exchangeRates.value = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 
-      // 100 EUR * 1.1 = 110 USD
-      expect(convertToUsd(100)).toBe(110);
+      // 100 EUR * 1.17 = 117 USD
+      expect(convertToUsd(100)).toBe(117);
     });
 
     it("rounds to 2 decimal places", async () => {
@@ -100,7 +100,7 @@ describe("useCurrencyConversion", () => {
       const { selectedCurrency, exchangeRates, convertToUsd } = useCurrencyConversion();
 
       selectedCurrency.value = "GBP";
-      exchangeRates.value = { gbp_to_usd_rate: 1.287, eur_to_usd_rate: 1.1 };
+      exchangeRates.value = { gbp_to_usd_rate: 1.287, eur_to_usd_rate: 1.17 };
 
       // 10.55 GBP * 1.287 = 13.57785 -> rounded to 13.58
       expect(convertToUsd(10.55)).toBe(13.58);
@@ -148,7 +148,7 @@ describe("useCurrencyConversion", () => {
       const loadPromise = loadExchangeRates();
       expect(loadingRates.value).toBe(true);
 
-      resolvePromise!({ data: { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 } });
+      resolvePromise!({ data: { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 } });
       await loadPromise;
 
       expect(loadingRates.value).toBe(false);
@@ -231,8 +231,86 @@ describe("useCurrencyConversion", () => {
       const { useCurrencyConversion } = await import("../useCurrencyConversion");
       const { exchangeRates } = useCurrencyConversion();
 
-      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.28);
-      expect(exchangeRates.value.eur_to_usd_rate).toBe(1.1);
+      // Updated to Jan 2026 rates
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.35);
+      expect(exchangeRates.value.eur_to_usd_rate).toBe(1.17);
+    });
+  });
+
+  describe("fetchLiveRate", () => {
+    it("fetches live GBP rate from frankfurter.app", async () => {
+      // Mock successful frankfurter.app response
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ rates: { GBP: 0.74 } }), // USD->GBP rate
+      });
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
+
+      await fetchLiveRate("GBP");
+
+      // GBP->USD = 1 / 0.74 = 1.3514 (rounded to 4 decimals)
+      expect(exchangeRates.value.gbp_to_usd_rate).toBeCloseTo(1.35, 1);
+    });
+
+    it("fetches live EUR rate from frankfurter.app", async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ rates: { EUR: 0.85 } }),
+      });
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
+
+      await fetchLiveRate("EUR");
+
+      // EUR->USD = 1 / 0.85 = 1.176
+      expect(exchangeRates.value.eur_to_usd_rate).toBeCloseTo(1.17, 1);
+    });
+
+    it("falls back to backend rates if frankfurter.app fails", async () => {
+      // Mock frankfurter.app failure
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
+
+      // Mock backend success
+      const mockRates = { gbp_to_usd_rate: 1.3, eur_to_usd_rate: 1.15 };
+      vi.mocked(api.get).mockResolvedValueOnce({ data: mockRates });
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
+
+      await fetchLiveRate("GBP");
+
+      // Should have fallen back to backend rates
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.3);
+    });
+
+    it("keeps default rates if both external and backend fail", async () => {
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
+      vi.mocked(api.get).mockRejectedValueOnce(new Error("API error"));
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate, exchangeRates } = useCurrencyConversion();
+
+      const originalRate = exchangeRates.value.gbp_to_usd_rate;
+
+      await fetchLiveRate("GBP");
+
+      // Should keep the default rate
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(originalRate);
+    });
+
+    it("does nothing for USD (no conversion needed)", async () => {
+      global.fetch = vi.fn();
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      await fetchLiveRate("USD");
+
+      // Should not call external API for USD
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 });

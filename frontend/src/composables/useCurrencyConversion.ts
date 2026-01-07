@@ -9,7 +9,8 @@ export interface ExchangeRates {
 }
 
 // Module-level cache to prevent duplicate API calls across components
-const DEFAULT_RATES: ExchangeRates = { gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 };
+// Updated Jan 2026 - run scripts/update-exchange-rates.sh to update DB rates
+const DEFAULT_RATES: ExchangeRates = { gbp_to_usd_rate: 1.35, eur_to_usd_rate: 1.17 };
 let cachedRates: ExchangeRates | null = null;
 let ratesLoadPromise: Promise<void> | null = null;
 
@@ -84,6 +85,66 @@ export function useCurrencyConversion() {
     await ratesLoadPromise;
   }
 
+  /**
+   * Fetch live exchange rate for a specific currency from frankfurter.app.
+   * Falls back to backend rates if external API fails, then to defaults.
+   */
+  async function fetchLiveRate(currency: Currency): Promise<void> {
+    // No conversion needed for USD
+    if (currency === "USD") {
+      return;
+    }
+
+    loadingRates.value = true;
+
+    try {
+      // Try frankfurter.app first (free, no auth)
+      const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currency}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const usdToCurrencyRate = data.rates[currency];
+
+        if (usdToCurrencyRate) {
+          // Invert rate: currency->USD = 1 / USD->currency
+          const currencyToUsd = Math.round((1 / usdToCurrencyRate) * 10000) / 10000;
+
+          // Update the specific rate
+          if (currency === "GBP") {
+            exchangeRates.value = {
+              ...exchangeRates.value,
+              gbp_to_usd_rate: currencyToUsd,
+            };
+          } else if (currency === "EUR") {
+            exchangeRates.value = {
+              ...exchangeRates.value,
+              eur_to_usd_rate: currencyToUsd,
+            };
+          }
+
+          loadingRates.value = false;
+          return;
+        }
+      }
+
+      throw new Error("Invalid response from frankfurter.app");
+    } catch (e) {
+      console.warn("Failed to fetch live rate, falling back to backend:", e);
+
+      // Fallback to backend rates
+      try {
+        const res = await api.get("/admin/config");
+        exchangeRates.value = res.data;
+        cachedRates = res.data;
+      } catch (backendError) {
+        console.error("Backend fallback also failed, using defaults:", backendError);
+        // Keep current rates (defaults or previously loaded)
+      }
+    } finally {
+      loadingRates.value = false;
+    }
+  }
+
   return {
     selectedCurrency,
     exchangeRates,
@@ -91,6 +152,7 @@ export function useCurrencyConversion() {
     currencySymbol,
     convertToUsd,
     loadExchangeRates,
+    fetchLiveRate,
   };
 }
 
