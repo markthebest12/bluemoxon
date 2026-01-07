@@ -1836,9 +1836,7 @@ def generate_analysis_async(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # Auto-fail stale jobs and check for active jobs
-    handle_stale_jobs(
-        db, AnalysisJob, book_id, job_type_name="Analysis job", use_skip_locked=True
-    )
+    handle_stale_jobs(db, AnalysisJob, book_id, job_type_name="Analysis job", use_skip_locked=True)
 
     # Create job record
     job = AnalysisJob(

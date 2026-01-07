@@ -117,9 +117,7 @@ class TestHandleStaleJobs:
         test_book = create_test_book(db)
 
         # 1 second under threshold - should be active
-        just_under = datetime.now(UTC) - timedelta(
-            minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=-1
-        )
+        just_under = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=-1)
         job = AnalysisJob(
             book_id=test_book.id,
             status="running",
@@ -142,9 +140,7 @@ class TestHandleStaleJobs:
         test_book = create_test_book(db)
 
         # 1 second over threshold - should be stale
-        just_over = datetime.now(UTC) - timedelta(
-            minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=1
-        )
+        just_over = datetime.now(UTC) - timedelta(minutes=STALE_JOB_THRESHOLD_MINUTES, seconds=1)
         job = AnalysisJob(
             book_id=test_book.id,
             status="running",
@@ -219,8 +215,6 @@ class TestHandleStaleJobs:
         db.commit()
 
         with pytest.raises(HTTPException) as exc_info:
-            handle_stale_jobs(
-                db, AnalysisJob, book_id=test_book.id, job_type_name="Analysis job"
-            )
+            handle_stale_jobs(db, AnalysisJob, book_id=test_book.id, job_type_name="Analysis job")
 
         assert "Analysis job already in progress" in exc_info.value.detail
