@@ -1476,6 +1476,7 @@ jobs:
           echo "Vue app check passed!"
 
       - name: Validate frontend config
+        if: needs.deploy-frontend.result == 'success'
         run: |
           APP_URL="${{ steps.urls.outputs.app_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
@@ -1502,6 +1503,12 @@ jobs:
           fi
 
           echo "Frontend validation passed!"
+
+      - name: Skip frontend config check (backend-only deploy)
+        if: needs.deploy-frontend.result != 'success'
+        run: |
+          echo "⏭️ Skipping frontend config validation - frontend was not deployed in this run"
+          echo "This is expected for backend-only or scraper-only changes"
 
       - name: Test image endpoint
         run: |
