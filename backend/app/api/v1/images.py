@@ -18,6 +18,9 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
 
+# Module logger
+logger = logging.getLogger(__name__)
+
 # Thumbnail settings
 THUMBNAIL_SIZE = (300, 300)  # Max width/height for thumbnails
 THUMBNAIL_QUALITY = 85  # JPEG quality for thumbnails
@@ -376,6 +379,7 @@ async def upload_image(
             "url": url,
             "duplicate": True,
             "message": "Image already exists (identical content)",
+            "thumbnail_generated": None,  # No generation attempted for duplicate
         }
 
     # Generate unique filename
@@ -398,7 +402,6 @@ async def upload_image(
         generate_thumbnail, file_path, thumbnail_path
     )
     if not thumbnail_success:
-        logger = logging.getLogger(__name__)
         logger.warning(f"Thumbnail generation failed for book {book_id}: {thumbnail_error}")
 
     # Upload to S3 in production - Issue #858: wrap blocking boto3 calls
