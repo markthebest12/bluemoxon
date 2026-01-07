@@ -104,6 +104,7 @@ jobs:
       scraper_function_name: ${{ steps.config.outputs.scraper_function_name }}
       scraper_ecr_repository: ${{ steps.config.outputs.scraper_ecr_repository }}
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
+      artifacts_bucket: ${{ steps.config.outputs.artifacts_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
       api_url: ${{ steps.config.outputs.api_url }}
       app_url: ${{ steps.config.outputs.app_url }}
@@ -330,6 +331,7 @@ jobs:
 
           # S3 and CloudFront
           echo "s3_frontend_bucket=$(terraform output -raw frontend_bucket_name)" >> $GITHUB_OUTPUT
+          echo "artifacts_bucket=$(terraform output -raw artifacts_bucket_name)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(terraform output -raw frontend_cdn_distribution_id)" >> $GITHUB_OUTPUT
 
           # URLs
@@ -443,8 +445,8 @@ jobs:
           echo "lock_hash=$REQ_HASH" >> $GITHUB_OUTPUT
           echo "layer_s3_key=lambda/layer-${REQ_HASH}.zip" >> $GITHUB_OUTPUT
 
-          # Check if layer already exists in S3
-          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+          # Check if layer already exists in S3 (artifacts bucket)
+          S3_BUCKET="${{ needs.configure.outputs.artifacts_bucket }}"
           if aws s3 ls "s3://${S3_BUCKET}/lambda/layer-${REQ_HASH}.zip" 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Layer already exists for requirements.txt hash: $REQ_HASH"
@@ -481,7 +483,7 @@ jobs:
         if: steps.layer-check.outputs.exists == 'false'
         run: |
           LOCK_HASH=${{ steps.layer-check.outputs.lock_hash }}
-          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+          S3_BUCKET="${{ needs.configure.outputs.artifacts_bucket }}"
 
           # Upload with hash for caching
           aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
@@ -683,13 +685,13 @@ jobs:
 
       - name: Upload Lambda to S3
         run: |
-          aws s3 cp lambda-package.zip s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
+          aws s3 cp lambda-package.zip s3://${{ needs.configure.outputs.artifacts_bucket }}/lambda/backend.zip
 
       - name: Publish or reuse layer version
         id: publish-layer
         run: |
           ENV="${{ needs.configure.outputs.environment }}"
-          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
+          S3_BUCKET="${{ needs.configure.outputs.artifacts_bucket }}"
           LAYER_S3_KEY="${{ needs.build-layer.outputs.layer_s3_key }}"
           LAYER_NAME="bluemoxon-${ENV}-deps"
           LAYER_EXISTS="${{ needs.build-layer.outputs.layer_exists }}"
@@ -729,7 +731,7 @@ jobs:
 
       - name: Update Lambda function code
         run: |
-          aws lambda update-function-code --function-name ${{ needs.configure.outputs.lambda_function_name }} --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name ${{ needs.configure.outputs.lambda_function_name }} --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Lambda code update
         run: |
@@ -823,7 +825,7 @@ jobs:
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           echo "Deploying worker Lambda: $WORKER_FUNCTION"
-          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Worker Lambda code update
         run: |
@@ -899,7 +901,7 @@ jobs:
         run: |
           EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
           echo "Deploying eval runbook worker Lambda: $EVAL_RUNBOOK_FUNCTION"
-          aws lambda update-function-code --function-name "$EVAL_RUNBOOK_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name "$EVAL_RUNBOOK_FUNCTION" --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Eval Runbook Worker Lambda code update
         run: |
@@ -975,7 +977,7 @@ jobs:
         run: |
           CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
           echo "Deploying cleanup Lambda: $CLEANUP_FUNCTION"
-          aws lambda update-function-code --function-name "$CLEANUP_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name "$CLEANUP_FUNCTION" --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Cleanup Lambda code update
         run: |
@@ -1051,7 +1053,7 @@ jobs:
         run: |
           DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
           echo "Deploying tracking dispatcher Lambda: $DISPATCHER_FUNCTION"
-          aws lambda update-function-code --function-name "$DISPATCHER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name "$DISPATCHER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Tracking Dispatcher Lambda code update
         run: |
@@ -1127,7 +1129,7 @@ jobs:
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
           echo "Deploying tracking worker Lambda: $WORKER_FUNCTION"
-          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} --s3-key lambda/backend.zip
+          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.artifacts_bucket }} --s3-key lambda/backend.zip
 
       - name: Wait for Tracking Worker Lambda code update
         run: |
@@ -1261,7 +1263,7 @@ jobs:
       - name: Sync frontend to S3 (hashed assets)
         run: |
           echo "Syncing hashed assets with long cache..."
-          aws s3 sync frontend-dist/ s3://${{ needs.configure.outputs.s3_frontend_bucket }}/ --delete --cache-control "max-age=31536000,public" --exclude "index.html" --exclude "*.json" --exclude "lambda/*"
+          aws s3 sync frontend-dist/ s3://${{ needs.configure.outputs.s3_frontend_bucket }}/ --delete --cache-control "max-age=31536000,public" --exclude "index.html" --exclude "*.json"
 
       - name: Upload index.html with no-cache
         run: |
