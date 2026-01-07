@@ -1055,3 +1055,36 @@ class TestBuildBookResponse:
 
         assert response.analysis_job_status == "running"
         assert response.eval_runbook_job_status == "pending"
+
+    def test_builds_response_with_legacy_enum_values(self, db):
+        """Test BookResponse accepts legacy DB values that don't match enums.
+
+        The database has free-form values like:
+        - condition_grade: "VG", "VG+", "Good+", "Fair to Good"
+        - provenance_tier: "Tier 3" (vs enum "TIER_3")
+
+        BookResponse must serialize these without 500 errors.
+        """
+        from app.api.v1.books import _build_book_response
+        from app.models import Book
+
+        # Create book with legacy values that don't match enums
+        book = Book(
+            title="Book With Legacy Values",
+            condition_grade="VG+",  # Not in ConditionGrade enum
+            provenance_tier="Tier 3",  # Not in Tier enum (expects TIER_3)
+            status="ON_HAND",  # Matches enum
+            inventory_type="PRIMARY",  # Matches enum
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        # Should not raise ValidationError
+        response = _build_book_response(book, db)
+
+        # Legacy values should serialize as-is
+        assert response.condition_grade == "VG+"
+        assert response.provenance_tier == "Tier 3"
+        assert response.status == "ON_HAND"
+        assert response.inventory_type == "PRIMARY"
