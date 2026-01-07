@@ -958,6 +958,12 @@ layer(utilities);
     display: block !important;
   }
 
+  /* Remove top padding from main when navbar is hidden */
+  main {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
   /* When printing analysis, hide the main app content (background page) */
   body.printing-analysis > #app {
     display: none !important;

@@ -117,7 +117,7 @@ function onStatusChange(newStatus: string) {
         </div>
         <div>
           <dt class="text-sm text-gray-500">Status</dt>
-          <dd>
+          <dd class="mt-1">
             <!-- Editors can change status -->
             <select
               v-if="isEditor"

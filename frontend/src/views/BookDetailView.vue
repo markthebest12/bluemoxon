@@ -246,9 +246,11 @@ function printPage() {
 <style scoped>
 /* Print styles */
 @media print {
-  /* Optimize layout for print */
+  /* Remove top margin to prevent blank first page */
   .max-w-5xl {
     max-width: none !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   .card {
@@ -268,7 +270,7 @@ function printPage() {
   }
 
   /* Hide image hover overlays */
-  .group > button > div {
+  :deep(.group > button > div) {
     display: none !important;
   }
 
