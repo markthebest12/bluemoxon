@@ -615,6 +615,11 @@ jobs:
       layer_arn: ${{ steps.publish-layer.outputs.layer_arn }}
 
     steps:
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
