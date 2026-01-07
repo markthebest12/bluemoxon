@@ -27,6 +27,12 @@ variable "images_bucket_arns" {
   default     = []
 }
 
+variable "artifacts_bucket_arns" {
+  type        = list(string)
+  description = "S3 bucket ARNs for CI/CD artifacts (Lambda packages, layers)"
+  default     = []
+}
+
 variable "lambda_function_arns" {
   type        = list(string)
   description = "Lambda function ARN patterns for deployment (supports wildcards)"

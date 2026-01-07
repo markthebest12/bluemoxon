@@ -62,6 +62,11 @@ output "frontend_bucket_name" {
   value       = module.frontend_bucket.bucket_name
 }
 
+output "artifacts_bucket_name" {
+  description = "S3 bucket for CI/CD artifacts (Lambda packages, layers)"
+  value       = module.artifacts_bucket.bucket_name
+}
+
 output "frontend_cdn_distribution_id" {
   description = "Frontend CloudFront distribution ID"
   value       = var.enable_cloudfront ? module.frontend_cdn[0].distribution_id : null

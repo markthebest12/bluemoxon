@@ -83,6 +83,21 @@ module "logs_bucket" {
 }
 
 # =============================================================================
+# Artifacts Bucket (Lambda packages, build artifacts)
+# =============================================================================
+
+module "artifacts_bucket" {
+  source = "./modules/s3"
+
+  bucket_name         = "${var.app_name}-artifacts-${var.environment}"
+  enable_versioning   = true  # Enables rollback to previous deploy artifacts
+  block_public_access = true  # No public access needed
+  enable_website      = false # Not a website
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # CloudFront Distributions (optional)
 # =============================================================================
 
@@ -252,7 +267,7 @@ module "lambda_layer" {
 
   layer_name  = "bluemoxon-${var.environment}-deps"
   description = "Shared Python dependencies for BlueMoxon Lambdas"
-  s3_bucket   = module.frontend_bucket.bucket_id
+  s3_bucket   = module.artifacts_bucket.bucket_id
   s3_key      = "lambda/layer.zip"
 
   tags = local.common_tags
@@ -753,6 +768,9 @@ module "github_oidc" {
   images_bucket_arns = length(var.github_oidc_images_bucket_arns) > 0 ? var.github_oidc_images_bucket_arns : [
     module.images_bucket.bucket_arn
   ]
+
+  # Artifacts bucket for Lambda packages and layers
+  artifacts_bucket_arns = [module.artifacts_bucket.bucket_arn]
 
   # CloudFront permissions - use overrides if provided, otherwise use terraform module outputs
   cloudfront_distribution_arns = length(var.github_oidc_cloudfront_distribution_arns) > 0 ? var.github_oidc_cloudfront_distribution_arns : (
