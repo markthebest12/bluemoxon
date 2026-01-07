@@ -3,9 +3,66 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.enums import (
+    BookStatus,
+    ConditionGrade,
+    InventoryType,
+    SortOrder,
+    Tier,
+)
+
+# Enum usage pattern:
+# - BookBase: Uses enums for INPUT validation (BookCreate inherits this)
+# - BookResponse: Overrides enum fields to str for OUTPUT (accepts any DB value)
+# - BookListParams: Uses enums for QUERY PARAM validation (filtering)
+# - BookUpdate: Uses enums for INPUT validation (explicit field definitions)
+#
+# This separation ensures:
+# 1. New data is validated against known values (prevents data quality issues)
+# 2. Legacy DB values (e.g., "VG", "Tier 3") serialize without 500 errors
 from app.schemas.common import PaginatedResponse
+
+
+class BookListParams(BaseModel):
+    """Query parameters for listing books."""
+
+    # Pagination
+    page: int = Field(default=1, ge=1)
+    per_page: int = Field(default=20, ge=1, le=100)
+
+    # Search
+    q: str | None = Field(default=None, description="Search query for title, author, notes")
+
+    # Filters with enum validation
+    status: BookStatus | None = None
+    inventory_type: InventoryType | None = None
+    category: str | None = None  # Too many values for enum
+    publisher_id: int | None = None
+    publisher_tier: Tier | None = None
+    author_id: int | None = None
+    binder_id: int | None = None
+    binding_authenticated: bool | None = None
+    binding_type: str | None = None  # Too many values for enum
+    condition_grade: ConditionGrade | None = None
+    provenance_tier: Tier | None = None
+
+    # Range filters
+    min_value: float | None = None
+    max_value: float | None = None
+    year_start: int | None = None
+    year_end: int | None = None
+
+    # Boolean filters
+    has_images: bool | None = None
+    has_analysis: bool | None = None
+    has_provenance: bool | None = None
+    is_first_edition: bool | None = None
+
+    # Sorting - allows any valid Book column, falls back to title
+    sort_by: str = "title"
+    sort_order: SortOrder = SortOrder.ASC
 
 
 class BookBase(BaseModel):
@@ -17,11 +74,11 @@ class BookBase(BaseModel):
     volumes: int = 1
     is_complete: bool = True  # Set is complete (all volumes present)
     category: str | None = None
-    inventory_type: str = "PRIMARY"
+    inventory_type: InventoryType = InventoryType.PRIMARY
     binding_type: str | None = None
     binding_authenticated: bool = False
     binding_description: str | None = None
-    condition_grade: str | None = None
+    condition_grade: ConditionGrade | None = None
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -32,12 +89,12 @@ class BookBase(BaseModel):
     purchase_source: str | None = None
     discount_pct: Decimal | None = None
     roi_pct: Decimal | None = None
-    status: str = "ON_HAND"
+    status: BookStatus = BookStatus.ON_HAND
     notes: str | None = None
     provenance: str | None = None
     is_first_edition: bool | None = None
     has_provenance: bool = False
-    provenance_tier: str | None = None
+    provenance_tier: Tier | None = None
 
     # Source tracking
     source_url: str | None = None
@@ -83,11 +140,11 @@ class BookUpdate(BaseModel):
     volumes: int | None = None
     is_complete: bool | None = None
     category: str | None = None
-    inventory_type: str | None = None
+    inventory_type: InventoryType | None = None
     binding_type: str | None = None
     binding_authenticated: bool | None = None
     binding_description: str | None = None
-    condition_grade: str | None = None
+    condition_grade: ConditionGrade | None = None
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -98,12 +155,12 @@ class BookUpdate(BaseModel):
     purchase_source: str | None = None
     discount_pct: Decimal | None = None
     roi_pct: Decimal | None = None
-    status: str | None = None
+    status: BookStatus | None = None
     notes: str | None = None
     provenance: str | None = None
     is_first_edition: bool | None = None
     has_provenance: bool | None = None
-    provenance_tier: str | None = None
+    provenance_tier: Tier | None = None
     source_url: str | None = None
     source_item_id: str | None = None
     estimated_delivery: date | None = None
@@ -144,6 +201,12 @@ class BinderSummary(BaseModel):
 
 class BookResponse(BookBase):
     """Book response schema."""
+
+    # Override enum fields to accept any DB value (legacy data may not match enums)
+    status: str
+    inventory_type: str
+    provenance_tier: str | None = None
+    condition_grade: str | None = None
 
     id: int
     author: AuthorSummary | None = None
