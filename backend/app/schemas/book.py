@@ -13,9 +13,15 @@ from app.enums import (
     Tier,
 )
 
-# Note: ConditionGrade enum is used ONLY for query param validation (BookListParams).
-# BookBase uses str for condition_grade because the database has free-form values
-# (e.g., "VG", "VG+", "Good+", "Fair to Good") that don't fit a strict enum.
+# Enum usage pattern:
+# - BookBase: Uses enums for INPUT validation (BookCreate inherits this)
+# - BookResponse: Overrides enum fields to str for OUTPUT (accepts any DB value)
+# - BookListParams: Uses enums for QUERY PARAM validation (filtering)
+# - BookUpdate: Uses enums for INPUT validation (explicit field definitions)
+#
+# This separation ensures:
+# 1. New data is validated against known values (prevents data quality issues)
+# 2. Legacy DB values (e.g., "VG", "Tier 3") serialize without 500 errors
 from app.schemas.common import PaginatedResponse
 
 
@@ -72,7 +78,7 @@ class BookBase(BaseModel):
     binding_type: str | None = None
     binding_authenticated: bool = False
     binding_description: str | None = None
-    condition_grade: str | None = None  # Free-form, not enum (see note above)
+    condition_grade: ConditionGrade | None = None
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -138,7 +144,7 @@ class BookUpdate(BaseModel):
     binding_type: str | None = None
     binding_authenticated: bool | None = None
     binding_description: str | None = None
-    condition_grade: str | None = None  # Free-form, not enum
+    condition_grade: ConditionGrade | None = None
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -195,6 +201,12 @@ class BinderSummary(BaseModel):
 
 class BookResponse(BookBase):
     """Book response schema."""
+
+    # Override enum fields to accept any DB value (legacy data may not match enums)
+    status: str
+    inventory_type: str
+    provenance_tier: str | None = None
+    condition_grade: str | None = None
 
     id: int
     author: AuthorSummary | None = None
