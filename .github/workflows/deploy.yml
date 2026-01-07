@@ -388,8 +388,6 @@ jobs:
           echo "Validation complete - using Terraform values as source of truth"
 
       - name: Validate artifacts bucket access
-        env:
-          AWS_REGION: ${{ steps.env.outputs.aws_region }}
         run: |
           BUCKET="${{ steps.config.outputs.s3_artifacts_bucket }}"
           if [[ -z "$BUCKET" ]]; then
