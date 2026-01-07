@@ -621,15 +621,6 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Publish or reuse layer version
-        id: publish-layer
-        run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
-          LAYER_S3_KEY="${{ needs.build-layer.outputs.layer_s3_key }}"
-          LAYER_NAME="bluemoxon-${ENV}-deps"
-          LAYER_EXISTS="${{ needs.build-layer.outputs.layer_exists }}"
-
       - name: Upload Lambda to S3
         run: |
           aws s3 cp lambda-package.zip s3://${{ needs.configure.outputs.s3_artifacts_bucket }}/lambda/backend.zip
