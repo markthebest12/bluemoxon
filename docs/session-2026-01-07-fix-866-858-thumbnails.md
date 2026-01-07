@@ -93,44 +93,49 @@ await asyncio.to_thread(s3.upload_file, ...)
 
 ## Current Status
 
-### PR #913: MERGED to staging
+### PR #913: MERGED to staging ✅
 - All code changes merged successfully
 - 1101 tests passing
 
-### Deploy Issue (BLOCKING)
-The deploy workflow is failing because `deploy-api-lambda` job was missing `download-artifact` step.
+### Staging Deploy: COMPLETED ✅
+- Deploy workflow fix (commit `b2dda0e`) added missing `download-artifact` step
+- API deployed: version `2026.01.07-b2dda0e`
+- Smoke test "frontend version mismatch" is **false positive** (no frontend changes → no frontend rebuild)
+- Backend API is healthy and functioning correctly
 
-**Fix Applied:** Added download-artifact step to `deploy.yml`:
-```yaml
-- name: Download Lambda artifact
-  uses: actions/download-artifact@v4
-  with:
-    name: lambda-package
+### Staging Verification: PASSED ✅
+All three `thumbnail_status` values verified:
+```json
+// thumbnail_status: "generated" (success)
+{"id":4158,"thumbnail_status":"generated","thumbnail_error":null}
+
+// thumbnail_status: "failed" (with error details)
+{"id":4156,"thumbnail_status":"failed","thumbnail_error":"cannot identify image file '...'"}
+
+// thumbnail_status: "skipped" (duplicate)
+{"id":4156,"thumbnail_status":"skipped","duplicate":true}
 ```
-
-**Fix Pushed:** Commit `b2dda0e` pushed directly to staging
 
 ---
 
 ## Next Steps
 
-1. **Monitor Deploy Workflow**
+1. **Create PR staging → main** for production deploy
    ```bash
-   gh run list --workflow Deploy --branch staging --limit 1
+   gh pr create --base main --head staging --title "chore: Promote thumbnail fixes to production"
+   ```
+
+2. **After PR merge:** Watch production deploy
+   ```bash
+   gh run list --workflow Deploy --branch main --limit 1
    gh run watch <run-id> --exit-status
    ```
 
-2. **If Deploy Succeeds:** Verify in staging
+3. **Production verification:**
    ```bash
-   bmx-api POST /books/1/images  # Test upload with new response
+   bmx-api --prod GET /health/version
+   bmx-api --prod --image test.jpg POST /books/<id>/images
    ```
-
-3. **If Deploy Still Fails:** Check logs for artifact issue
-   ```bash
-   gh run view <run-id> --log-failed
-   ```
-
-4. **After Staging Validation:** Create PR staging → main for production
 
 ---
 
