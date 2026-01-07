@@ -110,8 +110,10 @@ jobs:
       - name: Initialize Terraform
         working-directory: infra/terraform
         run: |
+          # Use backend config files as single source of truth (DRY)
           terraform init -backend-config="${{ steps.env.outputs.tf_backend_file }}"
 
+      # Drift check is non-blocking - warns but doesn't fail deployment
       - name: Check for infrastructure drift
         id: drift
         continue-on-error: true
@@ -187,6 +189,7 @@ jobs:
             );
 
             if (existingDriftIssue) {
+              // Update existing issue with new detection
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -196,6 +199,7 @@ jobs:
             **Detected during:** Deploy to ${env}
             **Branch:** \`${branch}\`
             **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
+            **Date:** ${new Date().toISOString().split('T')[0]}
 
             | Metric | Count |
             |--------|-------|
@@ -203,10 +207,15 @@ jobs:
             | Resources to change | ${changes} |
             | Resources to destroy | ${destroys} |
 
-            [View workflow run](${runUrl})`
+            [View workflow run](${runUrl})
+
+            ---
+            ⚠️ Deployment continued (warn-only mode)`
               });
+              console.log(`Updated existing drift issue #${existingDriftIssue.number}`);
             } else {
-              await github.rest.issues.create({
+              // Create new issue
+              const issue = await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: `[${env}] Infrastructure Drift Detected (Pre-Deploy)`,
@@ -215,15 +224,35 @@ jobs:
 
             **Environment:** ${env}
             **Detected:** ${new Date().toISOString()}
+            **Branch:** \`${branch}\`
+            **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
 
+            ### Summary
             | Metric | Count |
             |--------|-------|
             | Resources to add | ${adds} |
             | Resources to change | ${changes} |
             | Resources to destroy | ${destroys} |
 
-            [View workflow run](${runUrl})`
+            ### What Happened
+            Pre-deploy drift check detected infrastructure differences. Deployment continued in **warn-only mode**.
+
+            ### Next Steps
+            1. Review the [workflow run](${runUrl}) for details
+            2. Either:
+               - Apply Terraform to fix drift: \`terraform apply -var-file=envs/${env === 'production' ? 'prod' : 'staging'}.tfvars\`
+               - Import manual resources: \`terraform import\`
+               - Document exception in \`docs/MANUAL_CHANGES.md\`
+
+            ### Root Cause Investigation
+            - [ ] Was this a manual AWS console change?
+            - [ ] Was this a CLI change without Terraform?
+            - [ ] Is this expected (pending Terraform PR)?
+
+            ---
+            Related: #235 (Pre-deploy drift check feature)`
               });
+              console.log(`Created drift issue #${issue.data.number}`);
             }
 
       - name: Read Terraform outputs
@@ -255,6 +284,48 @@ jobs:
           echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
           echo "cognito_client_id=$(terraform output -raw cognito_client_id)" >> $GITHUB_OUTPUT
           echo "cognito_domain=$(terraform output -raw cognito_domain)" >> $GITHUB_OUTPUT
+
+      - name: Validate config consistency
+        working-directory: infra/terraform
+        run: |
+          # Compare against static config files (warn only, don't fail)
+          if [[ "${{ steps.env.outputs.environment }}" == "production" ]]; then
+            CONFIG_FILE="../config/production.json"
+          else
+            CONFIG_FILE="../config/staging.json"
+          fi
+
+          echo "Validating against static config: $CONFIG_FILE"
+
+          # Compare key values
+          STATIC_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_POOL_ID="${{ steps.config.outputs.cognito_user_pool_id }}"
+
+          if [[ -n "$STATIC_POOL_ID" && "$STATIC_POOL_ID" != "$TF_POOL_ID" ]]; then
+            echo "::warning::Config drift detected: cognito_user_pool_id"
+            echo "  Static: $STATIC_POOL_ID"
+            echo "  Terraform: $TF_POOL_ID"
+          fi
+
+          STATIC_CLIENT_ID=$(jq -r '.cognito.app_client_id' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_CLIENT_ID="${{ steps.config.outputs.cognito_client_id }}"
+
+          if [[ -n "$STATIC_CLIENT_ID" && "$STATIC_CLIENT_ID" != "$TF_CLIENT_ID" ]]; then
+            echo "::warning::Config drift detected: cognito_client_id"
+            echo "  Static: $STATIC_CLIENT_ID"
+            echo "  Terraform: $TF_CLIENT_ID"
+          fi
+
+          STATIC_LAMBDA=$(jq -r '.lambda.function_name' $CONFIG_FILE 2>/dev/null || echo '')
+          TF_LAMBDA="${{ steps.config.outputs.lambda_function_name }}"
+
+          if [[ -n "$STATIC_LAMBDA" && "$STATIC_LAMBDA" != "$TF_LAMBDA" ]]; then
+            echo "::warning::Config drift detected: lambda_function_name"
+            echo "  Static: $STATIC_LAMBDA"
+            echo "  Terraform: $TF_LAMBDA"
+          fi
+
+          echo "Validation complete - using Terraform values as source of truth"
 
   # ============================================
   # Generate Version
@@ -541,6 +612,32 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Capture current Lambda state
+        id: current-state
+        run: |
+          FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
+
+          # Get current layer version (if any)
+          CURRENT_LAYERS=$(aws lambda get-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --query 'Layers[*].Arn' \
+            --output text 2>/dev/null || echo "none")
+
+          echo "Current layers: $CURRENT_LAYERS"
+          echo "current_layers=$CURRENT_LAYERS" >> $GITHUB_OUTPUT
+
+          # Get current published version via alias
+          ALIAS_NAME="${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }}"
+
+          CURRENT_VERSION=$(aws lambda get-alias \
+            --function-name "$FUNCTION_NAME" \
+            --name "$ALIAS_NAME" \
+            --query 'FunctionVersion' \
+            --output text 2>/dev/null || echo "none")
+
+          echo "Current alias version: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
       - name: Download Lambda artifact
         uses: actions/download-artifact@v7
         with:
@@ -549,9 +646,13 @@ jobs:
 
       - name: Upload Lambda to S3
         run: |
+          echo "Uploading Lambda package to S3..."
           aws s3 cp lambda-package.zip \
             s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
+          echo "Upload complete"
 
+      # IMPORTANT: Update layer BEFORE code to prevent race condition
+      # where old code runs with new dependencies (or vice versa)
       - name: Update Lambda with layer
         run: |
           LAYER_ARN="${{ needs.deploy-layer.outputs.layer_arn }}"
@@ -628,7 +729,8 @@ jobs:
   deploy-workers:
     name: Deploy Worker Lambdas
     runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-backend, deploy-layer]
+    # NOTE: Depends on deploy-api-lambda to ensure S3 upload completes first
+    needs: [configure, generate-version, build-backend, deploy-layer, deploy-api-lambda]
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       worker_version: ${{ steps.publish-worker.outputs.version }}
@@ -726,7 +828,8 @@ jobs:
   deploy-utility-lambdas:
     name: Deploy Utility Lambdas
     runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-backend, deploy-layer]
+    # NOTE: Depends on deploy-api-lambda to ensure S3 upload completes first
+    needs: [configure, generate-version, build-backend, deploy-layer, deploy-api-lambda]
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       cleanup_version: ${{ steps.publish-cleanup.outputs.version }}
