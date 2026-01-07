@@ -130,50 +130,111 @@ flowchart TB
 
 ## Deploy Workflow (`deploy.yml`)
 
-Runs on push to `main`. Uses parallel Lambda deployment for ~50% faster deploys.
+**Unified workflow** for both staging and production - deploys based on branch:
+- Push to `staging` → deploys to staging environment
+- Push to `main` → deploys to production environment
+
+Uses parallel Lambda deployment and smart caching for ~50% faster deploys.
 
 ```mermaid
 flowchart TB
-    subgraph "Stage 1: CI"
+    subgraph "Stage 1: CI + Detection"
         CI[ci workflow<br/>All quality gates]
+        CHG[changes<br/>Path-based filtering]
+        CFG[configure<br/>Terraform outputs +<br/>Drift detection]
     end
 
     subgraph "Stage 2: Build (Parallel)"
-        BL[build-layer<br/>Lambda dependencies<br/>~60s]
-        BF[build-frontend<br/>Vite build<br/>~45s]
+        BL[build-layer<br/>Lambda deps<br/>Hash-cached]
+        BB[build-backend<br/>Lambda package]
+        BF[build-frontend<br/>Vite build]
+        BS[build-scraper<br/>Docker image]
     end
 
-    subgraph "Stage 3: Deploy Layer"
-        DL[deploy-layer<br/>Upload to S3<br/>~15s]
+    subgraph "Stage 3: Deploy API + Layer"
+        DA[deploy-api-lambda<br/>Publishes layer]
     end
 
     subgraph "Stage 4: Deploy Lambdas (Parallel)"
-        DA[deploy-api-lambda<br/>Main API]
-        DW[deploy-workers<br/>Analysis worker]
-        DU[deploy-utility-lambdas<br/>Scraper, Archiver,<br/>Migration]
+        DW[deploy-worker-lambda<br/>Analysis]
+        DE[deploy-eval-worker-lambda<br/>Eval Runbook]
+        DC[deploy-cleanup-lambda<br/>Cleanup]
+        DTD[deploy-tracking-dispatcher<br/>Tracking Dispatcher]
+        DTW[deploy-tracking-worker<br/>Tracking Worker]
+        DSC[deploy-scraper-lambda<br/>Scraper]
     end
 
-    subgraph "Stage 5: Deploy Frontend"
+    subgraph "Stage 5: Frontend + Migrations"
         DF[deploy-frontend<br/>S3 + CloudFront]
+        MIG[run-migrations<br/>DB migrations]
     end
 
     subgraph "Stage 6: Validate"
-        SM[smoke-test<br/>Health, API, Frontend]
+        SM[smoke-test<br/>Health, API, Frontend,<br/>Version checks]
         TAG[tag-release<br/>v{date}-{sha}]
     end
 
-    CI --> BL & BF
-    BL --> DL
-    DL --> DA & DW & DU
+    CI --> CHG & CFG
+    CHG --> BL & BB & BF & BS
+    CFG --> BL & BB & BF & BS
+    BL --> DA
+    BB --> DA
+    DA --> DW & DE & DC & DTD & DTW
+    BS --> DSC
     BF --> DF
-    DA & DW & DU & DF --> SM
-    SM --> TAG
+    DA --> MIG
+    DW & DE & DC & DTD & DTW & DSC & DF & MIG --> SM
+    SM -->|production only| TAG
 ```
 
-**Parallel Deploy Benefits:**
-- Previous: Sequential Lambda deploys (~7 min total)
-- Current: Parallel deploys (~3-4 min total)
-- Layer deployed once, shared across all Lambdas
+### Key Features
+
+**Path-Based Filtering:**
+Deploy workflow skips unchanged components:
+| Path Changes | Jobs Run |
+|--------------|----------|
+| `backend/**` | All Lambda deploys, migrations |
+| `frontend/**` | Frontend deploy only |
+| `scraper/**` | Scraper Lambda only |
+
+**Smart Layer Caching:**
+- Layer is cached by `requirements.txt` hash
+- Unchanged deps → reuses existing layer (saves ~60s)
+- Changed deps → rebuilds and publishes new layer
+
+**Pre-Deploy Drift Detection:**
+- Runs `terraform plan` before deploying
+- If drift detected → creates/updates GitHub issue with label `drift`
+- Non-blocking: deployment continues (warn-only mode)
+
+**Parallel Lambda Deploys:**
+After API Lambda publishes the shared layer, 6 Lambda functions deploy in parallel:
+
+| Lambda | Purpose |
+|--------|---------|
+| `deploy-worker-lambda` | AI analysis worker |
+| `deploy-eval-worker-lambda` | Eval runbook generation |
+| `deploy-cleanup-lambda` | Orphaned resource cleanup |
+| `deploy-tracking-dispatcher` | Shipment tracking dispatcher |
+| `deploy-tracking-worker` | Shipment tracking worker |
+| `deploy-scraper-lambda` | Web scraper (Docker image) |
+
+**Atomicity Checks:**
+Smoke tests detect partial deploy failures - if some Lambda deploys succeeded but others failed, the workflow fails with clear diagnostics.
+
+**Force Full Deploy:**
+Manual trigger option to rebuild all components:
+```bash
+gh workflow run deploy.yml --ref main -f force_full_deploy=true
+```
+
+### Performance
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Lambda deploys | Sequential (~7 min) | Parallel (~3-4 min) |
+| Layer rebuild | Always (~60s) | Cached if unchanged |
+| Total deploy time | ~10 min | ~5-6 min |
 
 ## Branch Strategy
 
@@ -277,22 +338,63 @@ local_path = "/tmp/test"  # noqa: S108
 value = "/tmp/data"  # noqa: S108 # nosec B108
 ```
 
+## Pre-Deploy Drift Detection
+
+Before deploying, the workflow checks for infrastructure drift:
+
+```mermaid
+flowchart LR
+    TF[terraform plan] --> DRIFT{Drift?}
+    DRIFT -->|Yes| ISSUE[Create/Update<br/>GitHub Issue]
+    DRIFT -->|No| CONTINUE[Continue Deploy]
+    ISSUE --> CONTINUE
+```
+
+**How it works:**
+1. Runs `terraform plan -detailed-exitcode` against current state
+2. If changes detected (exit code 2), creates GitHub issue with:
+   - Resources to add/change/destroy
+   - Link to workflow run
+   - Root cause investigation checklist
+3. Deployment continues (warn-only mode)
+4. Subsequent deploys update the existing issue with new comments
+
+**Issue labels:** `drift`, `infra`, `priority:high`
+
+**Resolving drift:**
+```bash
+cd infra/terraform
+AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
+```
+
 ## Smoke Tests
 
 After deployment, automated smoke tests verify:
 
-1. **API Health** - `GET /api/v1/health/deep` returns 200
-2. **Books API** - `GET /api/v1/books` returns valid pagination
-3. **API Schema Validation** - Required fields exist on book responses
-4. **Data Integrity** - Validates source_url format, purchase_price values
-5. **Frontend** - App loads with expected content
-6. **Images** - Image URLs return proper `Content-Type: image/*`
+1. **Partial Deploy Detection** - Checks all deploy jobs succeeded (atomicity)
+2. **API Liveness** - `GET /health` returns 200
+3. **Version Validation** - API version matches expected deploy version
+4. **Environment Validation** - API environment matches target (staging/production)
+5. **Deep Health Check** - `GET /api/v1/health/deep` returns healthy status
+6. **Books API** - `GET /api/v1/books` returns valid response
+7. **Frontend Loads** - Vue app returns 200
+8. **Frontend Config** - JS bundle contains correct version and Cognito client ID
+9. **Image Endpoint** - Image URLs return proper `Content-Type: image/*`
+10. **Worker Lambda Version** - Analysis worker reports correct version
+11. **Scraper Lambda Version** - Scraper reports correct version (if deployed)
 
 If smoke tests fail:
 - The workflow is marked as failed
 - Changes are live (no automatic rollback)
 - Check `gh run view <id> --log-failed` for details
 - Manual rollback may be needed
+
+**Partial Deploy Handling:**
+If some Lambdas succeeded but others failed, smoke tests detect this and fail with:
+```
+CRITICAL: Partial deploy detected - some jobs FAILED while others succeeded!
+```
+Run `force_full_deploy` to restore consistency.
 
 ## Version System
 
@@ -320,12 +422,13 @@ Updates flow: Dependabot PR → staging → test → promote to main
 .github/
 ├── workflows/
 │   ├── ci.yml              # CI checks with path filtering
-│   ├── deploy.yml          # Production deploy (parallel)
-│   ├── deploy-staging.yml  # Staging deploy
+│   ├── deploy.yml          # Unified deploy (staging + production)
 │   ├── deploy-site.yml     # Marketing site deploy
 │   └── terraform.yml       # Infrastructure plan
 ├── dependabot.yml          # Dependency updates (targets staging)
 ```
+
+**Note:** `deploy.yml` handles both environments - push to `staging` branch deploys to staging, push to `main` deploys to production.
 
 ## Troubleshooting
 
@@ -364,4 +467,4 @@ Updates flow: Dependabot PR → staging → test → promote to main
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: January 7, 2026*
