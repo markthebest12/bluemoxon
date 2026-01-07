@@ -76,48 +76,77 @@ export const useAuthStore = defineStore("auth", () => {
         role: "viewer", // Default, will be updated from API
       };
 
+      // Timeout wrapper to prevent hung promises (Issue 6)
+      const AUTH_TIMEOUT_MS = 5000;
+      const withTimeout = <T>(promise: Promise<T>, name: string): Promise<T | null> => {
+        return Promise.race([
+          promise,
+          new Promise<null>((resolve) => {
+            setTimeout(() => {
+              console.warn(`[Auth] ${name} timed out after ${AUTH_TIMEOUT_MS}ms`);
+              resolve(null);
+            }, AUTH_TIMEOUT_MS);
+          }),
+        ]);
+      };
+
+      // Track whether MFA check failed vs returned null result
+      let mfaCheckFailed = false;
+
       // Fetch user profile and MFA preference in parallel for better performance
       // Both calls are independent - we'll use mfa_exempt from profile to decide
       // whether to apply the MFA preference result
       const [userResult, mfaPreference] = await Promise.all([
-        api.get("/users/me").catch((e) => {
-          console.warn("Could not fetch user profile from API:", e);
-          return null;
-        }),
-        fetchMFAPreference().catch((e) => {
-          console.warn("Could not fetch MFA preference:", e);
-          return null;
-        }),
+        withTimeout(
+          api.get("/users/me").catch((e) => {
+            console.warn("Could not fetch user profile from API:", e);
+            return null;
+          }),
+          "/users/me"
+        ),
+        withTimeout(
+          fetchMFAPreference().catch((e) => {
+            console.warn("Could not fetch MFA preference:", e);
+            mfaCheckFailed = true; // Track that check failed (Issue 1)
+            return null;
+          }),
+          "fetchMFAPreference"
+        ),
       ]);
+
+      // Issue 3: Check if logout happened during async operation
+      if (!user.value) {
+        console.warn("[Auth] User logged out during checkAuth, aborting");
+        return;
+      }
 
       // Apply user profile data
       let isMfaExempt = false;
       if (userResult?.data) {
-        if (userResult.data.role) {
-          user.value.role = userResult.data.role;
-        }
-        if (userResult.data.first_name) {
-          user.value.first_name = userResult.data.first_name;
-        }
-        if (userResult.data.last_name) {
-          user.value.last_name = userResult.data.last_name;
-        }
+        user.value.role = userResult.data.role || user.value.role;
+        user.value.first_name = userResult.data.first_name;
+        user.value.last_name = userResult.data.last_name;
         isMfaExempt = userResult.data.mfa_exempt === true;
         user.value.mfa_exempt = isMfaExempt;
       }
 
-      // Apply MFA preference (only if not exempt and we got a result)
-      if (!isMfaExempt && mfaPreference) {
+      // Apply MFA preference
+      if (isMfaExempt) {
+        // User is explicitly MFA-exempt - no MFA required
+        mfaStep.value = "none";
+      } else if (mfaCheckFailed) {
+        // Issue 1: MFA check failed for non-exempt user - require setup for security
+        // Don't silently pass when we can't verify MFA status
+        console.warn("[Auth] MFA check failed for non-exempt user, requiring MFA setup");
+        mfaStep.value = "mfa_setup_required";
+      } else if (mfaPreference) {
+        // MFA check succeeded - check if TOTP is configured
         const hasMfa =
           mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
-        if (!hasMfa) {
-          mfaStep.value = "mfa_setup_required";
-        } else {
-          mfaStep.value = "none";
-        }
+        mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
       } else {
-        // User is MFA-exempt or MFA check failed - no MFA required
-        mfaStep.value = "none";
+        // MFA preference is null (timeout or other) - require setup for security
+        mfaStep.value = "mfa_setup_required";
       }
     } catch (e) {
       // Session check failed - clear user silently (no toast to avoid spam on page load)

@@ -127,7 +127,9 @@ describe("Auth Store", () => {
       expect(mockFetchMFAPreference).toHaveBeenCalled();
     });
 
-    it("handles fetchMFAPreference error without breaking auth", async () => {
+    it("requires MFA setup when MFA check fails for non-exempt user (security)", async () => {
+      // Issue 1: MFA check failure should NOT silently pass
+      // Non-exempt users must have MFA verified - if check fails, require setup
       mockGetCurrentUser.mockResolvedValue({
         username: "testuser",
         userId: "123",
@@ -141,18 +143,18 @@ describe("Auth Store", () => {
         },
       });
 
-      // MFA check fails
+      // MFA check fails (Cognito outage, network error, etc.)
       mockFetchMFAPreference.mockRejectedValue(new Error("MFA error"));
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
       await store.checkAuth();
 
-      // Auth should still succeed
+      // Auth should still succeed (user is logged in)
       expect(store.user).not.toBeNull();
       expect(store.user?.role).toBe("editor");
-      // MFA step should be none (graceful degradation)
-      expect(store.mfaStep).toBe("none");
+      // SECURITY: MFA check failed - require setup rather than silently passing
+      expect(store.mfaStep).toBe("mfa_setup_required");
     });
 
     it("skips MFA preference result when user is mfa_exempt", async () => {
@@ -209,5 +211,76 @@ describe("Auth Store", () => {
 
       expect(store.mfaStep).toBe("mfa_setup_required");
     });
+
+    it("handles logout during checkAuth without null reference errors (race condition)", async () => {
+      // Issue 3: If logout() runs while Promise.all is in flight, don't crash
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      // Make /users/me slow so logout can happen during it
+      mockApiGet.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return {
+          data: {
+            role: "editor",
+            mfa_exempt: false,
+          },
+        };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Start checkAuth
+      const checkAuthPromise = store.checkAuth();
+
+      // Simulate logout during the async operation
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      store.user = null; // Simulate logout clearing user
+
+      // Should complete without throwing
+      await expect(checkAuthPromise).resolves.not.toThrow();
+    });
+
+    it("times out slow API calls instead of hanging forever", async () => {
+      // Issue 6: Add timeout handling for hung promises
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      // Make /users/me hang for a long time (longer than timeout)
+      mockApiGet.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 20000)));
+
+      // MFA check also hangs
+      mockFetchMFAPreference.mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 20000))
+      );
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Should complete within reasonable time (auth timeout is 5s)
+      const startTime = Date.now();
+      await store.checkAuth();
+      const elapsed = Date.now() - startTime;
+
+      // Should timeout around 5s, not hang for 20s
+      expect(elapsed).toBeLessThan(7000);
+      expect(elapsed).toBeGreaterThan(4000); // Should wait for timeout
+      // User should still be set from Cognito (just without API profile data)
+      expect(store.user).not.toBeNull();
+      // MFA should require setup since both calls timed out (security)
+      expect(store.mfaStep).toBe("mfa_setup_required");
+    }, 10000); // 10s test timeout
   });
 });
