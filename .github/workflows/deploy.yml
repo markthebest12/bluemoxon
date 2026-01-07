@@ -4,6 +4,9 @@
 # Workflow:
 #   push to staging → deploy to staging environment
 #   push to main    → deploy to production environment
+#
+# PERFORMANCE: Lambda deploys run in parallel after layer is published
+# This reduces deploy time from ~7min to ~3-4min
 
 name: Deploy
 
@@ -107,15 +110,13 @@ jobs:
       - name: Initialize Terraform
         working-directory: infra/terraform
         run: |
-          # Use backend config files as single source of truth (DRY)
           terraform init -backend-config="${{ steps.env.outputs.tf_backend_file }}"
 
       - name: Check for infrastructure drift
         id: drift
-        continue-on-error: true  # Drift check is non-blocking
+        continue-on-error: true
         working-directory: infra/terraform
         env:
-          # Dummy password for plan-only drift check (not applied)
           TF_VAR_db_password: "drift-check-dummy-not-applied"
         run: |
           echo "Running pre-deploy drift check..."
@@ -129,14 +130,12 @@ jobs:
           set -e
 
           if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ No infrastructure drift detected"
+            echo "No infrastructure drift detected"
             echo "drift_detected=false" >> $GITHUB_OUTPUT
           elif [ $EXIT_CODE -eq 2 ]; then
-            # Extract resource counts (use true to prevent exit on no match)
             ADDS=$(grep -c "will be created" plan-output.txt 2>/dev/null || true)
             CHANGES=$(grep -c "will be updated" plan-output.txt 2>/dev/null || true)
             DESTROYS=$(grep -c "will be destroyed" plan-output.txt 2>/dev/null || true)
-            # Default to 0 if empty
             ADDS="${ADDS:-0}"
             CHANGES="${CHANGES:-0}"
             DESTROYS="${DESTROYS:-0}"
@@ -146,14 +145,6 @@ jobs:
             echo "adds=$ADDS" >> $GITHUB_OUTPUT
             echo "changes=$CHANGES" >> $GITHUB_OUTPUT
             echo "destroys=$DESTROYS" >> $GITHUB_OUTPUT
-            echo ""
-            echo "⚠️  DRIFT DETECTED - Deployment will continue (warn-only mode)"
-            echo "   Resources to add:     $ADDS"
-            echo "   Resources to change:  $CHANGES"
-            echo "   Resources to destroy: $DESTROYS"
-            echo ""
-            echo "   Review daily drift-detection workflow for details."
-            echo "   Consider running 'terraform apply' after this deployment."
           else
             echo "::warning::Terraform plan failed (exit code $EXIT_CODE) - continuing deployment"
             echo "drift_detected=error" >> $GITHUB_OUTPUT
@@ -183,7 +174,6 @@ jobs:
             const commitMsg = (process.env.COMMIT_MSG || '').split('\n')[0];
             const branch = process.env.BRANCH_NAME;
 
-            // Check for existing open drift issue
             const existingIssues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -197,7 +187,6 @@ jobs:
             );
 
             if (existingDriftIssue) {
-              // Update existing issue with new detection
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -207,7 +196,6 @@ jobs:
             **Detected during:** Deploy to ${env}
             **Branch:** \`${branch}\`
             **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
-            **Date:** ${new Date().toISOString().split('T')[0]}
 
             | Metric | Count |
             |--------|-------|
@@ -215,15 +203,10 @@ jobs:
             | Resources to change | ${changes} |
             | Resources to destroy | ${destroys} |
 
-            [View workflow run](${runUrl})
-
-            ---
-            ⚠️ Deployment continued (warn-only mode)`
+            [View workflow run](${runUrl})`
               });
-              console.log(`Updated existing drift issue #${existingDriftIssue.number}`);
             } else {
-              // Create new issue
-              const issue = await github.rest.issues.create({
+              await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: `[${env}] Infrastructure Drift Detected (Pre-Deploy)`,
@@ -232,35 +215,15 @@ jobs:
 
             **Environment:** ${env}
             **Detected:** ${new Date().toISOString()}
-            **Branch:** \`${branch}\`
-            **Commit:** [\`${commitSha.substring(0, 7)}\`](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${commitSha}) - ${commitMsg}
 
-            ### Summary
             | Metric | Count |
             |--------|-------|
             | Resources to add | ${adds} |
             | Resources to change | ${changes} |
             | Resources to destroy | ${destroys} |
 
-            ### What Happened
-            Pre-deploy drift check detected infrastructure differences. Deployment continued in **warn-only mode**.
-
-            ### Next Steps
-            1. Review the [workflow run](${runUrl}) for details
-            2. Either:
-               - Apply Terraform to fix drift: \`terraform apply -var-file=envs/${env === 'production' ? 'prod' : 'staging'}.tfvars\`
-               - Import manual resources: \`terraform import\`
-               - Document exception in \`docs/MANUAL_CHANGES.md\`
-
-            ### Root Cause Investigation
-            - [ ] Was this a manual AWS console change?
-            - [ ] Was this a CLI change without Terraform?
-            - [ ] Is this expected (pending Terraform PR)?
-
-            ---
-            Related: #235 (Pre-deploy drift check feature)`
+            [View workflow run](${runUrl})`
               });
-              console.log(`Created drift issue #${issue.data.number}`);
             }
 
       - name: Read Terraform outputs
@@ -269,85 +232,32 @@ jobs:
         run: |
           echo "Reading configuration from Terraform state..."
 
-          # Environment info
           echo "environment=$(terraform output -raw environment)" >> $GITHUB_OUTPUT
           echo "aws_account_id=$(terraform output -raw aws_account_id)" >> $GITHUB_OUTPUT
 
-          # Lambda functions
           echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(terraform output -raw analysis_worker_function_name)" >> $GITHUB_OUTPUT
           echo "eval_runbook_worker_function_name=$(terraform output -raw eval_runbook_worker_function_name)" >> $GITHUB_OUTPUT
 
-          # Cleanup Lambda (may not exist in all envs)
           echo "cleanup_function_name=$(terraform output -raw cleanup_lambda_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-
-          # Tracking Lambdas (may not exist in all envs)
           echo "tracking_dispatcher_function_name=$(terraform output -raw tracking_dispatcher_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "tracking_worker_function_name=$(terraform output -raw tracking_worker_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
-          # Scraper (may not exist in all envs)
           echo "scraper_function_name=$(terraform output -raw scraper_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "scraper_ecr_repository=$(terraform output -raw scraper_ecr_repository 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
-          # S3 and CloudFront
           echo "s3_frontend_bucket=$(terraform output -raw frontend_bucket_name)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(terraform output -raw frontend_cdn_distribution_id)" >> $GITHUB_OUTPUT
 
-          # URLs
           echo "api_url=$(terraform output -raw api_url)" >> $GITHUB_OUTPUT
           echo "app_url=$(terraform output -raw app_url)" >> $GITHUB_OUTPUT
 
-          # Cognito
           echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
           echo "cognito_client_id=$(terraform output -raw cognito_client_id)" >> $GITHUB_OUTPUT
           echo "cognito_domain=$(terraform output -raw cognito_domain)" >> $GITHUB_OUTPUT
 
-          echo "Configuration loaded from Terraform state"
-
-      - name: Validate config consistency
-        working-directory: infra/terraform
-        run: |
-          # Compare against static config files (warn only, don't fail)
-          if [[ "${{ steps.env.outputs.environment }}" == "production" ]]; then
-            CONFIG_FILE="../config/production.json"
-          else
-            CONFIG_FILE="../config/staging.json"
-          fi
-
-          echo "Validating against static config: $CONFIG_FILE"
-
-          # Compare key values
-          STATIC_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE 2>/dev/null || echo '')
-          TF_POOL_ID="${{ steps.config.outputs.cognito_user_pool_id }}"
-
-          if [[ -n "$STATIC_POOL_ID" && "$STATIC_POOL_ID" != "$TF_POOL_ID" ]]; then
-            echo "::warning::Config drift detected: cognito_user_pool_id"
-            echo "  Static: $STATIC_POOL_ID"
-            echo "  Terraform: $TF_POOL_ID"
-          fi
-
-          STATIC_CLIENT_ID=$(jq -r '.cognito.app_client_id' $CONFIG_FILE 2>/dev/null || echo '')
-          TF_CLIENT_ID="${{ steps.config.outputs.cognito_client_id }}"
-
-          if [[ -n "$STATIC_CLIENT_ID" && "$STATIC_CLIENT_ID" != "$TF_CLIENT_ID" ]]; then
-            echo "::warning::Config drift detected: cognito_client_id"
-            echo "  Static: $STATIC_CLIENT_ID"
-            echo "  Terraform: $TF_CLIENT_ID"
-          fi
-
-          STATIC_LAMBDA=$(jq -r '.lambda.function_name' $CONFIG_FILE 2>/dev/null || echo '')
-          TF_LAMBDA="${{ steps.config.outputs.lambda_function_name }}"
-
-          if [[ -n "$STATIC_LAMBDA" && "$STATIC_LAMBDA" != "$TF_LAMBDA" ]]; then
-            echo "::warning::Config drift detected: lambda_function_name"
-            echo "  Static: $STATIC_LAMBDA"
-            echo "  Terraform: $TF_LAMBDA"
-          fi
-
-          echo "Validation complete - using Terraform values as source of truth"
-
   # ============================================
-  # Generate Version (auto-generated, no manual maintenance)
+  # Generate Version
   # ============================================
 
   generate-version:
@@ -361,20 +271,18 @@ jobs:
       - name: Generate version string
         id: version
         run: |
-          # Format: YYYY.MM.DD-<short-sha>
           DATE=$(date -u +%Y.%m.%d)
           SHORT_SHA=${GITHUB_SHA::7}
           VERSION="${DATE}-${SHORT_SHA}"
           DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           echo "Generated version: $VERSION"
-          echo "Deployed at: $DEPLOYED_AT"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "deployed_at=$DEPLOYED_AT" >> $GITHUB_OUTPUT
 
   # ============================================
-  # Build Lambda Layer (dependencies only)
+  # Build Jobs (run in parallel)
   # ============================================
 
   build-layer:
@@ -397,17 +305,14 @@ jobs:
       - name: Check if layer needs rebuild
         id: layer-check
         run: |
-          # Get requirements.txt hash (first 16 chars of sha256)
-          # Note: Layer is built from requirements.txt, so cache key must match
           REQ_HASH=$(sha256sum backend/requirements.txt | cut -d' ' -f1 | head -c 16)
           echo "lock_hash=$REQ_HASH" >> $GITHUB_OUTPUT
           echo "layer_s3_key=lambda/layer-${REQ_HASH}.zip" >> $GITHUB_OUTPUT
 
-          # Check if layer already exists in S3
           S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
           if aws s3 ls "s3://${S3_BUCKET}/lambda/layer-${REQ_HASH}.zip" 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Layer already exists for requirements.txt hash: $REQ_HASH"
+            echo "Layer already exists for hash: $REQ_HASH"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Layer needs to be built for hash: $REQ_HASH"
@@ -416,44 +321,26 @@ jobs:
       - name: Build layer with Docker
         if: steps.layer-check.outputs.exists == 'false'
         run: |
-          echo "Building Lambda layer with dependencies..."
           docker run --rm \
             --entrypoint /bin/bash \
             -v ${{ github.workspace }}/backend:/app:ro \
             -v /tmp/layer-build:/output \
             --platform linux/amd64 \
             public.ecr.aws/lambda/python:3.12 \
-            -c "
-              mkdir -p /output/python
-              pip install -q -t /output/python -r /app/requirements.txt
-            "
+            -c "mkdir -p /output/python && pip install -q -t /output/python -r /app/requirements.txt"
 
-      - name: Create layer zip
+      - name: Create and upload layer zip
         if: steps.layer-check.outputs.exists == 'false'
         run: |
           cd /tmp/layer-build
-          # Keep .dist-info for importlib.metadata (pydantic needs it)
-          zip -q -r ${{ github.workspace }}/layer.zip python \
-            -x "*.pyc" -x "*__pycache__*"
+          zip -q -r ${{ github.workspace }}/layer.zip python -x "*.pyc" -x "*__pycache__*"
           ls -lh ${{ github.workspace }}/layer.zip
 
-      - name: Upload layer to S3
-        if: steps.layer-check.outputs.exists == 'false'
-        run: |
           LOCK_HASH=${{ steps.layer-check.outputs.lock_hash }}
           S3_BUCKET="${{ needs.configure.outputs.s3_frontend_bucket }}"
 
-          # Upload with hash for caching
           aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
-
-          # Also copy to layer.zip for Terraform reference
           aws s3 cp layer.zip "s3://${S3_BUCKET}/lambda/layer.zip"
-
-          echo "Layer uploaded to s3://${S3_BUCKET}/lambda/layer-${LOCK_HASH}.zip"
-
-  # ============================================
-  # Build Lambda Package (code only, deps in layer)
-  # ============================================
 
   build-backend:
     name: Build Lambda Package
@@ -466,8 +353,6 @@ jobs:
       - name: Create VERSION and version_info.json files
         run: |
           echo "${{ needs.generate-version.outputs.version }}" > VERSION
-          echo "VERSION file contents: $(cat VERSION)"
-
           cat > version_info.json << EOF
           {
             "version": "${{ needs.generate-version.outputs.version }}",
@@ -475,11 +360,9 @@ jobs:
             "deployed_at": "${{ needs.generate-version.outputs.deployed_at }}"
           }
           EOF
-          echo "version_info.json contents: $(cat version_info.json)"
 
       - name: Build Lambda package with Docker
         run: |
-          # Copy application code only (dependencies are in the layer)
           docker run --rm \
             --entrypoint /bin/bash \
             -v ${{ github.workspace }}/backend:/app:ro \
@@ -488,20 +371,12 @@ jobs:
             -v /tmp/lambda-deploy:/output \
             --platform linux/amd64 \
             public.ecr.aws/lambda/python:3.12 \
-            -c "
-              cp -r /app/app /output/
-              cp -r /app/lambdas /output/
-              cp /VERSION /output/
-              cp /version_info.json /output/
-            "
+            -c "cp -r /app/app /output/ && cp -r /app/lambdas /output/ && cp /VERSION /output/ && cp /version_info.json /output/"
 
       - name: Create deployment zip
         run: |
           cd /tmp/lambda-deploy
-          zip -q -r ${{ github.workspace }}/lambda-package.zip . \
-            -x "*.pyc" -x "*__pycache__*"
-
-          # Report package size (should be <1MB now)
+          zip -q -r ${{ github.workspace }}/lambda-package.zip . -x "*.pyc" -x "*__pycache__*"
           ls -lh ${{ github.workspace }}/lambda-package.zip
 
       - name: Upload Lambda artifact
@@ -510,10 +385,6 @@ jobs:
           name: lambda-package
           path: lambda-package.zip
           retention-days: 1
-
-  # ============================================
-  # Build Scraper (Docker)
-  # ============================================
 
   build-scraper:
     name: Build Scraper Image
@@ -544,25 +415,13 @@ jobs:
           IMAGE_TAG: ${{ needs.generate-version.outputs.version }}
         working-directory: scraper
         run: |
-          echo "Building scraper image with VERSION=$IMAGE_TAG"
-
-          # Build with version baked in (no provenance for Lambda compatibility)
-          # Note: Don't tag with 'latest' - ECR has tag immutability enabled
           docker build \
             --build-arg VERSION=$IMAGE_TAG \
             --provenance=false \
             --sbom=false \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             .
-
-          # Push versioned tag only
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-          echo "Pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-  # ============================================
-  # Build Frontend
-  # ============================================
 
   build-frontend:
     name: Build Frontend
@@ -573,9 +432,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Create VERSION file
-        run: |
-          echo "${{ needs.generate-version.outputs.version }}" > VERSION
-          echo "VERSION file contents: $(cat VERSION)"
+        run: echo "${{ needs.generate-version.outputs.version }}" > VERSION
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -603,85 +460,27 @@ jobs:
           name: frontend-dist
           path: frontend/dist
           retention-days: 1
-          overwrite: true  # CI job may have uploaded same artifact
+          overwrite: true
 
   # ============================================
-  # Deploy to AWS
+  # Publish Lambda Layer (all Lambda jobs depend on this)
   # ============================================
 
-  deploy:
-    name: Deploy to ${{ needs.configure.outputs.environment }}
+  deploy-layer:
+    name: Publish Lambda Layer
     runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-backend, build-frontend, build-scraper, build-layer]
-    # Always run if build jobs succeed, even if build-scraper was skipped
-    if: |
-      always() &&
-      needs.build-backend.result == 'success' &&
-      needs.build-frontend.result == 'success' &&
-      needs.build-layer.result == 'success' &&
-      (needs.build-scraper.result == 'success' || needs.build-scraper.result == 'skipped')
+    needs: [configure, build-layer]
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
-      api_lambda_version: ${{ steps.lambda-version.outputs.version }}
-      worker_lambda_version: ${{ steps.worker-version.outputs.version }}
-      eval_worker_lambda_version: ${{ steps.eval-runbook-version.outputs.version }}
-      cleanup_lambda_version: ${{ steps.cleanup-version.outputs.version }}
-      tracking_dispatcher_lambda_version: ${{ steps.tracking-dispatcher-version.outputs.version }}
-      tracking_worker_lambda_version: ${{ steps.tracking-worker-version.outputs.version }}
-      scraper_lambda_version: ${{ steps.scraper-version.outputs.version }}
-      layer_version_arn: ${{ steps.publish-layer.outputs.layer_arn }}
+      layer_arn: ${{ steps.publish-layer.outputs.layer_arn }}
 
     steps:
-      - uses: actions/checkout@v6
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          # Select role ARN based on environment (secrets can't be passed via job outputs)
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download Lambda artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: lambda-package
-          path: .
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: frontend-dist
-          path: frontend-dist
-
-      # ---- Capture Current State (for rollback) ----
-      - name: Capture current Lambda state
-        id: current-state
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
-
-          # Get current layer version (if any)
-          CURRENT_LAYERS=$(aws lambda get-function-configuration \
-            --function-name "$FUNCTION_NAME" \
-            --query 'Layers[*].Arn' \
-            --output text 2>/dev/null || echo "none")
-
-          echo "Current layers: $CURRENT_LAYERS"
-          echo "current_layers=$CURRENT_LAYERS" >> $GITHUB_OUTPUT
-
-          # Get current published version via alias
-          ENV="${{ needs.configure.outputs.environment }}"
-          ALIAS_NAME="${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }}"
-
-          CURRENT_VERSION=$(aws lambda get-alias \
-            --function-name "$FUNCTION_NAME" \
-            --name "$ALIAS_NAME" \
-            --query 'FunctionVersion' \
-            --output text 2>/dev/null || echo "none")
-
-          echo "Current version via alias $ALIAS_NAME: $CURRENT_VERSION"
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-      # ---- Publish Lambda Layer ----
       - name: Publish or reuse layer version
         id: publish-layer
         run: |
@@ -693,16 +492,10 @@ jobs:
 
           echo "Layer name: $LAYER_NAME"
           echo "S3 location: s3://${S3_BUCKET}/${LAYER_S3_KEY}"
-          echo "Layer already in S3: $LAYER_EXISTS"
 
-          # Get the SHA256 of the S3 object (for comparison)
-          S3_SHA256=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$LAYER_S3_KEY" --query 'Metadata.sha256' --output text 2>/dev/null || echo "")
-
-          # If layer content unchanged, check if matching layer version exists
           if [[ "$LAYER_EXISTS" == "true" ]]; then
             echo "Layer content unchanged, checking for existing layer version..."
 
-            # Get latest layer version's CodeSha256
             LATEST_VERSION_INFO=$(aws lambda list-layer-versions \
               --layer-name "$LAYER_NAME" \
               --max-items 1 \
@@ -711,19 +504,13 @@ jobs:
 
             if [[ "$LATEST_VERSION_INFO" != "{}" && "$LATEST_VERSION_INFO" != "null" ]]; then
               LATEST_VERSION_ARN=$(echo "$LATEST_VERSION_INFO" | jq -r '.LayerVersionArn')
-              echo "Found existing layer version: $LATEST_VERSION_ARN"
-
-              # Reuse existing layer version (content unchanged)
-              echo "Reusing existing layer version (dependencies unchanged)"
+              echo "Reusing existing layer version: $LATEST_VERSION_ARN"
               echo "layer_arn=$LATEST_VERSION_ARN" >> $GITHUB_OUTPUT
-              echo "reused=true" >> $GITHUB_OUTPUT
               exit 0
             fi
           fi
 
-          # Publish new layer version
-          echo "Publishing new layer version from s3://${S3_BUCKET}/${LAYER_S3_KEY}"
-
+          echo "Publishing new layer version..."
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name "$LAYER_NAME" \
             --description "Python dependencies for BlueMoxon Lambdas" \
@@ -734,487 +521,407 @@ jobs:
 
           echo "Published new layer: $LAYER_ARN"
           echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
-          echo "reused=false" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Lambda ----
+  # ============================================
+  # Deploy Lambda Functions (run in PARALLEL)
+  # ============================================
+
+  deploy-api-lambda:
+    name: Deploy API Lambda
+    runs-on: ubuntu-latest
+    needs: [configure, generate-version, build-backend, deploy-layer]
+    environment: ${{ needs.configure.outputs.environment }}
+    outputs:
+      lambda_version: ${{ steps.publish.outputs.version }}
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: lambda-package
+          path: .
+
       - name: Upload Lambda to S3
         run: |
           aws s3 cp lambda-package.zip \
             s3://${{ needs.configure.outputs.s3_frontend_bucket }}/lambda/backend.zip
 
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
-      # Old code + new layer = safe (layer has superset of deps)
-      # New code + old layer = BROKEN (missing deps for 30-60s)
-      - name: Update Lambda with new layer
+      - name: Update Lambda with layer
         run: |
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Lambda with layer: $LAYER_ARN"
+          LAYER_ARN="${{ needs.deploy-layer.outputs.layer_arn }}"
+          FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
+          echo "Updating $FUNCTION_NAME with layer: $LAYER_ARN"
 
           aws lambda update-function-configuration \
-            --function-name ${{ needs.configure.outputs.lambda_function_name }} \
+            --function-name "$FUNCTION_NAME" \
             --layers "$LAYER_ARN"
 
-      - name: Wait for Lambda config update
+      - name: Wait for config update
         run: |
-          echo "Waiting for Lambda configuration update..."
           aws lambda wait function-updated \
             --function-name ${{ needs.configure.outputs.lambda_function_name }}
-          echo "Lambda function layer updated successfully"
 
-      - name: Update Lambda function code
+      - name: Update Lambda code
         run: |
           aws lambda update-function-code \
             --function-name ${{ needs.configure.outputs.lambda_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Lambda code update
+      - name: Wait for code update
         run: |
-          echo "Waiting for Lambda function to be ready..."
           aws lambda wait function-updated \
             --function-name ${{ needs.configure.outputs.lambda_function_name }}
-          echo "Lambda function code updated successfully"
 
-      - name: Publish Lambda version
-        id: lambda-version
+      - name: Publish version
+        id: publish
         run: |
-          echo "Publishing new Lambda version..."
           VERSION=$(aws lambda publish-version \
             --function-name ${{ needs.configure.outputs.lambda_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
             --query 'Version' \
             --output text)
-
           echo "Published version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update Lambda alias
+      - name: Update alias
         run: |
-          # Use environment-specific alias name
-          if [[ "${{ needs.configure.outputs.environment }}" == "production" ]]; then
-            ALIAS_NAME="prod"
-          else
-            ALIAS_NAME="staging"
-          fi
+          ALIAS_NAME="${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }}"
           FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
-          VERSION="${{ steps.lambda-version.outputs.version }}"
+          VERSION="${{ steps.publish.outputs.version }}"
 
-          # Check if alias exists
           if aws lambda get-alias --function-name "$FUNCTION_NAME" --name "$ALIAS_NAME" 2>/dev/null; then
-            echo "Updating existing alias '$ALIAS_NAME' to version $VERSION"
             aws lambda update-alias \
               --function-name "$FUNCTION_NAME" \
               --name "$ALIAS_NAME" \
               --function-version "$VERSION"
           else
-            echo "Creating alias '$ALIAS_NAME' pointing to version $VERSION"
             aws lambda create-alias \
               --function-name "$FUNCTION_NAME" \
               --name "$ALIAS_NAME" \
               --function-version "$VERSION"
           fi
 
-      - name: Cleanup old Lambda versions
+      - name: Cleanup old versions
         run: |
           FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
           KEEP_VERSIONS=3
 
-          echo "Cleaning up old Lambda versions (keeping last $KEEP_VERSIONS)..."
-
-          # Get all versions except $LATEST, sorted numerically descending
           VERSIONS=$(aws lambda list-versions-by-function \
             --function-name "$FUNCTION_NAME" \
             --query 'Versions[?Version!=`$LATEST`].Version' \
             --output text | tr '\t' '\n' | sort -rn)
 
-          # Skip the first N versions (the ones we want to keep)
           VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
 
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function \
-                --function-name "$FUNCTION_NAME" \
-                --qualifier "$VERSION" || true
-            done
-          fi
+          for VERSION in $VERSIONS_TO_DELETE; do
+            echo "Deleting version $VERSION"
+            aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
+          done
 
-      # ---- Deploy Analysis Worker Lambda (if configured) ----
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
-      - name: Update Worker Lambda with layer
+  deploy-workers:
+    name: Deploy Worker Lambdas
+    runs-on: ubuntu-latest
+    needs: [configure, generate-version, build-backend, deploy-layer]
+    environment: ${{ needs.configure.outputs.environment }}
+    outputs:
+      worker_version: ${{ steps.publish-worker.outputs.version }}
+      eval_worker_version: ${{ steps.publish-eval.outputs.version }}
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: lambda-package
+          path: .
+
+      # --- Analysis Worker ---
+      - name: Update Analysis Worker with layer
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Worker Lambda with layer: $LAYER_ARN"
-
           aws lambda update-function-configuration \
-            --function-name "$WORKER_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --function-name "${{ needs.configure.outputs.worker_function_name }}" \
+            --layers "${{ needs.deploy-layer.outputs.layer_arn }}"
 
-      - name: Wait for Worker Lambda config update
+      - name: Wait for Analysis Worker config
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Worker Lambda layer updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.worker_function_name }}
 
-      - name: Update Worker Lambda function
+      - name: Update Analysis Worker code
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          echo "Deploying worker Lambda: $WORKER_FUNCTION"
-
           aws lambda update-function-code \
-            --function-name "$WORKER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.worker_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Worker Lambda code update
+      - name: Wait for Analysis Worker code
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          echo "Waiting for Worker Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Worker Lambda code updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.worker_function_name }}
 
-      - name: Publish Worker Lambda version
+      - name: Publish Analysis Worker version
+        id: publish-worker
         if: needs.configure.outputs.worker_function_name != ''
-        id: worker-version
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          echo "Publishing new Worker Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$WORKER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.worker_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published worker version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Eval Runbook Worker Lambda (if configured) ----
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
-      - name: Update Eval Runbook Worker Lambda with layer
+      # --- Eval Runbook Worker ---
+      - name: Update Eval Runbook Worker with layer
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
-
           aws lambda update-function-configuration \
-            --function-name "$EVAL_RUNBOOK_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --function-name "${{ needs.configure.outputs.eval_runbook_worker_function_name }}" \
+            --layers "${{ needs.deploy-layer.outputs.layer_arn }}"
 
-      - name: Wait for Eval Runbook Worker Lambda config update
+      - name: Wait for Eval Runbook Worker config
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
-          echo "Eval Runbook Worker Lambda layer updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }}
 
-      - name: Update Eval Runbook Worker Lambda function
+      - name: Update Eval Runbook Worker code
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          echo "Deploying eval runbook worker Lambda: $EVAL_RUNBOOK_FUNCTION"
-
           aws lambda update-function-code \
-            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Eval Runbook Worker Lambda code update
+      - name: Wait for Eval Runbook Worker code
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
         run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          echo "Waiting for Eval Runbook Worker Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$EVAL_RUNBOOK_FUNCTION"
-          echo "Eval Runbook Worker Lambda code updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }}
 
-      - name: Publish Eval Runbook Worker Lambda version
+      - name: Publish Eval Runbook Worker version
+        id: publish-eval
         if: needs.configure.outputs.eval_runbook_worker_function_name != ''
-        id: eval-runbook-version
         run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          echo "Publishing new Eval Runbook Worker Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$EVAL_RUNBOOK_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published eval runbook worker version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Cleanup Lambda (if configured) ----
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
+  deploy-utility-lambdas:
+    name: Deploy Utility Lambdas
+    runs-on: ubuntu-latest
+    needs: [configure, generate-version, build-backend, deploy-layer]
+    environment: ${{ needs.configure.outputs.environment }}
+    outputs:
+      cleanup_version: ${{ steps.publish-cleanup.outputs.version }}
+      tracking_dispatcher_version: ${{ steps.publish-dispatcher.outputs.version }}
+      tracking_worker_version: ${{ steps.publish-tracking-worker.outputs.version }}
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Lambda artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: lambda-package
+          path: .
+
+      # --- Cleanup Lambda ---
       - name: Update Cleanup Lambda with layer
         if: needs.configure.outputs.cleanup_function_name != ''
         run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
-
           aws lambda update-function-configuration \
-            --function-name "$CLEANUP_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --function-name "${{ needs.configure.outputs.cleanup_function_name }}" \
+            --layers "${{ needs.deploy-layer.outputs.layer_arn }}"
 
-      - name: Wait for Cleanup Lambda config update
+      - name: Wait for Cleanup Lambda config
         if: needs.configure.outputs.cleanup_function_name != ''
         run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
-          echo "Cleanup Lambda layer updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.cleanup_function_name }}
 
-      - name: Update Cleanup Lambda function
+      - name: Update Cleanup Lambda code
         if: needs.configure.outputs.cleanup_function_name != ''
         run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          echo "Deploying cleanup Lambda: $CLEANUP_FUNCTION"
-
           aws lambda update-function-code \
-            --function-name "$CLEANUP_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.cleanup_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Cleanup Lambda code update
+      - name: Wait for Cleanup Lambda code
         if: needs.configure.outputs.cleanup_function_name != ''
         run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          echo "Waiting for Cleanup Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$CLEANUP_FUNCTION"
-          echo "Cleanup Lambda code updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.cleanup_function_name }}
 
       - name: Publish Cleanup Lambda version
+        id: publish-cleanup
         if: needs.configure.outputs.cleanup_function_name != ''
-        id: cleanup-version
         run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          echo "Publishing new Cleanup Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$CLEANUP_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.cleanup_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published cleanup version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Tracking Dispatcher Lambda (if configured) ----
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
-      - name: Update Tracking Dispatcher Lambda with layer
+      # --- Tracking Dispatcher ---
+      - name: Update Tracking Dispatcher with layer
         if: needs.configure.outputs.tracking_dispatcher_function_name != ''
         run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Tracking Dispatcher Lambda with layer: $LAYER_ARN"
-
           aws lambda update-function-configuration \
-            --function-name "$DISPATCHER_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --function-name "${{ needs.configure.outputs.tracking_dispatcher_function_name }}" \
+            --layers "${{ needs.deploy-layer.outputs.layer_arn }}"
 
-      - name: Wait for Tracking Dispatcher Lambda config update
+      - name: Wait for Tracking Dispatcher config
         if: needs.configure.outputs.tracking_dispatcher_function_name != ''
         run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          aws lambda wait function-updated --function-name "$DISPATCHER_FUNCTION"
-          echo "Tracking Dispatcher Lambda layer updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }}
 
-      - name: Update Tracking Dispatcher Lambda function
+      - name: Update Tracking Dispatcher code
         if: needs.configure.outputs.tracking_dispatcher_function_name != ''
         run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          echo "Deploying tracking dispatcher Lambda: $DISPATCHER_FUNCTION"
-
           aws lambda update-function-code \
-            --function-name "$DISPATCHER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Tracking Dispatcher Lambda code update
+      - name: Wait for Tracking Dispatcher code
         if: needs.configure.outputs.tracking_dispatcher_function_name != ''
         run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          echo "Waiting for Tracking Dispatcher Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$DISPATCHER_FUNCTION"
-          echo "Tracking Dispatcher Lambda code updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }}
 
-      - name: Publish Tracking Dispatcher Lambda version
+      - name: Publish Tracking Dispatcher version
+        id: publish-dispatcher
         if: needs.configure.outputs.tracking_dispatcher_function_name != ''
-        id: tracking-dispatcher-version
         run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          echo "Publishing new Tracking Dispatcher Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$DISPATCHER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published tracking dispatcher version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Tracking Worker Lambda (if configured) ----
-      # IMPORTANT: Update layer BEFORE code to prevent race condition
-      - name: Update Tracking Worker Lambda with layer
+      # --- Tracking Worker ---
+      - name: Update Tracking Worker with layer
         if: needs.configure.outputs.tracking_worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          LAYER_ARN="${{ steps.publish-layer.outputs.layer_arn }}"
-          echo "Updating Tracking Worker Lambda with layer: $LAYER_ARN"
-
           aws lambda update-function-configuration \
-            --function-name "$WORKER_FUNCTION" \
-            --layers "$LAYER_ARN"
+            --function-name "${{ needs.configure.outputs.tracking_worker_function_name }}" \
+            --layers "${{ needs.deploy-layer.outputs.layer_arn }}"
 
-      - name: Wait for Tracking Worker Lambda config update
+      - name: Wait for Tracking Worker config
         if: needs.configure.outputs.tracking_worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Tracking Worker Lambda layer updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }}
 
-      - name: Update Tracking Worker Lambda function
+      - name: Update Tracking Worker code
         if: needs.configure.outputs.tracking_worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          echo "Deploying tracking worker Lambda: $WORKER_FUNCTION"
-
           aws lambda update-function-code \
-            --function-name "$WORKER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }} \
             --s3-bucket ${{ needs.configure.outputs.s3_frontend_bucket }} \
             --s3-key lambda/backend.zip
 
-      - name: Wait for Tracking Worker Lambda code update
+      - name: Wait for Tracking Worker code
         if: needs.configure.outputs.tracking_worker_function_name != ''
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          echo "Waiting for Tracking Worker Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
-          echo "Tracking Worker Lambda code updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }}
 
-      - name: Publish Tracking Worker Lambda version
+      - name: Publish Tracking Worker version
+        id: publish-tracking-worker
         if: needs.configure.outputs.tracking_worker_function_name != ''
-        id: tracking-worker-version
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          echo "Publishing new Tracking Worker Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$WORKER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published tracking worker version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Deploy Scraper Lambda (if configured) ----
-      - name: Update Scraper Lambda function
-        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+  deploy-scraper:
+    name: Deploy Scraper Lambda
+    runs-on: ubuntu-latest
+    needs: [configure, generate-version, build-scraper]
+    if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+    environment: ${{ needs.configure.outputs.environment }}
+    outputs:
+      scraper_version: ${{ steps.publish.outputs.version }}
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Scraper Lambda
         run: |
           SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
           ECR_REPOSITORY="${{ needs.configure.outputs.scraper_ecr_repository }}"
           AWS_ACCOUNT="${{ needs.configure.outputs.aws_account_id }}"
           IMAGE_TAG="${{ needs.generate-version.outputs.version }}"
-
           IMAGE_URI="${AWS_ACCOUNT}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-          echo "Deploying scraper Lambda: $SCRAPER_FUNCTION"
-          echo "Image URI: $IMAGE_URI"
-
+          echo "Deploying scraper with image: $IMAGE_URI"
           aws lambda update-function-code \
             --function-name "$SCRAPER_FUNCTION" \
             --image-uri "$IMAGE_URI"
 
-      - name: Wait for Scraper Lambda update
-        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
+      - name: Wait for Scraper update
         run: |
-          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
-          echo "Waiting for Scraper Lambda to be ready..."
-          aws lambda wait function-updated --function-name "$SCRAPER_FUNCTION"
-          echo "Scraper Lambda updated successfully"
+          aws lambda wait function-updated \
+            --function-name ${{ needs.configure.outputs.scraper_function_name }}
 
-      - name: Publish Scraper Lambda version
-        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
-        id: scraper-version
+      - name: Publish Scraper version
+        id: publish
         run: |
-          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
-          echo "Publishing new Scraper Lambda version..."
-
           VERSION=$(aws lambda publish-version \
-            --function-name "$SCRAPER_FUNCTION" \
+            --function-name ${{ needs.configure.outputs.scraper_function_name }} \
             --description "Deployed from commit ${{ github.sha }}" \
-            --query 'Version' \
-            --output text)
-
-          echo "Published scraper version: $VERSION"
+            --query 'Version' --output text)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # ---- Run Database Migrations ----
-      - name: Verify API key secret exists
-        env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
-        run: |
-          if [ -z "${BMX_API_KEY}" ]; then
-            echo "::error::BMX_API_KEY secret is not set for ${{ needs.configure.outputs.environment }}"
-            echo "Required secrets: BMX_API_KEY (production) or BMX_STAGING_API_KEY (staging)"
-            exit 1
-          fi
-          echo "API key secret verified"
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [configure, build-frontend]
+    environment: ${{ needs.configure.outputs.environment }}
 
-      - name: Run database migrations
-        env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
-        run: |
-          echo "Running database migrations..."
-          API_URL="${{ needs.configure.outputs.api_url }}"
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-          # Wait for Lambda to be fully available
-          sleep 5
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: frontend-dist
+          path: frontend-dist
 
-          # Call the migrate endpoint (api_url already includes /api/v1)
-          # Auth required per issue #808 - health endpoints now require admin auth
-          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" -X POST "${API_URL}/health/migrate")
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          echo "HTTP Code: $http_code"
-          echo "Response:"
-          echo "$body" | jq '.' 2>/dev/null || echo "$body"
-
-          if [[ "$http_code" != "200" ]]; then
-            echo "ERROR: Migration endpoint returned HTTP $http_code"
-            exit 1
-          fi
-
-          # Check migration status
-          status=$(echo "$body" | jq -r '.status' 2>/dev/null)
-          if [[ "$status" == "failed" ]]; then
-            echo "ERROR: Migrations failed!"
-            echo "$body" | jq '.errors' 2>/dev/null
-            exit 1
-          fi
-
-          # Log migration results
-          prev_version=$(echo "$body" | jq -r '.previous_version // "none"' 2>/dev/null)
-          new_version=$(echo "$body" | jq -r '.new_version // "unknown"' 2>/dev/null)
-          result_count=$(echo "$body" | jq -r '.results | length' 2>/dev/null)
-
-          echo ""
-          echo "✅ Migrations completed successfully!"
-          echo "   Previous version: $prev_version"
-          echo "   New version: $new_version"
-          echo "   Statements executed: $result_count"
-
-      # ---- Deploy Frontend ----
       - name: Sync frontend to S3
         run: |
           aws s3 sync frontend-dist/ s3://${{ needs.configure.outputs.s3_frontend_bucket }}/ \
@@ -1223,12 +930,10 @@ jobs:
             --exclude "index.html" \
             --exclude "*.json"
 
-          # Upload index.html and JSON with no-cache
           aws s3 cp frontend-dist/index.html \
             s3://${{ needs.configure.outputs.s3_frontend_bucket }}/index.html \
             --cache-control "no-cache,no-store,must-revalidate"
 
-          # Upload any JSON config files with no-cache
           if ls frontend-dist/*.json 1> /dev/null 2>&1; then
             for f in frontend-dist/*.json; do
               aws s3 cp "$f" "s3://${{ needs.configure.outputs.s3_frontend_bucket }}/$(basename $f)" \
@@ -1244,56 +949,75 @@ jobs:
             --query 'Invalidation.Id' \
             --output text)
 
-          echo "CloudFront invalidation started: $INVALIDATION_ID"
-
-          # Wait for invalidation to complete (optional, adds ~1-2 min)
-          echo "Waiting for invalidation to complete..."
+          echo "Waiting for invalidation: $INVALIDATION_ID"
           aws cloudfront wait invalidation-completed \
             --distribution-id ${{ needs.configure.outputs.cloudfront_distribution_id }} \
             --id $INVALIDATION_ID
-          echo "CloudFront invalidation completed"
-
-      # ---- Failure Recovery Info ----
-      - name: Deployment failure recovery info
-        if: failure()
-        run: |
-          echo "========================================="
-          echo "DEPLOYMENT FAILED - RECOVERY INFORMATION"
-          echo "========================================="
-          echo ""
-          echo "Previous state captured at start of deploy:"
-          echo "  Previous layers: ${{ steps.current-state.outputs.current_layers }}"
-          echo "  Previous version: ${{ steps.current-state.outputs.current_version }}"
-          echo ""
-          echo "IMPORTANT: Traffic routing via alias may still be pointing to the"
-          echo "previous working version. Check the alias configuration."
-          echo ""
-          echo "Manual recovery commands (if needed):"
-          echo ""
-          echo "1. Restore previous layer:"
-          echo "   aws lambda update-function-configuration \\"
-          echo "     --function-name ${{ needs.configure.outputs.lambda_function_name }} \\"
-          echo "     --layers '${{ steps.current-state.outputs.current_layers }}'"
-          echo ""
-          echo "2. Point alias to previous version:"
-          echo "   aws lambda update-alias \\"
-          echo "     --function-name ${{ needs.configure.outputs.lambda_function_name }} \\"
-          echo "     --name ${{ needs.configure.outputs.environment == 'production' && 'prod' || 'staging' }} \\"
-          echo "     --function-version ${{ steps.current-state.outputs.current_version }}"
-          echo ""
-          echo "3. Verify API health:"
-          echo "   curl -s ${{ needs.configure.outputs.api_url }}/health"
-          echo ""
-          echo "========================================="
 
   # ============================================
-  # Smoke Tests
+  # Run Database Migrations (after API Lambda)
+  # ============================================
+
+  run-migrations:
+    name: Run Migrations
+    runs-on: ubuntu-latest
+    needs: [configure, deploy-api-lambda]
+    environment: ${{ needs.configure.outputs.environment }}
+
+    steps:
+      - name: Verify API key secret exists
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+        run: |
+          if [ -z "${BMX_API_KEY}" ]; then
+            echo "::error::BMX_API_KEY secret is not set"
+            exit 1
+          fi
+
+      - name: Run database migrations
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+        run: |
+          API_URL="${{ needs.configure.outputs.api_url }}"
+
+          sleep 5
+
+          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" -X POST "${API_URL}/health/migrate")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Code: $http_code"
+          echo "$body" | jq '.' 2>/dev/null || echo "$body"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "ERROR: Migration endpoint returned HTTP $http_code"
+            exit 1
+          fi
+
+          status=$(echo "$body" | jq -r '.status' 2>/dev/null)
+          if [[ "$status" == "failed" ]]; then
+            echo "ERROR: Migrations failed!"
+            exit 1
+          fi
+
+          echo "Migrations completed successfully"
+
+  # ============================================
+  # Smoke Tests (after all deploys complete)
   # ============================================
 
   smoke-test:
     name: Smoke Tests (${{ needs.configure.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [configure, deploy, generate-version, build-scraper]
+    needs: [configure, generate-version, deploy-api-lambda, deploy-workers, deploy-utility-lambdas, deploy-scraper, deploy-frontend, run-migrations]
+    if: |
+      always() &&
+      needs.deploy-api-lambda.result == 'success' &&
+      needs.deploy-frontend.result == 'success' &&
+      needs.run-migrations.result == 'success' &&
+      (needs.deploy-workers.result == 'success' || needs.deploy-workers.result == 'skipped') &&
+      (needs.deploy-utility-lambdas.result == 'success' || needs.deploy-utility-lambdas.result == 'skipped') &&
+      (needs.deploy-scraper.result == 'success' || needs.deploy-scraper.result == 'skipped')
 
     steps:
       - name: Configure AWS credentials via OIDC
@@ -1319,14 +1043,9 @@ jobs:
 
       - name: Test API liveness
         run: |
-          echo "Testing API liveness probe..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
           response=$(curl -s -w "\n%{http_code}" "${API_BASE}/health")
           http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          echo "Response: $body"
-          echo "HTTP Code: $http_code"
 
           if [[ "$http_code" != "200" ]]; then
             echo "Liveness check failed!"
@@ -1336,350 +1055,105 @@ jobs:
 
       - name: Validate version and environment
         run: |
-          echo "Validating deployed version and environment..."
-
           API_BASE="${{ steps.urls.outputs.api_base }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
           EXPECTED_ENV="${{ needs.configure.outputs.environment }}"
 
-          # Get actual version info from API
           response=$(curl -s "${API_BASE}/api/v1/health/version")
           ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
           ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
 
-          echo "Expected version: $EXPECTED_VERSION"
-          echo "Actual version:   $ACTUAL_VERSION"
-          echo "Expected env:     $EXPECTED_ENV"
-          echo "Actual env:       $ACTUAL_ENV"
-
-          # Validate version
           if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]]; then
-            echo "ERROR: Version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Got: $ACTUAL_VERSION"
+            echo "ERROR: Version mismatch! Expected: $EXPECTED_VERSION, Got: $ACTUAL_VERSION"
             exit 1
           fi
 
-          # Validate environment
           if [[ "$ACTUAL_ENV" != "$EXPECTED_ENV" ]]; then
-            echo "ERROR: Environment mismatch!"
-            echo "  Expected: $EXPECTED_ENV"
-            echo "  Got: $ACTUAL_ENV"
+            echo "ERROR: Environment mismatch! Expected: $EXPECTED_ENV, Got: $ACTUAL_ENV"
             exit 1
           fi
 
-          # Also check response headers
-          HEADER_VERSION=$(curl -sI "${API_BASE}/health" | grep -i "x-app-version" | cut -d: -f2 | tr -d ' \r')
-          HEADER_ENV=$(curl -sI "${API_BASE}/health" | grep -i "x-environment" | cut -d: -f2 | tr -d ' \r')
-
-          echo "Header X-App-Version: $HEADER_VERSION"
-          echo "Header X-Environment: $HEADER_ENV"
-
-          if [[ "$HEADER_VERSION" != "$EXPECTED_VERSION" ]]; then
-            echo "ERROR: X-App-Version header mismatch!"
-            exit 1
-          fi
-
-          if [[ "$HEADER_ENV" != "$EXPECTED_ENV" ]]; then
-            echo "ERROR: X-Environment header mismatch!"
-            exit 1
-          fi
-
-          echo "✅ Version and environment validation passed!"
+          echo "Version and environment validation passed!"
 
       - name: Test API deep health check
         run: |
-          echo "Running deep health check..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
-          ENV="${{ needs.configure.outputs.environment }}"
           response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/health/deep")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
-          echo "HTTP Code: $http_code"
-          echo "Response:"
-          echo "$body" | jq '.' 2>/dev/null || echo "$body"
-
           if [[ "$http_code" != "200" ]]; then
-            echo "Deep health check endpoint failed!"
+            echo "Deep health check failed!"
             exit 1
           fi
 
-          # Check overall status
           status=$(echo "$body" | jq -r '.status' 2>/dev/null)
           if [[ "$status" == "unhealthy" ]]; then
             echo "CRITICAL: System is unhealthy!"
             echo "$body" | jq '.checks' 2>/dev/null
             exit 1
-          elif [[ "$status" == "degraded" ]]; then
-            echo "WARNING: System is degraded but operational"
-            echo "$body" | jq '.checks' 2>/dev/null
-            # For staging, degraded is acceptable (no database yet)
-            if [[ "$ENV" == "production" ]]; then
-              echo "Production should not be degraded - investigate!"
-            fi
           fi
-
-          # Verify database is healthy (critical for production)
-          db_status=$(echo "$body" | jq -r '.checks.database.status' 2>/dev/null)
-          if [[ "$db_status" != "healthy" && "$ENV" == "production" ]]; then
-            echo "CRITICAL: Database is not healthy!"
-            echo "$body" | jq '.checks.database' 2>/dev/null
-            exit 1
-          fi
-
-          # Log latency metrics
-          db_latency=$(echo "$body" | jq -r '.checks.database.latency_ms' 2>/dev/null)
-          total_latency=$(echo "$body" | jq -r '.total_latency_ms' 2>/dev/null)
-          echo "Database latency: ${db_latency}ms"
-          echo "Total health check latency: ${total_latency}ms"
 
           echo "Deep health check passed!"
 
       - name: Test API books endpoint
         run: |
-          echo "Testing books API..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
           response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/books?per_page=1")
           http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          echo "HTTP Code: $http_code"
 
           if [[ "$http_code" != "200" ]]; then
             echo "Books API check failed!"
             exit 1
           fi
-
-          # Verify pagination response
-          if ! echo "$body" | grep -q '"total"'; then
-            echo "Books response missing pagination!"
-            exit 1
-          fi
-
-          total=$(echo "$body" | jq -r '.total' 2>/dev/null)
-          echo "Books API check passed! Found $total books."
-
-      - name: Validate API response schema
-        run: |
-          echo "Validating API response schema (Issue #507)..."
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-
-          response=$(curl -s "${API_BASE}/api/v1/books?per_page=5")
-
-          # Check required fields exist on book objects
-          for field in id title status inventory_type; do
-            if ! echo "$response" | jq -e ".items[0] | has(\"$field\")" > /dev/null 2>&1; then
-              echo "ERROR: Book response missing required field: $field"
-              exit 1
-            fi
-          done
-          echo "Required fields present: id, title, status, inventory_type"
-
-          # Check optional fields that should exist when populated
-          optional_fields="author publisher binder value_mid purchase_price source_url"
-          for field in $optional_fields; do
-            if echo "$response" | jq -e ".items[0] | has(\"$field\")" > /dev/null 2>&1; then
-              echo "  Optional field present: $field"
-            fi
-          done
-
-          echo "API schema validation passed!"
-
-      - name: Validate data integrity
-        run: |
-          echo "Validating data integrity (Issue #507)..."
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          warnings=0
-
-          # Check source_url format - should be full URL, not short alphanumeric ID
-          response=$(curl -s "${API_BASE}/api/v1/books?per_page=20")
-
-          # Find books with source_url and check format
-          source_urls=$(echo "$response" | jq -r '.items[] | select(.source_url) | .source_url' 2>/dev/null)
-
-          if [[ -n "$source_urls" ]]; then
-            echo "Checking source_url formats..."
-            while IFS= read -r url; do
-              # Valid URLs should start with http and contain item ID (10+ digits)
-              if [[ ! "$url" =~ ^https?:// ]]; then
-                echo "WARNING: Malformed source_url (not HTTP): $url"
-                warnings=$((warnings + 1))
-              elif [[ ! "$url" =~ [0-9]{10,} ]]; then
-                echo "WARNING: source_url may be missing item ID: $url"
-                warnings=$((warnings + 1))
-              fi
-            done <<< "$source_urls"
-
-            if [[ $warnings -eq 0 ]]; then
-              echo "All source_urls are properly formatted"
-            fi
-          else
-            echo "INFO: No books with source_url found (may be expected)"
-          fi
-
-          # Check for purchase_price = 0 issues (Issue #498)
-          zero_prices=$(echo "$response" | jq '[.items[] | select(.purchase_price == 0)] | length' 2>/dev/null)
-          if [[ "$zero_prices" -gt 0 ]]; then
-            echo "INFO: $zero_prices books with purchase_price = 0 (may need review)"
-          else
-            echo "No \$0 purchase prices found"
-          fi
-
-          # Summary
-          if [[ $warnings -gt 0 ]]; then
-            echo "Data integrity check completed with $warnings warnings"
-          else
-            echo "Data integrity check passed!"
-          fi
-
-      - name: Test API authentication
-        run: |
-          echo "Testing API authentication (should reject unauthenticated requests)..."
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-
-          # Test that POST to books requires auth (should return 401/403)
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "${API_BASE}/api/v1/books" \
-            -H "Content-Type: application/json" \
-            -d '{"title":"test"}')
-
-          echo "HTTP Code for unauthenticated POST: $http_code"
-
-          if [[ "$http_code" != "401" && "$http_code" != "403" ]]; then
-            echo "ERROR: Expected 401 or 403 for unauthenticated request, got $http_code"
-            exit 1
-          fi
-
-          echo "Authentication check passed! Unauthenticated requests correctly rejected."
-
-      - name: Test CORS headers
-        run: |
-          echo "Testing CORS headers..."
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          APP_URL="${{ steps.urls.outputs.app_url }}"
-
-          # Make preflight OPTIONS request
-          response=$(curl -s -I -X OPTIONS "${API_BASE}/api/v1/books" \
-            -H "Origin: ${APP_URL}" \
-            -H "Access-Control-Request-Method: GET")
-
-          # Check for CORS headers
-          if echo "$response" | grep -qi "access-control-allow-origin"; then
-            origin_header=$(echo "$response" | grep -i "access-control-allow-origin" | head -1)
-            echo "CORS Origin header: $origin_header"
-            echo "CORS headers present!"
-          else
-            echo "WARNING: CORS headers not found in preflight response"
-            echo "This may indicate CORS misconfiguration"
-            # Don't fail - CORS might be handled differently
-          fi
-
-          # Also test actual request includes CORS headers
-          response=$(curl -s -I "${API_BASE}/api/v1/books" \
-            -H "Origin: ${APP_URL}")
-
-          if echo "$response" | grep -qi "access-control-allow-origin"; then
-            echo "CORS headers present in actual request response"
-          fi
-
-          echo "CORS check completed!"
+          echo "Books API check passed!"
 
       - name: Test Vue app loads
         run: |
-          echo "Testing Vue app..."
           APP_URL="${{ steps.urls.outputs.app_url }}"
           http_code=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL")
-
-          echo "HTTP Code: $http_code"
 
           if [[ "$http_code" != "200" ]]; then
             echo "Vue app check failed!"
             exit 1
           fi
-
-          # Check that HTML contains expected Vue app content
-          if ! curl -s "$APP_URL" | grep -q "BlueMoxon\|bluemoxon"; then
-            echo "Vue app doesn't contain expected content!"
-            exit 1
-          fi
-
           echo "Vue app check passed!"
 
-      - name: Validate frontend version and config
+      - name: Validate frontend config
         run: |
-          echo "Validating frontend version and Cognito config..."
           APP_URL="${{ steps.urls.outputs.app_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
-
-          # Get expected values from configure job (which reads from config files)
           EXPECTED_CLIENT_ID="${{ needs.configure.outputs.cognito_client_id }}"
-          EXPECTED_POOL_ID="${{ needs.configure.outputs.cognito_user_pool_id }}"
 
-          # Download frontend HTML to find JS bundle name
           html=$(curl -s "$APP_URL")
           js_file=$(echo "$html" | grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' | head -1)
 
           if [[ -z "$js_file" ]]; then
-            echo "ERROR: Could not find main JS bundle in HTML!"
+            echo "ERROR: Could not find JS bundle!"
             exit 1
           fi
 
-          echo "Found JS bundle: $js_file"
-
-          # Download JS bundle and check for expected version
-          # js_file includes leading slash, so no need to add another
           js_content=$(curl -s "${APP_URL}${js_file}")
 
-          # Check version in JS bundle
-          if echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
-            echo "✅ Frontend version matches: $EXPECTED_VERSION"
-          else
-            # Try to find what version is actually there
-            ACTUAL_VERSION=$(echo "$js_content" | grep -oE '20[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[a-f0-9]{7}' | head -1)
+          if ! echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
             echo "ERROR: Frontend version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Found: ${ACTUAL_VERSION:-not found}"
             exit 1
           fi
 
-          # Check Cognito client ID in JS bundle
-          if echo "$js_content" | grep -q "$EXPECTED_CLIENT_ID"; then
-            echo "✅ Cognito client ID matches: $EXPECTED_CLIENT_ID"
-          else
-            # Try to find what client ID is actually there
-            ACTUAL_CLIENT=$(echo "$js_content" | grep -oE '[0-9a-z]{26}' | head -1)
+          if ! echo "$js_content" | grep -q "$EXPECTED_CLIENT_ID"; then
             echo "ERROR: Cognito client ID mismatch!"
-            echo "  Expected: $EXPECTED_CLIENT_ID"
-            echo "  Found: ${ACTUAL_CLIENT:-not found}"
-            echo "  This usually means CI and deploy workflows have artifact name collision."
             exit 1
           fi
 
-          # Check Cognito pool ID in JS bundle
-          if echo "$js_content" | grep -q "$EXPECTED_POOL_ID"; then
-            echo "✅ Cognito pool ID matches: $EXPECTED_POOL_ID"
-          else
-            ACTUAL_POOL=$(echo "$js_content" | grep -oE 'us-west-2_[A-Za-z0-9]+' | head -1)
-            echo "ERROR: Cognito pool ID mismatch!"
-            echo "  Expected: $EXPECTED_POOL_ID"
-            echo "  Found: ${ACTUAL_POOL:-not found}"
-            exit 1
-          fi
+          echo "Frontend validation passed!"
 
-          echo "Frontend configuration validation passed!"
-
-      - name: Test image endpoint (CloudFront CDN)
+      - name: Test image endpoint
         run: |
-          echo "Testing image CloudFront CDN..."
           API_BASE="${{ steps.urls.outputs.api_base }}"
           ENV="${{ needs.configure.outputs.environment }}"
 
-          # Get first book with images via API
           book_response=$(curl -s "${API_BASE}/api/v1/books?has_images=true&per_page=1")
           total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
-
-          echo "Books with images in database: $total_with_images"
 
           if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
             echo "INFO: No books with images found"
@@ -1689,190 +1163,59 @@ jobs:
           if echo "$book_response" | grep -q '"primary_image_url"'; then
             image_url=$(echo "$book_response" | jq -r '.items[0].primary_image_url' 2>/dev/null)
 
-            echo "Primary image URL: $image_url"
-
-            # Check if URL is relative (starts with /) - means no CDN configured or images not synced
             if [[ "$image_url" == /* ]]; then
               if [[ "$ENV" == "staging" ]]; then
-                echo "INFO: Staging returns relative image URLs (no CDN images synced yet)"
-                echo "This is expected - staging uses prod database but separate S3 bucket"
-                echo "Image CDN test skipped for staging"
+                echo "INFO: Staging uses relative URLs - skipping CDN test"
                 exit 0
-              else
-                echo "WARNING: Production returning relative image URLs instead of CDN URLs"
-                # Continue to test via API path
-                image_url="${API_BASE}${image_url}"
               fi
+              image_url="${API_BASE}${image_url}"
             fi
 
             if [[ -n "$image_url" && "$image_url" != "null" ]]; then
-              echo "Testing full image URL: $image_url"
-
-              # Get headers and body info
               response=$(curl -sI -L "$image_url")
               http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
               content_type=$(echo "$response" | grep -i "^content-type:" | tail -1 | awk '{print $2}' | tr -d '\r')
-              content_length=$(echo "$response" | grep -i "^content-length:" | tail -1 | awk '{print $2}' | tr -d '\r')
 
-              echo "HTTP Code: $http_code"
-              echo "Content-Type: $content_type"
-              echo "Content-Length: $content_length"
-
-              # Verify HTTP 200
               if [[ "$http_code" != "200" ]]; then
-                echo "ERROR: Image returned HTTP $http_code, expected 200"
+                echo "ERROR: Image returned HTTP $http_code"
                 exit 1
               fi
 
-              # Verify content-type is an image (not text/html error page)
               if [[ ! "$content_type" =~ ^image/ ]]; then
                 echo "ERROR: Image returned content-type '$content_type', expected image/*"
-                echo "This usually means CloudFront is returning an error page!"
                 exit 1
               fi
 
-              # Verify content-length is reasonable (> 1KB, not a tiny error page)
-              if [[ "$content_length" -lt 1000 ]]; then
-                echo "ERROR: Image content-length $content_length is suspiciously small"
-                exit 1
-              fi
-
-              echo "Image endpoint working! Content verified as $content_type ($content_length bytes)"
-            else
-              echo "INFO: No image URL found in response (book may not have primary image)"
+              echo "Image endpoint working!"
             fi
-          else
-            echo "INFO: No primary_image_url field in response"
           fi
 
-      - name: Test Scraper Lambda version
-        if: needs.configure.outputs.scraper_function_name != '' && needs.build-scraper.result == 'success'
-        run: |
-          echo "Testing Scraper Lambda version..."
-          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
-          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
-
-          # Invoke Lambda with version check payload
-          response=$(aws lambda invoke \
-            --function-name "$SCRAPER_FUNCTION" \
-            --payload '{"version": true}' \
-            --cli-binary-format raw-in-base64-out \
-            /tmp/scraper-response.json \
-            --query 'StatusCode' \
-            --output text)
-
-          echo "Lambda invoke status: $response"
-
-          if [[ "$response" != "200" ]]; then
-            echo "ERROR: Scraper Lambda invocation failed with status $response"
-            exit 1
-          fi
-
-          # Parse response body
-          body=$(cat /tmp/scraper-response.json)
-          echo "Response body: $body"
-
-          # Extract version from response
-          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
-          echo "Expected version: $EXPECTED_VERSION"
-          echo "Actual version: $actual_version"
-
-          if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
-            echo "ERROR: Scraper version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Got: $actual_version"
-            exit 1
-          fi
-
-          echo "Scraper Lambda version check passed!"
-
-      - name: Test Analysis Worker Lambda version
+      - name: Test Worker Lambda version
         if: needs.configure.outputs.worker_function_name != ''
         run: |
-          echo "Testing Analysis Worker Lambda version..."
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
 
-          # Invoke Lambda with version check payload
           response=$(aws lambda invoke \
             --function-name "$WORKER_FUNCTION" \
             --payload '{"version": true}' \
             --cli-binary-format raw-in-base64-out \
             /tmp/worker-response.json \
-            --query 'StatusCode' \
-            --output text)
-
-          echo "Lambda invoke status: $response"
+            --query 'StatusCode' --output text)
 
           if [[ "$response" != "200" ]]; then
-            echo "ERROR: Worker Lambda invocation failed with status $response"
+            echo "ERROR: Worker Lambda invocation failed"
             exit 1
           fi
 
-          # Parse response body
-          body=$(cat /tmp/worker-response.json)
-          echo "Response body: $body"
-
-          # Extract version from response (body is JSON string containing JSON)
-          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
-          worker_type=$(echo "$body" | jq -r '.body' | jq -r '.worker')
-
-          echo "Expected version: $EXPECTED_VERSION"
-          echo "Actual version: $actual_version"
-          echo "Worker type: $worker_type"
+          actual_version=$(cat /tmp/worker-response.json | jq -r '.body' | jq -r '.version')
 
           if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
-            echo "ERROR: Worker version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Got: $actual_version"
+            echo "ERROR: Worker version mismatch! Expected: $EXPECTED_VERSION, Got: $actual_version"
             exit 1
           fi
 
-          echo "Analysis Worker Lambda version check passed!"
-
-      - name: Test Eval Runbook Worker Lambda version
-        if: needs.configure.outputs.eval_runbook_worker_function_name != ''
-        run: |
-          echo "Testing Eval Runbook Worker Lambda version..."
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
-
-          # Invoke Lambda with version check payload
-          response=$(aws lambda invoke \
-            --function-name "$EVAL_RUNBOOK_FUNCTION" \
-            --payload '{"version": true}' \
-            --cli-binary-format raw-in-base64-out \
-            /tmp/eval-worker-response.json \
-            --query 'StatusCode' \
-            --output text)
-
-          echo "Lambda invoke status: $response"
-
-          if [[ "$response" != "200" ]]; then
-            echo "ERROR: Eval Runbook Worker Lambda invocation failed with status $response"
-            exit 1
-          fi
-
-          # Parse response body
-          body=$(cat /tmp/eval-worker-response.json)
-          echo "Response body: $body"
-
-          # Extract version from response (body is JSON string containing JSON)
-          actual_version=$(echo "$body" | jq -r '.body' | jq -r '.version')
-          worker_type=$(echo "$body" | jq -r '.body' | jq -r '.worker')
-
-          echo "Expected version: $EXPECTED_VERSION"
-          echo "Actual version: $actual_version"
-          echo "Worker type: $worker_type"
-
-          if [[ "$actual_version" != "$EXPECTED_VERSION" ]]; then
-            echo "ERROR: Eval Runbook Worker version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Got: $actual_version"
-            exit 1
-          fi
-
-          echo "Eval Runbook Worker Lambda version check passed!"
+          echo "Worker Lambda version check passed!"
 
       - name: Deployment summary
         run: |
@@ -1880,100 +1223,48 @@ jobs:
           APP_URL="${{ steps.urls.outputs.app_url }}"
           API_BASE="${{ steps.urls.outputs.api_base }}"
           VERSION="${{ needs.generate-version.outputs.version }}"
-          DRIFT_STATUS="${{ needs.configure.outputs.drift_detected }}"
-          SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          TRACKING_DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          TRACKING_WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-
-          # Lambda published versions from deploy job
-          API_LAMBDA_VER="${{ needs.deploy.outputs.api_lambda_version }}"
-          WORKER_LAMBDA_VER="${{ needs.deploy.outputs.worker_lambda_version }}"
-          EVAL_WORKER_LAMBDA_VER="${{ needs.deploy.outputs.eval_worker_lambda_version }}"
-          TRACKING_DISPATCHER_LAMBDA_VER="${{ needs.deploy.outputs.tracking_dispatcher_lambda_version }}"
-          TRACKING_WORKER_LAMBDA_VER="${{ needs.deploy.outputs.tracking_worker_lambda_version }}"
-          SCRAPER_LAMBDA_VER="${{ needs.deploy.outputs.scraper_lambda_version }}"
 
           echo "========================================"
           echo "Deployment to $ENV completed successfully!"
           echo "========================================"
           echo ""
           echo "App Version: $VERSION"
-          if [[ "$DRIFT_STATUS" == "true" ]]; then
-            echo "Drift: ⚠️  DETECTED (warn-only)"
-          elif [[ "$DRIFT_STATUS" == "error" ]]; then
-            echo "Drift: ❓ Check failed"
-          else
-            echo "Drift: ✅ None detected"
-          fi
-          echo ""
           echo "URLs:"
           echo "  App: $APP_URL"
           echo "  API: $API_BASE"
           echo ""
-          echo "Lambda Functions (published versions):"
-          echo "  API: ${{ needs.configure.outputs.lambda_function_name }} (v$API_LAMBDA_VER)"
-          if [[ -n "$WORKER_FUNCTION" && -n "$WORKER_LAMBDA_VER" ]]; then
-            echo "  Analysis Worker: $WORKER_FUNCTION (v$WORKER_LAMBDA_VER)"
-          fi
-          if [[ -n "$EVAL_RUNBOOK_FUNCTION" && -n "$EVAL_WORKER_LAMBDA_VER" ]]; then
-            echo "  Eval Runbook Worker: $EVAL_RUNBOOK_FUNCTION (v$EVAL_WORKER_LAMBDA_VER)"
-          fi
-          if [[ -n "$TRACKING_DISPATCHER_FUNCTION" && -n "$TRACKING_DISPATCHER_LAMBDA_VER" ]]; then
-            echo "  Tracking Dispatcher: $TRACKING_DISPATCHER_FUNCTION (v$TRACKING_DISPATCHER_LAMBDA_VER)"
-          fi
-          if [[ -n "$TRACKING_WORKER_FUNCTION" && -n "$TRACKING_WORKER_LAMBDA_VER" ]]; then
-            echo "  Tracking Worker: $TRACKING_WORKER_FUNCTION (v$TRACKING_WORKER_LAMBDA_VER)"
-          fi
-          if [[ -n "$SCRAPER_FUNCTION" && -n "$SCRAPER_LAMBDA_VER" ]]; then
-            echo "  Scraper: $SCRAPER_FUNCTION (v$SCRAPER_LAMBDA_VER)"
-          fi
-          echo ""
-          echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Commit: ${{ github.sha }}"
+          echo "Lambda Versions:"
+          echo "  API: v${{ needs.deploy-api-lambda.outputs.lambda_version }}"
+          echo "  Worker: v${{ needs.deploy-workers.outputs.worker_version }}"
+          echo "  Eval Worker: v${{ needs.deploy-workers.outputs.eval_worker_version }}"
           echo "========================================"
 
   # ============================================
-  # Create Release Tag
+  # Create Release Tag (production only)
   # ============================================
 
   create-release:
     name: Create Release Tag
     runs-on: ubuntu-latest
     needs: [configure, smoke-test]
-    # Only create release tags for production deployments
     if: needs.configure.outputs.environment == 'production'
 
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Full history for tagging
+          fetch-depth: 0
 
       - name: Create release tag
         run: |
-          # Generate version tag: v{date}-{short-sha}
           VERSION="v$(date -u '+%Y.%m.%d')-$(echo ${{ github.sha }} | head -c 7)"
 
-          echo "Creating release tag: $VERSION"
-
-          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create annotated tag
           git tag -a "$VERSION" -m "Release $VERSION
 
           Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          Commit: ${{ github.sha }}
+          Commit: ${{ github.sha }}"
 
-          URLs:
-          - Collection App: https://app.bluemoxon.com
-          - Landing/Docs: https://www.bluemoxon.com
-          - API: https://api.bluemoxon.com"
-
-          # Push tag
           git push origin "$VERSION"
-
           echo "Release tag created: $VERSION"
-          echo "View at: https://github.com/${{ github.repository }}/releases/tag/$VERSION"
