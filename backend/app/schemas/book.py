@@ -12,6 +12,10 @@ from app.enums import (
     SortOrder,
     Tier,
 )
+
+# Note: ConditionGrade enum is used ONLY for query param validation (BookListParams).
+# BookBase uses str for condition_grade because the database has free-form values
+# (e.g., "VG", "VG+", "Good+", "Fair to Good") that don't fit a strict enum.
 from app.schemas.common import PaginatedResponse
 
 
@@ -68,7 +72,7 @@ class BookBase(BaseModel):
     binding_type: str | None = None
     binding_authenticated: bool = False
     binding_description: str | None = None
-    condition_grade: ConditionGrade | None = None
+    condition_grade: str | None = None  # Free-form, not enum (see note above)
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -134,7 +138,7 @@ class BookUpdate(BaseModel):
     binding_type: str | None = None
     binding_authenticated: bool | None = None
     binding_description: str | None = None
-    condition_grade: ConditionGrade | None = None
+    condition_grade: str | None = None  # Free-form, not enum
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
