@@ -1,5 +1,10 @@
 # CI Pipeline - Runs on all PRs to main and staging
 # Performs linting, testing, type checking, and security scanning
+#
+# Optimizations:
+# - Path-based filtering: Skip backend jobs for frontend-only PRs and vice versa
+# - Consolidated jobs: Lint + typecheck combined to reduce setup overhead
+# - Lambda layer caching: Pre-validate layer for faster deploys
 
 name: CI
 
@@ -27,11 +32,49 @@ env:
 
 jobs:
   # ============================================
+  # Detect What Changed (for path-based filtering)
+  # ============================================
+
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'poetry.lock'
+              - 'pyproject.toml'
+            frontend:
+              - 'frontend/**'
+              - 'package-lock.json'
+              - 'package.json'
+            infra:
+              - 'infra/**'
+
+      - name: Log detected changes
+        run: |
+          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
+          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+          echo "Infra changed: ${{ steps.filter.outputs.infra }}"
+
+  # ============================================
   # Backend Jobs
   # ============================================
 
-  backend-lint:
-    name: Backend Lint
+  backend-quality:
+    name: Backend Quality (Lint + Types)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -68,8 +111,14 @@ jobs:
       - name: Check formatting with Ruff
         run: poetry run ruff format --check .
 
+      - name: Type check with mypy
+        run: poetry run mypy app/ --ignore-missing-imports
+        continue-on-error: true  # Non-blocking for now
+
   backend-test:
     name: Backend Tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -134,44 +183,10 @@ jobs:
           flags: backend
           fail_ci_if_error: false
 
-  backend-typecheck:
-    name: Backend Type Check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v5
-        with:
-          path: backend/.venv
-          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
-
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Type check with mypy
-        run: poetry run mypy app/ --ignore-missing-imports
-        continue-on-error: true  # Non-blocking for now
-
   backend-validate:
     name: Backend Validation
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -291,8 +306,10 @@ jobs:
   # Frontend Jobs
   # ============================================
 
-  frontend-lint:
-    name: Frontend Lint
+  frontend-quality:
+    name: Frontend Quality (Lint + Types + Audit)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -317,31 +334,21 @@ jobs:
       - name: Check formatting with Prettier
         run: npx prettier --check "src/**/*.{ts,vue,css}"
 
-  frontend-typecheck:
-    name: Frontend Type Check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Type check
         run: npm run type-check
 
+      - name: Audit npm dependencies
+        run: |
+          echo "=== NPM Dependency Security Audit ==="
+          npm audit --audit-level=high || {
+            echo "::warning::NPM dependencies have high/critical vulnerabilities"
+          }
+        continue-on-error: true  # Report but don't block
+
   frontend-test:
     name: Frontend Tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -366,6 +373,8 @@ jobs:
 
   frontend-build:
     name: Frontend Build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -410,18 +419,68 @@ jobs:
           retention-days: 1
 
   # ============================================
+  # Lambda Layer Build Cache
+  # ============================================
+
+  build-layer-cache:
+    name: Build Lambda Layer (Cache)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check layer cache
+        id: cache
+        uses: actions/cache@v5
+        with:
+          path: lambda-layer.zip
+          key: lambda-layer-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Build layer with Docker (if cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Building Lambda layer with dependencies..."
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v ${{ github.workspace }}/backend:/app:ro \
+            -v /tmp/layer-build:/output \
+            --platform linux/amd64 \
+            public.ecr.aws/lambda/python:3.12 \
+            -c "
+              mkdir -p /output/python
+              pip install -q -t /output/python -r /app/requirements.txt
+            "
+
+      - name: Create layer zip (if cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp/layer-build
+          zip -q -r ${{ github.workspace }}/lambda-layer.zip python \
+            -x "*.pyc" -x "*__pycache__*"
+          ls -lh ${{ github.workspace }}/lambda-layer.zip
+
+      - name: Report layer status
+        run: |
+          if [[ "${{ steps.cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "Layer cache hit - reusing cached layer"
+          else
+            echo "Layer built and cached for future runs"
+          fi
+          ls -lh lambda-layer.zip
+
+  # ============================================
   # Infrastructure Validation
   # ============================================
 
   terraform-validate:
     name: Terraform Validate
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
-    # Only run when infrastructure files change
-    if: |
-      github.event_name == 'pull_request' && (
-        contains(github.event.pull_request.changed_files || '', 'infra/') ||
-        github.event.pull_request.changed_files == null
-      )
 
     steps:
       - uses: actions/checkout@v6
@@ -573,9 +632,10 @@ jobs:
           path: backend/bandit-report.json
           retention-days: 30
 
-  # Dependency Scanning - Checks for known vulnerabilities
+  # Dependency Scanning - Checks for known vulnerabilities in Python deps
+  # Note: NPM audit moved to frontend-quality job to reduce duplication
   dependency-scan:
-    name: Dependency Security Scan
+    name: Python Dependency Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -586,12 +646,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      # Python dependency audit
       - name: Install pip-audit
         run: pip install pip-audit
 
@@ -601,16 +655,6 @@ jobs:
           echo "=== Python Dependency Security Audit ==="
           pip-audit -r requirements.txt --desc on --vulnerability-service osv || {
             echo "::warning::Python dependencies have known vulnerabilities - review output above"
-          }
-        continue-on-error: true  # Report but don't block initially
-
-      # Node dependency audit
-      - name: Audit npm dependencies
-        working-directory: frontend
-        run: |
-          echo "=== NPM Dependency Security Audit ==="
-          npm audit --audit-level=high || {
-            echo "::warning::NPM dependencies have high/critical vulnerabilities"
           }
         continue-on-error: true  # Report but don't block initially
 
@@ -667,13 +711,15 @@ jobs:
     name: CI Complete
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
+      - changes
+      - backend-quality
       - backend-test
       - backend-validate
-      - frontend-lint
-      - frontend-typecheck
+      - frontend-quality
+      - frontend-test
       - frontend-build
-      # Security scans run in parallel
+      - build-layer-cache
+      # Security scans always run
       - sast-scan
       - dependency-scan
       - secret-scan
@@ -682,12 +728,19 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
-          echo "=== CI Results ==="
-          echo "Backend Lint: ${{ needs.backend-lint.result }}"
+          echo "=== Path Detection ==="
+          echo "Backend changed: ${{ needs.changes.outputs.backend }}"
+          echo "Frontend changed: ${{ needs.changes.outputs.frontend }}"
+          echo "Infra changed: ${{ needs.changes.outputs.infra }}"
+          echo ""
+          echo "=== Backend CI Results ==="
+          echo "Backend Quality: ${{ needs.backend-quality.result }}"
           echo "Backend Test: ${{ needs.backend-test.result }}"
           echo "Backend Validation: ${{ needs.backend-validate.result }}"
-          echo "Frontend Lint: ${{ needs.frontend-lint.result }}"
-          echo "Frontend TypeCheck: ${{ needs.frontend-typecheck.result }}"
+          echo ""
+          echo "=== Frontend CI Results ==="
+          echo "Frontend Quality: ${{ needs.frontend-quality.result }}"
+          echo "Frontend Test: ${{ needs.frontend-test.result }}"
           echo "Frontend Build: ${{ needs.frontend-build.result }}"
           echo ""
           echo "=== Security Scans (Advisory) ==="
@@ -696,25 +749,45 @@ jobs:
           echo "Secret Scan: ${{ needs.secret-scan.result }}"
           echo ""
 
-          # Check core CI jobs (BLOCKING)
-          if [[ "${{ needs.backend-lint.result }}" != "success" ]] || \
-             [[ "${{ needs.backend-test.result }}" != "success" ]] || \
-             [[ "${{ needs.backend-validate.result }}" != "success" ]] || \
-             [[ "${{ needs.frontend-lint.result }}" != "success" ]] || \
-             [[ "${{ needs.frontend-typecheck.result }}" != "success" ]] || \
-             [[ "${{ needs.frontend-build.result }}" != "success" ]]; then
-            echo "::error::One or more core CI jobs failed"
-            exit 1
+          # Check backend jobs (only if backend changed)
+          if [[ "${{ needs.changes.outputs.backend }}" == "true" ]]; then
+            if [[ "${{ needs.backend-quality.result }}" != "success" ]] || \
+               [[ "${{ needs.backend-test.result }}" != "success" ]] || \
+               [[ "${{ needs.backend-validate.result }}" != "success" ]]; then
+              echo "::error::Backend checks failed"
+              exit 1
+            fi
+            echo "Backend checks passed"
+          else
+            echo "Backend checks skipped (no backend changes)"
           fi
 
-          # SAST scan is blocking (code security issues)
+          # Check frontend jobs (only if frontend changed)
+          if [[ "${{ needs.changes.outputs.frontend }}" == "true" ]]; then
+            if [[ "${{ needs.frontend-quality.result }}" != "success" ]] || \
+               [[ "${{ needs.frontend-build.result }}" != "success" ]]; then
+              echo "::error::Frontend checks failed"
+              exit 1
+            fi
+            echo "Frontend checks passed"
+          else
+            echo "Frontend checks skipped (no frontend changes)"
+          fi
+
+          # Handle case where nothing relevant changed (docs-only PR)
+          if [[ "${{ needs.changes.outputs.backend }}" != "true" ]] && \
+             [[ "${{ needs.changes.outputs.frontend }}" != "true" ]]; then
+            echo "No backend or frontend changes detected"
+          fi
+
+          # SAST scan is always blocking (code security issues)
           if [[ "${{ needs.sast-scan.result }}" != "success" ]]; then
             echo "::error::SAST security scan failed - deployment blocked"
             exit 1
           fi
+          echo "SAST scan passed"
 
           # Dependency and secret scans are advisory for now
-          # (vulnerabilities in dependencies are common, secrets should be reviewed)
           if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
             echo "::warning::Dependency scan reported issues - please review"
           fi
