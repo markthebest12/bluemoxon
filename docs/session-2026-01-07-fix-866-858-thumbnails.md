@@ -3,95 +3,161 @@
 **Date:** 2026-01-07
 **Issues:** #866 (silent thumbnail failure), #858 (async/sync I/O mismatch)
 **Branch:** fix/866-858-thumbnail-async-io
+**PR:** #913 (MERGED to staging)
 
-## Problem Summary
+---
 
-### Issue #866: Silent Thumbnail Failure
-- `generate_thumbnail()` in `images.py:391` fails silently
-- Return value was ignored (despite function returning `(success, error_msg)`)
-- User never knows if thumbnail generation failed
+## CRITICAL: Session Continuity Rules
 
-### Issue #858: Async/Sync I/O Mismatch
-- `upload_image()` declared `async def` but does blocking I/O
-- Uses regular `open()` (blocking) and sync boto3 client
-- Blocks event loop, defeating purpose of async
+### 1. ALWAYS Use Superpowers Skills
+- **systematic-debugging** - Before ANY bug fix
+- **test-driven-development** - Before writing implementation code
+- **receiving-code-review** - When handling review feedback
+- **verification-before-completion** - Before claiming work is done
 
-## Root Cause Analysis (Phase 1)
-
-### #866 Root Cause
-The `generate_thumbnail()` function was **properly designed** - it returns `(success, error_msg)`
-and logs errors. The bug was that **callers ignored the return value**.
-
-### #858 Root Cause
-The function correctly used `await file.read()` but performed blocking operations:
-- `open()` + `buffer.write()` - synchronous file I/O
-- `s3.upload_file()` - synchronous boto3 calls
-
-## Changes Made
-
-### Fix #866
-1. Capture return value from `generate_thumbnail()` at line 391
-2. Log warning when thumbnail fails
-3. Add `thumbnail_generated: bool` field to upload response
-
-### Fix #858
-1. Wrap file write in `asyncio.to_thread()` for non-blocking I/O
-2. Wrap `generate_thumbnail()` in `asyncio.to_thread()`
-3. Wrap S3 upload operations in `asyncio.to_thread()`
-
-## Files Modified
-- `backend/app/api/v1/images.py` - Core fixes
-- `backend/tests/test_images.py` - Added 3 new tests
-
-## Test Results
-
-**New Tests Added:**
-- `test_upload_image_returns_thumbnail_generated_field` - PASS
-- `test_upload_image_thumbnail_generated_true_on_success` - PASS
-- `test_upload_image_thumbnail_generated_false_on_failure` - PASS
-
-**Full Test Suite:** 1100 passed, 4 skipped
-
-## TDD Process Followed
-1. RED: Wrote 3 failing tests for #866
-2. Verified tests fail for correct reason (missing field)
-3. GREEN: Implemented minimal fix
-4. Verified all tests pass
-5. Implemented #858 fix (async wrapping)
-6. Verified all existing tests still pass
-
-## Code Review Feedback Addressed (Round 1)
-1. Added `thumbnail_generated: None` to duplicate image response for API consistency
-2. Moved logger to module level for efficiency
-
-## Code Review Feedback Addressed (Round 2)
-User raised 10 issues. After discussion:
-- #3, #4, #5, #10 withdrawn (YAGNI or correct existing approach)
-- #1, #2, #6, #9 implemented:
-
-### Changes Made:
-1. **Created `ImageUploadResponse` Pydantic model** (`app/schemas/image.py`)
-2. **Replaced bool|None with enum**: `thumbnail_status: Literal["generated", "failed", "skipped"]`
-3. **Added `thumbnail_error` field** (populated when status is "failed")
-4. **Added test for duplicate path** returning `thumbnail_status: "skipped"`
-
-### API Response Now:
-```json
-{
-  "id": 1,
-  "url": "...",
-  "thumbnail_url": "...",
-  "image_type": "cover",
-  "is_primary": true,
-  "thumbnail_status": "generated",  // or "failed" or "skipped"
-  "thumbnail_error": null,          // contains error msg when "failed"
-  "duplicate": false,
-  "message": null
-}
+### 2. NEVER Use These (Permission Prompts)
+```bash
+# BAD - triggers prompts:
+# comment lines before commands
+command1 \
+  --with-continuation
+$(command substitution)
+cmd1 && cmd2
+cmd1 || cmd2
+--password 'Test1234!'  # ! in quotes
 ```
 
-## PR Ready for Review
-- **PR #913**: https://github.com/markthebest12/bluemoxon/pull/913
-- **Target**: staging branch
-- **Status**: Awaiting user approval
-- **Tests**: 1101 passed, 4 skipped
+### 3. ALWAYS Use Instead
+```bash
+# GOOD - auto-approved:
+command1 --option value
+# Use separate Bash tool calls for sequential commands
+bmx-api GET /books  # For all BlueMoxon API calls
+```
+
+---
+
+## Background
+
+### Issue #866: Silent Thumbnail Failure
+- `generate_thumbnail()` return value was ignored
+- Users never knew if thumbnail generation failed
+- Function was well-designed but callers discarded results
+
+### Issue #858: Async/Sync I/O Mismatch
+- `upload_image()` declared `async def` but did blocking I/O
+- `open()`, `buffer.write()`, `s3.upload_file()` all blocking
+- Blocked event loop, defeating async purpose
+
+---
+
+## Solution Implemented
+
+### Files Created/Modified
+| File | Change |
+|------|--------|
+| `backend/app/schemas/image.py` | NEW - `ImageUploadResponse` Pydantic model |
+| `backend/app/api/v1/images.py` | Added response model, `asyncio.to_thread()` wrapping |
+| `backend/tests/test_images.py` | 4 new tests for thumbnail status |
+| `.github/workflows/deploy.yml` | Fixed missing `download-artifact` step |
+
+### API Response Schema
+```python
+class ImageUploadResponse(BaseModel):
+    id: int
+    url: str
+    thumbnail_url: str | None
+    image_type: str
+    is_primary: bool
+    thumbnail_status: Literal["generated", "failed", "skipped"]
+    thumbnail_error: str | None = None
+    duplicate: bool = False
+    message: str | None = None
+```
+
+### Async I/O Wrapping
+```python
+# File write
+await asyncio.to_thread(write_file)
+
+# Thumbnail generation
+thumbnail_success, thumbnail_error = await asyncio.to_thread(
+    generate_thumbnail, file_path, thumbnail_path
+)
+
+# S3 uploads
+await asyncio.to_thread(s3.upload_file, ...)
+```
+
+---
+
+## Current Status
+
+### PR #913: MERGED to staging
+- All code changes merged successfully
+- 1101 tests passing
+
+### Deploy Issue (BLOCKING)
+The deploy workflow is failing because `deploy-api-lambda` job was missing `download-artifact` step.
+
+**Fix Applied:** Added download-artifact step to `deploy.yml`:
+```yaml
+- name: Download Lambda artifact
+  uses: actions/download-artifact@v4
+  with:
+    name: lambda-package
+```
+
+**Fix Pushed:** Commit `b2dda0e` pushed directly to staging
+
+---
+
+## Next Steps
+
+1. **Monitor Deploy Workflow**
+   ```bash
+   gh run list --workflow Deploy --branch staging --limit 1
+   gh run watch <run-id> --exit-status
+   ```
+
+2. **If Deploy Succeeds:** Verify in staging
+   ```bash
+   bmx-api POST /books/1/images  # Test upload with new response
+   ```
+
+3. **If Deploy Still Fails:** Check logs for artifact issue
+   ```bash
+   gh run view <run-id> --log-failed
+   ```
+
+4. **After Staging Validation:** Create PR staging → main for production
+
+---
+
+## Code Review Summary
+
+User raised 10 issues, 4 implemented, 4 withdrawn (YAGNI):
+
+| # | Issue | Resolution |
+|---|-------|------------|
+| 1 | No Pydantic response model | FIXED - Created `ImageUploadResponse` |
+| 2 | Three-state boolean | FIXED - Changed to enum `thumbnail_status` |
+| 3 | Thread pool exhaustion | WITHDRAWN - Sequential awaits, YAGNI |
+| 4 | Tests don't test async | WITHDRAWN - TestClient exercises async |
+| 5 | Partial failure handling | WITHDRAWN - 201 + flag is correct approach |
+| 6 | Error details lost | FIXED - Added `thumbnail_error` field |
+| 9 | No duplicate test | FIXED - Added test for `skipped` status |
+| 10 | S3 path untested | WITHDRAWN - Existing debt, separate issue |
+
+---
+
+## Test Coverage
+
+```
+tests/test_images.py::TestThumbnailGeneration::test_upload_image_returns_thumbnail_status_field PASSED
+tests/test_images.py::TestThumbnailGeneration::test_upload_image_thumbnail_status_generated_on_success PASSED
+tests/test_images.py::TestThumbnailGeneration::test_upload_image_thumbnail_status_failed_with_error PASSED
+tests/test_images.py::TestThumbnailGeneration::test_upload_duplicate_image_thumbnail_status_skipped PASSED
+
+Full suite: 1101 passed, 4 skipped
+```
