@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models.api_key import APIKey
 from app.models.user import User
 from app.services.cognito import get_cognito_client
+from app.utils.errors import ExternalServiceError, log_and_raise
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -110,8 +111,8 @@ def invite_user(
     if existing:
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
+    cognito = get_cognito_client()
     try:
-        cognito = get_cognito_client()
         response = cognito.admin_create_user(
             UserPoolId=settings.cognito_user_pool_id,
             Username=request.email,
@@ -121,50 +122,50 @@ def invite_user(
             ],
             DesiredDeliveryMediums=["EMAIL"],
         )
-
-        cognito_sub = None
-        for attr in response["User"]["Attributes"]:
-            if attr["Name"] == "sub":
-                cognito_sub = attr["Value"]
-                break
-
-        if cognito_sub:
-            new_user = User(
-                cognito_sub=cognito_sub,
-                email=request.email,
-                role=request.role,
-                mfa_exempt=request.mfa_exempt,
-            )
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            return {
-                "message": f"Invitation sent to {request.email}",
-                "user_id": new_user.id,
-                "cognito_sub": cognito_sub,
-                "mfa_exempt": request.mfa_exempt,
-            }
-        else:
-            return {
-                "message": f"Invitation sent to {request.email}",
-                "note": "User will be created in database on first login",
-            }
-
     except ClientError as e:
         error_code = e.response["Error"]["Code"]
         error_msg = e.response["Error"]["Message"]
-        logger.error(f"Cognito error: {error_code} - {error_msg}")
+        # Handle expected client errors as 400s
         if error_code == "UsernameExistsException":
             raise HTTPException(
                 status_code=400,
                 detail="A user with this email already exists in Cognito",
             ) from None
-        elif error_code == "InvalidParameterException":
+        if error_code == "InvalidParameterException":
             raise HTTPException(status_code=400, detail=error_msg) from None
-        else:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to create user: {error_msg}"
-            ) from None
+        # Unexpected Cognito errors
+        log_and_raise(
+            ExternalServiceError("Cognito", error_msg),
+            context={"email": request.email, "error_code": error_code},
+        )
+
+    cognito_sub = None
+    for attr in response["User"]["Attributes"]:
+        if attr["Name"] == "sub":
+            cognito_sub = attr["Value"]
+            break
+
+    if cognito_sub:
+        new_user = User(
+            cognito_sub=cognito_sub,
+            email=request.email,
+            role=request.role,
+            mfa_exempt=request.mfa_exempt,
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return {
+            "message": f"Invitation sent to {request.email}",
+            "user_id": new_user.id,
+            "cognito_sub": cognito_sub,
+            "mfa_exempt": request.mfa_exempt,
+        }
+    else:
+        return {
+            "message": f"Invitation sent to {request.email}",
+            "note": "User will be created in database on first login",
+        }
 
 
 @router.get("/api-keys")
@@ -302,8 +303,8 @@ def delete_user(
 
     # Delete from Cognito first
     if settings.cognito_user_pool_id and user.email:
+        cognito = get_cognito_client()
         try:
-            cognito = get_cognito_client()
             cognito.admin_delete_user(
                 UserPoolId=settings.cognito_user_pool_id,
                 Username=user.email,
@@ -315,12 +316,10 @@ def delete_user(
                 # User doesn't exist in Cognito, continue with DB deletion
                 logger.warning(f"User {user.email} not found in Cognito, deleting from DB only")
             else:
-                error_msg = e.response["Error"]["Message"]
-                logger.error(f"Failed to delete user from Cognito: {error_code} - {error_msg}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to delete from Cognito: {error_msg}",  # noqa: S608  # nosec B608
-                ) from None
+                log_and_raise(
+                    ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+                    context={"user_id": user_id, "email": user.email, "error_code": error_code},
+                )
 
     # Delete associated API keys
     db.query(APIKey).filter(APIKey.created_by_id == user_id).delete()
@@ -343,67 +342,72 @@ def get_user_mfa_status(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
+    cognito = get_cognito_client()
+
+    # Get user info
     try:
-        cognito = get_cognito_client()
-
-        # Get user info
-        try:
-            user_response = cognito.admin_get_user(
-                UserPoolId=settings.cognito_user_pool_id,
-                Username=user.email,
-            )
-        except ClientError as e:
-            error_code = e.response["Error"]["Code"]
-            if error_code == "UserNotFoundException":
-                # User exists in DB but not in this Cognito pool
-                # This is expected in staging where users are synced from prod DB
-                # but haven't logged in to staging Cognito yet
-                return {
-                    "user_id": user_id,
-                    "email": user.email,
-                    "mfa_configured": False,
-                    "mfa_enabled": False,
-                    "mfa_methods": [],
-                    "pool_mfa_required": False,
-                    "user_status": "NOT_IN_COGNITO",
-                    "note": "User has not logged in to this environment yet",
-                }
-            raise
-
-        # Check if TOTP MFA is in user's settings (currently active)
-        mfa_options = user_response.get("UserMFASettingList", [])
-        totp_in_settings = "SOFTWARE_TOKEN_MFA" in mfa_options
-
-        # Check pool-level MFA config
-        pool_mfa_config = cognito.get_user_pool_mfa_config(UserPoolId=settings.cognito_user_pool_id)
-        mfa_required = pool_mfa_config.get("MfaConfiguration") == "ON"
-
-        # User status tells us if they've completed initial setup
-        user_status = user_response.get("UserStatus")
-        user_confirmed = user_status == "CONFIRMED"
-
-        # mfa_configured: Has the user ever completed MFA setup?
-        # A CONFIRMED user has completed the full sign-up flow including MFA setup
-        mfa_configured = user_confirmed
-
-        # mfa_enabled: Is MFA currently active for this user?
-        # It's active if it's in their settings OR (pool requires it AND they're confirmed)
-        mfa_enabled = totp_in_settings or (mfa_required and user_confirmed)
-
-        return {
-            "user_id": user_id,
-            "email": user.email,
-            "mfa_configured": mfa_configured,  # Has user set up MFA?
-            "mfa_enabled": mfa_enabled,  # Is MFA currently active?
-            "mfa_methods": mfa_options
-            if mfa_options
-            else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
-            "pool_mfa_required": mfa_required,
-            "user_status": user_status,
-        }
+        user_response = cognito.admin_get_user(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+        )
     except ClientError as e:
-        error_msg = e.response["Error"]["Message"]
-        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+        error_code = e.response["Error"]["Code"]
+        if error_code == "UserNotFoundException":
+            # User exists in DB but not in this Cognito pool
+            # This is expected in staging where users are synced from prod DB
+            # but haven't logged in to staging Cognito yet
+            return {
+                "user_id": user_id,
+                "email": user.email,
+                "mfa_configured": False,
+                "mfa_enabled": False,
+                "mfa_methods": [],
+                "pool_mfa_required": False,
+                "user_status": "NOT_IN_COGNITO",
+                "note": "User has not logged in to this environment yet",
+            }
+        log_and_raise(
+            ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+            context={"user_id": user_id, "email": user.email, "error_code": error_code},
+        )
+
+    # Check if TOTP MFA is in user's settings (currently active)
+    mfa_options = user_response.get("UserMFASettingList", [])
+    totp_in_settings = "SOFTWARE_TOKEN_MFA" in mfa_options
+
+    # Check pool-level MFA config
+    try:
+        pool_mfa_config = cognito.get_user_pool_mfa_config(UserPoolId=settings.cognito_user_pool_id)
+    except ClientError as e:
+        log_and_raise(
+            ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+            context={"user_id": user_id, "operation": "get_user_pool_mfa_config"},
+        )
+    mfa_required = pool_mfa_config.get("MfaConfiguration") == "ON"
+
+    # User status tells us if they've completed initial setup
+    user_status = user_response.get("UserStatus")
+    user_confirmed = user_status == "CONFIRMED"
+
+    # mfa_configured: Has the user ever completed MFA setup?
+    # A CONFIRMED user has completed the full sign-up flow including MFA setup
+    mfa_configured = user_confirmed
+
+    # mfa_enabled: Is MFA currently active for this user?
+    # It's active if it's in their settings OR (pool requires it AND they're confirmed)
+    mfa_enabled = totp_in_settings or (mfa_required and user_confirmed)
+
+    return {
+        "user_id": user_id,
+        "email": user.email,
+        "mfa_configured": mfa_configured,  # Has user set up MFA?
+        "mfa_enabled": mfa_enabled,  # Is MFA currently active?
+        "mfa_methods": mfa_options
+        if mfa_options
+        else (["SOFTWARE_TOKEN_MFA"] if mfa_enabled else []),
+        "pool_mfa_required": mfa_required,
+        "user_status": user_status,
+    }
 
 
 @router.post("/{user_id}/mfa/disable")
@@ -420,32 +424,31 @@ def disable_user_mfa(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
+    cognito = get_cognito_client()
+
+    # Try to disable TOTP MFA in Cognito
     try:
-        cognito = get_cognito_client()
-
-        # Try to disable TOTP MFA in Cognito
-        try:
-            cognito.admin_set_user_mfa_preference(
-                UserPoolId=settings.cognito_user_pool_id,
-                Username=user.email,
-                SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
-            )
-        except ClientError as e:
-            # If user hasn't set up MFA yet, that's fine - just mark as exempt
-            error_code = e.response["Error"]["Code"]
-            if error_code == "InvalidParameterException":
-                logger.info(f"User {user.email} has no MFA configured, marking as exempt only")
-            else:
-                raise
-
-        # Mark user as MFA-exempt so frontend won't force MFA setup
-        user.mfa_exempt = True
-        db.commit()
-
-        return {"message": f"MFA disabled for {user.email}"}
+        cognito.admin_set_user_mfa_preference(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            SoftwareTokenMfaSettings={"Enabled": False, "PreferredMfa": False},
+        )
     except ClientError as e:
-        error_msg = e.response["Error"]["Message"]
-        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+        # If user hasn't set up MFA yet, that's fine - just mark as exempt
+        error_code = e.response["Error"]["Code"]
+        if error_code == "InvalidParameterException":
+            logger.info(f"User {user.email} has no MFA configured, marking as exempt only")
+        else:
+            log_and_raise(
+                ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+                context={"user_id": user_id, "email": user.email, "error_code": error_code},
+            )
+
+    # Mark user as MFA-exempt so frontend won't force MFA setup
+    user.mfa_exempt = True
+    db.commit()
+
+    return {"message": f"MFA disabled for {user.email}"}
 
 
 @router.post("/{user_id}/mfa/enable")
@@ -462,34 +465,33 @@ def enable_user_mfa(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
+    cognito = get_cognito_client()
+
+    # Try to enable TOTP MFA in Cognito (only works if user has set up MFA)
     try:
-        cognito = get_cognito_client()
-
-        # Try to enable TOTP MFA in Cognito (only works if user has set up MFA)
-        try:
-            cognito.admin_set_user_mfa_preference(
-                UserPoolId=settings.cognito_user_pool_id,
-                Username=user.email,
-                SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
-            )
-        except ClientError as e:
-            # If user hasn't set up MFA yet, that's fine - they'll be prompted on next login
-            error_code = e.response["Error"]["Code"]
-            if error_code == "InvalidParameterException":
-                logger.info(
-                    f"User {user.email} has no MFA configured, will be prompted on next login"
-                )
-            else:
-                raise
-
-        # Remove MFA exemption so user will be prompted to set up MFA
-        user.mfa_exempt = False
-        db.commit()
-
-        return {"message": f"MFA requirement enabled for {user.email}"}
+        cognito.admin_set_user_mfa_preference(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=user.email,
+            SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
+        )
     except ClientError as e:
-        error_msg = e.response["Error"]["Message"]
-        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+        # If user hasn't set up MFA yet, that's fine - they'll be prompted on next login
+        error_code = e.response["Error"]["Code"]
+        if error_code == "InvalidParameterException":
+            logger.info(
+                f"User {user.email} has no MFA configured, will be prompted on next login"
+            )
+        else:
+            log_and_raise(
+                ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+                context={"user_id": user_id, "email": user.email, "error_code": error_code},
+            )
+
+    # Remove MFA exemption so user will be prompted to set up MFA
+    user.mfa_exempt = False
+    db.commit()
+
+    return {"message": f"MFA requirement enabled for {user.email}"}
 
 
 class ResetPasswordRequest(BaseModel):
@@ -517,31 +519,30 @@ def reset_user_password(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
+    cognito = get_cognito_client()
     try:
-        cognito = get_cognito_client()
-
-        # Set permanent password
         cognito.admin_set_user_password(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
             Password=request.new_password,
             Permanent=True,
         )
-
-        logger.info(f"Admin {current_user.email} reset password for user {user.email}")
-
-        return {"message": f"Password reset successfully for {user.email}"}
     except ClientError as e:
         error_code = e.response["Error"]["Code"]
         error_msg = e.response["Error"]["Message"]
-        logger.error(f"Cognito error resetting password: {error_code} - {error_msg}")
+        # Handle expected client error as 400
         if error_code == "InvalidPasswordException":
             raise HTTPException(
                 status_code=400, detail="Password does not meet requirements"
             ) from None
-        raise HTTPException(
-            status_code=500, detail=f"Failed to reset password: {error_msg}"
-        ) from None
+        # Unexpected Cognito errors
+        log_and_raise(
+            ExternalServiceError("Cognito", error_msg),
+            context={"user_id": user_id, "email": user.email, "error_code": error_code},
+        )
+
+    logger.info(f"Admin {current_user.email} reset password for user {user.email}")
+    return {"message": f"Password reset successfully for {user.email}"}
 
 
 @router.post("/{user_id}/impersonate")
@@ -566,32 +567,32 @@ def impersonate_user(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
+    import secrets
+    import string
+
+    # Generate a secure temporary password
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    temp_password = "".join(secrets.choice(alphabet) for _ in range(16))
+
+    cognito = get_cognito_client()
     try:
-        import secrets
-        import string
-
-        # Generate a secure temporary password
-        alphabet = string.ascii_letters + string.digits + "!@#$%"
-        temp_password = "".join(secrets.choice(alphabet) for _ in range(16))
-
-        cognito = get_cognito_client()
-
-        # Set permanent password (user won't need to change it)
         cognito.admin_set_user_password(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
             Password=temp_password,
             Permanent=True,
         )
-
-        logger.info(f"Admin {current_user.email} impersonating user {user.email}")
-
-        return {
-            "message": f"Temporary credentials generated for {user.email}",
-            "email": user.email,
-            "temp_password": temp_password,
-            "note": "Log out and use these credentials. User should reset password after.",
-        }
     except ClientError as e:
-        error_msg = e.response["Error"]["Message"]
-        raise HTTPException(status_code=500, detail=f"Cognito error: {error_msg}") from None
+        log_and_raise(
+            ExternalServiceError("Cognito", e.response["Error"]["Message"]),
+            context={"user_id": user_id, "email": user.email},
+        )
+
+    logger.info(f"Admin {current_user.email} impersonating user {user.email}")
+
+    return {
+        "message": f"Temporary credentials generated for {user.email}",
+        "email": user.email,
+        "temp_password": temp_password,
+        "note": "Log out and use these credentials. User should reset password after.",
+    }
