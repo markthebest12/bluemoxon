@@ -652,6 +652,24 @@ MIGRATION_3C8716C1EC04_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_publisher_aliases_publisher_id ON publisher_aliases(publisher_id)",
 ]
 
+# Migration SQL for 44275552664d_normalize_condition_grade
+# Data migration only - normalizes condition_grade values to standard enum set
+# No schema changes, handled entirely by Alembic migration
+MIGRATION_44275552664D_SQL = []
+
+# Migration SQL for 57f0cff7af60_add_unique_active_job_constraints
+# Creates partial unique indexes to prevent duplicate active jobs per book
+MIGRATION_57F0CFF7AF60_SQL = [
+    """CREATE UNIQUE INDEX IF NOT EXISTS
+       ix_analysis_jobs_unique_active_per_book
+       ON analysis_jobs (book_id)
+       WHERE status IN ('pending', 'running')""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS
+       ix_eval_runbook_jobs_unique_active_per_book
+       ON eval_runbook_jobs (book_id)
+       WHERE status IN ('pending', 'running')""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -1024,9 +1042,11 @@ async def run_migrations(
         ("d3b3c3c4dd80", MIGRATION_D3B3C3C4DD80_SQL),
         ("7a6d67bc123e", MIGRATION_7A6D67BC123E_SQL),
         ("3c8716c1ec04", MIGRATION_3C8716C1EC04_SQL),
+        ("44275552664d", MIGRATION_44275552664D_SQL),
+        ("57f0cff7af60", MIGRATION_57F0CFF7AF60_SQL),
     ]
 
-    final_version = "3c8716c1ec04"
+    final_version = "57f0cff7af60"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
