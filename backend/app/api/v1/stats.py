@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Binder, Book, Publisher
 from app.schemas.stats import DashboardResponse
+from app.utils import safe_float
 
 router = APIRouter()
 
@@ -42,9 +43,9 @@ def get_overview(db: Session = Depends(get_db)):
         .first()
     )
 
-    value_low = float(primary_value_row[0] or 0) if primary_value_row else 0.0
-    value_mid = float(primary_value_row[1] or 0) if primary_value_row else 0.0
-    value_high = float(primary_value_row[2] or 0) if primary_value_row else 0.0
+    value_low = safe_float(primary_value_row[0]) if primary_value_row else 0.0
+    value_mid = safe_float(primary_value_row[1]) if primary_value_row else 0.0
+    value_high = safe_float(primary_value_row[2]) if primary_value_row else 0.0
 
     # Volume count (ON_HAND only)
     total_volumes = db.query(func.sum(Book.volumes)).filter(on_hand_filter).scalar() or 0
@@ -93,7 +94,7 @@ def get_overview(db: Session = Depends(get_db)):
     # Extract values with defaults
     week_count_delta = week_delta.count or 0
     week_volumes_delta = int(week_delta.volumes or 0)
-    week_value_delta = float(week_delta.value or 0)
+    week_value_delta = safe_float(week_delta.value)
     week_premium_delta = int(week_delta.authenticated or 0)
 
     return {
@@ -174,11 +175,11 @@ def get_collection_metrics(db: Session = Depends(get_db)):
     victorian_count = result.victorian_count or 0
     victorian_pct = (victorian_count / total_count * 100) if total_count > 0 else 0
 
-    avg_discount = float(result.avg_discount or 0)
-    avg_roi = float(result.avg_roi or 0)
+    avg_discount = safe_float(result.avg_discount)
+    avg_roi = safe_float(result.avg_roi)
 
-    total_purchase = float(result.total_purchase or 0)
-    total_value = float(result.total_value or 0)
+    total_purchase = safe_float(result.total_purchase)
+    total_value = safe_float(result.total_value)
     tier_1_count = int(result.tier_1_count or 0)
 
     tier_1_pct = (tier_1_count / total_count * 100) if total_count > 0 else 0
@@ -213,7 +214,7 @@ def get_by_category(db: Session = Depends(get_db)):
         {
             "category": row[0] or "Uncategorized",
             "count": row[1],
-            "value": float(row[2] or 0),
+            "value": safe_float(row[2]),
         }
         for row in results
     ]
@@ -242,7 +243,7 @@ def get_by_publisher(db: Session = Depends(get_db)):
             "publisher": row[0],
             "tier": row[1],
             "count": row[2],
-            "value": float(row[3] or 0),
+            "value": safe_float(row[3]),
             "volumes": row[4] or 0,
         }
         for row in results
@@ -315,7 +316,7 @@ def get_by_author(db: Session = Depends(get_db)):
             {
                 "author": author_name,
                 "count": volumes or 0,  # Total individual books (volumes)
-                "value": float(value or 0),
+                "value": safe_float(value),
                 "volumes": volumes or 0,  # Backward compat with frontend
                 "total_volumes": volumes or 0,  # New field, same value
                 "titles": record_count,  # Number of distinct titles/sets
@@ -352,7 +353,7 @@ def get_bindings(db: Session = Depends(get_db)):
             "binder": row[0],
             "full_name": row[1],
             "count": row[2],
-            "value": float(row[3] or 0),
+            "value": safe_float(row[3]),
         }
         for row in results
     ]
@@ -388,7 +389,7 @@ def get_by_era(db: Session = Depends(get_db)):
         {
             "era": row[0],
             "count": row[1],
-            "value": round(float(row[2] or 0), 2),
+            "value": round(safe_float(row[2]), 2),
         }
         for row in results
         if row[1] > 0  # Only return eras with books
@@ -457,8 +458,8 @@ def get_acquisitions_by_month(db: Session = Depends(get_db)):
             "month": int(row.month),
             "label": f"{int(row.year)}-{int(row.month):02d}",
             "count": row.count,
-            "value": float(row.value or 0),
-            "cost": float(row.cost or 0),
+            "value": safe_float(row.value),
+            "cost": safe_float(row.cost),
         }
         for row in results
     ]
@@ -509,8 +510,8 @@ def get_acquisitions_daily(
         if d not in daily_data:
             daily_data[d] = {"count": 0, "value": 0.0, "cost": 0.0}
         daily_data[d]["count"] += 1
-        daily_data[d]["value"] += float(book.value_mid or 0)
-        daily_data[d]["cost"] += float(book.purchase_price or 0)
+        daily_data[d]["value"] += safe_float(book.value_mid)
+        daily_data[d]["cost"] += safe_float(book.purchase_price)
 
     # Build daily series with cumulative values
     result = []
@@ -574,11 +575,11 @@ def get_value_by_category(db: Session = Depends(get_db)):
         db.query(func.sum(Book.value_mid)).filter(Book.inventory_type == "PRIMARY").scalar() or 0
     )
 
-    other_value = float(total_value) - float(premium_value) - float(tier1_value)
+    other_value = safe_float(total_value) - safe_float(premium_value) - safe_float(tier1_value)
 
     return [
-        {"category": "Premium Bindings", "value": float(premium_value)},
-        {"category": "Tier 1 Publishers", "value": float(tier1_value)},
+        {"category": "Premium Bindings", "value": safe_float(premium_value)},
+        {"category": "Tier 1 Publishers", "value": safe_float(tier1_value)},
         {"category": "Other", "value": max(0, other_value)},
     ]
 
