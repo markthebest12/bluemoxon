@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ScoreBreakdownItem(BaseModel):
@@ -81,8 +81,7 @@ class EvalRunbookResponse(EvalRunbookBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EvalRunbookPriceUpdate(BaseModel):
@@ -117,8 +116,7 @@ class EvalPriceHistoryResponse(BaseModel):
     score_after: int | None
     changed_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EvalRunbookRefreshResponse(BaseModel):

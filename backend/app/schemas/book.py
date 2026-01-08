@@ -1,9 +1,23 @@
-"""Book schemas."""
+"""Book schemas.
+
+Schema inheritance pattern:
+- _BookFieldsMixin: Shared non-enum fields (title, dates, notes, etc.)
+- BookInputBase: Uses enums for INPUT validation (BookCreate inherits this)
+- BookOutputBase: Uses strings for OUTPUT serialization (BookResponse inherits this)
+- BookListParams: Uses enums for QUERY PARAM validation (filtering)
+- BookUpdate: Uses enums for INPUT validation (explicit Optional fields)
+
+This separation ensures:
+1. New data is validated against known enum values (prevents data quality issues)
+2. Legacy DB values (e.g., "VG", "Tier 3") serialize without 500 errors
+3. No fragile field-type overrides in inheritance chains
+"""
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums import (
     BookStatus,
@@ -12,17 +26,31 @@ from app.enums import (
     SortOrder,
     Tier,
 )
-
-# Enum usage pattern:
-# - BookBase: Uses enums for INPUT validation (BookCreate inherits this)
-# - BookResponse: Overrides enum fields to str for OUTPUT (accepts any DB value)
-# - BookListParams: Uses enums for QUERY PARAM validation (filtering)
-# - BookUpdate: Uses enums for INPUT validation (explicit field definitions)
-#
-# This separation ensures:
-# 1. New data is validated against known values (prevents data quality issues)
-# 2. Legacy DB values (e.g., "VG", "Tier 3") serialize without 500 errors
 from app.schemas.common import PaginatedResponse
+
+# Valid columns for sort_by parameter - prevents sorting by sensitive/internal fields
+ValidSortField = Literal[
+    "title",
+    "created_at",
+    "updated_at",
+    "publication_date",
+    "year_start",
+    "year_end",
+    "value_low",
+    "value_mid",
+    "value_high",
+    "purchase_price",
+    "purchase_date",
+    "status",
+    "category",
+    "condition_grade",
+    "author_id",
+    "publisher_id",
+    "overall_score",
+    "investment_grade",
+    "strategic_fit",
+    "collection_impact",
+]
 
 
 class BookListParams(BaseModel):
@@ -60,13 +88,18 @@ class BookListParams(BaseModel):
     has_provenance: bool | None = None
     is_first_edition: bool | None = None
 
-    # Sorting - allows any valid Book column, falls back to title
-    sort_by: str = "title"
+    # Sorting - restricted to safe, exposed fields
+    sort_by: ValidSortField = "title"
     sort_order: SortOrder = SortOrder.ASC
 
 
-class BookBase(BaseModel):
-    """Base book schema."""
+class _BookFieldsMixin(BaseModel):
+    """Shared book fields that don't involve enum types.
+
+    This mixin contains all fields that have the same type in both input
+    and output schemas. Enum-typed fields are defined separately in
+    BookInputBase and BookOutputBase.
+    """
 
     title: str
     publication_date: str | None = None
@@ -74,11 +107,9 @@ class BookBase(BaseModel):
     volumes: int = 1
     is_complete: bool = True  # Set is complete (all volumes present)
     category: str | None = None
-    inventory_type: InventoryType = InventoryType.PRIMARY
     binding_type: str | None = None
     binding_authenticated: bool = False
     binding_description: str | None = None
-    condition_grade: ConditionGrade | None = None
     condition_notes: str | None = None
     value_low: Decimal | None = None
     value_mid: Decimal | None = None
@@ -89,12 +120,10 @@ class BookBase(BaseModel):
     purchase_source: str | None = None
     discount_pct: Decimal | None = None
     roi_pct: Decimal | None = None
-    status: BookStatus = BookStatus.ON_HAND
     notes: str | None = None
     provenance: str | None = None
     is_first_edition: bool | None = None
     has_provenance: bool = False
-    provenance_tier: Tier | None = None
 
     # Source tracking
     source_url: str | None = None
@@ -117,7 +146,29 @@ class BookBase(BaseModel):
     archive_status: str | None = None  # pending, success, failed
 
 
-class BookCreate(BookBase):
+class BookInputBase(_BookFieldsMixin):
+    """Base schema for book INPUT (create/update) - uses enums for validation."""
+
+    inventory_type: InventoryType = InventoryType.PRIMARY
+    condition_grade: ConditionGrade | None = None
+    status: BookStatus = BookStatus.ON_HAND
+    provenance_tier: Tier | None = None
+
+
+class BookOutputBase(_BookFieldsMixin):
+    """Base schema for book OUTPUT (responses) - uses strings for legacy compatibility."""
+
+    inventory_type: str = "PRIMARY"
+    condition_grade: str | None = None
+    status: str = "ON_HAND"
+    provenance_tier: str | None = None
+
+
+# Backward compatibility alias - some code may reference BookBase
+BookBase = BookInputBase
+
+
+class BookCreate(BookInputBase):
     """Schema for creating a book."""
 
     author_id: int | None = None
@@ -174,8 +225,7 @@ class AuthorSummary(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublisherSummary(BaseModel):
@@ -185,8 +235,7 @@ class PublisherSummary(BaseModel):
     name: str
     tier: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BinderSummary(BaseModel):
@@ -195,18 +244,16 @@ class BinderSummary(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
-class BookResponse(BookBase):
-    """Book response schema."""
+class BookResponse(BookOutputBase):
+    """Book response schema.
 
-    # Override enum fields to accept any DB value (legacy data may not match enums)
-    status: str
-    inventory_type: str
-    provenance_tier: str | None = None
-    condition_grade: str | None = None
+    Inherits from BookOutputBase which uses string types for enum fields,
+    allowing legacy database values (e.g., "VG+", "Tier 3") to serialize
+    without validation errors.
+    """
 
     id: int
     author: AuthorSummary | None = None
@@ -231,8 +278,7 @@ class BookResponse(BookBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookListResponse(PaginatedResponse):
@@ -290,8 +336,7 @@ class DuplicateMatch(BaseModel):
     status: str
     similarity_score: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DuplicateCheckResponse(BaseModel):
