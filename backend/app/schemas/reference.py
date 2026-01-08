@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 # Author schemas
@@ -45,8 +45,7 @@ class AuthorResponse(BaseModel):
     preferred: bool = False
     book_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Publisher schemas
@@ -81,8 +80,7 @@ class PublisherResponse(BaseModel):
     preferred: bool = False
     book_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Binder schemas
@@ -117,8 +115,7 @@ class BinderResponse(BaseModel):
     preferred: bool = False
     book_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Reassignment schemas

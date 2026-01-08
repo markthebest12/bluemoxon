@@ -2,8 +2,11 @@
 
 from app.schemas.analysis import AnalysisResponse, AnalysisUpdate
 from app.schemas.book import (
+    BookBase,
     BookCreate,
+    BookInputBase,
     BookListResponse,
+    BookOutputBase,
     BookResponse,
     BookUpdate,
 )
@@ -19,10 +22,13 @@ from app.schemas.eval_runbook import (
 )
 
 __all__ = [
+    "BookBase",
     "BookCreate",
-    "BookUpdate",
-    "BookResponse",
+    "BookInputBase",
     "BookListResponse",
+    "BookOutputBase",
+    "BookResponse",
+    "BookUpdate",
     "AnalysisResponse",
     "AnalysisUpdate",
     "PaginationParams",
