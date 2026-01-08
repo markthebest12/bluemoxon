@@ -28,6 +28,7 @@ from app.services.scraper import (
     generate_presigned_url,
     scrape_ebay_listing,
 )
+from app.utils.errors import ExternalServiceError, log_and_raise
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +124,15 @@ def extract_listing(
         # for URLs with alphanumeric short IDs
         result = scrape_ebay_listing(request.url, item_id=item_id)
     except ScraperRateLimitError as e:
-        logger.warning(f"Rate limited: {e}")
-        raise HTTPException(status_code=429, detail=f"Rate limit exceeded: {e}") from e
+        log_and_raise(
+            ExternalServiceError("eBay", str(e), retryable=True),
+            context={"url": request.url},
+        )
     except ScraperError as e:
-        logger.error(f"Scraper error: {e}")
-        raise HTTPException(status_code=502, detail=f"Scraping failed: {e}") from e
+        log_and_raise(
+            ExternalServiceError("Scraper", str(e)),
+            context={"url": request.url},
+        )
     except ValueError as e:
         logger.error(f"Extraction error: {e}")
         raise HTTPException(status_code=422, detail=f"Failed to extract listing data: {e}") from e
@@ -281,8 +286,10 @@ def extract_listing_async(
         )
         logger.info(f"Started async scraper for {item_id}")
     except Exception as e:
-        logger.error(f"Failed to invoke scraper Lambda: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to start scraper: {e}") from None
+        log_and_raise(
+            ExternalServiceError("Scraper Lambda", str(e)),
+            context={"url": request.url, "item_id": item_id},
+        )
 
     return ExtractAsyncResponse(
         item_id=item_id,

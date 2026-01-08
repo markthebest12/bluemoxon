@@ -139,8 +139,9 @@ class TestExtractListingEndpoint:
             json={"url": "https://www.ebay.com/itm/123456"},
         )
 
-        assert response.status_code == 429
-        assert "Rate limit" in response.json()["detail"]
+        # Rate limit errors are retryable external service errors (503)
+        assert response.status_code == 503
+        assert "eBay error" in response.json()["detail"]
 
     @patch("app.api.v1.listings.scrape_ebay_listing")
     def test_handles_scraper_error(self, mock_scrape, client):
@@ -154,7 +155,7 @@ class TestExtractListingEndpoint:
         )
 
         assert response.status_code == 502
-        assert "Scraping failed" in response.json()["detail"]
+        assert "Scraper error" in response.json()["detail"]
 
     @patch("app.api.v1.listings.scrape_ebay_listing")
     def test_handles_extraction_error(self, mock_scrape, client):
