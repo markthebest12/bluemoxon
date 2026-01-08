@@ -36,6 +36,7 @@ httpx = "^0.28.1"
 pip-audit = "^2.10.0"
 bandit = "^1.7.0"  # Python SAST security scanner
 freezegun = "^1.5.5"
+mypy-boto3-cognito-idp = "^1.35"  # Type stubs for Cognito client
 
 [build-system]
 requires = ["poetry-core"]
