@@ -1940,20 +1940,11 @@ def generate_eval_runbook_job(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # Check for existing active job (no stale handling - eval runbooks may run longer)
-    active_job = (
-        db.query(EvalRunbookJob)
-        .filter(
-            EvalRunbookJob.book_id == book_id,
-            EvalRunbookJob.status.in_(["pending", "running"]),
-        )
-        .first()
+    # Auto-fail stale jobs and check for active jobs
+    # Uses SELECT FOR UPDATE SKIP LOCKED to prevent race conditions
+    handle_stale_jobs(
+        db, EvalRunbookJob, book_id, job_type_name="Eval runbook job", use_skip_locked=True
     )
-    if active_job:
-        raise HTTPException(
-            status_code=409,
-            detail="Eval runbook job already in progress for this book",
-        )
 
     # Create job record
     job = EvalRunbookJob(
