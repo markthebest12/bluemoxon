@@ -20,6 +20,7 @@ See health.py run_migrations() for usage.
 See: backend/docs/SESSION_LOG_2026-01-04_health_migration_refactor.md
 See: GitHub issue #801 for full investigation
 """
+
 from typing import TypedDict
 
 
@@ -29,6 +30,7 @@ class MigrationDef(TypedDict):
     id: str
     name: str
     sql_statements: list[str]
+
 
 # Migration SQL for e44df6ab5669_add_acquisition_columns
 MIGRATION_E44DF6AB5669_SQL = [
