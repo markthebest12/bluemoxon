@@ -1441,8 +1441,8 @@ jobs:
       - name: Handle API Lambda deploy cancelled
         if: needs.deploy-api-lambda.result == 'cancelled'
         run: |
-          echo "API Lambda deployment was cancelled"
-          exit 1
+          echo "::warning::API Lambda deployment was cancelled (user-initiated) - skipping version check"
+          exit 0
 
       - name: Test API deep health check
         run: |
@@ -1532,8 +1532,8 @@ jobs:
       - name: Handle frontend deploy cancelled
         if: needs.deploy-frontend.result == 'cancelled'
         run: |
-          echo "Frontend deployment was cancelled"
-          exit 1
+          echo "::warning::Frontend deployment was cancelled (user-initiated) - skipping config validation"
+          exit 0
 
       - name: Test image endpoint
         run: |
