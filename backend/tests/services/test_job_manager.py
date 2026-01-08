@@ -6,7 +6,11 @@ import pytest
 from fastapi import HTTPException
 
 from app.models import AnalysisJob, Author, Book, EvalRunbookJob
-from app.services.job_manager import STALE_JOB_THRESHOLD_MINUTES, handle_stale_jobs
+from app.services.job_manager import (
+    STALE_JOB_THRESHOLD_MINUTES,
+    _normalize_datetime,
+    handle_stale_jobs,
+)
 
 
 def create_test_book(db) -> Book:
@@ -218,3 +222,34 @@ class TestHandleStaleJobs:
             handle_stale_jobs(db, AnalysisJob, book_id=test_book.id, job_type_name="Analysis job")
 
         assert "Analysis job already in progress" in exc_info.value.detail
+
+
+class TestNormalizeDatetime:
+    """Tests for _normalize_datetime helper function."""
+
+    def test_none_returns_current_time(self):
+        """None should be treated as 'now', not epoch (prevents auto-fail of new jobs)."""
+        before = datetime.now(UTC)
+        result = _normalize_datetime(None)
+        after = datetime.now(UTC)
+
+        # Result should be between before and after (i.e., approximately now)
+        assert before <= result <= after
+        assert result.tzinfo is not None
+
+    def test_naive_datetime_gets_utc_timezone(self):
+        """Naive datetime should get UTC timezone attached."""
+        naive = datetime(2024, 1, 15, 12, 0, 0)
+        result = _normalize_datetime(naive)
+
+        assert result.tzinfo == UTC
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_aware_datetime_unchanged(self):
+        """Timezone-aware datetime should pass through unchanged."""
+        aware = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
+        result = _normalize_datetime(aware)
+
+        assert result == aware
