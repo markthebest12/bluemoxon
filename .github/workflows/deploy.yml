@@ -1299,11 +1299,17 @@ jobs:
   # ============================================
   # Smoke Tests (after all deploys complete)
   # ============================================
-  # Condition pattern explanation:
-  # - always(): Evaluate condition even if upstream jobs skipped
-  # - !cancelled(): Don't run if workflow was cancelled
-  # - OR checks: Run if ANY primary deploy job succeeded
-  # - Worker lambdas omitted from OR (they deploy with API lambda)
+  # IMPORTANT: The `needs:` list and `if:` condition are intentionally different!
+  #
+  # needs: Lists ALL deploy jobs so smoke-test waits for everything to complete
+  #
+  # if: Only checks INDEPENDENT deploy jobs (API, scraper, frontend)
+  #     Worker lambdas are omitted because they always deploy WITH the API lambda
+  #     (same build artifacts, same change detection). If API succeeds, workers succeed.
+  #
+  # WHEN ADDING A NEW LAMBDA:
+  # - If it deploys independently (own build/change detection): Add to BOTH needs AND if
+  # - If it deploys with an existing lambda (shares artifacts): Add to needs ONLY
 
   smoke-test:
     name: Smoke Tests (${{ needs.configure.outputs.environment }})
