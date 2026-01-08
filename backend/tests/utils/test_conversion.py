@@ -1,5 +1,6 @@
 """Tests for conversion utilities."""
 
+import math
 from decimal import Decimal
 
 from app.utils.conversion import safe_float
@@ -51,6 +52,57 @@ class TestSafeFloat:
         assert safe_float(Decimal("-50.25")) == -50.25
 
     def test_large_decimal(self):
-        """Large Decimal values convert without precision loss."""
+        """Large Decimal values convert correctly."""
         result = safe_float(Decimal("999999.99"))
         assert result == 999999.99
+
+
+class TestSafeFloatEdgeCases:
+    """Test safe_float handling of special values."""
+
+    def test_nan_returns_default(self):
+        """NaN returns default to ensure JSON serialization."""
+        assert safe_float(float("nan")) == 0.0
+
+    def test_nan_with_custom_default(self):
+        """NaN with custom default returns that default."""
+        assert safe_float(float("nan"), default=99.0) == 99.0
+
+    def test_infinity_returns_default(self):
+        """Positive infinity returns default."""
+        assert safe_float(float("inf")) == 0.0
+
+    def test_negative_infinity_returns_default(self):
+        """Negative infinity returns default."""
+        assert safe_float(float("-inf")) == 0.0
+
+    def test_decimal_nan_returns_default(self):
+        """Decimal NaN returns default."""
+        assert safe_float(Decimal("NaN")) == 0.0
+
+    def test_decimal_infinity_returns_default(self):
+        """Decimal Infinity returns default."""
+        assert safe_float(Decimal("Infinity")) == 0.0
+
+    def test_decimal_negative_infinity_returns_default(self):
+        """Decimal -Infinity returns default."""
+        assert safe_float(Decimal("-Infinity")) == 0.0
+
+    def test_result_is_json_serializable(self):
+        """All outputs should be JSON serializable (not NaN/Inf)."""
+        import json
+
+        test_values = [
+            None,
+            Decimal("123.45"),
+            float("nan"),
+            float("inf"),
+            Decimal("NaN"),
+            Decimal("Infinity"),
+        ]
+        for val in test_values:
+            result = safe_float(val)
+            # Should not raise - NaN/Inf would raise ValueError
+            json.dumps({"value": result})
+            assert not math.isnan(result)
+            assert not math.isinf(result)

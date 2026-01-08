@@ -416,7 +416,7 @@ def get_pending_deliveries(db: Session = Depends(get_db)):
                 "title": b.title,
                 "author": b.author.name if b.author else None,
                 "purchase_date": b.purchase_date.isoformat() if b.purchase_date else None,
-                "value_mid": safe_float(b.value_mid),
+                "value_mid": float(b.value_mid) if b.value_mid else None,
             }
             for b in books
         ],
