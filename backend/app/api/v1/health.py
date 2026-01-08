@@ -670,6 +670,42 @@ MIGRATION_57F0CFF7AF60_SQL = [
        WHERE status IN ('pending', 'running')""",
 ]
 
+# Migration SQL for dd7f743834bc_rerun_condition_grade_normalization
+# Re-runs condition_grade normalization that was missed in 44275552664d
+MIGRATION_DD7F743834BC_SQL = [
+    """UPDATE books
+       SET condition_grade = CASE LOWER(TRIM(condition_grade))
+           WHEN 'as new' THEN 'FINE'
+           WHEN 'mint' THEN 'FINE'
+           WHEN 'fine' THEN 'FINE'
+           WHEN 'f' THEN 'FINE'
+           WHEN 'near fine' THEN 'NEAR_FINE'
+           WHEN 'nf' THEN 'NEAR_FINE'
+           WHEN 'near-fine' THEN 'NEAR_FINE'
+           WHEN 'vg+' THEN 'NEAR_FINE'
+           WHEN 'vg +' THEN 'NEAR_FINE'
+           WHEN 'very good' THEN 'VERY_GOOD'
+           WHEN 'vg' THEN 'VERY_GOOD'
+           WHEN 'very-good' THEN 'VERY_GOOD'
+           WHEN 'vg-' THEN 'GOOD'
+           WHEN 'vg -' THEN 'GOOD'
+           WHEN 'good+' THEN 'GOOD'
+           WHEN 'good +' THEN 'GOOD'
+           WHEN 'good' THEN 'GOOD'
+           WHEN 'g' THEN 'GOOD'
+           WHEN 'vg/g' THEN 'GOOD'
+           WHEN 'fair' THEN 'FAIR'
+           WHEN 'reading copy' THEN 'FAIR'
+           WHEN 'poor' THEN 'POOR'
+           WHEN 'ex-library' THEN 'POOR'
+           WHEN 'ex-lib' THEN 'POOR'
+           WHEN 'ex library' THEN 'POOR'
+           ELSE condition_grade
+       END
+       WHERE condition_grade IS NOT NULL
+       AND UPPER(condition_grade) NOT IN ('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR')""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -1044,9 +1080,10 @@ async def run_migrations(
         ("3c8716c1ec04", MIGRATION_3C8716C1EC04_SQL),
         ("44275552664d", MIGRATION_44275552664D_SQL),
         ("57f0cff7af60", MIGRATION_57F0CFF7AF60_SQL),
+        ("dd7f743834bc", MIGRATION_DD7F743834BC_SQL),
     ]
 
-    final_version = "57f0cff7af60"
+    final_version = "dd7f743834bc"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
