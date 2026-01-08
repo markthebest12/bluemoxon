@@ -23,7 +23,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "57f0cff7af60"
-down_revision: str | None = "44275552664d"
+down_revision: str | None = "44275552664d"  # PR #924's condition_grade migration
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
