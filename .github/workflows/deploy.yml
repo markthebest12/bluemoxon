@@ -1369,26 +1369,27 @@ jobs:
           echo "  Scraper Lambda: $SCRAPER_RESULT"
           echo "  Frontend: $FRONTEND_RESULT"
 
-          if [[ "$API_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-api-lambda"; fi
-          if [[ "$WORKER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-worker-lambda"; fi
-          if [[ "$EVAL_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-eval-worker-lambda"; fi
-          if [[ "$CLEANUP_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-cleanup-lambda"; fi
-          if [[ "$DISPATCHER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-dispatcher-lambda"; fi
-          if [[ "$TRACKING_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-worker-lambda"; fi
-          if [[ "$SCRAPER_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-scraper-lambda"; fi
-          if [[ "$FRONTEND_RESULT" == "failure" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-frontend"; fi
+          # Check for any non-successful, non-skipped results (failure, cancelled, or unexpected)
+          if [[ "$API_RESULT" != "success" && "$API_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-api-lambda($API_RESULT)"; fi
+          if [[ "$WORKER_RESULT" != "success" && "$WORKER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-worker-lambda($WORKER_RESULT)"; fi
+          if [[ "$EVAL_RESULT" != "success" && "$EVAL_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-eval-worker-lambda($EVAL_RESULT)"; fi
+          if [[ "$CLEANUP_RESULT" != "success" && "$CLEANUP_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-cleanup-lambda($CLEANUP_RESULT)"; fi
+          if [[ "$DISPATCHER_RESULT" != "success" && "$DISPATCHER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-dispatcher-lambda($DISPATCHER_RESULT)"; fi
+          if [[ "$TRACKING_RESULT" != "success" && "$TRACKING_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-worker-lambda($TRACKING_RESULT)"; fi
+          if [[ "$SCRAPER_RESULT" != "success" && "$SCRAPER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-scraper-lambda($SCRAPER_RESULT)"; fi
+          if [[ "$FRONTEND_RESULT" != "success" && "$FRONTEND_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-frontend($FRONTEND_RESULT)"; fi
 
           if [[ -n "$FAILED_JOBS" ]]; then
             echo ""
-            echo "CRITICAL: Partial deploy detected - some jobs FAILED while others succeeded!"
-            echo "Failed jobs:$FAILED_JOBS"
+            echo "CRITICAL: Partial deploy detected - some jobs did not succeed!"
+            echo "Failed/cancelled jobs:$FAILED_JOBS"
             echo ""
             echo "This indicates an inconsistent deployment state."
             echo "Review the failed jobs and consider running force_full_deploy to restore consistency."
             exit 1
           fi
 
-          echo "✅ No partial failures detected"
+          echo "No partial failures detected"
 
       - name: Test API liveness
         run: |
@@ -1428,20 +1429,13 @@ jobs:
       - name: Skip version check (no backend changes)
         if: needs.deploy-api-lambda.result == 'skipped'
         run: |
-          echo "⏭️ Skipping version check - no backend changes detected"
+          echo "Skipping version check - no backend changes detected"
           echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
 
-      - name: API Lambda deploy failed
-        if: needs.deploy-api-lambda.result == 'failure'
+      - name: Handle API Lambda deploy not successful
+        if: needs.deploy-api-lambda.result != 'success' && needs.deploy-api-lambda.result != 'skipped'
         run: |
-          echo "❌ API Lambda deployment failed - cannot validate version"
-          echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
-          exit 1
-
-      - name: API Lambda deploy cancelled
-        if: needs.deploy-api-lambda.result == 'cancelled'
-        run: |
-          echo "⚠️ API Lambda deployment was cancelled"
+          echo "API Lambda deployment did not succeed"
           echo "API Lambda deploy result: ${{ needs.deploy-api-lambda.result }}"
           exit 1
 
@@ -1521,20 +1515,13 @@ jobs:
       - name: Skip frontend config check (no frontend changes)
         if: needs.deploy-frontend.result == 'skipped'
         run: |
-          echo "⏭️ Skipping frontend config validation - no frontend changes detected"
+          echo "Skipping frontend config validation - no frontend changes detected"
           echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
 
-      - name: Frontend deploy failed
-        if: needs.deploy-frontend.result == 'failure'
+      - name: Handle frontend deploy not successful
+        if: needs.deploy-frontend.result != 'success' && needs.deploy-frontend.result != 'skipped'
         run: |
-          echo "❌ Frontend deployment failed - cannot validate frontend config"
-          echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
-          exit 1
-
-      - name: Frontend deploy cancelled
-        if: needs.deploy-frontend.result == 'cancelled'
-        run: |
-          echo "⚠️ Frontend deployment was cancelled"
+          echo "Frontend deployment did not succeed"
           echo "Frontend deploy result: ${{ needs.deploy-frontend.result }}"
           exit 1
 
@@ -1623,7 +1610,7 @@ jobs:
           echo "Scraper Lambda version check passed!"
 
       - name: Test Analysis Worker Lambda version
-        if: needs.configure.outputs.worker_function_name != ''
+        if: needs.configure.outputs.worker_function_name != '' && needs.deploy-worker-lambda.result == 'success'
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
