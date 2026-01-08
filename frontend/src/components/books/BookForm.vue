@@ -6,7 +6,8 @@ import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import { invalidateDashboardCache } from "@/stores/dashboard";
 import { getErrorMessage } from "@/types/errors";
-import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
+import { BOOK_STATUSES, BOOK_STATUS_OPTIONS, CONDITION_GRADE_OPTIONS } from "@/constants";
+import SelectWithDescriptions from "@/components/SelectWithDescriptions.vue";
 
 const props = defineProps<{
   bookId?: number;
@@ -376,11 +377,10 @@ function cancel() {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Condition Grade</label>
-          <input
+          <SelectWithDescriptions
             v-model="form.condition_grade"
-            type="text"
-            class="input w-full"
-            placeholder="e.g., Very Good, Good, Fair"
+            :options="CONDITION_GRADE_OPTIONS"
+            placeholder="Select Grade"
           />
         </div>
 
