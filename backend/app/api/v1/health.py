@@ -706,6 +706,34 @@ MIGRATION_DD7F743834BC_SQL = [
        AND UPPER(condition_grade) NOT IN ('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR')""",
 ]
 
+# Migration SQL for 21eb898ba04b_add_missing_condition_grade_mappings
+# Adds missing condition_grade mappings not covered in dd7f743834bc
+MIGRATION_21EB898BA04B_SQL = [
+    """UPDATE books
+       SET condition_grade = CASE LOWER(TRIM(condition_grade))
+           WHEN 'g+' THEN 'GOOD'
+           WHEN 'g +' THEN 'GOOD'
+           WHEN 'g-' THEN 'FAIR'
+           WHEN 'g -' THEN 'FAIR'
+           WHEN 'good-' THEN 'FAIR'
+           WHEN 'good -' THEN 'FAIR'
+           WHEN 'nf-' THEN 'VERY_GOOD'
+           WHEN 'nf -' THEN 'VERY_GOOD'
+           WHEN 'nf+' THEN 'FINE'
+           WHEN 'nf +' THEN 'FINE'
+           WHEN 'f-' THEN 'NEAR_FINE'
+           WHEN 'f -' THEN 'NEAR_FINE'
+           WHEN 'f+' THEN 'FINE'
+           WHEN 'f +' THEN 'FINE'
+           WHEN 'vgc' THEN 'VERY_GOOD'
+           WHEN 'gc' THEN 'GOOD'
+           WHEN 'fc' THEN 'FAIR'
+           ELSE condition_grade
+       END
+       WHERE condition_grade IS NOT NULL
+       AND UPPER(condition_grade) NOT IN ('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR')""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -1024,6 +1052,7 @@ Migrations run in order:
 27. w6789012wxyz - Add carrier API support (tracking_active, notifications table)
 28. x7890123abcd - Add E.164 phone constraint and carrier_circuit_state table
 29. d3b3c3c4dd80 - Backfill tracking_active for existing in-transit books
+30. 21eb898ba04b - Add missing condition_grade mappings (G+, G-, NF-, F-, Good-, VGC)
 
 Returns the list of SQL statements executed and their results.
     """,
@@ -1081,9 +1110,10 @@ async def run_migrations(
         ("44275552664d", MIGRATION_44275552664D_SQL),
         ("57f0cff7af60", MIGRATION_57F0CFF7AF60_SQL),
         ("dd7f743834bc", MIGRATION_DD7F743834BC_SQL),
+        ("21eb898ba04b", MIGRATION_21EB898BA04B_SQL),
     ]
 
-    final_version = "dd7f743834bc"
+    final_version = "21eb898ba04b"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing
