@@ -13,9 +13,22 @@ alembic.command.upgrade(). This is the correct design for Lambda because:
 4. Per-statement results provide visibility into what ran
 5. Uses existing db session (no transaction corruption from separate connections)
 
+IMPORTANT: The MIGRATIONS list must be kept in chronological order.
+The last entry is used as final_version for alembic_version table.
+See health.py run_migrations() for usage.
+
 See: backend/docs/SESSION_LOG_2026-01-04_health_migration_refactor.md
 See: GitHub issue #801 for full investigation
 """
+from typing import TypedDict
+
+
+class MigrationDef(TypedDict):
+    """Type definition for migration entries. Provides autocomplete and typo detection."""
+
+    id: str
+    name: str
+    sql_statements: list[str]
 
 # Migration SQL for e44df6ab5669_add_acquisition_columns
 MIGRATION_E44DF6AB5669_SQL = [
@@ -201,9 +214,15 @@ MIGRATION_R1234567GHIJ_SQL = [
     "ALTER TABLE book_analyses ADD COLUMN IF NOT EXISTS extraction_status VARCHAR(20)",
 ]
 
-# Migration SQL for s2345678klmn_expand_binding_type
+# Migration SQL for s2345678klmn_add_author_tier
+# NOTE: This migration also includes expand_binding_type SQL that was incorrectly
+# listed separately in the original health.py with the same ID. Combined here
+# to fix the duplicate ID issue while preserving the SQL for idempotent execution.
 MIGRATION_S2345678KLMN_SQL = [
+    # Originally listed as separate "expand_binding_type" migration with same ID
     "ALTER TABLE books ALTER COLUMN binding_type TYPE VARCHAR(100)",
+    # The actual alembic migration: add author tier
+    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS tier VARCHAR(10)",
 ]
 
 # Migration SQL for t3456789lmno_expand_binder_name
@@ -234,10 +253,8 @@ MIGRATION_6E90A0C87832_SQL = [
     "ALTER TABLE eval_runbooks ADD COLUMN IF NOT EXISTS napoleon_analyzed_at TIMESTAMP",
 ]
 
-# Migration SQL for s2345678klmn_add_author_tier (column)
-MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL = [
-    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS tier VARCHAR(10)",
-]
+# NOTE: MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL removed - combined into MIGRATION_S2345678KLMN_SQL
+# to fix duplicate ID issue. See comment above MIGRATION_S2345678KLMN_SQL.
 
 # Migration SQL for f4f2fbe81faa_seed_author_publisher_binder_tiers (data)
 MIGRATION_F4F2FBE81FAA_SEED_TIERS_SQL = [
@@ -345,8 +362,10 @@ MIGRATION_3C8716C1EC04_SQL = [
 ]
 
 # Migration SQL for 44275552664d_normalize_condition_grade
-# Data migration only - normalizes condition_grade values to standard enum set
-# No schema changes, handled entirely by Alembic migration
+# INTENTIONALLY EMPTY: The original condition_grade normalization via Alembic
+# missed some records. This entry exists to maintain alembic_version ordering.
+# The actual normalization SQL is in dd7f743834bc (rerun_condition_grade_normalization)
+# and 21eb898ba04b (add_missing_condition_grade_mappings).
 MIGRATION_44275552664D_SQL: list[str] = []
 
 # Migration SQL for 57f0cff7af60_add_unique_active_job_constraints
@@ -461,9 +480,15 @@ CLEANUP_ORPHANS_SQL = [
 ]
 
 
-# Complete list of all migrations with their IDs, names, and SQL statements
-# This is the authoritative list used by health.py and migration_verifier.py
-MIGRATIONS = [
+# Complete list of all migrations with their IDs, names, and SQL statements.
+# This is the authoritative list used by health.py and migration_verifier.py.
+#
+# CRITICAL: Maintain chronological order! The LAST entry becomes final_version
+# in alembic_version table. Out-of-order entries cause version drift.
+#
+# CRITICAL: IDs must be unique! Duplicate IDs cause silent failures.
+# See test_migration_ids_are_unique() for CI enforcement.
+MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
         "name": "add_acquisition_columns",
@@ -550,11 +575,6 @@ MIGRATIONS = [
         "sql_statements": MIGRATION_R1234567GHIJ_SQL,
     },
     {
-        "id": "s2345678klmn",
-        "name": "expand_binding_type",
-        "sql_statements": MIGRATION_S2345678KLMN_SQL,
-    },
-    {
         "id": "t3456789lmno",
         "name": "expand_binder_name",
         "sql_statements": MIGRATION_T3456789LMNO_SQL,
@@ -565,9 +585,10 @@ MIGRATIONS = [
         "sql_statements": MIGRATION_6E90A0C87832_SQL,
     },
     {
+        # Combined expand_binding_type + add_author_tier (both had same ID in health.py)
         "id": "s2345678klmn",
-        "name": "add_author_tier",
-        "sql_statements": MIGRATION_S2345678KLMN_AUTHOR_TIER_SQL,
+        "name": "add_author_tier_and_expand_binding_type",
+        "sql_statements": MIGRATION_S2345678KLMN_SQL,
     },
     {
         "id": "f4f2fbe81faa",
