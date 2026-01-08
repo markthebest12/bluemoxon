@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { TooltipItem } from "chart.js";
-import type { DashboardStats, AcquisitionDay } from "@/types/dashboard";
+import type { DashboardStats } from "@/types/dashboard";
+import { formatAcquisitionTooltip } from "./chartHelpers";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -66,13 +67,8 @@ const lineChartOptions = computed(() => ({
     tooltip: {
       callbacks: {
         label: (context: TooltipItem<"line">) => {
-          const dataIndex = context.dataIndex;
-          const day: AcquisitionDay | undefined = props.data.acquisitions_daily[dataIndex];
-          if (!day) return "";
-          return [
-            `Total: $${day.cumulative_value.toLocaleString()}`,
-            `Added today: ${day.count} items ($${day.value.toLocaleString()})`,
-          ];
+          const day = props.data.acquisitions_daily[context.dataIndex];
+          return formatAcquisitionTooltip(day);
         },
       },
     },
