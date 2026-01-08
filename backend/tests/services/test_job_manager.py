@@ -1,9 +1,12 @@
 """Tests for job_manager service."""
 
+import os
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.models import AnalysisJob, Author, Book, EvalRunbookJob
 from app.services.job_manager import (
@@ -253,3 +256,65 @@ class TestNormalizeDatetime:
         result = _normalize_datetime(aware)
 
         assert result == aware
+
+
+class TestDatabaseConstraintPreventsRaceCondition:
+    """Tests for database-level constraint preventing duplicate active jobs."""
+
+    @pytest.mark.skipif(
+        not os.environ.get("DATABASE_URL"),
+        reason="Partial unique index only works with PostgreSQL (CI), not SQLite (local)",
+    )
+    def test_database_constraint_prevents_duplicate_active_jobs(self, db):
+        """Test that the database constraint catches concurrent job creation.
+
+        This test validates that the partial unique index
+        (ix_analysis_jobs_unique_active_per_book) prevents race conditions
+        where multiple threads try to create active jobs for the same book.
+
+        Only runs in CI with PostgreSQL since SQLite doesn't support
+        partial unique indexes.
+        """
+        # Import here to avoid issues when conftest hasn't set up TestingSessionLocal
+        from tests.conftest import TestingSessionLocal
+
+        # Create a test book using the main session
+        test_book = create_test_book(db)
+        book_id = test_book.id
+
+        # Track results from each thread
+        results = {"success": 0, "integrity_error": 0, "other_error": 0}
+        lock = threading.Lock()
+
+        def create_job():
+            """Each thread creates its own session for true concurrency."""
+            session = TestingSessionLocal()
+            try:
+                job = AnalysisJob(book_id=book_id, status="pending")
+                session.add(job)
+                session.commit()
+                with lock:
+                    results["success"] += 1
+            except IntegrityError:
+                session.rollback()
+                with lock:
+                    results["integrity_error"] += 1
+            except Exception:
+                session.rollback()
+                with lock:
+                    results["other_error"] += 1
+            finally:
+                session.close()
+
+        # Launch 5 threads simultaneously to create jobs
+        threads = [threading.Thread(target=create_job) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Exactly one should succeed due to the partial unique index
+        # The rest should get IntegrityError from the database constraint
+        assert results["success"] == 1, f"Expected exactly 1 success, got {results}"
+        assert results["integrity_error"] == 4, f"Expected 4 IntegrityErrors, got {results}"
+        assert results["other_error"] == 0, f"Unexpected errors occurred: {results}"

@@ -657,9 +657,9 @@ MIGRATION_3C8716C1EC04_SQL = [
 # No schema changes, handled entirely by Alembic migration
 MIGRATION_44275552664D_SQL = []
 
-# Migration SQL for y8901234cdef_add_unique_active_job_constraints
+# Migration SQL for 57f0cff7af60_add_unique_active_job_constraints
 # Creates partial unique indexes to prevent duplicate active jobs per book
-MIGRATION_Y8901234CDEF_SQL = [
+MIGRATION_57F0CFF7AF60_SQL = [
     """CREATE UNIQUE INDEX IF NOT EXISTS
        ix_analysis_jobs_unique_active_per_book
        ON analysis_jobs (book_id)
@@ -1043,10 +1043,10 @@ async def run_migrations(
         ("7a6d67bc123e", MIGRATION_7A6D67BC123E_SQL),
         ("3c8716c1ec04", MIGRATION_3C8716C1EC04_SQL),
         ("44275552664d", MIGRATION_44275552664D_SQL),
-        ("y8901234cdef", MIGRATION_Y8901234CDEF_SQL),
+        ("57f0cff7af60", MIGRATION_57F0CFF7AF60_SQL),
     ]
 
-    final_version = "y8901234cdef"
+    final_version = "57f0cff7af60"
 
     # Always run all migrations - they are idempotent (IF NOT EXISTS)
     # This handles cases where alembic_version was updated but columns are missing

@@ -1,8 +1,8 @@
 """add_unique_active_job_constraints
 
-Revision ID: y8901234cdef
+Revision ID: 57f0cff7af60
 Revises: 44275552664d
-Create Date: 2026-01-07 18:29:31.876670
+Create Date: 2026-01-07 18:58:20.838027
 
 Adds partial unique indexes to prevent duplicate active jobs per book.
 This prevents the race condition where two simultaneous requests can both
@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "y8901234cdef"
+revision: str = "57f0cff7af60"
 down_revision: str | None = "44275552664d"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
