@@ -598,6 +598,10 @@ jobs:
   # ============================================
   # Deploy API Lambda
   # ============================================
+  # Condition pattern for deploy jobs:
+  # - always(): Evaluate condition even if upstream jobs skipped
+  # - result == 'success': REQUIRED - deploy needs build artifacts
+  # - changes check: Only deploy if relevant files changed (or force deploy)
 
   deploy-api-lambda:
     name: Deploy API Lambda
@@ -1295,6 +1299,17 @@ jobs:
   # ============================================
   # Smoke Tests (after all deploys complete)
   # ============================================
+  # IMPORTANT: The `needs:` list and `if:` condition are intentionally different!
+  #
+  # needs: Lists ALL deploy jobs so smoke-test waits for everything to complete
+  #
+  # if: Only checks INDEPENDENT deploy jobs (API, scraper, frontend)
+  #     Worker lambdas are omitted because they always deploy WITH the API lambda
+  #     (same build artifacts, same change detection). If API succeeds, workers succeed.
+  #
+  # WHEN ADDING A NEW LAMBDA:
+  # - If it deploys independently (own build/change detection): Add to BOTH needs AND if
+  # - If it deploys with an existing lambda (shares artifacts): Add to needs ONLY
 
   smoke-test:
     name: Smoke Tests (${{ needs.configure.outputs.environment }})
@@ -1314,12 +1329,8 @@ jobs:
       - run-migrations
     if: |
       always() &&
+      !cancelled() &&
       (needs.deploy-api-lambda.result == 'success' ||
-       needs.deploy-worker-lambda.result == 'success' ||
-       needs.deploy-eval-worker-lambda.result == 'success' ||
-       needs.deploy-cleanup-lambda.result == 'success' ||
-       needs.deploy-tracking-dispatcher-lambda.result == 'success' ||
-       needs.deploy-tracking-worker-lambda.result == 'success' ||
        needs.deploy-scraper-lambda.result == 'success' ||
        needs.deploy-frontend.result == 'success')
 
