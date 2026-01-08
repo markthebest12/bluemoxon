@@ -106,3 +106,35 @@ class TestSafeFloatEdgeCases:
             json.dumps({"value": result})
             assert not math.isnan(result)
             assert not math.isinf(result)
+
+
+class TestSafeFloatNonNumericTypes:
+    """Test safe_float handling of non-numeric types (should return default, not crash)."""
+
+    def test_string_non_numeric_returns_default(self):
+        """Non-numeric string returns default instead of raising ValueError."""
+        assert safe_float("not a number") == 0.0
+
+    def test_string_non_numeric_with_custom_default(self):
+        """Non-numeric string with custom default returns that default."""
+        assert safe_float("hello", default=99.0) == 99.0
+
+    def test_dict_returns_default(self):
+        """Dict returns default instead of raising TypeError."""
+        assert safe_float({"key": "value"}) == 0.0
+
+    def test_list_returns_default(self):
+        """List returns default instead of raising TypeError."""
+        assert safe_float([1, 2, 3]) == 0.0
+
+    def test_object_returns_default(self):
+        """Arbitrary object returns default instead of raising TypeError."""
+        assert safe_float(object()) == 0.0
+
+    def test_numeric_string_converts(self):
+        """Numeric string should convert successfully."""
+        assert safe_float("123.45") == 123.45
+
+    def test_empty_string_returns_default(self):
+        """Empty string returns default instead of raising ValueError."""
+        assert safe_float("") == 0.0

@@ -2,7 +2,6 @@
 
 import logging
 
-import boto3
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -13,6 +12,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models.api_key import APIKey
 from app.models.user import User
+from app.services.cognito import get_cognito_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,7 +111,7 @@ def invite_user(
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
     try:
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
         response = cognito.admin_create_user(
             UserPoolId=settings.cognito_user_pool_id,
             Username=request.email,
@@ -303,7 +303,7 @@ def delete_user(
     # Delete from Cognito first
     if settings.cognito_user_pool_id and user.email:
         try:
-            cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+            cognito = get_cognito_client()
             cognito.admin_delete_user(
                 UserPoolId=settings.cognito_user_pool_id,
                 Username=user.email,
@@ -344,7 +344,7 @@ def get_user_mfa_status(
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
     try:
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
 
         # Get user info
         try:
@@ -421,7 +421,7 @@ def disable_user_mfa(
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
     try:
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
 
         # Try to disable TOTP MFA in Cognito
         try:
@@ -463,7 +463,7 @@ def enable_user_mfa(
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
     try:
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
 
         # Try to enable TOTP MFA in Cognito (only works if user has set up MFA)
         try:
@@ -518,7 +518,7 @@ def reset_user_password(
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
     try:
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
 
         # Set permanent password
         cognito.admin_set_user_password(
@@ -574,7 +574,7 @@ def impersonate_user(
         alphabet = string.ascii_letters + string.digits + "!@#$%"
         temp_password = "".join(secrets.choice(alphabet) for _ in range(16))
 
-        cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
+        cognito = get_cognito_client()
 
         # Set permanent password (user won't need to change it)
         cognito.admin_set_user_password(
