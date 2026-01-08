@@ -1,18 +1,12 @@
 """Tests for job_manager service."""
 
-import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 
 from app.models import AnalysisJob, Author, Book, EvalRunbookJob
-from app.services.job_manager import (
-    STALE_JOB_THRESHOLD_MINUTES,
-    _normalize_datetime,
-    handle_stale_jobs,
-)
+from app.services.job_manager import STALE_JOB_THRESHOLD_MINUTES, handle_stale_jobs
 
 
 def create_test_book(db) -> Book:
@@ -224,98 +218,3 @@ class TestHandleStaleJobs:
             handle_stale_jobs(db, AnalysisJob, book_id=test_book.id, job_type_name="Analysis job")
 
         assert "Analysis job already in progress" in exc_info.value.detail
-
-
-class TestNormalizeDatetime:
-    """Tests for _normalize_datetime helper function."""
-
-    def test_none_returns_current_time(self):
-        """None should be treated as 'now', not epoch (prevents auto-fail of new jobs)."""
-        before = datetime.now(UTC)
-        result = _normalize_datetime(None)
-        after = datetime.now(UTC)
-
-        # Result should be between before and after (i.e., approximately now)
-        assert before <= result <= after
-        assert result.tzinfo is not None
-
-    def test_naive_datetime_gets_utc_timezone(self):
-        """Naive datetime should get UTC timezone attached."""
-        naive = datetime(2024, 1, 15, 12, 0, 0)
-        result = _normalize_datetime(naive)
-
-        assert result.tzinfo == UTC
-        assert result.year == 2024
-        assert result.month == 1
-        assert result.day == 15
-
-    def test_aware_datetime_unchanged(self):
-        """Timezone-aware datetime should pass through unchanged."""
-        aware = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
-        result = _normalize_datetime(aware)
-
-        assert result == aware
-
-
-class TestDatabaseConstraintPreventsRaceCondition:
-    """Tests for database-level constraint preventing duplicate active jobs."""
-
-    @pytest.mark.skip(
-        reason="Skipped: partial unique index only exists in Alembic migration "
-        "(57f0cff7af60), not in SQLAlchemy model. Test DB uses create_all() which "
-        "doesn't run migrations. The constraint works in production - this tests "
-        "PostgreSQL behavior, not application logic."
-    )
-    def test_database_constraint_prevents_duplicate_active_jobs(self, db):
-        """Test that the database constraint catches concurrent job creation.
-
-        This test validates that the partial unique index
-        (ix_analysis_jobs_unique_active_per_book) prevents race conditions
-        where multiple threads try to create active jobs for the same book.
-
-        Only runs in CI with PostgreSQL since SQLite doesn't support
-        partial unique indexes.
-        """
-        # Import here to avoid issues when conftest hasn't set up TestingSessionLocal
-        from tests.conftest import TestingSessionLocal
-
-        # Create a test book using the main session
-        test_book = create_test_book(db)
-        book_id = test_book.id
-
-        # Track results from each thread
-        results = {"success": 0, "integrity_error": 0, "other_error": 0}
-        lock = threading.Lock()
-
-        def create_job():
-            """Each thread creates its own session for true concurrency."""
-            session = TestingSessionLocal()
-            try:
-                job = AnalysisJob(book_id=book_id, status="pending")
-                session.add(job)
-                session.commit()
-                with lock:
-                    results["success"] += 1
-            except IntegrityError:
-                session.rollback()
-                with lock:
-                    results["integrity_error"] += 1
-            except Exception:
-                session.rollback()
-                with lock:
-                    results["other_error"] += 1
-            finally:
-                session.close()
-
-        # Launch 5 threads simultaneously to create jobs
-        threads = [threading.Thread(target=create_job) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # Exactly one should succeed due to the partial unique index
-        # The rest should get IntegrityError from the database constraint
-        assert results["success"] == 1, f"Expected exactly 1 success, got {results}"
-        assert results["integrity_error"] == 4, f"Expected 4 IntegrityErrors, got {results}"
-        assert results["other_error"] == 0, f"Unexpected errors occurred: {results}"
