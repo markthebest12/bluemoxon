@@ -124,10 +124,11 @@ def extract_listing(
         # for URLs with alphanumeric short IDs
         result = scrape_ebay_listing(request.url, item_id=item_id)
     except ScraperRateLimitError as e:
-        log_and_raise(
-            ExternalServiceError("eBay", str(e), retryable=True),
-            context={"url": request.url},
-        )
+        logger.warning(f"Rate limited by eBay: {e} url={request.url}")
+        raise HTTPException(
+            status_code=429,
+            detail=f"eBay rate limit: {e}. Please try again later.",
+        ) from e
     except ScraperError as e:
         log_and_raise(
             ExternalServiceError("Scraper", str(e)),

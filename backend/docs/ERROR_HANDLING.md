@@ -12,7 +12,7 @@ All custom exceptions inherit from `BMXError`:
 BMXError (base)
 ├── ExternalServiceError  - AWS, external APIs (S3, SQS, Cognito, Bedrock, etc.)
 ├── DatabaseError         - SQLAlchemy/PostgreSQL errors
-├── ValidationError       - Input validation failures
+├── BMXValidationError       - Input validation failures
 ├── ResourceNotFoundError - 404 cases
 └── ConflictError         - State conflicts (duplicate jobs, etc.)
 ```
@@ -21,7 +21,7 @@ BMXError (base)
 
 | Exception Type | HTTP Status | When to Use |
 |----------------|-------------|-------------|
-| `ValidationError` | 400 | Invalid input from client |
+| `BMXValidationError` | 400 | Invalid input from client |
 | `ResourceNotFoundError` | 404 | Resource doesn't exist |
 | `ConflictError` | 409 | Operation conflicts with state |
 | `ExternalServiceError` | 502 | External service failure (non-retryable) |
@@ -64,11 +64,11 @@ except IntegrityError:
 ### Validation Errors (400)
 
 ```python
-from app.utils.errors import ValidationError, log_and_raise
+from app.utils.errors import BMXValidationError, log_and_raise
 
 if not is_valid(input_data):
     log_and_raise(
-        ValidationError("field_name", "Invalid format"),
+        BMXValidationError("field_name", "Invalid format"),
         context={"value": input_data}
     )
 ```
@@ -77,7 +77,7 @@ if not is_valid(input_data):
 
 The `log_and_raise` function handles logging automatically:
 
-- `ValidationError`, `ResourceNotFoundError`: Logged at WARNING level
+- `BMXValidationError`, `ResourceNotFoundError`: Logged at WARNING level
 - All other errors: Logged at ERROR level with stack trace
 
 Context is included in all log messages for debugging.

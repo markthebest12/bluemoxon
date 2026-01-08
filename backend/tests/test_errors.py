@@ -5,17 +5,17 @@ def test_custom_exceptions_exist():
     """Custom exception classes should be defined."""
     from app.utils.errors import (
         BMXError,
+        BMXValidationError,
         ConflictError,
         DatabaseError,
         ExternalServiceError,
         ResourceNotFoundError,
-        ValidationError,
     )
 
     # All should inherit from BMXError
     assert issubclass(ExternalServiceError, BMXError)
     assert issubclass(DatabaseError, BMXError)
-    assert issubclass(ValidationError, BMXError)
+    assert issubclass(BMXValidationError, BMXError)
     assert issubclass(ResourceNotFoundError, BMXError)
     assert issubclass(ConflictError, BMXError)
 
@@ -59,10 +59,10 @@ def test_database_error():
 
 
 def test_validation_error():
-    """ValidationError should describe the field and issue."""
-    from app.utils.errors import ValidationError
+    """BMXValidationError should describe the field and issue."""
+    from app.utils.errors import BMXValidationError
 
-    err = ValidationError("email", "Invalid format")
+    err = BMXValidationError("email", "Invalid format")
     assert err.field == "email"
     assert str(err) == "Validation error on 'email': Invalid format"
 
@@ -70,11 +70,11 @@ def test_validation_error():
 def test_to_http_exception_mapping():
     """BMXError should map to appropriate HTTP status codes."""
     from app.utils.errors import (
+        BMXValidationError,
         ConflictError,
         DatabaseError,
         ExternalServiceError,
         ResourceNotFoundError,
-        ValidationError,
         to_http_exception,
     )
 
@@ -95,7 +95,7 @@ def test_to_http_exception_mapping():
     assert http_err.status_code == 404
 
     # Validation → 400
-    err = ValidationError("email", "Invalid format")
+    err = BMXValidationError("email", "Invalid format")
     http_err = to_http_exception(err)
     assert http_err.status_code == 400
 
@@ -113,9 +113,9 @@ def test_to_http_exception_mapping():
 def test_log_and_raise():
     """log_and_raise should log and raise HTTPException."""
     import pytest
+    from fastapi import HTTPException
 
     from app.utils.errors import ExternalServiceError, log_and_raise
-    from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc_info:
         log_and_raise(

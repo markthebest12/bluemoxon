@@ -23,6 +23,18 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
+# Keys that indicate potentially sensitive data - values will be redacted in logs
+SENSITIVE_KEYS = {
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "apikey",
+    "auth",
+    "credential",
+    "private",
+}
+
 
 class BMXError(Exception):
     """Base exception for all BlueMoxon domain errors."""
@@ -60,12 +72,16 @@ class DatabaseError(BMXError):
         super().__init__(f"Database {operation} failed: {message}")
 
 
-class ValidationError(BMXError):
+class BMXValidationError(BMXError):
     """Input validation failed."""
 
     def __init__(self, field: str, message: str):
         self.field = field
         super().__init__(f"Validation error on '{field}': {message}")
+
+
+# Backward-compatible alias
+ValidationError = BMXValidationError
 
 
 class ResourceNotFoundError(BMXError):
@@ -87,7 +103,7 @@ class ConflictError(BMXError):
 ERROR_STATUS_MAP: dict[type, int | Callable[["BMXError"], int]] = {
     ExternalServiceError: lambda e: 503 if e.retryable else 502,
     DatabaseError: 500,
-    ValidationError: 400,
+    BMXValidationError: 400,
     ResourceNotFoundError: 404,
     ConflictError: 409,
 }
@@ -107,6 +123,27 @@ def to_http_exception(error: BMXError) -> HTTPException:
     return HTTPException(status_code=status_code, detail=str(error))
 
 
+def sanitize_context(context: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Remove potentially sensitive data from logging context.
+
+    Args:
+        context: Dictionary of context data to sanitize
+
+    Returns:
+        Sanitized context with sensitive values replaced by "[REDACTED]"
+    """
+    if not context:
+        return context
+    sanitized = {}
+    for key, value in context.items():
+        key_lower = key.lower()
+        if any(sensitive in key_lower for sensitive in SENSITIVE_KEYS):
+            sanitized[key] = "[REDACTED]"
+        else:
+            sanitized[key] = value
+    return sanitized
+
+
 def log_and_raise(
     error: BMXError,
     context: dict[str, Any] | None = None,
@@ -120,13 +157,13 @@ def log_and_raise(
     Raises:
         HTTPException: Always raises, never returns
     """
-    context = context or {}
-    context_str = " ".join(f"{k}={v}" for k, v in context.items())
+    safe_context = sanitize_context(context) or {}
+    context_str = " ".join(f"{k}={v}" for k, v in safe_context.items())
 
     # Log at appropriate level based on error type
-    if isinstance(error, (ResourceNotFoundError, ValidationError)):
+    if isinstance(error, (ResourceNotFoundError, BMXValidationError)):
         logger.warning("%s [%s]", error, context_str)
     else:
         logger.error("%s [%s]", error, context_str, exc_info=True)
 
-    raise to_http_exception(error) from None
+    raise to_http_exception(error) from error

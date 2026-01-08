@@ -139,9 +139,9 @@ class TestExtractListingEndpoint:
             json={"url": "https://www.ebay.com/itm/123456"},
         )
 
-        # Rate limit errors are retryable external service errors (503)
-        assert response.status_code == 503
-        assert "eBay error" in response.json()["detail"]
+        # Rate limit errors should return 429 (Too Many Requests), not 503
+        assert response.status_code == 429
+        assert "rate limit" in response.json()["detail"].lower()
 
     @patch("app.api.v1.listings.scrape_ebay_listing")
     def test_handles_scraper_error(self, mock_scrape, client):

@@ -111,8 +111,8 @@ def invite_user(
     if existing:
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
-    cognito = get_cognito_client()
     try:
+        cognito = get_cognito_client()
         response = cognito.admin_create_user(
             UserPoolId=settings.cognito_user_pool_id,
             Username=request.email,
@@ -303,8 +303,8 @@ def delete_user(
 
     # Delete from Cognito first
     if settings.cognito_user_pool_id and user.email:
-        cognito = get_cognito_client()
         try:
+            cognito = get_cognito_client()
             cognito.admin_delete_user(
                 UserPoolId=settings.cognito_user_pool_id,
                 Username=user.email,
@@ -342,10 +342,9 @@ def get_user_mfa_status(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
-    cognito = get_cognito_client()
-
     # Get user info
     try:
+        cognito = get_cognito_client()
         user_response = cognito.admin_get_user(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
@@ -424,10 +423,9 @@ def disable_user_mfa(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
-    cognito = get_cognito_client()
-
     # Try to disable TOTP MFA in Cognito
     try:
+        cognito = get_cognito_client()
         cognito.admin_set_user_mfa_preference(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
@@ -465,10 +463,9 @@ def enable_user_mfa(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
-    cognito = get_cognito_client()
-
     # Try to enable TOTP MFA in Cognito (only works if user has set up MFA)
     try:
+        cognito = get_cognito_client()
         cognito.admin_set_user_mfa_preference(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
@@ -519,8 +516,8 @@ def reset_user_password(
     if not settings.cognito_user_pool_id:
         raise HTTPException(status_code=500, detail="Cognito not configured")
 
-    cognito = get_cognito_client()
     try:
+        cognito = get_cognito_client()
         cognito.admin_set_user_password(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
@@ -574,8 +571,8 @@ def impersonate_user(
     alphabet = string.ascii_letters + string.digits + "!@#$%"
     temp_password = "".join(secrets.choice(alphabet) for _ in range(16))
 
-    cognito = get_cognito_client()
     try:
+        cognito = get_cognito_client()
         cognito.admin_set_user_password(
             UserPoolId=settings.cognito_user_pool_id,
             Username=user.email,
