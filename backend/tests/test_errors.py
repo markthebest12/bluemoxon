@@ -65,3 +65,63 @@ def test_validation_error():
     err = ValidationError("email", "Invalid format")
     assert err.field == "email"
     assert str(err) == "Validation error on 'email': Invalid format"
+
+
+def test_to_http_exception_mapping():
+    """BMXError should map to appropriate HTTP status codes."""
+    from app.utils.errors import (
+        ConflictError,
+        DatabaseError,
+        ExternalServiceError,
+        ResourceNotFoundError,
+        ValidationError,
+        to_http_exception,
+    )
+
+    # External service → 502 Bad Gateway
+    err = ExternalServiceError("S3", "Connection refused")
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 502
+    assert "S3" in http_err.detail
+
+    # External service retryable → 503 Service Unavailable
+    err = ExternalServiceError("SQS", "Timeout", retryable=True)
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 503
+
+    # Resource not found → 404
+    err = ResourceNotFoundError("Book", 123)
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 404
+
+    # Validation → 400
+    err = ValidationError("email", "Invalid format")
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 400
+
+    # Conflict → 409
+    err = ConflictError("Already exists")
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 409
+
+    # Database → 500
+    err = DatabaseError("commit", "Connection lost")
+    http_err = to_http_exception(err)
+    assert http_err.status_code == 500
+
+
+def test_log_and_raise():
+    """log_and_raise should log and raise HTTPException."""
+    import pytest
+
+    from app.utils.errors import ExternalServiceError, log_and_raise
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        log_and_raise(
+            ExternalServiceError("Bedrock", "Model not available"),
+            context={"book_id": 123, "model": "claude-3"},
+        )
+
+    assert exc_info.value.status_code == 502
+    assert "Bedrock" in exc_info.value.detail
