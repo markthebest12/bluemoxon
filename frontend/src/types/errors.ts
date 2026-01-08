@@ -3,12 +3,23 @@
  */
 
 /**
+ * Pydantic validation error item from FastAPI.
+ */
+interface ValidationErrorItem {
+  type: string;
+  loc: (string | number)[];
+  msg: string;
+  input?: unknown;
+  ctx?: Record<string, unknown>;
+}
+
+/**
  * Shape of axios-style errors with response data.
  */
 export interface AxiosLikeError {
   response?: {
     data?: {
-      detail?: string;
+      detail?: string | ValidationErrorItem[];
     };
   };
   message?: string;
@@ -23,6 +34,74 @@ export function isAxiosLikeError(e: unknown): e is AxiosLikeError {
 }
 
 /**
+ * Convert snake_case field name to human-readable Title Case.
+ */
+function formatFieldName(field: string): string {
+  return field
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Format a Pydantic validation error into a human-readable message.
+ */
+function formatValidationError(error: ValidationErrorItem): string {
+  // Get the field name (skip 'body' prefix)
+  const fieldPath = error.loc.filter((part) => part !== "body");
+  const fieldName = fieldPath.length > 0 ? formatFieldName(String(fieldPath[0])) : "Field";
+
+  // Create human-readable message based on error type
+  switch (error.type) {
+    case "enum":
+      if (error.ctx?.expected) {
+        const expected = String(error.ctx.expected)
+          .replace(/'/g, "")
+          .split(", ")
+          .map((v) => formatFieldName(v))
+          .join(", ");
+        return `${fieldName}: Please select a valid option (${expected})`;
+      }
+      return `${fieldName}: Invalid selection`;
+
+    case "missing":
+      return `${fieldName} is required`;
+
+    case "string_type":
+      return `${fieldName} must be text`;
+
+    case "int_type":
+    case "float_type":
+      return `${fieldName} must be a number`;
+
+    case "bool_type":
+      return `${fieldName} must be yes or no`;
+
+    case "value_error":
+    case "assertion_error":
+      return `${fieldName}: ${error.msg}`;
+
+    default:
+      // Fallback to the raw message, cleaned up
+      return `${fieldName}: ${error.msg}`;
+  }
+}
+
+/**
+ * Check if detail is an array of Pydantic validation errors.
+ */
+function isValidationErrorArray(detail: unknown): detail is ValidationErrorItem[] {
+  return (
+    Array.isArray(detail) &&
+    detail.length > 0 &&
+    typeof detail[0] === "object" &&
+    detail[0] !== null &&
+    "loc" in detail[0] &&
+    "msg" in detail[0]
+  );
+}
+
+/**
  * Extract error message from unknown error, handling axios-style errors.
  * @param e - The caught error
  * @param fallback - Default message if error cannot be parsed
@@ -30,7 +109,20 @@ export function isAxiosLikeError(e: unknown): e is AxiosLikeError {
  */
 export function getErrorMessage(e: unknown, fallback = "An error occurred"): string {
   if (isAxiosLikeError(e)) {
-    return e.response?.data?.detail || (e instanceof Error ? e.message : fallback);
+    const detail = e.response?.data?.detail;
+
+    // Handle Pydantic validation errors (array of error objects)
+    if (isValidationErrorArray(detail)) {
+      const messages = detail.map(formatValidationError);
+      return messages.join(". ");
+    }
+
+    // Handle string detail
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    return e instanceof Error ? e.message : fallback;
   }
   if (e instanceof Error) {
     return e.message;

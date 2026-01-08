@@ -74,6 +74,7 @@ class TestConditionGrade:
     def test_values(self):
         """Verify all ConditionGrade values are correct."""
         assert ConditionGrade.FINE == "FINE"
+        assert ConditionGrade.NEAR_FINE == "NEAR_FINE"
         assert ConditionGrade.VERY_GOOD == "VERY_GOOD"
         assert ConditionGrade.GOOD == "GOOD"
         assert ConditionGrade.FAIR == "FAIR"
@@ -81,7 +82,7 @@ class TestConditionGrade:
 
     def test_all_values_accounted_for(self):
         """Ensure no values are missing from tests."""
-        assert len(ConditionGrade) == 5
+        assert len(ConditionGrade) == 6
 
     def test_string_serialization(self):
         """StrEnum should serialize to string values."""

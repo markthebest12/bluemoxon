@@ -35,6 +35,7 @@ class ConditionGrade(StrEnum):
     """Physical condition grade for books."""
 
     FINE = "FINE"
+    NEAR_FINE = "NEAR_FINE"
     VERY_GOOD = "VERY_GOOD"
     GOOD = "GOOD"
     FAIR = "FAIR"

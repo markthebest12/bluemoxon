@@ -55,3 +55,36 @@ export const UI_TIMING = {
   /** Delay before closing combobox dropdown on blur */
   COMBOBOX_BLUR_DELAY_MS: 200,
 } as const;
+
+/**
+ * Condition grade constants for type-safe comparisons.
+ */
+export const CONDITION_GRADES = {
+  FINE: "FINE",
+  NEAR_FINE: "NEAR_FINE",
+  VERY_GOOD: "VERY_GOOD",
+  GOOD: "GOOD",
+  FAIR: "FAIR",
+  POOR: "POOR",
+} as const;
+
+export type ConditionGrade = (typeof CONDITION_GRADES)[keyof typeof CONDITION_GRADES];
+
+/**
+ * Condition grade dropdown options with display labels and descriptions.
+ * Uses ABAA (Antiquarian Booksellers' Association of America) grading terminology.
+ */
+export const CONDITION_GRADE_OPTIONS = [
+  { value: "FINE", label: "Fine", description: "Nearly as new, no defects" },
+  { value: "NEAR_FINE", label: "Near Fine", description: "Approaching fine, very minor defects" },
+  {
+    value: "VERY_GOOD",
+    label: "Very Good",
+    description: "Worn but untorn, minimum for collectors",
+  },
+  { value: "GOOD", label: "Good", description: "Average used, regular wear" },
+  { value: "FAIR", label: "Fair", description: "Wear and tear, but complete" },
+  { value: "POOR", label: "Poor", description: "Heavily damaged, reading copy only" },
+] as const;
+
+export type ConditionGradeOption = (typeof CONDITION_GRADE_OPTIONS)[number];
