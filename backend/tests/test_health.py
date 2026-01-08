@@ -219,3 +219,15 @@ class TestHealthAdminEndpointsSecurity:
         """POST /health/migrate succeeds with admin auth."""
         response = client.post("/api/v1/health/migrate")
         assert response.status_code == 200
+
+
+class TestMigrationSqlModule:
+    """Tests for migration SQL module usage."""
+
+    def test_health_uses_migration_sql_module(self):
+        """health.py should import from migration_sql, not define SQL inline."""
+        from app.api.v1 import health
+        from app.db import migration_sql
+
+        # Verify health.py's migrations list comes from migration_sql
+        assert health.migrations == migration_sql.MIGRATIONS
