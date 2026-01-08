@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class AnalysisJobCreate(BaseModel):
@@ -24,8 +24,7 @@ class AnalysisJobResponse(BaseModel):
     updated_at: datetime
     completed_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def from_orm_model(cls, job) -> "AnalysisJobResponse":

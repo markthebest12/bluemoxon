@@ -17,7 +17,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums import (
     BookStatus,
@@ -225,8 +225,7 @@ class AuthorSummary(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublisherSummary(BaseModel):
@@ -236,8 +235,7 @@ class PublisherSummary(BaseModel):
     name: str
     tier: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BinderSummary(BaseModel):
@@ -246,8 +244,7 @@ class BinderSummary(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookResponse(BookOutputBase):
@@ -281,8 +278,7 @@ class BookResponse(BookOutputBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookListResponse(PaginatedResponse):
@@ -340,8 +336,7 @@ class DuplicateMatch(BaseModel):
     status: str
     similarity_score: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DuplicateCheckResponse(BaseModel):
