@@ -94,3 +94,12 @@ secondary_origin_bucket_name        = "bluemoxon-images-staging"
 secondary_origin_bucket_domain_name = "bluemoxon-images-staging.s3.us-west-2.amazonaws.com"
 secondary_origin_path_pattern       = "/book-images/*"
 secondary_origin_ttl                = 604800
+
+# =============================================================================
+# Entity Validation (#967, #969)
+# =============================================================================
+# Start in "log" mode for staging to monitor would-be rejections
+entity_validation_mode           = "log"
+entity_match_threshold_publisher = 0.80
+entity_match_threshold_binder    = 0.80
+entity_match_threshold_author    = 0.75

@@ -355,6 +355,11 @@ module "lambda" {
       # Worker queue names (URLs constructed at runtime)
       BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
       BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
+      # Entity validation (#967, #969)
+      BMX_ENTITY_VALIDATION_MODE           = var.entity_validation_mode
+      BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
+      BMX_ENTITY_MATCH_THRESHOLD_BINDER    = tostring(var.entity_match_threshold_binder)
+      BMX_ENTITY_MATCH_THRESHOLD_AUTHOR    = tostring(var.entity_match_threshold_author)
     },
     # Database secret ARN (use module output for staging, explicit ARN for prod)
     var.enable_database ? {

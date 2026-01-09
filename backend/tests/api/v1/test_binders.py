@@ -133,3 +133,67 @@ def test_reassign_binder_400_when_same_entity(client, db):
     )
 
     assert response.status_code == 400
+
+
+class TestBinderValidation:
+    """Test entity validation on binder creation."""
+
+    def test_create_binder_returns_409_when_similar_exists(self, client, db):
+        """Creating binder with similar name returns 409 with suggestions."""
+        from app.models import Binder
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("binder")
+
+        existing = Binder(name="Sangorski & Sutcliffe", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+
+        # Invalidate again after adding the binder
+        invalidate_entity_cache("binder")
+
+        response = client.post(
+            "/api/v1/binders",
+            json={"name": "Sangorski Sutcliffe", "tier": "TIER_1"},
+        )
+
+        assert response.status_code == 409
+        data = response.json()
+        assert data["error"] == "similar_entity_exists"
+        assert data["entity_type"] == "binder"
+        assert data["input"] == "Sangorski Sutcliffe"
+        assert len(data["suggestions"]) >= 1
+        assert data["suggestions"][0]["id"] == existing.id
+
+    def test_create_binder_with_force_bypasses_validation(self, client, db):
+        """force=true allows creation despite similar entity."""
+        from app.models import Binder
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("binder")
+
+        existing = Binder(name="Sangorski & Sutcliffe", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+
+        # Invalidate again after adding the binder
+        invalidate_entity_cache("binder")
+
+        response = client.post(
+            "/api/v1/binders?force=true",
+            json={"name": "Sangorski Sutcliffe", "tier": "TIER_1"},
+        )
+
+        assert response.status_code == 201
+
+    def test_create_binder_succeeds_when_no_similar(self, client, db):
+        """Creating unique binder succeeds."""
+        response = client.post(
+            "/api/v1/binders",
+            json={"name": "Unique Bindery", "tier": "TIER_3"},
+        )
+
+        assert response.status_code == 201

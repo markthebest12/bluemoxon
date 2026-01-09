@@ -1,6 +1,7 @@
 """Entity validation service for preventing duplicate creation."""
 
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.config import get_settings

@@ -1,6 +1,7 @@
 """Publishers API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
@@ -14,6 +15,7 @@ from app.schemas.reference import (
     ReassignResponse,
 )
 from app.services.entity_matching import invalidate_entity_cache
+from app.services.entity_validation import validate_entity_creation
 from app.services.publisher_validation import invalidate_publisher_cache
 
 router = APIRouter()
@@ -70,12 +72,26 @@ def create_publisher(
     publisher_data: PublisherCreate,
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
+    force: bool = Query(
+        default=False,
+        description="Bypass duplicate validation and create anyway",
+    ),
 ):
     """Create a new publisher. Requires editor role."""
-    # Check for existing publisher with same name
+    # Check for existing publisher with same name (exact match)
     existing = db.query(Publisher).filter(Publisher.name == publisher_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Publisher with this name already exists")
+
+    # Check for similar existing publishers (fuzzy match) unless force=true
+    if not force:
+        validation_error = validate_entity_creation(
+            db=db,
+            entity_type="publisher",
+            name=publisher_data.name,
+        )
+        if validation_error:
+            return JSONResponse(status_code=409, content=validation_error.model_dump())
 
     publisher = Publisher(**publisher_data.model_dump())
     db.add(publisher)

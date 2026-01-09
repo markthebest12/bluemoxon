@@ -233,3 +233,12 @@ terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:266672885920:ta
 
 # GitHub OIDC Drift Detection - read-only permissions for pre-deploy drift check
 enable_github_oidc_drift_detection = true
+
+# =============================================================================
+# Entity Validation (#967, #969)
+# =============================================================================
+# Enforce mode in production - reject duplicate entity creation
+entity_validation_mode           = "enforce"
+entity_match_threshold_publisher = 0.80
+entity_match_threshold_binder    = 0.80
+entity_match_threshold_author    = 0.75

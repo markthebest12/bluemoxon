@@ -1,6 +1,5 @@
 """Tests for entity validation service."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from app.services.entity_matching import EntityMatch
@@ -70,8 +69,12 @@ class TestValidateEntityCreation:
 
         db = MagicMock()
         matches = [
-            EntityMatch(entity_id=5, name="Macmillan and Co.", tier="TIER_1", confidence=0.94, book_count=12),
-            EntityMatch(entity_id=6, name="Macmillan Ltd", tier="TIER_2", confidence=0.88, book_count=3),
+            EntityMatch(
+                entity_id=5, name="Macmillan and Co.", tier="TIER_1", confidence=0.94, book_count=12
+            ),
+            EntityMatch(
+                entity_id=6, name="Macmillan Ltd", tier="TIER_2", confidence=0.88, book_count=3
+            ),
         ]
         with patch("app.services.entity_validation.fuzzy_match_entity", return_value=matches):
             with patch("app.services.entity_validation.get_settings") as mock_settings:
@@ -90,6 +93,7 @@ class TestValidationMode:
     def test_log_mode_returns_none_but_logs(self, caplog):
         """In log mode, validation passes but logs warning."""
         import logging
+
         from app.services.entity_validation import validate_entity_creation
 
         db = MagicMock()
