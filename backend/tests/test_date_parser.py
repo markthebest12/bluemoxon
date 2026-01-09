@@ -161,6 +161,11 @@ class TestParsePublicationDateEdgeCases:
         assert parse_publication_date("1850-") == (None, None)
         assert parse_publication_date("-1850") == (None, None)
 
+    def test_century_rollover_in_short_form(self):
+        """Two-digit end year crossing century boundary."""
+        assert parse_publication_date("1898-02") == (1898, 1902)
+        assert parse_publication_date("1899-05") == (1899, 1905)
+
 
 class TestComputeEra:
     """Tests for compute_era function."""
