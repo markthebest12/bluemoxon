@@ -11,6 +11,7 @@ from app.schemas.book import (
     BookUpdate,
 )
 from app.schemas.common import PaginationParams
+from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
 from app.schemas.eval_runbook import (
     EvalPriceHistoryResponse,
     EvalRunbookBase,
@@ -32,6 +33,8 @@ __all__ = [
     "AnalysisResponse",
     "AnalysisUpdate",
     "PaginationParams",
+    "EntitySuggestion",
+    "EntityValidationError",
     "EvalRunbookBase",
     "EvalRunbookResponse",
     "EvalRunbookPriceUpdate",

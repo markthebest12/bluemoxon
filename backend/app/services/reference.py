@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.binder import Binder
+from app.services.entity_matching import invalidate_entity_cache
 
 # Binder tier mappings based on market recognition and historical significance
 # Each variant maps to a canonical name. The normalization function checks for
@@ -155,5 +156,6 @@ def get_or_create_binder(
     )
     db.add(binder)
     db.flush()  # Get the ID without committing
+    invalidate_entity_cache("binder")
 
     return binder
