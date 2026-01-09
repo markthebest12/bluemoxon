@@ -26,9 +26,9 @@ class InventoryType(StrEnum):
 class Tier(StrEnum):
     """Value tier classification for books."""
 
-    TIER_1 = "TIER_1"
-    TIER_2 = "TIER_2"
-    TIER_3 = "TIER_3"
+    TIER_1 = "Tier 1"
+    TIER_2 = "Tier 2"
+    TIER_3 = "Tier 3"
 
 
 class ConditionGrade(StrEnum):
