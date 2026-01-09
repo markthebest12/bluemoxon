@@ -2,13 +2,13 @@
 
 import logging
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
 from app.services.entity_matching import (
     EntityType,
+    _get_cached_entities,
     _normalize_for_entity_type,
     fuzzy_match_entity,
 )
@@ -21,6 +21,11 @@ def _get_entity_by_normalized_name(
 ) -> tuple[int, str] | None:
     """Find entity by exact normalized name match (case-insensitive).
 
+    Uses the entity cache which stores pre-computed normalized names, ensuring
+    consistent normalization between input and stored values. This is important
+    because normalization may do more than case-folding (e.g., stripping
+    parentheticals, location suffixes, diacritics).
+
     Args:
         db: Database session.
         entity_type: Type of entity.
@@ -29,34 +34,16 @@ def _get_entity_by_normalized_name(
     Returns:
         Tuple of (entity_id, entity_name) if found, None otherwise.
     """
-    if entity_type == "publisher":
-        from app.models.publisher import Publisher
+    # Use the cached entities which have pre-computed normalized names
+    # Cache format: (id, name, normalized_name, tier, book_count)
+    cached_entities = _get_cached_entities(db, entity_type)
+    normalized_lower = normalized_name.lower()
 
-        entity = (
-            db.query(Publisher.id, Publisher.name)
-            .filter(func.lower(Publisher.name) == normalized_name.lower())
-            .first()
-        )
-    elif entity_type == "binder":
-        from app.models.binder import Binder
+    for entity_id, name, cached_normalized, _tier, _book_count in cached_entities:
+        if cached_normalized.lower() == normalized_lower:
+            return (entity_id, name)
 
-        entity = (
-            db.query(Binder.id, Binder.name)
-            .filter(func.lower(Binder.name) == normalized_name.lower())
-            .first()
-        )
-    elif entity_type == "author":
-        from app.models.author import Author
-
-        entity = (
-            db.query(Author.id, Author.name)
-            .filter(func.lower(Author.name) == normalized_name.lower())
-            .first()
-        )
-    else:
-        raise ValueError(f"Unknown entity type: {entity_type}")
-
-    return (entity.id, entity.name) if entity else None
+    return None
 
 
 def validate_entity_creation(
@@ -197,17 +184,19 @@ def validate_entity_for_book(
         for m in matches
     ]
 
-    # In log mode, log warning but return top match entity ID
+    # In log mode, log warning but return None (don't silently associate with different entity)
+    # Returning the fuzzy match would silently "correct" the name, which is potentially data corruption
     if settings.entity_validation_mode == "log":
         logger.warning(
-            "Entity validation would reject: %s '%s' fuzzy matches '%s' at %.0f%% (book_count: %d)",
+            "Entity validation would reject: %s '%s' fuzzy matches '%s' at %.0f%% (book_count: %d) - "
+            "skipping association (use exact name or create entity first)",
             entity_type,
             name,
             top_match.name,
             top_match.confidence * 100,
             top_match.book_count,
         )
-        return top_match.entity_id
+        return None
 
     return EntityValidationError(
         error="similar_entity_exists",

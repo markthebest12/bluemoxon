@@ -176,6 +176,12 @@ class TestPublisherIntegration:
         """Seed publisher aliases for tier lookup."""
         from app.models.publisher import Publisher
         from app.models.publisher_alias import PublisherAlias
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Clear entity caches before seeding to ensure test isolation
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
 
         # Create publishers with tiers and their aliases
         publishers_data = [
@@ -190,6 +196,16 @@ class TestPublisherIntegration:
             for alias in aliases:
                 db.add(PublisherAlias(alias_name=alias, publisher_id=pub.id))
         db.flush()
+
+        # Invalidate cache after seeding so tests pick up fresh data
+        invalidate_entity_cache("publisher")
+
+        yield
+
+        # Clean up after test
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
 
     def test_publisher_from_structured_data_updates_book(self, client, db):
         """Test that publisher from structured data updates book.publisher_id."""
@@ -256,11 +272,15 @@ A Victorian binding in fine condition.
     def test_publisher_not_updated_when_already_set(self, client, db):
         """Test that publisher is not overwritten if already set to same."""
         from app.models.publisher import Publisher
+        from app.services.entity_matching import invalidate_entity_cache
 
         # Create publisher first
         publisher = Publisher(name="Oxford University Press", tier="TIER_1")
         db.add(publisher)
         db.flush()
+
+        # Invalidate cache so the new publisher is found
+        invalidate_entity_cache("publisher")
 
         # Create book with publisher
         response = client.post(

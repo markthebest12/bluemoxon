@@ -1,5 +1,7 @@
 """Tests for the analysis worker."""
 
+import pytest
+
 
 class TestWorkerErrorMessages:
     """Tests for worker error message formatting."""
@@ -79,6 +81,21 @@ class TestWorkerBinderEntityValidation:
     These tests verify the integration between the worker and entity validation service.
     They use real database entities and the actual validate_entity_for_book function.
     """
+
+    @pytest.fixture(autouse=True)
+    def clear_entity_cache(self):
+        """Clear entity caches before each test to ensure test isolation."""
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Clear all entity caches before each test
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
+        yield
+        # Also clear after test for good measure
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
 
     def test_binder_validation_exact_match_returns_id(self, db, monkeypatch):
         """When binder name matches exactly, validate_entity_for_book returns entity ID."""

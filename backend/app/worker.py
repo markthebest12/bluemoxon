@@ -379,6 +379,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                         f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
                     )
                     book.binder_id = binder_result
+                else:
+                    logger.error(
+                        f"Binder ID {binder_result} vanished between validation and fetch "
+                        f"for book {book_id} - skipping association"
+                    )
 
         # Validate and associate publisher
         if parsed.publisher_identification and parsed.publisher_identification.get("name"):
@@ -400,6 +405,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                         f"with book {book_id}"
                     )
                     book.publisher_id = publisher_result
+                else:
+                    logger.error(
+                        f"Publisher ID {publisher_result} vanished between validation and fetch "
+                        f"for book {book_id} - skipping association"
+                    )
 
         # Calculate and persist scores after analysis updates
         logger.info(f"Calculating scores for book {book_id}")

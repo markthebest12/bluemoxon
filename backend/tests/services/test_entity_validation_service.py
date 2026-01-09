@@ -177,8 +177,12 @@ class TestValidateEntityForBook:
         result = validate_entity_for_book(db, "publisher", "   ")
         assert result is None
 
-    def test_log_mode_returns_entity_id_on_fuzzy_match(self, caplog):
-        """In log mode, fuzzy match logs warning but returns entity ID."""
+    def test_log_mode_returns_none_on_fuzzy_match(self, caplog):
+        """In log mode, fuzzy match logs warning but returns None (not fuzzy match ID).
+
+        Returning the fuzzy match ID would silently "correct" the name to a different
+        entity, which could corrupt data. Instead, we skip association and log.
+        """
         import logging
 
         from app.services.entity_validation import validate_entity_for_book
@@ -202,9 +206,10 @@ class TestValidateEntityForBook:
                     with caplog.at_level(logging.WARNING):
                         result = validate_entity_for_book(db, "publisher", "Macmilan")
 
-        # Log mode returns entity ID (allows association with warning)
-        assert result == 5
-        assert "would reject" in caplog.text or "fuzzy match" in caplog.text.lower()
+        # Log mode returns None (skip association to avoid silent correction)
+        assert result is None
+        assert "would reject" in caplog.text
+        assert "skipping association" in caplog.text
 
     def test_log_mode_returns_none_on_no_match(self, caplog):
         """In log mode, no match logs warning but returns None."""
