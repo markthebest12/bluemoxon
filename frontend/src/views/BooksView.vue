@@ -5,7 +5,8 @@ import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
-import { BOOK_STATUSES } from "@/constants";
+import ComboboxWithAdd from "@/components/ComboboxWithAdd.vue";
+import { BOOK_STATUSES, BOOK_CATEGORIES } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -41,6 +42,21 @@ const bindingTypes = [
 ];
 const conditionGrades = ["Fine", "Very Good", "Good", "Fair", "Poor"];
 
+// Computed for author filter - converts between undefined (filter) and null (ComboboxWithAdd)
+// Uses 0 as a sentinel value for "All Authors" since ComboboxWithAdd requires a number for selection
+const authorFilterId = computed({
+  get: () => booksStore.filters.author_id ?? 0, // undefined in filter -> 0 for combobox
+  set: (value: number | null) => {
+    // 0 or null means "All Authors" -> undefined in filter
+    booksStore.filters.author_id = value && value !== 0 ? value : undefined;
+  },
+});
+
+// Authors with "All Authors" option for filter combobox
+const authorOptionsWithAll = computed(() => {
+  return [{ id: 0, name: "All Authors" }, ...referencesStore.authors];
+});
+
 // Count active filters
 const activeFilterCount = computed(() => {
   let count = 0;
@@ -48,6 +64,8 @@ const activeFilterCount = computed(() => {
   if (f.binder_id) count++;
   if (f.publisher_id) count++;
   if (f.publisher_tier) count++;
+  if (f.author_id) count++;
+  if (f.category) count++;
   if (f.binding_authenticated !== undefined) count++;
   if (f.binding_type) count++;
   if (f.condition_grade) count++;
@@ -57,7 +75,6 @@ const activeFilterCount = computed(() => {
   if (f.provenance_tier) count++;
   if (f.is_first_edition !== undefined) count++;
   if (f.status) count++;
-  if (f.category) count++;
   if (f.min_value !== undefined || f.max_value !== undefined) count++;
   if (f.year_start !== undefined || f.year_end !== undefined) count++;
   return count;
@@ -374,6 +391,39 @@ function closeCarousel() {
             <option :value="undefined">All Tiers</option>
             <option v-for="tier in publisherTiers" :key="tier" :value="tier">
               {{ tier }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Author Filter -->
+        <div>
+          <div v-if="referencesStore.loading" class="relative">
+            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+              >Author</label
+            >
+            <div class="input text-sm flex items-center text-[var(--color-text-muted)]">
+              <span class="spinner spinner-sm mr-2"></span>
+              Loading...
+            </div>
+          </div>
+          <ComboboxWithAdd
+            v-else
+            v-model="authorFilterId"
+            label="Author"
+            :options="authorOptionsWithAll"
+            placeholder="Search authors..."
+          />
+        </div>
+
+        <!-- Category Filter -->
+        <div>
+          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+            >Category</label
+          >
+          <select v-model="booksStore.filters.category" class="input text-sm">
+            <option :value="undefined">All Categories</option>
+            <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
+              {{ cat }}
             </option>
           </select>
         </div>
