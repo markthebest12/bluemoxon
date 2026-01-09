@@ -87,6 +87,8 @@ export interface Book {
   // Archive tracking
   source_archived_url: string | null;
   archive_status: "pending" | "success" | "failed" | null;
+  // Timestamps
+  created_at: string;
 }
 
 interface Filters {
