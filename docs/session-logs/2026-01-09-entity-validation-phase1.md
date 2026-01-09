@@ -81,19 +81,20 @@ Use TDD, worktrees for isolation, parallel subagents for independent tasks.
 | Task | Status | Files |
 |------|--------|-------|
 | 1: entity_validation.py helper | Complete | `services/entity_validation.py`, `tests/services/test_entity_validation_service.py` |
+| 2: POST /publishers validation | Complete | `api/v1/publishers.py`, `tests/api/v1/test_publishers.py` |
+| 3: POST /binders validation | Complete | `api/v1/binders.py`, `tests/api/v1/test_binders.py` |
+| 4: POST /authors validation | Complete | `api/v1/authors.py`, `tests/api/v1/test_authors.py` |
+| 5: Run full test suite | Complete | 1378 tests passing |
 | 6: Validation mode config | Complete | `config.py` (4 new settings) |
-| 2: POST /publishers validation | In Progress | `api/v1/publishers.py`, `tests/api/v1/test_publishers.py` |
-| 3: POST /binders validation | In Progress | `api/v1/binders.py`, `tests/api/v1/test_binders.py` |
-| 4: POST /authors validation | In Progress | `api/v1/authors.py`, `tests/api/v1/test_authors.py` |
-| 5: Run full test suite | Pending | - |
-| 7: Terraform env vars | Pending | `infra/terraform/` |
-| 8: Final integration | Pending | - |
+| 7: Terraform env vars | Complete | `infra/terraform/` (variables.tf, main.tf, tfvars) |
+| 8: Final integration | Complete | Pushed to staging |
 
 ### Commit Log
 
 | SHA | Message | Files |
 |-----|---------|-------|
-| (pending) | feat(#967): add entity validation helper service and config | `entity_validation.py`, `config.py`, tests |
+| 18ebd62 | feat(#967): add entity validation helper service and config | `entity_validation.py`, `config.py`, tests |
+| ac041fe | feat(#967): add entity validation to creation endpoints | endpoints, tests, terraform |
 
 ---
 
