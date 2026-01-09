@@ -3,14 +3,7 @@ import { ref, computed, watch } from "vue";
 import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
 import { BOOK_STATUSES, PAGINATION } from "@/constants";
-
-// Victorian era boundaries (Queen Victoria: 1837-1901)
-const VICTORIAN_ERA = {
-  START: 1837,
-  EARLY_END: 1850,
-  MID_END: 1870,
-  END: 1901,
-} as const;
+import { computeEra } from "@/utils/book-helpers";
 
 // Report type options
 type ReportType = "insurance" | "primary" | "extended" | "all";
@@ -189,39 +182,35 @@ const printReport = () => {
   window.print();
 };
 
-// Compute era from year_start
-const computeEra = (yearStart: number | null): string => {
-  // Handle null/invalid years
-  if (yearStart === null || yearStart <= 0 || yearStart > 9999) return "";
-
-  // Victorian era classifications using constants
-  if (yearStart >= VICTORIAN_ERA.START && yearStart <= VICTORIAN_ERA.EARLY_END)
-    return "Victorian Early";
-  if (yearStart >= VICTORIAN_ERA.EARLY_END + 1 && yearStart <= VICTORIAN_ERA.MID_END)
-    return "Victorian Mid";
-  if (yearStart >= VICTORIAN_ERA.MID_END + 1 && yearStart <= VICTORIAN_ERA.END)
-    return "Victorian Late";
-
-  // For non-Victorian years, return decade (e.g., "1920s")
-  const decade = Math.floor(yearStart / 10) * 10;
-  return `${decade}s`;
-};
-
 // Format ISO date to YYYY-MM-DD
+// Handles timezone correctly by extracting date parts directly from the string
+// for date-only inputs, avoiding local timezone conversion issues
 const formatISODate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "";
 
-  // Try parsing as Date object to handle various formats:
-  // - ISO with timezone: 2024-01-15T10:30:00+05:30
-  // - Date only: 2024-01-15
-  // - Datetime without T: 2024-01-15 10:30:00
+  // For date-only strings (YYYY-MM-DD), extract directly to avoid timezone shift
+  // new Date("2024-01-15") interprets as UTC midnight, which becomes previous day
+  // in timezones west of UTC when using local getDate()/getMonth()/getFullYear()
+  const dateOnlyMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return dateStr; // Already in YYYY-MM-DD format
+  }
+
+  // For ISO strings with time component (2024-01-15T10:30:00Z), extract date part
+  // The date portion before 'T' is the intended date regardless of timezone
+  const isoMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})T/);
+  if (isoMatch) {
+    return isoMatch[1];
+  }
+
+  // For other formats, try parsing but use UTC methods to avoid timezone issues
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "";
 
-  // Format as YYYY-MM-DD
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  // Use UTC methods for consistency
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -268,7 +257,8 @@ const exportCSV = () => {
   ];
 
   // CSV formula injection characters that Excel/Sheets interpret as formulas
-  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r]/;
+  // Also catches | (some spreadsheets) and formulas after embedded newlines
+  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r|]|[\r\n][=+\-@|]/;
 
   const escapeCSV = (val: string | null | undefined): string => {
     if (val === null || val === undefined) return "";
@@ -314,7 +304,7 @@ const exportCSV = () => {
     escapeCSV(book.provenance_tier),
     book.year_start || "",
     book.year_end || "",
-    escapeCSV(computeEra(book.year_start)),
+    escapeCSV(computeEra(book.year_start, book.year_end)),
     book.is_complete ? "Yes" : "No",
     book.overall_score || "",
     escapeCSV(book.source_url),

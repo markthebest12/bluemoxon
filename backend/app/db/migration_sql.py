@@ -458,6 +458,20 @@ MIGRATION_88779697DECB_SQL = [
          AND roi_pct IS NULL""",
 ]
 
+# Migration SQL for y8901234bcde_add_unique_constraint_to_author_name
+# Adds unique constraint to author.name to prevent duplicate authors
+MIGRATION_Y8901234BCDE_SQL = [
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_authors_name'
+        ) THEN
+            ALTER TABLE authors
+            ADD CONSTRAINT uq_authors_name UNIQUE (name);
+        END IF;
+    END $$""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -677,5 +691,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "88779697decb",
         "name": "backfill_roi_pct",
         "sql_statements": MIGRATION_88779697DECB_SQL,
+    },
+    {
+        "id": "y8901234bcde",
+        "name": "add_unique_constraint_to_author_name",
+        "sql_statements": MIGRATION_Y8901234BCDE_SQL,
     },
 ]

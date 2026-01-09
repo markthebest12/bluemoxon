@@ -79,6 +79,7 @@ from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
 from app.services.tracking_poller import refresh_single_book_tracking
 from app.utils.date_parser import compute_era, parse_publication_date
+from app.utils.edition_parser import is_first_edition_text
 from app.utils.errors import (
     ConflictError,
     ExternalServiceError,
@@ -668,6 +669,13 @@ def create_book(
         book.year_start = year_start
         book.year_end = year_end
 
+    # Auto-infer is_first_edition from edition text if not explicitly set
+    # Only infer if is_first_edition is None (don't override explicit user choices)
+    if book.is_first_edition is None and book.edition:
+        inferred = is_first_edition_text(book.edition)
+        if inferred is not None:
+            book.is_first_edition = inferred
+
     # Auto-set binding_authenticated when binder is selected
     if book.binder_id:
         book.binding_authenticated = True
@@ -747,6 +755,19 @@ def update_book(
         # Clear tier if provenance is now empty
         if not book.has_provenance:
             book.provenance_tier = None
+
+    # Auto-infer is_first_edition from edition text when edition is updated
+    # Only infer if is_first_edition wasn't explicitly set in this update
+    # and the book doesn't already have an explicit is_first_edition value
+    if (
+        "edition" in update_data
+        and book.edition
+        and "is_first_edition" not in update_data
+        and book.is_first_edition is None
+    ):
+        inferred = is_first_edition_text(book.edition)
+        if inferred is not None:
+            book.is_first_edition = inferred
 
     # Recalculate discount_pct if relevant values changed
     if "value_mid" in update_data or "value_low" in update_data or "value_high" in update_data:
