@@ -3,7 +3,10 @@ import { useToast } from "../useToast";
 
 // Type assertion for dev mode (tests always run in dev)
 function getToast() {
-  return useToast() as ReturnType<typeof useToast> & { _reset: () => void };
+  return useToast() as ReturnType<typeof useToast> & {
+    _reset: () => void;
+    showWarning: (message: string) => void;
+  };
 }
 
 describe("useToast", () => {
@@ -65,6 +68,19 @@ describe("useToast", () => {
       expect(toasts.value).toHaveLength(1);
       expect(toasts.value[0].type).toBe("success");
       expect(toasts.value[0].message).toBe("Operation completed");
+    });
+  });
+
+  describe("showWarning", () => {
+    it("adds a warning toast", () => {
+      const toast = getToast();
+      toast._reset();
+
+      toast.showWarning("Test warning");
+
+      expect(toast.toasts.value).toHaveLength(1);
+      expect(toast.toasts.value[0].type).toBe("warning");
+      expect(toast.toasts.value[0].message).toBe("Test warning");
     });
   });
 

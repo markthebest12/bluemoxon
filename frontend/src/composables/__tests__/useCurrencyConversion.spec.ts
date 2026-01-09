@@ -9,7 +9,7 @@ vi.mock("@/services/api", () => ({
 }));
 
 import { api } from "@/services/api";
-import { _resetCurrencyCache } from "../useCurrencyConversion";
+import { _resetCurrencyCache, _getLiveRateCache } from "../useCurrencyConversion";
 
 describe("useCurrencyConversion", () => {
   beforeEach(() => {
@@ -234,6 +234,249 @@ describe("useCurrencyConversion", () => {
       // These must match DEFAULT_RATES in useCurrencyConversion.ts
       expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.35);
       expect(exchangeRates.value.eur_to_usd_rate).toBe(1.17);
+    });
+  });
+
+  describe("live rate cache", () => {
+    it("exposes liveRateCache with null initial values", async () => {
+      const { useCurrencyConversion, _getLiveRateCache } = await import("../useCurrencyConversion");
+      useCurrencyConversion();
+      const cache = _getLiveRateCache();
+      expect(cache.GBP).toBeNull();
+      expect(cache.EUR).toBeNull();
+    });
+
+    it("fetchLiveRate returns rate from frankfurter API", async () => {
+      const mockResponse = {
+        amount: 1,
+        base: "GBP",
+        date: "2026-01-08",
+        rates: { USD: 1.25 },
+      };
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockResponse),
+        })
+      );
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      const rate = await fetchLiveRate("GBP");
+
+      expect(rate).toBe(1.25);
+      expect(fetch).toHaveBeenCalledWith(
+        "https://api.frankfurter.app/latest?from=GBP&to=USD",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it("returns cached rate without fetching if within TTL", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { useCurrencyConversion, _getLiveRateCache } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      // Manually set cache
+      const cache = _getLiveRateCache();
+      cache.GBP = { rate: 1.3, fetchedAt: Date.now() };
+
+      const rate = await fetchLiveRate("GBP");
+
+      expect(rate).toBe(1.3);
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.unstubAllGlobals();
+    });
+
+    it("retries up to 3 times on failure before succeeding", async () => {
+      const mockResponse = {
+        amount: 1,
+        base: "GBP",
+        date: "2026-01-08",
+        rates: { USD: 1.25 },
+      };
+
+      const mockFetch = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockResponse),
+        });
+
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      const rate = await fetchLiveRate("GBP");
+
+      expect(rate).toBe(1.25);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+
+      vi.unstubAllGlobals();
+    });
+
+    it("returns null after all retries fail", { timeout: 15000 }, async () => {
+      const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { useCurrencyConversion } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      const rate = await fetchLiveRate("EUR");
+
+      expect(rate).toBeNull();
+      expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
+
+      vi.unstubAllGlobals();
+    });
+
+    it("fetches new rate when cache is expired", async () => {
+      const mockResponse = {
+        amount: 1,
+        base: "GBP",
+        date: "2026-01-08",
+        rates: { USD: 1.28 },
+      };
+
+      const mockFetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { useCurrencyConversion, _getLiveRateCache } = await import("../useCurrencyConversion");
+      const { fetchLiveRate } = useCurrencyConversion();
+
+      // Set expired cache (16 minutes ago)
+      const cache = _getLiveRateCache();
+      cache.GBP = { rate: 1.3, fetchedAt: Date.now() - 16 * 60 * 1000 };
+
+      const rate = await fetchLiveRate("GBP");
+
+      expect(rate).toBe(1.28); // New rate from API
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      vi.unstubAllGlobals();
+    });
+
+    it("falls back to DB cache and shows warning toast when live fetch fails", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
+
+      const mockShowWarning = vi.fn();
+      const toastModule = await import("../useToast");
+      vi.spyOn(toastModule, "useToast").mockReturnValue({
+        showWarning: mockShowWarning,
+        showError: vi.fn(),
+        showSuccess: vi.fn(),
+        dismiss: vi.fn(),
+        pauseTimer: vi.fn(),
+        resumeTimer: vi.fn(),
+        toasts: { value: [] } as never,
+      });
+
+      const { useCurrencyConversion, _resetCurrencyCache } =
+        await import("../useCurrencyConversion");
+      _resetCurrencyCache();
+      const { exchangeRates, updateRateWithFallback } = useCurrencyConversion();
+
+      // Set DB-cached rates (different from defaults)
+      exchangeRates.value = { gbp_to_usd_rate: 1.32, eur_to_usd_rate: 1.18 };
+
+      await updateRateWithFallback("GBP");
+
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.32); // Uses DB cache
+      expect(mockShowWarning).toHaveBeenCalledWith("Using cached exchange rate");
+
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }, 15000);
+
+    it("shows 'estimated' warning when falling back to hardcoded rates", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
+
+      const mockShowWarning = vi.fn();
+      const toastModule = await import("../useToast");
+      vi.spyOn(toastModule, "useToast").mockReturnValue({
+        showWarning: mockShowWarning,
+        showError: vi.fn(),
+        showSuccess: vi.fn(),
+        dismiss: vi.fn(),
+        pauseTimer: vi.fn(),
+        resumeTimer: vi.fn(),
+        toasts: { value: [] } as never,
+      });
+
+      const { useCurrencyConversion, _resetCurrencyCache } =
+        await import("../useCurrencyConversion");
+      _resetCurrencyCache(); // Reset to default rates
+      const { updateRateWithFallback } = useCurrencyConversion();
+
+      await updateRateWithFallback("EUR");
+
+      expect(mockShowWarning).toHaveBeenCalledWith("Using estimated exchange rate");
+
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }, 15000);
+  });
+
+  describe("currency change watcher", () => {
+    it("fetches live rate when currency changes to GBP", async () => {
+      const mockResponse = {
+        amount: 1,
+        base: "GBP",
+        date: "2026-01-08",
+        rates: { USD: 1.27 },
+      };
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockResponse),
+        })
+      );
+
+      const { useCurrencyConversion, _resetCurrencyCache } =
+        await import("../useCurrencyConversion");
+      _resetCurrencyCache();
+      const { selectedCurrency, exchangeRates } = useCurrencyConversion();
+
+      selectedCurrency.value = "GBP";
+      await nextTick();
+      await new Promise((r) => setTimeout(r, 100)); // Wait for async fetch
+
+      expect(exchangeRates.value.gbp_to_usd_rate).toBe(1.27);
+
+      vi.unstubAllGlobals();
+    });
+
+    it("does not fetch when currency changes to USD", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { useCurrencyConversion, _resetCurrencyCache } =
+        await import("../useCurrencyConversion");
+      _resetCurrencyCache();
+      const { selectedCurrency } = useCurrencyConversion();
+
+      selectedCurrency.value = "USD";
+      await nextTick();
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.unstubAllGlobals();
     });
   });
 });
