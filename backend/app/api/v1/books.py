@@ -73,10 +73,12 @@ from app.services.scoring import (
     calculate_title_similarity,
     is_duplicate_title,
     recalculate_discount_pct,
+    recalculate_roi_pct,
 )
 from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
 from app.services.tracking_poller import refresh_single_book_tracking
+from app.utils.date_parser import compute_era, parse_publication_date
 from app.utils.errors import (
     ConflictError,
     ExternalServiceError,
@@ -291,6 +293,7 @@ def _build_book_response(book: Book, db: Session) -> BookResponse:
     All endpoints returning a BookResponse should use this helper.
 
     Computed fields:
+    - era: Computed from year_start/year_end (Pre-Romantic, Romantic, Victorian, etc.)
     - has_analysis: Whether book has analysis
     - has_eval_runbook: Whether book has eval runbook
     - eval_runbook_job_status: Status of active eval runbook job
@@ -300,6 +303,7 @@ def _build_book_response(book: Book, db: Session) -> BookResponse:
     - primary_image_url: URL to primary image (CloudFront in prod, API in dev)
     """
     book_dict = BookResponse.model_validate(book).model_dump()
+    book_dict["era"] = compute_era(book.year_start, book.year_end).value
     book_dict["has_analysis"] = book.analysis is not None
     book_dict["has_eval_runbook"] = book.eval_runbook is not None
     book_dict["eval_runbook_job_status"] = _get_active_eval_runbook_job_status(book.id, db)
@@ -488,6 +492,26 @@ def list_books(
     if params.is_first_edition is not None:
         query = query.filter(Book.is_first_edition == params.is_first_edition)
 
+    # Filter by era (computed from year_start with year_end fallback)
+    if params.era:
+        from app.enums import Era
+
+        # Use COALESCE to prefer year_start, fall back to year_end
+        year_col = func.coalesce(Book.year_start, Book.year_end)
+        if params.era == Era.PRE_ROMANTIC:
+            query = query.filter(year_col < 1800)
+        elif params.era == Era.ROMANTIC:
+            query = query.filter(year_col >= 1800, year_col <= 1836)
+        elif params.era == Era.VICTORIAN:
+            query = query.filter(year_col >= 1837, year_col <= 1901)
+        elif params.era == Era.EDWARDIAN:
+            query = query.filter(year_col >= 1902, year_col <= 1910)
+        elif params.era == Era.POST_1910:
+            query = query.filter(year_col > 1910)
+        elif params.era == Era.UNKNOWN:
+            # Both year_start and year_end are NULL
+            query = query.filter(Book.year_start.is_(None), Book.year_end.is_(None))
+
     # Get total count
     total = query.count()
 
@@ -529,6 +553,7 @@ def list_books(
     items = []
     for book in books:
         book_dict = BookResponse.model_validate(book).model_dump()
+        book_dict["era"] = compute_era(book.year_start, book.year_end).value
         book_dict["has_analysis"] = book.analysis is not None
         book_dict["has_eval_runbook"] = book.eval_runbook is not None
         book_dict["eval_runbook_job_status"] = eval_job_status_map.get(book.id)
@@ -636,11 +661,12 @@ def create_book(
     book_dict = book_data.model_dump(exclude={"listing_s3_keys"})
     book = Book(**book_dict)
 
-    # Parse year from publication_date
-    if book.publication_date:
-        parts = book.publication_date.split("-")
-        book.year_start = int(parts[0]) if parts[0].isdigit() else None
-        book.year_end = int(parts[-1]) if parts[-1].isdigit() else None
+    # Auto-parse year_start/year_end from publication_date if not explicitly provided
+    # Uses enhanced parser that handles formats like: 1851, 1867-1880, 1880s, c.1890, etc.
+    if book.publication_date and book.year_start is None and book.year_end is None:
+        year_start, year_end = parse_publication_date(book.publication_date)
+        book.year_start = year_start
+        book.year_end = year_end
 
     # Auto-set binding_authenticated when binder is selected
     if book.binder_id:
@@ -695,11 +721,17 @@ def update_book(
     for field, value in update_data.items():
         setattr(book, field, value)
 
-    # Re-parse year if publication_date changed
-    if "publication_date" in update_data and book.publication_date:
-        parts = book.publication_date.split("-")
-        book.year_start = int(parts[0]) if parts[0].isdigit() else None
-        book.year_end = int(parts[-1]) if parts[-1].isdigit() else None
+    # Auto-parse year_start/year_end if publication_date changed but year fields not explicitly set
+    # Uses enhanced parser that handles formats like: 1851, 1867-1880, 1880s, c.1890, etc.
+    if (
+        "publication_date" in update_data
+        and book.publication_date
+        and "year_start" not in update_data
+        and "year_end" not in update_data
+    ):
+        year_start, year_end = parse_publication_date(book.publication_date)
+        book.year_start = year_start
+        book.year_end = year_end
 
     # Auto-set binding_authenticated when binder is set/unset
     if "binder_id" in update_data:
@@ -713,9 +745,13 @@ def update_book(
         if not book.has_provenance:
             book.provenance_tier = None
 
-    # Recalculate discount_pct if value_mid changed
+    # Recalculate discount_pct if relevant values changed
     if "value_mid" in update_data or "value_low" in update_data or "value_high" in update_data:
         recalculate_discount_pct(book)
+
+    # Recalculate roi_pct if relevant values changed (value_mid or acquisition_cost)
+    if "value_mid" in update_data or "acquisition_cost" in update_data:
+        recalculate_roi_pct(book)
 
     db.commit()
     db.refresh(book)
