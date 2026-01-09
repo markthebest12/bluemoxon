@@ -345,23 +345,32 @@ describe("InsuranceReportView", () => {
       expect(dataRow).toContain("TIER_2"); // provenance_tier
       expect(dataRow).toContain("1865"); // year_start
       expect(dataRow).toContain("1867"); // year_end
-      expect(dataRow).toContain("Victorian Mid"); // era computed from year_start 1865
+      expect(dataRow).toContain("Victorian"); // era computed from year_start 1865 (unified era)
       expect(dataRow).toContain("No"); // is_complete = false (for "Complete Set")
       expect(dataRow).toContain("92"); // overall_score
       expect(dataRow).toContain("https://ebay.com/item/123"); // source_url
       expect(dataRow).toContain("2024-06-20"); // created_at (date portion)
     });
 
-    it("computes era correctly from year_start", async () => {
-      // Test Victorian Early (1837-1850)
+    it("computes era correctly from year_start using unified era logic", async () => {
+      // Test unified eras matching backend:
+      // Pre-Romantic (<1800), Romantic (1800-1836), Victorian (1837-1901),
+      // Edwardian (1902-1910), Post-1910 (>1910), Unknown (null)
       vi.mocked(api.get).mockResolvedValue({
         data: {
           items: [
-            { id: 1, title: "Early Victorian", status: "ON_HAND", volumes: 1, year_start: 1845 },
-            { id: 2, title: "Mid Victorian", status: "ON_HAND", volumes: 1, year_start: 1860 },
-            { id: 3, title: "Late Victorian", status: "ON_HAND", volumes: 1, year_start: 1890 },
-            { id: 4, title: "1920s Book", status: "ON_HAND", volumes: 1, year_start: 1925 },
-            { id: 5, title: "No Year", status: "ON_HAND", volumes: 1, year_start: null },
+            { id: 1, title: "Romantic Book", status: "ON_HAND", volumes: 1, year_start: 1820 },
+            { id: 2, title: "Victorian Book", status: "ON_HAND", volumes: 1, year_start: 1860 },
+            { id: 3, title: "Edwardian Book", status: "ON_HAND", volumes: 1, year_start: 1905 },
+            { id: 4, title: "Post-1910 Book", status: "ON_HAND", volumes: 1, year_start: 1925 },
+            {
+              id: 5,
+              title: "No Year",
+              status: "ON_HAND",
+              volumes: 1,
+              year_start: null,
+              year_end: null,
+            },
           ],
           total: 5,
           page: 1,
@@ -385,38 +394,59 @@ describe("InsuranceReportView", () => {
       const rows = getCSV().split("\n");
       cleanup();
 
-      // Row 1 (Early Victorian 1845) should have "Victorian Early"
-      expect(rows[1]).toContain("Victorian Early");
-      // Row 2 (Mid Victorian 1860) should have "Victorian Mid"
-      expect(rows[2]).toContain("Victorian Mid");
-      // Row 3 (Late Victorian 1890) should have "Victorian Late"
-      expect(rows[3]).toContain("Victorian Late");
-      // Row 4 (1920s) should have "1920s"
-      expect(rows[4]).toContain("1920s");
-      // Row 5 (No year) should have empty era or "-"
+      // Row 1 (1820) should have "Romantic"
+      expect(rows[1]).toContain("Romantic");
+      // Row 2 (1860) should have "Victorian"
+      expect(rows[2]).toContain("Victorian");
+      // Row 3 (1905) should have "Edwardian"
+      expect(rows[3]).toContain("Edwardian");
+      // Row 4 (1925) should have "Post-1910"
+      expect(rows[4]).toContain("Post-1910");
+      // Row 5 (No year) should have "Unknown"
+      expect(rows[5]).toContain("Unknown");
     });
 
-    it("computes era boundaries correctly", async () => {
-      // Test ALL boundary values for Victorian era ranges:
-      // Victorian Early: 1837-1850
-      // Victorian Mid: 1851-1870
-      // Victorian Late: 1871-1901
+    it("computes era boundaries correctly using unified backend eras", async () => {
+      // Test ALL boundary values for unified eras (matching backend):
+      // Pre-Romantic: <1800
+      // Romantic: 1800-1836
+      // Victorian: 1837-1901
+      // Edwardian: 1902-1910
+      // Post-1910: >1910
       // NOTE: Books are sorted by value_mid descending, so we assign value_mid
       // in reverse order to preserve our test order in CSV output
       vi.mocked(api.get).mockResolvedValue({
         data: {
           items: [
-            // Victorian Early boundaries
+            // Pre-Romantic boundary
             {
               id: 1,
+              title: "Book 1799",
+              status: "ON_HAND",
+              volumes: 1,
+              year_start: 1799,
+              value_mid: 1400,
+            },
+            // Romantic boundaries
+            {
+              id: 2,
+              title: "Book 1800",
+              status: "ON_HAND",
+              volumes: 1,
+              year_start: 1800,
+              value_mid: 1300,
+            },
+            {
+              id: 3,
               title: "Book 1836",
               status: "ON_HAND",
               volumes: 1,
               year_start: 1836,
               value_mid: 1200,
             },
+            // Victorian boundaries
             {
-              id: 2,
+              id: 4,
               title: "Book 1837",
               status: "ON_HAND",
               volumes: 1,
@@ -424,54 +454,38 @@ describe("InsuranceReportView", () => {
               value_mid: 1100,
             },
             {
-              id: 3,
-              title: "Book 1850",
-              status: "ON_HAND",
-              volumes: 1,
-              year_start: 1850,
-              value_mid: 1000,
-            },
-            // Victorian Mid boundaries
-            {
-              id: 4,
-              title: "Book 1851",
-              status: "ON_HAND",
-              volumes: 1,
-              year_start: 1851,
-              value_mid: 900,
-            },
-            {
               id: 5,
-              title: "Book 1870",
-              status: "ON_HAND",
-              volumes: 1,
-              year_start: 1870,
-              value_mid: 800,
-            },
-            // Victorian Late boundaries
-            {
-              id: 6,
-              title: "Book 1871",
-              status: "ON_HAND",
-              volumes: 1,
-              year_start: 1871,
-              value_mid: 700,
-            },
-            {
-              id: 7,
               title: "Book 1901",
               status: "ON_HAND",
               volumes: 1,
               year_start: 1901,
-              value_mid: 600,
+              value_mid: 1000,
             },
+            // Edwardian boundaries
             {
-              id: 8,
+              id: 6,
               title: "Book 1902",
               status: "ON_HAND",
               volumes: 1,
               year_start: 1902,
-              value_mid: 500,
+              value_mid: 900,
+            },
+            {
+              id: 7,
+              title: "Book 1910",
+              status: "ON_HAND",
+              volumes: 1,
+              year_start: 1910,
+              value_mid: 800,
+            },
+            // Post-1910 boundary
+            {
+              id: 8,
+              title: "Book 1911",
+              status: "ON_HAND",
+              volumes: 1,
+              year_start: 1911,
+              value_mid: 700,
             },
             // Edge cases
             {
@@ -496,6 +510,7 @@ describe("InsuranceReportView", () => {
               status: "ON_HAND",
               volumes: 1,
               year_start: null,
+              year_end: null,
               value_mid: 200,
             },
           ],
@@ -521,53 +536,40 @@ describe("InsuranceReportView", () => {
       const rows = csv.split("\n");
       cleanup();
 
-      // Helper to find the row containing a specific title and check if it contains the expected era
+      // Helper to find the row containing a specific title
       const findRowWithTitle = (title: string): string => {
         const row = rows.find((r) => r.includes(`"${title}"`));
         expect(row).toBeDefined();
         return row!;
       };
 
-      // Victorian Early boundaries
-      // 1836 - just before Victorian era -> decade format "1830s"
-      expect(findRowWithTitle("Book 1836")).toContain('"1830s"');
+      // Pre-Romantic (before 1800)
+      expect(findRowWithTitle("Book 1799")).toContain('"Pre-Romantic"');
 
-      // 1837 - START of Victorian Early
-      expect(findRowWithTitle("Book 1837")).toContain('"Victorian Early"');
+      // Romantic boundaries (1800-1836)
+      expect(findRowWithTitle("Book 1800")).toContain('"Romantic"');
+      expect(findRowWithTitle("Book 1836")).toContain('"Romantic"');
 
-      // 1850 - END of Victorian Early
-      expect(findRowWithTitle("Book 1850")).toContain('"Victorian Early"');
+      // Victorian boundaries (1837-1901)
+      expect(findRowWithTitle("Book 1837")).toContain('"Victorian"');
+      expect(findRowWithTitle("Book 1901")).toContain('"Victorian"');
 
-      // Victorian Mid boundaries
-      // 1851 - START of Victorian Mid
-      expect(findRowWithTitle("Book 1851")).toContain('"Victorian Mid"');
+      // Edwardian boundaries (1902-1910)
+      expect(findRowWithTitle("Book 1902")).toContain('"Edwardian"');
+      expect(findRowWithTitle("Book 1910")).toContain('"Edwardian"');
 
-      // 1870 - END of Victorian Mid
-      expect(findRowWithTitle("Book 1870")).toContain('"Victorian Mid"');
-
-      // Victorian Late boundaries
-      // 1871 - START of Victorian Late
-      expect(findRowWithTitle("Book 1871")).toContain('"Victorian Late"');
-
-      // 1901 - END of Victorian Late
-      expect(findRowWithTitle("Book 1901")).toContain('"Victorian Late"');
-
-      // 1902 - just after Victorian era -> decade format "1900s"
-      expect(findRowWithTitle("Book 1902")).toContain('"1900s"');
+      // Post-1910 (after 1910)
+      expect(findRowWithTitle("Book 1911")).toContain('"Post-1910"');
 
       // Edge cases
-      // 0 - year zero is falsy, returns empty string (era column will be empty)
-      const zeroRow = findRowWithTitle("Book zero");
-      // Since era is empty, we check that it doesn't contain any Victorian era labels
-      expect(zeroRow).not.toContain("Victorian");
-      expect(zeroRow).not.toContain("0s"); // Should not have decade format for 0
+      // 0 - year zero is Pre-Romantic (< 1800)
+      expect(findRowWithTitle("Book zero")).toContain('"Pre-Romantic"');
 
-      // 2024 - modern year -> decade format "2020s"
-      expect(findRowWithTitle("Book modern")).toContain('"2020s"');
+      // 2024 - modern year -> Post-1910
+      expect(findRowWithTitle("Book modern")).toContain('"Post-1910"');
 
-      // null year -> empty string (no era)
-      const nullRow = findRowWithTitle("Book null");
-      expect(nullRow).not.toContain("Victorian");
+      // null year -> Unknown
+      expect(findRowWithTitle("Book null")).toContain('"Unknown"');
     });
   });
 });
