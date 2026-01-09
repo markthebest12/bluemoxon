@@ -3,7 +3,7 @@
 Add unique constraint to author name column to prevent duplicate authors.
 
 Revision ID: y8901234bcde
-Revises: x7890123abcd
+Revises: 88779697decb
 Create Date: 2026-01-09
 """
 
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "y8901234bcde"
-down_revision: str | None = "x7890123abcd"
+down_revision: str | None = "88779697decb"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
