@@ -2,7 +2,7 @@ import { ref, type Ref } from "vue";
 
 export interface Toast {
   id: number;
-  type: "error" | "success";
+  type: "error" | "success" | "warning";
   message: string;
   timestamp: number;
 }
@@ -39,7 +39,11 @@ function showSuccess(message: string): void {
   addToast("success", message);
 }
 
-function addToast(type: "error" | "success", message: string): void {
+function showWarning(message: string): void {
+  addToast("warning", message);
+}
+
+function addToast(type: "error" | "success" | "warning", message: string): void {
   // Suppress duplicates within the suppression window
   if (isDuplicate(message)) {
     return;
@@ -124,6 +128,7 @@ interface UseToastReturn {
   toasts: Readonly<Ref<Toast[]>>;
   showError: (message: string) => void;
   showSuccess: (message: string) => void;
+  showWarning: (message: string) => void;
   dismiss: (id: number) => void;
   pauseTimer: (id: number) => void;
   resumeTimer: (id: number) => void;
@@ -139,6 +144,7 @@ export function useToast(): UseToastReturn | UseToastReturnDev {
     toasts: toasts as Readonly<Ref<Toast[]>>,
     showError,
     showSuccess,
+    showWarning,
     dismiss,
     pauseTimer,
     resumeTimer,
