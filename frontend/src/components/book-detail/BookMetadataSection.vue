@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
 import type { Book } from "@/stores/books";
+import { computeEra } from "@/utils/book-helpers";
 
 // Props
 withDefaults(
@@ -107,7 +108,15 @@ function onStatusChange(newStatus: string) {
         </div>
         <div>
           <dt class="text-sm text-gray-500">Volumes</dt>
-          <dd class="font-medium">{{ book.volumes }}</dd>
+          <dd class="font-medium">
+            {{ book.volumes }}
+            <span
+              v-if="!book.is_complete"
+              class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800"
+            >
+              Incomplete Set
+            </span>
+          </dd>
         </div>
         <div>
           <dt class="text-sm text-gray-500">Category</dt>
@@ -157,7 +166,24 @@ function onStatusChange(newStatus: string) {
             </span>
           </dd>
         </div>
+        <div>
+          <dt class="text-sm text-gray-500">Condition</dt>
+          <dd class="font-medium">
+            {{ book.condition_grade || "-" }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Era</dt>
+          <dd class="font-medium">
+            {{ computeEra(book.year_start, book.year_end) || "-" }}
+          </dd>
+        </div>
       </dl>
+      <!-- Condition Notes (full width, below grid) -->
+      <div v-if="book.condition_notes" class="mt-4 pt-4 border-t border-gray-200">
+        <dt class="text-sm text-gray-500 mb-1">Condition Notes</dt>
+        <dd class="text-gray-700">{{ book.condition_notes }}</dd>
+      </div>
     </div>
 
     <!-- Binding -->

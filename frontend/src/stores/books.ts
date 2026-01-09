@@ -32,8 +32,11 @@ export interface Book {
   publisher: { id: number; name: string; tier: string | null } | null;
   binder: { id: number; name: string } | null;
   publication_date: string | null;
+  year_start: number | null;
+  year_end: number | null;
   edition: string | null;
   volumes: number;
+  is_complete: boolean;
   category: string | null;
   inventory_type: string;
   binding_type: string | null;
@@ -71,7 +74,16 @@ export interface Book {
   // Source tracking
   source_url: string | null;
   source_item_id: string | null;
+  // Delivery tracking
   estimated_delivery: string | null;
+  estimated_delivery_end: string | null;
+  // Shipment tracking
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  tracking_url: string | null;
+  tracking_status: string | null;
+  tracking_last_checked: string | null;
+  ship_date: string | null;
   // Archive tracking
   source_archived_url: string | null;
   archive_status: "pending" | "success" | "failed" | null;
