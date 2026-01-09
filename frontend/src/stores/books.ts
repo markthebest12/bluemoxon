@@ -107,7 +107,7 @@ interface Filters {
   max_value?: number;
   year_start?: number;
   year_end?: number;
-  era?: string; // Era filter - maps to year_start/year_end when applying
+  era?: string; // Era filter - passed directly to backend API
   has_images?: boolean;
   has_analysis?: boolean;
   has_provenance?: boolean;
