@@ -18,8 +18,11 @@ describe("BookMetadataSection", () => {
       publisher: { id: 1, name: "Test Publisher", tier: "Tier 1" },
       binder: { id: 1, name: "Test Bindery" },
       publication_date: "1850",
+      year_start: 1850,
+      year_end: null,
       edition: "First Edition",
       volumes: 2,
+      is_complete: true,
       category: "Literature",
       inventory_type: "RARE",
       binding_type: "Full Leather",
@@ -54,11 +57,15 @@ describe("BookMetadataSection", () => {
       source_url: null,
       source_item_id: null,
       estimated_delivery: null,
+      estimated_delivery_end: null,
+      tracking_number: null,
+      tracking_carrier: null,
+      tracking_url: null,
+      tracking_status: null,
+      tracking_last_checked: null,
+      ship_date: null,
       source_archived_url: null,
       archive_status: null,
-      year_start: null,
-      year_end: null,
-      is_complete: true,
       created_at: "2024-01-15T00:00:00Z",
       ...overrides,
     };
@@ -165,6 +172,100 @@ describe("BookMetadataSection", () => {
       });
 
       expect(wrapper.text()).toContain("Poetry");
+    });
+
+    it("displays condition grade when present", () => {
+      const book = createBook({ condition_grade: "Fine" });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).toContain("Condition");
+      expect(wrapper.text()).toContain("Fine");
+    });
+
+    it("shows dash for condition grade when null", () => {
+      const book = createBook({ condition_grade: null });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      // Should have Condition label with dash value
+      const text = wrapper.text();
+      expect(text).toContain("Condition");
+    });
+
+    it("displays condition notes when present", () => {
+      const book = createBook({
+        condition_grade: "VG",
+        condition_notes: "Minor foxing on endpapers",
+      });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).toContain("Minor foxing on endpapers");
+    });
+
+    it("does not show condition notes when null", () => {
+      const book = createBook({
+        condition_grade: "VG",
+        condition_notes: null,
+      });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      // Condition notes section should not appear
+      expect(wrapper.text()).not.toContain("Condition Notes");
+    });
+
+    it("displays computed era from year_start", () => {
+      const book = createBook({ year_start: 1870, year_end: null });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).toContain("Era");
+      expect(wrapper.text()).toContain("Mid-Victorian");
+    });
+
+    it("displays computed era from year_end when both years present", () => {
+      const book = createBook({ year_start: 1835, year_end: 1845 });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      // 1845 = Early Victorian
+      expect(wrapper.text()).toContain("Era");
+      expect(wrapper.text()).toContain("Early Victorian");
+    });
+
+    it("shows dash for era when year_start is null", () => {
+      const book = createBook({ year_start: null, year_end: null });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).toContain("Era");
+    });
+
+    it("shows 'Incomplete Set' badge when is_complete is false", () => {
+      const book = createBook({ volumes: 3, is_complete: false });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).toContain("Incomplete Set");
+    });
+
+    it("does not show 'Incomplete Set' badge when is_complete is true", () => {
+      const book = createBook({ volumes: 3, is_complete: true });
+      const wrapper = mount(BookMetadataSection, {
+        props: { book, isEditor: false },
+      });
+
+      expect(wrapper.text()).not.toContain("Incomplete Set");
     });
   });
 
