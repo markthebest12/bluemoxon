@@ -12,6 +12,8 @@ from app.config import get_settings
 from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis, BookImage
+from app.models.binder import Binder
+from app.models.publisher import Publisher
 from app.schemas.entity_validation import EntityValidationError
 from app.services.analysis_parser import (
     apply_metadata_to_book,
@@ -40,6 +42,23 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 settings = get_settings()
+
+
+def _format_entity_validation_error(
+    entity_type: str, name: str, error: EntityValidationError
+) -> str:
+    """Format entity validation error message for job failure."""
+    top_match = error.suggestions[0] if error.suggestions else None
+    if top_match:
+        return (
+            f"Entity validation failed: {entity_type} '{name}' matches existing "
+            f"'{top_match.name}' ({top_match.match:.0%}). "
+            f"Use existing ID or create new via POST /{entity_type}s?force=true"
+        )
+    return (
+        f"Entity validation failed: {entity_type} '{name}' not found. "
+        f"Create via POST /{entity_type}s first."
+    )
 
 
 def format_analysis_error(error: Exception, image_count: int = 0) -> str:
@@ -347,31 +366,40 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             binder_result = validate_entity_for_book(db, "binder", binder_name)
 
             if isinstance(binder_result, EntityValidationError):
-                # Fail job with descriptive error
-                top_match = binder_result.suggestions[0] if binder_result.suggestions else None
-                if top_match:
-                    error_msg = (
-                        f"Entity validation failed: binder '{binder_name}' matches existing "
-                        f"'{top_match.name}' ({top_match.match:.0%}). "
-                        f"Use existing ID or create new via POST /binders?force=true"
-                    )
-                else:
-                    error_msg = (
-                        f"Entity validation failed: binder '{binder_name}' not found. "
-                        f"Create via POST /binders first."
-                    )
+                error_msg = _format_entity_validation_error(
+                    "binder", binder_name, binder_result
+                )
                 raise ValueError(error_msg)
 
             if binder_result and book.binder_id != binder_result:
                 # binder_result is entity ID - fetch binder for logging
-                from app.models.binder import Binder
-
-                binder = db.query(Binder).get(binder_result)
+                binder = db.get(Binder, binder_result)
                 if binder:
                     logger.info(
                         f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
                     )
-                book.binder_id = binder_result
+                    book.binder_id = binder_result
+
+        # Validate and associate publisher
+        if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+            publisher_name = parsed.publisher_identification["name"]
+            publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
+
+            if isinstance(publisher_result, EntityValidationError):
+                error_msg = _format_entity_validation_error(
+                    "publisher", publisher_name, publisher_result
+                )
+                raise ValueError(error_msg)
+
+            if publisher_result and book.publisher_id != publisher_result:
+                # publisher_result is entity ID - fetch publisher for logging
+                publisher = db.get(Publisher, publisher_result)
+                if publisher:
+                    logger.info(
+                        f"Associating publisher {publisher.name} (tier={publisher.tier}) "
+                        f"with book {book_id}"
+                    )
+                    book.publisher_id = publisher_result
 
         # Calculate and persist scores after analysis updates
         logger.info(f"Calculating scores for book {book_id}")

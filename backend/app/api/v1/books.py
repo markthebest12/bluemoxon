@@ -1419,14 +1419,14 @@ def update_book_analysis(
     # Parse markdown to extract structured fields
     parsed = parse_analysis_markdown(full_markdown)
 
-    # Extract and apply metadata (provenance, first edition) from metadata block
-    metadata_updated = []
+    # Extract metadata (but don't apply yet - validate entities first)
     metadata = extract_analysis_metadata(full_markdown)
-    if metadata:
-        metadata_updated = apply_metadata_to_book(book, metadata)
 
-    # Validate and associate binder
-    binder_updated = False
+    # VALIDATION PHASE: Validate all entities upfront before any mutations
+    # This ensures we don't leave the book in an inconsistent state if validation fails
+    binder_id_to_set: int | None = None
+    publisher_id_to_set: int | None = None
+
     if parsed.binder_identification and parsed.binder_identification.get("name"):
         binder_name = parsed.binder_identification["name"]
         binder_result = validate_entity_for_book(db, "binder", binder_name)
@@ -1435,12 +1435,8 @@ def update_book_analysis(
             status_code = 409 if binder_result.error == "similar_entity_exists" else 400
             raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
 
-        if binder_result and book.binder_id != binder_result:
-            book.binder_id = binder_result
-            binder_updated = True
+        binder_id_to_set = binder_result
 
-    # Validate and associate publisher
-    publisher_updated = False
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
         publisher_name = parsed.publisher_identification["name"]
         publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
@@ -1449,9 +1445,25 @@ def update_book_analysis(
             status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
             raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
 
-        if publisher_result and book.publisher_id != publisher_result:
-            book.publisher_id = publisher_result
-            publisher_updated = True
+        publisher_id_to_set = publisher_result
+
+    # MUTATION PHASE: All validations passed, now apply changes
+    # Apply metadata (provenance, first edition)
+    metadata_updated = []
+    if metadata:
+        metadata_updated = apply_metadata_to_book(book, metadata)
+
+    # Associate binder
+    binder_updated = False
+    if binder_id_to_set and book.binder_id != binder_id_to_set:
+        book.binder_id = binder_id_to_set
+        binder_updated = True
+
+    # Associate publisher
+    publisher_updated = False
+    if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
+        book.publisher_id = publisher_id_to_set
+        publisher_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown

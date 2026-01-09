@@ -2,13 +2,61 @@
 
 import logging
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
-from app.services.entity_matching import EntityType, fuzzy_match_entity
+from app.services.entity_matching import (
+    EntityType,
+    _normalize_for_entity_type,
+    fuzzy_match_entity,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _get_entity_by_normalized_name(
+    db: Session, entity_type: EntityType, normalized_name: str
+) -> tuple[int, str] | None:
+    """Find entity by exact normalized name match (case-insensitive).
+
+    Args:
+        db: Database session.
+        entity_type: Type of entity.
+        normalized_name: Pre-normalized entity name.
+
+    Returns:
+        Tuple of (entity_id, entity_name) if found, None otherwise.
+    """
+    if entity_type == "publisher":
+        from app.models.publisher import Publisher
+
+        entity = (
+            db.query(Publisher.id, Publisher.name)
+            .filter(func.lower(Publisher.name) == normalized_name.lower())
+            .first()
+        )
+    elif entity_type == "binder":
+        from app.models.binder import Binder
+
+        entity = (
+            db.query(Binder.id, Binder.name)
+            .filter(func.lower(Binder.name) == normalized_name.lower())
+            .first()
+        )
+    elif entity_type == "author":
+        from app.models.author import Author
+
+        entity = (
+            db.query(Author.id, Author.name)
+            .filter(func.lower(Author.name) == normalized_name.lower())
+            .first()
+        )
+    else:
+        raise ValueError(f"Unknown entity type: {entity_type}")
+
+    return (entity.id, entity.name) if entity else None
 
 
 def validate_entity_creation(
@@ -74,10 +122,6 @@ def validate_entity_creation(
     )
 
 
-# Threshold for considering a fuzzy match as "exact" (normalized names match perfectly)
-EXACT_MATCH_THRESHOLD = 0.9999
-
-
 def validate_entity_for_book(
     db: Session,
     entity_type: EntityType,
@@ -106,16 +150,24 @@ def validate_entity_for_book(
 
     settings = get_settings()
 
-    # Get threshold from config if not provided
+    # Normalize input name using type-specific normalization
+    normalized_name = _normalize_for_entity_type(name, entity_type)
+
+    # First try exact match by normalized name (no fuzzy matching ambiguity)
+    exact_match = _get_entity_by_normalized_name(db, entity_type, normalized_name)
+    if exact_match:
+        entity_id, _ = exact_match
+        return entity_id
+
+    # No exact match - use fuzzy matching to find similar entities
     if threshold is None:
         threshold_attr = f"entity_match_threshold_{entity_type}"
         threshold = getattr(settings, threshold_attr, 0.80)
 
     matches = fuzzy_match_entity(db, entity_type, name, threshold=threshold)
 
-    # No matches - entity not found
+    # No matches at all - entity not found
     if not matches:
-        # In log mode, log warning but return None (no entity to associate)
         if settings.entity_validation_mode == "log":
             logger.warning(
                 "Entity validation: %s '%s' not found in database",
@@ -132,13 +184,8 @@ def validate_entity_for_book(
             resolution=f"Create the {entity_type} first, or use an existing {entity_type} name",
         )
 
+    # Fuzzy matches found - similar entity exists
     top_match = matches[0]
-
-    # Exact match (confidence >= 0.9999) - return entity ID for direct association
-    if top_match.confidence >= EXACT_MATCH_THRESHOLD:
-        return top_match.entity_id
-
-    # Fuzzy match (not exact) - similar entity exists
     suggestions = [
         EntitySuggestion(
             id=m.entity_id,
