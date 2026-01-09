@@ -1,11 +1,13 @@
 """Binders API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
 from app.models import Binder, Book
+from app.schemas.entity_validation import EntityValidationError
 from app.schemas.reference import (
     BinderCreate,
     BinderResponse,
@@ -14,6 +16,7 @@ from app.schemas.reference import (
     ReassignResponse,
 )
 from app.services.entity_matching import invalidate_entity_cache
+from app.services.entity_validation import validate_entity_creation
 
 router = APIRouter()
 
@@ -64,14 +67,39 @@ def get_binder(binder_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.post("", response_model=BinderResponse, status_code=201)
+@router.post(
+    "",
+    response_model=BinderResponse,
+    status_code=201,
+    responses={409: {"model": EntityValidationError, "description": "Similar binder exists"}},
+)
 def create_binder(
     binder_data: BinderCreate,
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
+    force: bool = Query(
+        default=False,
+        description="Bypass duplicate validation and create anyway",
+    ),
 ):
     """Create a new binder. Requires editor role."""
-    # Check for existing binder with same name
+    # Check for similar existing binders (fuzzy match) unless force=true
+    # Do this BEFORE exact match to catch typos that would create duplicates
+    if not force:
+        validation_error = validate_entity_creation(
+            db=db,
+            entity_type="binder",
+            name=binder_data.name,
+        )
+        if validation_error:
+            return JSONResponse(
+                status_code=409,
+                content=validation_error.model_dump(
+                    include={"error", "entity_type", "input", "suggestions", "resolution"}
+                ),
+            )
+
+    # Check for existing binder with same name (exact match)
     existing = db.query(Binder).filter(Binder.name == binder_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Binder with this name already exists")

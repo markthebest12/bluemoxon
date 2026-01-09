@@ -1,11 +1,13 @@
 """Publishers API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
 from app.models import Book, Publisher
+from app.schemas.entity_validation import EntityValidationError
 from app.schemas.reference import (
     PublisherCreate,
     PublisherResponse,
@@ -14,7 +16,7 @@ from app.schemas.reference import (
     ReassignResponse,
 )
 from app.services.entity_matching import invalidate_entity_cache
-from app.services.publisher_validation import invalidate_publisher_cache
+from app.services.entity_validation import validate_entity_creation
 
 router = APIRouter()
 
@@ -65,14 +67,39 @@ def get_publisher(publisher_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.post("", response_model=PublisherResponse, status_code=201)
+@router.post(
+    "",
+    response_model=PublisherResponse,
+    status_code=201,
+    responses={409: {"model": EntityValidationError, "description": "Similar publisher exists"}},
+)
 def create_publisher(
     publisher_data: PublisherCreate,
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
+    force: bool = Query(
+        default=False,
+        description="Bypass duplicate validation and create anyway",
+    ),
 ):
     """Create a new publisher. Requires editor role."""
-    # Check for existing publisher with same name
+    # Check for similar existing publishers (fuzzy match) unless force=true
+    # Do this BEFORE exact match to catch typos that would create duplicates
+    if not force:
+        validation_error = validate_entity_creation(
+            db=db,
+            entity_type="publisher",
+            name=publisher_data.name,
+        )
+        if validation_error:
+            return JSONResponse(
+                status_code=409,
+                content=validation_error.model_dump(
+                    include={"error", "entity_type", "input", "suggestions", "resolution"}
+                ),
+            )
+
+    # Check for existing publisher with same name (exact match)
     existing = db.query(Publisher).filter(Publisher.name == publisher_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Publisher with this name already exists")
@@ -83,7 +110,6 @@ def create_publisher(
     db.refresh(publisher)
 
     # Invalidate cache since new publisher was created
-    invalidate_publisher_cache()
     invalidate_entity_cache("publisher")
 
     return PublisherResponse(
@@ -117,7 +143,6 @@ def update_publisher(
     db.refresh(publisher)
 
     # Invalidate cache if name or tier changed (affects fuzzy matching)
-    invalidate_publisher_cache()
     invalidate_entity_cache("publisher")
 
     return PublisherResponse(
@@ -153,7 +178,6 @@ def delete_publisher(
     db.commit()
 
     # Invalidate cache since publisher was deleted
-    invalidate_publisher_cache()
     invalidate_entity_cache("publisher")
 
 
@@ -197,7 +221,6 @@ def reassign_publisher_books(
     db.commit()
 
     # Invalidate cache since publisher was deleted
-    invalidate_publisher_cache()
     invalidate_entity_cache("publisher")
 
     return ReassignResponse(

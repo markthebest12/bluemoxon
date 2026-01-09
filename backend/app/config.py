@@ -129,6 +129,34 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_MAINTENANCE_MODE", "MAINTENANCE_MODE"),
     )
 
+    # Entity validation
+    entity_validation_mode: str = Field(
+        default="enforce",
+        description="Entity validation mode: 'log' (warn but allow) or 'enforce' (reject)",
+        validation_alias=AliasChoices("BMX_ENTITY_VALIDATION_MODE", "ENTITY_VALIDATION_MODE"),
+    )
+    entity_match_threshold_publisher: float = Field(
+        default=0.80,
+        description="Fuzzy match threshold for publishers (0.0-1.0)",
+        validation_alias=AliasChoices(
+            "BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER", "ENTITY_MATCH_THRESHOLD_PUBLISHER"
+        ),
+    )
+    entity_match_threshold_binder: float = Field(
+        default=0.80,
+        description="Fuzzy match threshold for binders (0.0-1.0)",
+        validation_alias=AliasChoices(
+            "BMX_ENTITY_MATCH_THRESHOLD_BINDER", "ENTITY_MATCH_THRESHOLD_BINDER"
+        ),
+    )
+    entity_match_threshold_author: float = Field(
+        default=0.75,
+        description="Fuzzy match threshold for authors (0.0-1.0, lower due to name variations)",
+        validation_alias=AliasChoices(
+            "BMX_ENTITY_MATCH_THRESHOLD_AUTHOR", "ENTITY_MATCH_THRESHOLD_AUTHOR"
+        ),
+    )
+
     # Analysis worker queue
     analysis_queue_name: str | None = Field(
         default=None,

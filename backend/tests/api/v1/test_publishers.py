@@ -133,3 +133,69 @@ def test_reassign_publisher_400_when_same_entity(client, db):
     )
 
     assert response.status_code == 400
+
+
+class TestPublisherValidation:
+    """Test entity validation on publisher creation."""
+
+    def test_create_publisher_returns_409_when_similar_exists(self, client, db):
+        """Creating publisher with similar name returns 409 with suggestions."""
+        from app.models import Publisher
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("publisher")
+
+        existing = Publisher(name="Macmillan", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+
+        # Invalidate again after adding the publisher
+        invalidate_entity_cache("publisher")
+
+        response = client.post(
+            "/api/v1/publishers",
+            json={"name": "Macmilan", "tier": "TIER_2"},
+        )
+
+        assert response.status_code == 409
+        data = response.json()
+        assert data["error"] == "similar_entity_exists"
+        assert data["entity_type"] == "publisher"
+        assert data["input"] == "Macmilan"
+        assert len(data["suggestions"]) >= 1
+        assert data["suggestions"][0]["id"] == existing.id
+
+    def test_create_publisher_with_force_bypasses_validation(self, client, db):
+        """force=true allows creation despite similar entity."""
+        from app.models import Publisher
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("publisher")
+
+        existing = Publisher(name="Macmillan", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+
+        # Invalidate again after adding the publisher
+        invalidate_entity_cache("publisher")
+
+        response = client.post(
+            "/api/v1/publishers?force=true",
+            json={"name": "Macmilan", "tier": "TIER_2"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["name"] == "Macmilan"
+
+    def test_create_publisher_succeeds_when_no_similar(self, client, db):
+        """Creating unique publisher succeeds."""
+        response = client.post(
+            "/api/v1/publishers",
+            json={"name": "Totally Unique Press", "tier": "TIER_3"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["name"] == "Totally Unique Press"

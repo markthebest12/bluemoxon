@@ -691,3 +691,31 @@ variable "secondary_origin_ttl" {
   description = "Default TTL for secondary origin cache behavior in seconds"
   default     = 604800
 }
+
+# =============================================================================
+# Entity Validation (#967, #969)
+# =============================================================================
+
+variable "entity_validation_mode" {
+  type        = string
+  description = "Entity validation mode: 'log' (warn but allow) or 'enforce' (reject with 409)"
+  default     = "enforce"
+}
+
+variable "entity_match_threshold_publisher" {
+  type        = number
+  description = "Fuzzy match threshold for publishers (0.0-1.0)"
+  default     = 0.80
+}
+
+variable "entity_match_threshold_binder" {
+  type        = number
+  description = "Fuzzy match threshold for binders (0.0-1.0)"
+  default     = 0.80
+}
+
+variable "entity_match_threshold_author" {
+  type        = number
+  description = "Fuzzy match threshold for authors (0.0-1.0, lower due to name variations)"
+  default     = 0.75
+}

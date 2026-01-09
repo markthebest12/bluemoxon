@@ -135,3 +135,70 @@ def test_reassign_author_400_when_same_entity(client, db):
     )
 
     assert response.status_code == 400
+
+
+class TestAuthorValidation:
+    """Test entity validation on author creation."""
+
+    def test_create_author_returns_409_when_similar_exists(self, client, db):
+        """Creating author with similar name returns 409 with suggestions."""
+        from app.models import Author
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("author")
+
+        existing = Author(name="Charles Dickens", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+
+        # Invalidate again after adding the author
+        invalidate_entity_cache("author")
+
+        # Try with reversed name order (fuzzy match should catch this)
+        response = client.post(
+            "/api/v1/authors",
+            json={"name": "Dickens, Charles"},
+        )
+
+        assert response.status_code == 409
+        data = response.json()
+        assert data["error"] == "similar_entity_exists"
+        assert data["entity_type"] == "author"
+        assert data["input"] == "Dickens, Charles"
+        assert len(data["suggestions"]) >= 1
+        assert data["suggestions"][0]["id"] == existing.id
+
+    def test_create_author_with_force_bypasses_validation(self, client, db):
+        """force=true allows creation despite similar entity."""
+        from app.models import Author
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Invalidate cache to ensure fresh data is loaded
+        invalidate_entity_cache("author")
+
+        existing = Author(name="Charles Dickens", tier="TIER_1")
+        db.add(existing)
+        db.commit()
+
+        # Invalidate again after adding the author
+        invalidate_entity_cache("author")
+
+        response = client.post(
+            "/api/v1/authors?force=true",
+            json={"name": "Dickens, Charles"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["name"] == "Dickens, Charles"
+
+    def test_create_author_succeeds_when_no_similar(self, client, db):
+        """Creating unique author succeeds."""
+        response = client.post(
+            "/api/v1/authors",
+            json={"name": "Totally Unique Author"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["name"] == "Totally Unique Author"
