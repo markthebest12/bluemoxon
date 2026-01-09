@@ -500,6 +500,83 @@ class TestStatsByCategory:
         assert poetry["count"] == 2
 
 
+class TestStatsByCondition:
+    """Tests for GET /api/v1/stats/by-condition."""
+
+    def test_by_condition_empty(self, client):
+        """Test with no books returns empty list."""
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+        assert data == []
+
+    def test_by_condition_groups_by_grade(self, client):
+        """Test condition breakdown groups by grade."""
+        # Create books with different condition grades
+        client.post(
+            "/api/v1/books",
+            json={"title": "Fine Book 1", "condition_grade": "FINE", "value_mid": 100},
+        )
+        client.post(
+            "/api/v1/books",
+            json={"title": "Fine Book 2", "condition_grade": "FINE", "value_mid": 200},
+        )
+        client.post(
+            "/api/v1/books",
+            json={"title": "Good Book", "condition_grade": "GOOD", "value_mid": 50},
+        )
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+
+        fine = next((c for c in data if c["condition"] == "FINE"), None)
+        assert fine is not None
+        assert fine["count"] == 2
+        assert fine["value"] == 300
+
+        good = next((c for c in data if c["condition"] == "GOOD"), None)
+        assert good is not None
+        assert good["count"] == 1
+        assert good["value"] == 50
+
+    def test_by_condition_null_becomes_ungraded(self, client):
+        """Test null condition_grade shows as 'Ungraded'."""
+        client.post(
+            "/api/v1/books",
+            json={"title": "No Condition Book", "value_mid": 75},
+        )
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        ungraded = next((c for c in data if c["condition"] == "Ungraded"), None)
+        assert ungraded is not None
+        assert ungraded["count"] == 1
+        assert ungraded["value"] == 75
+
+    def test_by_condition_includes_value(self, client):
+        """Test response includes value sum for each condition."""
+        client.post(
+            "/api/v1/books",
+            json={"title": "VG Book 1", "condition_grade": "VERY_GOOD", "value_mid": 100.50},
+        )
+        client.post(
+            "/api/v1/books",
+            json={"title": "VG Book 2", "condition_grade": "VERY_GOOD", "value_mid": 50.25},
+        )
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        vg = next((c for c in data if c["condition"] == "VERY_GOOD"), None)
+        assert vg is not None
+        assert vg["value"] == 150.75
+
+
 class TestPendingDeliveries:
     """Tests for GET /api/v1/stats/pending-deliveries."""
 
@@ -1163,3 +1240,32 @@ class TestDashboardBatch:
         assert data["by_era"] == []
         assert data["by_publisher"] == []
         assert data["by_author"] == []
+
+    def test_dashboard_includes_condition_and_category(self, client):
+        """Test dashboard batch includes by_condition and by_category."""
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Test Book",
+                "condition_grade": "FINE",
+                "category": "Victorian Poetry",
+            },
+        )
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "by_condition" in data
+        assert "by_category" in data
+
+        # Verify data structure
+        assert len(data["by_condition"]) >= 1
+        fine = next((c for c in data["by_condition"] if c["condition"] == "FINE"), None)
+        assert fine is not None
+        assert fine["count"] == 1
+
+        assert len(data["by_category"]) >= 1
+        poetry = next((c for c in data["by_category"] if c["category"] == "Victorian Poetry"), None)
+        assert poetry is not None
+        assert poetry["count"] == 1

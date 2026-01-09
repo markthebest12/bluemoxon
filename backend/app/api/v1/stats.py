@@ -220,6 +220,30 @@ def get_by_category(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/by-condition")
+def get_by_condition(db: Session = Depends(get_db)):
+    """Get counts by condition grade."""
+    results = (
+        db.query(
+            Book.condition_grade,
+            func.count(Book.id),
+            func.sum(Book.value_mid),
+        )
+        .filter(Book.inventory_type == "PRIMARY")
+        .group_by(Book.condition_grade)
+        .all()
+    )
+
+    return [
+        {
+            "condition": row[0] or "Ungraded",
+            "count": row[1],
+            "value": safe_float(row[2]),
+        }
+        for row in results
+    ]
+
+
 @router.get("/by-publisher")
 def get_by_publisher(db: Session = Depends(get_db)):
     """Get counts by publisher with tier info."""
@@ -595,8 +619,9 @@ def get_dashboard(
 ) -> DashboardResponse:
     """Get all dashboard statistics in a single request.
 
-    Combines: overview, bindings, by-era, by-publisher, by-author, acquisitions-daily.
-    This reduces 6 API calls to 1 for the dashboard.
+    Combines: overview, bindings, by-era, by-publisher, by-author, by-condition,
+    by-category, acquisitions-daily.
+    This reduces multiple API calls to 1 for the dashboard.
     """
     # Reuse existing endpoint logic
     overview = get_overview(db)
@@ -604,6 +629,8 @@ def get_dashboard(
     by_era = get_by_era(db)
     by_publisher = get_by_publisher(db)
     by_author = get_by_author(db)
+    by_condition = get_by_condition(db)
+    by_category = get_by_category(db)
     acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
 
     return {
@@ -613,4 +640,6 @@ def get_dashboard(
         "by_publisher": by_publisher,
         "by_author": by_author,
         "acquisitions_daily": acquisitions_daily,
+        "by_condition": by_condition,
+        "by_category": by_category,
     }
