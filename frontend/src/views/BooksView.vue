@@ -6,7 +6,7 @@ import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
 import ComboboxWithAdd from "@/components/ComboboxWithAdd.vue";
-import { BOOK_STATUSES, BOOK_CATEGORIES } from "@/constants";
+import { BOOK_STATUSES, BOOK_CATEGORIES, BOOK_ERA_OPTIONS } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -77,6 +77,7 @@ const activeFilterCount = computed(() => {
   if (f.status) count++;
   if (f.min_value !== undefined || f.max_value !== undefined) count++;
   if (f.year_start !== undefined || f.year_end !== undefined) count++;
+  if (f.era) count++;
   return count;
 });
 
@@ -554,8 +555,21 @@ function closeCarousel() {
         </div>
       </div>
 
-      <!-- Row 3: Year Range and Value Range -->
+      <!-- Row 3: Era, Year Range and Value Range -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
+        <!-- Era Filter -->
+        <div>
+          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+            >Era</label
+          >
+          <select v-model="booksStore.filters.era" class="input text-sm">
+            <option :value="undefined">All Eras</option>
+            <option v-for="era in BOOK_ERA_OPTIONS" :key="era.value" :value="era.value">
+              {{ era.label }}
+            </option>
+          </select>
+        </div>
+
         <!-- Year Range -->
         <div>
           <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
