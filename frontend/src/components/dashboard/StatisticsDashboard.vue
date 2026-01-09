@@ -211,6 +211,45 @@ const publisherChartData = computed(() => {
   };
 });
 
+const conditionChartData = computed(() => ({
+  labels: props.data.by_condition.map((d) => d.condition),
+  datasets: [
+    {
+      data: props.data.by_condition.map((d) => d.count),
+      backgroundColor: [
+        chartColors.primary,
+        chartColors.hunter700,
+        chartColors.gold,
+        chartColors.goldMuted,
+        chartColors.burgundy,
+        chartColors.burgundyLight,
+        chartColors.inkMuted,
+      ],
+      borderWidth: 0,
+    },
+  ],
+}));
+
+const categoryChartData = computed(() => ({
+  labels: props.data.by_category.map((d) => d.category),
+  datasets: [
+    {
+      data: props.data.by_category.map((d) => d.count),
+      backgroundColor: [
+        chartColors.burgundy,
+        chartColors.gold,
+        chartColors.primary,
+        chartColors.hunter700,
+        chartColors.goldMuted,
+        chartColors.burgundyLight,
+        chartColors.inkMuted,
+        chartColors.paperAntique,
+      ],
+      borderWidth: 0,
+    },
+  ],
+}));
+
 // Check if there are any tier 1 publishers
 const hasTier1Publishers = computed(() => {
   return props.data.by_publisher.some((p) => p.tier === "TIER_1");
@@ -355,6 +394,40 @@ const authorChartOptions = computed(() => ({
           <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No Tier 1 publisher data available
+          </p>
+        </div>
+      </div>
+
+      <!-- Condition Grade Distribution -->
+      <div class="card-static p-4!">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Condition
+        </h3>
+        <div class="h-48 md:h-56">
+          <Doughnut
+            v-if="props.data.by_condition.length > 0"
+            :data="conditionChartData"
+            :options="doughnutOptions"
+          />
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No condition data available
+          </p>
+        </div>
+      </div>
+
+      <!-- Category Distribution -->
+      <div class="card-static p-4!">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Category
+        </h3>
+        <div class="h-48 md:h-56">
+          <Doughnut
+            v-if="props.data.by_category.length > 0"
+            :data="categoryChartData"
+            :options="doughnutOptions"
+          />
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No category data available
           </p>
         </div>
       </div>

@@ -52,6 +52,18 @@ export interface AuthorData {
   has_more: boolean;
 }
 
+export interface ConditionData {
+  condition: string;
+  count: number;
+  value: number;
+}
+
+export interface CategoryData {
+  category: string;
+  count: number;
+  value: number;
+}
+
 export interface AcquisitionDay {
   date: string;
   label: string;
@@ -70,6 +82,8 @@ export interface DashboardStats {
   by_publisher: PublisherData[];
   by_author: AuthorData[];
   acquisitions_daily: AcquisitionDay[];
+  by_condition: ConditionData[];
+  by_category: CategoryData[];
 }
 
 export interface CachedDashboard {
