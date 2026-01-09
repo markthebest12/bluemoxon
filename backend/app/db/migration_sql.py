@@ -447,6 +447,17 @@ MIGRATION_21EB898BA04B_SQL = [
        AND UPPER(condition_grade) NOT IN ('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR')""",
 ]
 
+# Migration SQL for y8901234bcde_backfill_roi_pct
+# Backfill roi_pct for existing books that have both value_mid and acquisition_cost
+MIGRATION_Y8901234BCDE_SQL = [
+    """UPDATE books
+       SET roi_pct = ROUND(((value_mid - acquisition_cost) / acquisition_cost) * 100, 2)
+       WHERE value_mid IS NOT NULL
+         AND acquisition_cost IS NOT NULL
+         AND acquisition_cost > 0
+         AND roi_pct IS NULL""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -661,5 +672,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "21eb898ba04b",
         "name": "add_missing_condition_grade_mappings",
         "sql_statements": MIGRATION_21EB898BA04B_SQL,
+    },
+    {
+        "id": "y8901234bcde",
+        "name": "backfill_roi_pct",
+        "sql_statements": MIGRATION_Y8901234BCDE_SQL,
     },
 ]
