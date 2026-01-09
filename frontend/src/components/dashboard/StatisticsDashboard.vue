@@ -211,6 +211,78 @@ const publisherChartData = computed(() => {
   };
 });
 
+// Explicit color mapping for condition grades (not index-based)
+// Uses high-contrast colors: best conditions = cool/green, worst = warm/red
+const conditionColors: Record<string, string> = {
+  // Best conditions - greens/teals
+  FINE: chartColors.primary, // Deep hunter green
+  Fine: chartColors.primary,
+  NEAR_FINE: chartColors.hunter700, // Lighter green
+  Near_Fine: chartColors.hunter700,
+  // Good conditions - golds/yellows
+  VERY_GOOD: chartColors.gold, // Bright gold
+  Very_Good: chartColors.gold,
+  "VG+": chartColors.gold,
+  VG: "rgb(218, 165, 32)", // Goldenrod - distinct from gold
+  "VG-": chartColors.goldMuted,
+  // Mid conditions - distinct warm tones
+  "GOOD+": "rgb(205, 133, 63)", // Peru/tan
+  "Good+": "rgb(205, 133, 63)",
+  GOOD: chartColors.burgundy, // Deep burgundy
+  Good: chartColors.burgundyLight, // Lighter burgundy (for case mismatch)
+  // Poor conditions - reds/grays
+  FAIR: "rgb(178, 102, 102)", // Muted red
+  Fair: "rgb(178, 102, 102)",
+  POOR: "rgb(139, 69, 69)", // Dark red-brown
+  Poor: "rgb(139, 69, 69)",
+  // Ungraded - neutral gray
+  Ungraded: "rgb(160, 160, 160)",
+};
+
+// Fallback color for unknown conditions - bright orange to stand out
+const getConditionColor = (condition: string): string =>
+  conditionColors[condition] ?? "rgb(255, 140, 0)";
+
+const conditionChartData = computed(() => {
+  const conditions = props.data?.by_condition ?? [];
+  return {
+    labels: conditions.map((d) => d.condition),
+    datasets: [
+      {
+        data: conditions.map((d) => d.count),
+        backgroundColor: conditions.map((d) => getConditionColor(d.condition)),
+        borderWidth: 0,
+      },
+    ],
+  };
+});
+
+// Category colors - use rotating palette with fallback
+const categoryPalette = [
+  chartColors.burgundy,
+  chartColors.gold,
+  chartColors.primary,
+  chartColors.hunter700,
+  chartColors.goldMuted,
+  chartColors.burgundyLight,
+  chartColors.inkMuted,
+  chartColors.paperAntique,
+];
+
+const categoryChartData = computed(() => {
+  const categories = props.data?.by_category ?? [];
+  return {
+    labels: categories.map((d) => d.category),
+    datasets: [
+      {
+        data: categories.map((d) => d.count),
+        backgroundColor: categories.map((_, i) => categoryPalette[i % categoryPalette.length]),
+        borderWidth: 0,
+      },
+    ],
+  };
+});
+
 // Check if there are any tier 1 publishers
 const hasTier1Publishers = computed(() => {
   return props.data.by_publisher.some((p) => p.tier === "TIER_1");
@@ -355,6 +427,40 @@ const authorChartOptions = computed(() => ({
           <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No Tier 1 publisher data available
+          </p>
+        </div>
+      </div>
+
+      <!-- Condition Grade Distribution -->
+      <div class="card-static p-4!">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Condition
+        </h3>
+        <div class="h-48 md:h-56">
+          <Doughnut
+            v-if="props.data?.by_condition?.length > 0"
+            :data="conditionChartData"
+            :options="doughnutOptions"
+          />
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No condition data available
+          </p>
+        </div>
+      </div>
+
+      <!-- Category Distribution -->
+      <div class="card-static p-4!">
+        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
+          Books by Category
+        </h3>
+        <div class="h-48 md:h-56">
+          <Doughnut
+            v-if="props.data?.by_category?.length > 0"
+            :data="categoryChartData"
+            :options="doughnutOptions"
+          />
+          <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
+            No category data available
           </p>
         </div>
       </div>
