@@ -30,6 +30,29 @@ EntityType = Literal["publisher", "binder", "author"]
 # Cache TTL: 5 minutes (matches existing publisher cache)
 ENTITY_CACHE_TTL_SECONDS = 300
 
+# Fuzzy matching threshold defaults (0.0 to 1.0)
+# These values were chosen based on empirical testing with Victorian-era book data:
+#
+# - 80% for publishers/binders: Higher threshold because names are more standardized
+#   (e.g., "Macmillan" vs "MacMillan" should match at ~95%, but "Penguin" vs "Pelican"
+#   at ~60% should not). Publishers and binders tend to have consistent business names.
+#
+# - 75% for authors: Lower threshold to catch name variations common in historical records
+#   (e.g., "Charles Dickens" vs "Dickens, Charles" after normalization, or "Mrs. Gaskell"
+#   vs "Elizabeth Gaskell"). Victorian-era author attribution is often inconsistent.
+#
+# These thresholds are configurable via environment variables in config.py:
+#   BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER (default: 0.80)
+#   BMX_ENTITY_MATCH_THRESHOLD_BINDER (default: 0.80)
+#   BMX_ENTITY_MATCH_THRESHOLD_AUTHOR (default: 0.75)
+#
+# The actual thresholds used at runtime come from config.get_settings() when
+# entity validation endpoints call fuzzy_match_entity(). The function's default
+# threshold=0.80 is a conservative fallback for direct calls.
+DEFAULT_THRESHOLD_PUBLISHER = 0.80
+DEFAULT_THRESHOLD_BINDER = 0.80
+DEFAULT_THRESHOLD_AUTHOR = 0.75
+
 # Thread-safe caching for each entity type
 # Structure: {entity_type: [(id, name, normalized_name, tier, book_count), ...]}
 # Normalized names are pre-computed at cache time to avoid O(n) normalization per query
@@ -57,6 +80,74 @@ class EntityMatch:
     book_count: int
 
 
+def _query_entities_from_db(db: Session, entity_type: EntityType) -> list:
+    """Query entities from the database.
+
+    This function performs the DB query without holding any locks,
+    allowing other threads to proceed while the query executes.
+
+    Args:
+        db: Database session.
+        entity_type: Type of entity to query.
+
+    Returns:
+        List of query result rows with id, name, tier, and book_count.
+
+    Raises:
+        ValueError: If entity_type is not a valid type.
+    """
+    if entity_type == "publisher":
+        from app.models.book import Book
+        from app.models.publisher import Publisher
+
+        return (
+            db.query(
+                Publisher.id,
+                Publisher.name,
+                Publisher.tier,
+                func.count(Book.id).label("book_count"),
+            )
+            .outerjoin(Book, Book.publisher_id == Publisher.id)
+            .group_by(Publisher.id, Publisher.name, Publisher.tier)
+            .all()
+        )
+
+    elif entity_type == "author":
+        from app.models.author import Author
+        from app.models.book import Book
+
+        return (
+            db.query(
+                Author.id,
+                Author.name,
+                Author.tier,
+                func.count(Book.id).label("book_count"),
+            )
+            .outerjoin(Book, Book.author_id == Author.id)
+            .group_by(Author.id, Author.name, Author.tier)
+            .all()
+        )
+
+    elif entity_type == "binder":
+        from app.models.binder import Binder
+        from app.models.book import Book
+
+        return (
+            db.query(
+                Binder.id,
+                Binder.name,
+                Binder.tier,
+                func.count(Book.id).label("book_count"),
+            )
+            .outerjoin(Book, Book.binder_id == Binder.id)
+            .group_by(Binder.id, Binder.name, Binder.tier)
+            .all()
+        )
+
+    else:
+        raise ValueError(f"Unknown entity type: {entity_type}")
+
+
 def _get_cached_entities(
     db: Session, entity_type: EntityType
 ) -> list[tuple[int, str, str, str | None, int]]:
@@ -65,6 +156,9 @@ def _get_cached_entities(
     Returns list of (id, name, normalized_name, tier, book_count) tuples.
     Normalized names are pre-computed at cache time to avoid O(n) normalization per query.
     Thread-safe with lock protection.
+
+    IMPORTANT: DB queries are performed OUTSIDE the lock to avoid blocking
+    other requests. Only cache read/write operations hold the lock.
 
     Args:
         db: Database session.
@@ -75,73 +169,26 @@ def _get_cached_entities(
     """
     current_time = time.monotonic()
 
-    # Check if cache is valid (double-checked locking pattern)
+    # Fast path: check cache without lock first
     if (
         entity_type in _entity_caches
         and (current_time - _entity_cache_times.get(entity_type, 0)) < ENTITY_CACHE_TTL_SECONDS
     ):
         return _entity_caches[entity_type]
 
+    # Slow path: need to refresh cache
+    # Do DB query OUTSIDE the lock to avoid blocking other requests
+    entities = _query_entities_from_db(db, entity_type)
+
+    # Now acquire lock just for cache update
     with _entity_cache_lock:
-        # Re-check inside lock (another thread may have refreshed)
+        # Double-check another thread didn't populate while we queried
         if (
             entity_type in _entity_caches
-            and (current_time - _entity_cache_times.get(entity_type, 0)) < ENTITY_CACHE_TTL_SECONDS
+            and (time.monotonic() - _entity_cache_times.get(entity_type, 0))
+            < ENTITY_CACHE_TTL_SECONDS
         ):
             return _entity_caches[entity_type]
-
-        # Query based on entity type
-        if entity_type == "publisher":
-            from app.models.book import Book
-            from app.models.publisher import Publisher
-
-            # Query publishers with book counts
-            entities = (
-                db.query(
-                    Publisher.id,
-                    Publisher.name,
-                    Publisher.tier,
-                    func.count(Book.id).label("book_count"),
-                )
-                .outerjoin(Book, Book.publisher_id == Publisher.id)
-                .group_by(Publisher.id, Publisher.name, Publisher.tier)
-                .all()
-            )
-
-        elif entity_type == "author":
-            from app.models.author import Author
-            from app.models.book import Book
-
-            entities = (
-                db.query(
-                    Author.id,
-                    Author.name,
-                    Author.tier,
-                    func.count(Book.id).label("book_count"),
-                )
-                .outerjoin(Book, Book.author_id == Author.id)
-                .group_by(Author.id, Author.name, Author.tier)
-                .all()
-            )
-
-        elif entity_type == "binder":
-            from app.models.binder import Binder
-            from app.models.book import Book
-
-            entities = (
-                db.query(
-                    Binder.id,
-                    Binder.name,
-                    Binder.tier,
-                    func.count(Book.id).label("book_count"),
-                )
-                .outerjoin(Book, Book.binder_id == Binder.id)
-                .group_by(Binder.id, Binder.name, Binder.tier)
-                .all()
-            )
-
-        else:
-            raise ValueError(f"Unknown entity type: {entity_type}")
 
         # Convert to tuple list with pre-computed normalized names and cache
         # This avoids O(n) normalization per query
@@ -164,6 +211,8 @@ def invalidate_entity_cache(entity_type: EntityType) -> None:
     """Invalidate the cache for a specific entity type.
 
     Call this when entities are created, updated, or deleted.
+    For publishers, also invalidates the legacy publisher_validation cache
+    to maintain consistency across both caching systems.
 
     Args:
         entity_type: Type of entity cache to invalidate.
@@ -173,6 +222,13 @@ def invalidate_entity_cache(entity_type: EntityType) -> None:
             del _entity_caches[entity_type]
         if entity_type in _entity_cache_times:
             del _entity_cache_times[entity_type]
+
+    # Also invalidate legacy publisher cache for backwards compatibility
+    # TODO(#971): Consolidate publisher caching into single system
+    if entity_type == "publisher":
+        from app.services.publisher_validation import invalidate_publisher_cache
+
+        invalidate_publisher_cache()
 
 
 def _normalize_for_entity_type(name: str, entity_type: EntityType) -> str:
@@ -199,7 +255,7 @@ def fuzzy_match_entity(
     db: Session,
     entity_type: EntityType,
     name: str,
-    threshold: float = 0.80,
+    threshold: float = DEFAULT_THRESHOLD_PUBLISHER,  # 0.80: conservative default, see config.py for per-type settings
     max_results: int = 5,
 ) -> list[EntityMatch]:
     """Find existing entities that fuzzy-match the given name.
@@ -217,7 +273,10 @@ def fuzzy_match_entity(
         db: Database session.
         entity_type: Type of entity to match ("publisher", "binder", "author").
         name: Entity name to match.
-        threshold: Minimum confidence score (0.0 to 1.0). Default 0.80.
+        threshold: Minimum confidence score (0.0 to 1.0). Default 0.80 (publisher
+            threshold). Callers should use config.get_settings() to get the
+            appropriate threshold for each entity type. See DEFAULT_THRESHOLD_*
+            constants and config.py for environment variable overrides.
         max_results: Maximum number of matches to return. Default 5.
 
     Returns:

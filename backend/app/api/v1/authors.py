@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_editor
 from app.db import get_db
 from app.models import Author, Book
+from app.schemas.entity_validation import EntityValidationError
 from app.schemas.reference import (
     AuthorCreate,
     AuthorResponse,
@@ -75,7 +76,12 @@ def get_author(author_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.post("", response_model=AuthorResponse, status_code=201)
+@router.post(
+    "",
+    response_model=AuthorResponse,
+    status_code=201,
+    responses={409: {"model": EntityValidationError, "description": "Similar author exists"}},
+)
 def create_author(
     author_data: AuthorCreate,
     db: Session = Depends(get_db),
@@ -86,12 +92,8 @@ def create_author(
     ),
 ):
     """Create a new author. Requires editor role."""
-    # Check for existing author with same name (exact match)
-    existing = db.query(Author).filter(Author.name == author_data.name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Author with this name already exists")
-
     # Check for similar existing authors (fuzzy match) unless force=true
+    # Do this BEFORE exact match to catch typos that would create duplicates
     if not force:
         validation_error = validate_entity_creation(
             db=db,
@@ -99,7 +101,17 @@ def create_author(
             name=author_data.name,
         )
         if validation_error:
-            return JSONResponse(status_code=409, content=validation_error.model_dump())
+            return JSONResponse(
+                status_code=409,
+                content=validation_error.model_dump(
+                    include={"error", "entity_type", "input", "suggestions", "resolution"}
+                ),
+            )
+
+    # Check for existing author with same name (exact match)
+    existing = db.query(Author).filter(Author.name == author_data.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Author with this name already exists")
 
     author = Author(**author_data.model_dump())
     db.add(author)
