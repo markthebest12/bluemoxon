@@ -88,3 +88,21 @@ export const CONDITION_GRADE_OPTIONS = [
 ] as const;
 
 export type ConditionGradeOption = (typeof CONDITION_GRADE_OPTIONS)[number];
+
+/**
+ * Book category constants.
+ * Victorian-era book classification categories.
+ */
+export const BOOK_CATEGORIES = [
+  "Victorian Poetry",
+  "Victorian Literature",
+  "Victorian Biography",
+  "Romantic Poetry",
+  "Romantic Literature",
+  "Reference",
+  "History",
+  "Education",
+  "Literature",
+] as const;
+
+export type BookCategory = (typeof BOOK_CATEGORIES)[number];

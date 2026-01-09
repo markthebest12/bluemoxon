@@ -5,7 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
-import { BOOK_STATUSES } from "@/constants";
+import { BOOK_STATUSES, BOOK_CATEGORIES } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -48,6 +48,8 @@ const activeFilterCount = computed(() => {
   if (f.binder_id) count++;
   if (f.publisher_id) count++;
   if (f.publisher_tier) count++;
+  if (f.author_id) count++;
+  if (f.category) count++;
   if (f.binding_authenticated !== undefined) count++;
   if (f.binding_type) count++;
   if (f.condition_grade) count++;
@@ -57,7 +59,6 @@ const activeFilterCount = computed(() => {
   if (f.provenance_tier) count++;
   if (f.is_first_edition !== undefined) count++;
   if (f.status) count++;
-  if (f.category) count++;
   if (f.min_value !== undefined || f.max_value !== undefined) count++;
   if (f.year_start !== undefined || f.year_end !== undefined) count++;
   return count;
@@ -374,6 +375,32 @@ function closeCarousel() {
             <option :value="undefined">All Tiers</option>
             <option v-for="tier in publisherTiers" :key="tier" :value="tier">
               {{ tier }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Author Filter -->
+        <div>
+          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+            >Author</label
+          >
+          <select v-model="booksStore.filters.author_id" class="input text-sm">
+            <option :value="undefined">All Authors</option>
+            <option v-for="author in referencesStore.authors" :key="author.id" :value="author.id">
+              {{ author.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Category Filter -->
+        <div>
+          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+            >Category</label
+          >
+          <select v-model="booksStore.filters.category" class="input text-sm">
+            <option :value="undefined">All Categories</option>
+            <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
+              {{ cat }}
             </option>
           </select>
         </div>

@@ -6,7 +6,12 @@ import { useReferencesStore } from "@/stores/references";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import { invalidateDashboardCache } from "@/stores/dashboard";
 import { getErrorMessage } from "@/types/errors";
-import { BOOK_STATUSES, BOOK_STATUS_OPTIONS, CONDITION_GRADE_OPTIONS } from "@/constants";
+import {
+  BOOK_STATUSES,
+  BOOK_STATUS_OPTIONS,
+  CONDITION_GRADE_OPTIONS,
+  BOOK_CATEGORIES,
+} from "@/constants";
 import SelectWithDescriptions from "@/components/SelectWithDescriptions.vue";
 
 const props = defineProps<{
@@ -71,19 +76,6 @@ interface DuplicateMatch {
 const showDuplicateWarning = ref(false);
 const duplicateMatches = ref<DuplicateMatch[]>([]);
 const skipDuplicateCheck = ref(false);
-
-// Category options
-const categories = [
-  "Victorian Poetry",
-  "Victorian Literature",
-  "Victorian Biography",
-  "Romantic Poetry",
-  "Romantic Literature",
-  "Reference",
-  "History",
-  "Education",
-  "Literature",
-];
 
 onMounted(async () => {
   // Fetch reference data for dropdowns and exchange rates
@@ -303,7 +295,7 @@ function cancel() {
           <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
           <select v-model="form.category" class="input w-full">
             <option value="">-- Select Category --</option>
-            <option v-for="cat in categories" :key="cat" :value="cat">
+            <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
               {{ cat }}
             </option>
           </select>
