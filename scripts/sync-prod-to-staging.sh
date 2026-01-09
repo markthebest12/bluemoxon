@@ -92,11 +92,24 @@ log_error() {
 verify_environments() {
     log_info "Verifying environment compatibility..."
 
-    # Check API versions
-    PROD_VERSION=$(curl -s "${PROD_API}/health/info" | jq -r '.version // "unknown"')
-    STAGING_VERSION=$(curl -s "${STAGING_API}/health/info" | jq -r '.version // "unknown"')
-    PROD_SHA=$(curl -s "${PROD_API}/health/info" | jq -r '.git_sha // "unknown"')
-    STAGING_SHA=$(curl -s "${STAGING_API}/health/info" | jq -r '.git_sha // "unknown"')
+    # Fetch API info (single call per environment, with timeout and error handling)
+    PROD_INFO=$(curl -sf --connect-timeout 5 --max-time 30 "${PROD_API}/health/info" 2>/dev/null)
+    if [ -z "$PROD_INFO" ]; then
+        log_error "Failed to reach production API at ${PROD_API}/health/info"
+        exit 1
+    fi
+
+    STAGING_INFO=$(curl -sf --connect-timeout 5 --max-time 30 "${STAGING_API}/health/info" 2>/dev/null)
+    if [ -z "$STAGING_INFO" ]; then
+        log_error "Failed to reach staging API at ${STAGING_API}/health/info"
+        exit 1
+    fi
+
+    # Extract fields from cached responses
+    PROD_VERSION=$(echo "$PROD_INFO" | jq -r '.version // "unknown"')
+    STAGING_VERSION=$(echo "$STAGING_INFO" | jq -r '.version // "unknown"')
+    PROD_SHA=$(echo "$PROD_INFO" | jq -r '.git_sha // "unknown"')
+    STAGING_SHA=$(echo "$STAGING_INFO" | jq -r '.git_sha // "unknown"')
 
     echo "  Production:  version=$PROD_VERSION sha=$PROD_SHA"
     echo "  Staging:     version=$STAGING_VERSION sha=$STAGING_SHA"
@@ -120,15 +133,27 @@ verify_environments() {
 verify_database_health() {
     log_info "Checking database health via API..."
 
-    # Get prod database status
-    PROD_DB_STATUS=$(curl -s "${PROD_API}/health/deep" | jq -r '.checks.database.status // "unknown"')
-    PROD_SCHEMA_OK=$(curl -s "${PROD_API}/health/deep" | jq -r '.checks.database.schema_validated // false')
-    PROD_BOOK_COUNT=$(curl -s "${PROD_API}/health/deep" | jq -r '.checks.database.book_count // 0')
+    # Fetch deep health (single call per environment, with timeout and error handling)
+    PROD_HEALTH=$(curl -sf --connect-timeout 5 --max-time 30 "${PROD_API}/health/deep" 2>/dev/null)
+    if [ -z "$PROD_HEALTH" ]; then
+        log_error "Failed to reach production API at ${PROD_API}/health/deep"
+        exit 1
+    fi
 
-    # Get staging database status
-    STAGING_DB_STATUS=$(curl -s "${STAGING_API}/health/deep" | jq -r '.checks.database.status // "unknown"')
-    STAGING_SCHEMA_OK=$(curl -s "${STAGING_API}/health/deep" | jq -r '.checks.database.schema_validated // false')
-    STAGING_BOOK_COUNT=$(curl -s "${STAGING_API}/health/deep" | jq -r '.checks.database.book_count // 0')
+    STAGING_HEALTH=$(curl -sf --connect-timeout 5 --max-time 30 "${STAGING_API}/health/deep" 2>/dev/null)
+    if [ -z "$STAGING_HEALTH" ]; then
+        log_error "Failed to reach staging API at ${STAGING_API}/health/deep"
+        exit 1
+    fi
+
+    # Extract fields from cached responses
+    PROD_DB_STATUS=$(echo "$PROD_HEALTH" | jq -r '.checks.database.status // "unknown"')
+    PROD_SCHEMA_OK=$(echo "$PROD_HEALTH" | jq -r '.checks.database.schema_validated // false')
+    PROD_BOOK_COUNT=$(echo "$PROD_HEALTH" | jq -r '.checks.database.book_count // 0')
+
+    STAGING_DB_STATUS=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.status // "unknown"')
+    STAGING_SCHEMA_OK=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.schema_validated // false')
+    STAGING_BOOK_COUNT=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.book_count // 0')
 
     echo "  Production:  status=$PROD_DB_STATUS schema_validated=$PROD_SCHEMA_OK books=$PROD_BOOK_COUNT"
     echo "  Staging:     status=$STAGING_DB_STATUS schema_validated=$STAGING_SCHEMA_OK books=$STAGING_BOOK_COUNT"
