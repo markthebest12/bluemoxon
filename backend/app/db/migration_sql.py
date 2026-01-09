@@ -447,9 +447,9 @@ MIGRATION_21EB898BA04B_SQL = [
        AND UPPER(condition_grade) NOT IN ('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR')""",
 ]
 
-# Migration SQL for y8901234bcde_backfill_roi_pct
+# Migration SQL for 88779697decb_backfill_roi_pct
 # Backfill roi_pct for existing books that have both value_mid and acquisition_cost
-MIGRATION_Y8901234BCDE_SQL = [
+MIGRATION_88779697DECB_SQL = [
     """UPDATE books
        SET roi_pct = ROUND(((value_mid - acquisition_cost) / acquisition_cost) * 100, 2)
        WHERE value_mid IS NOT NULL
@@ -674,8 +674,8 @@ MIGRATIONS: list[MigrationDef] = [
         "sql_statements": MIGRATION_21EB898BA04B_SQL,
     },
     {
-        "id": "y8901234bcde",
+        "id": "88779697decb",
         "name": "backfill_roi_pct",
-        "sql_statements": MIGRATION_Y8901234BCDE_SQL,
+        "sql_statements": MIGRATION_88779697DECB_SQL,
     },
 ]

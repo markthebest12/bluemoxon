@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from app.services.set_detection import detect_set_completion
@@ -134,11 +134,9 @@ def recalculate_roi_pct(book: Book) -> None:
         book.roi_pct = None
         return
 
-    # Calculate fresh ROI
-    roi = (
-        (float(book.value_mid) - float(book.acquisition_cost)) / float(book.acquisition_cost) * 100
-    )
-    book.roi_pct = Decimal(str(round(roi, 2)))
+    # Calculate fresh ROI using Decimal arithmetic for precision
+    roi = (book.value_mid - book.acquisition_cost) / book.acquisition_cost * 100
+    book.roi_pct = roi.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def author_tier_to_score(tier: str | None) -> int:

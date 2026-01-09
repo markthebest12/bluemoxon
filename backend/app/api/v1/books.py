@@ -676,6 +676,9 @@ def create_book(
     db.commit()
     db.refresh(book)
 
+    # Calculate ROI if both value_mid and acquisition_cost are provided
+    recalculate_roi_pct(book)
+
     # Copy images from listing folder to book folder if S3 keys provided
     if listing_s3_keys:
         _copy_listing_images_to_book(book.id, listing_s3_keys, db)
