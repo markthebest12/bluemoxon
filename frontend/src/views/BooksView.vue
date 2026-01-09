@@ -5,6 +5,7 @@ import { useBooksStore } from "@/stores/books";
 import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
+import ComboboxWithAdd from "@/components/ComboboxWithAdd.vue";
 import { BOOK_STATUSES, BOOK_CATEGORIES } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
@@ -40,6 +41,21 @@ const bindingTypes = [
   "Vellum",
 ];
 const conditionGrades = ["Fine", "Very Good", "Good", "Fair", "Poor"];
+
+// Computed for author filter - converts between undefined (filter) and null (ComboboxWithAdd)
+// Uses 0 as a sentinel value for "All Authors" since ComboboxWithAdd requires a number for selection
+const authorFilterId = computed({
+  get: () => booksStore.filters.author_id ?? 0, // undefined in filter -> 0 for combobox
+  set: (value: number | null) => {
+    // 0 or null means "All Authors" -> undefined in filter
+    booksStore.filters.author_id = value && value !== 0 ? value : undefined;
+  },
+});
+
+// Authors with "All Authors" option for filter combobox
+const authorOptionsWithAll = computed(() => {
+  return [{ id: 0, name: "All Authors" }, ...referencesStore.authors];
+});
 
 // Count active filters
 const activeFilterCount = computed(() => {
@@ -381,15 +397,22 @@ function closeCarousel() {
 
         <!-- Author Filter -->
         <div>
-          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
-            >Author</label
-          >
-          <select v-model="booksStore.filters.author_id" class="input text-sm">
-            <option :value="undefined">All Authors</option>
-            <option v-for="author in referencesStore.authors" :key="author.id" :value="author.id">
-              {{ author.name }}
-            </option>
-          </select>
+          <div v-if="referencesStore.loading" class="relative">
+            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+              >Author</label
+            >
+            <div class="input text-sm flex items-center text-[var(--color-text-muted)]">
+              <span class="spinner spinner-sm mr-2"></span>
+              Loading...
+            </div>
+          </div>
+          <ComboboxWithAdd
+            v-else
+            v-model="authorFilterId"
+            label="Author"
+            :options="authorOptionsWithAll"
+            placeholder="Search authors..."
+          />
         </div>
 
         <!-- Category Filter -->

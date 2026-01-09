@@ -104,5 +104,3 @@ export const BOOK_CATEGORIES = [
   "Education",
   "Literature",
 ] as const;
-
-export type BookCategory = (typeof BOOK_CATEGORIES)[number];

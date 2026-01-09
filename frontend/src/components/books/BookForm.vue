@@ -37,7 +37,7 @@ const form = ref({
   publication_date: "",
   edition: "",
   volumes: 1,
-  category: "",
+  category: undefined as string | undefined,
   inventory_type: "PRIMARY",
   binding_type: "",
   binding_description: "",
@@ -99,7 +99,7 @@ function populateForm(book: Book) {
     publication_date: book.publication_date || "",
     edition: book.edition || "",
     volumes: book.volumes || 1,
-    category: book.category || "",
+    category: book.category || undefined,
     inventory_type: book.inventory_type || "PRIMARY",
     binding_type: book.binding_type || "",
     binding_description: book.binding_description || "",
@@ -291,10 +291,12 @@ function cancel() {
           <input v-model.number="form.volumes" type="number" min="1" class="input w-full" />
         </div>
 
+        <!-- Categories are frontend-only (no backend validation).
+             BOOK_CATEGORIES is the source of truth for valid values. -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
           <select v-model="form.category" class="input w-full">
-            <option value="">-- Select Category --</option>
+            <option :value="undefined">-- Select Category --</option>
             <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
               {{ cat }}
             </option>
