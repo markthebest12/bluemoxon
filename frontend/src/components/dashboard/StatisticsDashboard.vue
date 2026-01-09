@@ -211,44 +211,62 @@ const publisherChartData = computed(() => {
   };
 });
 
-const conditionChartData = computed(() => ({
-  labels: props.data.by_condition.map((d) => d.condition),
-  datasets: [
-    {
-      data: props.data.by_condition.map((d) => d.count),
-      backgroundColor: [
-        chartColors.primary,
-        chartColors.hunter700,
-        chartColors.gold,
-        chartColors.goldMuted,
-        chartColors.burgundy,
-        chartColors.burgundyLight,
-        chartColors.inkMuted,
-      ],
-      borderWidth: 0,
-    },
-  ],
-}));
+// Explicit color mapping for condition grades (not index-based)
+const conditionColors: Record<string, string> = {
+  Fine: chartColors.primary,
+  "VG+": chartColors.hunter700,
+  VG: chartColors.gold,
+  "VG-": chartColors.goldMuted,
+  "Good+": chartColors.burgundy,
+  Good: chartColors.burgundyLight,
+  Fair: chartColors.inkMuted,
+  Poor: chartColors.paperAntique,
+  Ungraded: "rgb(180, 180, 180)",
+};
 
-const categoryChartData = computed(() => ({
-  labels: props.data.by_category.map((d) => d.category),
-  datasets: [
-    {
-      data: props.data.by_category.map((d) => d.count),
-      backgroundColor: [
-        chartColors.burgundy,
-        chartColors.gold,
-        chartColors.primary,
-        chartColors.hunter700,
-        chartColors.goldMuted,
-        chartColors.burgundyLight,
-        chartColors.inkMuted,
-        chartColors.paperAntique,
-      ],
-      borderWidth: 0,
-    },
-  ],
-}));
+// Fallback color for unknown conditions
+const getConditionColor = (condition: string): string =>
+  conditionColors[condition] ?? chartColors.inkMuted;
+
+const conditionChartData = computed(() => {
+  const conditions = props.data?.by_condition ?? [];
+  return {
+    labels: conditions.map((d) => d.condition),
+    datasets: [
+      {
+        data: conditions.map((d) => d.count),
+        backgroundColor: conditions.map((d) => getConditionColor(d.condition)),
+        borderWidth: 0,
+      },
+    ],
+  };
+});
+
+// Category colors - use rotating palette with fallback
+const categoryPalette = [
+  chartColors.burgundy,
+  chartColors.gold,
+  chartColors.primary,
+  chartColors.hunter700,
+  chartColors.goldMuted,
+  chartColors.burgundyLight,
+  chartColors.inkMuted,
+  chartColors.paperAntique,
+];
+
+const categoryChartData = computed(() => {
+  const categories = props.data?.by_category ?? [];
+  return {
+    labels: categories.map((d) => d.category),
+    datasets: [
+      {
+        data: categories.map((d) => d.count),
+        backgroundColor: categories.map((_, i) => categoryPalette[i % categoryPalette.length]),
+        borderWidth: 0,
+      },
+    ],
+  };
+});
 
 // Check if there are any tier 1 publishers
 const hasTier1Publishers = computed(() => {
@@ -405,7 +423,7 @@ const authorChartOptions = computed(() => ({
         </h3>
         <div class="h-48 md:h-56">
           <Doughnut
-            v-if="props.data.by_condition.length > 0"
+            v-if="props.data?.by_condition?.length > 0"
             :data="conditionChartData"
             :options="doughnutOptions"
           />
@@ -422,7 +440,7 @@ const authorChartOptions = computed(() => ({
         </h3>
         <div class="h-48 md:h-56">
           <Doughnut
-            v-if="props.data.by_category.length > 0"
+            v-if="props.data?.by_category?.length > 0"
             :data="categoryChartData"
             :options="doughnutOptions"
           />

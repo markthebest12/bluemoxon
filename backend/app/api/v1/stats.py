@@ -231,12 +231,13 @@ def get_by_condition(db: Session = Depends(get_db)):
         )
         .filter(Book.inventory_type == "PRIMARY")
         .group_by(Book.condition_grade)
+        .order_by(Book.condition_grade)
         .all()
     )
 
     return [
         {
-            "condition": row[0] or "Ungraded",
+            "condition": row[0] if row[0] is not None else "Ungraded",
             "count": row[1],
             "value": safe_float(row[2]),
         }
