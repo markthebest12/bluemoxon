@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from app.schemas.entity_validation import EntityValidationError
 from app.services.entity_matching import EntityMatch
 
 
@@ -85,6 +86,180 @@ class TestValidateEntityCreation:
         assert len(result.suggestions) == 2
         assert result.suggestions[0].id == 5
         assert result.suggestions[1].id == 6
+
+
+class TestValidateEntityForBook:
+    """Test validate_entity_for_book function for book endpoint validation."""
+
+    def test_exact_match_returns_entity_id(self):
+        """Exact match by normalized name in DB returns entity ID (not error)."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        # Exact match via _get_entity_by_normalized_name returns (id, name)
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=(5, "Macmillan and Co."),
+        ):
+            result = validate_entity_for_book(db, "publisher", "Macmillan and Co.")
+
+        # Exact match returns the entity ID (for direct association)
+        assert result == 5
+
+    def test_fuzzy_match_returns_409_error(self):
+        """Fuzzy match (80%+) returns EntityValidationError with similar_entity_exists."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        # No exact match, but fuzzy match found
+        match = EntityMatch(
+            entity_id=5,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.94,
+            book_count=12,
+        )
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[match]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+                    result = validate_entity_for_book(db, "publisher", "Macmilan")
+
+        # Fuzzy match returns error with similar_entity_exists
+        assert result is not None
+        assert isinstance(result, EntityValidationError)
+        assert result.error == "similar_entity_exists"
+        assert result.entity_type == "publisher"
+        assert result.input == "Macmilan"
+        assert len(result.suggestions) == 1
+        assert result.suggestions[0].id == 5
+
+    def test_no_match_returns_400_error(self):
+        """No match at all returns EntityValidationError with unknown_entity."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+                    result = validate_entity_for_book(db, "publisher", "Unknown Press")
+
+        # No match returns error with unknown_entity
+        assert result is not None
+        assert isinstance(result, EntityValidationError)
+        assert result.error == "unknown_entity"
+        assert result.entity_type == "publisher"
+        assert result.input == "Unknown Press"
+        assert result.suggestions is None
+
+    def test_empty_name_returns_none(self):
+        """Empty or None name returns None (skip validation)."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+
+        # Test None
+        result = validate_entity_for_book(db, "publisher", None)
+        assert result is None
+
+        # Test empty string
+        result = validate_entity_for_book(db, "publisher", "")
+        assert result is None
+
+        # Test whitespace only
+        result = validate_entity_for_book(db, "publisher", "   ")
+        assert result is None
+
+    def test_log_mode_returns_none_on_fuzzy_match(self, caplog):
+        """In log mode, fuzzy match logs warning but returns None (not fuzzy match ID).
+
+        Returning the fuzzy match ID would silently "correct" the name to a different
+        entity, which could corrupt data. Instead, we skip association and log.
+        """
+        import logging
+
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        match = EntityMatch(
+            entity_id=5,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.94,
+            book_count=12,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[match]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "log"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+                    with caplog.at_level(logging.WARNING):
+                        result = validate_entity_for_book(db, "publisher", "Macmilan")
+
+        # Log mode returns None (skip association to avoid silent correction)
+        assert result is None
+        assert "would reject" in caplog.text
+        assert "skipping association" in caplog.text
+
+    def test_log_mode_returns_none_on_no_match(self, caplog):
+        """In log mode, no match logs warning but returns None."""
+        import logging
+
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "log"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+                    with caplog.at_level(logging.WARNING):
+                        result = validate_entity_for_book(db, "publisher", "Unknown Press")
+
+        # Log mode returns None (no entity to associate)
+        assert result is None
+        assert "unknown" in caplog.text.lower() or "not found" in caplog.text.lower()
+
+    def test_binder_exact_match(self):
+        """Binder exact match by normalized name returns entity ID."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=(10, "Riviere & Son"),
+        ):
+            result = validate_entity_for_book(db, "binder", "Riviere & Son")
+
+        # Exact match for binder returns entity ID
+        assert result == 10
+
+    def test_author_exact_match(self):
+        """Author exact match by normalized name returns entity ID."""
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=(20, "Charles Dickens"),
+        ):
+            result = validate_entity_for_book(db, "author", "Charles Dickens")
+
+        # Exact match for author returns entity ID
+        assert result == 20
 
 
 class TestValidationMode:

@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.models import Book, BookImage
 from app.models.analysis import BookAnalysis
 
@@ -1088,3 +1090,215 @@ class TestBuildBookResponse:
         assert response.provenance_tier == "Tier 3"
         assert response.status == "ON_HAND"
         assert response.inventory_type == "PRIMARY"
+
+
+class TestAnalysisEntityValidation:
+    """Test entity validation in analysis upload endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def clear_entity_cache(self):
+        """Clear entity caches before each test to ensure test isolation."""
+        from app.services.entity_matching import invalidate_entity_cache
+
+        # Clear all entity caches before each test
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
+        yield
+        # Also clear after test for good measure
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
+
+    def test_analysis_with_similar_binder_returns_409(self, client, db):
+        """Analysis with fuzzy-matching binder name returns 409 Conflict."""
+        from app.models import Binder, Book
+
+        # Create existing binder
+        binder = Binder(name="Riviere & Son", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis markdown with a similar but not exact binder name
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Riviere and Son
+- **Confidence:** HIGH
+"""
+
+        # Upload analysis - should fail with 409 due to similar binder
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 409
+        data = response.json()
+        # FastAPI wraps HTTPException detail in a "detail" key
+        detail = data["detail"]
+        assert detail["error"] == "similar_entity_exists"
+        assert detail["entity_type"] == "binder"
+        assert detail["input"] == "Riviere and Son"
+        assert detail["suggestions"] is not None
+        assert len(detail["suggestions"]) >= 1
+        assert detail["suggestions"][0]["name"] == "Riviere & Son"
+
+    def test_analysis_with_unknown_publisher_returns_400(self, client, db):
+        """Analysis with unknown publisher name returns 400 Bad Request."""
+        from app.models import Book, Publisher
+
+        # Create a few publishers but NOT the one we'll request
+        publisher = Publisher(name="Macmillan", tier="TIER_1")
+        db.add(publisher)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis markdown with an unknown publisher
+        # Use **Publisher:** pattern which the parser recognizes
+        analysis_md = """# Book Analysis
+
+## Physical Description
+
+**Publisher:** Completely Unknown Publisher Ltd
+**Binding:** Full Morocco
+"""
+
+        # Upload analysis - should fail with 400 due to unknown publisher
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        # FastAPI wraps HTTPException detail in a "detail" key
+        detail = data["detail"]
+        assert detail["error"] == "unknown_entity"
+        assert detail["entity_type"] == "publisher"
+        assert detail["input"] == "Completely Unknown Publisher Ltd"
+        assert detail["suggestions"] is None
+
+    def test_analysis_with_exact_match_binder_succeeds(self, client, db):
+        """Analysis with exact binder name match succeeds."""
+        from app.models import Binder, Book
+
+        # Create existing binder
+        binder = Binder(name="Zaehnsdorf", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis markdown with exact binder name match
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Zaehnsdorf
+- **Confidence:** HIGH
+"""
+
+        # Upload analysis - should succeed with exact match
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["binder_updated"] is True
+
+        # Verify binder was associated
+        db.refresh(book)
+        assert book.binder_id == binder.id
+
+    def test_analysis_with_exact_match_publisher_succeeds(self, client, db):
+        """Analysis with exact publisher name match succeeds."""
+        from app.models import Book, Publisher
+
+        # Create existing publisher
+        publisher = Publisher(name="Chapman and Hall", tier="TIER_1")
+        db.add(publisher)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis markdown with exact publisher name match
+        # Use **Publisher:** pattern which the parser recognizes
+        analysis_md = """# Book Analysis
+
+## Physical Description
+
+**Publisher:** Chapman and Hall
+**Binding:** Full Morocco
+"""
+
+        # Upload analysis - should succeed with exact match
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["publisher_updated"] is True
+
+        # Verify publisher was associated
+        db.refresh(book)
+        assert book.publisher_id == publisher.id
+
+    def test_analysis_without_entities_succeeds(self, client, db):
+        """Analysis without binder or publisher references succeeds."""
+        from app.models import Book
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create simple analysis markdown without entities
+        analysis_md = """# Book Analysis
+
+## Executive Summary
+
+This is a test book analysis.
+
+## Recommendations
+
+Buy this book.
+"""
+
+        # Upload analysis - should succeed
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["binder_updated"] is False
+        assert data["publisher_updated"] is False
