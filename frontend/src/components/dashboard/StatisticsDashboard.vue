@@ -212,21 +212,36 @@ const publisherChartData = computed(() => {
 });
 
 // Explicit color mapping for condition grades (not index-based)
+// Uses high-contrast colors: best conditions = cool/green, worst = warm/red
 const conditionColors: Record<string, string> = {
+  // Best conditions - greens/teals
+  FINE: chartColors.primary, // Deep hunter green
   Fine: chartColors.primary,
-  "VG+": chartColors.hunter700,
-  VG: chartColors.gold,
+  NEAR_FINE: chartColors.hunter700, // Lighter green
+  Near_Fine: chartColors.hunter700,
+  // Good conditions - golds/yellows
+  VERY_GOOD: chartColors.gold, // Bright gold
+  Very_Good: chartColors.gold,
+  "VG+": chartColors.gold,
+  VG: "rgb(218, 165, 32)", // Goldenrod - distinct from gold
   "VG-": chartColors.goldMuted,
-  "Good+": chartColors.burgundy,
-  Good: chartColors.burgundyLight,
-  Fair: chartColors.inkMuted,
-  Poor: chartColors.paperAntique,
-  Ungraded: "rgb(180, 180, 180)",
+  // Mid conditions - distinct warm tones
+  "GOOD+": "rgb(205, 133, 63)", // Peru/tan
+  "Good+": "rgb(205, 133, 63)",
+  GOOD: chartColors.burgundy, // Deep burgundy
+  Good: chartColors.burgundyLight, // Lighter burgundy (for case mismatch)
+  // Poor conditions - reds/grays
+  FAIR: "rgb(178, 102, 102)", // Muted red
+  Fair: "rgb(178, 102, 102)",
+  POOR: "rgb(139, 69, 69)", // Dark red-brown
+  Poor: "rgb(139, 69, 69)",
+  // Ungraded - neutral gray
+  Ungraded: "rgb(160, 160, 160)",
 };
 
-// Fallback color for unknown conditions
+// Fallback color for unknown conditions - bright orange to stand out
 const getConditionColor = (condition: string): string =>
-  conditionColors[condition] ?? chartColors.inkMuted;
+  conditionColors[condition] ?? "rgb(255, 140, 0)";
 
 const conditionChartData = computed(() => {
   const conditions = props.data?.by_condition ?? [];
