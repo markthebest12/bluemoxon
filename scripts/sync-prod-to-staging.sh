@@ -6,6 +6,11 @@
 # - S3 images bucket
 # - PostgreSQL database
 #
+# Pre-flight checks (via API - no direct DB access needed):
+# - Verifies API versions match (git SHA comparison)
+# - Verifies database health and schema validation status
+# - Warns if mismatches detected, requires confirmation to proceed
+#
 # Usage:
 #   ./scripts/sync-prod-to-staging.sh [OPTIONS]
 #
@@ -17,8 +22,9 @@
 #   -h, --help       Show this help message
 #
 # Prerequisites:
-#   - AWS CLI configured with both default (prod) and staging profiles
+#   - AWS CLI configured with bmx-prod and bmx-staging profiles
 #   - psql and pg_dump installed (brew install libpq)
+#   - curl and jq for API version checks
 #   - Network access to both RDS instances
 #     NOTE: Prod (Aurora) and Staging (RDS) are in different accounts/VPCs.
 #     For database sync to work, you need one of:
@@ -34,8 +40,8 @@ set -euo pipefail
 # Configuration
 # -----------------------------------------------------------------------------
 
-PROD_PROFILE=""  # Default profile
-STAGING_PROFILE="staging"
+PROD_PROFILE="bmx-prod"
+STAGING_PROFILE="bmx-staging"
 
 # S3 Buckets
 PROD_IMAGES_BUCKET="bluemoxon-images"
@@ -58,6 +64,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# API Endpoints for version/migration checks
+PROD_API="https://api.bluemoxon.com/api/v1"
+STAGING_API="https://staging.api.bluemoxon.com/api/v1"
+
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
@@ -76,6 +86,100 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Verify API versions and migration heads match before sync
+verify_environments() {
+    log_info "Verifying environment compatibility..."
+
+    # Fetch API info (single call per environment, with timeout and error handling)
+    PROD_INFO=$(curl -sf --connect-timeout 5 --max-time 30 "${PROD_API}/health/info" 2>/dev/null)
+    if [ -z "$PROD_INFO" ]; then
+        log_error "Failed to reach production API at ${PROD_API}/health/info"
+        exit 1
+    fi
+
+    STAGING_INFO=$(curl -sf --connect-timeout 5 --max-time 30 "${STAGING_API}/health/info" 2>/dev/null)
+    if [ -z "$STAGING_INFO" ]; then
+        log_error "Failed to reach staging API at ${STAGING_API}/health/info"
+        exit 1
+    fi
+
+    # Extract fields from cached responses
+    PROD_VERSION=$(echo "$PROD_INFO" | jq -r '.version // "unknown"')
+    STAGING_VERSION=$(echo "$STAGING_INFO" | jq -r '.version // "unknown"')
+    PROD_SHA=$(echo "$PROD_INFO" | jq -r '.git_sha // "unknown"')
+    STAGING_SHA=$(echo "$STAGING_INFO" | jq -r '.git_sha // "unknown"')
+
+    echo "  Production:  version=$PROD_VERSION sha=$PROD_SHA"
+    echo "  Staging:     version=$STAGING_VERSION sha=$STAGING_SHA"
+    echo
+
+    if [ "$PROD_SHA" != "$STAGING_SHA" ]; then
+        log_warn "Git SHA mismatch detected!"
+        log_warn "Production and staging are running different code versions."
+        log_warn "This may cause issues if schema has changed between versions."
+        echo
+        if ! confirm "Continue anyway?"; then
+            log_error "Aborting due to version mismatch."
+            exit 1
+        fi
+    else
+        log_success "API versions match"
+    fi
+}
+
+# Verify database schema is validated via API health endpoint
+verify_database_health() {
+    log_info "Checking database health via API..."
+
+    # Fetch deep health (single call per environment, with timeout and error handling)
+    PROD_HEALTH=$(curl -sf --connect-timeout 5 --max-time 30 "${PROD_API}/health/deep" 2>/dev/null)
+    if [ -z "$PROD_HEALTH" ]; then
+        log_error "Failed to reach production API at ${PROD_API}/health/deep"
+        exit 1
+    fi
+
+    STAGING_HEALTH=$(curl -sf --connect-timeout 5 --max-time 30 "${STAGING_API}/health/deep" 2>/dev/null)
+    if [ -z "$STAGING_HEALTH" ]; then
+        log_error "Failed to reach staging API at ${STAGING_API}/health/deep"
+        exit 1
+    fi
+
+    # Extract fields from cached responses
+    PROD_DB_STATUS=$(echo "$PROD_HEALTH" | jq -r '.checks.database.status // "unknown"')
+    PROD_SCHEMA_OK=$(echo "$PROD_HEALTH" | jq -r '.checks.database.schema_validated // false')
+    PROD_BOOK_COUNT=$(echo "$PROD_HEALTH" | jq -r '.checks.database.book_count // 0')
+
+    STAGING_DB_STATUS=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.status // "unknown"')
+    STAGING_SCHEMA_OK=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.schema_validated // false')
+    STAGING_BOOK_COUNT=$(echo "$STAGING_HEALTH" | jq -r '.checks.database.book_count // 0')
+
+    echo "  Production:  status=$PROD_DB_STATUS schema_validated=$PROD_SCHEMA_OK books=$PROD_BOOK_COUNT"
+    echo "  Staging:     status=$STAGING_DB_STATUS schema_validated=$STAGING_SCHEMA_OK books=$STAGING_BOOK_COUNT"
+    echo
+
+    if [ "$PROD_DB_STATUS" != "healthy" ]; then
+        log_error "Production database is not healthy: $PROD_DB_STATUS"
+        exit 1
+    fi
+
+    if [ "$PROD_SCHEMA_OK" != "true" ]; then
+        log_error "Production schema validation failed"
+        exit 1
+    fi
+
+    if [ "$STAGING_DB_STATUS" != "healthy" ]; then
+        log_warn "Staging database is not healthy: $STAGING_DB_STATUS"
+        log_warn "This may be expected if staging is empty or has stale data."
+        echo
+        if ! confirm "Continue anyway?"; then
+            log_error "Aborting due to staging database issue."
+            exit 1
+        fi
+    else
+        log_success "Both databases are healthy"
+    fi
 }
 
 show_help() {
@@ -165,6 +269,13 @@ echo "  Database: $([ "$SYNC_DB" = true ] && echo "YES" || echo "NO")"
 echo
 
 # -----------------------------------------------------------------------------
+# Pre-flight Verification
+# -----------------------------------------------------------------------------
+
+verify_environments
+verify_database_health
+
+# -----------------------------------------------------------------------------
 # S3 Images Sync
 # -----------------------------------------------------------------------------
 
@@ -176,7 +287,7 @@ if [ "$SYNC_IMAGES" = true ]; then
     # Get bucket sizes for comparison
     log_info "Checking bucket sizes..."
 
-    PROD_SIZE=$(aws s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive --summarize 2>/dev/null | grep "Total Size" | awk '{print $3, $4}' || echo "unknown")
+    PROD_SIZE=$(aws --profile "$PROD_PROFILE" s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive --summarize 2>/dev/null | grep "Total Size" | awk '{print $3, $4}' || echo "unknown")
     STAGING_SIZE=$(aws --profile "$STAGING_PROFILE" s3 ls "s3://${STAGING_IMAGES_BUCKET}" --recursive --summarize 2>/dev/null | grep "Total Size" | awk '{print $3, $4}' || echo "unknown")
 
     echo "  Production size: $PROD_SIZE"
@@ -191,7 +302,7 @@ if [ "$SYNC_IMAGES" = true ]; then
             log_info "  1. Download all objects from s3://${PROD_IMAGES_BUCKET}"
             log_info "  2. Upload to s3://${STAGING_IMAGES_BUCKET} (staging account)"
             # Count prod objects
-            PROD_COUNT=$(aws s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive 2>/dev/null | wc -l | tr -d ' ')
+            PROD_COUNT=$(aws --profile "$PROD_PROFILE" s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive 2>/dev/null | wc -l | tr -d ' ')
             log_info "  Total objects to sync: $PROD_COUNT"
         else
             log_info "Starting S3 sync..."
@@ -202,7 +313,7 @@ if [ "$SYNC_IMAGES" = true ]; then
             trap "rm -rf $TEMP_DIR" EXIT
 
             log_info "Downloading from production..."
-            aws s3 sync "s3://${PROD_IMAGES_BUCKET}" "$TEMP_DIR" --quiet
+            aws --profile "$PROD_PROFILE" s3 sync "s3://${PROD_IMAGES_BUCKET}" "$TEMP_DIR" --quiet
 
             log_info "Uploading to staging..."
             aws --profile "$STAGING_PROFILE" s3 sync "$TEMP_DIR" "s3://${STAGING_IMAGES_BUCKET}" --quiet
@@ -238,7 +349,7 @@ if [ "$SYNC_DB" = true ]; then
     # Get database credentials from Secrets Manager
     log_info "Fetching database credentials..."
 
-    PROD_CREDS=$(get_secret "$PROD_DB_SECRET" "")
+    PROD_CREDS=$(get_secret "$PROD_DB_SECRET" "$PROD_PROFILE")
     STAGING_CREDS=$(get_secret "$STAGING_DB_SECRET" "$STAGING_PROFILE")
 
     # Parse credentials (handle both 'database' and 'dbname' keys)
