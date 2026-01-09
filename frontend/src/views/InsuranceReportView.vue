@@ -4,6 +4,14 @@ import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
 import { BOOK_STATUSES, PAGINATION } from "@/constants";
 
+// Victorian era boundaries (Queen Victoria: 1837-1901)
+const VICTORIAN_ERA = {
+  START: 1837,
+  EARLY_END: 1850,
+  MID_END: 1870,
+  END: 1901,
+} as const;
+
 // Report type options
 type ReportType = "insurance" | "primary" | "extended" | "all";
 
@@ -182,11 +190,18 @@ const printReport = () => {
 };
 
 // Compute era from year_start
-const computeEra = (yearStart: number | null | undefined): string => {
-  if (!yearStart) return "";
-  if (yearStart >= 1837 && yearStart <= 1850) return "Victorian Early";
-  if (yearStart >= 1851 && yearStart <= 1870) return "Victorian Mid";
-  if (yearStart >= 1871 && yearStart <= 1901) return "Victorian Late";
+const computeEra = (yearStart: number | null): string => {
+  // Handle null/invalid years
+  if (yearStart === null || yearStart <= 0 || yearStart > 9999) return "";
+
+  // Victorian era classifications using constants
+  if (yearStart >= VICTORIAN_ERA.START && yearStart <= VICTORIAN_ERA.EARLY_END)
+    return "Victorian Early";
+  if (yearStart >= VICTORIAN_ERA.EARLY_END + 1 && yearStart <= VICTORIAN_ERA.MID_END)
+    return "Victorian Mid";
+  if (yearStart >= VICTORIAN_ERA.MID_END + 1 && yearStart <= VICTORIAN_ERA.END)
+    return "Victorian Late";
+
   // For non-Victorian years, return decade (e.g., "1920s")
   const decade = Math.floor(yearStart / 10) * 10;
   return `${decade}s`;
@@ -195,8 +210,19 @@ const computeEra = (yearStart: number | null | undefined): string => {
 // Format ISO date to YYYY-MM-DD
 const formatISODate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "";
-  // Extract just the date portion from ISO format
-  return dateStr.split("T")[0];
+
+  // Try parsing as Date object to handle various formats:
+  // - ISO with timezone: 2024-01-15T10:30:00+05:30
+  // - Date only: 2024-01-15
+  // - Datetime without T: 2024-01-15 10:30:00
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+
+  // Format as YYYY-MM-DD
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 // CSV Export function
@@ -241,9 +267,18 @@ const exportCSV = () => {
     "Created At",
   ];
 
+  // CSV formula injection characters that Excel/Sheets interpret as formulas
+  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r]/;
+
   const escapeCSV = (val: string | null | undefined): string => {
     if (val === null || val === undefined) return "";
-    return `"${String(val).replace(/"/g, '""')}"`;
+    let str = String(val);
+    // Prevent CSV formula injection by prefixing dangerous characters with single quote
+    // Excel/Sheets will display the quote but treat content as text, not formula
+    if (FORMULA_INJECTION_CHARS.test(str)) {
+      str = "'" + str;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
   };
 
   const rows = sortedBooks.value.map((book) => [

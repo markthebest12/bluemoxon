@@ -28,6 +28,7 @@ export const useReferencesStore = defineStore("references", () => {
   const publishers = ref<Publisher[]>([]);
   const binders = ref<Binder[]>([]);
   const loading = ref(false);
+  const error = ref<string | null>(null);
 
   async function fetchAuthors() {
     try {
@@ -58,8 +59,14 @@ export const useReferencesStore = defineStore("references", () => {
 
   async function fetchAll() {
     loading.value = true;
-    await Promise.all([fetchAuthors(), fetchPublishers(), fetchBinders()]);
-    loading.value = false;
+    error.value = null;
+    try {
+      await Promise.all([fetchAuthors(), fetchPublishers(), fetchBinders()]);
+    } catch (_e) {
+      error.value = "Failed to load reference data";
+    } finally {
+      loading.value = false;
+    }
   }
 
   async function createAuthor(name: string): Promise<Author> {
@@ -85,6 +92,7 @@ export const useReferencesStore = defineStore("references", () => {
     publishers,
     binders,
     loading,
+    error,
     fetchAuthors,
     fetchPublishers,
     fetchBinders,
