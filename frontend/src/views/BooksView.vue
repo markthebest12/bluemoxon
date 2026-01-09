@@ -43,18 +43,18 @@ const bindingTypes = [
 const conditionGrades = ["Fine", "Very Good", "Good", "Fair", "Poor"];
 
 // Computed for author filter - converts between undefined (filter) and null (ComboboxWithAdd)
-// Uses 0 as a sentinel value for "All Authors" since ComboboxWithAdd requires a number for selection
+// Uses null as the sentinel value for "All Authors" to avoid conflicts with valid database IDs
 const authorFilterId = computed({
-  get: () => booksStore.filters.author_id ?? 0, // undefined in filter -> 0 for combobox
+  get: () => booksStore.filters.author_id ?? null, // undefined in filter -> null for combobox
   set: (value: number | null) => {
-    // 0 or null means "All Authors" -> undefined in filter
-    booksStore.filters.author_id = value && value !== 0 ? value : undefined;
+    // null means "All Authors" -> undefined in filter
+    booksStore.filters.author_id = value ?? undefined;
   },
 });
 
 // Authors with "All Authors" option for filter combobox
 const authorOptionsWithAll = computed(() => {
-  return [{ id: 0, name: "All Authors" }, ...referencesStore.authors];
+  return [{ id: null, name: "All Authors" }, ...referencesStore.authors];
 });
 
 // Count active filters
@@ -404,6 +404,16 @@ function closeCarousel() {
             <div class="input text-sm flex items-center text-[var(--color-text-muted)]">
               <span class="spinner spinner-sm mr-2"></span>
               Loading...
+            </div>
+          </div>
+          <div v-else-if="referencesStore.error" class="relative">
+            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+              >Author</label
+            >
+            <div
+              class="input text-sm flex items-center text-[var(--color-status-error-text)] bg-[var(--color-status-error-bg)]"
+            >
+              Failed to load authors
             </div>
           </div>
           <ComboboxWithAdd

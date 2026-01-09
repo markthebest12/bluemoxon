@@ -66,6 +66,7 @@ describe("BookMetadataSection", () => {
       ship_date: null,
       source_archived_url: null,
       archive_status: null,
+      created_at: "2024-01-15T00:00:00Z",
       ...overrides,
     };
   }

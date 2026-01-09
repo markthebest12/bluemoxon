@@ -4,6 +4,14 @@ import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
 import { BOOK_STATUSES, PAGINATION } from "@/constants";
 
+// Victorian era boundaries (Queen Victoria: 1837-1901)
+const VICTORIAN_ERA = {
+  START: 1837,
+  EARLY_END: 1850,
+  MID_END: 1870,
+  END: 1901,
+} as const;
+
 // Report type options
 type ReportType = "insurance" | "primary" | "extended" | "all";
 
@@ -181,6 +189,42 @@ const printReport = () => {
   window.print();
 };
 
+// Compute era from year_start
+const computeEra = (yearStart: number | null): string => {
+  // Handle null/invalid years
+  if (yearStart === null || yearStart <= 0 || yearStart > 9999) return "";
+
+  // Victorian era classifications using constants
+  if (yearStart >= VICTORIAN_ERA.START && yearStart <= VICTORIAN_ERA.EARLY_END)
+    return "Victorian Early";
+  if (yearStart >= VICTORIAN_ERA.EARLY_END + 1 && yearStart <= VICTORIAN_ERA.MID_END)
+    return "Victorian Mid";
+  if (yearStart >= VICTORIAN_ERA.MID_END + 1 && yearStart <= VICTORIAN_ERA.END)
+    return "Victorian Late";
+
+  // For non-Victorian years, return decade (e.g., "1920s")
+  const decade = Math.floor(yearStart / 10) * 10;
+  return `${decade}s`;
+};
+
+// Format ISO date to YYYY-MM-DD
+const formatISODate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "";
+
+  // Try parsing as Date object to handle various formats:
+  // - ISO with timezone: 2024-01-15T10:30:00+05:30
+  // - Date only: 2024-01-15
+  // - Datetime without T: 2024-01-15 10:30:00
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+
+  // Format as YYYY-MM-DD
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 // CSV Export function
 const exportCSV = () => {
   const headers = [
@@ -203,6 +247,7 @@ const exportCSV = () => {
     "Value Mid",
     "Value High",
     "Purchase Price",
+    "Acquisition Cost",
     "Purchase Date",
     "Purchase Source",
     "Discount %",
@@ -210,11 +255,30 @@ const exportCSV = () => {
     "Status",
     "Notes",
     "Provenance",
+    "First Edition",
+    "Has Provenance",
+    "Provenance Tier",
+    "Year Start",
+    "Year End",
+    "Era",
+    "Complete Set",
+    "Overall Score",
+    "Source URL",
+    "Created At",
   ];
+
+  // CSV formula injection characters that Excel/Sheets interpret as formulas
+  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r]/;
 
   const escapeCSV = (val: string | null | undefined): string => {
     if (val === null || val === undefined) return "";
-    return `"${String(val).replace(/"/g, '""')}"`;
+    let str = String(val);
+    // Prevent CSV formula injection by prefixing dangerous characters with single quote
+    // Excel/Sheets will display the quote but treat content as text, not formula
+    if (FORMULA_INJECTION_CHARS.test(str)) {
+      str = "'" + str;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
   };
 
   const rows = sortedBooks.value.map((book) => [
@@ -237,6 +301,7 @@ const exportCSV = () => {
     book.value_mid || "",
     book.value_high || "",
     book.purchase_price || "",
+    book.acquisition_cost || "",
     escapeCSV(book.purchase_date),
     escapeCSV(book.purchase_source),
     book.discount_pct || "",
@@ -244,6 +309,16 @@ const exportCSV = () => {
     escapeCSV(book.status),
     escapeCSV(book.notes),
     escapeCSV(book.provenance),
+    book.is_first_edition ? "Yes" : "No",
+    book.has_provenance ? "Yes" : "No",
+    escapeCSV(book.provenance_tier),
+    book.year_start || "",
+    book.year_end || "",
+    escapeCSV(computeEra(book.year_start)),
+    book.is_complete ? "Yes" : "No",
+    book.overall_score || "",
+    escapeCSV(book.source_url),
+    escapeCSV(formatISODate(book.created_at)),
   ]);
 
   const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");

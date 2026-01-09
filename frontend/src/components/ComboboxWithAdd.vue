@@ -3,7 +3,7 @@ import { ref, computed, watch } from "vue";
 import { UI_TIMING } from "@/constants";
 
 interface Option {
-  id: number;
+  id: number | null;
   name: string;
 }
 
@@ -23,14 +23,15 @@ const emit = defineEmits<{
 const searchText = ref("");
 const isOpen = ref(false);
 
-// Find selected option to display
+// Find selected option to display (supports null id for "All" options)
 const selectedOption = computed(() => {
-  if (!props.modelValue) return null;
-  return props.options.find((o) => o.id === props.modelValue);
+  if (!Array.isArray(props.options)) return null;
+  return props.options.find((o) => o.id === props.modelValue) ?? null;
 });
 
 // Filter options based on search
 const filteredOptions = computed(() => {
+  if (!Array.isArray(props.options)) return [];
   if (!searchText.value) return props.options;
   const search = searchText.value.toLowerCase();
   return props.options.filter((o) => o.name.toLowerCase().includes(search));
@@ -39,6 +40,7 @@ const filteredOptions = computed(() => {
 // Show "add new" if search doesn't match any option exactly
 const showAddNew = computed(() => {
   if (!searchText.value.trim()) return false;
+  if (!Array.isArray(props.options)) return true;
   const search = searchText.value.toLowerCase().trim();
   return !props.options.some((o) => o.name.toLowerCase() === search);
 });
@@ -122,7 +124,7 @@ function handleAddNew() {
       <!-- Filtered options -->
       <button
         v-for="option in filteredOptions"
-        :key="option.id"
+        :key="option.id ?? 'null'"
         type="button"
         data-testid="option"
         class="w-full px-3 py-2 text-left text-sm hover:bg-victorian-paper-aged"
