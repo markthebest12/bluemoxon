@@ -77,6 +77,12 @@ from app.services.scoring import (
 from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
 from app.services.tracking_poller import refresh_single_book_tracking
+from app.utils.errors import (
+    ConflictError,
+    ExternalServiceError,
+    ValidationError,
+    log_and_raise,
+)
 from app.utils.markdown_parser import parse_analysis_markdown, strip_structured_data
 
 logger = logging.getLogger(__name__)
@@ -1032,18 +1038,20 @@ def refresh_tracking(
         # Refresh the book to get updated values
         db.refresh(book)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from None
+        log_and_raise(
+            ValidationError("tracking", str(e)),
+            context={"book_id": book_id},
+        )
     except KeyError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported carrier: {book.tracking_carrier}",
-        ) from None
+        log_and_raise(
+            ValidationError("tracking_carrier", f"Unsupported carrier: {book.tracking_carrier}"),
+            context={"book_id": book_id},
+        )
     except Exception as e:
-        logger.error(f"Error refreshing tracking for book {book_id}: {e}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to fetch tracking status: {e}",
-        ) from None
+        log_and_raise(
+            ExternalServiceError("Tracking API", str(e)),
+            context={"book_id": book_id, "carrier": book.tracking_carrier},
+        )
 
     return _build_book_response(book, db)
 
@@ -1851,10 +1859,10 @@ def generate_analysis_async(
         db.refresh(job)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Analysis job already in progress for this book",
-        ) from None
+        log_and_raise(
+            ConflictError("Analysis job already in progress for this book"),
+            context={"book_id": book_id},
+        )
 
     # Send message to SQS
     try:
@@ -1865,10 +1873,10 @@ def generate_analysis_async(
         job.error_message = f"Failed to queue job: {e}"
         job.completed_at = datetime.now(UTC)
         db.commit()
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to queue analysis job: {e}",
-        ) from None
+        log_and_raise(
+            ExternalServiceError("SQS", f"Failed to queue analysis job: {e}"),
+            context={"book_id": book_id, "job_id": str(job.id)},
+        )
 
     return AnalysisJobResponse.from_orm_model(job)
 
@@ -1958,10 +1966,10 @@ def generate_eval_runbook_job(
         db.refresh(job)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Eval runbook job already in progress for this book",
-        ) from None
+        log_and_raise(
+            ConflictError("Eval runbook job already in progress for this book"),
+            context={"book_id": book_id},
+        )
 
     # Send message to SQS
     try:
@@ -1972,10 +1980,10 @@ def generate_eval_runbook_job(
         job.error_message = f"Failed to queue job: {e}"
         job.completed_at = datetime.now(UTC)
         db.commit()
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to queue eval runbook job: {e}",
-        ) from None
+        log_and_raise(
+            ExternalServiceError("SQS", f"Failed to queue eval runbook job: {e}"),
+            context={"book_id": book_id, "job_id": str(job.id)},
+        )
 
     return EvalRunbookJobResponse.from_orm_model(job)
 

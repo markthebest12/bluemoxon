@@ -544,8 +544,11 @@ def delete_image(
                     Bucket=settings.images_bucket,
                     Key=f"{S3_IMAGES_PREFIX}{key}",
                 )
-            except Exception:
-                logger.warning("Failed to delete S3 object: %s", key)
+            except Exception as e:
+                # S3 delete failures are logged but don't fail the operation
+                # because the database record is the source of truth.
+                # Orphaned S3 objects can be cleaned up by lifecycle rules.
+                logger.warning("S3 delete failed for %s: %s (operation continues)", key, e)
     else:
         # In development, delete from local filesystem
         file_path = LOCAL_IMAGES_PATH / image.s3_key

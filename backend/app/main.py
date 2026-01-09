@@ -4,11 +4,13 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mangum import Mangum
 
 from app.api.v1 import router as api_router
 from app.cold_start import clear_cold_start, get_cold_start_status
 from app.config import get_settings
+from app.utils.errors import BMXError, to_http_exception
 from app.version import get_version
 
 # Configure logging for Lambda - set level on root logger directly
@@ -86,6 +88,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(BMXError)
+async def bmx_error_handler(request: Request, exc: BMXError):
+    """Global handler for BMX custom exceptions."""
+    http_exc = to_http_exception(exc)
+    return JSONResponse(
+        status_code=http_exc.status_code,
+        content={"detail": http_exc.detail},
+    )
 
 
 @app.middleware("http")
