@@ -90,6 +90,36 @@ export const CONDITION_GRADE_OPTIONS = [
 export type ConditionGradeOption = (typeof CONDITION_GRADE_OPTIONS)[number];
 
 /**
+ * Historical era constants for filtering.
+ * Must match backend Era enum in app/enums.py
+ */
+export const BOOK_ERAS = {
+  PRE_ROMANTIC: "Pre-Romantic",
+  ROMANTIC: "Romantic",
+  VICTORIAN: "Victorian",
+  EDWARDIAN: "Edwardian",
+  POST_1910: "Post-1910",
+  UNKNOWN: "Unknown",
+} as const;
+
+export type BookEra = (typeof BOOK_ERAS)[keyof typeof BOOK_ERAS];
+
+/**
+ * Era filter options with display labels.
+ * Values must match backend Era enum exactly.
+ */
+export const BOOK_ERA_OPTIONS = [
+  { value: "Pre-Romantic", label: "Pre-Romantic (before 1800)" },
+  { value: "Romantic", label: "Romantic (1800-1836)" },
+  { value: "Victorian", label: "Victorian (1837-1901)" },
+  { value: "Edwardian", label: "Edwardian (1902-1910)" },
+  { value: "Post-1910", label: "Post-1910" },
+  { value: "Unknown", label: "Unknown (no date)" },
+] as const;
+
+export type BookEraOption = (typeof BOOK_ERA_OPTIONS)[number];
+
+/**
  * Book category constants.
  * Victorian-era book classification categories.
  */
