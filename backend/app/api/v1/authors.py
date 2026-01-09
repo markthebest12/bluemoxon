@@ -13,6 +13,7 @@ from app.schemas.reference import (
     ReassignRequest,
     ReassignResponse,
 )
+from app.services.entity_matching import invalidate_entity_cache
 
 router = APIRouter()
 
@@ -88,6 +89,7 @@ def create_author(
     db.add(author)
     db.commit()
     db.refresh(author)
+    invalidate_entity_cache("author")
 
     return AuthorResponse(
         id=author.id,
@@ -121,6 +123,7 @@ def update_author(
 
     db.commit()
     db.refresh(author)
+    invalidate_entity_cache("author")
 
     return AuthorResponse(
         id=author.id,
@@ -156,6 +159,7 @@ def delete_author(
 
     db.delete(author)
     db.commit()
+    invalidate_entity_cache("author")
 
 
 @router.post("/{author_id}/reassign", response_model=ReassignResponse)
@@ -194,6 +198,7 @@ def reassign_author_books(
     # Delete source author
     db.delete(source)
     db.commit()
+    invalidate_entity_cache("author")
 
     return ReassignResponse(
         reassigned_count=book_count,
