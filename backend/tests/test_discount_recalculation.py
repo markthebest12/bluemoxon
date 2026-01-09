@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 from app.models.book import Book
-from app.services.scoring import recalculate_discount_pct
+from app.services.scoring import recalculate_discount_pct, recalculate_roi_pct
 
 
 class TestRecalculateDiscountsEndpoint:
@@ -225,3 +225,110 @@ class TestRecalculateDiscountPct:
         db.commit()
 
         assert book.discount_pct is None
+
+
+class TestRecalculateRoiPct:
+    """Tests for recalculate_roi_pct helper function."""
+
+    def test_calculates_positive_roi(self, db):
+        """ROI should be calculated correctly when FMV > acquisition cost."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=Decimal("200.00"),
+            value_mid=Decimal("500.00"),
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        # roi = (500 - 200) / 200 * 100 = 150%
+        assert float(book.roi_pct) == pytest.approx(150.00, rel=0.01)
+
+    def test_calculates_negative_roi(self, db):
+        """ROI should be negative when FMV < acquisition cost (loss)."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=Decimal("500.00"),
+            value_mid=Decimal("400.00"),
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        # roi = (400 - 500) / 500 * 100 = -20%
+        assert float(book.roi_pct) == pytest.approx(-20.00, rel=0.01)
+
+    def test_no_change_when_no_acquisition_cost(self, db):
+        """Books without acquisition_cost should keep None roi_pct."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=None,
+            value_mid=Decimal("500.00"),
+            roi_pct=None,
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        assert book.roi_pct is None
+
+    def test_no_change_when_no_value_mid(self, db):
+        """Books without value_mid should keep None roi_pct."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=Decimal("100.00"),
+            value_mid=None,
+            roi_pct=None,
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        assert book.roi_pct is None
+
+    def test_sets_none_when_acquisition_cost_zero(self, db):
+        """If acquisition_cost is zero, roi_pct should become None."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=Decimal("0.00"),
+            value_mid=Decimal("500.00"),
+            roi_pct=Decimal("100.00"),  # Stale value
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        assert book.roi_pct is None
+
+    def test_recalculates_when_fmv_updated(self, db):
+        """ROI should be recalculated when value_mid changes."""
+        book = Book(
+            title="Test Book",
+            acquisition_cost=Decimal("200.00"),
+            value_mid=Decimal("300.00"),  # Changed from previous
+            roi_pct=Decimal("100.00"),  # Stale ROI from previous FMV
+        )
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        recalculate_roi_pct(book)
+        db.commit()
+
+        # roi = (300 - 200) / 200 * 100 = 50%
+        assert float(book.roi_pct) == pytest.approx(50.00, rel=0.01)
