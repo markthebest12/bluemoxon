@@ -191,4 +191,209 @@ describe("InsuranceReportView", () => {
       expect(html).not.toContain("Sold Book");
     });
   });
+
+  describe("CSV export fields", () => {
+    // Helper to set up CSV capture mocks - captures CSV content via Blob constructor
+    function setupCSVCapture(): { getCSV: () => string; cleanup: () => void } {
+      let capturedCSV = "";
+      const originalBlob = global.Blob;
+
+      global.Blob = class MockBlob extends originalBlob {
+        constructor(parts: BlobPart[], options?: BlobPropertyBag) {
+          super(parts, options);
+          if (options?.type === "text/csv;charset=utf-8;") {
+            capturedCSV = parts.join("");
+          }
+        }
+      } as typeof Blob;
+
+      // Mock link element behavior
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+        if (tag === "a") {
+          return {
+            setAttribute: vi.fn(),
+            click: vi.fn(),
+            style: { visibility: "" },
+          } as unknown as HTMLElement;
+        }
+        return originalCreateElement(tag);
+      });
+
+      vi.spyOn(document.body, "appendChild").mockReturnValue(null as unknown as Node);
+      vi.spyOn(document.body, "removeChild").mockReturnValue(null as unknown as Node);
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("mock-url");
+
+      return {
+        getCSV: () => capturedCSV,
+        cleanup: () => {
+          global.Blob = originalBlob;
+          vi.restoreAllMocks();
+        },
+      };
+    }
+
+    it("includes all required CSV headers for new fields", async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: 1,
+              title: "Test Book",
+              status: "ON_HAND",
+              volumes: 1,
+              acquisition_cost: 150.0,
+              is_first_edition: true,
+              has_provenance: true,
+              provenance_tier: "TIER_1",
+              year_start: 1855,
+              year_end: 1855,
+              is_complete: true,
+              overall_score: 85,
+              source_url: "https://example.com/listing",
+              created_at: "2024-01-15T10:30:00Z",
+            },
+          ],
+          total: 1,
+          page: 1,
+          pages: 1,
+        },
+      });
+
+      const wrapper = mount(InsuranceReportView, {
+        global: { plugins: [router] },
+      });
+
+      await flushPromises();
+
+      // Verify books are loaded
+      const vm = wrapper.vm as unknown as { sortedBooks: { title: string }[] };
+      expect(vm.sortedBooks.length).toBe(1);
+
+      // Set up CSV capture
+      const { getCSV, cleanup } = setupCSVCapture();
+
+      // Find and click the Export CSV button
+      const buttons = wrapper.findAll("button");
+      const csvButton = buttons.find((b) => b.text().includes("Export CSV"));
+      expect(csvButton).toBeDefined();
+      await csvButton!.trigger("click");
+
+      // Verify the CSV contains the new required headers
+      const headers = getCSV().split("\n")[0];
+      cleanup();
+
+      expect(headers).toContain("Acquisition Cost");
+      expect(headers).toContain("First Edition");
+      expect(headers).toContain("Has Provenance");
+      expect(headers).toContain("Provenance Tier");
+      expect(headers).toContain("Year Start");
+      expect(headers).toContain("Year End");
+      expect(headers).toContain("Era");
+      expect(headers).toContain("Complete Set");
+      expect(headers).toContain("Overall Score");
+      expect(headers).toContain("Source URL");
+      expect(headers).toContain("Created At");
+    });
+
+    it("exports correct values for new fields", async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: 1,
+              title: "Victorian Gems",
+              status: "ON_HAND",
+              volumes: 3,
+              acquisition_cost: 250.5,
+              is_first_edition: true,
+              has_provenance: true,
+              provenance_tier: "TIER_2",
+              year_start: 1865,
+              year_end: 1867,
+              is_complete: false,
+              overall_score: 92,
+              source_url: "https://ebay.com/item/123",
+              created_at: "2024-06-20T14:45:00Z",
+            },
+          ],
+          total: 1,
+          page: 1,
+          pages: 1,
+        },
+      });
+
+      const wrapper = mount(InsuranceReportView, {
+        global: { plugins: [router] },
+      });
+
+      await flushPromises();
+
+      // Set up CSV capture
+      const { getCSV, cleanup } = setupCSVCapture();
+
+      const buttons = wrapper.findAll("button");
+      const csvButton = buttons.find((b) => b.text().includes("Export CSV"));
+      await csvButton!.trigger("click");
+
+      // Verify the data row contains correct values
+      const dataRow = getCSV().split("\n")[1];
+      cleanup();
+
+      expect(dataRow).toContain("250.5"); // acquisition_cost
+      expect(dataRow).toContain("Yes"); // is_first_edition = true
+      expect(dataRow).toContain("TIER_2"); // provenance_tier
+      expect(dataRow).toContain("1865"); // year_start
+      expect(dataRow).toContain("1867"); // year_end
+      expect(dataRow).toContain("Victorian Mid"); // era computed from year_start 1865
+      expect(dataRow).toContain("No"); // is_complete = false (for "Complete Set")
+      expect(dataRow).toContain("92"); // overall_score
+      expect(dataRow).toContain("https://ebay.com/item/123"); // source_url
+      expect(dataRow).toContain("2024-06-20"); // created_at (date portion)
+    });
+
+    it("computes era correctly from year_start", async () => {
+      // Test Victorian Early (1837-1850)
+      vi.mocked(api.get).mockResolvedValue({
+        data: {
+          items: [
+            { id: 1, title: "Early Victorian", status: "ON_HAND", volumes: 1, year_start: 1845 },
+            { id: 2, title: "Mid Victorian", status: "ON_HAND", volumes: 1, year_start: 1860 },
+            { id: 3, title: "Late Victorian", status: "ON_HAND", volumes: 1, year_start: 1890 },
+            { id: 4, title: "1920s Book", status: "ON_HAND", volumes: 1, year_start: 1925 },
+            { id: 5, title: "No Year", status: "ON_HAND", volumes: 1, year_start: null },
+          ],
+          total: 5,
+          page: 1,
+          pages: 1,
+        },
+      });
+
+      const wrapper = mount(InsuranceReportView, {
+        global: { plugins: [router] },
+      });
+
+      await flushPromises();
+
+      // Set up CSV capture
+      const { getCSV, cleanup } = setupCSVCapture();
+
+      const buttons = wrapper.findAll("button");
+      const csvButton = buttons.find((b) => b.text().includes("Export CSV"));
+      await csvButton!.trigger("click");
+
+      const rows = getCSV().split("\n");
+      cleanup();
+
+      // Row 1 (Early Victorian 1845) should have "Victorian Early"
+      expect(rows[1]).toContain("Victorian Early");
+      // Row 2 (Mid Victorian 1860) should have "Victorian Mid"
+      expect(rows[2]).toContain("Victorian Mid");
+      // Row 3 (Late Victorian 1890) should have "Victorian Late"
+      expect(rows[3]).toContain("Victorian Late");
+      // Row 4 (1920s) should have "1920s"
+      expect(rows[4]).toContain("1920s");
+      // Row 5 (No year) should have empty era or "-"
+    });
+  });
 });

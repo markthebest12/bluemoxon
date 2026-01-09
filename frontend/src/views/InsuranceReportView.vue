@@ -181,6 +181,24 @@ const printReport = () => {
   window.print();
 };
 
+// Compute era from year_start
+const computeEra = (yearStart: number | null | undefined): string => {
+  if (!yearStart) return "";
+  if (yearStart >= 1837 && yearStart <= 1850) return "Victorian Early";
+  if (yearStart >= 1851 && yearStart <= 1870) return "Victorian Mid";
+  if (yearStart >= 1871 && yearStart <= 1901) return "Victorian Late";
+  // For non-Victorian years, return decade (e.g., "1920s")
+  const decade = Math.floor(yearStart / 10) * 10;
+  return `${decade}s`;
+};
+
+// Format ISO date to YYYY-MM-DD
+const formatISODate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "";
+  // Extract just the date portion from ISO format
+  return dateStr.split("T")[0];
+};
+
 // CSV Export function
 const exportCSV = () => {
   const headers = [
@@ -203,6 +221,7 @@ const exportCSV = () => {
     "Value Mid",
     "Value High",
     "Purchase Price",
+    "Acquisition Cost",
     "Purchase Date",
     "Purchase Source",
     "Discount %",
@@ -210,6 +229,16 @@ const exportCSV = () => {
     "Status",
     "Notes",
     "Provenance",
+    "First Edition",
+    "Has Provenance",
+    "Provenance Tier",
+    "Year Start",
+    "Year End",
+    "Era",
+    "Complete Set",
+    "Overall Score",
+    "Source URL",
+    "Created At",
   ];
 
   const escapeCSV = (val: string | null | undefined): string => {
@@ -237,6 +266,7 @@ const exportCSV = () => {
     book.value_mid || "",
     book.value_high || "",
     book.purchase_price || "",
+    book.acquisition_cost || "",
     escapeCSV(book.purchase_date),
     escapeCSV(book.purchase_source),
     book.discount_pct || "",
@@ -244,6 +274,16 @@ const exportCSV = () => {
     escapeCSV(book.status),
     escapeCSV(book.notes),
     escapeCSV(book.provenance),
+    book.is_first_edition ? "Yes" : "No",
+    book.has_provenance ? "Yes" : "No",
+    escapeCSV(book.provenance_tier),
+    book.year_start || "",
+    book.year_end || "",
+    escapeCSV(computeEra(book.year_start)),
+    book.is_complete ? "Yes" : "No",
+    book.overall_score || "",
+    escapeCSV(book.source_url),
+    escapeCSV(formatISODate(book.created_at)),
   ]);
 
   const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");

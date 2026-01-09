@@ -50,6 +50,10 @@ function createTestBook(overrides: Partial<Book> = {}): Book {
     estimated_delivery: null,
     source_archived_url: null,
     archive_status: null,
+    year_start: null,
+    year_end: null,
+    is_complete: true,
+    created_at: "2024-01-01T00:00:00Z",
     ...overrides,
   };
 }

@@ -75,6 +75,13 @@ export interface Book {
   // Archive tracking
   source_archived_url: string | null;
   archive_status: "pending" | "success" | "failed" | null;
+  // Year fields from backend (derived from publication_date)
+  year_start: number | null;
+  year_end: number | null;
+  // Set completeness
+  is_complete: boolean;
+  // Timestamps
+  created_at: string;
 }
 
 interface Filters {
