@@ -49,6 +49,7 @@ from app.schemas.book import (
     DuplicateMatch,
     TrackingRequest,
 )
+from app.schemas.entity_validation import EntityValidationError
 from app.schemas.eval_runbook_job import EvalRunbookJobResponse
 from app.services.analysis_parser import (
     apply_metadata_to_book,
@@ -63,9 +64,8 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.entity_validation import validate_entity_for_book
 from app.services.job_manager import handle_stale_jobs
-from app.services.publisher_validation import get_or_create_publisher
-from app.services.reference import get_or_create_binder
 from app.services.scoring import (
     author_tier_to_score,
     calculate_all_scores,
@@ -1425,20 +1425,32 @@ def update_book_analysis(
     if metadata:
         metadata_updated = apply_metadata_to_book(book, metadata)
 
-    # Extract binder identification and associate with book
+    # Validate and associate binder
     binder_updated = False
-    if parsed.binder_identification:
-        binder = get_or_create_binder(db, parsed.binder_identification)
-        if binder and book.binder_id != binder.id:
-            book.binder_id = binder.id
+    if parsed.binder_identification and parsed.binder_identification.get("name"):
+        binder_name = parsed.binder_identification["name"]
+        binder_result = validate_entity_for_book(db, "binder", binder_name)
+
+        if isinstance(binder_result, EntityValidationError):
+            status_code = 409 if binder_result.error == "similar_entity_exists" else 400
+            raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
+
+        if binder_result and book.binder_id != binder_result:
+            book.binder_id = binder_result
             binder_updated = True
 
-    # Extract publisher identification and associate with book
+    # Validate and associate publisher
     publisher_updated = False
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
-        publisher = get_or_create_publisher(db, parsed.publisher_identification["name"])
-        if publisher and book.publisher_id != publisher.id:
-            book.publisher_id = publisher.id
+        publisher_name = parsed.publisher_identification["name"]
+        publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
+
+        if isinstance(publisher_result, EntityValidationError):
+            status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
+            raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
+
+        if publisher_result and book.publisher_id != publisher_result:
+            book.publisher_id = publisher_result
             publisher_updated = True
 
     if book.analysis:
