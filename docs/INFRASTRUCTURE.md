@@ -217,6 +217,31 @@ curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
 - NEVER hardcode environment-specific values in modules
 - State files are separate: `bluemoxon/staging/terraform.tfstate` vs `bluemoxon/prod/terraform.tfstate`
 
+### Staging/Production Divergences
+
+**Why environments differ:** Production infrastructure was created before Terraform management. Some resources have architectural differences (e.g., OAC vs OAI for CloudFront) that make them incompatible with modules designed for staging. Rather than risk breaking production, these are managed externally.
+
+| Flag | Staging | Prod | Reason |
+|------|---------|------|--------|
+| `enable_cognito` | true | **false** | Prod Cognito has existing users; managed externally |
+| `enable_database` | true | **false** | Prod uses Aurora Serverless (different architecture) |
+| `enable_api_gateway` | true | **false** | Prod API GW existed before Terraform; import planned |
+| `enable_nat_gateway` | true | **false** | Cost optimization; prod Lambda uses VPC endpoints |
+| `enable_waf` | false | **true** | Security hardening for production traffic |
+| `enable_dns` | false | **true** | DNS managed from prod account (controls both envs) |
+| `enable_landing_site` | false | **true** | Marketing site is production-only |
+
+**Impact on deployments:** Code that works in staging may behave differently in production if it relies on resources managed by these flags. When making changes:
+
+1. Check if your change touches a divergent resource (Cognito, database, API Gateway)
+2. If yes, test the production behavior separately - staging won't catch issues
+3. For Cognito/auth changes, verify against `cognito_user_pool_id_external` in prod.tfvars
+
+**External resource references:** Production tfvars includes `*_external` variables pointing to resources managed outside Terraform:
+- `cognito_user_pool_id_external` - Production Cognito pool
+- `cognito_client_id_external` - Production app client
+- `database_secret_arn` - Aurora credentials in Secrets Manager
+
 ## Architecture Diagram
 
 ```mermaid
