@@ -54,10 +54,10 @@ class TestTier:
     """Tests for Tier enum."""
 
     def test_values(self):
-        """Verify all Tier values are correct."""
-        assert Tier.TIER_1 == "TIER_1"
-        assert Tier.TIER_2 == "TIER_2"
-        assert Tier.TIER_3 == "TIER_3"
+        """Verify all Tier values match database/frontend format."""
+        assert Tier.TIER_1 == "Tier 1"
+        assert Tier.TIER_2 == "Tier 2"
+        assert Tier.TIER_3 == "Tier 3"
 
     def test_all_values_accounted_for(self):
         """Ensure no values are missing from tests."""
@@ -65,7 +65,7 @@ class TestTier:
 
     def test_string_serialization(self):
         """StrEnum should serialize to string values."""
-        assert str(Tier.TIER_1) == "TIER_1"
+        assert str(Tier.TIER_1) == "Tier 1"
 
 
 class TestConditionGrade:
