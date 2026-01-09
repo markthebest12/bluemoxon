@@ -335,7 +335,7 @@ describe("useCurrencyConversion", () => {
       const rate = await fetchLiveRate("EUR");
 
       expect(rate).toBeNull();
-      expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
+      expect(mockFetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
 
       vi.unstubAllGlobals();
     });
@@ -384,13 +384,14 @@ describe("useCurrencyConversion", () => {
         toasts: { value: [] } as never,
       });
 
-      const { useCurrencyConversion, _resetCurrencyCache } =
+      const { useCurrencyConversion, _resetCurrencyCache, _setRatesLoadedFromDb } =
         await import("../useCurrencyConversion");
       _resetCurrencyCache();
       const { exchangeRates, updateRateWithFallback } = useCurrencyConversion();
 
-      // Set DB-cached rates (different from defaults)
+      // Simulate DB-cached rates
       exchangeRates.value = { gbp_to_usd_rate: 1.32, eur_to_usd_rate: 1.18 };
+      _setRatesLoadedFromDb(true);
 
       await updateRateWithFallback("GBP");
 
