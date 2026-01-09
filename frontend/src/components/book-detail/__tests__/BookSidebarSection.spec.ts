@@ -12,8 +12,11 @@ function createTestBook(overrides: Partial<Book> = {}): Book {
     publisher: null,
     binder: null,
     publication_date: null,
+    year_start: null,
+    year_end: null,
     edition: null,
     volumes: 1,
+    is_complete: true,
     category: null,
     inventory_type: "collection",
     binding_type: null,
@@ -48,6 +51,13 @@ function createTestBook(overrides: Partial<Book> = {}): Book {
     source_url: null,
     source_item_id: null,
     estimated_delivery: null,
+    estimated_delivery_end: null,
+    tracking_number: null,
+    tracking_carrier: null,
+    tracking_url: null,
+    tracking_status: null,
+    tracking_last_checked: null,
+    ship_date: null,
     source_archived_url: null,
     archive_status: null,
     ...overrides,
@@ -314,6 +324,127 @@ describe("BookSidebarSection", () => {
       // The mid estimate should show "-"
       const midEstimate = wrapper.find(".text-3xl");
       expect(midEstimate.text()).toBe("-");
+    });
+  });
+
+  describe("Purchase Date and Source", () => {
+    it("shows purchase date when present", () => {
+      const book = createTestBook({
+        purchase_price: 400,
+        purchase_date: "2025-12-15",
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).toContain("Purchase Date");
+      expect(wrapper.text()).toContain("Dec 15, 2025");
+    });
+
+    it("shows purchase source when present", () => {
+      const book = createTestBook({
+        purchase_price: 400,
+        purchase_source: "AbeBooks",
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).toContain("Source");
+      expect(wrapper.text()).toContain("AbeBooks");
+    });
+  });
+
+  describe("Scoring Card", () => {
+    it("shows scoring card when overall_score is present", () => {
+      const book = createTestBook({
+        overall_score: 85,
+        investment_grade: 78,
+        strategic_fit: 92,
+        collection_impact: 80,
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).toContain("Scoring");
+      expect(wrapper.text()).toContain("Overall Score");
+      expect(wrapper.text()).toContain("85");
+      expect(wrapper.text()).toContain("Investment Grade");
+      expect(wrapper.text()).toContain("78");
+      expect(wrapper.text()).toContain("Strategic Fit");
+      expect(wrapper.text()).toContain("92");
+      expect(wrapper.text()).toContain("Collection Impact");
+      expect(wrapper.text()).toContain("80");
+    });
+
+    it("does not show scoring card when no scores are present", () => {
+      const book = createTestBook({
+        overall_score: null,
+        investment_grade: null,
+        strategic_fit: null,
+        collection_impact: null,
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).not.toContain("Scoring");
+    });
+
+    it("shows scoring card when any score is present", () => {
+      const book = createTestBook({
+        overall_score: null,
+        investment_grade: 75,
+        strategic_fit: null,
+        collection_impact: null,
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).toContain("Scoring");
+      expect(wrapper.text()).toContain("Investment Grade");
+      expect(wrapper.text()).toContain("75");
+    });
+  });
+
+  describe("Tracking Card", () => {
+    it("shows tracking card for IN_TRANSIT status", () => {
+      const book = createTestBook({
+        status: "IN_TRANSIT",
+        tracking_number: "9400111899223456789012",
+        tracking_carrier: "USPS",
+        tracking_status: "In Transit",
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      expect(wrapper.text()).toContain("Tracking");
+      expect(wrapper.text()).toContain("USPS");
+    });
+
+    it("does not show tracking card when status is not IN_TRANSIT", () => {
+      const book = createTestBook({
+        status: "ON_HAND",
+        tracking_number: "9400111899223456789012",
+        tracking_carrier: "USPS",
+      });
+
+      const wrapper = mount(BookSidebarSection, {
+        props: { book, imageCount: 0 },
+      });
+
+      // Should not show tracking section for ON_HAND books
+      // even if tracking data exists
+      expect(wrapper.text()).not.toContain("USPS");
     });
   });
 });
