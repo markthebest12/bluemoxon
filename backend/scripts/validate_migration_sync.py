@@ -1,19 +1,32 @@
 #!/usr/bin/env python3
 # ruff: noqa: T201
-"""Validate that all Alembic migrations have corresponding SQL in health.py.
+"""Validate that all Alembic migrations are registered in migration_sql.py.
 
 This script prevents the recurring bug where Alembic migrations are created
-but the health.py /health/migrate endpoint isn't updated, causing deployed
-APIs to fail with missing column errors.
+but the migration_sql.py module isn't updated, causing deployed APIs to fail
+with missing column errors.
 
 Exit codes:
     0 - All migrations are synced
     1 - Missing migrations found
 """
 
+import importlib.util
 import re
 import sys
 from pathlib import Path
+
+# Import migration_sql directly to avoid app.db package initialization
+# which has dependencies on boto3 and other packages
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
+spec = importlib.util.spec_from_file_location(
+    "migration_sql", backend_dir / "app" / "db" / "migration_sql.py"
+)
+migration_sql = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(migration_sql)
+MIGRATIONS = migration_sql.MIGRATIONS
 
 
 def get_alembic_revisions(versions_dir: Path) -> dict[str, str]:
@@ -31,29 +44,8 @@ def get_alembic_revisions(versions_dir: Path) -> dict[str, str]:
     return revisions
 
 
-def get_health_migrations(health_file: Path) -> set[str]:
-    """Extract registered migration IDs from health.py."""
-    content = health_file.read_text()
-
-    # Find all migration IDs in the migrations list
-    # Pattern: ("revision_id", MIGRATION_...) or ("revision_id", None)
-    migrations_match = re.search(r"migrations\s*=\s*\[(.*?)\]", content, re.DOTALL)
-    if not migrations_match:
-        print("ERROR: Could not find migrations list in health.py")
-        sys.exit(1)
-
-    migrations_block = migrations_match.group(1)
-    registered = set()
-
-    # Extract revision IDs from tuples like ("e44df6ab5669", ...)
-    for match in re.finditer(r'\("([a-z0-9]+)"', migrations_block):
-        registered.add(match.group(1))
-
-    return registered
-
-
 def get_excluded_revisions() -> set[str]:
-    """Revisions that don't need health.py SQL.
+    """Revisions that don't need migration_sql.py SQL.
 
     These are either:
     - Initial schema (tables created via init)
@@ -75,28 +67,19 @@ def get_excluded_revisions() -> set[str]:
 
 
 def main():
-    # Find project root
-    script_dir = Path(__file__).parent
-    backend_dir = script_dir.parent
-
     versions_dir = backend_dir / "alembic" / "versions"
-    health_file = backend_dir / "app" / "api" / "v1" / "health.py"
 
     if not versions_dir.exists():
         print(f"ERROR: Alembic versions directory not found: {versions_dir}")
-        sys.exit(1)
-
-    if not health_file.exists():
-        print(f"ERROR: Health file not found: {health_file}")
         sys.exit(1)
 
     # Get all Alembic revisions
     alembic_revisions = get_alembic_revisions(versions_dir)
     print(f"Found {len(alembic_revisions)} Alembic migrations")
 
-    # Get registered health.py migrations
-    health_migrations = get_health_migrations(health_file)
-    print(f"Found {len(health_migrations)} migrations registered in health.py")
+    # Get registered migration IDs from migration_sql.py
+    registered_ids = {m["id"] for m in MIGRATIONS}
+    print(f"Found {len(registered_ids)} unique migrations registered in migration_sql.py")
 
     # Get exclusions
     excluded = get_excluded_revisions()
@@ -106,22 +89,22 @@ def main():
     for revision_id, description in sorted(alembic_revisions.items()):
         if revision_id in excluded:
             continue
-        if revision_id not in health_migrations:
+        if revision_id not in registered_ids:
             missing.append((revision_id, description))
 
     if missing:
-        print("\nERROR: The following Alembic migrations are NOT registered in health.py:")
+        print("\nERROR: The following Alembic migrations are NOT registered in migration_sql.py:")
         print("=" * 70)
         for revision_id, description in missing:
             print(f"  - {revision_id}: {description}")
         print("=" * 70)
-        print("\nTo fix: Add migration SQL to backend/app/api/v1/health.py")
+        print("\nTo fix: Add migration SQL to backend/app/db/migration_sql.py")
         print("Pattern: MIGRATION_{REVISION_ID_UPPERCASE}_SQL = [...]")
-        print('Then register in migrations list: ("revision_id", MIGRATION_..._SQL)')
-        print("\nSee existing migrations in health.py for examples.")
+        print('Then add to MIGRATIONS list: {"id": "...", "name": "...", "sql_statements": ...}')
+        print("\nSee existing migrations in migration_sql.py for examples.")
         sys.exit(1)
 
-    print("\nAll Alembic migrations are registered in health.py")
+    print("\nAll Alembic migrations are registered in migration_sql.py")
     sys.exit(0)
 
 
