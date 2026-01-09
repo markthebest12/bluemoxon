@@ -107,6 +107,7 @@ interface Filters {
   max_value?: number;
   year_start?: number;
   year_end?: number;
+  era?: string; // Era filter - passed directly to backend API
   has_images?: boolean;
   has_analysis?: boolean;
   has_provenance?: boolean;
@@ -139,6 +140,7 @@ export const useBooksStore = defineStore("books", () => {
     loading.value = true;
     error.value = null;
     try {
+      // Pass filters directly - backend handles era filter natively
       const params = {
         page: page.value,
         per_page: perPage.value,
@@ -146,6 +148,7 @@ export const useBooksStore = defineStore("books", () => {
         sort_order: sortOrder.value,
         ...filters.value,
       };
+
       const response = await api.get("/books", { params });
       books.value = response.data.items;
       total.value = response.data.total;

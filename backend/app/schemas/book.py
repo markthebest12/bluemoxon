@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.enums import (
     BookStatus,
     ConditionGrade,
+    Era,
     InventoryType,
     SortOrder,
     Tier,
@@ -75,6 +76,7 @@ class BookListParams(BaseModel):
     binding_type: str | None = None  # Too many values for enum
     condition_grade: ConditionGrade | None = None
     provenance_tier: Tier | None = None
+    era: Era | None = None
 
     # Range filters
     min_value: float | None = None
@@ -263,6 +265,9 @@ class BookResponse(BookOutputBase):
     binder: BinderSummary | None = None
     year_start: int | None = None
     year_end: int | None = None
+    era: str | None = (
+        None  # Computed field: Pre-Romantic, Romantic, Victorian, Edwardian, Post-1910, Unknown
+    )
     has_analysis: bool = False
     has_eval_runbook: bool = False
     eval_runbook_job_status: str | None = None  # pending, running, or None

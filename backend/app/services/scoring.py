@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from app.services.set_detection import detect_set_completion
@@ -113,6 +113,30 @@ def recalculate_discount_pct(book: Book) -> None:
     # Calculate fresh discount
     discount = (float(book.value_mid) - float(book.purchase_price)) / float(book.value_mid) * 100
     book.discount_pct = Decimal(str(round(discount, 2)))
+
+
+def recalculate_roi_pct(book: Book) -> None:
+    """Recalculate roi_pct based on current value_mid and acquisition_cost.
+
+    Updates book.roi_pct in place. Does NOT commit the session.
+
+    Args:
+        book: Book model instance to update
+
+    Formula: roi = (value_mid - acquisition_cost) / acquisition_cost * 100
+    """
+    # Cannot calculate without both values
+    if book.acquisition_cost is None or book.value_mid is None:
+        return
+
+    # Invalid acquisition_cost (zero or negative) - clear ROI
+    if book.acquisition_cost <= 0:
+        book.roi_pct = None
+        return
+
+    # Calculate fresh ROI using Decimal arithmetic for precision
+    roi = (book.value_mid - book.acquisition_cost) / book.acquisition_cost * 100
+    book.roi_pct = roi.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def author_tier_to_score(tier: str | None) -> int:
