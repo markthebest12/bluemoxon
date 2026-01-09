@@ -123,8 +123,8 @@ function handleAddNew() {
     >
       <!-- Filtered options -->
       <button
-        v-for="option in filteredOptions"
-        :key="option.id ?? 'null'"
+        v-for="(option, index) in filteredOptions"
+        :key="option.id ?? `null-${index}`"
         type="button"
         data-testid="option"
         class="w-full px-3 py-2 text-left text-sm hover:bg-victorian-paper-aged"
