@@ -3,14 +3,7 @@ import { ref, computed, watch } from "vue";
 import { api } from "@/services/api";
 import type { Book } from "@/stores/books";
 import { BOOK_STATUSES, PAGINATION } from "@/constants";
-
-// Victorian era boundaries (Queen Victoria: 1837-1901)
-const VICTORIAN_ERA = {
-  START: 1837,
-  EARLY_END: 1850,
-  MID_END: 1870,
-  END: 1901,
-} as const;
+import { computeEra } from "@/utils/book-helpers";
 
 // Report type options
 type ReportType = "insurance" | "primary" | "extended" | "all";
@@ -189,24 +182,6 @@ const printReport = () => {
   window.print();
 };
 
-// Compute era from year_start
-const computeEra = (yearStart: number | null): string => {
-  // Handle null/invalid years
-  if (yearStart === null || yearStart <= 0 || yearStart > 9999) return "";
-
-  // Victorian era classifications using constants
-  if (yearStart >= VICTORIAN_ERA.START && yearStart <= VICTORIAN_ERA.EARLY_END)
-    return "Victorian Early";
-  if (yearStart >= VICTORIAN_ERA.EARLY_END + 1 && yearStart <= VICTORIAN_ERA.MID_END)
-    return "Victorian Mid";
-  if (yearStart >= VICTORIAN_ERA.MID_END + 1 && yearStart <= VICTORIAN_ERA.END)
-    return "Victorian Late";
-
-  // For non-Victorian years, return decade (e.g., "1920s")
-  const decade = Math.floor(yearStart / 10) * 10;
-  return `${decade}s`;
-};
-
 // Format ISO date to YYYY-MM-DD
 const formatISODate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "";
@@ -314,7 +289,7 @@ const exportCSV = () => {
     escapeCSV(book.provenance_tier),
     book.year_start || "",
     book.year_end || "",
-    escapeCSV(computeEra(book.year_start)),
+    escapeCSV(computeEra(book.year_start, book.year_end)),
     book.is_complete ? "Yes" : "No",
     book.overall_score || "",
     escapeCSV(book.source_url),
