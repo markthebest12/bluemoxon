@@ -12,7 +12,7 @@ HTTP status mapping:
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EntitySuggestion(BaseModel):
@@ -30,8 +30,8 @@ class EntitySuggestion(BaseModel):
     id: int
     name: str
     tier: str | None
-    match: float
-    book_count: int
+    match: float = Field(ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0")
+    book_count: int = Field(ge=0, description="Number of associated books")
 
 
 class EntityValidationError(BaseModel):

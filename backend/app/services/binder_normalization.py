@@ -4,6 +4,8 @@ This module provides functions for normalizing binder names to enable
 fuzzy matching between different formats and representations:
 - Parenthetical descriptions: "Bayntun (of Bath)" -> "Bayntun"
 - Square brackets: "Bedford [some note]" -> "Bedford"
+- Location suffixes: "Birdsall of Northampton" -> "Birdsall"
+- Comma locations: "Birdsall, Northampton" -> "Birdsall"
 - Accents: "Rivière" -> "Riviere"
 - Whitespace: "  Zaehnsdorf  " -> "Zaehnsdorf"
 
@@ -12,7 +14,8 @@ which handles tier assignment and exact alias matching.
 """
 
 import re
-import unicodedata
+
+from app.services.text_normalization import normalize_whitespace, remove_diacritics
 
 # Pattern to match parenthetical descriptions (content in parentheses)
 # Matches: (anything) including nested content
@@ -22,39 +25,14 @@ PARENTHETICAL_PATTERN = re.compile(r"\s*\([^)]*\)")
 # Matches: [anything]
 SQUARE_BRACKET_PATTERN = re.compile(r"\s*\[[^\]]*\]")
 
+# Pattern to match "of [Location]" suffix at end of name
+# Matches: "of Bath", "of Northampton", etc.
+# Only matches at end to avoid stripping from names like "Roger de Coverly"
+OF_LOCATION_PATTERN = re.compile(r"\s+of\s+[A-Z][a-zA-Z]+$")
 
-def _remove_diacritics(text: str) -> str:
-    """Remove diacritical marks from text (accent folding).
-
-    Converts characters like e with acute to plain e.
-    Uses Unicode NFD normalization followed by stripping combining characters.
-
-    Args:
-        text: Text potentially containing diacritics
-
-    Returns:
-        Text with diacritics removed (ASCII-folded)
-    """
-    # NFD decomposes characters into base + combining marks
-    # e.g., e with grave becomes e + combining grave
-    normalized = unicodedata.normalize("NFD", text)
-
-    # Remove combining diacritical marks (category Mn = Mark, Nonspacing)
-    return "".join(c for c in normalized if unicodedata.category(c) != "Mn")
-
-
-def _normalize_whitespace(text: str) -> str:
-    """Normalize whitespace in text.
-
-    Strips leading/trailing whitespace and collapses multiple spaces.
-
-    Args:
-        text: Text to normalize
-
-    Returns:
-        Text with normalized whitespace
-    """
-    return " ".join(text.split())
+# Pattern to match ", [Location]" suffix at end of name
+# Matches: ", Northampton", ", Bath", etc.
+COMMA_LOCATION_PATTERN = re.compile(r",\s+[A-Z][a-zA-Z]+$")
 
 
 def _strip_parentheticals(text: str) -> str:
@@ -85,16 +63,39 @@ def _strip_square_brackets(text: str) -> str:
     return SQUARE_BRACKET_PATTERN.sub("", text)
 
 
+def _strip_location_suffix(text: str) -> str:
+    """Remove location suffix from binder name.
+
+    Handles both "of [Location]" and ", [Location]" patterns:
+    - "Birdsall of Northampton" -> "Birdsall"
+    - "Birdsall, Northampton" -> "Birdsall"
+
+    Only matches at end of name and requires capitalized location
+    to avoid false positives (e.g., "Roger de Coverly" unchanged).
+
+    Args:
+        text: Text potentially containing location suffix
+
+    Returns:
+        Text with location suffix removed
+    """
+    result = OF_LOCATION_PATTERN.sub("", text)
+    result = COMMA_LOCATION_PATTERN.sub("", result)
+    return result
+
+
 def normalize_binder_name_for_matching(name: str | None) -> str:
     """Apply normalization rules to a binder name for fuzzy matching purposes.
 
-    Normalizes to: base name without parentheticals/brackets, ASCII-folded
+    Normalizes to: base name without location suffixes/parentheticals/brackets, ASCII-folded
 
     Transformations applied:
     1. Strip parenthetical descriptions: "Bayntun (of Bath)" -> "Bayntun"
     2. Strip square bracket descriptions: "Bedford [note]" -> "Bedford"
-    3. ASCII-fold accents: "Rivière" -> "Riviere"
-    4. Normalize whitespace: collapse multiple spaces, trim ends
+    3. Strip location suffixes: "Birdsall of Northampton" -> "Birdsall"
+    4. Strip comma locations: "Birdsall, Northampton" -> "Birdsall"
+    5. ASCII-fold accents: "Rivière" -> "Riviere"
+    6. Normalize whitespace: collapse multiple spaces, trim ends
 
     Case is preserved - matching should be case-insensitive elsewhere.
 
@@ -111,7 +112,7 @@ def normalize_binder_name_for_matching(name: str | None) -> str:
         return ""
 
     # Step 1: Basic whitespace normalization first
-    result = _normalize_whitespace(name)
+    result = normalize_whitespace(name)
 
     if not result:
         return ""
@@ -122,10 +123,13 @@ def normalize_binder_name_for_matching(name: str | None) -> str:
     # Step 3: Strip square bracket descriptions
     result = _strip_square_brackets(result)
 
-    # Step 4: Remove diacritics (accent folding)
-    result = _remove_diacritics(result)
+    # Step 4: Strip location suffixes ("of X" and ", X")
+    result = _strip_location_suffix(result)
 
-    # Step 5: Final whitespace cleanup (after stripping may leave gaps)
-    result = _normalize_whitespace(result)
+    # Step 5: Remove diacritics (accent folding)
+    result = remove_diacritics(result)
+
+    # Step 6: Final whitespace cleanup (after stripping may leave gaps)
+    result = normalize_whitespace(result)
 
     return result

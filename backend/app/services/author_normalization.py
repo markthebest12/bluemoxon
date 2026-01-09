@@ -8,7 +8,8 @@ matching between different formats and representations:
 """
 
 import re
-import unicodedata
+
+from app.services.text_normalization import normalize_whitespace, remove_diacritics
 
 # Honorific prefixes to remove (case-insensitive)
 # Order matters: longer patterns first to avoid partial matches
@@ -34,39 +35,26 @@ HONORIFIC_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-
-def _remove_diacritics(text: str) -> str:
-    """Remove diacritical marks from text (accent folding).
-
-    Converts characters like e with diaeresis to plain e.
-    Uses Unicode NFD normalization followed by stripping combining characters.
-
-    Args:
-        text: Text potentially containing diacritics
-
-    Returns:
-        Text with diacritics removed (ASCII-folded)
-    """
-    # NFD decomposes characters into base + combining marks
-    # e.g., e with diaeresis becomes e + combining diaeresis
-    normalized = unicodedata.normalize("NFD", text)
-
-    # Remove combining diacritical marks (category Mn = Mark, Nonspacing)
-    return "".join(c for c in normalized if unicodedata.category(c) != "Mn")
-
-
-def _normalize_whitespace(text: str) -> str:
-    """Normalize whitespace in text.
-
-    Strips leading/trailing whitespace and collapses multiple spaces.
-
-    Args:
-        text: Text to normalize
-
-    Returns:
-        Text with normalized whitespace
-    """
-    return " ".join(text.split())
+# Name suffixes that should stay with the last name (case-insensitive)
+# These come AFTER the last name, not before
+NAME_SUFFIXES = {
+    "jr",
+    "jr.",
+    "sr",
+    "sr.",
+    "ii",
+    "iii",
+    "iv",
+    "v",
+    "esq",
+    "esq.",
+    "phd",
+    "ph.d",
+    "ph.d.",
+    "md",
+    "m.d",
+    "m.d.",
+}
 
 
 def _remove_honorifics(name: str) -> str:
@@ -81,6 +69,28 @@ def _remove_honorifics(name: str) -> str:
         Name with honorific removed
     """
     return HONORIFIC_PATTERN.sub("", name)
+
+
+def _strip_suffix(name: str) -> tuple[str, str | None]:
+    """Strip name suffix (Jr., Sr., III, etc.) from the end of a name.
+
+    Args:
+        name: Name potentially containing a suffix at the end
+
+    Returns:
+        Tuple of (name_without_suffix, suffix) where suffix may be None
+    """
+    parts = name.split()
+    if not parts:
+        return name, None
+
+    # Check if last part is a suffix
+    if parts[-1].lower() in NAME_SUFFIXES:
+        suffix = parts[-1]
+        name_without = " ".join(parts[:-1])
+        return name_without, suffix
+
+    return name, None
 
 
 def _parse_comma_format(name: str) -> tuple[str, str]:
@@ -129,7 +139,7 @@ def _convert_to_first_last(name: str) -> str:
     first_middle = _remove_honorifics(first_middle).strip()
 
     # Normalize whitespace in the first_middle part
-    first_middle = _normalize_whitespace(first_middle)
+    first_middle = normalize_whitespace(first_middle)
 
     return f"{first_middle} {last}"
 
@@ -139,6 +149,7 @@ def normalize_author_name(name: str | None) -> str:
 
     Normalizes to: "First Middle Last" format with:
     - No honorifics (Sir, Dr., etc.)
+    - No suffixes (Jr., Sr., III, etc.) - stripped for matching
     - ASCII-folded (diacritics removed)
     - Whitespace normalized
 
@@ -154,23 +165,26 @@ def normalize_author_name(name: str | None) -> str:
         return ""
 
     # Step 1: Basic whitespace normalization first
-    result = _normalize_whitespace(name)
+    result = normalize_whitespace(name)
 
     if not result:
         return ""
 
     # Step 2: Remove honorifics (before comma conversion to handle both positions)
     result = _remove_honorifics(result)
-    result = _normalize_whitespace(result)
+    result = normalize_whitespace(result)
 
     # Step 3: Convert "Last, First" to "First Last"
     result = _convert_to_first_last(result)
 
-    # Step 4: Remove diacritics (accent folding)
-    result = _remove_diacritics(result)
+    # Step 4: Strip suffixes (Jr., Sr., III, etc.) for matching
+    result, _ = _strip_suffix(result)
 
-    # Step 5: Final whitespace cleanup
-    result = _normalize_whitespace(result)
+    # Step 5: Remove diacritics (accent folding)
+    result = remove_diacritics(result)
+
+    # Step 6: Final whitespace cleanup
+    result = normalize_whitespace(result)
 
     return result
 
@@ -183,6 +197,7 @@ def extract_author_name_parts(name: str | None) -> tuple[str | None, str | None,
     - "Last, First Middle" -> ("First", "Middle", "Last")
     - "First Last" -> ("First", None, "Last")
     - "First Middle Last" -> ("First", "Middle", "Last")
+    - "First Last Jr." -> ("First", None, "Last Jr.") - suffix stays with last
     - "SingleName" -> (None, None, "SingleName")
 
     Note: Does NOT normalize or remove honorifics - returns parts as-is.
@@ -198,7 +213,7 @@ def extract_author_name_parts(name: str | None) -> tuple[str | None, str | None,
         return None, None, None
 
     # Normalize whitespace first
-    cleaned = _normalize_whitespace(name)
+    cleaned = normalize_whitespace(name)
 
     if not cleaned:
         return None, None, None
@@ -222,13 +237,31 @@ def extract_author_name_parts(name: str | None) -> tuple[str | None, str | None,
             # Multiple middle names: first, then rest as middle
             return parts[0], " ".join(parts[1:]), last
 
-    # No comma: "First [Middle...] Last" format
+    # No comma: "First [Middle...] Last [Suffix]" format
     parts = cleaned.split(None)  # Split on whitespace
 
     if len(parts) == 1:
         # Single name (like "Voltaire") - treat as last name
         return None, None, parts[0]
-    elif len(parts) == 2:
+
+    # Check if last part is a suffix (Jr., Sr., III, etc.)
+    # If so, combine it with the preceding word as the last name
+    if len(parts) >= 2 and parts[-1].lower() in NAME_SUFFIXES:
+        suffix = parts[-1]
+        name_parts = parts[:-1]  # Everything except suffix
+
+        if len(name_parts) == 1:
+            # "James Jr." -> (None, None, "James Jr.")
+            return None, None, f"{name_parts[0]} {suffix}"
+        elif len(name_parts) == 2:
+            # "Henry James Jr." -> ("Henry", None, "James Jr.")
+            return name_parts[0], None, f"{name_parts[1]} {suffix}"
+        else:
+            # "Henry William James Jr." -> ("Henry", "William", "James Jr.")
+            return name_parts[0], " ".join(name_parts[1:-1]), f"{name_parts[-1]} {suffix}"
+
+    # No suffix detected - standard parsing
+    if len(parts) == 2:
         # "First Last"
         return parts[0], None, parts[1]
     else:

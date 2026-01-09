@@ -172,6 +172,37 @@ class TestNormalizeAuthorName:
         result = normalize_author_name("  Bront\u00eb,   Sir  Walter  ")
         assert result == "Walter Bronte"
 
+    # Suffix stripping for matching (Jr., Sr., III, etc.)
+    def test_strips_jr_suffix_for_matching(self):
+        """Jr. suffix should be stripped for matching purposes."""
+        result = normalize_author_name("Henry James Jr.")
+        assert result == "Henry James"
+
+    def test_strips_sr_suffix_for_matching(self):
+        """Sr. suffix should be stripped for matching purposes."""
+        result = normalize_author_name("John Smith Sr.")
+        assert result == "John Smith"
+
+    def test_strips_iii_suffix_for_matching(self):
+        """III suffix should be stripped for matching purposes."""
+        result = normalize_author_name("William Taft III")
+        assert result == "William Taft"
+
+    def test_strips_esq_suffix_for_matching(self):
+        """Esq. suffix should be stripped for matching purposes."""
+        result = normalize_author_name("Robert Lincoln Esq.")
+        assert result == "Robert Lincoln"
+
+    def test_strips_phd_suffix_for_matching(self):
+        """Ph.D. suffix should be stripped for matching purposes."""
+        result = normalize_author_name("Jane Doe Ph.D.")
+        assert result == "Jane Doe"
+
+    def test_comma_format_with_suffix_stripped(self):
+        """Suffix in comma format should also be stripped for matching."""
+        result = normalize_author_name("James Jr., Henry")
+        assert result == "Henry James"
+
 
 class TestExtractAuthorNameParts:
     """Test extraction of name parts from various formats."""
@@ -279,10 +310,39 @@ class TestExtractAuthorNameParts:
 
     # Jr., Sr., III suffix handling (these stay with last name)
     def test_jr_suffix(self):
+        """Jr. suffix should stay attached to last name."""
         first, middle, last = extract_author_name_parts("Henry James Jr.")
         assert first == "Henry"
-        assert middle == "James"
-        assert last == "Jr."
+        assert middle is None
+        assert last == "James Jr."
+
+    def test_sr_suffix(self):
+        """Sr. suffix should stay attached to last name."""
+        first, middle, last = extract_author_name_parts("John Smith Sr.")
+        assert first == "John"
+        assert middle is None
+        assert last == "Smith Sr."
+
+    def test_iii_suffix(self):
+        """III suffix should stay attached to last name."""
+        first, middle, last = extract_author_name_parts("William Howard Taft III")
+        assert first == "William"
+        assert middle == "Howard"
+        assert last == "Taft III"
+
+    def test_esq_suffix(self):
+        """Esq. suffix should stay attached to last name."""
+        first, middle, last = extract_author_name_parts("Robert Lincoln Esq.")
+        assert first == "Robert"
+        assert middle is None
+        assert last == "Lincoln Esq."
+
+    def test_single_name_with_suffix(self):
+        """Single name with suffix should all be last name."""
+        first, middle, last = extract_author_name_parts("Bonaparte Jr.")
+        assert first is None
+        assert middle is None
+        assert last == "Bonaparte Jr."
 
     def test_comma_format_with_jr(self):
         first, middle, last = extract_author_name_parts("James Jr., Henry")

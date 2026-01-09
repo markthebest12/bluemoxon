@@ -67,6 +67,54 @@ class TestEntitySuggestion:
 
         assert suggestion.match == 1.0
 
+    def test_match_rejects_negative(self):
+        """Match score should reject negative values."""
+        from app.schemas.entity_validation import EntitySuggestion
+
+        with pytest.raises(ValidationError) as exc_info:
+            EntitySuggestion(
+                id=5,
+                name="Invalid",
+                tier="A",
+                match=-0.1,
+                book_count=0,
+            )
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("match",) for e in errors)
+
+    def test_match_rejects_greater_than_one(self):
+        """Match score should reject values greater than 1.0."""
+        from app.schemas.entity_validation import EntitySuggestion
+
+        with pytest.raises(ValidationError) as exc_info:
+            EntitySuggestion(
+                id=6,
+                name="Invalid",
+                tier="A",
+                match=1.1,
+                book_count=0,
+            )
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("match",) for e in errors)
+
+    def test_book_count_rejects_negative(self):
+        """Book count should reject negative values."""
+        from app.schemas.entity_validation import EntitySuggestion
+
+        with pytest.raises(ValidationError) as exc_info:
+            EntitySuggestion(
+                id=7,
+                name="Invalid",
+                tier="A",
+                match=0.5,
+                book_count=-1,
+            )
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("book_count",) for e in errors)
+
     def test_requires_id(self):
         """Should require id field."""
         from app.schemas.entity_validation import EntitySuggestion

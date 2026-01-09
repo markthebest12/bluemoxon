@@ -147,8 +147,9 @@ class TestNormalizeBinderNameForMatching:
         assert result == "Leighton, Son & Hodge"
 
     def test_birdsall_of_northampton(self):
+        """Location suffix 'of Northampton' should be stripped for matching."""
         result = normalize_binder_name_for_matching("Birdsall of Northampton")
-        assert result == "Birdsall of Northampton"
+        assert result == "Birdsall"
 
     def test_h_sotheran_co(self):
         result = normalize_binder_name_for_matching("H. Sotheran & Co.")
@@ -157,6 +158,37 @@ class TestNormalizeBinderNameForMatching:
     def test_j_e_bumpus(self):
         result = normalize_binder_name_for_matching("J. & E. Bumpus")
         assert result == "J. & E. Bumpus"
+
+    # Location suffix handling ("of X" and ", X")
+    def test_strips_comma_location(self):
+        """Comma location suffix should be stripped for matching."""
+        result = normalize_binder_name_for_matching("Birdsall, Northampton")
+        assert result == "Birdsall"
+
+    def test_strips_of_bath_without_parens(self):
+        """'of Bath' without parentheses should be stripped."""
+        result = normalize_binder_name_for_matching("Bayntun of Bath")
+        assert result == "Bayntun"
+
+    def test_preserves_roger_de_coverly(self):
+        """'de' in 'Roger de Coverly' should NOT be treated as location suffix."""
+        result = normalize_binder_name_for_matching("Roger de Coverly")
+        assert result == "Roger de Coverly"
+
+    def test_preserves_david_bryce_son(self):
+        """'Son' should not be stripped as location suffix."""
+        result = normalize_binder_name_for_matching("David Bryce & Son")
+        assert result == "David Bryce & Son"
+
+    def test_strips_of_london(self):
+        """'of London' should be stripped."""
+        result = normalize_binder_name_for_matching("Smith of London")
+        assert result == "Smith"
+
+    def test_combined_parenthetical_and_of_location(self):
+        """Parenthetical should be stripped first, then 'of X'."""
+        result = normalize_binder_name_for_matching("Bedford of Bath (note)")
+        assert result == "Bedford"
 
     # Ensure normalization doesn't over-strip (avoid false positives)
     def test_does_not_strip_embedded_parenthetical(self):

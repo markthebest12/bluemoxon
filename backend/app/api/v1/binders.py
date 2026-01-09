@@ -13,6 +13,7 @@ from app.schemas.reference import (
     ReassignRequest,
     ReassignResponse,
 )
+from app.services.entity_matching import invalidate_entity_cache
 
 router = APIRouter()
 
@@ -79,6 +80,7 @@ def create_binder(
     db.add(binder)
     db.commit()
     db.refresh(binder)
+    invalidate_entity_cache("binder")
 
     return BinderResponse(
         id=binder.id,
@@ -109,6 +111,7 @@ def update_binder(
 
     db.commit()
     db.refresh(binder)
+    invalidate_entity_cache("binder")
 
     return BinderResponse(
         id=binder.id,
@@ -141,6 +144,7 @@ def delete_binder(
 
     db.delete(binder)
     db.commit()
+    invalidate_entity_cache("binder")
 
 
 @router.post("/{binder_id}/reassign", response_model=ReassignResponse)
@@ -179,6 +183,7 @@ def reassign_binder_books(
     # Delete source binder
     db.delete(source)
     db.commit()
+    invalidate_entity_cache("binder")
 
     return ReassignResponse(
         reassigned_count=book_count,

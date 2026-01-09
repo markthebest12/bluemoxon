@@ -31,8 +31,9 @@ EntityType = Literal["publisher", "binder", "author"]
 ENTITY_CACHE_TTL_SECONDS = 300
 
 # Thread-safe caching for each entity type
-# Structure: {entity_type: [(id, name, tier, book_count), ...]}
-_entity_caches: dict[str, list[tuple[int, str, str | None, int]]] = {}
+# Structure: {entity_type: [(id, name, normalized_name, tier, book_count), ...]}
+# Normalized names are pre-computed at cache time to avoid O(n) normalization per query
+_entity_caches: dict[str, list[tuple[int, str, str, str | None, int]]] = {}
 _entity_cache_times: dict[str, float] = {}
 _entity_cache_lock = threading.Lock()
 
@@ -58,10 +59,11 @@ class EntityMatch:
 
 def _get_cached_entities(
     db: Session, entity_type: EntityType
-) -> list[tuple[int, str, str | None, int]]:
+) -> list[tuple[int, str, str, str | None, int]]:
     """Get entities from cache or DB, with TTL-based expiration.
 
-    Returns list of (id, name, tier, book_count) tuples for fuzzy matching.
+    Returns list of (id, name, normalized_name, tier, book_count) tuples.
+    Normalized names are pre-computed at cache time to avoid O(n) normalization per query.
     Thread-safe with lock protection.
 
     Args:
@@ -69,7 +71,7 @@ def _get_cached_entities(
         entity_type: Type of entity to cache.
 
     Returns:
-        List of (id, name, tier, book_count) tuples.
+        List of (id, name, normalized_name, tier, book_count) tuples.
     """
     current_time = time.monotonic()
 
@@ -141,8 +143,18 @@ def _get_cached_entities(
         else:
             raise ValueError(f"Unknown entity type: {entity_type}")
 
-        # Convert to tuple list and cache
-        _entity_caches[entity_type] = [(e.id, e.name, e.tier, e.book_count) for e in entities]
+        # Convert to tuple list with pre-computed normalized names and cache
+        # This avoids O(n) normalization per query
+        _entity_caches[entity_type] = [
+            (
+                e.id,
+                e.name,
+                _normalize_for_entity_type(e.name, entity_type),
+                e.tier,
+                e.book_count,
+            )
+            for e in entities
+        ]
         _entity_cache_times[entity_type] = time.monotonic()
 
         return _entity_caches[entity_type]
@@ -228,14 +240,12 @@ def fuzzy_match_entity(
     if not normalized_name:
         return []
 
-    # Get entities from cache
+    # Get entities from cache (includes pre-computed normalized names)
     cached_entities = _get_cached_entities(db, entity_type)
 
     matches = []
-    for entity_id, entity_name, entity_tier, book_count in cached_entities:
-        # Normalize the entity name from DB for comparison
-        normalized_entity_name = _normalize_for_entity_type(entity_name, entity_type)
-
+    for entity_id, entity_name, normalized_entity_name, entity_tier, book_count in cached_entities:
+        # Use pre-computed normalized name from cache (avoids O(n) normalization per query)
         # Calculate similarity using token_sort_ratio (word-order independent)
         # rapidfuzz returns 0-100 scale, normalize to 0.0-1.0
         confidence = (
