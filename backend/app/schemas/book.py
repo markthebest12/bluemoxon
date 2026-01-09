@@ -187,6 +187,8 @@ class BookUpdate(BaseModel):
     publisher_id: int | None = None
     binder_id: int | None = None
     publication_date: str | None = None
+    year_start: int | None = None
+    year_end: int | None = None
     edition: str | None = None
     volumes: int | None = None
     is_complete: bool | None = None
