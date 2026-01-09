@@ -115,6 +115,32 @@ def recalculate_discount_pct(book: Book) -> None:
     book.discount_pct = Decimal(str(round(discount, 2)))
 
 
+def recalculate_roi_pct(book: Book) -> None:
+    """Recalculate roi_pct based on current value_mid and acquisition_cost.
+
+    Updates book.roi_pct in place. Does NOT commit the session.
+
+    Args:
+        book: Book model instance to update
+
+    Formula: roi = (value_mid - acquisition_cost) / acquisition_cost * 100
+    """
+    # Cannot calculate without both values
+    if book.acquisition_cost is None or book.value_mid is None:
+        return
+
+    # Invalid acquisition_cost (zero or negative) - clear ROI
+    if book.acquisition_cost <= 0:
+        book.roi_pct = None
+        return
+
+    # Calculate fresh ROI
+    roi = (
+        (float(book.value_mid) - float(book.acquisition_cost)) / float(book.acquisition_cost) * 100
+    )
+    book.roi_pct = Decimal(str(round(roi, 2)))
+
+
 def author_tier_to_score(tier: str | None) -> int:
     """Convert author tier to priority score.
 

@@ -46,3 +46,22 @@ class SortOrder(StrEnum):
 
     ASC = "asc"
     DESC = "desc"
+
+
+class Era(StrEnum):
+    """Historical era classification for books based on publication year.
+
+    Era boundaries are based on British literary/historical periods:
+    - Pre-Romantic: Before 1800
+    - Romantic: 1800-1836 (Wordsworth, Coleridge, Shelley, Keats, Byron)
+    - Victorian: 1837-1901 (Queen Victoria's reign)
+    - Edwardian: 1902-1910 (Edward VII's reign)
+    - Post-1910: After 1910
+    """
+
+    PRE_ROMANTIC = "Pre-Romantic"
+    ROMANTIC = "Romantic"
+    VICTORIAN = "Victorian"
+    EDWARDIAN = "Edwardian"
+    POST_1910 = "Post-1910"
+    UNKNOWN = "Unknown"
