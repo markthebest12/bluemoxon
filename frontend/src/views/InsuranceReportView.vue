@@ -183,20 +183,34 @@ const printReport = () => {
 };
 
 // Format ISO date to YYYY-MM-DD
+// Handles timezone correctly by extracting date parts directly from the string
+// for date-only inputs, avoiding local timezone conversion issues
 const formatISODate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "";
 
-  // Try parsing as Date object to handle various formats:
-  // - ISO with timezone: 2024-01-15T10:30:00+05:30
-  // - Date only: 2024-01-15
-  // - Datetime without T: 2024-01-15 10:30:00
+  // For date-only strings (YYYY-MM-DD), extract directly to avoid timezone shift
+  // new Date("2024-01-15") interprets as UTC midnight, which becomes previous day
+  // in timezones west of UTC when using local getDate()/getMonth()/getFullYear()
+  const dateOnlyMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return dateStr; // Already in YYYY-MM-DD format
+  }
+
+  // For ISO strings with time component (2024-01-15T10:30:00Z), extract date part
+  // The date portion before 'T' is the intended date regardless of timezone
+  const isoMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})T/);
+  if (isoMatch) {
+    return isoMatch[1];
+  }
+
+  // For other formats, try parsing but use UTC methods to avoid timezone issues
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "";
 
-  // Format as YYYY-MM-DD
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  // Use UTC methods for consistency
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
