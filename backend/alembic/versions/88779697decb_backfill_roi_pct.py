@@ -2,7 +2,7 @@
 
 Backfill roi_pct for existing books that have both value_mid and acquisition_cost.
 
-Revision ID: y8901234bcde
+Revision ID: 88779697decb
 Revises: 21eb898ba04b
 Create Date: 2026-01-09
 """
@@ -11,7 +11,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "y8901234bcde"
+revision: str = "88779697decb"
 down_revision: str = "21eb898ba04b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
