@@ -56,6 +56,8 @@ const mockDashboardData: DashboardStats = {
   by_era: [],
   by_publisher: [],
   by_author: [],
+  by_condition: [],
+  by_category: [],
   acquisitions_daily: [],
 };
 

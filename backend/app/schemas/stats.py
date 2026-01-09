@@ -93,6 +93,22 @@ class AcquisitionDay(BaseModel):
     cumulative_cost: float
 
 
+class ConditionData(BaseModel):
+    """Books grouped by condition grade."""
+
+    condition: str
+    count: int
+    value: float
+
+
+class CategoryData(BaseModel):
+    """Books grouped by category."""
+
+    category: str
+    count: int
+    value: float
+
+
 class DashboardResponse(BaseModel):
     """Complete dashboard statistics response."""
 
@@ -102,3 +118,5 @@ class DashboardResponse(BaseModel):
     by_publisher: list[PublisherData]
     by_author: list[AuthorData]
     acquisitions_daily: list[AcquisitionDay]
+    by_condition: list[ConditionData]
+    by_category: list[CategoryData]
