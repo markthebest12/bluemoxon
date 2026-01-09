@@ -268,7 +268,8 @@ const exportCSV = () => {
   ];
 
   // CSV formula injection characters that Excel/Sheets interpret as formulas
-  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r]/;
+  // Also catches | (some spreadsheets) and formulas after embedded newlines
+  const FORMULA_INJECTION_CHARS = /^[=+\-@\t\r|]|[\r\n][=+\-@|]/;
 
   const escapeCSV = (val: string | null | undefined): string => {
     if (val === null || val === undefined) return "";
