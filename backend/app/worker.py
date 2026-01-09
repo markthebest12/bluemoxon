@@ -366,9 +366,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             binder_result = validate_entity_for_book(db, "binder", binder_name)
 
             if isinstance(binder_result, EntityValidationError):
-                error_msg = _format_entity_validation_error(
-                    "binder", binder_name, binder_result
-                )
+                error_msg = _format_entity_validation_error("binder", binder_name, binder_result)
                 raise ValueError(error_msg)
 
             if binder_result and book.binder_id != binder_result:

@@ -341,6 +341,6 @@ class TestWorkerBinderEntityValidation:
                 raise ValueError(error_msg)
 
         # If we got here without binder_result being an error, fail the test
-        assert isinstance(
-            binder_result, EntityValidationError
-        ), "Expected fuzzy match to return validation error"
+        assert isinstance(binder_result, EntityValidationError), (
+            "Expected fuzzy match to return validation error"
+        )
