@@ -12,6 +12,9 @@ from app.config import get_settings
 from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.db import SessionLocal
 from app.models import AnalysisJob, Book, BookAnalysis, BookImage
+from app.models.binder import Binder
+from app.models.publisher import Publisher
+from app.schemas.entity_validation import EntityValidationError
 from app.services.analysis_parser import (
     apply_metadata_to_book,
     extract_analysis_metadata,
@@ -29,7 +32,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.reference import get_or_create_binder
+from app.services.entity_validation import validate_entity_for_book
 from app.services.scoring import calculate_and_persist_book_scores
 from app.utils.markdown_parser import parse_analysis_markdown
 from app.version import get_version
@@ -39,6 +42,23 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 settings = get_settings()
+
+
+def _format_entity_validation_error(
+    entity_type: str, name: str, error: EntityValidationError
+) -> str:
+    """Format entity validation error message for job failure."""
+    top_match = error.suggestions[0] if error.suggestions else None
+    if top_match:
+        return (
+            f"Entity validation failed: {entity_type} '{name}' matches existing "
+            f"'{top_match.name}' ({top_match.match:.0%}). "
+            f"Use existing ID or create new via POST /{entity_type}s?force=true"
+        )
+    return (
+        f"Entity validation failed: {entity_type} '{name}' not found. "
+        f"Create via POST /{entity_type}s first."
+    )
 
 
 def format_analysis_error(error: Exception, image_count: int = 0) -> str:
@@ -340,14 +360,54 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             if "is_first_edition" in book_updates:
                 book.is_first_edition = book_updates["is_first_edition"]
 
-        # Extract binder identification and associate with book
-        if parsed.binder_identification:
-            binder = get_or_create_binder(db, parsed.binder_identification)
-            if binder and book.binder_id != binder.id:
-                logger.info(
-                    f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
+        # Validate and associate binder
+        if parsed.binder_identification and parsed.binder_identification.get("name"):
+            binder_name = parsed.binder_identification["name"]
+            binder_result = validate_entity_for_book(db, "binder", binder_name)
+
+            if isinstance(binder_result, EntityValidationError):
+                error_msg = _format_entity_validation_error("binder", binder_name, binder_result)
+                raise ValueError(error_msg)
+
+            if binder_result and book.binder_id != binder_result:
+                # binder_result is entity ID - fetch binder for logging
+                binder = db.get(Binder, binder_result)
+                if binder:
+                    logger.info(
+                        f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
+                    )
+                    book.binder_id = binder_result
+                else:
+                    logger.error(
+                        f"Binder ID {binder_result} vanished between validation and fetch "
+                        f"for book {book_id} - skipping association"
+                    )
+
+        # Validate and associate publisher
+        if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+            publisher_name = parsed.publisher_identification["name"]
+            publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
+
+            if isinstance(publisher_result, EntityValidationError):
+                error_msg = _format_entity_validation_error(
+                    "publisher", publisher_name, publisher_result
                 )
-                book.binder_id = binder.id
+                raise ValueError(error_msg)
+
+            if publisher_result and book.publisher_id != publisher_result:
+                # publisher_result is entity ID - fetch publisher for logging
+                publisher = db.get(Publisher, publisher_result)
+                if publisher:
+                    logger.info(
+                        f"Associating publisher {publisher.name} (tier={publisher.tier}) "
+                        f"with book {book_id}"
+                    )
+                    book.publisher_id = publisher_result
+                else:
+                    logger.error(
+                        f"Publisher ID {publisher_result} vanished between validation and fetch "
+                        f"for book {book_id} - skipping association"
+                    )
 
         # Calculate and persist scores after analysis updates
         logger.info(f"Calculating scores for book {book_id}")

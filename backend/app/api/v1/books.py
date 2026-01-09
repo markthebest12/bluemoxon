@@ -49,6 +49,7 @@ from app.schemas.book import (
     DuplicateMatch,
     TrackingRequest,
 )
+from app.schemas.entity_validation import EntityValidationError
 from app.schemas.eval_runbook_job import EvalRunbookJobResponse
 from app.services.analysis_parser import (
     apply_metadata_to_book,
@@ -63,9 +64,8 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.entity_validation import validate_entity_for_book
 from app.services.job_manager import handle_stale_jobs
-from app.services.publisher_validation import get_or_create_publisher
-from app.services.reference import get_or_create_binder
 from app.services.scoring import (
     author_tier_to_score,
     calculate_all_scores,
@@ -1419,27 +1419,51 @@ def update_book_analysis(
     # Parse markdown to extract structured fields
     parsed = parse_analysis_markdown(full_markdown)
 
-    # Extract and apply metadata (provenance, first edition) from metadata block
-    metadata_updated = []
+    # Extract metadata (but don't apply yet - validate entities first)
     metadata = extract_analysis_metadata(full_markdown)
+
+    # VALIDATION PHASE: Validate all entities upfront before any mutations
+    # This ensures we don't leave the book in an inconsistent state if validation fails
+    binder_id_to_set: int | None = None
+    publisher_id_to_set: int | None = None
+
+    if parsed.binder_identification and parsed.binder_identification.get("name"):
+        binder_name = parsed.binder_identification["name"]
+        binder_result = validate_entity_for_book(db, "binder", binder_name)
+
+        if isinstance(binder_result, EntityValidationError):
+            status_code = 409 if binder_result.error == "similar_entity_exists" else 400
+            raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
+
+        binder_id_to_set = binder_result
+
+    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+        publisher_name = parsed.publisher_identification["name"]
+        publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
+
+        if isinstance(publisher_result, EntityValidationError):
+            status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
+            raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
+
+        publisher_id_to_set = publisher_result
+
+    # MUTATION PHASE: All validations passed, now apply changes
+    # Apply metadata (provenance, first edition)
+    metadata_updated = []
     if metadata:
         metadata_updated = apply_metadata_to_book(book, metadata)
 
-    # Extract binder identification and associate with book
+    # Associate binder
     binder_updated = False
-    if parsed.binder_identification:
-        binder = get_or_create_binder(db, parsed.binder_identification)
-        if binder and book.binder_id != binder.id:
-            book.binder_id = binder.id
-            binder_updated = True
+    if binder_id_to_set and book.binder_id != binder_id_to_set:
+        book.binder_id = binder_id_to_set
+        binder_updated = True
 
-    # Extract publisher identification and associate with book
+    # Associate publisher
     publisher_updated = False
-    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
-        publisher = get_or_create_publisher(db, parsed.publisher_identification["name"])
-        if publisher and book.publisher_id != publisher.id:
-            book.publisher_id = publisher.id
-            publisher_updated = True
+    if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
+        book.publisher_id = publisher_id_to_set
+        publisher_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
