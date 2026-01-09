@@ -475,9 +475,7 @@ def enable_user_mfa(
         # If user hasn't set up MFA yet, that's fine - they'll be prompted on next login
         error_code = e.response["Error"]["Code"]
         if error_code == "InvalidParameterException":
-            logger.info(
-                f"User {user.email} has no MFA configured, will be prompted on next login"
-            )
+            logger.info(f"User {user.email} has no MFA configured, will be prompted on next login")
         else:
             log_and_raise(
                 ExternalServiceError("Cognito", e.response["Error"]["Message"]),
