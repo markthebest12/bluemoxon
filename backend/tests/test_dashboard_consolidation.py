@@ -5,12 +5,13 @@ to the original individual queries. After refactor is validated, parallel
 comparison tests can be removed, keeping only property-based tests.
 """
 
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
 from sqlalchemy.orm import Session
 
+from app.api.v1.stats import get_by_category, get_by_condition, get_by_era, get_overview
 from app.models import Author, Binder, Book, Publisher
 
 
@@ -120,9 +121,6 @@ def db_with_diverse_books(db: Session):
     return db
 
 
-from app.api.v1.stats import get_by_category, get_by_condition, get_by_era
-
-
 class TestPlaceholder:
     """Placeholder test to verify file loads."""
 
@@ -183,3 +181,28 @@ class TestDimensionStatsParallelComparison:
         new_sorted = sorted(consolidated["by_era"], key=lambda x: x["era"])
 
         assert new_sorted == old_sorted
+
+
+class TestOverviewStatsParallelComparison:
+    """Verify consolidated overview query matches get_overview()."""
+
+    def test_overview_matches(self, db_with_diverse_books):
+        """Consolidated overview matches get_overview()."""
+        db = db_with_diverse_books
+
+        # Old way
+        old_result = get_overview(db)
+
+        # New way
+        from app.services.dashboard_stats import get_overview_stats
+
+        new_result = get_overview_stats(db)
+
+        # Compare each section
+        assert new_result["primary"] == old_result["primary"]
+        assert new_result["extended"] == old_result["extended"]
+        assert new_result["flagged"] == old_result["flagged"]
+        assert new_result["total_items"] == old_result["total_items"]
+        assert new_result["authenticated_bindings"] == old_result["authenticated_bindings"]
+        assert new_result["in_transit"] == old_result["in_transit"]
+        assert new_result["week_delta"] == old_result["week_delta"]
