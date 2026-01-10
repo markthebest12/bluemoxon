@@ -719,3 +719,13 @@ variable "entity_match_threshold_author" {
   description = "Fuzzy match threshold for authors (0.0-1.0, lower due to name variations)"
   default     = 0.75
 }
+
+# =============================================================================
+# ElastiCache Configuration (#1002 Dashboard Caching)
+# =============================================================================
+
+variable "enable_elasticache" {
+  type        = bool
+  description = "Enable ElastiCache for dashboard caching"
+  default     = false
+}
