@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import boto3
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import exists, func
 from sqlalchemy.exc import IntegrityError
@@ -418,64 +418,41 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
     logger.info(f"Copied {len(listing_s3_keys)} images for book {book_id}")
 
 
-def _validate_entity_for_analysis(
+def _collect_entity_validation(
     db: Session,
     entity_type: str,
     name: str,
-    force: bool,
-    warnings: list[str],
-) -> int | None:
-    """Validate entity for analysis, appending warnings for skipped associations.
+) -> tuple[int | None, EntityValidationError | None, str | None]:
+    """Validate entity and return results without raising exceptions.
 
-    This helper function DRYs up the binder/publisher validation logic that was
-    duplicated in update_book_analysis(). It handles three cases:
-
-    1. Entity not found (allow_unknown=True returns None):
-       - Appends warning: "{Entity} '{name}' not found - association skipped"
-       - Returns None (skip association)
-
-    2. Similar entity exists (EntityValidationError with error="similar_entity_exists"):
-       - If force=True: Appends warning and returns None
-       - If force=False: Raises HTTPException(409) with entity validation details
-
-    3. Other validation errors (e.g., unknown_entity when allow_unknown=False):
-       - If force=True: Appends warning and returns None
-       - If force=False: Raises HTTPException(400) with validation details
-
-    4. Exact match found:
-       - Returns entity ID for association
+    This helper collects validation results so callers can validate multiple
+    entities before deciding whether to raise errors. This enables surfacing
+    ALL validation errors at once, not just the first one.
 
     Args:
         db: Database session.
         entity_type: Type of entity ("binder", "publisher").
         name: Name of entity to validate.
-        force: If True, bypass validation errors and skip association.
-        warnings: List to append warning messages to.
 
     Returns:
-        Entity ID if exact match found, None if association should be skipped.
-
-    Raises:
-        HTTPException(409): If similar entity exists and force=False.
-        HTTPException(400): If other validation error and force=False.
+        Tuple of (entity_id, error, warning):
+        - (id, None, None): Exact match found
+        - (None, error, None): Validation error (similar entity exists)
+        - (None, None, warning): Entity not found (warning message)
     """
     result = validate_entity_for_book(db, entity_type, name, allow_unknown=True)
 
     if result is None:
-        warnings.append(f"{entity_type.capitalize()} '{name}' not found - association skipped")
-        return None
+        # Entity not found - return warning
+        warning = f"{entity_type.capitalize()} '{name}' not found - association skipped"
+        return (None, None, warning)
 
     if isinstance(result, EntityValidationError):
-        if force:
-            warnings.append(
-                f"{entity_type.capitalize()} '{name}' validation skipped due to "
-                f"force=true ({result.error})"
-            )
-            return None
-        status_code = 409 if result.error == "similar_entity_exists" else 400
-        raise HTTPException(status_code=status_code, detail=result.model_dump())
+        # Validation error (similar entity exists)
+        return (None, result, None)
 
-    return result  # entity ID
+    # Exact match found
+    return (result, None, None)
 
 
 @router.get("", response_model=BookListResponse)
@@ -1465,6 +1442,7 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
 @router.put("/{book_id}/analysis")
 def update_book_analysis(
     book_id: int,
+    response: Response,
     full_markdown: str = Body(..., media_type="text/plain"),
     force: bool = Query(
         default=False,
@@ -1481,7 +1459,7 @@ def update_book_analysis(
     If binder is identified, associates binder with book.
     If metadata block is present, extracts provenance and first edition info.
 
-    Response includes a 'warnings' array with messages about:
+    Response includes X-BMX-Warning header with semicolon-separated warnings about:
     - Unknown entities not found in database (association skipped)
     - Validation errors bypassed due to force=true
     - TOCTOU race conditions where entity vanished between validation and mutation
@@ -1499,21 +1477,69 @@ def update_book_analysis(
     # Warnings list for response - tracks skipped associations
     warnings: list[str] = []
 
-    # VALIDATION PHASE: Validate all entities upfront before any mutations
-    # This ensures we don't leave the book in an inconsistent state if validation fails
-    # Uses _validate_entity_for_analysis helper to DRY up binder/publisher logic
+    # VALIDATION PHASE: Validate ALL entities upfront before any mutations
+    # This ensures we surface ALL errors at once, not just the first one
     binder_id_to_set: int | None = None
+    binder_error: EntityValidationError | None = None
     publisher_id_to_set: int | None = None
+    publisher_error: EntityValidationError | None = None
+    binder_name: str | None = None
+    publisher_name: str | None = None
 
     if parsed.binder_identification and parsed.binder_identification.get("name"):
         binder_name = parsed.binder_identification["name"]
-        binder_id_to_set = _validate_entity_for_analysis(db, "binder", binder_name, force, warnings)
+        binder_id, binder_error, binder_warning = _collect_entity_validation(
+            db, "binder", binder_name
+        )
+        if binder_id:
+            binder_id_to_set = binder_id
+        elif binder_warning:
+            warnings.append(binder_warning)
 
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
         publisher_name = parsed.publisher_identification["name"]
-        publisher_id_to_set = _validate_entity_for_analysis(
-            db, "publisher", publisher_name, force, warnings
+        publisher_id, publisher_error, publisher_warning = _collect_entity_validation(
+            db, "publisher", publisher_name
         )
+        if publisher_id:
+            publisher_id_to_set = publisher_id
+        elif publisher_warning:
+            warnings.append(publisher_warning)
+
+    # Check for validation errors AFTER validating both entities
+    # This surfaces ALL errors at once, not just the first one
+    all_errors: list[EntityValidationError] = []
+    if binder_error:
+        all_errors.append(binder_error)
+    if publisher_error:
+        all_errors.append(publisher_error)
+
+    if all_errors and not force:
+        # Surface all errors - return 409 if any is similar_entity_exists, else 400
+        status_code = 409 if any(e.error == "similar_entity_exists" for e in all_errors) else 400
+        if len(all_errors) == 1:
+            raise HTTPException(status_code=status_code, detail=all_errors[0].model_dump())
+        else:
+            raise HTTPException(
+                status_code=status_code,
+                detail={
+                    "error": "multiple_validation_errors",
+                    "errors": [e.model_dump() for e in all_errors],
+                },
+            )
+
+    # If force=True, append warnings for bypassed errors
+    if force:
+        if binder_error and binder_name:
+            warnings.append(
+                f"Binder '{binder_name}' validation skipped due to force=true "
+                f"({binder_error.error})"
+            )
+        if publisher_error and publisher_name:
+            warnings.append(
+                f"Publisher '{publisher_name}' validation skipped due to force=true "
+                f"({publisher_error.error})"
+            )
 
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)
@@ -1600,6 +1626,11 @@ def update_book_analysis(
     _calculate_and_persist_scores(book, db)
 
     db.commit()
+
+    # Add X-BMX-Warning header if there are warnings
+    if warnings:
+        response.headers["X-BMX-Warning"] = "; ".join(warnings)
+
     return {
         "message": "Analysis updated",
         "values_updated": values_changed,
