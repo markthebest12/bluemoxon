@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
+import { getErrorMessage } from "@/types/errors";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -94,6 +95,10 @@ function openSourceUrl() {
     window.open(form.value.source_url, "_blank");
   }
 }
+
+function handleEntityError(err: unknown) {
+  errorMessage.value = getErrorMessage(err, "Failed to create entity");
+}
 </script>
 
 <template>
@@ -155,6 +160,7 @@ function openSourceUrl() {
               label="Author"
               :options="refsStore.authors"
               :create-fn="refsStore.createAuthor"
+              @error="handleEntityError"
             />
             <p
               v-if="validationErrors.author"
@@ -168,6 +174,7 @@ function openSourceUrl() {
             label="Publisher"
             :options="refsStore.publishers"
             :create-fn="refsStore.createPublisher"
+            @error="handleEntityError"
           />
         </div>
 
@@ -178,6 +185,7 @@ function openSourceUrl() {
             label="Binder"
             :options="refsStore.binders"
             :create-fn="refsStore.createBinder"
+            @error="handleEntityError"
           />
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>

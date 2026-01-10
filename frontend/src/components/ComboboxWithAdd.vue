@@ -153,6 +153,10 @@ async function handleForceCreate() {
 function formatMatchPercent(match: number): string {
   return Math.round(match * 100) + "%";
 }
+
+function dismissConflict() {
+  conflictState.value = null;
+}
 </script>
 
 <template>
@@ -213,40 +217,76 @@ function formatMatchPercent(match: number): string {
       data-testid="suggestion-panel"
       class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg"
     >
-      <p class="text-sm text-amber-800 font-medium mb-2">
-        Similar {{ label.toLowerCase() }} found:
-      </p>
-      <div
-        v-for="suggestion in conflictState.suggestions"
-        :key="suggestion.id"
-        class="flex items-center justify-between py-1.5"
-      >
-        <div class="flex-1">
-          <span class="text-sm font-medium text-gray-900">{{ suggestion.name }}</span>
-          <span class="text-xs text-gray-500 ml-2">{{ formatMatchPercent(suggestion.match) }}</span>
-          <span v-if="suggestion.book_count > 0" class="text-xs text-gray-500 ml-1">
-            ({{ suggestion.book_count }} books)
-          </span>
+      <div class="flex items-start justify-between mb-2">
+        <p class="text-sm text-amber-800 font-medium">
+          {{
+            conflictState.suggestions.length > 0
+              ? `Similar ${label.toLowerCase()} found:`
+              : `Cannot create ${label.toLowerCase()}`
+          }}
+        </p>
+        <button
+          type="button"
+          data-testid="dismiss-conflict"
+          class="text-amber-600 hover:text-amber-800 -mt-1 -mr-1 p-1"
+          title="Dismiss"
+          @click="dismissConflict"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Suggestions list -->
+      <template v-if="conflictState.suggestions.length > 0">
+        <div
+          v-for="suggestion in conflictState.suggestions"
+          :key="suggestion.id"
+          class="flex items-center justify-between py-1.5"
+        >
+          <div class="flex-1">
+            <span class="text-sm font-medium text-gray-900">{{ suggestion.name }}</span>
+            <span class="text-xs text-gray-500 ml-2">{{
+              formatMatchPercent(suggestion.match)
+            }}</span>
+            <span v-if="suggestion.book_count > 0" class="text-xs text-gray-500 ml-1">
+              ({{ suggestion.book_count }} books)
+            </span>
+          </div>
+          <button
+            type="button"
+            data-testid="use-suggestion"
+            class="ml-2 px-2 py-1 text-xs font-medium text-white bg-victorian-hunter-600 hover:bg-victorian-hunter-700 rounded"
+            @click="selectSuggestion(suggestion)"
+          >
+            Use
+          </button>
         </div>
-        <button
-          type="button"
-          data-testid="use-suggestion"
-          class="ml-2 px-2 py-1 text-xs font-medium text-white bg-victorian-hunter-600 hover:bg-victorian-hunter-700 rounded"
-          @click="selectSuggestion(suggestion)"
-        >
-          Use
-        </button>
-      </div>
-      <div class="mt-2 pt-2 border-t border-amber-200">
-        <button
-          type="button"
-          data-testid="create-anyway"
-          class="text-xs text-amber-700 hover:text-amber-900 underline"
-          @click="handleForceCreate"
-        >
-          Create "{{ conflictState.input }}" anyway
-        </button>
-      </div>
+        <div class="mt-2 pt-2 border-t border-amber-200">
+          <button
+            type="button"
+            data-testid="create-anyway"
+            class="text-xs text-amber-700 hover:text-amber-900 underline"
+            :disabled="isCreating"
+            @click="handleForceCreate"
+          >
+            {{ isCreating ? "Creating..." : `Create "${conflictState.input}" anyway` }}
+          </button>
+        </div>
+      </template>
+
+      <!-- Empty suggestions fallback (shouldn't happen but handle gracefully) -->
+      <template v-else>
+        <p class="text-sm text-gray-600 mb-2">
+          "{{ conflictState.input }}" could not be created. Please try a different name.
+        </p>
+      </template>
     </div>
   </div>
 </template>

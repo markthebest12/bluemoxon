@@ -406,5 +406,129 @@ describe("ComboboxWithAdd", () => {
 
       expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(false);
     });
+
+    it("dismisses conflict panel when dismiss button clicked", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "Test",
+            suggestions: [{ id: 1, name: "Similar", match: 0.8, book_count: 0 }],
+            resolution: "Use existing",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(true);
+
+      const dismissButton = wrapper.find('[data-testid="dismiss-conflict"]');
+      await dismissButton.trigger("click");
+
+      expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(false);
+    });
+
+    it("handles empty suggestions array gracefully", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "BadName",
+            suggestions: [],
+            resolution: "Try different name",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("BadName");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      // Should show panel with fallback message
+      expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain("could not be created");
+      expect(wrapper.text()).toContain("BadName");
+      // Should NOT show "create anyway" when no suggestions
+      expect(wrapper.find('[data-testid="create-anyway"]').exists()).toBe(false);
+    });
+
+    it("emits error event for non-409 errors", async () => {
+      const networkError = new Error("Network failed");
+      const createFn = vi.fn().mockRejectedValue(networkError);
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.emitted("error")).toBeTruthy();
+      expect(wrapper.emitted("error")![0]).toEqual([networkError]);
+      // Should NOT show conflict panel for non-409 errors
+      expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(false);
+    });
+
+    it("emits error event for 500 errors", async () => {
+      const serverError = {
+        response: { status: 500, data: { detail: "Internal error" } },
+      };
+      const createFn = vi.fn().mockRejectedValue(serverError);
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.emitted("error")).toBeTruthy();
+      expect(wrapper.emitted("error")![0]).toEqual([serverError]);
+    });
   });
 });

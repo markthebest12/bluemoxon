@@ -430,6 +430,10 @@ function openSourceUrl() {
     window.open(form.value.source_url, "_blank");
   }
 }
+
+function handleEntityError(err: unknown) {
+  errorMessage.value = getErrorMessage(err, "Failed to create entity");
+}
 </script>
 
 <template>
@@ -583,6 +587,7 @@ function openSourceUrl() {
                 :options="refsStore.authors"
                 :suggested-name="suggestedAuthorName"
                 :create-fn="refsStore.createAuthor"
+                @error="handleEntityError"
               />
               <p
                 v-if="validationErrors.author"
@@ -612,6 +617,7 @@ function openSourceUrl() {
                 :options="refsStore.publishers"
                 :suggested-name="suggestedPublisherName"
                 :create-fn="refsStore.createPublisher"
+                @error="handleEntityError"
               />
               <p
                 v-if="extractedData?.matches?.publisher"
@@ -637,6 +643,7 @@ function openSourceUrl() {
                 :options="refsStore.binders"
                 :suggested-name="suggestedBinderName"
                 :create-fn="refsStore.createBinder"
+                @error="handleEntityError"
               />
               <p
                 v-if="extractedData?.matches?.binder"
