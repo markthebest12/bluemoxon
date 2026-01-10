@@ -114,6 +114,7 @@ def validate_entity_for_book(
     entity_type: EntityType,
     name: str | None,
     threshold: float | None = None,
+    allow_unknown: bool = False,
 ) -> int | EntityValidationError | None:
     """Validate entity name before associating with a book.
 
@@ -125,11 +126,14 @@ def validate_entity_for_book(
         entity_type: Type of entity ("publisher", "binder", "author").
         name: Name of entity to validate.
         threshold: Fuzzy match threshold. If None, uses config value for entity type.
+        allow_unknown: If True, return None instead of unknown_entity error when
+            entity is not found. Useful for analysis workflows that may discover
+            new entities not yet in the database.
 
     Returns:
         int: Entity ID if exact match found (safe to associate).
-        EntityValidationError: If similar match (409) or unknown (400).
-        None: If name is empty/None (skip validation).
+        EntityValidationError: If similar match (409) or unknown (400, unless allow_unknown).
+        None: If name is empty/None (skip validation), or if allow_unknown=True and not found.
     """
     # Handle empty/None input - skip validation
     if not name or not name.strip():
@@ -158,6 +162,14 @@ def validate_entity_for_book(
         if settings.entity_validation_mode == "log":
             logger.warning(
                 "Entity validation: %s '%s' not found in database",
+                entity_type,
+                name,
+            )
+            return None
+
+        if allow_unknown:
+            logger.info(
+                "Entity validation: %s '%s' not found, allow_unknown=True - skipping",
                 entity_type,
                 name,
             )

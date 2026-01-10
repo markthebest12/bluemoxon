@@ -310,3 +310,98 @@ class TestValidationMode:
 
         assert result is not None
         assert result.error == "similar_entity_exists"
+
+
+class TestAllowUnknownParameter:
+    """Test allow_unknown parameter for validate_entity_for_book function.
+
+    The allow_unknown parameter allows analysis workflows to discover new entities
+    without triggering unknown_entity errors. This is needed because analysis
+    may reference entities not yet in the database.
+    """
+
+    def test_allow_unknown_returns_none_instead_of_error(self):
+        """With allow_unknown=True, unknown entity returns None instead of error.
+
+        Default behavior (allow_unknown=False) returns EntityValidationError with
+        error="unknown_entity". With allow_unknown=True, returns None to allow
+        the workflow to proceed.
+        """
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+
+                    # Default behavior: returns error
+                    result_default = validate_entity_for_book(db, "publisher", "Unknown Press")
+                    assert isinstance(result_default, EntityValidationError)
+                    assert result_default.error == "unknown_entity"
+
+                    # With allow_unknown=True: returns None
+                    result_allow = validate_entity_for_book(
+                        db, "publisher", "Unknown Press", allow_unknown=True
+                    )
+                    assert result_allow is None
+
+    def test_allow_unknown_still_returns_id_on_exact_match(self):
+        """With allow_unknown=True, exact matches still return entity ID.
+
+        The allow_unknown flag only affects the unknown_entity case.
+        Exact matches should still return the entity ID for association.
+        """
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=(5, "Macmillan and Co."),
+        ):
+            result = validate_entity_for_book(
+                db, "publisher", "Macmillan and Co.", allow_unknown=True
+            )
+
+        # Exact match returns entity ID regardless of allow_unknown
+        assert result == 5
+
+    def test_allow_unknown_still_returns_error_on_fuzzy_match(self):
+        """With allow_unknown=True, fuzzy matches still return similar_entity_exists error.
+
+        The allow_unknown flag only bypasses unknown_entity errors.
+        Fuzzy matches should still return similar_entity_exists to prevent
+        accidental creation of near-duplicate entities.
+        """
+        from app.services.entity_validation import validate_entity_for_book
+
+        db = MagicMock()
+        match = EntityMatch(
+            entity_id=5,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.94,
+            book_count=12,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name", return_value=None
+        ):
+            with patch("app.services.entity_validation.fuzzy_match_entity", return_value=[match]):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+
+                    result = validate_entity_for_book(
+                        db, "publisher", "Macmilan", allow_unknown=True
+                    )
+
+        # Fuzzy match still returns error even with allow_unknown=True
+        assert isinstance(result, EntityValidationError)
+        assert result.error == "similar_entity_exists"
+        assert result.suggestions[0].id == 5
