@@ -1483,3 +1483,44 @@ Buy this book.
         db.refresh(book)
         assert book.binder_id == binder.id
         assert book.publisher_id == publisher.id
+
+    def test_analysis_fuzzy_match_with_force_includes_match_details(self, client, db):
+        """Fuzzy match with force=true includes match name and confidence in warning."""
+        from app.models import Binder, Book
+
+        # Create existing binder
+        binder = Binder(name="Riviere & Son", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis with similar but not exact binder name
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Riviere and Son
+- **Confidence:** HIGH
+"""
+
+        # Upload with force=true to bypass the error
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis?force=true",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        # Check X-BMX-Warning header includes fuzzy match details
+        assert "X-BMX-Warning" in response.headers
+        warning_header = response.headers["X-BMX-Warning"]
+        assert "Riviere and Son" in warning_header
+        assert "fuzzy matches" in warning_header
+        assert "Riviere & Son" in warning_header
+        # Should include confidence percentage
+        assert "%" in warning_header

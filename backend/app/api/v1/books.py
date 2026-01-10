@@ -1528,18 +1528,32 @@ def update_book_analysis(
                 },
             )
 
-    # If force=True, append warnings for bypassed errors
+    # If force=True, append warnings for bypassed errors with fuzzy match details
     if force:
         if binder_error and binder_name:
-            warnings.append(
-                f"Binder '{binder_name}' validation skipped due to force=true "
-                f"({binder_error.error})"
-            )
+            if binder_error.suggestions:
+                top = binder_error.suggestions[0]
+                warnings.append(
+                    f"Binder '{binder_name}' fuzzy matches '{top.name}' "
+                    f"({top.match:.0%}) - skipped due to force=true"
+                )
+            else:
+                warnings.append(
+                    f"Binder '{binder_name}' validation skipped due to force=true "
+                    f"({binder_error.error})"
+                )
         if publisher_error and publisher_name:
-            warnings.append(
-                f"Publisher '{publisher_name}' validation skipped due to force=true "
-                f"({publisher_error.error})"
-            )
+            if publisher_error.suggestions:
+                top = publisher_error.suggestions[0]
+                warnings.append(
+                    f"Publisher '{publisher_name}' fuzzy matches '{top.name}' "
+                    f"({top.match:.0%}) - skipped due to force=true"
+                )
+            else:
+                warnings.append(
+                    f"Publisher '{publisher_name}' validation skipped due to force=true "
+                    f"({publisher_error.error})"
+                )
 
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)

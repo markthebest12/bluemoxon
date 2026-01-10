@@ -371,18 +371,30 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
 
         if parsed.binder_identification and parsed.binder_identification.get("name"):
             binder_name = parsed.binder_identification["name"]
-            binder_result = validate_entity_for_book(db, "binder", binder_name)
-            if isinstance(binder_result, EntityValidationError):
+            binder_result = validate_entity_for_book(db, "binder", binder_name, allow_unknown=True)
+            if binder_result is None:
+                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
+                logger.warning(
+                    f"Binder '{binder_name}' not found in database - skipping association"
+                )
+            elif isinstance(binder_result, EntityValidationError):
                 binder_error = binder_result
-            elif binder_result:
+            else:
                 binder_id_to_set = binder_result
 
         if parsed.publisher_identification and parsed.publisher_identification.get("name"):
             publisher_name = parsed.publisher_identification["name"]
-            publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
-            if isinstance(publisher_result, EntityValidationError):
+            publisher_result = validate_entity_for_book(
+                db, "publisher", publisher_name, allow_unknown=True
+            )
+            if publisher_result is None:
+                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
+                logger.warning(
+                    f"Publisher '{publisher_name}' not found in database - skipping association"
+                )
+            elif isinstance(publisher_result, EntityValidationError):
                 publisher_error = publisher_result
-            elif publisher_result:
+            else:
                 publisher_id_to_set = publisher_result
 
         # Check for validation errors AFTER validating both entities
