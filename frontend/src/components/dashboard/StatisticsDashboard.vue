@@ -7,9 +7,25 @@ import { formatAcquisitionTooltip } from "./chartHelpers";
 
 const router = useRouter();
 
-function navigateToBooks(filter: Record<string, string | number>) {
-  const route = router.resolve({ path: "/books", query: filter });
-  window.open(route.href, "_blank");
+/**
+ * Navigate to filtered books list.
+ * - Normal click: same tab (standard web behavior)
+ * - Ctrl/Cmd+Click: new tab (user choice)
+ */
+function navigateToBooks(filter: Record<string, string | number>, nativeEvent?: Event | null) {
+  const mouseEvent = nativeEvent as MouseEvent | undefined;
+  const wantsNewTab = mouseEvent?.ctrlKey || mouseEvent?.metaKey;
+
+  if (wantsNewTab) {
+    const route = router.resolve({ path: "/books", query: filter });
+    const newWindow = window.open(route.href, "_blank", "noopener");
+    if (!newWindow) {
+      // Popup blocked - fall back to same tab
+      void router.push({ path: "/books", query: filter });
+    }
+  } else {
+    void router.push({ path: "/books", query: filter });
+  }
 }
 import {
   Chart as ChartJS,
@@ -68,12 +84,12 @@ const chartColors = {
 const lineChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+  onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
       const day = props.data.acquisitions_daily[index];
       if (day?.date) {
-        navigateToBooks({ date_acquired: day.date });
+        navigateToBooks({ date_acquired: day.date }, event.native);
       }
     }
   },
@@ -113,13 +129,13 @@ const lineChartOptions = computed(() => ({
 }));
 
 // Factory function for doughnut chart options to reduce duplication
-function createDoughnutChartOptions(onClick: (index: number) => void) {
+function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event | null) => void) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    onClick: (event: ChartEvent, elements: ActiveElement[]) => {
       if (elements.length > 0) {
-        onClick(elements[0].index);
+        onClick(elements[0].index, event.native);
       }
     },
     plugins: {
@@ -147,32 +163,32 @@ function createDoughnutChartOptions(onClick: (index: number) => void) {
 
 // Chart-specific options with click handlers
 const conditionChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number) => {
+  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const condition = props.data.by_condition[index]?.condition;
     if (condition === "Ungraded") {
       alert("Ungraded books cannot be filtered - they have no condition value");
       return;
     }
     if (condition) {
-      navigateToBooks({ condition_grade: condition });
+      navigateToBooks({ condition_grade: condition }, nativeEvent);
     }
   })
 );
 
 const categoryChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number) => {
+  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const category = props.data.by_category[index]?.category;
     if (category) {
-      navigateToBooks({ category });
+      navigateToBooks({ category }, nativeEvent);
     }
   })
 );
 
 const bindingsChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number) => {
+  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const binder = props.data.bindings[index];
     if (binder?.binder_id) {
-      navigateToBooks({ binder_id: binder.binder_id, binding_authenticated: "true" });
+      navigateToBooks({ binder_id: binder.binder_id, binding_authenticated: "true" }, nativeEvent);
     }
   })
 );
@@ -181,12 +197,12 @@ const eraChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+  onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
       const era = props.data.by_era[index]?.era;
       if (era) {
-        navigateToBooks({ era });
+        navigateToBooks({ era }, event.native);
       }
     }
   },
@@ -222,13 +238,13 @@ const publisherChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+  onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
       const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
       const publisher = tier1[index];
       if (publisher?.publisher_id) {
-        navigateToBooks({ publisher_id: publisher.publisher_id });
+        navigateToBooks({ publisher_id: publisher.publisher_id }, event.native);
       }
     }
   },
@@ -418,12 +434,12 @@ const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+  onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
       const author = filteredAuthorData.value[index];
       if (author?.author_id) {
-        navigateToBooks({ author_id: author.author_id });
+        navigateToBooks({ author_id: author.author_id }, event.native);
       }
     }
   },

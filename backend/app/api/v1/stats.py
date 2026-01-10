@@ -628,24 +628,9 @@ def get_dashboard(
     Combines: overview, bindings, by-era, by-publisher, by-author, by-condition,
     by-category, acquisitions-daily.
     This reduces multiple API calls to 1 for the dashboard.
-    """
-    # Reuse existing endpoint logic
-    overview = get_overview(db)
-    bindings = get_bindings(db)
-    by_era = get_by_era(db)
-    by_publisher = get_by_publisher(db)
-    by_author = get_by_author(db)
-    by_condition = get_by_condition(db)
-    by_category = get_by_category(db)
-    acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
 
-    return {
-        "overview": overview,
-        "bindings": bindings,
-        "by_era": by_era,
-        "by_publisher": by_publisher,
-        "by_author": by_author,
-        "acquisitions_daily": acquisitions_daily,
-        "by_condition": by_condition,
-        "by_category": by_category,
-    }
+    Optimized: Uses consolidated queries to reduce DB round trips from ~14 to ~7.
+    """
+    from app.services.dashboard_stats import get_dashboard_optimized
+
+    return get_dashboard_optimized(db, reference_date, days)
