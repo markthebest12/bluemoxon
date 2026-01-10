@@ -1152,8 +1152,8 @@ class TestAnalysisEntityValidation:
         assert len(detail["suggestions"]) >= 1
         assert detail["suggestions"][0]["name"] == "Riviere & Son"
 
-    def test_analysis_with_unknown_publisher_returns_400(self, client, db):
-        """Analysis with unknown publisher name returns 400 Bad Request."""
+    def test_analysis_with_unknown_publisher_succeeds_with_warning(self, client, db):
+        """Analysis with unknown publisher name succeeds with warning (allow_unknown=True)."""
         from app.models import Book, Publisher
 
         # Create a few publishers but NOT the one we'll request
@@ -1176,21 +1176,22 @@ class TestAnalysisEntityValidation:
 **Binding:** Full Morocco
 """
 
-        # Upload analysis - should fail with 400 due to unknown publisher
+        # Upload analysis - should succeed with warning due to allow_unknown=True
         response = client.put(
             f"/api/v1/books/{book.id}/analysis",
             content=analysis_md,
             headers={"Content-Type": "text/plain"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
         data = response.json()
-        # FastAPI wraps HTTPException detail in a "detail" key
-        detail = data["detail"]
-        assert detail["error"] == "unknown_entity"
-        assert detail["entity_type"] == "publisher"
-        assert detail["input"] == "Completely Unknown Publisher Ltd"
-        assert detail["suggestions"] is None
+        # Response includes warnings for skipped associations
+        assert "warnings" in data
+        assert any("Completely Unknown Publisher Ltd" in w for w in data["warnings"])
+        assert any("not found" in w for w in data["warnings"])
+        # Book should not have publisher_id set
+        db.refresh(book)
+        assert book.publisher_id is None
 
     def test_analysis_with_exact_match_binder_succeeds(self, client, db):
         """Analysis with exact binder name match succeeds."""
