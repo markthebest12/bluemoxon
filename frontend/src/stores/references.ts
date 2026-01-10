@@ -69,20 +69,23 @@ export const useReferencesStore = defineStore("references", () => {
     }
   }
 
-  async function createAuthor(name: string): Promise<Author> {
-    const response = await api.post("/authors", { name: name.trim() });
+  async function createAuthor(name: string, force?: boolean): Promise<Author> {
+    const url = force ? "/authors?force=true" : "/authors";
+    const response = await api.post(url, { name: name.trim() });
     authors.value.push(response.data);
     return response.data;
   }
 
-  async function createPublisher(name: string): Promise<Publisher> {
-    const response = await api.post("/publishers", { name: name.trim() });
+  async function createPublisher(name: string, force?: boolean): Promise<Publisher> {
+    const url = force ? "/publishers?force=true" : "/publishers";
+    const response = await api.post(url, { name: name.trim() });
     publishers.value.push(response.data);
     return response.data;
   }
 
-  async function createBinder(name: string): Promise<Binder> {
-    const response = await api.post("/binders", { name: name.trim() });
+  async function createBinder(name: string, force?: boolean): Promise<Binder> {
+    const url = force ? "/binders?force=true" : "/binders";
+    const response = await api.post(url, { name: name.trim() });
     binders.value.push(response.data);
     return response.data;
   }

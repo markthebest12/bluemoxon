@@ -88,6 +88,8 @@ describe("StatisticsDashboard chart helpers", () => {
       by_era: [],
       by_publisher: [],
       by_author: [],
+      by_condition: [],
+      by_category: [],
       acquisitions_daily: [
         {
           date: "2026-01-05",

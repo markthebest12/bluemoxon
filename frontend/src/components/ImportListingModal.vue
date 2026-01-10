@@ -425,37 +425,14 @@ function goBack() {
   extractedData.value = null;
 }
 
-async function handleCreateAuthor(name: string) {
-  try {
-    const author = await refsStore.createAuthor(name);
-    form.value.author_id = author.id;
-  } catch (e: unknown) {
-    errorMessage.value = getErrorMessage(e, "Failed to create author");
-  }
-}
-
-async function handleCreatePublisher(name: string) {
-  try {
-    const publisher = await refsStore.createPublisher(name);
-    form.value.publisher_id = publisher.id;
-  } catch (e: unknown) {
-    errorMessage.value = getErrorMessage(e, "Failed to create publisher");
-  }
-}
-
-async function handleCreateBinder(name: string) {
-  try {
-    const binder = await refsStore.createBinder(name);
-    form.value.binder_id = binder.id;
-  } catch (e: unknown) {
-    errorMessage.value = getErrorMessage(e, "Failed to create binder");
-  }
-}
-
 function openSourceUrl() {
   if (form.value.source_url) {
     window.open(form.value.source_url, "_blank");
   }
+}
+
+function handleEntityError(err: unknown) {
+  errorMessage.value = getErrorMessage(err, "Failed to create entity");
 }
 </script>
 
@@ -609,7 +586,8 @@ function openSourceUrl() {
                 label="Author"
                 :options="refsStore.authors"
                 :suggested-name="suggestedAuthorName"
-                @create="handleCreateAuthor"
+                :create-fn="refsStore.createAuthor"
+                @error="handleEntityError"
               />
               <p
                 v-if="validationErrors.author"
@@ -638,7 +616,8 @@ function openSourceUrl() {
                 label="Publisher"
                 :options="refsStore.publishers"
                 :suggested-name="suggestedPublisherName"
-                @create="handleCreatePublisher"
+                :create-fn="refsStore.createPublisher"
+                @error="handleEntityError"
               />
               <p
                 v-if="extractedData?.matches?.publisher"
@@ -663,7 +642,8 @@ function openSourceUrl() {
                 label="Binder"
                 :options="refsStore.binders"
                 :suggested-name="suggestedBinderName"
-                @create="handleCreateBinder"
+                :create-fn="refsStore.createBinder"
+                @error="handleEntityError"
               />
               <p
                 v-if="extractedData?.matches?.binder"
