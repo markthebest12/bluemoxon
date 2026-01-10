@@ -206,3 +206,62 @@ class TestOverviewStatsParallelComparison:
         assert new_result["authenticated_bindings"] == old_result["authenticated_bindings"]
         assert new_result["in_transit"] == old_result["in_transit"]
         assert new_result["week_delta"] == old_result["week_delta"]
+
+
+class TestDimensionStatsProperties:
+    """Property-based tests for ongoing regression coverage."""
+
+    def test_condition_counts_sum_to_primary_total(self, db_with_diverse_books):
+        """All condition counts should sum to total PRIMARY books."""
+        db = db_with_diverse_books
+        from app.services.dashboard_stats import get_dimension_stats
+
+        stats = get_dimension_stats(db)
+        total = sum(item["count"] for item in stats["by_condition"])
+
+        expected = db.query(Book).filter(Book.inventory_type == "PRIMARY").count()
+        assert total == expected
+
+    def test_category_counts_sum_to_primary_total(self, db_with_diverse_books):
+        """All category counts should sum to total PRIMARY books."""
+        db = db_with_diverse_books
+        from app.services.dashboard_stats import get_dimension_stats
+
+        stats = get_dimension_stats(db)
+        total = sum(item["count"] for item in stats["by_category"])
+
+        expected = db.query(Book).filter(Book.inventory_type == "PRIMARY").count()
+        assert total == expected
+
+    def test_era_counts_sum_to_primary_total(self, db_with_diverse_books):
+        """All era counts should sum to total PRIMARY books."""
+        db = db_with_diverse_books
+        from app.services.dashboard_stats import get_dimension_stats
+
+        stats = get_dimension_stats(db)
+        total = sum(item["count"] for item in stats["by_era"])
+
+        expected = db.query(Book).filter(Book.inventory_type == "PRIMARY").count()
+        assert total == expected
+
+    def test_overview_on_hand_plus_transit_equals_primary(self, db_with_diverse_books):
+        """ON_HAND + IN_TRANSIT should equal primary count (excluding SOLD, etc)."""
+        db = db_with_diverse_books
+        from app.services.dashboard_stats import get_overview_stats
+
+        stats = get_overview_stats(db)
+
+        # This checks the internal consistency
+        on_hand = stats["primary"]["count"]
+        in_transit = stats["in_transit"]
+
+        # Should match books with ON_HAND or IN_TRANSIT status
+        expected = (
+            db.query(Book)
+            .filter(
+                Book.inventory_type == "PRIMARY",
+                Book.status.in_(["ON_HAND", "IN_TRANSIT"]),
+            )
+            .count()
+        )
+        assert on_hand + in_transit == expected
