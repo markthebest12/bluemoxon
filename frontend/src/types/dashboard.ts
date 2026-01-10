@@ -22,6 +22,7 @@ export interface OverviewStats {
 }
 
 export interface BinderData {
+  binder_id: number;
   binder: string;
   full_name: string;
   count: number;
@@ -35,6 +36,7 @@ export interface EraData {
 }
 
 export interface PublisherData {
+  publisher_id: number;
   publisher: string;
   tier: string;
   count: number;
@@ -43,6 +45,7 @@ export interface PublisherData {
 }
 
 export interface AuthorData {
+  author_id: number;
   author: string;
   count: number;
   value: number;

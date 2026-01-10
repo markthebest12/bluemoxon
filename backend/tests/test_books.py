@@ -1092,6 +1092,51 @@ class TestBuildBookResponse:
         assert response.inventory_type == "PRIMARY"
 
 
+class TestFilterByDateAcquired:
+    """Tests for filtering books by date_acquired (purchase_date)."""
+
+    def test_filter_by_date_acquired(self, client, db):
+        """Test filtering books by acquisition date."""
+        from datetime import date
+
+        from app.models import Book
+
+        # Create a book with a specific purchase/acquisition date
+        book = Book(title="Test Book", purchase_date=date(2026, 1, 5))
+        db.add(book)
+        db.commit()
+
+        # Filter by that date using date_acquired param
+        response = client.get("/api/v1/books", params={"date_acquired": "2026-01-05"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should find the book
+        assert data["total"] >= 1
+        book_ids = [b["id"] for b in data["items"]]
+        assert book.id in book_ids
+
+    def test_filter_by_date_acquired_no_match(self, client, db):
+        """Test date_acquired filter returns empty when no match."""
+        from datetime import date
+
+        from app.models import Book
+
+        # Create a book with a specific purchase/acquisition date
+        book = Book(title="Test Book", purchase_date=date(2026, 1, 5))
+        db.add(book)
+        db.commit()
+
+        # Filter by different date
+        response = client.get("/api/v1/books", params={"date_acquired": "2026-01-10"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should not find the book
+        book_ids = [b["id"] for b in data["items"]]
+        assert book.id not in book_ids
+
+
 class TestAnalysisEntityValidation:
     """Test entity validation in analysis upload endpoint."""
 

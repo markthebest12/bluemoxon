@@ -250,6 +250,7 @@ def get_by_publisher(db: Session = Depends(get_db)):
     """Get counts by publisher with tier info."""
     results = (
         db.query(
+            Publisher.id,
             Publisher.name,
             Publisher.tier,
             func.count(Book.id),
@@ -265,11 +266,12 @@ def get_by_publisher(db: Session = Depends(get_db)):
 
     return [
         {
-            "publisher": row[0],
-            "tier": row[1],
-            "count": row[2],
-            "value": safe_float(row[3]),
-            "volumes": row[4] or 0,
+            "publisher_id": row[0],
+            "publisher": row[1],
+            "tier": row[2],
+            "count": row[3],
+            "value": safe_float(row[4]),
+            "volumes": row[5] or 0,
         }
         for row in results
     ]
@@ -339,6 +341,7 @@ def get_by_author(db: Session = Depends(get_db)):
 
         author_data.append(
             {
+                "author_id": author_id,
                 "author": author_name,
                 "count": volumes or 0,  # Total individual books (volumes)
                 "value": safe_float(value),
@@ -358,6 +361,7 @@ def get_bindings(db: Session = Depends(get_db)):
     """Get authenticated binding counts by binder."""
     results = (
         db.query(
+            Binder.id,
             Binder.name,
             Binder.full_name,
             func.count(Book.id),
@@ -375,10 +379,11 @@ def get_bindings(db: Session = Depends(get_db)):
 
     return [
         {
-            "binder": row[0],
-            "full_name": row[1],
-            "count": row[2],
-            "value": safe_float(row[3]),
+            "binder_id": row[0],
+            "binder": row[1],
+            "full_name": row[2],
+            "count": row[3],
+            "value": safe_float(row[4]),
         }
         for row in results
     ]
