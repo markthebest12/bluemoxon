@@ -207,9 +207,7 @@ def get_overview_stats(db: Session) -> dict:
     }
 
 
-def get_dashboard_optimized(
-    db: Session, reference_date: str = None, days: int = 30
-) -> dict:
+def get_dashboard_optimized(db: Session, reference_date: str = None, days: int = 30) -> dict:
     """Get all dashboard stats with optimized queries.
 
     Reduces query count from ~14 to ~7 by using consolidated queries
