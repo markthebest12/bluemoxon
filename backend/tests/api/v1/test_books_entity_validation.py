@@ -293,9 +293,7 @@ Test
             entity_type="publisher",
             input="Kegan Paul",
             suggestions=[
-                EntitySuggestion(
-                    id=5, name="Kegan Paul & Co.", tier=None, match=0.90, book_count=3
-                )
+                EntitySuggestion(id=5, name="Kegan Paul & Co.", tier=None, match=0.90, book_count=3)
             ],
             resolution="Use existing",
         )
