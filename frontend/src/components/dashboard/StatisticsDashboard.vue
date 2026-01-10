@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { TooltipItem } from "chart.js";
+import { useRouter } from "vue-router";
+import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
 import type { DashboardStats } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
+
+const router = useRouter();
+
+function navigateToBooks(filter: Record<string, string | number>) {
+  void router.push({ path: "/books", query: filter });
+}
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -60,6 +67,15 @@ const chartColors = {
 const lineChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const day = props.data.acquisitions_daily[index];
+      if (day?.date) {
+        navigateToBooks({ date_acquired: day.date });
+      }
+    }
+  },
   plugins: {
     legend: {
       display: false,
@@ -95,9 +111,19 @@ const lineChartOptions = computed(() => ({
   },
 }));
 
-const doughnutOptions = {
+// Chart-specific options with click handlers
+const conditionChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const condition = props.data.by_condition[index]?.condition;
+      if (condition && condition !== "Ungraded") {
+        navigateToBooks({ condition_grade: condition });
+      }
+    }
+  },
   plugins: {
     legend: {
       position: "bottom" as const,
@@ -118,12 +144,90 @@ const doughnutOptions = {
       },
     },
   },
-};
+}));
 
-const barChartOptions = {
+const categoryChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const category = props.data.by_category[index]?.category;
+      if (category) {
+        navigateToBooks({ category });
+      }
+    }
+  },
+  plugins: {
+    legend: {
+      position: "bottom" as const,
+      labels: {
+        boxWidth: 12,
+        padding: 8,
+        font: { size: 11 },
+      },
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: TooltipItem<"doughnut">) => {
+          const value = context.raw as number;
+          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
+          const pct = ((value / total) * 100).toFixed(1);
+          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
+        },
+      },
+    },
+  },
+}));
+
+const bindingsChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const binder = props.data.bindings[index];
+      if (binder?.binder) {
+        // Use text search for binder name since ID isn't in dashboard response
+        navigateToBooks({ q: binder.binder, binding_authenticated: "true" });
+      }
+    }
+  },
+  plugins: {
+    legend: {
+      position: "bottom" as const,
+      labels: {
+        boxWidth: 12,
+        padding: 8,
+        font: { size: 11 },
+      },
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: TooltipItem<"doughnut">) => {
+          const value = context.raw as number;
+          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
+          const pct = ((value / total) * 100).toFixed(1);
+          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
+        },
+      },
+    },
+  },
+}));
+
+const eraChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const era = props.data.by_era[index]?.era;
+      if (era) {
+        navigateToBooks({ era });
+      }
+    }
+  },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -150,7 +254,50 @@ const barChartOptions = {
       ticks: { font: { size: 10 } },
     },
   },
-};
+}));
+
+const publisherChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: "y" as const,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
+      const publisher = tier1[index];
+      if (publisher?.publisher) {
+        // Use text search for publisher name since ID isn't in dashboard response
+        navigateToBooks({ q: publisher.publisher });
+      }
+    }
+  },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (context: TooltipItem<"bar">) => {
+          const value = context.raw as number;
+          return `${value} ${value === 1 ? "book" : "books"}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: "rgba(0,0,0,0.05)" },
+      ticks: {
+        font: { size: 10 },
+        stepSize: 1,
+        callback: (value: string | number) => (Number.isInteger(Number(value)) ? value : ""),
+      },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { size: 10 } },
+    },
+  },
+}));
 
 // Computed chart data - cumulative value growth (daily, last 30 days)
 const acquisitionChartData = computed(() => ({
@@ -310,6 +457,16 @@ const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+    if (elements.length > 0) {
+      const index = elements[0].index;
+      const author = filteredAuthorData.value[index];
+      if (author?.author) {
+        // Use text search for author name since ID isn't in dashboard response
+        navigateToBooks({ q: author.author });
+      }
+    }
+  },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -373,7 +530,7 @@ const authorChartOptions = computed(() => ({
           <Doughnut
             v-if="props.data.bindings.length > 0"
             :data="binderChartData"
-            :options="doughnutOptions"
+            :options="bindingsChartOptions"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No binding data available
@@ -390,7 +547,7 @@ const authorChartOptions = computed(() => ({
           <Bar
             v-if="props.data.by_era.length > 0"
             :data="eraChartData"
-            :options="barChartOptions"
+            :options="eraChartOptions"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No era data available
@@ -424,7 +581,11 @@ const authorChartOptions = computed(() => ({
           Top Tier 1 Publishers
         </h3>
         <div class="h-48 md:h-56">
-          <Bar v-if="hasTier1Publishers" :data="publisherChartData" :options="barChartOptions" />
+          <Bar
+            v-if="hasTier1Publishers"
+            :data="publisherChartData"
+            :options="publisherChartOptions"
+          />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No Tier 1 publisher data available
           </p>
@@ -440,7 +601,7 @@ const authorChartOptions = computed(() => ({
           <Doughnut
             v-if="props.data?.by_condition?.length > 0"
             :data="conditionChartData"
-            :options="doughnutOptions"
+            :options="conditionChartOptions"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No condition data available
@@ -457,7 +618,7 @@ const authorChartOptions = computed(() => ({
           <Doughnut
             v-if="props.data?.by_category?.length > 0"
             :data="categoryChartData"
-            :options="doughnutOptions"
+            :options="categoryChartOptions"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No category data available
@@ -484,3 +645,10 @@ const authorChartOptions = computed(() => ({
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Make charts show clickable cursor */
+canvas {
+  cursor: pointer;
+}
+</style>

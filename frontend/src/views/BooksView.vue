@@ -102,6 +102,17 @@ function syncFiltersFromUrl() {
   } else {
     booksStore.filters.binding_authenticated = undefined;
   }
+
+  // Chart filter syncs
+  booksStore.filters.condition_grade = (route.query.condition_grade as string) || undefined;
+  booksStore.filters.category = (route.query.category as string) || undefined;
+  booksStore.filters.era = (route.query.era as string) || undefined;
+  booksStore.filters.binder_id = route.query.binder_id ? Number(route.query.binder_id) : undefined;
+  booksStore.filters.author_id = route.query.author_id ? Number(route.query.author_id) : undefined;
+  booksStore.filters.publisher_id = route.query.publisher_id
+    ? Number(route.query.publisher_id)
+    : undefined;
+  booksStore.filters.date_acquired = (route.query.date_acquired as string) || undefined;
 }
 
 // Track if we've initialized and if we're updating URL ourselves
@@ -152,6 +163,29 @@ function updateUrlWithFilters() {
   }
   if (booksStore.filters.binding_authenticated !== undefined) {
     query.binding_authenticated = String(booksStore.filters.binding_authenticated);
+  }
+
+  // Chart filter URL params
+  if (booksStore.filters.condition_grade) {
+    query.condition_grade = booksStore.filters.condition_grade;
+  }
+  if (booksStore.filters.category) {
+    query.category = booksStore.filters.category;
+  }
+  if (booksStore.filters.era) {
+    query.era = booksStore.filters.era;
+  }
+  if (booksStore.filters.binder_id) {
+    query.binder_id = String(booksStore.filters.binder_id);
+  }
+  if (booksStore.filters.author_id) {
+    query.author_id = String(booksStore.filters.author_id);
+  }
+  if (booksStore.filters.publisher_id) {
+    query.publisher_id = String(booksStore.filters.publisher_id);
+  }
+  if (booksStore.filters.date_acquired) {
+    query.date_acquired = booksStore.filters.date_acquired;
   }
 
   // Set flag to prevent watch from firing
