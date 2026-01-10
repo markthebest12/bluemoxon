@@ -1,12 +1,14 @@
 """Entity validation service for preventing duplicate creation."""
 
 import logging
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
 from app.services.entity_matching import (
+    EntityMatch,
     EntityType,
     _get_cached_entities,
     _normalize_for_entity_type,
@@ -14,6 +16,50 @@ from app.services.entity_matching import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ValidationResult:
+    """Result of validating an entity for book association.
+
+    This provides visibility into what happened during validation:
+    - entity_id set: Exact match found, safe to associate
+    - skipped_match set: Fuzzy match found in log mode, association skipped
+    - error set: Validation failed (enforce mode)
+    - All None: No entity found or empty input
+    """
+
+    entity_id: int | None = None
+    skipped_match: EntityMatch | None = None
+    error: EntityValidationError | None = None
+
+    @property
+    def success(self) -> bool:
+        """True if an entity was found and can be associated."""
+        return self.entity_id is not None
+
+    @property
+    def was_skipped(self) -> bool:
+        """True if association was skipped due to fuzzy match in log mode."""
+        return self.skipped_match is not None
+
+
+@dataclass
+class EntityAssociationResult:
+    """Result of validating and associating entities with a book."""
+
+    binder: ValidationResult
+    publisher: ValidationResult
+
+    @property
+    def has_errors(self) -> bool:
+        """True if either binder or publisher validation returned an error."""
+        return self.binder.error is not None or self.publisher.error is not None
+
+    @property
+    def has_skipped(self) -> bool:
+        """True if either binder or publisher association was skipped."""
+        return self.binder.was_skipped or self.publisher.was_skipped
 
 
 def _get_entity_by_normalized_name(
@@ -114,11 +160,11 @@ def validate_entity_for_book(
     entity_type: EntityType,
     name: str | None,
     threshold: float | None = None,
-) -> int | EntityValidationError | None:
+) -> ValidationResult:
     """Validate entity name before associating with a book.
 
     Unlike validate_entity_creation(), this function is for book endpoints
-    and returns the entity ID on exact match (allowing direct association).
+    and returns a ValidationResult with the entity ID on exact match.
 
     Args:
         db: Database session.
@@ -127,13 +173,15 @@ def validate_entity_for_book(
         threshold: Fuzzy match threshold. If None, uses config value for entity type.
 
     Returns:
-        int: Entity ID if exact match found (safe to associate).
-        EntityValidationError: If similar match (409) or unknown (400).
-        None: If name is empty/None (skip validation).
+        ValidationResult with:
+        - entity_id: Set if exact match found (safe to associate)
+        - error: Set if validation failed (enforce mode)
+        - skipped_match: Set if fuzzy match skipped (log mode) - fixes #1013
+        - All None: If name is empty/None (skip validation)
     """
     # Handle empty/None input - skip validation
     if not name or not name.strip():
-        return None
+        return ValidationResult()
 
     settings = get_settings()
 
@@ -144,7 +192,7 @@ def validate_entity_for_book(
     exact_match = _get_entity_by_normalized_name(db, entity_type, normalized_name)
     if exact_match:
         entity_id, _ = exact_match
-        return entity_id
+        return ValidationResult(entity_id=entity_id)
 
     # No exact match - use fuzzy matching to find similar entities
     if threshold is None:
@@ -161,14 +209,16 @@ def validate_entity_for_book(
                 entity_type,
                 name,
             )
-            return None
+            return ValidationResult()
 
-        return EntityValidationError(
-            error="unknown_entity",
-            entity_type=entity_type,
-            input=name,
-            suggestions=None,
-            resolution=f"Create the {entity_type} first, or use an existing {entity_type} name",
+        return ValidationResult(
+            error=EntityValidationError(
+                error="unknown_entity",
+                entity_type=entity_type,
+                input=name,
+                suggestions=None,
+                resolution=f"Create the {entity_type} first, or use an existing {entity_type} name",
+            )
         )
 
     # Fuzzy matches found - similar entity exists
@@ -184,8 +234,8 @@ def validate_entity_for_book(
         for m in matches
     ]
 
-    # In log mode, log warning but return None (don't silently associate with different entity)
-    # Returning the fuzzy match would silently "correct" the name, which is potentially data corruption
+    # In log mode, log warning and return skipped_match for visibility (#1013 fix)
+    # Don't silently associate with different entity - that's potentially data corruption
     if settings.entity_validation_mode == "log":
         logger.warning(
             "Entity validation would reject: %s '%s' fuzzy matches '%s' at %.0f%% (book_count: %d) - "
@@ -196,12 +246,52 @@ def validate_entity_for_book(
             top_match.confidence * 100,
             top_match.book_count,
         )
-        return None
+        return ValidationResult(skipped_match=top_match)
 
-    return EntityValidationError(
-        error="similar_entity_exists",
-        entity_type=entity_type,
-        input=name,
-        suggestions=suggestions,
-        resolution=f"Use existing {entity_type} '{top_match.name}' (ID: {top_match.entity_id}), or create a new {entity_type} first",
+    return ValidationResult(
+        error=EntityValidationError(
+            error="similar_entity_exists",
+            entity_type=entity_type,
+            input=name,
+            suggestions=suggestions,
+            resolution=f"Use existing {entity_type} '{top_match.name}' (ID: {top_match.entity_id}), or create a new {entity_type} first",
+        )
     )
+
+
+def validate_and_associate_entities(
+    db: Session,
+    book,  # Type: app.models.book.Book (avoid circular import)
+    parsed,  # Type: app.utils.markdown_parser.ParsedAnalysis
+) -> EntityAssociationResult:
+    """Validate binder/publisher and associate with book if valid.
+
+    This function consolidates the validation logic that was duplicated
+    in books.py and worker.py (#1014 fix).
+
+    Args:
+        db: Database session.
+        book: Book model instance to update.
+        parsed: ParsedAnalysis with binder_identification and publisher_identification.
+
+    Returns:
+        EntityAssociationResult with validation results for both entities.
+    """
+    binder_result = ValidationResult()
+    publisher_result = ValidationResult()
+
+    # Validate and associate binder
+    if parsed.binder_identification and parsed.binder_identification.get("name"):
+        binder_result = validate_entity_for_book(db, "binder", parsed.binder_identification["name"])
+        if binder_result.success:
+            book.binder_id = binder_result.entity_id
+
+    # Validate and associate publisher
+    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
+        publisher_result = validate_entity_for_book(
+            db, "publisher", parsed.publisher_identification["name"]
+        )
+        if publisher_result.success:
+            book.publisher_id = publisher_result.entity_id
+
+    return EntityAssociationResult(binder=binder_result, publisher=publisher_result)
