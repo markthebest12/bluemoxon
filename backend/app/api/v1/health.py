@@ -600,6 +600,7 @@ Migrations run in order:
 28. x7890123abcd - Add E.164 phone constraint and carrier_circuit_state table
 29. d3b3c3c4dd80 - Backfill tracking_active for existing in-transit books
 30. 21eb898ba04b - Add missing condition_grade mappings (G+, G-, NF-, F-, Good-, VGC)
+31. 5bd4bb0308b4 - Normalize condition_grade values to UPPERCASE
 
 Returns the list of SQL statements executed and their results.
     """,
