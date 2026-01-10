@@ -472,6 +472,17 @@ MIGRATION_Y8901234BCDE_SQL = [
     END $$""",
 ]
 
+# Migration SQL for 5bd4bb0308b4_normalize_condition_grade_casing
+# Normalizes condition_grade values to UPPERCASE for consistency
+# Adds backup column for rollback capability
+MIGRATION_5BD4BB0308B4_SQL = [
+    """ALTER TABLE books ADD COLUMN IF NOT EXISTS _condition_grade_backup VARCHAR(20)""",
+    """UPDATE books SET _condition_grade_backup = condition_grade
+       WHERE condition_grade IS NOT NULL AND _condition_grade_backup IS NULL""",
+    """UPDATE books SET condition_grade = UPPER(condition_grade)
+       WHERE condition_grade IS NOT NULL AND condition_grade != UPPER(condition_grade)""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -696,5 +707,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "y8901234bcde",
         "name": "add_unique_constraint_to_author_name",
         "sql_statements": MIGRATION_Y8901234BCDE_SQL,
+    },
+    {
+        "id": "5bd4bb0308b4",
+        "name": "normalize_condition_grade_casing",
+        "sql_statements": MIGRATION_5BD4BB0308B4_SQL,
     },
 ]

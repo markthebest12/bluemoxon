@@ -526,6 +526,10 @@ def list_books(
     if params.year_end is not None:
         query = query.filter(Book.year_end <= params.year_end)
 
+    # Filter by date_acquired (maps to purchase_date in database)
+    if params.date_acquired:
+        query = query.filter(Book.purchase_date == params.date_acquired)
+
     # Filter by has_images
     if params.has_images is not None:
         image_exists = exists().where(BookImage.book_id == Book.id)

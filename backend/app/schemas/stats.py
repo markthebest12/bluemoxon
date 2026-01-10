@@ -43,6 +43,7 @@ class OverviewStats(BaseModel):
 class BinderData(BaseModel):
     """Authenticated binding data by binder."""
 
+    binder_id: int
     binder: str
     full_name: str | None
     count: int
@@ -60,6 +61,7 @@ class EraData(BaseModel):
 class PublisherData(BaseModel):
     """Books grouped by publisher."""
 
+    publisher_id: int
     publisher: str
     tier: str | None
     count: int
@@ -70,6 +72,7 @@ class PublisherData(BaseModel):
 class AuthorData(BaseModel):
     """Books grouped by author."""
 
+    author_id: int
     author: str
     count: int
     value: float

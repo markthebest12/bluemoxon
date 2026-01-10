@@ -113,6 +113,7 @@ interface Filters {
   has_provenance?: boolean;
   provenance_tier?: string;
   is_first_edition?: boolean;
+  date_acquired?: string; // ISO date string YYYY-MM-DD
 }
 
 export const useBooksStore = defineStore("books", () => {
