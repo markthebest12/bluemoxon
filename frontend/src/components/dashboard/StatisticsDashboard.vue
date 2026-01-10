@@ -8,7 +8,8 @@ import { formatAcquisitionTooltip } from "./chartHelpers";
 const router = useRouter();
 
 function navigateToBooks(filter: Record<string, string | number>) {
-  void router.push({ path: "/books", query: filter });
+  const route = router.resolve({ path: "/books", query: filter });
+  window.open(route.href, "_blank");
 }
 import {
   Chart as ChartJS,
