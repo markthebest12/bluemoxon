@@ -84,6 +84,11 @@ class BookListParams(BaseModel):
     year_start: int | None = None
     year_end: int | None = None
 
+    # Date filters
+    date_acquired: date | None = Field(
+        default=None, description="Filter by acquisition date (purchase_date)"
+    )
+
     # Boolean filters
     has_images: bool | None = None
     has_analysis: bool | None = None
