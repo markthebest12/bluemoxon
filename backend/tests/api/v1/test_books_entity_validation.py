@@ -200,3 +200,146 @@ Test summary
         # Publisher should be associated since it still exists
         db.refresh(sample_book)
         assert sample_book.publisher_id == publisher.id
+
+
+class TestForceParameterAnalysis:
+    """Test force parameter bypasses entity validation in analysis."""
+
+    def test_force_bypasses_similar_entity_409(self, client, db, sample_book):
+        """With force=true, similar entity conflict is ignored."""
+        from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Riviere and Son
+"""
+        error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="binder",
+            input="Riviere and Son",
+            suggestions=[
+                EntitySuggestion(
+                    id=1, name="Riviere & Son", tier="TIER_1", match=0.95, book_count=10
+                )
+            ],
+            resolution="Use existing",
+        )
+
+        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+            # Without force - should get 409
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 409
+
+            # With force=true - should succeed
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis?force=true",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 200
+
+    def test_force_bypasses_unknown_entity_400(self, client, db, sample_book):
+        """With force=true, unknown entity error is ignored."""
+        from app.schemas.entity_validation import EntityValidationError
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Brand New Binder
+"""
+        error = EntityValidationError(
+            error="unknown_entity",
+            entity_type="binder",
+            input="Brand New Binder",
+            suggestions=None,
+            resolution="Create first",
+        )
+
+        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+            # Without force - should get 400
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 400
+
+            # With force=true - should succeed (skip association)
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis?force=true",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 200
+
+    def test_force_bypasses_publisher_validation_error(self, client, db, sample_book):
+        """With force=true, publisher validation errors are also bypassed."""
+        from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
+
+        markdown = """## Executive Summary
+Test
+
+**Publisher:** Kegan Paul
+"""
+        error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="publisher",
+            input="Kegan Paul",
+            suggestions=[
+                EntitySuggestion(
+                    id=5, name="Kegan Paul & Co.", tier=None, match=0.90, book_count=3
+                )
+            ],
+            resolution="Use existing",
+        )
+
+        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+            # Without force - should get 409
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 409
+
+            # With force=true - should succeed
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis?force=true",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 200
+
+    def test_force_false_does_not_bypass_validation(self, client, db, sample_book):
+        """With force=false (default), validation errors are raised."""
+        from app.schemas.entity_validation import EntityValidationError
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Mysterious Binder
+"""
+        error = EntityValidationError(
+            error="unknown_entity",
+            entity_type="binder",
+            input="Mysterious Binder",
+            suggestions=None,
+            resolution="Create first",
+        )
+
+        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+            # Explicit force=false - should still get 400
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis?force=false",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+            assert response.status_code == 400

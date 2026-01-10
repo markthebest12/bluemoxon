@@ -1402,6 +1402,10 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
 def update_book_analysis(
     book_id: int,
     full_markdown: str = Body(..., media_type="text/plain"),
+    force: bool = Query(
+        default=False,
+        description="Bypass entity validation errors and skip association",
+    ),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
 ):
@@ -1433,20 +1437,31 @@ def update_book_analysis(
         binder_result = validate_entity_for_book(db, "binder", binder_name)
 
         if isinstance(binder_result, EntityValidationError):
-            status_code = 409 if binder_result.error == "similar_entity_exists" else 400
-            raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
-
-        binder_id_to_set = binder_result
+            if force:
+                logger.info(
+                    f"Skipping binder validation error due to force=true: {binder_result.error}"
+                )
+            else:
+                status_code = 409 if binder_result.error == "similar_entity_exists" else 400
+                raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
+        else:
+            binder_id_to_set = binder_result
 
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
         publisher_name = parsed.publisher_identification["name"]
         publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
 
         if isinstance(publisher_result, EntityValidationError):
-            status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
-            raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
-
-        publisher_id_to_set = publisher_result
+            if force:
+                logger.info(
+                    f"Skipping publisher validation error due to force=true: "
+                    f"{publisher_result.error}"
+                )
+            else:
+                status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
+                raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
+        else:
+            publisher_id_to_set = publisher_result
 
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)
