@@ -39,6 +39,7 @@ enable_nat_gateway            = false
 enable_waf                    = true
 enable_cost_explorer_access   = true
 enable_scraper                = true # Scraper now managed by Terraform (imported in #412)
+enable_elasticache            = true # Redis caching for dashboard stats (#1002)
 
 # Scraper name overrides - production uses inconsistent legacy naming
 scraper_ecr_repository_name_override = "bluemoxon-scraper"
