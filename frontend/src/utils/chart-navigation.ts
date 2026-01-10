@@ -35,4 +35,3 @@ export function navigateToBooks(
     void router.push({ path: "/books", query: filter });
   }
 }
-
