@@ -111,109 +111,70 @@ const lineChartOptions = computed(() => ({
   },
 }));
 
+// Factory function for doughnut chart options to reduce duplication
+function createDoughnutChartOptions(onClick: (index: number) => void) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+      if (elements.length > 0) {
+        onClick(elements[0].index);
+      }
+    },
+    plugins: {
+      legend: {
+        position: "bottom" as const,
+        labels: {
+          boxWidth: 12,
+          padding: 8,
+          font: { size: 11 },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<"doughnut">) => {
+            const value = context.raw as number;
+            const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
+            const pct = ((value / total) * 100).toFixed(1);
+            return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
+          },
+        },
+      },
+    },
+  };
+}
+
 // Chart-specific options with click handlers
-const conditionChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
-    if (elements.length > 0) {
-      const index = elements[0].index;
-      const condition = props.data.by_condition[index]?.condition;
-      if (condition && condition !== "Ungraded") {
-        navigateToBooks({ condition_grade: condition });
-      }
+const conditionChartOptions = computed(() =>
+  createDoughnutChartOptions((index: number) => {
+    const condition = props.data.by_condition[index]?.condition;
+    if (condition === "Ungraded") {
+      alert("Ungraded books cannot be filtered - they have no condition value");
+      return;
     }
-  },
-  plugins: {
-    legend: {
-      position: "bottom" as const,
-      labels: {
-        boxWidth: 12,
-        padding: 8,
-        font: { size: 11 },
-      },
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: TooltipItem<"doughnut">) => {
-          const value = context.raw as number;
-          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
-          const pct = ((value / total) * 100).toFixed(1);
-          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
-        },
-      },
-    },
-  },
-}));
+    if (condition) {
+      navigateToBooks({ condition_grade: condition });
+    }
+  })
+);
 
-const categoryChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
-    if (elements.length > 0) {
-      const index = elements[0].index;
-      const category = props.data.by_category[index]?.category;
-      if (category) {
-        navigateToBooks({ category });
-      }
+const categoryChartOptions = computed(() =>
+  createDoughnutChartOptions((index: number) => {
+    const category = props.data.by_category[index]?.category;
+    if (category) {
+      navigateToBooks({ category });
     }
-  },
-  plugins: {
-    legend: {
-      position: "bottom" as const,
-      labels: {
-        boxWidth: 12,
-        padding: 8,
-        font: { size: 11 },
-      },
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: TooltipItem<"doughnut">) => {
-          const value = context.raw as number;
-          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
-          const pct = ((value / total) * 100).toFixed(1);
-          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
-        },
-      },
-    },
-  },
-}));
+  })
+);
 
-const bindingsChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
-    if (elements.length > 0) {
-      const index = elements[0].index;
-      const binder = props.data.bindings[index];
-      if (binder?.binder) {
-        // Use text search for binder name since ID isn't in dashboard response
-        navigateToBooks({ q: binder.binder, binding_authenticated: "true" });
-      }
+const bindingsChartOptions = computed(() =>
+  createDoughnutChartOptions((index: number) => {
+    const binder = props.data.bindings[index];
+    if (binder?.binder_id) {
+      navigateToBooks({ binder_id: binder.binder_id, binding_authenticated: "true" });
     }
-  },
-  plugins: {
-    legend: {
-      position: "bottom" as const,
-      labels: {
-        boxWidth: 12,
-        padding: 8,
-        font: { size: 11 },
-      },
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: TooltipItem<"doughnut">) => {
-          const value = context.raw as number;
-          const total = context.dataset.data.reduce((a: number, b) => a + (b as number), 0);
-          const pct = ((value / total) * 100).toFixed(1);
-          return `${value} ${value === 1 ? "book" : "books"} (${pct}%)`;
-        },
-      },
-    },
-  },
-}));
+  })
+);
 
 const eraChartOptions = computed(() => ({
   responsive: true,
@@ -265,9 +226,8 @@ const publisherChartOptions = computed(() => ({
       const index = elements[0].index;
       const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
       const publisher = tier1[index];
-      if (publisher?.publisher) {
-        // Use text search for publisher name since ID isn't in dashboard response
-        navigateToBooks({ q: publisher.publisher });
+      if (publisher?.publisher_id) {
+        navigateToBooks({ publisher_id: publisher.publisher_id });
       }
     }
   },
@@ -461,9 +421,8 @@ const authorChartOptions = computed(() => ({
     if (elements.length > 0) {
       const index = elements[0].index;
       const author = filteredAuthorData.value[index];
-      if (author?.author) {
-        // Use text search for author name since ID isn't in dashboard response
-        navigateToBooks({ q: author.author });
+      if (author?.author_id) {
+        navigateToBooks({ author_id: author.author_id });
       }
     }
   },
@@ -648,7 +607,16 @@ const authorChartOptions = computed(() => ({
 
 <style scoped>
 /* Make charts show clickable cursor */
-canvas {
+:deep(canvas) {
   cursor: pointer;
+}
+
+/* Add hover effect to chart containers for visual affordance */
+.card-static {
+  transition: box-shadow 0.2s ease;
+}
+
+.card-static:hover {
+  box-shadow: 0 0 0 2px rgba(26, 58, 47, 0.2);
 }
 </style>
