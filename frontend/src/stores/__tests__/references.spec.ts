@@ -28,6 +28,26 @@ describe("references store", () => {
       expect(result).toEqual(mockAuthor);
       expect(store.authors).toContainEqual(mockAuthor);
     });
+
+    it("calls API with force=true query param when force is true", async () => {
+      const store = useReferencesStore();
+      const mockAuthor = { id: 1, name: "Test" };
+      vi.mocked(api.post).mockResolvedValueOnce({ data: mockAuthor });
+
+      await store.createAuthor("Test", true);
+
+      expect(api.post).toHaveBeenCalledWith("/authors?force=true", { name: "Test" });
+    });
+
+    it("calls API without force param by default", async () => {
+      const store = useReferencesStore();
+      const mockAuthor = { id: 1, name: "Test" };
+      vi.mocked(api.post).mockResolvedValueOnce({ data: mockAuthor });
+
+      await store.createAuthor("Test");
+
+      expect(api.post).toHaveBeenCalledWith("/authors", { name: "Test" });
+    });
   });
 
   describe("createPublisher", () => {
@@ -41,6 +61,16 @@ describe("references store", () => {
       expect(api.post).toHaveBeenCalledWith("/publishers", { name: "New Publisher" });
       expect(result).toEqual(mockPublisher);
       expect(store.publishers).toContainEqual(mockPublisher);
+    });
+
+    it("calls API with force=true query param when force is true", async () => {
+      const store = useReferencesStore();
+      const mockPublisher = { id: 1, name: "Test", tier: null, book_count: 0 };
+      vi.mocked(api.post).mockResolvedValueOnce({ data: mockPublisher });
+
+      await store.createPublisher("Test", true);
+
+      expect(api.post).toHaveBeenCalledWith("/publishers?force=true", { name: "Test" });
     });
   });
 
@@ -61,6 +91,22 @@ describe("references store", () => {
       expect(api.post).toHaveBeenCalledWith("/binders", { name: "New Binder" });
       expect(result).toEqual(mockBinder);
       expect(store.binders).toContainEqual(mockBinder);
+    });
+
+    it("calls API with force=true query param when force is true", async () => {
+      const store = useReferencesStore();
+      const mockBinder = {
+        id: 1,
+        name: "Test",
+        full_name: null,
+        authentication_markers: null,
+        book_count: 0,
+      };
+      vi.mocked(api.post).mockResolvedValueOnce({ data: mockBinder });
+
+      await store.createBinder("Test", true);
+
+      expect(api.post).toHaveBeenCalledWith("/binders?force=true", { name: "Test" });
     });
   });
 });
