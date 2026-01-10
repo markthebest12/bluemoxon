@@ -106,12 +106,102 @@ def get_dimension_stats(db: Session) -> dict:
 
 
 def get_overview_stats(db: Session) -> dict:
-    """Get overview statistics in a single query.
+    """Get overview statistics using conditional aggregation.
 
-    Uses conditional aggregation (FILTER clause) to compute all
-    counts and sums in one query.
+    Consolidates multiple queries into one using FILTER clauses.
 
     Returns:
         dict matching get_overview() response format
     """
-    raise NotImplementedError("TODO: implement conditional aggregation")
+    from datetime import date, timedelta
+
+    one_week_ago = date.today() - timedelta(days=7)
+
+    # Base filters
+    primary_filter = Book.inventory_type == "PRIMARY"
+    on_hand_filter = primary_filter & (Book.status == "ON_HAND")
+
+    # Single aggregation query using FILTER
+    result = (
+        db.query(
+            # Primary ON_HAND counts
+            func.count(Book.id).filter(on_hand_filter).label("on_hand_count"),
+            func.sum(Book.value_low).filter(on_hand_filter).label("value_low"),
+            func.sum(Book.value_mid).filter(on_hand_filter).label("value_mid"),
+            func.sum(Book.value_high).filter(on_hand_filter).label("value_high"),
+            func.sum(func.coalesce(Book.volumes, 1)).filter(on_hand_filter).label("volumes"),
+            # Authenticated count
+            func.count(Book.id)
+            .filter(on_hand_filter & Book.binding_authenticated.is_(True))
+            .label("authenticated"),
+            # In-transit count
+            func.count(Book.id)
+            .filter(primary_filter & (Book.status == "IN_TRANSIT"))
+            .label("in_transit"),
+            # Week delta counts
+            func.count(Book.id)
+            .filter(on_hand_filter & (Book.purchase_date >= one_week_ago))
+            .label("week_count"),
+            func.sum(func.coalesce(Book.volumes, 1))
+            .filter(on_hand_filter & (Book.purchase_date >= one_week_ago))
+            .label("week_volumes"),
+            func.coalesce(
+                func.sum(Book.value_mid).filter(
+                    on_hand_filter & (Book.purchase_date >= one_week_ago)
+                ),
+                0,
+            ).label("week_value"),
+            func.count(Book.id)
+            .filter(
+                on_hand_filter
+                & (Book.purchase_date >= one_week_ago)
+                & Book.binding_authenticated.is_(True)
+            )
+            .label("week_authenticated"),
+        )
+        .filter(primary_filter)
+        .first()
+    )
+
+    # Extended and flagged counts (separate simple queries)
+    extended_count = db.query(Book).filter(Book.inventory_type == "EXTENDED").count()
+    flagged_count = db.query(Book).filter(Book.inventory_type == "FLAGGED").count()
+
+    # Extract values with safe defaults
+    on_hand_count = result.on_hand_count or 0
+    value_low = safe_float(result.value_low)
+    value_mid = safe_float(result.value_mid)
+    value_high = safe_float(result.value_high)
+    total_volumes = int(result.volumes or 0)
+    authenticated_count = result.authenticated or 0
+    in_transit_count = result.in_transit or 0
+
+    week_count_delta = result.week_count or 0
+    week_volumes_delta = int(result.week_volumes or 0)
+    week_value_delta = safe_float(result.week_value)
+    week_premium_delta = result.week_authenticated or 0
+
+    return {
+        "primary": {
+            "count": on_hand_count,
+            "volumes": total_volumes,
+            "value_low": value_low,
+            "value_mid": value_mid,
+            "value_high": value_high,
+        },
+        "extended": {
+            "count": extended_count,
+        },
+        "flagged": {
+            "count": flagged_count,
+        },
+        "total_items": on_hand_count + extended_count + flagged_count,
+        "authenticated_bindings": authenticated_count,
+        "in_transit": in_transit_count,
+        "week_delta": {
+            "count": week_count_delta,
+            "volumes": week_volumes_delta,
+            "value_mid": round(week_value_delta, 2),
+            "authenticated_bindings": week_premium_delta,
+        },
+    }
