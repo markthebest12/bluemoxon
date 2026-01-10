@@ -33,28 +33,15 @@ def upgrade() -> None:
         WHERE condition_grade IS NOT NULL
     """)
 
-    # Batch update in chunks to avoid table locks
-    # Use a loop that processes 1000 rows at a time
+    # Update all rows in a single statement
+    # Note: For small tables (<10k rows), single UPDATE is efficient
+    # For larger tables, consider using migration_sql.py HTTP endpoint
+    # which can run multiple statements with commits between them
     op.execute("""
-        DO $$
-        DECLARE
-            batch_size INTEGER := 1000;
-            rows_updated INTEGER;
-        BEGIN
-            LOOP
-                UPDATE books
-                SET condition_grade = UPPER(condition_grade)
-                WHERE id IN (
-                    SELECT id FROM books
-                    WHERE condition_grade IS NOT NULL
-                      AND condition_grade != UPPER(condition_grade)
-                    LIMIT batch_size
-                );
-                GET DIAGNOSTICS rows_updated = ROW_COUNT;
-                EXIT WHEN rows_updated = 0;
-                COMMIT;
-            END LOOP;
-        END $$;
+        UPDATE books
+        SET condition_grade = UPPER(condition_grade)
+        WHERE condition_grade IS NOT NULL
+          AND condition_grade != UPPER(condition_grade)
     """)
 
 

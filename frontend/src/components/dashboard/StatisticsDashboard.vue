@@ -4,8 +4,10 @@ import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
 import type { DashboardStats } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
+import { useToast } from "@/composables/useToast";
 
 const router = useRouter();
+const { showWarning } = useToast();
 
 /**
  * Navigate to filtered books list.
@@ -166,7 +168,7 @@ const conditionChartOptions = computed(() =>
   createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const condition = props.data.by_condition[index]?.condition;
     if (condition === "Ungraded") {
-      alert("Ungraded books cannot be filtered - they have no condition value");
+      showWarning("Ungraded books cannot be filtered - they have no condition value");
       return;
     }
     if (condition) {
@@ -178,6 +180,10 @@ const conditionChartOptions = computed(() =>
 const categoryChartOptions = computed(() =>
   createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const category = props.data.by_category[index]?.category;
+    if (category === "Uncategorized") {
+      showWarning("Uncategorized books cannot be filtered - they have no category value");
+      return;
+    }
     if (category) {
       navigateToBooks({ category }, nativeEvent);
     }
@@ -241,7 +247,8 @@ const publisherChartOptions = computed(() => ({
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
-      const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
+      // Match chart data: filter to TIER_1 and slice to top 5
+      const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5);
       const publisher = tier1[index];
       if (publisher?.publisher_id) {
         navigateToBooks({ publisher_id: publisher.publisher_id }, event.native);
