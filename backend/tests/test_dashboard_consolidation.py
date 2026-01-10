@@ -120,6 +120,9 @@ def db_with_diverse_books(db: Session):
     return db
 
 
+from app.api.v1.stats import get_by_category, get_by_condition, get_by_era
+
+
 class TestPlaceholder:
     """Placeholder test to verify file loads."""
 
@@ -128,3 +131,55 @@ class TestPlaceholder:
         db = db_with_diverse_books
         count = db.query(Book).filter(Book.inventory_type == "PRIMARY").count()
         assert count == 4  # 3 ON_HAND + 1 IN_TRANSIT
+
+
+class TestDimensionStatsParallelComparison:
+    """Verify consolidated dimension query matches individual queries."""
+
+    def test_by_condition_matches(self, db_with_diverse_books):
+        """Consolidated by_condition matches get_by_condition()."""
+        db = db_with_diverse_books
+
+        # Old way
+        old_result = get_by_condition(db)
+
+        # New way (will fail until implemented)
+        from app.services.dashboard_stats import get_dimension_stats
+
+        consolidated = get_dimension_stats(db)
+
+        # Sort both for comparison
+        old_sorted = sorted(old_result, key=lambda x: x["condition"] or "")
+        new_sorted = sorted(consolidated["by_condition"], key=lambda x: x["condition"] or "")
+
+        assert new_sorted == old_sorted
+
+    def test_by_category_matches(self, db_with_diverse_books):
+        """Consolidated by_category matches get_by_category()."""
+        db = db_with_diverse_books
+
+        old_result = get_by_category(db)
+
+        from app.services.dashboard_stats import get_dimension_stats
+
+        consolidated = get_dimension_stats(db)
+
+        old_sorted = sorted(old_result, key=lambda x: x["category"])
+        new_sorted = sorted(consolidated["by_category"], key=lambda x: x["category"])
+
+        assert new_sorted == old_sorted
+
+    def test_by_era_matches(self, db_with_diverse_books):
+        """Consolidated by_era matches get_by_era()."""
+        db = db_with_diverse_books
+
+        old_result = get_by_era(db)
+
+        from app.services.dashboard_stats import get_dimension_stats
+
+        consolidated = get_dimension_stats(db)
+
+        old_sorted = sorted(old_result, key=lambda x: x["era"])
+        new_sorted = sorted(consolidated["by_era"], key=lambda x: x["era"])
+
+        assert new_sorted == old_sorted
