@@ -103,3 +103,8 @@ entity_validation_mode           = "log"
 entity_match_threshold_publisher = 0.80
 entity_match_threshold_binder    = 0.80
 entity_match_threshold_author    = 0.75
+
+# =============================================================================
+# ElastiCache for Dashboard Caching (#1002)
+# =============================================================================
+enable_elasticache = true

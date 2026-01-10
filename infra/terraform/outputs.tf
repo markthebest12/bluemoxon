@@ -287,3 +287,13 @@ output "app_url" {
   description = "Full app URL"
   value       = "https://${local.app_domain}"
 }
+
+# =============================================================================
+# ElastiCache Outputs (#1002 Dashboard Caching)
+# =============================================================================
+
+output "redis_url" {
+  description = "Redis URL for Lambda environment variable"
+  value       = var.enable_elasticache ? module.elasticache[0].redis_endpoint : ""
+  sensitive   = true
+}
