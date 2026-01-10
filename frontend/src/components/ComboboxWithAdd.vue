@@ -20,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:modelValue": [value: number | null];
   create: [name: string];
+  error: [error: unknown];
 }>();
 
 const searchText = ref("");
@@ -127,8 +128,8 @@ async function handleAddNew(force = false) {
         }
         return;
       }
-      // Re-throw non-409 errors for parent to handle
-      throw err;
+      // Emit error for parent to handle (instead of throwing)
+      emit("error", err);
     } finally {
       isCreating.value = false;
     }
@@ -194,7 +195,7 @@ function formatMatchPercent(match: number): string {
         :disabled="isCreating"
         @mousedown.prevent="handleAddNew(false)"
       >
-        + Add "{{ searchText.trim() }}"
+        {{ isCreating ? "Adding..." : `+ Add "${searchText.trim()}"` }}
       </button>
 
       <!-- Empty state -->
