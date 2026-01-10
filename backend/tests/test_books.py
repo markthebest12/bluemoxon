@@ -1302,3 +1302,60 @@ Buy this book.
         data = response.json()
         assert data["binder_updated"] is False
         assert data["publisher_updated"] is False
+
+    def test_analysis_with_fuzzy_match_in_log_mode_sets_warning_header(
+        self, client, db, monkeypatch
+    ):
+        """In log mode, fuzzy matches succeed but set Warning header."""
+        from app.models import Binder, Book
+
+        # Set validation mode to "log" (skips errors but should set warning header)
+        monkeypatch.setenv("ENTITY_VALIDATION_MODE", "log")
+
+        # Clear cached settings to pick up new env var
+        from app.config import get_settings
+
+        get_settings.cache_clear()
+
+        # Create existing binder
+        binder = Binder(name="Riviere & Son", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis markdown with similar but not exact binder name
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Riviere and Son
+- **Confidence:** HIGH
+"""
+
+        # Upload analysis - should succeed in log mode but set Warning header
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+
+        # Check Warning header is set
+        warning_header = response.headers.get("Warning")
+        assert warning_header is not None
+        assert "Binder" in warning_header
+        assert "Riviere and Son" in warning_header
+        assert "Riviere & Son" in warning_header
+
+        # Binder should NOT be associated (fuzzy match skipped)
+        db.refresh(book)
+        assert book.binder_id is None
+
+        # Clean up
+        get_settings.cache_clear()

@@ -98,9 +98,9 @@ class TestWorkerBinderEntityValidation:
         invalidate_entity_cache("author")
 
     def test_binder_validation_exact_match_returns_id(self, db, monkeypatch):
-        """When binder name matches exactly, validate_entity_for_book returns entity ID."""
+        """When binder name matches exactly, validate_entity_for_book returns ValidationResult with entity_id."""
         from app.models.binder import Binder
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         # Set validation mode to enforce
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
@@ -113,14 +113,15 @@ class TestWorkerBinderEntityValidation:
         # Call the actual validation function with exact name
         result = validate_entity_for_book(db, "binder", "Zaehnsdorf")
 
-        # Should return the entity ID directly (not an error)
-        assert result == binder.id
-        assert isinstance(result, int)
+        # Should return ValidationResult with entity_id set
+        assert isinstance(result, ValidationResult)
+        assert result.entity_id == binder.id
+        assert result.success is True
 
     def test_binder_validation_exact_match_case_insensitive(self, db, monkeypatch):
         """Exact match should be case-insensitive."""
         from app.models.binder import Binder
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
@@ -130,16 +131,18 @@ class TestWorkerBinderEntityValidation:
 
         # Different casing should still return exact match
         result = validate_entity_for_book(db, "binder", "zaehnsdorf")
-        assert result == binder.id
+        assert isinstance(result, ValidationResult)
+        assert result.entity_id == binder.id
 
         result = validate_entity_for_book(db, "binder", "ZAEHNSDORF")
-        assert result == binder.id
+        assert isinstance(result, ValidationResult)
+        assert result.entity_id == binder.id
 
     def test_binder_validation_fuzzy_match_returns_error(self, db, monkeypatch):
-        """When binder name fuzzy matches existing, return EntityValidationError."""
+        """When binder name fuzzy matches existing, return ValidationResult with error."""
         from app.models.binder import Binder
         from app.schemas.entity_validation import EntityValidationError
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
@@ -151,48 +154,56 @@ class TestWorkerBinderEntityValidation:
         # Use a typo that should fuzzy match but not exact match
         result = validate_entity_for_book(db, "binder", "Zaensdorf")
 
-        # Should return validation error, not entity ID
-        assert isinstance(result, EntityValidationError)
-        assert result.error == "similar_entity_exists"
-        assert result.entity_type == "binder"
-        assert result.input == "Zaensdorf"
-        assert result.suggestions is not None
-        assert len(result.suggestions) > 0
-        assert result.suggestions[0].name == "Zaehnsdorf"
-        assert result.suggestions[0].id == binder.id
+        # Should return ValidationResult with error set
+        assert isinstance(result, ValidationResult)
+        assert result.error is not None
+        assert isinstance(result.error, EntityValidationError)
+        assert result.error.error == "similar_entity_exists"
+        assert result.error.entity_type == "binder"
+        assert result.error.input == "Zaensdorf"
+        assert result.error.suggestions is not None
+        assert len(result.error.suggestions) > 0
+        assert result.error.suggestions[0].name == "Zaehnsdorf"
+        assert result.error.suggestions[0].id == binder.id
 
     def test_binder_validation_unknown_entity_returns_error(self, db, monkeypatch):
-        """When binder name not found and no fuzzy matches, return EntityValidationError."""
+        """When binder name not found and no fuzzy matches, return ValidationResult with error."""
         from app.schemas.entity_validation import EntityValidationError
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
         # No binders in database - completely unknown name
         result = validate_entity_for_book(db, "binder", "CompletelyUnknownBinder")
 
-        assert isinstance(result, EntityValidationError)
-        assert result.error == "unknown_entity"
-        assert result.entity_type == "binder"
-        assert result.suggestions is None
+        assert isinstance(result, ValidationResult)
+        assert result.error is not None
+        assert isinstance(result.error, EntityValidationError)
+        assert result.error.error == "unknown_entity"
+        assert result.error.entity_type == "binder"
+        assert result.error.suggestions is None
 
-    def test_binder_validation_empty_name_returns_none(self, db, monkeypatch):
-        """When binder name is empty/None, validation returns None (skip)."""
-        from app.services.entity_validation import validate_entity_for_book
+    def test_binder_validation_empty_name_returns_empty_result(self, db, monkeypatch):
+        """When binder name is empty/None, validation returns empty ValidationResult (skip)."""
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
-        # Empty string should return None
+        # Empty string should return empty ValidationResult
         result = validate_entity_for_book(db, "binder", "")
-        assert result is None
+        assert isinstance(result, ValidationResult)
+        assert result.success is False
+        assert result.error is None
 
-        # None should return None
+        # None should return empty ValidationResult
         result = validate_entity_for_book(db, "binder", None)
-        assert result is None
+        assert isinstance(result, ValidationResult)
+        assert result.success is False
 
-        # Whitespace-only should return None
+        # Whitespace-only should return empty ValidationResult
         result = validate_entity_for_book(db, "binder", "   ")
-        assert result is None
+        assert isinstance(result, ValidationResult)
+        assert result.success is False
 
     def test_worker_error_message_format_with_suggestions(self):
         """Test the error message format when there are fuzzy match suggestions.
@@ -269,13 +280,12 @@ class TestWorkerBinderEntityValidation:
 
         This tests the complete flow that the worker performs:
         1. Get validation result
-        2. Check if it's an error or entity ID
-        3. Associate binder with book if ID returned
+        2. Check if it has an error
+        3. Associate binder with book if entity_id returned
         """
         from app.models import Book
         from app.models.binder import Binder
-        from app.schemas.entity_validation import EntityValidationError
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
@@ -290,11 +300,12 @@ class TestWorkerBinderEntityValidation:
         binder_name = "Riviere & Son"
         binder_result = validate_entity_for_book(db, "binder", binder_name)
 
-        if isinstance(binder_result, EntityValidationError):
+        assert isinstance(binder_result, ValidationResult)
+        if binder_result.error:
             raise ValueError("Should have matched exactly")
 
-        if binder_result and book.binder_id != binder_result:
-            book.binder_id = binder_result
+        if binder_result.entity_id and book.binder_id != binder_result.entity_id:
+            book.binder_id = binder_result.entity_id
             db.commit()
 
         db.refresh(book)
@@ -306,8 +317,7 @@ class TestWorkerBinderEntityValidation:
 
         from app.models import Book
         from app.models.binder import Binder
-        from app.schemas.entity_validation import EntityValidationError
-        from app.services.entity_validation import validate_entity_for_book
+        from app.services.entity_validation import ValidationResult, validate_entity_for_book
 
         monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
 
@@ -323,8 +333,11 @@ class TestWorkerBinderEntityValidation:
         binder_result = validate_entity_for_book(db, "binder", binder_name)
 
         # Worker should raise when validation returns an error
-        if isinstance(binder_result, EntityValidationError):
-            top_match = binder_result.suggestions[0] if binder_result.suggestions else None
+        assert isinstance(binder_result, ValidationResult)
+        if binder_result.error:
+            top_match = (
+                binder_result.error.suggestions[0] if binder_result.error.suggestions else None
+            )
             if top_match:
                 error_msg = (
                     f"Entity validation failed: binder '{binder_name}' matches existing "
@@ -340,7 +353,162 @@ class TestWorkerBinderEntityValidation:
             with pytest.raises(ValueError, match="Entity validation failed"):
                 raise ValueError(error_msg)
 
-        # If we got here without binder_result being an error, fail the test
-        assert isinstance(binder_result, EntityValidationError), (
-            "Expected fuzzy match to return validation error"
+        # If we got here without binder_result having an error, fail the test
+        assert binder_result.error is not None, "Expected fuzzy match to return validation error"
+
+
+class TestWorkerEntityValidationIntegration:
+    """Tests for entity validation using validate_and_associate_entities (#1014)."""
+
+    @pytest.fixture(autouse=True)
+    def clear_entity_cache(self):
+        """Clear entity caches before each test to ensure test isolation."""
+        from app.services.entity_matching import invalidate_entity_cache
+
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
+        yield
+        invalidate_entity_cache("publisher")
+        invalidate_entity_cache("binder")
+        invalidate_entity_cache("author")
+
+    def test_validate_and_associate_entities_both_exact_match(self, db, monkeypatch):
+        """Test that validate_and_associate_entities associates both binder and publisher."""
+        from app.models import Book
+        from app.models.binder import Binder
+        from app.models.publisher import Publisher
+        from app.services.entity_validation import validate_and_associate_entities
+
+        monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
+
+        # Create test entities
+        binder = Binder(name="Zaehnsdorf", tier="TIER_1")
+        publisher = Publisher(name="Chapman & Hall", tier="TIER_1")
+        db.add(binder)
+        db.add(publisher)
+        db.commit()
+
+        book = Book(title="Test Book", inventory_type="PRIMARY")
+        db.add(book)
+        db.commit()
+
+        # Create mock parsed analysis
+        class MockParsed:
+            binder_identification = {"name": "Zaehnsdorf"}
+            publisher_identification = {"name": "Chapman & Hall"}
+
+        result = validate_and_associate_entities(db, book, MockParsed())
+
+        assert result.binder.success is True
+        assert result.publisher.success is True
+        assert result.has_errors is False
+        assert book.binder_id == binder.id
+        assert book.publisher_id == publisher.id
+
+    def test_validate_and_associate_entities_binder_error(self, db, monkeypatch):
+        """Test that validate_and_associate_entities returns error for fuzzy binder match."""
+        from app.models import Book
+        from app.models.binder import Binder
+        from app.services.entity_validation import validate_and_associate_entities
+
+        monkeypatch.setenv("ENTITY_VALIDATION_MODE", "enforce")
+
+        binder = Binder(name="Zaehnsdorf", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        book = Book(title="Test Book", inventory_type="PRIMARY")
+        db.add(book)
+        db.commit()
+
+        class MockParsed:
+            binder_identification = {"name": "Zaensdorf"}  # Typo
+            publisher_identification = None
+
+        result = validate_and_associate_entities(db, book, MockParsed())
+
+        assert result.has_errors is True
+        assert result.binder.error is not None
+        assert result.binder.error.error == "similar_entity_exists"
+
+    def test_validate_and_associate_entities_skipped_in_log_mode(self, db, monkeypatch):
+        """Test that fuzzy matches are skipped in log mode and was_skipped is set (#1013)."""
+        from app.config import get_settings
+        from app.models import Book
+        from app.models.binder import Binder
+        from app.services.entity_validation import validate_and_associate_entities
+
+        monkeypatch.setenv("ENTITY_VALIDATION_MODE", "log")
+        get_settings.cache_clear()  # Pick up new env var
+
+        binder = Binder(name="Zaehnsdorf", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        book = Book(title="Test Book", inventory_type="PRIMARY")
+        db.add(book)
+        db.commit()
+
+        class MockParsed:
+            binder_identification = {"name": "Zaensdorf"}  # Typo - will fuzzy match
+            publisher_identification = None
+
+        result = validate_and_associate_entities(db, book, MockParsed())
+
+        # In log mode, no error but association is skipped
+        assert result.has_errors is False
+        assert result.binder.was_skipped is True
+        assert result.binder.skipped_match is not None
+        assert result.binder.skipped_match.name == "Zaehnsdorf"
+        assert book.binder_id is None  # Not associated due to fuzzy match
+
+        # Clean up
+        get_settings.cache_clear()
+
+    def test_worker_entity_error_message_format(self):
+        """Test the worker's error message format using _format_entity_validation_error."""
+        from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
+        from app.worker import _format_entity_validation_error
+
+        error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="binder",
+            input="Zaensdorf",
+            suggestions=[
+                EntitySuggestion(
+                    id=1,
+                    name="Zaehnsdorf",
+                    tier="TIER_1",
+                    match=0.85,
+                    book_count=5,
+                )
+            ],
+            resolution="Use existing binder",
         )
+
+        msg = _format_entity_validation_error("binder", "Zaensdorf", error)
+
+        assert "binder" in msg
+        assert "Zaensdorf" in msg
+        assert "Zaehnsdorf" in msg
+        assert "85%" in msg
+
+    def test_worker_entity_error_message_unknown_entity(self):
+        """Test error message format for unknown entity (no suggestions)."""
+        from app.schemas.entity_validation import EntityValidationError
+        from app.worker import _format_entity_validation_error
+
+        error = EntityValidationError(
+            error="unknown_entity",
+            entity_type="publisher",
+            input="UnknownPublisher",
+            suggestions=None,
+            resolution="Create first",
+        )
+
+        msg = _format_entity_validation_error("publisher", "UnknownPublisher", error)
+
+        assert "publisher" in msg
+        assert "UnknownPublisher" in msg
+        assert "not found" in msg

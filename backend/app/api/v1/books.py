@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import boto3
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import exists, func
 from sqlalchemy.exc import IntegrityError
@@ -49,7 +49,6 @@ from app.schemas.book import (
     DuplicateMatch,
     TrackingRequest,
 )
-from app.schemas.entity_validation import EntityValidationError
 from app.schemas.eval_runbook_job import EvalRunbookJobResponse
 from app.services.analysis_parser import (
     apply_metadata_to_book,
@@ -64,7 +63,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.entity_validation import validate_entity_for_book
+from app.services.entity_validation import validate_and_associate_entities
 from app.services.job_manager import handle_stale_jobs
 from app.services.scoring import (
     author_tier_to_score,
@@ -1400,6 +1399,7 @@ def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
 @router.put("/{book_id}/analysis")
 def update_book_analysis(
     book_id: int,
+    response: Response,
     full_markdown: str = Body(..., media_type="text/plain"),
     db: Session = Depends(get_db),
     _user=Depends(require_editor),
@@ -1411,6 +1411,8 @@ def update_book_analysis(
     If valuation data is found, updates book's FMV and recalculates scores.
     If binder is identified, associates binder with book.
     If metadata block is present, extracts provenance and first edition info.
+
+    Warning header is set if fuzzy matches were skipped in log mode.
     """
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -1422,48 +1424,44 @@ def update_book_analysis(
     # Extract metadata (but don't apply yet - validate entities first)
     metadata = extract_analysis_metadata(full_markdown)
 
-    # VALIDATION PHASE: Validate all entities upfront before any mutations
-    # This ensures we don't leave the book in an inconsistent state if validation fails
-    binder_id_to_set: int | None = None
-    publisher_id_to_set: int | None = None
+    # VALIDATION PHASE: Validate and associate entities using shared function (#1014)
+    # This consolidates duplicate logic from books.py and worker.py
+    entity_result = validate_and_associate_entities(db, book, parsed)
 
-    if parsed.binder_identification and parsed.binder_identification.get("name"):
-        binder_name = parsed.binder_identification["name"]
-        binder_result = validate_entity_for_book(db, "binder", binder_name)
+    if entity_result.has_errors:
+        error = entity_result.binder.error or entity_result.publisher.error
+        status_code = 409 if error.error == "similar_entity_exists" else 400
+        raise HTTPException(status_code=status_code, detail=error.model_dump())
 
-        if isinstance(binder_result, EntityValidationError):
-            status_code = 409 if binder_result.error == "similar_entity_exists" else 400
-            raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
+    # Track what was updated for response
+    binder_updated = (
+        entity_result.binder.success and book.binder_id == entity_result.binder.entity_id
+    )
+    publisher_updated = (
+        entity_result.publisher.success and book.publisher_id == entity_result.publisher.entity_id
+    )
 
-        binder_id_to_set = binder_result
+    # Add Warning header if matches were skipped in log mode (#1013)
+    if entity_result.has_skipped:
+        warnings = []
+        if entity_result.binder.was_skipped:
+            binder_name = parsed.binder_identification["name"]
+            warnings.append(
+                f"Binder '{binder_name}' fuzzy matches '{entity_result.binder.skipped_match.name}'"
+            )
+        if entity_result.publisher.was_skipped:
+            publisher_name = parsed.publisher_identification["name"]
+            warnings.append(
+                f"Publisher '{publisher_name}' fuzzy matches "
+                f"'{entity_result.publisher.skipped_match.name}'"
+            )
+        response.headers["Warning"] = "; ".join(warnings)
 
-    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
-        publisher_name = parsed.publisher_identification["name"]
-        publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
-
-        if isinstance(publisher_result, EntityValidationError):
-            status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
-            raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
-
-        publisher_id_to_set = publisher_result
-
-    # MUTATION PHASE: All validations passed, now apply changes
+    # MUTATION PHASE: Entity associations already applied by validate_and_associate_entities
     # Apply metadata (provenance, first edition)
     metadata_updated = []
     if metadata:
         metadata_updated = apply_metadata_to_book(book, metadata)
-
-    # Associate binder
-    binder_updated = False
-    if binder_id_to_set and book.binder_id != binder_id_to_set:
-        book.binder_id = binder_id_to_set
-        binder_updated = True
-
-    # Associate publisher
-    publisher_updated = False
-    if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
-        book.publisher_id = publisher_id_to_set
-        publisher_updated = True
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
