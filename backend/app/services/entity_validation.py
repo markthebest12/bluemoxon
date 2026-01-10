@@ -1,6 +1,18 @@
-"""Entity validation service for preventing duplicate creation."""
+"""Entity validation service for preventing duplicate creation.
+
+This module provides entity validation functionality to prevent duplicate
+entity creation and to validate entity associations with books.
+
+Key components:
+- validate_entity_creation: Validates entity creation to prevent duplicates
+- validate_entity_for_book: Validates entity name before associating with a book
+- validate_and_associate_entities: Shared function for validating multiple entities
+  at once (extracted from books.py and worker.py for #1014)
+- EntityAssociationResult: Result type for validate_and_associate_entities
+"""
 
 import logging
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -12,6 +24,36 @@ from app.services.entity_matching import (
     _normalize_for_entity_type,
     fuzzy_match_entity,
 )
+
+
+@dataclass
+class EntityAssociationResult:
+    """Result of entity validation for book association.
+
+    This is used by validate_and_associate_entities() to return structured
+    results instead of raising exceptions, allowing callers to decide how
+    to handle errors (#1015 - inconsistent error types).
+
+    Also provides warnings for log mode visibility (#1013 - log mode silently
+    skips associations).
+
+    Attributes:
+        binder_id: ID of validated binder, or None if not validated/found.
+        publisher_id: ID of validated publisher, or None if not validated/found.
+        errors: List of validation errors (similar_entity_exists or unknown_entity).
+        warnings: List of warning messages for skipped associations in log mode.
+    """
+
+    binder_id: int | None = None
+    publisher_id: int | None = None
+    errors: list[EntityValidationError] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        """Return True if there are any validation errors."""
+        return len(self.errors) > 0
+
 
 logger = logging.getLogger(__name__)
 
@@ -217,3 +259,98 @@ def validate_entity_for_book(
         suggestions=suggestions,
         resolution=f"Use existing {entity_type} '{top_match.name}' (ID: {top_match.entity_id}), or create a new {entity_type} first",
     )
+
+
+def validate_and_associate_entities(
+    db: Session,
+    binder_name: str | None = None,
+    publisher_name: str | None = None,
+) -> EntityAssociationResult:
+    """Validate multiple entities for book association.
+
+    This function extracts common validation logic from books.py and worker.py
+    (#1014 - duplicate validation logic). It validates all entities at once
+    and returns a structured result, allowing callers to decide how to handle
+    errors (#1015 - inconsistent error types).
+
+    In log mode, warnings are collected for visibility instead of silently
+    returning None (#1013 - log mode silently skips associations).
+
+    Args:
+        db: Database session.
+        binder_name: Name of binder to validate, or None to skip.
+        publisher_name: Name of publisher to validate, or None to skip.
+
+    Returns:
+        EntityAssociationResult with entity IDs, errors, and warnings.
+    """
+    result = EntityAssociationResult()
+    settings = get_settings()
+
+    # Validate binder if name provided
+    if binder_name and binder_name.strip():
+        binder_result = validate_entity_for_book(db, "binder", binder_name, allow_unknown=True)
+
+        if binder_result is None:
+            # In log mode or unknown entity - check which case
+            # Generate warning for user visibility (#1013)
+            normalized = _normalize_for_entity_type(binder_name, "binder")
+            exact = _get_entity_by_normalized_name(db, "binder", normalized)
+            if exact is None:
+                # Check if it was a fuzzy match that was skipped
+                threshold_attr = "entity_match_threshold_binder"
+                threshold = getattr(settings, threshold_attr, 0.80)
+                matches = fuzzy_match_entity(db, "binder", binder_name, threshold=threshold)
+                if matches:
+                    # Fuzzy match skipped in log mode
+                    top = matches[0]
+                    result.warnings.append(
+                        f"Binder '{binder_name}' fuzzy matches '{top.name}' "
+                        f"({top.confidence:.0%}) - association skipped"
+                    )
+                else:
+                    # Unknown entity
+                    result.warnings.append(
+                        f"Binder '{binder_name}' not found in database - association skipped"
+                    )
+        elif isinstance(binder_result, EntityValidationError):
+            result.errors.append(binder_result)
+        else:
+            # Entity ID returned - exact match
+            result.binder_id = binder_result
+
+    # Validate publisher if name provided
+    if publisher_name and publisher_name.strip():
+        publisher_result = validate_entity_for_book(
+            db, "publisher", publisher_name, allow_unknown=True
+        )
+
+        if publisher_result is None:
+            # In log mode or unknown entity - check which case
+            # Generate warning for user visibility (#1013)
+            normalized = _normalize_for_entity_type(publisher_name, "publisher")
+            exact = _get_entity_by_normalized_name(db, "publisher", normalized)
+            if exact is None:
+                # Check if it was a fuzzy match that was skipped
+                threshold_attr = "entity_match_threshold_publisher"
+                threshold = getattr(settings, threshold_attr, 0.80)
+                matches = fuzzy_match_entity(db, "publisher", publisher_name, threshold=threshold)
+                if matches:
+                    # Fuzzy match skipped in log mode
+                    top = matches[0]
+                    result.warnings.append(
+                        f"Publisher '{publisher_name}' fuzzy matches '{top.name}' "
+                        f"({top.confidence:.0%}) - association skipped"
+                    )
+                else:
+                    # Unknown entity
+                    result.warnings.append(
+                        f"Publisher '{publisher_name}' not found in database - association skipped"
+                    )
+        elif isinstance(publisher_result, EntityValidationError):
+            result.errors.append(publisher_result)
+        else:
+            # Entity ID returned - exact match
+            result.publisher_id = publisher_result
+
+    return result
