@@ -62,7 +62,7 @@ Test summary for TOCTOU test
         db.commit()
 
         # Mock validation to return the now-deleted binder's ID for binder validation
-        def mock_validate(db, entity_type, name, threshold=None):
+        def mock_validate(db, entity_type, name, allow_unknown=False):
             if entity_type == "binder":
                 return temp_binder_id
             return None
@@ -105,7 +105,7 @@ Test summary for TOCTOU test
         db.commit()
 
         # Mock validation to return the now-deleted publisher's ID for publisher validation
-        def mock_validate(db, entity_type, name, threshold=None):
+        def mock_validate(db, entity_type, name, allow_unknown=False):
             if entity_type == "publisher":
                 return temp_publisher_id
             return None
@@ -144,7 +144,7 @@ Test summary
 """
 
         # Mock validation to return the real binder's ID only for binder validation
-        def mock_validate(db, entity_type, name, threshold=None):
+        def mock_validate(db, entity_type, name, allow_unknown=False):
             if entity_type == "binder":
                 return binder.id
             return None
@@ -180,7 +180,7 @@ Test summary
 """
 
         # Mock validation to return the real publisher's ID only for publisher validation
-        def mock_validate(db, entity_type, name, threshold=None):
+        def mock_validate(db, entity_type, name, allow_unknown=False):
             if entity_type == "publisher":
                 return publisher.id
             return None
@@ -341,3 +341,239 @@ Test
                 headers={"Content-Type": "text/plain"},
             )
             assert response.status_code == 400
+
+
+class TestAllowUnknownParameter:
+    """Test allow_unknown=True behavior for unknown entities.
+
+    When allow_unknown=True is passed to validate_entity_for_book(), unknown
+    entities should return None instead of an error, allowing the analysis
+    to proceed without associating the unknown entity.
+    """
+
+    def test_unknown_binder_returns_none_with_allow_unknown(self, client, db, sample_book):
+        """When allow_unknown=True and binder not found, returns None (no error).
+
+        This tests that the books.py endpoint passes allow_unknown=True to
+        validate_entity_for_book() for binder validation.
+        """
+        markdown = """## Executive Summary
+Test summary
+
+## Binder Identification
+- **Name:** Completely Unknown Binder
+- **Confidence:** HIGH
+"""
+        # Call endpoint - with allow_unknown, should succeed but binder not associated
+        response = client.put(
+            f"/api/v1/books/{sample_book.id}/analysis",
+            content=markdown,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        # Should succeed (200), not error out
+        assert response.status_code == 200
+
+        # Binder should NOT be associated (it was unknown)
+        db.refresh(sample_book)
+        assert sample_book.binder_id is None
+
+        # Response should include warning about skipped binder
+        data = response.json()
+        assert "warnings" in data
+        assert any("Binder" in w and "not found" in w for w in data["warnings"])
+
+    def test_unknown_publisher_returns_none_with_allow_unknown(self, client, db, sample_book):
+        """When allow_unknown=True and publisher not found, returns None (no error).
+
+        This tests that the books.py endpoint passes allow_unknown=True to
+        validate_entity_for_book() for publisher validation.
+        """
+        markdown = """## Executive Summary
+Test summary
+
+**Publisher:** Completely Unknown Publisher
+"""
+        # Call endpoint - with allow_unknown, should succeed but publisher not associated
+        response = client.put(
+            f"/api/v1/books/{sample_book.id}/analysis",
+            content=markdown,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        # Should succeed (200), not error out
+        assert response.status_code == 200
+
+        # Publisher should NOT be associated (it was unknown)
+        db.refresh(sample_book)
+        assert sample_book.publisher_id is None
+
+        # Response should include warning about skipped publisher
+        data = response.json()
+        assert "warnings" in data
+        assert any("Publisher" in w and "not found" in w for w in data["warnings"])
+
+
+class TestWarningsInResponse:
+    """Test that warnings array is included in response for skipped associations."""
+
+    def test_warnings_on_force_skip_validation(self, client, db, sample_book):
+        """With force=true, response includes warning about skipped validation."""
+        from app.schemas.entity_validation import EntitySuggestion, EntityValidationError
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Riviere and Son
+"""
+        error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="binder",
+            input="Riviere and Son",
+            suggestions=[
+                EntitySuggestion(
+                    id=1, name="Riviere & Son", tier="TIER_1", match=0.95, book_count=10
+                )
+            ],
+            resolution="Use existing",
+        )
+
+        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis?force=true",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "warnings" in data
+        assert any("Binder" in w and "force=true" in w for w in data["warnings"])
+
+    def test_warnings_on_toctou_vanish(self, client, db, sample_book):
+        """When entity vanishes (TOCTOU), response includes warning."""
+        # Create and delete a binder to simulate TOCTOU
+        temp_binder = Binder(name="TOCTOU Binder", tier="A")
+        db.add(temp_binder)
+        db.commit()
+        temp_binder_id = temp_binder.id
+        db.delete(temp_binder)
+        db.commit()
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** TOCTOU Binder
+"""
+
+        def mock_validate(db, entity_type, name, allow_unknown=False):
+            if entity_type == "binder":
+                return temp_binder_id  # Return ID of deleted binder
+            return None
+
+        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "warnings" in data
+        assert any("vanished" in w for w in data["warnings"])
+
+
+class TestTOCTOUEdgeCaseSameId:
+    """Test TOCTOU edge case where entity ID is same as current.
+
+    The TOCTOU fix should always verify the entity exists, even when
+    book.binder_id == binder_id_to_set, because the entity could have
+    been deleted in another transaction.
+    """
+
+    def test_same_binder_id_still_verified(self, client, db, sample_book):
+        """Even if binder_id matches, we still verify binder exists."""
+        # Create binder and associate with book
+        binder = Binder(name="Existing Binder", tier="A")
+        db.add(binder)
+        db.commit()
+        db.refresh(binder)
+
+        sample_book.binder_id = binder.id
+        db.commit()
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Existing Binder
+"""
+
+        # Mock validates to return same ID as already on book
+        def mock_validate(db_session, entity_type, name, allow_unknown=False):
+            if entity_type == "binder":
+                return binder.id
+            return None
+
+        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+
+        # Should succeed
+        assert response.status_code == 200
+        data = response.json()
+
+        # No warning should appear (binder still exists)
+        if "warnings" in data:
+            assert not any("vanished" in w for w in data["warnings"])
+
+    def test_same_binder_id_but_binder_deleted_warns(self, client, db, sample_book):
+        """If binder_id matches but binder was deleted, we catch it and warn."""
+        # Create binder, associate, then delete
+        temp_binder = Binder(name="Will Delete Binder", tier="A")
+        db.add(temp_binder)
+        db.commit()
+        temp_binder_id = temp_binder.id
+
+        sample_book.binder_id = temp_binder_id
+        db.commit()
+
+        # Delete the binder (simulating race)
+        db.delete(temp_binder)
+        db.commit()
+
+        markdown = """## Executive Summary
+Test
+
+## Binder Identification
+- **Name:** Will Delete Binder
+"""
+
+        # Mock returns same ID (already on book)
+        def mock_validate(db_session, entity_type, name, allow_unknown=False):
+            if entity_type == "binder":
+                return temp_binder_id
+            return None
+
+        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+            response = client.put(
+                f"/api/v1/books/{sample_book.id}/analysis",
+                content=markdown,
+                headers={"Content-Type": "text/plain"},
+            )
+
+        # Should succeed but warn
+        assert response.status_code == 200
+        data = response.json()
+        assert "warnings" in data
+        assert any("vanished" in w for w in data["warnings"])
+
+        # Binder association should be cleared
+        db.refresh(sample_book)
+        assert sample_book.binder_id is None

@@ -418,6 +418,66 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
     logger.info(f"Copied {len(listing_s3_keys)} images for book {book_id}")
 
 
+def _validate_entity_for_analysis(
+    db: Session,
+    entity_type: str,
+    name: str,
+    force: bool,
+    warnings: list[str],
+) -> int | None:
+    """Validate entity for analysis, appending warnings for skipped associations.
+
+    This helper function DRYs up the binder/publisher validation logic that was
+    duplicated in update_book_analysis(). It handles three cases:
+
+    1. Entity not found (allow_unknown=True returns None):
+       - Appends warning: "{Entity} '{name}' not found - association skipped"
+       - Returns None (skip association)
+
+    2. Similar entity exists (EntityValidationError with error="similar_entity_exists"):
+       - If force=True: Appends warning and returns None
+       - If force=False: Raises HTTPException(409) with entity validation details
+
+    3. Other validation errors (e.g., unknown_entity when allow_unknown=False):
+       - If force=True: Appends warning and returns None
+       - If force=False: Raises HTTPException(400) with validation details
+
+    4. Exact match found:
+       - Returns entity ID for association
+
+    Args:
+        db: Database session.
+        entity_type: Type of entity ("binder", "publisher").
+        name: Name of entity to validate.
+        force: If True, bypass validation errors and skip association.
+        warnings: List to append warning messages to.
+
+    Returns:
+        Entity ID if exact match found, None if association should be skipped.
+
+    Raises:
+        HTTPException(409): If similar entity exists and force=False.
+        HTTPException(400): If other validation error and force=False.
+    """
+    result = validate_entity_for_book(db, entity_type, name, allow_unknown=True)
+
+    if result is None:
+        warnings.append(f"{entity_type.capitalize()} '{name}' not found - association skipped")
+        return None
+
+    if isinstance(result, EntityValidationError):
+        if force:
+            warnings.append(
+                f"{entity_type.capitalize()} '{name}' validation skipped due to "
+                f"force=true ({result.error})"
+            )
+            return None
+        status_code = 409 if result.error == "similar_entity_exists" else 400
+        raise HTTPException(status_code=status_code, detail=result.model_dump())
+
+    return result  # entity ID
+
+
 @router.get("", response_model=BookListResponse)
 def list_books(
     params: BookListParams = Depends(),
@@ -1416,6 +1476,11 @@ def update_book_analysis(
     If valuation data is found, updates book's FMV and recalculates scores.
     If binder is identified, associates binder with book.
     If metadata block is present, extracts provenance and first edition info.
+
+    Response includes a 'warnings' array with messages about:
+    - Unknown entities not found in database (association skipped)
+    - Validation errors bypassed due to force=true
+    - TOCTOU race conditions where entity vanished between validation and mutation
     """
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -1427,41 +1492,24 @@ def update_book_analysis(
     # Extract metadata (but don't apply yet - validate entities first)
     metadata = extract_analysis_metadata(full_markdown)
 
+    # Warnings list for response - tracks skipped associations
+    warnings: list[str] = []
+
     # VALIDATION PHASE: Validate all entities upfront before any mutations
     # This ensures we don't leave the book in an inconsistent state if validation fails
+    # Uses _validate_entity_for_analysis helper to DRY up binder/publisher logic
     binder_id_to_set: int | None = None
     publisher_id_to_set: int | None = None
 
     if parsed.binder_identification and parsed.binder_identification.get("name"):
         binder_name = parsed.binder_identification["name"]
-        binder_result = validate_entity_for_book(db, "binder", binder_name)
-
-        if isinstance(binder_result, EntityValidationError):
-            if force:
-                logger.info(
-                    f"Skipping binder validation error due to force=true: {binder_result.error}"
-                )
-            else:
-                status_code = 409 if binder_result.error == "similar_entity_exists" else 400
-                raise HTTPException(status_code=status_code, detail=binder_result.model_dump())
-        else:
-            binder_id_to_set = binder_result
+        binder_id_to_set = _validate_entity_for_analysis(db, "binder", binder_name, force, warnings)
 
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
         publisher_name = parsed.publisher_identification["name"]
-        publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
-
-        if isinstance(publisher_result, EntityValidationError):
-            if force:
-                logger.info(
-                    f"Skipping publisher validation error due to force=true: "
-                    f"{publisher_result.error}"
-                )
-            else:
-                status_code = 409 if publisher_result.error == "similar_entity_exists" else 400
-                raise HTTPException(status_code=status_code, detail=publisher_result.model_dump())
-        else:
-            publisher_id_to_set = publisher_result
+        publisher_id_to_set = _validate_entity_for_analysis(
+            db, "publisher", publisher_name, force, warnings
+        )
 
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)
@@ -1470,30 +1518,35 @@ def update_book_analysis(
         metadata_updated = apply_metadata_to_book(book, metadata)
 
     # Associate binder (with existence re-check for TOCTOU safety)
+    # ALWAYS verify existence, even if book.binder_id == binder_id_to_set
+    # because the entity could have been deleted in another transaction
     binder_updated = False
-    if binder_id_to_set and book.binder_id != binder_id_to_set:
+    if binder_id_to_set:
         binder = db.get(Binder, binder_id_to_set)
         if binder:
-            book.binder_id = binder_id_to_set
-            binder_updated = True
+            if book.binder_id != binder_id_to_set:
+                book.binder_id = binder_id_to_set
+                binder_updated = True
         else:
-            logger.error(
-                f"Binder ID {binder_id_to_set} vanished between validation and mutation "
-                f"for book {book_id} - skipping association"
-            )
+            warnings.append(f"Binder ID {binder_id_to_set} vanished - association skipped")
+            # Clear stale FK if it pointed to the vanished entity
+            if book.binder_id == binder_id_to_set:
+                book.binder_id = None
 
     # Associate publisher (with existence re-check for TOCTOU safety)
+    # ALWAYS verify existence, even if book.publisher_id == publisher_id_to_set
     publisher_updated = False
-    if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
+    if publisher_id_to_set:
         publisher = db.get(Publisher, publisher_id_to_set)
         if publisher:
-            book.publisher_id = publisher_id_to_set
-            publisher_updated = True
+            if book.publisher_id != publisher_id_to_set:
+                book.publisher_id = publisher_id_to_set
+                publisher_updated = True
         else:
-            logger.error(
-                f"Publisher ID {publisher_id_to_set} vanished between validation and mutation "
-                f"for book {book_id} - skipping association"
-            )
+            warnings.append(f"Publisher ID {publisher_id_to_set} vanished - association skipped")
+            # Clear stale FK if it pointed to the vanished entity
+            if book.publisher_id == publisher_id_to_set:
+                book.publisher_id = None
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
@@ -1550,6 +1603,7 @@ def update_book_analysis(
         "publisher_updated": publisher_updated,
         "metadata_updated": metadata_updated,
         "scores_recalculated": True,
+        "warnings": warnings,
     }
 
 
