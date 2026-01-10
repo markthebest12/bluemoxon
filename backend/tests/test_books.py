@@ -1348,3 +1348,179 @@ Buy this book.
         data = response.json()
         assert data["binder_updated"] is False
         assert data["publisher_updated"] is False
+
+    def test_analysis_with_both_entities_failing_returns_all_errors(self, client, db):
+        """Analysis with both binder and publisher fuzzy-matching returns all errors."""
+        from app.models import Binder, Book, Publisher
+
+        # Create existing binder and publisher
+        binder = Binder(name="Riviere & Son", tier="TIER_1")
+        publisher = Publisher(name="Macmillan and Co.", tier="TIER_1")
+        db.add(binder)
+        db.add(publisher)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis with both similar but not exact entity names
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Riviere and Son
+- **Confidence:** HIGH
+
+## Physical Description
+
+**Publisher:** Macmilan and Co
+**Binding:** Full Morocco
+"""
+
+        # Upload analysis - should fail with 409 and BOTH errors
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 409
+        data = response.json()
+        detail = data["detail"]
+
+        # Should have multiple_validation_errors with both entity errors
+        assert detail["error"] == "multiple_validation_errors"
+        assert "errors" in detail
+        assert len(detail["errors"]) == 2
+
+        # Check both entities are in errors
+        entity_types = {e["entity_type"] for e in detail["errors"]}
+        assert "binder" in entity_types
+        assert "publisher" in entity_types
+
+    def test_analysis_x_bmx_warning_header_set_on_warnings(self, client, db):
+        """Analysis with skipped associations sets X-BMX-Warning header."""
+        from app.models import Book, Publisher
+
+        # Create a publisher (but not the one we'll request)
+        publisher = Publisher(name="Macmillan", tier="TIER_1")
+        db.add(publisher)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis with unknown publisher (triggers warning)
+        analysis_md = """# Book Analysis
+
+## Physical Description
+
+**Publisher:** Completely Unknown Publisher Ltd
+**Binding:** Full Morocco
+"""
+
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        # Check X-BMX-Warning header is set
+        assert "X-BMX-Warning" in response.headers
+        warning_header = response.headers["X-BMX-Warning"]
+        assert "Completely Unknown Publisher Ltd" in warning_header
+        assert "not found" in warning_header
+
+    def test_analysis_with_both_entities_succeeding(self, client, db):
+        """Analysis with both exact match binder and publisher succeeds."""
+        from app.models import Binder, Book, Publisher
+
+        # Create existing binder and publisher
+        binder = Binder(name="Zaehnsdorf", tier="TIER_1")
+        publisher = Publisher(name="Chapman and Hall", tier="TIER_1")
+        db.add(binder)
+        db.add(publisher)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis with both exact entity names
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Zaehnsdorf
+- **Confidence:** HIGH
+
+## Physical Description
+
+**Publisher:** Chapman and Hall
+**Binding:** Full Morocco
+"""
+
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["binder_updated"] is True
+        assert data["publisher_updated"] is True
+
+        # Verify both entities were associated
+        db.refresh(book)
+        assert book.binder_id == binder.id
+        assert book.publisher_id == publisher.id
+
+    def test_analysis_fuzzy_match_with_force_includes_match_details(self, client, db):
+        """Fuzzy match with force=true includes match name and confidence in warning."""
+        from app.models import Binder, Book
+
+        # Create existing binder
+        binder = Binder(name="Riviere & Son", tier="TIER_1")
+        db.add(binder)
+        db.commit()
+
+        # Create a book
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # Create analysis with similar but not exact binder name
+        analysis_md = """# Book Analysis
+
+## Binding Context
+
+**Binder Identification:**
+- **Name:** Riviere and Son
+- **Confidence:** HIGH
+"""
+
+        # Upload with force=true to bypass the error
+        response = client.put(
+            f"/api/v1/books/{book.id}/analysis?force=true",
+            content=analysis_md,
+            headers={"Content-Type": "text/plain"},
+        )
+
+        assert response.status_code == 200
+        # Check X-BMX-Warning header includes fuzzy match details
+        assert "X-BMX-Warning" in response.headers
+        warning_header = response.headers["X-BMX-Warning"]
+        assert "Riviere and Son" in warning_header
+        assert "fuzzy matches" in warning_header
+        assert "Riviere & Son" in warning_header
+        # Should include confidence percentage
+        assert "%" in warning_header

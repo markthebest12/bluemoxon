@@ -360,54 +360,82 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
             if "is_first_edition" in book_updates:
                 book.is_first_edition = book_updates["is_first_edition"]
 
-        # Validate and associate binder
+        # VALIDATION PHASE: Validate ALL entities upfront before any mutations
+        # This ensures we surface ALL errors at once, not just the first one
+        binder_id_to_set: int | None = None
+        binder_error: EntityValidationError | None = None
+        binder_name: str | None = None
+        publisher_id_to_set: int | None = None
+        publisher_error: EntityValidationError | None = None
+        publisher_name: str | None = None
+
         if parsed.binder_identification and parsed.binder_identification.get("name"):
             binder_name = parsed.binder_identification["name"]
-            binder_result = validate_entity_for_book(db, "binder", binder_name)
+            binder_result = validate_entity_for_book(db, "binder", binder_name, allow_unknown=True)
+            if binder_result is None:
+                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
+                logger.warning(
+                    f"Binder '{binder_name}' not found in database - skipping association"
+                )
+            elif isinstance(binder_result, EntityValidationError):
+                binder_error = binder_result
+            else:
+                binder_id_to_set = binder_result
 
-            if isinstance(binder_result, EntityValidationError):
-                error_msg = _format_entity_validation_error("binder", binder_name, binder_result)
-                raise ValueError(error_msg)
-
-            if binder_result and book.binder_id != binder_result:
-                # binder_result is entity ID - fetch binder for logging
-                binder = db.get(Binder, binder_result)
-                if binder:
-                    logger.info(
-                        f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
-                    )
-                    book.binder_id = binder_result
-                else:
-                    logger.error(
-                        f"Binder ID {binder_result} vanished between validation and fetch "
-                        f"for book {book_id} - skipping association"
-                    )
-
-        # Validate and associate publisher
         if parsed.publisher_identification and parsed.publisher_identification.get("name"):
             publisher_name = parsed.publisher_identification["name"]
-            publisher_result = validate_entity_for_book(db, "publisher", publisher_name)
-
-            if isinstance(publisher_result, EntityValidationError):
-                error_msg = _format_entity_validation_error(
-                    "publisher", publisher_name, publisher_result
+            publisher_result = validate_entity_for_book(
+                db, "publisher", publisher_name, allow_unknown=True
+            )
+            if publisher_result is None:
+                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
+                logger.warning(
+                    f"Publisher '{publisher_name}' not found in database - skipping association"
                 )
-                raise ValueError(error_msg)
+            elif isinstance(publisher_result, EntityValidationError):
+                publisher_error = publisher_result
+            else:
+                publisher_id_to_set = publisher_result
 
-            if publisher_result and book.publisher_id != publisher_result:
-                # publisher_result is entity ID - fetch publisher for logging
-                publisher = db.get(Publisher, publisher_result)
-                if publisher:
-                    logger.info(
-                        f"Associating publisher {publisher.name} (tier={publisher.tier}) "
-                        f"with book {book_id}"
-                    )
-                    book.publisher_id = publisher_result
-                else:
-                    logger.error(
-                        f"Publisher ID {publisher_result} vanished between validation and fetch "
-                        f"for book {book_id} - skipping association"
-                    )
+        # Check for validation errors AFTER validating both entities
+        all_errors: list[str] = []
+        if binder_error and binder_name:
+            all_errors.append(_format_entity_validation_error("binder", binder_name, binder_error))
+        if publisher_error and publisher_name:
+            all_errors.append(
+                _format_entity_validation_error("publisher", publisher_name, publisher_error)
+            )
+
+        if all_errors:
+            raise ValueError("; ".join(all_errors))
+
+        # MUTATION PHASE: Associate entities with TOCTOU protection
+        if binder_id_to_set and book.binder_id != binder_id_to_set:
+            binder = db.get(Binder, binder_id_to_set)
+            if binder:
+                logger.info(
+                    f"Associating binder {binder.name} (tier={binder.tier}) with book {book_id}"
+                )
+                book.binder_id = binder_id_to_set
+            else:
+                logger.error(
+                    f"Binder ID {binder_id_to_set} vanished between validation and fetch "
+                    f"for book {book_id} - skipping association"
+                )
+
+        if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
+            publisher = db.get(Publisher, publisher_id_to_set)
+            if publisher:
+                logger.info(
+                    f"Associating publisher {publisher.name} (tier={publisher.tier}) "
+                    f"with book {book_id}"
+                )
+                book.publisher_id = publisher_id_to_set
+            else:
+                logger.error(
+                    f"Publisher ID {publisher_id_to_set} vanished between validation and fetch "
+                    f"for book {book_id} - skipping association"
+                )
 
         # Calculate and persist scores after analysis updates
         logger.info(f"Calculating scores for book {book_id}")
