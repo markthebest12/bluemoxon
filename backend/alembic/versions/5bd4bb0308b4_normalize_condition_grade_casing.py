@@ -11,6 +11,7 @@ SCREAMING_CASE for new data, but legacy data may have inconsistent casing
 Closes #1006
 """
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -21,15 +22,47 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """Normalize condition_grade to UPPERCASE."""
+    """Normalize condition_grade to UPPERCASE with batching and backup."""
+    # First, backup original values to a temp column
+    op.add_column(
+        "books", sa.Column("_condition_grade_backup", sa.String(20), nullable=True)
+    )
     op.execute("""
         UPDATE books
-        SET condition_grade = UPPER(condition_grade)
+        SET _condition_grade_backup = condition_grade
         WHERE condition_grade IS NOT NULL
-          AND condition_grade != UPPER(condition_grade)
+    """)
+
+    # Batch update in chunks to avoid table locks
+    # Use a loop that processes 1000 rows at a time
+    op.execute("""
+        DO $$
+        DECLARE
+            batch_size INTEGER := 1000;
+            rows_updated INTEGER;
+        BEGIN
+            LOOP
+                UPDATE books
+                SET condition_grade = UPPER(condition_grade)
+                WHERE id IN (
+                    SELECT id FROM books
+                    WHERE condition_grade IS NOT NULL
+                      AND condition_grade != UPPER(condition_grade)
+                    LIMIT batch_size
+                );
+                GET DIAGNOSTICS rows_updated = ROW_COUNT;
+                EXIT WHEN rows_updated = 0;
+                COMMIT;
+            END LOOP;
+        END $$;
     """)
 
 
 def downgrade() -> None:
-    """No downgrade - data normalization is one-way."""
-    pass
+    """Restore original condition_grade values from backup."""
+    op.execute("""
+        UPDATE books
+        SET condition_grade = _condition_grade_backup
+        WHERE _condition_grade_backup IS NOT NULL
+    """)
+    op.drop_column("books", "_condition_grade_backup")
