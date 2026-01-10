@@ -3,8 +3,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestCachedDecorator:
     """Tests for the @cached decorator."""
