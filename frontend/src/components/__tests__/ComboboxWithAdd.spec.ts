@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ComboboxWithAdd from "../ComboboxWithAdd.vue";
 
@@ -175,6 +175,236 @@ describe("ComboboxWithAdd", () => {
 
       // Should show add new option for the suggested name
       expect(wrapper.text()).toContain('+ Add "New Publisher"');
+    });
+  });
+
+  describe("createFn prop with 409 handling", () => {
+    it("shows suggestions when createFn returns 409", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "Macmillan",
+            suggestions: [{ id: 123, name: "Macmillan and Co.", match: 0.85, book_count: 42 }],
+            resolution: "Use existing",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Publisher",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Macmillan");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.text()).toContain("Similar");
+      expect(wrapper.text()).toContain("Macmillan and Co.");
+      expect(wrapper.text()).toContain("85%");
+      expect(wrapper.text()).toContain("42 books");
+    });
+
+    it("hides book count when zero", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "Test",
+            suggestions: [{ id: 1, name: "Test Author", match: 0.9, book_count: 0 }],
+            resolution: "Use existing",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.text()).toContain("90%");
+      expect(wrapper.text()).not.toContain("0 books");
+    });
+
+    it("selects suggestion and emits update:modelValue", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "Test",
+            suggestions: [{ id: 99, name: "Existing Author", match: 0.95, book_count: 5 }],
+            resolution: "Use existing",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [{ id: 99, name: "Existing Author" }],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      const useButton = wrapper.find('[data-testid="use-suggestion"]');
+      await useButton.trigger("click");
+
+      expect(wrapper.emitted("update:modelValue")).toBeTruthy();
+      expect(wrapper.emitted("update:modelValue")![0]).toEqual([99]);
+    });
+
+    it("force creates when clicking create anyway link", async () => {
+      const createFn = vi
+        .fn()
+        .mockRejectedValueOnce({
+          response: {
+            status: 409,
+            data: {
+              error: "similar_entity_exists",
+              entity_type: "author",
+              input: "New Author",
+              suggestions: [{ id: 1, name: "Similar", match: 0.8, book_count: 3 }],
+              resolution: "Use existing",
+            },
+          },
+        })
+        .mockResolvedValueOnce({ id: 50, name: "New Author" });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("New Author");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      const createAnywayLink = wrapper.find('[data-testid="create-anyway"]');
+      await createAnywayLink.trigger("click");
+      await wrapper.vm.$nextTick();
+
+      expect(createFn).toHaveBeenCalledTimes(2);
+      expect(createFn).toHaveBeenLastCalledWith("New Author", true);
+      expect(wrapper.emitted("update:modelValue")).toBeTruthy();
+    });
+
+    it("calls createFn on add when provided instead of emitting create", async () => {
+      const createFn = vi.fn().mockResolvedValue({ id: 10, name: "Created" });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("New Name");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(createFn).toHaveBeenCalledWith("New Name", false);
+      expect(wrapper.emitted("create")).toBeFalsy();
+      expect(wrapper.emitted("update:modelValue")).toBeTruthy();
+      expect(wrapper.emitted("update:modelValue")![0]).toEqual([10]);
+    });
+
+    it("still emits create when createFn not provided (backward compat)", async () => {
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [],
+          modelValue: null,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Brand New");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+
+      expect(wrapper.emitted("create")).toBeTruthy();
+      expect(wrapper.emitted("create")![0]).toEqual(["Brand New"]);
+    });
+
+    it("clears conflict state when selecting from dropdown", async () => {
+      const createFn = vi.fn().mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            error: "similar_entity_exists",
+            entity_type: "author",
+            input: "Test",
+            suggestions: [{ id: 1, name: "Similar", match: 0.8, book_count: 0 }],
+            resolution: "Use existing",
+          },
+        },
+      });
+
+      const wrapper = mount(ComboboxWithAdd, {
+        props: {
+          label: "Author",
+          options: [{ id: 2, name: "Different Author" }],
+          modelValue: null,
+          createFn,
+        },
+      });
+
+      const input = wrapper.find("input");
+      await input.setValue("Test");
+      const addButton = wrapper.find('[data-testid="add-new"]');
+      await addButton.trigger("mousedown");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.text()).toContain("Similar");
+
+      // Select from regular dropdown
+      await input.trigger("focus");
+      await input.setValue("Different");
+      const optionButtons = wrapper.findAll('[data-testid="option"]');
+      await optionButtons[0].trigger("mousedown");
+
+      expect(wrapper.find('[data-testid="suggestion-panel"]').exists()).toBe(false);
     });
   });
 });
