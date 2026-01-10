@@ -535,3 +535,226 @@ class TestValidateAndAssociateEntities:
         assert result.binder.skipped_match.confidence == 0.91
         # Book ID should NOT be set (skipped, not associated)
         assert book.binder_id is None
+
+
+class TestEntityAssociationResultDualScenarios:
+    """Test scenarios where BOTH binder and publisher have errors or skips."""
+
+    def test_all_errors_returns_both_when_both_fail(self):
+        """all_errors property returns both errors when both entities fail validation."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        binder_error = EntityValidationError(
+            error="unknown_entity",
+            entity_type="binder",
+            input="Unknown Binder",
+            suggestions=None,
+            resolution="Create the binder first",
+        )
+        publisher_error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="publisher",
+            input="Macmilan",
+            suggestions=None,
+            resolution="Use existing publisher",
+        )
+        result = EntityAssociationResult(
+            binder=ValidationResult(error=binder_error),
+            publisher=ValidationResult(error=publisher_error),
+        )
+
+        assert result.has_errors is True
+        errors = result.all_errors
+        assert len(errors) == 2
+        assert errors[0].entity_type == "binder"
+        assert errors[0].error == "unknown_entity"
+        assert errors[1].entity_type == "publisher"
+        assert errors[1].error == "similar_entity_exists"
+
+    def test_all_errors_returns_single_when_one_fails(self):
+        """all_errors property returns single error when only one entity fails."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        binder_error = EntityValidationError(
+            error="unknown_entity",
+            entity_type="binder",
+            input="Unknown Binder",
+            suggestions=None,
+            resolution="Create the binder first",
+        )
+        result = EntityAssociationResult(
+            binder=ValidationResult(error=binder_error),
+            publisher=ValidationResult(entity_id=10),
+        )
+
+        errors = result.all_errors
+        assert len(errors) == 1
+        assert errors[0].entity_type == "binder"
+
+    def test_all_errors_returns_empty_when_no_errors(self):
+        """all_errors property returns empty list when no errors."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        result = EntityAssociationResult(
+            binder=ValidationResult(entity_id=5),
+            publisher=ValidationResult(entity_id=10),
+        )
+
+        assert result.all_errors == []
+
+    def test_format_skipped_warnings_returns_both_when_both_skipped(self):
+        """format_skipped_warnings returns warnings for both entities when both skipped."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        binder_match = EntityMatch(
+            entity_id=5,
+            name="Riviere & Son",
+            tier="TIER_1",
+            confidence=0.94,
+            book_count=12,
+        )
+        publisher_match = EntityMatch(
+            entity_id=10,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.91,
+            book_count=20,
+        )
+        result = EntityAssociationResult(
+            binder=ValidationResult(skipped_match=binder_match),
+            publisher=ValidationResult(skipped_match=publisher_match),
+        )
+
+        assert result.has_skipped is True
+        warnings = result.format_skipped_warnings("Riviere", "Macmilan")
+        assert len(warnings) == 2
+        assert "binder 'Riviere' fuzzy matches 'Riviere & Son' (94%)" in warnings[0]
+        assert "publisher 'Macmilan' fuzzy matches 'Macmillan and Co.' (91%)" in warnings[1]
+
+    def test_format_skipped_warnings_returns_single_when_one_skipped(self):
+        """format_skipped_warnings returns single warning when only one entity skipped."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        binder_match = EntityMatch(
+            entity_id=5,
+            name="Riviere & Son",
+            tier="TIER_1",
+            confidence=0.94,
+            book_count=12,
+        )
+        result = EntityAssociationResult(
+            binder=ValidationResult(skipped_match=binder_match),
+            publisher=ValidationResult(entity_id=10),
+        )
+
+        warnings = result.format_skipped_warnings("Riviere", "Macmillan")
+        assert len(warnings) == 1
+        assert "binder 'Riviere'" in warnings[0]
+
+    def test_format_skipped_warnings_returns_empty_when_no_skips(self):
+        """format_skipped_warnings returns empty list when no skips."""
+        from app.services.entity_validation import (
+            EntityAssociationResult,
+            ValidationResult,
+        )
+
+        result = EntityAssociationResult(
+            binder=ValidationResult(entity_id=5),
+            publisher=ValidationResult(entity_id=10),
+        )
+
+        warnings = result.format_skipped_warnings("Riviere", "Macmillan")
+        assert warnings == []
+
+    def test_binder_changed_flag_detects_actual_change(self):
+        """binder_changed is True only when binder_id actually changed."""
+        from app.services.entity_validation import validate_and_associate_entities
+        from app.utils.markdown_parser import ParsedAnalysis
+
+        db = MagicMock()
+        book = MagicMock()
+        book.binder_id = None  # Will change
+        book.publisher_id = 10  # Will NOT change (same value)
+
+        parsed = ParsedAnalysis(
+            binder_identification={"name": "Riviere & Son"},
+            publisher_identification={"name": "Macmillan and Co."},
+        )
+
+        def mock_get_normalized_name(db, entity_type, name):
+            if entity_type == "binder":
+                return (5, "Riviere & Son")
+            elif entity_type == "publisher":
+                return (10, "Macmillan and Co.")  # Same as existing
+            return None
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            side_effect=mock_get_normalized_name,
+        ):
+            result = validate_and_associate_entities(db, book, parsed)
+
+        assert result.binder_changed is True  # Was None, now 5
+        assert result.publisher_changed is False  # Already 10
+
+    def test_no_mutation_when_either_has_error(self):
+        """Book IDs not mutated when ANY validation returns error.
+
+        This is the CRITICAL fix - validation errors prevent partial state.
+        """
+        from app.services.entity_validation import validate_and_associate_entities
+        from app.utils.markdown_parser import ParsedAnalysis
+
+        db = MagicMock()
+        book = MagicMock()
+        book.binder_id = None
+        book.publisher_id = None
+
+        parsed = ParsedAnalysis(
+            binder_identification={"name": "Riviere & Son"},  # Will succeed
+            publisher_identification={"name": "Unknown Press"},  # Will fail
+        )
+
+        def mock_get_normalized_name(db, entity_type, name):
+            if entity_type == "binder":
+                return (5, "Riviere & Son")  # Exact match
+            return None  # No match for publisher
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            side_effect=mock_get_normalized_name,
+        ):
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+                return_value=[],
+            ):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_binder = 0.80
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+                    result = validate_and_associate_entities(db, book, parsed)
+
+        # Publisher error should prevent ANY mutation
+        assert result.has_errors is True
+        assert result.publisher.error is not None
+        assert result.binder.success is True  # Validation succeeded
+        # BUT book should NOT be mutated due to publisher error
+        assert book.binder_id is None  # Not set because publisher had error
+        assert book.publisher_id is None
+        assert result.binder_changed is False
+        assert result.publisher_changed is False

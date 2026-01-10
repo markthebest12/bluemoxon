@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,10 @@ from app.services.entity_matching import (
     _normalize_for_entity_type,
     fuzzy_match_entity,
 )
+
+if TYPE_CHECKING:
+    from app.models.book import Book
+    from app.utils.markdown_parser import ParsedAnalysis
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +55,8 @@ class EntityAssociationResult:
 
     binder: ValidationResult
     publisher: ValidationResult
+    binder_changed: bool = False
+    publisher_changed: bool = False
 
     @property
     def has_errors(self) -> bool:
@@ -60,6 +67,37 @@ class EntityAssociationResult:
     def has_skipped(self) -> bool:
         """True if either binder or publisher association was skipped."""
         return self.binder.was_skipped or self.publisher.was_skipped
+
+    @property
+    def all_errors(self) -> list[EntityValidationError]:
+        """Return list of all validation errors (may be 0, 1, or 2)."""
+        errors = []
+        if self.binder.error:
+            errors.append(self.binder.error)
+        if self.publisher.error:
+            errors.append(self.publisher.error)
+        return errors
+
+    def format_skipped_warnings(
+        self, binder_name: str | None, publisher_name: str | None
+    ) -> list[str]:
+        """Format skipped match warnings with consistent format for HTTP and worker.
+
+        Returns list of warning strings like:
+        "binder 'Input Name' fuzzy matches 'Matched Name' (85%)"
+        """
+        warnings = []
+        if self.binder.was_skipped and binder_name:
+            match = self.binder.skipped_match
+            warnings.append(
+                f"binder '{binder_name}' fuzzy matches '{match.name}' ({match.confidence:.0%})"
+            )
+        if self.publisher.was_skipped and publisher_name:
+            match = self.publisher.skipped_match
+            warnings.append(
+                f"publisher '{publisher_name}' fuzzy matches '{match.name}' ({match.confidence:.0%})"
+            )
+        return warnings
 
 
 def _get_entity_by_normalized_name(
@@ -261,13 +299,20 @@ def validate_entity_for_book(
 
 def validate_and_associate_entities(
     db: Session,
-    book,  # Type: app.models.book.Book (avoid circular import)
-    parsed,  # Type: app.utils.markdown_parser.ParsedAnalysis
+    book: "Book",
+    parsed: "ParsedAnalysis",
 ) -> EntityAssociationResult:
     """Validate binder/publisher and associate with book if valid.
 
     This function consolidates the validation logic that was duplicated
     in books.py and worker.py (#1014 fix).
+
+    IMPORTANT: This function validates BOTH entities before mutating anything.
+    If either validation fails with an error, NO mutations are applied. This
+    prevents partial state where binder is set but publisher validation failed.
+
+    Race condition protection: Before assigning an entity ID, we verify the
+    entity still exists in the database (may have been deleted concurrently).
 
     Args:
         db: Database session.
@@ -275,23 +320,70 @@ def validate_and_associate_entities(
         parsed: ParsedAnalysis with binder_identification and publisher_identification.
 
     Returns:
-        EntityAssociationResult with validation results for both entities.
+        EntityAssociationResult with validation results for both entities,
+        plus binder_changed/publisher_changed flags indicating actual changes.
     """
+    from app.models import Binder, Publisher
+
     binder_result = ValidationResult()
     publisher_result = ValidationResult()
 
-    # Validate and associate binder
+    # VALIDATION PHASE: Validate both entities without any mutations
     if parsed.binder_identification and parsed.binder_identification.get("name"):
         binder_result = validate_entity_for_book(db, "binder", parsed.binder_identification["name"])
-        if binder_result.success:
-            book.binder_id = binder_result.entity_id
 
-    # Validate and associate publisher
     if parsed.publisher_identification and parsed.publisher_identification.get("name"):
         publisher_result = validate_entity_for_book(
             db, "publisher", parsed.publisher_identification["name"]
         )
-        if publisher_result.success:
-            book.publisher_id = publisher_result.entity_id
 
-    return EntityAssociationResult(binder=binder_result, publisher=publisher_result)
+    # Check for validation errors BEFORE any mutation
+    # This ensures we don't leave book in partial state
+    if binder_result.error or publisher_result.error:
+        return EntityAssociationResult(
+            binder=binder_result,
+            publisher=publisher_result,
+            binder_changed=False,
+            publisher_changed=False,
+        )
+
+    # MUTATION PHASE: Only proceed if no validation errors
+    binder_changed = False
+    publisher_changed = False
+
+    if binder_result.success:
+        # Race condition check: verify entity still exists before assigning
+        binder = db.get(Binder, binder_result.entity_id)
+        if binder:
+            if book.binder_id != binder_result.entity_id:
+                book.binder_id = binder_result.entity_id
+                binder_changed = True
+        else:
+            # Entity was deleted between validation and mutation
+            logger.warning(
+                f"Binder ID {binder_result.entity_id} vanished between validation and assignment"
+            )
+            # Clear the success - entity no longer exists
+            binder_result = ValidationResult()
+
+    if publisher_result.success:
+        # Race condition check: verify entity still exists before assigning
+        publisher = db.get(Publisher, publisher_result.entity_id)
+        if publisher:
+            if book.publisher_id != publisher_result.entity_id:
+                book.publisher_id = publisher_result.entity_id
+                publisher_changed = True
+        else:
+            # Entity was deleted between validation and mutation
+            logger.warning(
+                f"Publisher ID {publisher_result.entity_id} vanished between validation and assignment"
+            )
+            # Clear the success - entity no longer exists
+            publisher_result = ValidationResult()
+
+    return EntityAssociationResult(
+        binder=binder_result,
+        publisher=publisher_result,
+        binder_changed=binder_changed,
+        publisher_changed=publisher_changed,
+    )

@@ -361,7 +361,7 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
         # Validate and associate binder/publisher using shared function (#1014)
         entity_result = validate_and_associate_entities(db, book, parsed)
 
-        # Check for validation errors
+        # Check for validation errors - surface ALL errors, not just first
         if entity_result.has_errors:
             errors = []
             if entity_result.binder.error:
@@ -380,32 +380,30 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                 )
             raise ValueError("; ".join(errors))
 
-        # Log successful associations for visibility
-        if entity_result.binder.success and book.binder:
+        # Log successful associations for visibility (only when actually changed)
+        if entity_result.binder_changed and book.binder:
             logger.info(
                 f"Associated binder {book.binder.name} (tier={book.binder.tier}) with book {book_id}"
             )
-        if entity_result.publisher.success and book.publisher:
+        if entity_result.publisher_changed and book.publisher:
             logger.info(
                 f"Associated publisher {book.publisher.name} (tier={book.publisher.tier}) "
                 f"with book {book_id}"
             )
 
-        # Log skipped matches for visibility (#1013)
-        if entity_result.binder.was_skipped:
-            binder_name = parsed.binder_identification.get("name", "")
-            logger.info(
-                f"Skipped binder association: '{binder_name}' fuzzy matches "
-                f"'{entity_result.binder.skipped_match.name}' "
-                f"({entity_result.binder.skipped_match.confidence:.0%})"
+        # Log skipped matches for visibility (#1013) - same format as HTTP X-BMX-Warning
+        if entity_result.has_skipped:
+            binder_name = (
+                parsed.binder_identification.get("name") if parsed.binder_identification else None
             )
-        if entity_result.publisher.was_skipped:
-            publisher_name = parsed.publisher_identification.get("name", "")
-            logger.info(
-                f"Skipped publisher association: '{publisher_name}' fuzzy matches "
-                f"'{entity_result.publisher.skipped_match.name}' "
-                f"({entity_result.publisher.skipped_match.confidence:.0%})"
+            publisher_name = (
+                parsed.publisher_identification.get("name")
+                if parsed.publisher_identification
+                else None
             )
+            warnings = entity_result.format_skipped_warnings(binder_name, publisher_name)
+            for warning in warnings:
+                logger.info(f"Skipped association: {warning}")
 
         # Calculate and persist scores after analysis updates
         logger.info(f"Calculating scores for book {book_id}")

@@ -1428,34 +1428,42 @@ def update_book_analysis(
     # This consolidates duplicate logic from books.py and worker.py
     entity_result = validate_and_associate_entities(db, book, parsed)
 
+    # Surface ALL errors when both entities fail (#1013 fix)
     if entity_result.has_errors:
-        error = entity_result.binder.error or entity_result.publisher.error
-        status_code = 409 if error.error == "similar_entity_exists" else 400
-        raise HTTPException(status_code=status_code, detail=error.model_dump())
+        all_errors = entity_result.all_errors
+        if len(all_errors) == 1:
+            # Single error - return it directly
+            error = all_errors[0]
+            status_code = 409 if error.error == "similar_entity_exists" else 400
+            raise HTTPException(status_code=status_code, detail=error.model_dump())
+        else:
+            # Multiple errors - combine into response
+            status_code = (
+                409 if any(e.error == "similar_entity_exists" for e in all_errors) else 400
+            )
+            raise HTTPException(
+                status_code=status_code,
+                detail={
+                    "error": "multiple_validation_errors",
+                    "errors": [e.model_dump() for e in all_errors],
+                },
+            )
 
-    # Track what was updated for response
-    binder_updated = (
-        entity_result.binder.success and book.binder_id == entity_result.binder.entity_id
-    )
-    publisher_updated = (
-        entity_result.publisher.success and book.publisher_id == entity_result.publisher.entity_id
-    )
+    # Track what was updated for response (uses actual change detection)
+    binder_updated = entity_result.binder_changed
+    publisher_updated = entity_result.publisher_changed
 
-    # Add Warning header if matches were skipped in log mode (#1013)
+    # Add custom warning header if matches were skipped in log mode (#1013)
+    # Using X-BMX-Warning instead of Warning header for cleaner format
     if entity_result.has_skipped:
-        warnings = []
-        if entity_result.binder.was_skipped:
-            binder_name = parsed.binder_identification["name"]
-            warnings.append(
-                f"Binder '{binder_name}' fuzzy matches '{entity_result.binder.skipped_match.name}'"
-            )
-        if entity_result.publisher.was_skipped:
-            publisher_name = parsed.publisher_identification["name"]
-            warnings.append(
-                f"Publisher '{publisher_name}' fuzzy matches "
-                f"'{entity_result.publisher.skipped_match.name}'"
-            )
-        response.headers["Warning"] = "; ".join(warnings)
+        binder_name = (
+            parsed.binder_identification.get("name") if parsed.binder_identification else None
+        )
+        publisher_name = (
+            parsed.publisher_identification.get("name") if parsed.publisher_identification else None
+        )
+        warnings = entity_result.format_skipped_warnings(binder_name, publisher_name)
+        response.headers["X-BMX-Warning"] = "; ".join(warnings)
 
     # MUTATION PHASE: Entity associations already applied by validate_and_associate_entities
     # Apply metadata (provenance, first edition)

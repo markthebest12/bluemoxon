@@ -1337,7 +1337,7 @@ Buy this book.
 - **Confidence:** HIGH
 """
 
-        # Upload analysis - should succeed in log mode but set Warning header
+        # Upload analysis - should succeed in log mode but set X-BMX-Warning header
         response = client.put(
             f"/api/v1/books/{book.id}/analysis",
             content=analysis_md,
@@ -1346,10 +1346,10 @@ Buy this book.
 
         assert response.status_code == 200
 
-        # Check Warning header is set
-        warning_header = response.headers.get("Warning")
+        # Check X-BMX-Warning header is set (custom header for cleaner format)
+        warning_header = response.headers.get("X-BMX-Warning")
         assert warning_header is not None
-        assert "Binder" in warning_header
+        assert "binder" in warning_header
         assert "Riviere and Son" in warning_header
         assert "Riviere & Son" in warning_header
 
