@@ -1,5 +1,7 @@
 """Statistics API tests."""
 
+import json
+
 from freezegun import freeze_time
 
 
@@ -1269,3 +1271,59 @@ class TestDashboardBatch:
         poetry = next((c for c in data["by_category"] if c["category"] == "Victorian Poetry"), None)
         assert poetry is not None
         assert poetry["count"] == 1
+
+
+class TestDashboardCaching:
+    """Tests for dashboard endpoint caching behavior."""
+
+    def test_dashboard_returns_cached_response_on_hit(self, client):
+        """Dashboard returns cached data when available."""
+        from unittest.mock import MagicMock, patch
+
+        cached_response = {
+            "overview": {"primary": {"count": 99}},
+            "bindings": [],
+            "by_era": [],
+            "by_publisher": [],
+            "by_author": [],
+            "acquisitions_daily": [],
+            "by_condition": [],
+            "by_category": [],
+        }
+
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps(cached_response)
+
+        with patch("app.services.dashboard_stats.get_redis", return_value=mock_redis):
+            response = client.get("/api/v1/stats/dashboard")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Should return cached count of 99
+        assert data["overview"]["primary"]["count"] == 99
+
+    def test_dashboard_caches_response_on_miss(self, client, db):
+        """Dashboard caches response when cache is empty."""
+        from unittest.mock import MagicMock, patch
+
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None  # Cache miss
+
+        with patch("app.services.dashboard_stats.get_redis", return_value=mock_redis):
+            response = client.get("/api/v1/stats/dashboard")
+
+        assert response.status_code == 200
+        # Verify cache was set
+        mock_redis.setex.assert_called_once()
+
+    def test_dashboard_works_without_redis(self, client, db):
+        """Dashboard works normally when Redis is unavailable."""
+        from unittest.mock import patch
+
+        with patch("app.services.dashboard_stats.get_redis", return_value=None):
+            response = client.get("/api/v1/stats/dashboard")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "overview" in data
+        assert "bindings" in data
