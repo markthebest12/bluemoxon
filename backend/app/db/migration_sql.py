@@ -474,13 +474,15 @@ MIGRATION_Y8901234BCDE_SQL = [
 
 # Migration SQL for 5bd4bb0308b4_normalize_condition_grade_casing
 # Normalizes condition_grade values to UPPERCASE for consistency
-# Adds backup column for rollback capability
+# Backup column is created, used, then cleaned up
 MIGRATION_5BD4BB0308B4_SQL = [
     """ALTER TABLE books ADD COLUMN IF NOT EXISTS _condition_grade_backup VARCHAR(20)""",
     """UPDATE books SET _condition_grade_backup = condition_grade
        WHERE condition_grade IS NOT NULL AND _condition_grade_backup IS NULL""",
     """UPDATE books SET condition_grade = UPPER(condition_grade)
        WHERE condition_grade IS NOT NULL AND condition_grade != UPPER(condition_grade)""",
+    # Cleanup: drop backup column after successful migration
+    """ALTER TABLE books DROP COLUMN IF EXISTS _condition_grade_backup""",
 ]
 
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
