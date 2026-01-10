@@ -205,3 +205,48 @@ def get_overview_stats(db: Session) -> dict:
             "authenticated_bindings": week_premium_delta,
         },
     }
+
+
+def get_dashboard_optimized(
+    db: Session, reference_date: str = None, days: int = 30
+) -> dict:
+    """Get all dashboard stats with optimized queries.
+
+    Reduces query count from ~14 to ~7 by using consolidated queries
+    for overview and dimension stats.
+
+    Args:
+        db: Database session
+        reference_date: Reference date for acquisitions (YYYY-MM-DD)
+        days: Number of days for acquisition history
+
+    Returns:
+        dict matching DashboardResponse schema
+    """
+    from app.api.v1.stats import (
+        get_acquisitions_daily,
+        get_bindings,
+        get_by_author,
+        get_by_publisher,
+    )
+
+    # Consolidated queries (2 queries instead of ~9)
+    overview = get_overview_stats(db)
+    dimensions = get_dimension_stats(db)
+
+    # Individual queries that remain (complex logic)
+    bindings = get_bindings(db)
+    by_publisher = get_by_publisher(db)
+    by_author = get_by_author(db)
+    acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
+
+    return {
+        "overview": overview,
+        "bindings": bindings,
+        "by_era": dimensions["by_era"],
+        "by_publisher": by_publisher,
+        "by_author": by_author,
+        "acquisitions_daily": acquisitions_daily,
+        "by_condition": dimensions["by_condition"],
+        "by_category": dimensions["by_category"],
+    }
