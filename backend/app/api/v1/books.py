@@ -29,6 +29,7 @@ from app.db import get_db
 from app.models import (
     AnalysisJob,
     Author,
+    Binder,
     Book,
     BookAnalysis,
     BookImage,
@@ -1453,17 +1454,31 @@ def update_book_analysis(
     if metadata:
         metadata_updated = apply_metadata_to_book(book, metadata)
 
-    # Associate binder
+    # Associate binder (with existence re-check for TOCTOU safety)
     binder_updated = False
     if binder_id_to_set and book.binder_id != binder_id_to_set:
-        book.binder_id = binder_id_to_set
-        binder_updated = True
+        binder = db.get(Binder, binder_id_to_set)
+        if binder:
+            book.binder_id = binder_id_to_set
+            binder_updated = True
+        else:
+            logger.error(
+                f"Binder ID {binder_id_to_set} vanished between validation and mutation "
+                f"for book {book_id} - skipping association"
+            )
 
-    # Associate publisher
+    # Associate publisher (with existence re-check for TOCTOU safety)
     publisher_updated = False
     if publisher_id_to_set and book.publisher_id != publisher_id_to_set:
-        book.publisher_id = publisher_id_to_set
-        publisher_updated = True
+        publisher = db.get(Publisher, publisher_id_to_set)
+        if publisher:
+            book.publisher_id = publisher_id_to_set
+            publisher_updated = True
+        else:
+            logger.error(
+                f"Publisher ID {publisher_id_to_set} vanished between validation and mutation "
+                f"for book {book_id} - skipping association"
+            )
 
     if book.analysis:
         book.analysis.full_markdown = full_markdown
