@@ -142,3 +142,39 @@ export function getHttpStatus(e: unknown): number | undefined {
   }
   return undefined;
 }
+
+/**
+ * Entity suggestion from 409 conflict response.
+ */
+export interface EntitySuggestion {
+  id: number;
+  name: string;
+  tier?: string;
+  match: number;
+  book_count: number;
+}
+
+/**
+ * 409 Conflict response when creating similar entity.
+ */
+export interface EntityConflictResponse {
+  error: "similar_entity_exists";
+  entity_type: string;
+  input: string;
+  suggestions: EntitySuggestion[];
+  resolution: string;
+}
+
+/**
+ * Type guard for entity conflict response.
+ */
+export function isEntityConflictResponse(data: unknown): data is EntityConflictResponse {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    obj.error === "similar_entity_exists" &&
+    typeof obj.entity_type === "string" &&
+    typeof obj.input === "string" &&
+    Array.isArray(obj.suggestions)
+  );
+}
