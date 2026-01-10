@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
+import { getErrorMessage } from "@/types/errors";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -89,37 +90,14 @@ function handleClose() {
   }
 }
 
-async function handleCreateAuthor(name: string) {
-  try {
-    const author = await refsStore.createAuthor(name);
-    form.value.author_id = author.id;
-  } catch (e: unknown) {
-    errorMessage.value = e instanceof Error ? e.message : "Failed to create author";
-  }
-}
-
-async function handleCreatePublisher(name: string) {
-  try {
-    const publisher = await refsStore.createPublisher(name);
-    form.value.publisher_id = publisher.id;
-  } catch (e: unknown) {
-    errorMessage.value = e instanceof Error ? e.message : "Failed to create publisher";
-  }
-}
-
-async function handleCreateBinder(name: string) {
-  try {
-    const binder = await refsStore.createBinder(name);
-    form.value.binder_id = binder.id;
-  } catch (e: unknown) {
-    errorMessage.value = e instanceof Error ? e.message : "Failed to create binder";
-  }
-}
-
 function openSourceUrl() {
   if (form.value.source_url) {
     window.open(form.value.source_url, "_blank");
   }
+}
+
+function handleEntityError(err: unknown) {
+  errorMessage.value = getErrorMessage(err, "Failed to create entity");
 }
 </script>
 
@@ -181,7 +159,8 @@ function openSourceUrl() {
               v-model="form.author_id"
               label="Author"
               :options="refsStore.authors"
-              @create="handleCreateAuthor"
+              :create-fn="refsStore.createAuthor"
+              @error="handleEntityError"
             />
             <p
               v-if="validationErrors.author"
@@ -194,7 +173,8 @@ function openSourceUrl() {
             v-model="form.publisher_id"
             label="Publisher"
             :options="refsStore.publishers"
-            @create="handleCreatePublisher"
+            :create-fn="refsStore.createPublisher"
+            @error="handleEntityError"
           />
         </div>
 
@@ -204,7 +184,8 @@ function openSourceUrl() {
             v-model="form.binder_id"
             label="Binder"
             :options="refsStore.binders"
-            @create="handleCreateBinder"
+            :create-fn="refsStore.createBinder"
+            @error="handleEntityError"
           />
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> Publication Date </label>
