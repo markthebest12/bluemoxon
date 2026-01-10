@@ -266,7 +266,7 @@ module "elasticache" {
   source = "./modules/elasticache"
 
   environment              = var.environment
-  vpc_id                   = data.aws_vpc.default[0].id
+  vpc_id                   = local.lambda_vpc_id
   subnet_ids               = var.private_subnet_ids
   lambda_security_group_id = local.lambda_security_group_id
 
