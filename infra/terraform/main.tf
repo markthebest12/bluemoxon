@@ -258,6 +258,22 @@ module "database" {
 }
 
 # =============================================================================
+# ElastiCache for Dashboard Caching (#1002)
+# =============================================================================
+
+module "elasticache" {
+  count  = var.enable_elasticache ? 1 : 0
+  source = "./modules/elasticache"
+
+  environment              = var.environment
+  vpc_id                   = data.aws_vpc.default[0].id
+  subnet_ids               = var.private_subnet_ids
+  lambda_security_group_id = local.lambda_security_group_id
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Lambda Layer (shared Python dependencies)
 # =============================================================================
 
@@ -360,6 +376,8 @@ module "lambda" {
       BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
       BMX_ENTITY_MATCH_THRESHOLD_BINDER    = tostring(var.entity_match_threshold_binder)
       BMX_ENTITY_MATCH_THRESHOLD_AUTHOR    = tostring(var.entity_match_threshold_author)
+      # ElastiCache for dashboard caching (#1002)
+      BMX_REDIS_URL = var.enable_elasticache ? module.elasticache[0].redis_endpoint : ""
     },
     # Database secret ARN (use module output for staging, explicit ARN for prod)
     var.enable_database ? {
