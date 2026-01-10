@@ -117,6 +117,13 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_API_KEY_HASH", "API_KEY_HASH"),
     )
 
+    # Redis cache
+    redis_url: str = Field(
+        default="",
+        description="Redis URL for caching (empty = caching disabled)",
+        validation_alias=AliasChoices("BMX_REDIS_URL", "REDIS_URL"),
+    )
+
     # Editor access control
     allowed_editor_emails: str = Field(
         default="",
