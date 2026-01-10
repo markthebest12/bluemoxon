@@ -5,9 +5,13 @@ reducing database round trips by using GROUPING SETS and conditional
 aggregation.
 """
 
+import json
+import logging
+
 from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
+from app.cache import get_redis
 from app.models import Book
 from app.utils import safe_float
 
@@ -208,10 +212,10 @@ def get_overview_stats(db: Session) -> dict:
 
 
 def get_dashboard_optimized(db: Session, reference_date: str = None, days: int = 30) -> dict:
-    """Get all dashboard stats with optimized queries.
+    """Get all dashboard stats with optimized queries and caching.
 
-    Reduces query count from ~14 to ~7 by using consolidated queries
-    for overview and dimension stats.
+    Caches the complete dashboard response for 5 minutes.
+    Falls back to direct queries when Redis is unavailable.
 
     Args:
         db: Database session
@@ -221,6 +225,25 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     Returns:
         dict matching DashboardResponse schema
     """
+    logger = logging.getLogger(__name__)
+
+    # Build cache key based on parameters
+    cache_key = f"dashboard:stats:{reference_date or 'default'}:{days}"
+
+    # Try cache first
+    client = get_redis()
+    if client:
+        try:
+            cached_value = client.get(cache_key)
+            if cached_value:
+                logger.debug(f"Dashboard cache HIT: {cache_key}")
+                return json.loads(cached_value)
+        except Exception as e:
+            logger.warning(f"Dashboard cache GET failed: {e}")
+
+    logger.debug(f"Dashboard cache MISS: {cache_key}")
+
+    # Cache miss - execute queries
     from app.api.v1.stats import (
         get_acquisitions_daily,
         get_bindings,
@@ -238,7 +261,7 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     by_author = get_by_author(db)
     acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
 
-    return {
+    result = {
         "overview": overview,
         "bindings": bindings,
         "by_era": dimensions["by_era"],
@@ -248,3 +271,14 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
         "by_condition": dimensions["by_condition"],
         "by_category": dimensions["by_category"],
     }
+
+    # Store in cache
+    if client:
+        try:
+            serialized = json.dumps(result, default=str)
+            client.setex(cache_key, 300, serialized)  # 5 minute TTL
+            logger.debug(f"Dashboard cached: {cache_key}")
+        except Exception as e:
+            logger.warning(f"Dashboard cache SET failed: {e}")
+
+    return result

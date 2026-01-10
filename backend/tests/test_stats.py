@@ -1281,7 +1281,26 @@ class TestDashboardCaching:
         from unittest.mock import MagicMock, patch
 
         cached_response = {
-            "overview": {"primary": {"count": 99}},
+            "overview": {
+                "primary": {
+                    "count": 99,
+                    "volumes": 99,
+                    "value_low": 1000.0,
+                    "value_mid": 1500.0,
+                    "value_high": 2000.0,
+                },
+                "extended": {"count": 5},
+                "flagged": {"count": 2},
+                "total_items": 106,
+                "authenticated_bindings": 10,
+                "in_transit": 3,
+                "week_delta": {
+                    "count": 2,
+                    "volumes": 2,
+                    "value_mid": 100.0,
+                    "authenticated_bindings": 1,
+                },
+            },
             "bindings": [],
             "by_era": [],
             "by_publisher": [],
