@@ -24,6 +24,7 @@ reportlab = "^4.4.7"
 pillow = "^12.1.0"
 rapidfuzz = "^3.14.3"
 defusedxml = "^0.7.1"  # Required by carriers/usps.py for safe XML parsing
+redis = "^7.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
