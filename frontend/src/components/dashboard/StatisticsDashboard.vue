@@ -4,31 +4,9 @@ import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
 import type { DashboardStats } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
-import { useToast } from "@/composables/useToast";
+import { navigateToBooks } from "@/utils/chart-navigation";
 
 const router = useRouter();
-const { showWarning } = useToast();
-
-/**
- * Navigate to filtered books list.
- * - Normal click: same tab (standard web behavior)
- * - Ctrl/Cmd+Click: new tab (user choice)
- */
-function navigateToBooks(filter: Record<string, string | number>, nativeEvent?: Event | null) {
-  const mouseEvent = nativeEvent as MouseEvent | undefined;
-  const wantsNewTab = mouseEvent?.ctrlKey || mouseEvent?.metaKey;
-
-  if (wantsNewTab) {
-    const route = router.resolve({ path: "/books", query: filter });
-    const newWindow = window.open(route.href, "_blank", "noopener");
-    if (!newWindow) {
-      // Popup blocked - fall back to same tab
-      void router.push({ path: "/books", query: filter });
-    }
-  } else {
-    void router.push({ path: "/books", query: filter });
-  }
-}
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -91,7 +69,7 @@ const lineChartOptions = computed(() => ({
       const index = elements[0].index;
       const day = props.data.acquisitions_daily[index];
       if (day?.date) {
-        navigateToBooks({ date_acquired: day.date }, event.native);
+        navigateToBooks(router, { date_acquired: day.date }, event.native);
       }
     }
   },
@@ -167,12 +145,9 @@ function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event
 const conditionChartOptions = computed(() =>
   createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const condition = props.data.by_condition[index]?.condition;
-    if (condition === "Ungraded") {
-      showWarning("Ungraded books cannot be filtered - they have no condition value");
-      return;
-    }
     if (condition) {
-      navigateToBooks({ condition_grade: condition }, nativeEvent);
+      // navigateToBooks handles "Ungraded" -> condition_grade__isnull=true
+      navigateToBooks(router, { condition_grade: condition }, nativeEvent);
     }
   })
 );
@@ -180,12 +155,9 @@ const conditionChartOptions = computed(() =>
 const categoryChartOptions = computed(() =>
   createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const category = props.data.by_category[index]?.category;
-    if (category === "Uncategorized") {
-      showWarning("Uncategorized books cannot be filtered - they have no category value");
-      return;
-    }
     if (category) {
-      navigateToBooks({ category }, nativeEvent);
+      // navigateToBooks handles "Uncategorized" -> category__isnull=true
+      navigateToBooks(router, { category }, nativeEvent);
     }
   })
 );
@@ -194,7 +166,11 @@ const bindingsChartOptions = computed(() =>
   createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
     const binder = props.data.bindings[index];
     if (binder?.binder_id) {
-      navigateToBooks({ binder_id: binder.binder_id, binding_authenticated: "true" }, nativeEvent);
+      navigateToBooks(
+        router,
+        { binder_id: binder.binder_id, binding_authenticated: "true" },
+        nativeEvent
+      );
     }
   })
 );
@@ -208,7 +184,7 @@ const eraChartOptions = computed(() => ({
       const index = elements[0].index;
       const era = props.data.by_era[index]?.era;
       if (era) {
-        navigateToBooks({ era }, event.native);
+        navigateToBooks(router, { era }, event.native);
       }
     }
   },
@@ -251,7 +227,7 @@ const publisherChartOptions = computed(() => ({
       const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5);
       const publisher = tier1[index];
       if (publisher?.publisher_id) {
-        navigateToBooks({ publisher_id: publisher.publisher_id }, event.native);
+        navigateToBooks(router, { publisher_id: publisher.publisher_id }, event.native);
       }
     }
   },
@@ -446,7 +422,7 @@ const authorChartOptions = computed(() => ({
       const index = elements[0].index;
       const author = filteredAuthorData.value[index];
       if (author?.author_id) {
-        navigateToBooks({ author_id: author.author_id }, event.native);
+        navigateToBooks(router, { author_id: author.author_id }, event.native);
       }
     }
   },

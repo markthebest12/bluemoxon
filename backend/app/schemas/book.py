@@ -75,8 +75,10 @@ class BookListParams(BaseModel):
     binding_authenticated: bool | None = None
     binding_type: str | None = None  # Too many values for enum
     condition_grade: ConditionGrade | None = None
+    condition_grade__isnull: bool | None = None  # Filter for NULL condition_grade
     provenance_tier: Tier | None = None
     era: Era | None = None
+    category__isnull: bool | None = None  # Filter for NULL category
 
     # Range filters
     min_value: float | None = None
