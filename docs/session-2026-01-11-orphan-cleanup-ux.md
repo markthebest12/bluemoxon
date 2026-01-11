@@ -2,10 +2,10 @@
 
 **Date:** 2026-01-11
 **GitHub Issue:** #1057
-**PRs:** #1058, #1059, #1061, #1062, #1064, #1066 (current)
+**PRs:** #1058, #1059, #1061, #1062, #1064, #1066 (merged)
 **Branch:** `fix/1057-thumb-prefix`
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/feat-1057-orphan-cleanup-ux`
-**Status:** Fixing thumb_ prefix directories not being grouped
+**Status:** Complete - thumb_ prefix fix merged to staging
 
 ---
 
@@ -16,6 +16,8 @@
 **THIS IS NOT OPTIONAL. INVOKE BEFORE ANY ACTION.**
 
 - `superpowers:using-superpowers` - ALWAYS at session start
+- `superpowers:receiving-code-review` - When handling review feedback
+- `superpowers:test-driven-development` - For all implementation
 - `superpowers:systematic-debugging` - For any bugs or unexpected behavior
 - `superpowers:verification-before-completion` - Before claiming work is done
 
@@ -89,9 +91,9 @@ except ValueError:
 | #1058 | Main orphan cleanup UX feature | Merged to prod |
 | #1059 | Pass through orphan scan details | Merged to prod |
 | #1061 | Promote to production | Merged |
-| #1062 | Handle flat S3 key format | Merged to staging |
+| #1062 | Handle flat S3 key format | Merged to prod |
 | #1064 | Promote format fix to prod | Merged |
-| #1066 | Handle thumb_ prefix directories | In progress |
+| #1066 | Handle thumb_ prefix directories | Merged to staging |
 
 ---
 
