@@ -40,6 +40,13 @@ a curated collection of Victorian-era books with premium bindings.
 - **Cognito JWT**: For web application users
 - **API Key**: For CLI/automation tools (X-API-Key header)
 
+### API Compatibility
+
+This API follows additive compatibility within major versions:
+- New optional fields may be added to responses at any time
+- Clients should ignore unknown fields (do not use `additionalProperties: false`)
+- Breaking changes (removal, rename, type changes) require a new API version
+
 ### Health Endpoints
 
 | Endpoint | Purpose |
