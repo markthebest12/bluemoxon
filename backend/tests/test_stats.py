@@ -1360,10 +1360,14 @@ class TestStatsEdgeCases:
 
         Tests that SQLAlchemy properly parameterizes queries and the stats
         endpoint safely handles malicious strings in the database.
+
+        Note: condition_grade is VARCHAR(20), so we use a shortened injection
+        string that still demonstrates the security principle.
         """
         from app.models import Book
 
-        injection_string = "'; DROP TABLE books; --"
+        # Shortened to fit VARCHAR(20): "1' OR '1'='1" is 12 chars
+        injection_string = "1' OR '1'='1"
         book = Book(
             title="SQL Injection Test Book",
             condition_grade=injection_string,
@@ -1394,10 +1398,14 @@ class TestStatsEdgeCases:
 
         The API does not sanitize output - frontend must handle escaping.
         This test verifies the string is preserved without corruption.
+
+        Note: condition_grade is VARCHAR(20), so we use a shortened XSS
+        string that still demonstrates the security principle.
         """
         from app.models import Book
 
-        xss_string = "<script>alert('xss')</script>"
+        # Shortened to fit VARCHAR(20): "<b>xss</b>" is 10 chars
+        xss_string = "<b>xss</b>"
         book = Book(
             title="XSS Test Book",
             condition_grade=xss_string,
