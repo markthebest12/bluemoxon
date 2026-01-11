@@ -1,6 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { wantsNewTab, navigateToBooks } from "./chart-navigation";
+import { wantsNewTab, navigateToBooks, normalizeEra } from "./chart-navigation";
 import type { Router } from "vue-router";
+
+describe("normalizeEra", () => {
+  it("strips parenthetical date range from era", () => {
+    expect(normalizeEra("Victorian (1837-1901)")).toBe("Victorian");
+  });
+
+  it("handles era with extra whitespace before parenthesis", () => {
+    expect(normalizeEra("Edwardian  (1901-1910)")).toBe("Edwardian");
+  });
+
+  it("returns era unchanged when no parentheses", () => {
+    expect(normalizeEra("Victorian")).toBe("Victorian");
+  });
+
+  it("handles empty string", () => {
+    expect(normalizeEra("")).toBe("");
+  });
+
+  it("handles era with multiple parentheses", () => {
+    expect(normalizeEra("Georgian (Early) (1714-1760)")).toBe("Georgian");
+  });
+});
 
 describe("wantsNewTab", () => {
   it("returns false when event is undefined", () => {
@@ -84,5 +106,20 @@ describe("navigateToBooks", () => {
 
     expect(mockPush).toHaveBeenCalledWith({ path: "/books", query: { era: "Victorian" } });
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it("normalizes era filter by stripping parenthetical date range", () => {
+    navigateToBooks(mockRouter, { era: "Victorian (1837-1901)" });
+
+    expect(mockPush).toHaveBeenCalledWith({ path: "/books", query: { era: "Victorian" } });
+  });
+
+  it("preserves other filters when normalizing era", () => {
+    navigateToBooks(mockRouter, { era: "Edwardian (1901-1910)", status: "IN_COLLECTION" });
+
+    expect(mockPush).toHaveBeenCalledWith({
+      path: "/books",
+      query: { era: "Edwardian", status: "IN_COLLECTION" },
+    });
   });
 });

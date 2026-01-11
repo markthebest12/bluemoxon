@@ -1,6 +1,21 @@
 import type { Router } from "vue-router";
 
 /**
+ * Normalizes era value by stripping date range parentheses.
+ * Stats API returns era with dates like "Victorian (1837-1901)"
+ * but the books API expects just "Victorian".
+ *
+ * @param era The era value, possibly with parentheses
+ * @returns The era name without date range
+ */
+export function normalizeEra(era: string): string {
+  if (era.includes("(")) {
+    return era.split("(")[0].trim();
+  }
+  return era;
+}
+
+/**
  * Determines if user wants to open link in new tab based on modifier keys.
  * - Ctrl+Click (Win/Linux) = new tab
  * - Cmd+Click (Mac) = new tab
@@ -24,14 +39,21 @@ export function navigateToBooks(
   filter: Record<string, string | number>,
   nativeEvent?: Event | null
 ): void {
+  // Normalize era filter to strip parenthetical date ranges
+  // e.g., "Victorian (1837-1901)" -> "Victorian"
+  const normalizedFilter = { ...filter };
+  if (typeof normalizedFilter.era === "string") {
+    normalizedFilter.era = normalizeEra(normalizedFilter.era);
+  }
+
   if (wantsNewTab(nativeEvent)) {
-    const route = router.resolve({ path: "/books", query: filter });
+    const route = router.resolve({ path: "/books", query: normalizedFilter });
     const newWindow = window.open(route.href, "_blank", "noopener");
     if (!newWindow) {
       // Popup blocked - fall back to same tab
-      void router.push({ path: "/books", query: filter });
+      void router.push({ path: "/books", query: normalizedFilter });
     }
   } else {
-    void router.push({ path: "/books", query: filter });
+    void router.push({ path: "/books", query: normalizedFilter });
   }
 }
