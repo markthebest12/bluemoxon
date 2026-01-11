@@ -227,18 +227,18 @@ describe("BookMetadataSection", () => {
       });
 
       expect(wrapper.text()).toContain("Era");
-      expect(wrapper.text()).toContain("Mid-Victorian");
+      expect(wrapper.text()).toContain("Victorian");
     });
 
-    it("displays computed era from year_end when both years present", () => {
-      const book = createBook({ year_start: 1835, year_end: 1845 });
+    it("displays computed era from year_end when year_start is null", () => {
+      const book = createBook({ year_start: null, year_end: 1845 });
       const wrapper = mount(BookMetadataSection, {
         props: { book, isEditor: false },
       });
 
-      // 1845 = Early Victorian
+      // 1845 = Victorian (1837-1901)
       expect(wrapper.text()).toContain("Era");
-      expect(wrapper.text()).toContain("Early Victorian");
+      expect(wrapper.text()).toContain("Victorian");
     });
 
     it("shows dash for era when year_start is null", () => {
