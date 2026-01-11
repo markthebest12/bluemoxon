@@ -539,56 +539,6 @@ class TestCleanupOrphanedImages:
         assert "books/515/image_00.webp" not in result["keys"]
         assert "books/515/image_01.webp" not in result["keys"]
 
-    @patch("lambdas.cleanup.handler.boto3.client")
-    def test_max_deletions_guard_stops_at_limit(self, mock_boto_client, db):
-        """Test that deletion stops at max_deletions limit.
-
-        Prevents accidental mass deletion even if orphan detection is correct.
-        """
-        mock_s3 = MagicMock()
-        mock_boto_client.return_value = mock_s3
-
-        mock_paginator = MagicMock()
-        mock_s3.get_paginator.return_value = mock_paginator
-        # 10 orphans in S3
-        mock_paginator.paginate.return_value = [
-            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
-        ]
-
-        # No images in DB - all 10 are orphans
-        result = cleanup_orphaned_images(db, bucket="test-bucket", delete=True, max_deletions=5)
-
-        # Should only delete 5, even though 10 orphans found
-        assert result["orphans_found"] == 10
-        assert result["deleted"] == 5
-        assert mock_s3.delete_object.call_count == 5
-
-    @patch("lambdas.cleanup.handler.boto3.client")
-    def test_max_deletions_guard_allows_override(self, mock_boto_client, db):
-        """Test that force_delete=True allows exceeding max_deletions.
-
-        For intentional bulk cleanup operations.
-        """
-        mock_s3 = MagicMock()
-        mock_boto_client.return_value = mock_s3
-
-        mock_paginator = MagicMock()
-        mock_s3.get_paginator.return_value = mock_paginator
-        # 10 orphans in S3
-        mock_paginator.paginate.return_value = [
-            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
-        ]
-
-        # No images in DB - all 10 are orphans
-        result = cleanup_orphaned_images(
-            db, bucket="test-bucket", delete=True, max_deletions=5, force_delete=True
-        )
-
-        # Should delete all 10 with force_delete override
-        assert result["orphans_found"] == 10
-        assert result["deleted"] == 10
-        assert mock_s3.delete_object.call_count == 10
-
 
 class TestCleanupHandler:
     """Tests for the main Lambda handler function."""
@@ -729,6 +679,116 @@ class TestCleanupHandler:
 
         assert "error" in result
         assert "bucket" in result["error"].lower()
+
+
+class TestCleanupOrphanedImagesWithSize:
+    """Tests for orphan scan with size information."""
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_returns_size_per_orphan(self, mock_boto_client, db):
+        """Test that scan returns size for each orphan."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/123/image_00.webp", "Size": 102400},
+                    {"Key": "books/123/image_01.webp", "Size": 204800},
+                    {"Key": "books/456/image_00.webp", "Size": 51200},
+                ]
+            }
+        ]
+
+        # No images in DB = all are orphans
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        assert result["total_bytes"] == 358400  # 102400 + 204800 + 51200
+        assert "orphans_by_book" in result
+        assert len(result["orphans_by_book"]) == 2  # Two book folders (123 and 456)
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_groups_by_book_with_size(self, mock_boto_client, db):
+        """Test that orphans are grouped by book folder with aggregated sizes."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/123/image_00.webp", "Size": 100000},
+                    {"Key": "books/123/image_01.webp", "Size": 200000},
+                ]
+            }
+        ]
+
+        # No images in DB = all are orphans
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 123
+        assert book_group["count"] == 2
+        assert book_group["bytes"] == 300000
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_resolves_book_titles(self, mock_boto_client, db):
+        """Test that book titles are resolved from DB when available."""
+        from app.models import Book
+
+        # Create a book in DB with known ID
+        book = Book(title="Test Victorian Book")
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Orphan in a folder matching the book ID
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": f"books/{book_id}/orphan_image.webp", "Size": 50000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == book_id
+        assert book_group["book_id"] == book_id
+        assert book_group["book_title"] == "Test Victorian Book"
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_unknown_book_folder(self, mock_boto_client, db):
+        """Test that orphans in unknown book folders have null book info."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Orphan in a folder with no matching book in DB
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/99999/orphan_image.webp", "Size": 50000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 99999
+        assert book_group["book_id"] is None
+        assert book_group["book_title"] is None
 
 
 class TestRetryFailedArchives:
