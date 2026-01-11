@@ -1137,6 +1137,133 @@ class TestFilterByDateAcquired:
         assert book.id not in book_ids
 
 
+class TestIsNullFiltering:
+    """Tests for __isnull filtering (uncategorized/ungraded books)."""
+
+    def test_filter_category__isnull_true(self, client, db):
+        """Test filtering books where category IS NULL."""
+        from app.models import Book
+
+        # Create books with and without category
+        book_with_category = Book(title="Categorized Book", category="Victorian Poetry")
+        book_without_category = Book(title="Uncategorized Book", category=None)
+        db.add_all([book_with_category, book_without_category])
+        db.commit()
+
+        # Filter for books where category is null
+        response = client.get("/api/v1/books", params={"category__isnull": "true"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only find the book without category
+        book_ids = [b["id"] for b in data["items"]]
+        assert book_without_category.id in book_ids
+        assert book_with_category.id not in book_ids
+
+    def test_filter_category__isnull_false(self, client, db):
+        """Test filtering books where category IS NOT NULL."""
+        from app.models import Book
+
+        # Create books with and without category
+        book_with_category = Book(title="Categorized Book", category="Victorian Poetry")
+        book_without_category = Book(title="Uncategorized Book", category=None)
+        db.add_all([book_with_category, book_without_category])
+        db.commit()
+
+        # Filter for books where category is not null
+        response = client.get("/api/v1/books", params={"category__isnull": "false"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only find the book with category
+        book_ids = [b["id"] for b in data["items"]]
+        assert book_with_category.id in book_ids
+        assert book_without_category.id not in book_ids
+
+    def test_filter_condition_grade__isnull_true(self, client, db):
+        """Test filtering books where condition_grade IS NULL."""
+        from app.models import Book
+
+        # Create books with and without condition_grade
+        book_with_grade = Book(title="Graded Book", condition_grade="VG")
+        book_without_grade = Book(title="Ungraded Book", condition_grade=None)
+        db.add_all([book_with_grade, book_without_grade])
+        db.commit()
+
+        # Filter for books where condition_grade is null
+        response = client.get("/api/v1/books", params={"condition_grade__isnull": "true"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only find the book without condition_grade
+        book_ids = [b["id"] for b in data["items"]]
+        assert book_without_grade.id in book_ids
+        assert book_with_grade.id not in book_ids
+
+    def test_filter_condition_grade__isnull_false(self, client, db):
+        """Test filtering books where condition_grade IS NOT NULL."""
+        from app.models import Book
+
+        # Create books with and without condition_grade
+        book_with_grade = Book(title="Graded Book", condition_grade="VG")
+        book_without_grade = Book(title="Ungraded Book", condition_grade=None)
+        db.add_all([book_with_grade, book_without_grade])
+        db.commit()
+
+        # Filter for books where condition_grade is not null
+        response = client.get("/api/v1/books", params={"condition_grade__isnull": "false"})
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only find the book with condition_grade
+        book_ids = [b["id"] for b in data["items"]]
+        assert book_with_grade.id in book_ids
+        assert book_without_grade.id not in book_ids
+
+    def test_filter_category__isnull_combined_with_other_filters(self, client, db):
+        """Test that __isnull can be combined with other filters."""
+        from app.models import Book
+
+        # Create books with different combinations
+        book1 = Book(title="Uncategorized ON_HAND", category=None, status="ON_HAND")
+        book2 = Book(title="Uncategorized IN_TRANSIT", category=None, status="IN_TRANSIT")
+        book3 = Book(title="Categorized ON_HAND", category="Poetry", status="ON_HAND")
+        db.add_all([book1, book2, book3])
+        db.commit()
+
+        # Filter for uncategorized books that are ON_HAND
+        response = client.get(
+            "/api/v1/books",
+            params={"category__isnull": "true", "status": "ON_HAND"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only find book1
+        book_ids = [b["id"] for b in data["items"]]
+        assert book1.id in book_ids
+        assert book2.id not in book_ids
+        assert book3.id not in book_ids
+
+    def test_mutual_exclusion_category_and_category__isnull(self, client):
+        """Test that passing both category and category__isnull returns 400."""
+        response = client.get(
+            "/api/v1/books",
+            params={"category": "Victorian Poetry", "category__isnull": "true"},
+        )
+        assert response.status_code == 400
+        assert "mutually exclusive" in response.json()["detail"]
+
+    def test_mutual_exclusion_condition_grade_and_condition_grade__isnull(self, client):
+        """Test that passing both condition_grade and condition_grade__isnull returns 400."""
+        response = client.get(
+            "/api/v1/books",
+            params={"condition_grade": "FINE", "condition_grade__isnull": "true"},
+        )
+        assert response.status_code == 400
+        assert "mutually exclusive" in response.json()["detail"]
+
+
 class TestAnalysisEntityValidation:
     """Test entity validation in analysis upload endpoint."""
 
