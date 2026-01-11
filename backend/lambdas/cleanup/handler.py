@@ -459,6 +459,99 @@ def cleanup_orphaned_images_with_progress(
         return {"error": str(e)}
 
 
+def cleanup_stale_listings(
+    bucket: str,
+    age_days: int = 30,
+    delete: bool = False,
+) -> dict:
+    """Find and optionally delete stale listing images.
+
+    Scans the listings/ S3 prefix and identifies objects older than
+    the specified age threshold. No database interaction needed.
+
+    Args:
+        bucket: S3 bucket name
+        age_days: Delete objects older than this many days (default 30)
+        delete: If True, delete stale objects. Otherwise dry run.
+
+    Returns:
+        Dict with:
+        - total_count: number of stale objects
+        - total_bytes: total size of stale objects
+        - age_threshold_days: the threshold used
+        - listings_by_item: list of groups with item_id, count, bytes, oldest
+        - deleted_count: number deleted (0 if delete=False)
+    """
+    s3 = boto3.client("s3")
+    S3_LISTINGS_PREFIX = "listings/"
+    S3_DELETE_BATCH_SIZE = 1000
+
+    cutoff_date = datetime.now(UTC) - timedelta(days=age_days)
+
+    # Scan listings/ prefix
+    paginator = s3.get_paginator("list_objects_v2")
+    stale_keys: list[tuple[str, int, datetime]] = []  # (key, size, last_modified)
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=S3_LISTINGS_PREFIX):
+        for obj in page.get("Contents", []):
+            last_modified = obj["LastModified"]
+            # Ensure timezone-aware comparison
+            if last_modified.tzinfo is None:
+                last_modified = last_modified.replace(tzinfo=UTC)
+
+            if last_modified < cutoff_date:
+                stale_keys.append((obj["Key"], obj.get("Size", 0), last_modified))
+
+    # Group by item_id
+    items_map: dict[str, list[tuple[str, int, datetime]]] = {}
+    for key, size, last_modified in stale_keys:
+        # Extract item_id from path: listings/{item_id}/filename
+        parts = key.split("/")
+        if len(parts) >= 2:
+            item_id = parts[1]
+            if item_id not in items_map:
+                items_map[item_id] = []
+            items_map[item_id].append((key, size, last_modified))
+
+    # Build listings_by_item response
+    listings_by_item = []
+    for item_id in sorted(items_map.keys()):
+        items = items_map[item_id]
+        item_bytes = sum(size for _, size, _ in items)
+        oldest = min(lm for _, _, lm in items)
+        listings_by_item.append(
+            {
+                "item_id": item_id,
+                "count": len(items),
+                "bytes": item_bytes,
+                "oldest": oldest.isoformat(),
+            }
+        )
+
+    total_count = len(stale_keys)
+    total_bytes = sum(size for _, size, _ in stale_keys)
+
+    # Delete if requested
+    deleted_count = 0
+    if delete and stale_keys:
+        all_keys = [key for key, _, _ in stale_keys]
+
+        # Batch delete (max 1000 per call)
+        for i in range(0, len(all_keys), S3_DELETE_BATCH_SIZE):
+            batch = all_keys[i : i + S3_DELETE_BATCH_SIZE]
+            delete_request = {"Objects": [{"Key": k} for k in batch], "Quiet": False}
+            response = s3.delete_objects(Bucket=bucket, Delete=delete_request)
+            deleted_count += len(response.get("Deleted", []))
+
+    return {
+        "total_count": total_count,
+        "total_bytes": total_bytes,
+        "age_threshold_days": age_days,
+        "listings_by_item": listings_by_item,
+        "deleted_count": deleted_count,
+    }
+
+
 async def retry_failed_archives(db: Session) -> dict:
     """Retry archiving for books with failed archive status.
 

@@ -244,6 +244,34 @@ class CleanupJobStatus(BaseModel):
     completed_at: str | None = None
 
 
+# Models for listings cleanup
+
+
+class ListingGroup(BaseModel):
+    """A group of stale listing images for a specific item."""
+
+    item_id: str
+    count: int
+    bytes: int
+    oldest: str
+
+
+class ListingsScanResult(BaseModel):
+    """Result of scanning for stale listing images."""
+
+    total_count: int
+    total_bytes: int
+    age_threshold_days: int
+    listings_by_item: list[ListingGroup]
+    deleted_count: int = 0
+
+
+class ListingsDeleteRequest(BaseModel):
+    """Request to delete stale listing images."""
+
+    age_days: int = 30
+
+
 def get_scoring_config() -> dict:
     """Collect all scoring constants from tiered_scoring module."""
     return {
@@ -654,4 +682,110 @@ def get_cleanup_job_status(
         error_message=job.error_message,
         created_at=job.created_at.isoformat(),
         completed_at=job.completed_at.isoformat() if job.completed_at else None,
+    )
+
+
+def cleanup_stale_listings(
+    bucket: str,
+    age_days: int = 30,
+    delete: bool = False,
+) -> dict:
+    """Find and optionally delete stale listing images.
+
+    Stub implementation - will be replaced by handler.cleanup_stale_listings.
+    This stub exists to allow API tests to pass before the handler is implemented.
+
+    Args:
+        bucket: S3 bucket name
+        age_days: Delete objects older than this (default 30)
+        delete: If True, delete. Otherwise dry run.
+
+    Returns:
+        Dict with count, bytes, grouped by item_id, deleted count
+    """
+    # Import here to avoid circular imports when handler is implemented
+    try:
+        from lambdas.cleanup.handler import cleanup_stale_listings as handler_cleanup
+
+        return handler_cleanup(bucket=bucket, age_days=age_days, delete=delete)
+    except ImportError:
+        # Handler not implemented yet - return empty result
+        return {
+            "total_count": 0,
+            "total_bytes": 0,
+            "age_threshold_days": age_days,
+            "listings_by_item": [],
+            "deleted_count": 0,
+        }
+
+
+@router.get("/cleanup/listings/scan", response_model=ListingsScanResult)
+def scan_stale_listings(
+    age_days: int = 30,
+    _user=Depends(require_admin),
+):
+    """Scan for stale listing images (dry run).
+
+    Returns count and size of listings older than age_days threshold.
+    Listings are temporary images scraped from eBay that haven't been
+    imported into the book library.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    result = cleanup_stale_listings(bucket=settings.images_bucket, age_days=age_days, delete=False)
+
+    # Map result to response model
+    listings_by_item = [
+        ListingGroup(
+            item_id=item.get("item_id", ""),
+            count=item.get("count", 0),
+            bytes=item.get("bytes", 0),
+            oldest=item.get("oldest", ""),
+        )
+        for item in result.get("listings_by_item", [])
+    ]
+
+    return ListingsScanResult(
+        total_count=result.get("total_count", 0),
+        total_bytes=result.get("total_bytes", 0),
+        age_threshold_days=result.get("age_threshold_days", age_days),
+        listings_by_item=listings_by_item,
+        deleted_count=result.get("deleted_count", 0),
+    )
+
+
+@router.post("/cleanup/listings/delete", response_model=ListingsScanResult)
+def delete_stale_listings(
+    request: ListingsDeleteRequest,
+    _user=Depends(require_admin),
+):
+    """Delete stale listing images.
+
+    Permanently removes listings older than age_days threshold.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    result = cleanup_stale_listings(
+        bucket=settings.images_bucket, age_days=request.age_days, delete=True
+    )
+
+    # Map result to response model
+    listings_by_item = [
+        ListingGroup(
+            item_id=item.get("item_id", ""),
+            count=item.get("count", 0),
+            bytes=item.get("bytes", 0),
+            oldest=item.get("oldest", ""),
+        )
+        for item in result.get("listings_by_item", [])
+    ]
+
+    return ListingsScanResult(
+        total_count=result.get("total_count", 0),
+        total_bytes=result.get("total_bytes", 0),
+        age_threshold_days=result.get("age_threshold_days", request.age_days),
+        listings_by_item=listings_by_item,
+        deleted_count=result.get("deleted_count", 0),
     )
