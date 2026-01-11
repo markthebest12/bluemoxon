@@ -19,6 +19,7 @@
 #   --db-only        Only sync database
 #   --dry-run        Show what would be done without executing
 #   --yes            Skip confirmation prompts
+#   --skip-cache     Skip Redis cache flush after sync
 #   -h, --help       Show this help message
 #
 # Prerequisites:
@@ -50,6 +51,11 @@ STAGING_IMAGES_BUCKET="bluemoxon-images-staging"
 # Database
 PROD_DB_SECRET="bluemoxon/db-credentials"
 STAGING_DB_SECRET="bluemoxon-staging/database"
+
+# Redis Cache (ElastiCache)
+# Endpoint fetched dynamically from Terraform outputs
+STAGING_REDIS_ENDPOINT=""
+FLUSH_CACHE=true
 
 # Flags
 SYNC_IMAGES=true
@@ -228,6 +234,10 @@ while [[ $# -gt 0 ]]; do
         --db-only)
             SYNC_IMAGES=false
             SYNC_DB=true
+            shift
+            ;;
+        --skip-cache)
+            FLUSH_CACHE=false
             shift
             ;;
         --dry-run)
