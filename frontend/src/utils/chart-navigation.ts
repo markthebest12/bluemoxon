@@ -1,6 +1,22 @@
 import type { Router } from "vue-router";
 
 /**
+ * Normalizes era value by stripping trailing date range parentheses.
+ * Stats API returns era with dates like "Victorian (1837-1901)"
+ * but the books API expects just "Victorian".
+ *
+ * Only strips trailing (YYYY-YYYY) patterns to preserve legitimate
+ * parenthetical content like "Georgian (Early)".
+ *
+ * @param era The era value, possibly with date range parentheses
+ * @returns The era name without trailing date range
+ */
+export function normalizeEra(era: string): string {
+  // Only strip trailing (YYYY-YYYY) date ranges, not other parenthetical content
+  return era.replace(/\s*\(\d{4}-\d{4}\)$/, "");
+}
+
+/**
  * Determines if user wants to open link in new tab based on modifier keys.
  * - Ctrl+Click (Win/Linux) = new tab
  * - Cmd+Click (Mac) = new tab
@@ -52,8 +68,14 @@ export function navigateToBooks(
   filter: Record<string, string | number | boolean>,
   nativeEvent?: Event | null
 ): void {
-  // Normalize filter values (handle Uncategorized, Ungraded)
+  // Normalize filter values (handle Uncategorized, Ungraded, Era date ranges)
   const normalizedFilter = normalizeChartFilter(filter);
+
+  // Normalize era filter to strip parenthetical date ranges
+  // e.g., "Victorian (1837-1901)" -> "Victorian"
+  if (typeof normalizedFilter.era === "string") {
+    normalizedFilter.era = normalizeEra(normalizedFilter.era);
+  }
 
   // Convert to router-compatible query (booleans to strings)
   const routerQuery: Record<string, string | number> = {};
