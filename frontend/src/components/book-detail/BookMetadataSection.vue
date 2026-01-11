@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import {
   BOOK_STATUSES,
   BOOK_STATUS_OPTIONS,
@@ -9,7 +10,7 @@ import type { Book } from "@/stores/books";
 import { computeEra } from "@/utils/book-helpers";
 
 // Props
-withDefaults(
+const props = withDefaults(
   defineProps<{
     book: Book;
     isEditor: boolean;
@@ -24,6 +25,15 @@ withDefaults(
 const emit = defineEmits<{
   "status-changed": [newStatus: string];
 }>();
+
+// Computed properties
+const conditionDisplay = computed(() => {
+  const grade = props.book.condition_grade;
+  if (!grade) return null;
+  const option = CONDITION_GRADE_OPTIONS.find((c) => c.value === grade);
+  // Fallback: show raw grade with empty description for unknown grades
+  return option ?? { label: grade, description: "" };
+});
 
 // Helper functions
 function getStatusColor(status: string): string {
@@ -43,19 +53,15 @@ function getStatusColor(status: string): string {
 
 function getStatusLabel(statusValue: string): string {
   const option = BOOK_STATUS_OPTIONS.find((s) => s.value === statusValue);
-  return option ? option.label : statusValue.replace("_", " ");
-}
-
-function getConditionDisplay(grade: string | null) {
-  if (!grade) return null;
-  const option = CONDITION_GRADE_OPTIONS.find((c) => c.value === grade);
-  return option || { label: grade, description: "" };
+  // Fallback: replace all underscores with spaces for unknown statuses
+  return option?.label ?? statusValue.replace(/_/g, " ");
 }
 
 function getTierLabel(tier: string | null): string {
   if (!tier) return "";
   const option = PUBLISHER_TIER_OPTIONS.find((t) => t.value === tier);
-  return option ? option.label : tier.replace("_", " ");
+  // Fallback: replace all underscores with spaces for unknown tiers
+  return option?.label ?? tier.replace(/_/g, " ");
 }
 
 // Event handlers
@@ -145,6 +151,7 @@ function onStatusChange(newStatus: string) {
           <dt class="text-sm text-gray-500">Status</dt>
           <dd class="mt-1">
             <!-- Editors can change status -->
+            <!-- min-w-[120px] fits longest status label "IN TRANSIT" with dropdown arrow -->
             <select
               v-if="isEditor"
               :value="book.status"
@@ -186,12 +193,10 @@ function onStatusChange(newStatus: string) {
         <div>
           <dt class="text-sm text-gray-500">Condition</dt>
           <dd>
-            <template v-if="getConditionDisplay(book.condition_grade)">
-              <span class="font-medium">{{
-                getConditionDisplay(book.condition_grade)?.label
-              }}</span>
-              <p class="text-xs text-gray-500 mt-0.5">
-                {{ getConditionDisplay(book.condition_grade)?.description }}
+            <template v-if="conditionDisplay">
+              <span class="font-medium">{{ conditionDisplay.label }}</span>
+              <p v-if="conditionDisplay.description" class="text-xs text-gray-500 mt-0.5">
+                {{ conditionDisplay.description }}
               </p>
             </template>
             <span v-else class="font-medium">-</span>

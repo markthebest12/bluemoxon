@@ -6,7 +6,6 @@ import {
   FILTERS,
   UI_TIMING,
   PUBLISHER_TIER_OPTIONS,
-  PUBLISHER_TIERS,
 } from "../index";
 
 describe("constants", () => {
@@ -82,19 +81,6 @@ describe("constants", () => {
 
     it("has all 4 tier options", () => {
       expect(PUBLISHER_TIER_OPTIONS).toHaveLength(4);
-    });
-  });
-
-  describe("PUBLISHER_TIERS", () => {
-    it("has exactly 4 tier types", () => {
-      expect(Object.keys(PUBLISHER_TIERS)).toHaveLength(4);
-    });
-
-    it("has required tier keys", () => {
-      expect(PUBLISHER_TIERS.TIER_1).toBe("TIER_1");
-      expect(PUBLISHER_TIERS.TIER_2).toBe("TIER_2");
-      expect(PUBLISHER_TIERS.TIER_3).toBe("TIER_3");
-      expect(PUBLISHER_TIERS.TIER_4).toBe("TIER_4");
     });
   });
 });

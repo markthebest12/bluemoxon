@@ -90,18 +90,6 @@ export const CONDITION_GRADE_OPTIONS = [
 export type ConditionGradeOption = (typeof CONDITION_GRADE_OPTIONS)[number];
 
 /**
- * Publisher tier constants for type-safe comparisons.
- */
-export const PUBLISHER_TIERS = {
-  TIER_1: "TIER_1",
-  TIER_2: "TIER_2",
-  TIER_3: "TIER_3",
-  TIER_4: "TIER_4",
-} as const;
-
-export type PublisherTier = (typeof PUBLISHER_TIERS)[keyof typeof PUBLISHER_TIERS];
-
-/**
  * Publisher tier dropdown options with display labels.
  */
 export const PUBLISHER_TIER_OPTIONS = [

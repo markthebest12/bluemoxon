@@ -248,7 +248,19 @@ describe("BookMetadataSection", () => {
 
         const text = wrapper.text();
         expect(text).toContain("Condition");
-        // Should show dash, not crash
+        expect(text).toMatch(/Condition\s*-/);
+      });
+
+      it("shows raw grade for unknown condition values", () => {
+        const book = createBook({ condition_grade: "UNKNOWN_GRADE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        // Fallback: show raw grade when not in CONDITION_GRADE_OPTIONS
+        expect(wrapper.text()).toContain("UNKNOWN_GRADE");
+        // Should NOT show description for unknown grades
+        expect(wrapper.text()).not.toContain("undefined");
       });
     });
 
