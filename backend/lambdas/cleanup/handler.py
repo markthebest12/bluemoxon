@@ -150,7 +150,21 @@ def cleanup_orphaned_images(
 
     # Find orphaned keys (in S3 but not in DB)
     # Compare using stripped keys (without prefix)
-    orphaned_stripped = s3_keys_stripped - db_keys
+    # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
+    # They're derived from main images, so check if main image exists
+    orphaned_stripped = set()
+    for stripped_key in s3_keys_stripped:
+        if stripped_key in db_keys:
+            continue  # Direct match in DB - not orphan
+
+        # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
+        # If so, check if the main image (without thumb_ prefix) exists in DB
+        if stripped_key.startswith("thumb_"):
+            main_key = stripped_key[6:]  # Remove "thumb_" prefix
+            if main_key in db_keys:
+                continue  # Main image exists in DB - thumbnail is valid, not orphan
+
+        orphaned_stripped.add(stripped_key)
 
     # Convert back to full S3 keys for deletion
     orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
@@ -321,7 +335,22 @@ def cleanup_orphaned_images_with_progress(
             db.close()
 
         # Phase 3: Calculate orphans (no DB)
-        orphaned_stripped = s3_keys_stripped - db_keys
+        # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
+        # They're derived from main images, so check if main image exists
+        orphaned_stripped = set()
+        for stripped_key in s3_keys_stripped:
+            if stripped_key in db_keys:
+                continue  # Direct match in DB - not orphan
+
+            # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
+            # If so, check if the main image (without thumb_ prefix) exists in DB
+            if stripped_key.startswith("thumb_"):
+                main_key = stripped_key[6:]  # Remove "thumb_" prefix
+                if main_key in db_keys:
+                    continue  # Main image exists in DB - thumbnail is valid, not orphan
+
+            orphaned_stripped.add(stripped_key)
+
         orphaned_full_keys = [f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped]
 
         # Calculate fresh totals from scan
