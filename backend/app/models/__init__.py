@@ -7,6 +7,7 @@ from app.models.api_key import APIKey
 from app.models.author import Author
 from app.models.base import Base
 from app.models.binder import Binder
+from app.models.cleanup_job import CleanupJob
 from app.models.book import Book
 from app.models.carrier_circuit import CarrierCircuit
 from app.models.eval_runbook import EvalPriceHistory, EvalRunbook
@@ -23,6 +24,7 @@ __all__ = [
     "APIKey",
     "Base",
     "CarrierCircuit",
+    "CleanupJob",
     "Notification",
     "Publisher",
     "PublisherAlias",
