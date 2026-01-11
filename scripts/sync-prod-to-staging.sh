@@ -25,8 +25,10 @@
 # Prerequisites:
 #   - AWS CLI configured with bmx-prod and bmx-staging profiles
 #   - psql and pg_dump installed (brew install libpq)
+#   - redis-cli for cache flush (brew install redis) - optional but recommended
 #   - curl and jq for API version checks
-#   - Network access to both RDS instances
+#   - Terraform initialized in infra/terraform/
+#   - Network access to both RDS instances and ElastiCache
 #     NOTE: Prod (Aurora) and Staging (RDS) are in different accounts/VPCs.
 #     For database sync to work, you need one of:
 #     - VPC peering between accounts
