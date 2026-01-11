@@ -3,12 +3,15 @@
 Tests for TOCTOU (time-of-check-to-time-of-use) race condition:
 Issue #1010: Entity can vanish between validation phase and mutation phase.
 
-The validation phase calls validate_entity_for_book() which returns an entity ID.
+The validation phase calls validate_and_associate_entities() which returns entity IDs.
 The mutation phase then directly sets book.binder_id = binder_id without re-checking
 if the entity still exists. If another process deletes the entity between these two
 phases, the code would create an orphan FK reference (or fail with FK constraint).
 
 The fix: Before setting FK, re-fetch the entity with db.get() to verify it exists.
+
+Updated for #1014: Now tests mock validate_and_associate_entities instead of
+validate_entity_for_book since the validation logic was refactored.
 """
 
 from unittest.mock import patch
@@ -16,6 +19,7 @@ from unittest.mock import patch
 import pytest
 
 from app.models import Binder, Book, Publisher
+from app.services.entity_validation import EntityAssociationResult
 
 
 @pytest.fixture
@@ -40,7 +44,7 @@ class TestTOCTOURaceCondition:
         """If binder is deleted after validation passes, association is skipped (not crash).
 
         Scenario:
-        1. Validation phase: validate_entity_for_book returns binder_id=999
+        1. Validation phase: validate_and_associate_entities returns binder_id=999
         2. Entity is deleted (simulated by db.get returning None)
         3. Mutation phase: Should skip FK assignment, not crash
         """
@@ -61,15 +65,12 @@ Test summary for TOCTOU test
         db.delete(temp_binder)
         db.commit()
 
-        # Mock validation to return the now-deleted binder's ID for binder validation
-        def mock_validate(db, entity_type, name, allow_unknown=False):
-            if entity_type == "binder":
-                return temp_binder_id
-            return None
+        # Mock validation to return the now-deleted binder's ID
+        mock_result = EntityAssociationResult(binder_id=temp_binder_id)
 
         with patch(
-            "app.api.v1.books.validate_entity_for_book",
-            side_effect=mock_validate,
+            "app.api.v1.books.validate_and_associate_entities",
+            return_value=mock_result,
         ):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -104,15 +105,12 @@ Test summary for TOCTOU test
         db.delete(temp_publisher)
         db.commit()
 
-        # Mock validation to return the now-deleted publisher's ID for publisher validation
-        def mock_validate(db, entity_type, name, allow_unknown=False):
-            if entity_type == "publisher":
-                return temp_publisher_id
-            return None
+        # Mock validation to return the now-deleted publisher's ID
+        mock_result = EntityAssociationResult(publisher_id=temp_publisher_id)
 
         with patch(
-            "app.api.v1.books.validate_entity_for_book",
-            side_effect=mock_validate,
+            "app.api.v1.books.validate_and_associate_entities",
+            return_value=mock_result,
         ):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -143,15 +141,12 @@ Test summary
 - **Confidence:** HIGH
 """
 
-        # Mock validation to return the real binder's ID only for binder validation
-        def mock_validate(db, entity_type, name, allow_unknown=False):
-            if entity_type == "binder":
-                return binder.id
-            return None
+        # Mock validation to return the real binder's ID
+        mock_result = EntityAssociationResult(binder_id=binder.id)
 
         with patch(
-            "app.api.v1.books.validate_entity_for_book",
-            side_effect=mock_validate,
+            "app.api.v1.books.validate_and_associate_entities",
+            return_value=mock_result,
         ):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -179,15 +174,12 @@ Test summary
 **Publisher:** Stable Publisher
 """
 
-        # Mock validation to return the real publisher's ID only for publisher validation
-        def mock_validate(db, entity_type, name, allow_unknown=False):
-            if entity_type == "publisher":
-                return publisher.id
-            return None
+        # Mock validation to return the real publisher's ID
+        mock_result = EntityAssociationResult(publisher_id=publisher.id)
 
         with patch(
-            "app.api.v1.books.validate_entity_for_book",
-            side_effect=mock_validate,
+            "app.api.v1.books.validate_and_associate_entities",
+            return_value=mock_result,
         ):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -227,7 +219,10 @@ Test
             resolution="Use existing",
         )
 
-        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+        # Mock validation result with error
+        mock_result = EntityAssociationResult(errors=[error])
+
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             # Without force - should get 409
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -262,7 +257,10 @@ Test
             resolution="Create first",
         )
 
-        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+        # Mock validation result with error
+        mock_result = EntityAssociationResult(errors=[error])
+
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             # Without force - should get 400
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -298,7 +296,10 @@ Test
             resolution="Use existing",
         )
 
-        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+        # Mock validation result with error
+        mock_result = EntityAssociationResult(errors=[error])
+
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             # Without force - should get 409
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
@@ -333,7 +334,10 @@ Test
             resolution="Create first",
         )
 
-        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+        # Mock validation result with error
+        mock_result = EntityAssociationResult(errors=[error])
+
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             # Explicit force=false - should still get 400
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis?force=false",
@@ -439,7 +443,10 @@ Test
             resolution="Use existing",
         )
 
-        with patch("app.api.v1.books.validate_entity_for_book", return_value=error):
+        # Mock validation result with error
+        mock_result = EntityAssociationResult(errors=[error])
+
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis?force=true",
                 content=markdown,
@@ -468,12 +475,10 @@ Test
 - **Name:** TOCTOU Binder
 """
 
-        def mock_validate(db, entity_type, name, allow_unknown=False):
-            if entity_type == "binder":
-                return temp_binder_id  # Return ID of deleted binder
-            return None
+        # Mock validation to return the deleted binder's ID
+        mock_result = EntityAssociationResult(binder_id=temp_binder_id)
 
-        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
                 content=markdown,
@@ -513,12 +518,9 @@ Test
 """
 
         # Mock validates to return same ID as already on book
-        def mock_validate(db_session, entity_type, name, allow_unknown=False):
-            if entity_type == "binder":
-                return binder.id
-            return None
+        mock_result = EntityAssociationResult(binder_id=binder.id)
 
-        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
                 content=markdown,
@@ -556,12 +558,9 @@ Test
 """
 
         # Mock returns same ID (already on book)
-        def mock_validate(db_session, entity_type, name, allow_unknown=False):
-            if entity_type == "binder":
-                return temp_binder_id
-            return None
+        mock_result = EntityAssociationResult(binder_id=temp_binder_id)
 
-        with patch("app.api.v1.books.validate_entity_for_book", side_effect=mock_validate):
+        with patch("app.api.v1.books.validate_and_associate_entities", return_value=mock_result):
             response = client.put(
                 f"/api/v1/books/{sample_book.id}/analysis",
                 content=markdown,

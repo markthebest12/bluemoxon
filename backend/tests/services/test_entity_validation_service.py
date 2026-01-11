@@ -405,3 +405,300 @@ class TestAllowUnknownParameter:
         assert isinstance(result, EntityValidationError)
         assert result.error == "similar_entity_exists"
         assert result.suggestions[0].id == 5
+
+
+class TestEntityAssociationResult:
+    """Test EntityAssociationResult dataclass for #1014 refactor."""
+
+    def test_result_has_correct_attributes(self):
+        """EntityAssociationResult should have all required attributes."""
+        from app.services.entity_validation import EntityAssociationResult
+
+        result = EntityAssociationResult()
+        assert result.binder_id is None
+        assert result.publisher_id is None
+        assert result.errors == []
+        assert result.warnings == []
+        assert result.has_errors is False
+
+    def test_has_errors_returns_true_when_errors_present(self):
+        """has_errors property should return True when errors list is non-empty."""
+        from app.services.entity_validation import EntityAssociationResult
+
+        error = EntityValidationError(
+            error="similar_entity_exists",
+            entity_type="binder",
+            input="Test",
+            suggestions=None,
+            resolution="Test resolution",
+        )
+        result = EntityAssociationResult(errors=[error])
+        assert result.has_errors is True
+
+    def test_result_with_entity_ids(self):
+        """Result should correctly store entity IDs."""
+        from app.services.entity_validation import EntityAssociationResult
+
+        result = EntityAssociationResult(binder_id=10, publisher_id=20)
+        assert result.binder_id == 10
+        assert result.publisher_id == 20
+        assert result.has_errors is False
+
+
+class TestValidateAndAssociateEntities:
+    """Test validate_and_associate_entities function for #1014 refactor.
+
+    This function extracts duplicate validation logic from books.py and worker.py.
+    It validates multiple entities at once and returns a structured result.
+    """
+
+    def test_returns_entity_ids_on_exact_match(self):
+        """Exact matches should return entity IDs in result."""
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+        # Both binder and publisher have exact matches
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+        ) as mock_exact:
+            mock_exact.side_effect = [
+                (10, "Riviere & Son"),  # binder exact match
+                (20, "Macmillan"),  # publisher exact match
+            ]
+
+            result = validate_and_associate_entities(
+                db,
+                binder_name="Riviere & Son",
+                publisher_name="Macmillan",
+            )
+
+        assert result.binder_id == 10
+        assert result.publisher_id == 20
+        assert result.has_errors is False
+        assert result.warnings == []
+
+    def test_returns_errors_on_fuzzy_match_enforce_mode(self):
+        """Fuzzy matches should return errors in enforce mode."""
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+        binder_match = EntityMatch(
+            entity_id=10,
+            name="Riviere & Son",
+            tier="TIER_1",
+            confidence=0.92,
+            book_count=5,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=None,
+        ):
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+                return_value=[binder_match],
+            ):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_binder = 0.80
+
+                    result = validate_and_associate_entities(
+                        db,
+                        binder_name="Rivere & Son",  # typo
+                        publisher_name=None,
+                    )
+
+        assert result.binder_id is None
+        assert result.has_errors is True
+        assert len(result.errors) == 1
+        assert result.errors[0].error == "similar_entity_exists"
+        assert result.errors[0].entity_type == "binder"
+
+    def test_collects_all_errors_at_once(self):
+        """Should validate all entities and collect all errors, not fail fast."""
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+        binder_match = EntityMatch(
+            entity_id=10,
+            name="Riviere & Son",
+            tier="TIER_1",
+            confidence=0.92,
+            book_count=5,
+        )
+        publisher_match = EntityMatch(
+            entity_id=20,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.88,
+            book_count=12,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=None,
+        ):
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+            ) as mock_fuzzy:
+                # Return different matches for binder vs publisher
+                mock_fuzzy.side_effect = [[binder_match], [publisher_match]]
+
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_binder = 0.80
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+
+                    result = validate_and_associate_entities(
+                        db,
+                        binder_name="Rivere & Son",
+                        publisher_name="Macmilan",
+                    )
+
+        # Both errors should be collected
+        assert result.has_errors is True
+        assert len(result.errors) == 2
+        entity_types = {e.entity_type for e in result.errors}
+        assert entity_types == {"binder", "publisher"}
+
+    def test_log_mode_collects_warnings_for_fuzzy_match(self, caplog):
+        """In log mode, fuzzy matches should generate warnings instead of errors (#1013).
+
+        This addresses issue #1013: Log mode silently skips entity associations.
+        The user should get visibility into what was skipped via warnings.
+        """
+        import logging
+
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+        binder_match = EntityMatch(
+            entity_id=10,
+            name="Riviere & Son",
+            tier="TIER_1",
+            confidence=0.92,
+            book_count=5,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=None,
+        ):
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+                return_value=[binder_match],
+            ):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "log"
+                    mock_settings.return_value.entity_match_threshold_binder = 0.80
+
+                    with caplog.at_level(logging.WARNING):
+                        result = validate_and_associate_entities(
+                            db,
+                            binder_name="Rivere & Son",
+                            publisher_name=None,
+                        )
+
+        # No errors in log mode
+        assert result.has_errors is False
+        # But should have warning for visibility
+        assert len(result.warnings) == 1
+        assert "Rivere & Son" in result.warnings[0]
+        assert "Riviere & Son" in result.warnings[0]  # The match
+        # Still no ID (don't silently associate to fuzzy match)
+        assert result.binder_id is None
+
+    def test_log_mode_collects_warnings_for_unknown_entity(self, caplog):
+        """In log mode, unknown entities should generate warnings (#1013)."""
+        import logging
+
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+            return_value=None,
+        ):
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+                return_value=[],  # No matches at all
+            ):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "log"
+                    mock_settings.return_value.entity_match_threshold_binder = 0.80
+
+                    with caplog.at_level(logging.WARNING):
+                        result = validate_and_associate_entities(
+                            db,
+                            binder_name="Unknown Binder",
+                            publisher_name=None,
+                        )
+
+        # No errors in log mode
+        assert result.has_errors is False
+        # But should have warning for visibility
+        assert len(result.warnings) == 1
+        assert "Unknown Binder" in result.warnings[0]
+        assert "not found" in result.warnings[0].lower()
+
+    def test_skips_validation_for_none_names(self):
+        """None or empty names should be skipped without errors or warnings."""
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+
+        result = validate_and_associate_entities(
+            db,
+            binder_name=None,
+            publisher_name="",
+        )
+
+        assert result.binder_id is None
+        assert result.publisher_id is None
+        assert result.has_errors is False
+        assert result.warnings == []
+
+    def test_mixed_exact_and_fuzzy_matches(self):
+        """Should handle one exact match and one fuzzy match correctly."""
+        from app.services.entity_validation import validate_and_associate_entities
+
+        db = MagicMock()
+        publisher_match = EntityMatch(
+            entity_id=20,
+            name="Macmillan and Co.",
+            tier="TIER_1",
+            confidence=0.88,
+            book_count=12,
+        )
+
+        with patch(
+            "app.services.entity_validation._get_entity_by_normalized_name",
+        ) as mock_exact:
+            # Binder has exact match, publisher doesn't
+            mock_exact.side_effect = [
+                (10, "Riviere & Son"),  # binder exact match
+                None,  # publisher no exact match
+            ]
+
+            with patch(
+                "app.services.entity_validation.fuzzy_match_entity",
+                return_value=[publisher_match],
+            ):
+                with patch("app.services.entity_validation.get_settings") as mock_settings:
+                    mock_settings.return_value.entity_validation_mode = "enforce"
+                    mock_settings.return_value.entity_match_threshold_publisher = 0.80
+
+                    result = validate_and_associate_entities(
+                        db,
+                        binder_name="Riviere & Son",
+                        publisher_name="Macmilan",
+                    )
+
+        # Binder should have ID (exact match)
+        assert result.binder_id == 10
+        # Publisher should have error (fuzzy match)
+        assert result.publisher_id is None
+        assert result.has_errors is True
+        assert len(result.errors) == 1
+        assert result.errors[0].entity_type == "publisher"
