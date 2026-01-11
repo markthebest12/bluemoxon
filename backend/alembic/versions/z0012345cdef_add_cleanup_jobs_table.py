@@ -1,7 +1,7 @@
 """Add cleanup_jobs table for tracking async cleanup operations.
 
 Revision ID: z0012345cdef
-Revises: y8901234bcde
+Revises: 5bd4bb0308b4
 Create Date: 2026-01-11
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "z0012345cdef"
-down_revision = "y8901234bcde"
+down_revision = "5bd4bb0308b4"
 branch_labels = None
 depends_on = None
 
