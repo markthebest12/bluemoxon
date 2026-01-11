@@ -349,6 +349,11 @@ echo
 verify_environments
 verify_database_health
 
+# Fetch Redis endpoint for cache flush
+if [ "$FLUSH_CACHE" = true ]; then
+    fetch_redis_endpoint
+fi
+
 # -----------------------------------------------------------------------------
 # S3 Images Sync
 # -----------------------------------------------------------------------------
@@ -460,6 +465,9 @@ if [ "$SYNC_DB" = true ]; then
             log_info "  1. Dump production database to temp file"
             log_info "  2. Drop and recreate staging database"
             log_info "  3. Restore dump to staging"
+            if [ "$FLUSH_CACHE" = true ] && [ -n "$STAGING_REDIS_ENDPOINT" ]; then
+                log_info "  4. Flush staging Redis cache"
+            fi
         else
             DUMP_FILE=$(mktemp).sql
             trap "rm -f $DUMP_FILE" EXIT
@@ -499,6 +507,9 @@ if [ "$SYNC_DB" = true ]; then
                 2>/dev/null
 
             log_success "Database sync complete!"
+
+            # Flush Redis cache after DB sync
+            flush_redis_cache
 
             # Show table counts
             log_info "Staging database table counts:"
