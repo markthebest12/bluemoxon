@@ -221,6 +221,8 @@ def _validate_entity_with_context(
         threshold_attr = f"entity_match_threshold_{entity_type}"
         threshold = getattr(settings, threshold_attr, 0.80)
 
+    # Pass raw name, NOT normalized_name - fuzzy_match_entity normalizes internally.
+    # See issue #1016 and TestNormalizationContract for documentation of this contract.
     matches = fuzzy_match_entity(db, entity_type, name, threshold=threshold)
 
     # No matches at all - entity not found
