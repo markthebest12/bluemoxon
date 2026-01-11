@@ -2,10 +2,10 @@
 
 **Date:** 2026-01-11
 **GitHub Issue:** #1057
-**PR:** #1058
-**Branch:** `feat/1057-orphan-cleanup-ux`
+**PRs:** #1058 (merged), #1059 (merged), #1061 (merged to prod)
+**Branch:** `fix/1057-orphan-scan-details` (current fix in progress)
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/feat-1057-orphan-cleanup-ux`
-**Status:** CI running, merge when passes
+**Status:** Fix for flat S3 key format in progress
 
 ---
 
@@ -18,6 +18,7 @@
 - `superpowers:using-superpowers` - ALWAYS at session start
 - `superpowers:receiving-code-review` - When handling review feedback
 - `superpowers:test-driven-development` - For all implementation
+- `superpowers:systematic-debugging` - For any bugs or unexpected behavior
 - `superpowers:verification-before-completion` - Before claiming work is done
 - `superpowers:finishing-a-development-branch` - When ready to merge
 
@@ -58,97 +59,122 @@ git -C /path commit -m "msg"
 
 ---
 
-## Current Status
+## Current Bug: Flat S3 Key Format Not Parsed
 
-**CI is running on PR #1058.** When CI passes, merge with:
-```bash
-gh pr merge 1058 --squash --delete-branch
+### Problem
+Production shows 2472 orphans but `orphans_by_book` is empty and details table is empty.
+
+### Root Cause (CONFIRMED)
+Two S3 key formats exist:
+1. **Nested (scraper imports):** `books/{book_id}/image_NN.webp` - WORKS
+2. **Flat (manual uploads):** `books/{book_id}_{uuid}.ext` - FAILS to parse
+
+The code only handled nested format:
+```python
+# OLD - only handles nested
+folder_id = int(parts[1])  # "500" works, "10_uuid.jpg" fails with ValueError
 ```
 
-## Code Review Fixes Applied
+### Fix Applied (NOT YET DEPLOYED)
+File: `backend/lambdas/cleanup/handler.py` lines 161-183
 
-User reviewed PR and identified 8 issues. All have been fixed:
+```python
+# NEW - handles both formats
+try:
+    # Try nested format first (parts[1] is just the book_id)
+    folder_id = int(parts[1])
+except ValueError:
+    # Try flat format: extract book_id before underscore
+    try:
+        folder_id = int(parts[1].split("_")[0])
+    except (ValueError, IndexError):
+        continue
+```
 
-| Fix | Issue | Solution | Commit |
-|-----|-------|----------|--------|
-| 1 | Race condition: stale scan data | Lambda updates totals from fresh scan at job start | 407de09 |
-| 2 | No concurrent job prevention | Returns 409 Conflict if pending/running job exists | 407de09 |
-| 3 | Lambda timeout (3609 serial calls) | Uses `delete_objects` batch API (4 calls for 3609 items) | 407de09 |
-| 4 | DB connection held during S3 scan | Phased approach: acquire/release per operation | 407de09 |
-| 5 | Deprecated `datetime.utcnow()` | Changed to `datetime.now(UTC)` | 407de09 |
-| 6 | Frontend swallows axios errors | Extracts `response.data.detail` for meaningful messages | 407de09 |
-| 7 | No partial progress tracking | Tracks `failed_count` from delete_objects Errors array | 407de09 |
-| 8 | Lambda cold start detection | Status endpoint marks jobs pending >5min as failed | 407de09 |
+### Tests
+All 40 cleanup tests pass with the fix.
 
-### Additional Fixes Required by CI
+---
 
-| Fix | Issue | Solution | Commit |
-|-----|-------|----------|--------|
-| Migration chain | Multiple heads (branch) | Fixed down_revision in z0012345cdef | 139efb4 |
-| Migration registration | Not in migration_sql.py | Added SQL constants and MIGRATIONS entries | 1d41184 |
+## Next Steps
 
-## Files Changed (Code Review Fixes)
-
-- `backend/lambdas/cleanup/handler.py` - Batch delete, phased DB connections, partial tracking
-- `backend/app/models/cleanup_job.py` - Added failed_count, fixed datetime.utcnow()
-- `backend/app/api/v1/admin.py` - Concurrent job prevention, timeout detection, failed_count in response
-- `backend/app/db/migration_sql.py` - Registered new migrations
-- `backend/alembic/versions/z0012345cdef_add_cleanup_jobs_table.py` - Fixed down_revision
-- `backend/alembic/versions/z1012345efgh_add_failed_count_to_cleanup_jobs.py` - NEW migration
-- `backend/tests/test_cleanup.py` - Updated tests for new batch delete implementation
-- `frontend/src/components/admin/OrphanCleanupPanel.vue` - Fixed axios error extraction
-
-## Next Steps After Merge
-
-1. **Watch deploy to staging:**
+1. **Commit and push the fix:**
    ```bash
-   gh run list --workflow "Deploy to Staging" --limit 1
-   gh run watch <run-id> --exit-status
+   git -C /Users/mark/projects/bluemoxon/.worktrees/feat-1057-orphan-cleanup-ux add backend/lambdas/cleanup/handler.py
+   ```
+   Then:
+   ```bash
+   git -C /Users/mark/projects/bluemoxon/.worktrees/feat-1057-orphan-cleanup-ux commit -m "fix: Handle both flat and nested S3 key formats in orphan grouping"
    ```
 
-2. **Run migration in staging:**
+2. **Create PR to staging:**
    ```bash
-   bmx-api POST /health/migrate
+   gh pr create --repo markthebest12/bluemoxon --base staging --head fix/1057-orphan-scan-details --title "fix: Handle both S3 key formats in orphan scan" --body "Fixes orphan scan details being empty for flat format keys (book_id_uuid.ext)"
    ```
 
-3. **Integration test in staging:**
-   - Navigate to Admin > Maintenance
-   - Click "Scan for Orphans"
-   - Verify count, size, cost displayed
-   - Click "Delete All Orphans"
-   - Verify confirmation appears
-   - Confirm and watch progress
+3. **Wait for CI, merge, deploy to staging**
 
-4. **Promote to production:**
+4. **Verify in staging:**
+   ```bash
+   bmx-api GET /admin/cleanup/orphans/scan
+   ```
+   Should return populated `orphans_by_book` for ALL orphans (both formats)
+
+5. **Promote to production:**
    ```bash
    gh pr create --base main --head staging --title "chore: Promote staging to production"
    ```
 
-## Problem Statement
+---
 
-Current orphan image cleanup has poor UX:
-1. **Artificial batch limit of 100** - Forces clicking "Delete Orphans" ~36 times for 3,609 orphans
-2. **No confirmation before destructive action** - Delete runs immediately
-3. **Missing size information** - Only shows object count, not storage used
+## Completed Work
 
-## Solution Design
+### PR #1058 - Main Feature (MERGED)
+- Full orphan cleanup UX with size display, progress tracking
+- Batch delete using S3 `delete_objects` API
+- Concurrent job prevention (409 Conflict)
+- Lambda timeout detection
+- Background job with progress updates
 
-Replace with comprehensive orphan management:
-1. **Full scan results** - Count + size (KB/MB/GB) + monthly S3 cost (~$0.023/GB)
-2. **Expandable details** - All orphans grouped by book (title if exists, folder ID if deleted)
-3. **Inline confirmation** - Summary before delete (not modal)
-4. **Background job** - Runs to completion even if user navigates away
-5. **Real-time progress** - Progress bar with deleted/freed/saved running totals
+### PR #1059 - Bug Fix (MERGED)
+- Lambda handler wasn't passing through `total_bytes` and `orphans_by_book`
+- Added pass-through in `_async_handler`
 
-## API Endpoints
+### PR #1061 - Production Promotion (MERGED)
+- Promoted #1058 and #1059 to production
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/admin/cleanup/orphans/scan` | GET | Scan with sizes, grouped by book |
-| `/admin/cleanup/orphans/delete` | POST | Start deletion job (202 + job_id), returns 409 if job running |
-| `/admin/cleanup/jobs/{job_id}` | GET | Get job progress, detects timeout |
+---
 
-## Design Documents
+## Code Review Fixes Applied (from #1058)
 
-- `docs/plans/2026-01-11-orphan-cleanup-ux-design.md` - Full design spec
-- `docs/plans/2026-01-11-orphan-cleanup-ux-impl.md` - Implementation plan
+| Fix | Issue | Solution |
+|-----|-------|----------|
+| 1 | Race condition: stale scan data | Lambda updates totals from fresh scan at job start |
+| 2 | No concurrent job prevention | Returns 409 Conflict if pending/running job exists |
+| 3 | Lambda timeout (3609 serial calls) | Uses `delete_objects` batch API (4 calls for 3609 items) |
+| 4 | DB connection held during S3 scan | Phased approach: acquire/release per operation |
+| 5 | Deprecated `datetime.utcnow()` | Changed to `datetime.now(UTC)` |
+| 6 | Frontend swallows axios errors | Extracts `response.data.detail` for meaningful messages |
+| 7 | No partial progress tracking | Tracks `failed_count` from delete_objects Errors array |
+| 8 | Lambda cold start detection | Status endpoint marks jobs pending >5min as failed |
+
+---
+
+## Key Files
+
+- `backend/lambdas/cleanup/handler.py` - Main cleanup logic (FIX IS HERE)
+- `backend/app/api/v1/admin.py` - API endpoints for cleanup
+- `backend/app/models/cleanup_job.py` - CleanupJob model
+- `frontend/src/components/admin/OrphanCleanupPanel.vue` - Frontend UI
+- `backend/tests/test_cleanup.py` - Tests (40 tests, all passing)
+
+---
+
+## S3 Key Format Reference
+
+| Source | Format | Example | Environment |
+|--------|--------|---------|-------------|
+| Manual Upload | Flat | `books/10_abc123def.jpg` | Both |
+| Scraper Import | Nested | `books/500/image_00.webp` | Both |
+
+Both formats exist in both staging and production. The format is determined by how the image was added, not by environment.

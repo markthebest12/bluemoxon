@@ -158,21 +158,29 @@ def cleanup_orphaned_images(
     # Calculate total bytes for all orphans
     total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
 
-    # Group orphans by book folder (the first directory under books/)
-    # Key format: books/{folder_id}/image_name.webp
+    # Group orphans by book ID extracted from S3 key
+    # Two formats exist:
+    #   1. Nested (scraper): books/{book_id}/image_name.webp -> parts[1] = "500"
+    #   2. Flat (uploads):   books/{book_id}_{uuid}.ext     -> parts[1] = "10_abc123.jpg"
     orphans_by_folder: dict[int, list[tuple[str, int]]] = {}
     for key in orphaned_full_keys:
         parts = key.split("/")
         if len(parts) >= 2:
             try:
+                # Try nested format first (parts[1] is just the book_id)
                 folder_id = int(parts[1])
-                size = s3_key_sizes.get(key, 0)
-                if folder_id not in orphans_by_folder:
-                    orphans_by_folder[folder_id] = []
-                orphans_by_folder[folder_id].append((key, size))
             except ValueError:
-                # Non-integer folder name, skip
-                pass
+                # Try flat format: extract book_id before underscore
+                try:
+                    folder_id = int(parts[1].split("_")[0])
+                except (ValueError, IndexError):
+                    # Neither format matches, skip this key
+                    continue
+
+            size = s3_key_sizes.get(key, 0)
+            if folder_id not in orphans_by_folder:
+                orphans_by_folder[folder_id] = []
+            orphans_by_folder[folder_id].append((key, size))
 
     # Resolve book IDs to titles
     folder_ids = list(orphans_by_folder.keys())
