@@ -57,6 +57,42 @@ const authorOptionsWithAll = computed(() => {
   return [{ id: null, name: "All Authors" }, ...referencesStore.authors];
 });
 
+// Computed for category filter - handles Uncategorized option
+// Maps __uncategorized__ sentinel to category__isnull=true
+const categoryFilterValue = computed({
+  get: () => {
+    if (booksStore.filters.category__isnull) return "__uncategorized__";
+    return booksStore.filters.category;
+  },
+  set: (value: string | undefined) => {
+    if (value === "__uncategorized__") {
+      booksStore.filters.category__isnull = true;
+      booksStore.filters.category = undefined;
+    } else {
+      booksStore.filters.category__isnull = undefined;
+      booksStore.filters.category = value;
+    }
+  },
+});
+
+// Computed for condition filter - handles Ungraded option
+// Maps __ungraded__ sentinel to condition_grade__isnull=true
+const conditionFilterValue = computed({
+  get: () => {
+    if (booksStore.filters.condition_grade__isnull) return "__ungraded__";
+    return booksStore.filters.condition_grade;
+  },
+  set: (value: string | undefined) => {
+    if (value === "__ungraded__") {
+      booksStore.filters.condition_grade__isnull = true;
+      booksStore.filters.condition_grade = undefined;
+    } else {
+      booksStore.filters.condition_grade__isnull = undefined;
+      booksStore.filters.condition_grade = value;
+    }
+  },
+});
+
 // Count active filters
 const activeFilterCount = computed(() => {
   let count = 0;
@@ -65,10 +101,10 @@ const activeFilterCount = computed(() => {
   if (f.publisher_id) count++;
   if (f.publisher_tier) count++;
   if (f.author_id) count++;
-  if (f.category) count++;
+  if (f.category || f.category__isnull) count++;
   if (f.binding_authenticated !== undefined) count++;
   if (f.binding_type) count++;
-  if (f.condition_grade) count++;
+  if (f.condition_grade || f.condition_grade__isnull) count++;
   if (f.has_images !== undefined) count++;
   if (f.has_analysis !== undefined) count++;
   if (f.has_provenance !== undefined) count++;
@@ -105,7 +141,10 @@ function syncFiltersFromUrl() {
 
   // Chart filter syncs
   booksStore.filters.condition_grade = (route.query.condition_grade as string) || undefined;
+  booksStore.filters.condition_grade__isnull =
+    route.query.condition_grade__isnull === "true" ? true : undefined;
   booksStore.filters.category = (route.query.category as string) || undefined;
+  booksStore.filters.category__isnull = route.query.category__isnull === "true" ? true : undefined;
   booksStore.filters.era = (route.query.era as string) || undefined;
   booksStore.filters.binder_id = route.query.binder_id ? Number(route.query.binder_id) : undefined;
   booksStore.filters.author_id = route.query.author_id ? Number(route.query.author_id) : undefined;
@@ -169,8 +208,14 @@ function updateUrlWithFilters() {
   if (booksStore.filters.condition_grade) {
     query.condition_grade = booksStore.filters.condition_grade;
   }
+  if (booksStore.filters.condition_grade__isnull) {
+    query.condition_grade__isnull = "true";
+  }
   if (booksStore.filters.category) {
     query.category = booksStore.filters.category;
+  }
+  if (booksStore.filters.category__isnull) {
+    query.category__isnull = "true";
   }
   if (booksStore.filters.era) {
     query.era = booksStore.filters.era;
@@ -465,8 +510,9 @@ function closeCarousel() {
           <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
             >Category</label
           >
-          <select v-model="booksStore.filters.category" class="input text-sm">
+          <select v-model="categoryFilterValue" class="input text-sm">
             <option :value="undefined">All Categories</option>
+            <option value="__uncategorized__">Uncategorized</option>
             <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
               {{ cat }}
             </option>
@@ -503,8 +549,9 @@ function closeCarousel() {
           <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
             >Condition</label
           >
-          <select v-model="booksStore.filters.condition_grade" class="input text-sm">
+          <select v-model="conditionFilterValue" class="input text-sm">
             <option :value="undefined">Any Condition</option>
+            <option value="__ungraded__">Ungraded</option>
             <option v-for="grade in conditionGrades" :key="grade" :value="grade">
               {{ grade }}
             </option>

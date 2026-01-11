@@ -425,6 +425,18 @@ def list_books(
     db: Session = Depends(get_db),
 ):
     """List books with filtering and pagination."""
+    # Validate mutual exclusion: cannot pass both field and field__isnull
+    if params.category is not None and params.category__isnull is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot specify both 'category' and 'category__isnull' - they are mutually exclusive",
+        )
+    if params.condition_grade is not None and params.condition_grade__isnull is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot specify both 'condition_grade' and 'condition_grade__isnull' - they are mutually exclusive",
+        )
+
     query = db.query(Book)
 
     # Apply search query
@@ -442,6 +454,11 @@ def list_books(
         query = query.filter(Book.inventory_type == params.inventory_type)
     if params.category:
         query = query.filter(Book.category == params.category)
+    if params.category__isnull is not None:
+        if params.category__isnull:
+            query = query.filter(Book.category.is_(None))
+        else:
+            query = query.filter(Book.category.isnot(None))
     if params.status:
         query = query.filter(Book.status == params.status)
     if params.publisher_id:
@@ -458,6 +475,11 @@ def list_books(
         query = query.filter(Book.binding_type == params.binding_type)
     if params.condition_grade:
         query = query.filter(Book.condition_grade == params.condition_grade)
+    if params.condition_grade__isnull is not None:
+        if params.condition_grade__isnull:
+            query = query.filter(Book.condition_grade.is_(None))
+        else:
+            query = query.filter(Book.condition_grade.isnot(None))
     if params.min_value is not None:
         query = query.filter(Book.value_mid >= params.min_value)
     if params.max_value is not None:

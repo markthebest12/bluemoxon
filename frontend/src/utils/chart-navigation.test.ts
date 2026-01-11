@@ -1,6 +1,54 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { wantsNewTab, navigateToBooks } from "./chart-navigation";
+import { wantsNewTab, navigateToBooks, normalizeChartFilter } from "./chart-navigation";
 import type { Router } from "vue-router";
+
+describe("normalizeChartFilter", () => {
+  it("converts Uncategorized to category__isnull=true", () => {
+    const result = normalizeChartFilter({ category: "Uncategorized" });
+    expect(result).toEqual({ category__isnull: true });
+    expect(result.category).toBeUndefined();
+  });
+
+  it("converts Ungraded to condition_grade__isnull=true", () => {
+    const result = normalizeChartFilter({ condition_grade: "Ungraded" });
+    expect(result).toEqual({ condition_grade__isnull: true });
+    expect(result.condition_grade).toBeUndefined();
+  });
+
+  it("preserves regular category values", () => {
+    const result = normalizeChartFilter({ category: "Victorian Poetry" });
+    expect(result).toEqual({ category: "Victorian Poetry" });
+  });
+
+  it("preserves regular condition_grade values", () => {
+    const result = normalizeChartFilter({ condition_grade: "Fine" });
+    expect(result).toEqual({ condition_grade: "Fine" });
+  });
+
+  it("handles both Uncategorized and Ungraded together", () => {
+    const result = normalizeChartFilter({
+      category: "Uncategorized",
+      condition_grade: "Ungraded",
+    });
+    expect(result).toEqual({
+      category__isnull: true,
+      condition_grade__isnull: true,
+    });
+  });
+
+  it("preserves other filter properties", () => {
+    const result = normalizeChartFilter({
+      category: "Uncategorized",
+      status: "IN_COLLECTION",
+      binder_id: 123,
+    });
+    expect(result).toEqual({
+      category__isnull: true,
+      status: "IN_COLLECTION",
+      binder_id: 123,
+    });
+  });
+});
 
 describe("wantsNewTab", () => {
   it("returns false when event is undefined", () => {
@@ -84,5 +132,23 @@ describe("navigateToBooks", () => {
 
     expect(mockPush).toHaveBeenCalledWith({ path: "/books", query: { era: "Victorian" } });
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it("normalizes Uncategorized to category__isnull=true", () => {
+    navigateToBooks(mockRouter, { category: "Uncategorized" });
+
+    expect(mockPush).toHaveBeenCalledWith({
+      path: "/books",
+      query: { category__isnull: "true" },
+    });
+  });
+
+  it("normalizes Ungraded to condition_grade__isnull=true", () => {
+    navigateToBooks(mockRouter, { condition_grade: "Ungraded" });
+
+    expect(mockPush).toHaveBeenCalledWith({
+      path: "/books",
+      query: { condition_grade__isnull: "true" },
+    });
   });
 });
