@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { BOOK_STATUS_OPTIONS, BOOK_STATUSES, PAGINATION, FILTERS, UI_TIMING } from "../index";
+import {
+  BOOK_STATUS_OPTIONS,
+  BOOK_STATUSES,
+  PAGINATION,
+  FILTERS,
+  UI_TIMING,
+  PUBLISHER_TIER_OPTIONS,
+} from "../index";
 
 describe("constants", () => {
   describe("BOOK_STATUS_OPTIONS", () => {
@@ -59,6 +66,21 @@ describe("constants", () => {
     it("has reasonable timing values", () => {
       expect(UI_TIMING.COMBOBOX_BLUR_DELAY_MS).toBeGreaterThan(0);
       expect(UI_TIMING.COMBOBOX_BLUR_DELAY_MS).toBeLessThan(1000);
+    });
+  });
+
+  describe("PUBLISHER_TIER_OPTIONS", () => {
+    it("has human-readable labels for all tiers", () => {
+      expect(PUBLISHER_TIER_OPTIONS).toEqual([
+        { value: "TIER_1", label: "Tier 1" },
+        { value: "TIER_2", label: "Tier 2" },
+        { value: "TIER_3", label: "Tier 3" },
+        { value: "TIER_4", label: "Tier 4" },
+      ]);
+    });
+
+    it("has all 4 tier options", () => {
+      expect(PUBLISHER_TIER_OPTIONS).toHaveLength(4);
     });
   });
 });

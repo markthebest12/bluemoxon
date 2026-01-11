@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
+import { computed } from "vue";
+import {
+  BOOK_STATUSES,
+  BOOK_STATUS_OPTIONS,
+  CONDITION_GRADE_OPTIONS,
+  PUBLISHER_TIER_OPTIONS,
+} from "@/constants";
 import type { Book } from "@/stores/books";
 import { computeEra } from "@/utils/book-helpers";
 
 // Props
-withDefaults(
+const props = withDefaults(
   defineProps<{
     book: Book;
     isEditor: boolean;
@@ -19,6 +25,15 @@ withDefaults(
 const emit = defineEmits<{
   "status-changed": [newStatus: string];
 }>();
+
+// Computed properties
+const conditionDisplay = computed(() => {
+  const grade = props.book.condition_grade;
+  if (!grade) return null;
+  const option = CONDITION_GRADE_OPTIONS.find((c) => c.value === grade);
+  // Fallback: show raw grade with empty description for unknown grades
+  return option ?? { label: grade, description: "" };
+});
 
 // Helper functions
 function getStatusColor(status: string): string {
@@ -38,7 +53,15 @@ function getStatusColor(status: string): string {
 
 function getStatusLabel(statusValue: string): string {
   const option = BOOK_STATUS_OPTIONS.find((s) => s.value === statusValue);
-  return option ? option.label : statusValue.replace("_", " ");
+  // Fallback: replace all underscores with spaces for unknown statuses
+  return option?.label ?? statusValue.replace(/_/g, " ");
+}
+
+function getTierLabel(tier: string | null): string {
+  if (!tier) return "";
+  const option = PUBLISHER_TIER_OPTIONS.find((t) => t.value === tier);
+  // Fallback: replace all underscores with spaces for unknown tiers
+  return option?.label ?? tier.replace(/_/g, " ");
 }
 
 // Event handlers
@@ -58,7 +81,7 @@ function onStatusChange(newStatus: string) {
           <dd class="font-medium">
             {{ book.publisher?.name || "-" }}
             <span v-if="book.publisher?.tier" class="text-xs text-moxon-600">
-              ({{ book.publisher.tier }})
+              ({{ getTierLabel(book.publisher.tier) }})
             </span>
             <!-- First Edition Badge -->
             <span
@@ -128,12 +151,13 @@ function onStatusChange(newStatus: string) {
           <dt class="text-sm text-gray-500">Status</dt>
           <dd class="mt-1">
             <!-- Editors can change status -->
+            <!-- min-w-[120px] fits longest status label "IN TRANSIT" with dropdown arrow -->
             <select
               v-if="isEditor"
               :value="book.status"
               :disabled="updatingStatus"
               :class="[
-                'px-2 py-1 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
+                'min-w-[120px] px-3 py-1.5 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
                 getStatusColor(book.status),
                 updatingStatus ? 'opacity-50' : '',
               ]"
@@ -168,8 +192,14 @@ function onStatusChange(newStatus: string) {
         </div>
         <div>
           <dt class="text-sm text-gray-500">Condition</dt>
-          <dd class="font-medium">
-            {{ book.condition_grade || "-" }}
+          <dd>
+            <template v-if="conditionDisplay">
+              <span class="font-medium">{{ conditionDisplay.label }}</span>
+              <p v-if="conditionDisplay.description" class="text-xs text-gray-500 mt-0.5">
+                {{ conditionDisplay.description }}
+              </p>
+            </template>
+            <span v-else class="font-medium">-</span>
           </dd>
         </div>
         <div>

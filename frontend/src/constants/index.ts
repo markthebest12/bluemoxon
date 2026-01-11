@@ -90,6 +90,18 @@ export const CONDITION_GRADE_OPTIONS = [
 export type ConditionGradeOption = (typeof CONDITION_GRADE_OPTIONS)[number];
 
 /**
+ * Publisher tier dropdown options with display labels.
+ */
+export const PUBLISHER_TIER_OPTIONS = [
+  { value: "TIER_1", label: "Tier 1" },
+  { value: "TIER_2", label: "Tier 2" },
+  { value: "TIER_3", label: "Tier 3" },
+  { value: "TIER_4", label: "Tier 4" },
+] as const;
+
+export type PublisherTierOption = (typeof PUBLISHER_TIER_OPTIONS)[number];
+
+/**
  * Historical era constants for filtering.
  * Must match backend Era enum in app/enums.py
  */
