@@ -32,7 +32,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.entity_validation import validate_entity_for_book
+from app.services.entity_validation import validate_and_associate_entities
 from app.services.scoring import calculate_and_persist_book_scores
 from app.utils.markdown_parser import parse_analysis_markdown
 from app.version import get_version
@@ -361,53 +361,36 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                 book.is_first_edition = book_updates["is_first_edition"]
 
         # VALIDATION PHASE: Validate ALL entities upfront before any mutations
-        # This ensures we surface ALL errors at once, not just the first one
-        binder_id_to_set: int | None = None
-        binder_error: EntityValidationError | None = None
-        binder_name: str | None = None
-        publisher_id_to_set: int | None = None
-        publisher_error: EntityValidationError | None = None
-        publisher_name: str | None = None
+        # This uses the shared validation function (#1014 - extracted duplicate logic)
+        binder_name = (
+            parsed.binder_identification.get("name") if parsed.binder_identification else None
+        )
+        publisher_name = (
+            parsed.publisher_identification.get("name") if parsed.publisher_identification else None
+        )
 
-        if parsed.binder_identification and parsed.binder_identification.get("name"):
-            binder_name = parsed.binder_identification["name"]
-            binder_result = validate_entity_for_book(db, "binder", binder_name, allow_unknown=True)
-            if binder_result is None:
-                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
-                logger.warning(
-                    f"Binder '{binder_name}' not found in database - skipping association"
+        validation_result = validate_and_associate_entities(
+            db,
+            binder_name=binder_name,
+            publisher_name=publisher_name,
+        )
+
+        # Log warnings for visibility (#1013 - log mode skips associations)
+        for warning in validation_result.warnings:
+            logger.warning(warning)
+
+        # Handle validation errors - format for job failure message (#1015)
+        if validation_result.has_errors:
+            error_messages = []
+            for error in validation_result.errors:
+                error_messages.append(
+                    _format_entity_validation_error(error.entity_type, error.input, error)
                 )
-            elif isinstance(binder_result, EntityValidationError):
-                binder_error = binder_result
-            else:
-                binder_id_to_set = binder_result
+            raise ValueError("; ".join(error_messages))
 
-        if parsed.publisher_identification and parsed.publisher_identification.get("name"):
-            publisher_name = parsed.publisher_identification["name"]
-            publisher_result = validate_entity_for_book(
-                db, "publisher", publisher_name, allow_unknown=True
-            )
-            if publisher_result is None:
-                # Unknown entity - log warning and skip (consistent with HTTP endpoint)
-                logger.warning(
-                    f"Publisher '{publisher_name}' not found in database - skipping association"
-                )
-            elif isinstance(publisher_result, EntityValidationError):
-                publisher_error = publisher_result
-            else:
-                publisher_id_to_set = publisher_result
-
-        # Check for validation errors AFTER validating both entities
-        all_errors: list[str] = []
-        if binder_error and binder_name:
-            all_errors.append(_format_entity_validation_error("binder", binder_name, binder_error))
-        if publisher_error and publisher_name:
-            all_errors.append(
-                _format_entity_validation_error("publisher", publisher_name, publisher_error)
-            )
-
-        if all_errors:
-            raise ValueError("; ".join(all_errors))
+        # Get entity IDs from validation result
+        binder_id_to_set = validation_result.binder_id
+        publisher_id_to_set = validation_result.publisher_id
 
         # MUTATION PHASE: Associate entities with TOCTOU protection
         if binder_id_to_set and book.binder_id != binder_id_to_set:

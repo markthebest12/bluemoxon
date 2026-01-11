@@ -50,7 +50,6 @@ from app.schemas.book import (
     DuplicateMatch,
     TrackingRequest,
 )
-from app.schemas.entity_validation import EntityValidationError
 from app.schemas.eval_runbook_job import EvalRunbookJobResponse
 from app.services.analysis_parser import (
     apply_metadata_to_book,
@@ -65,7 +64,9 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
-from app.services.entity_validation import validate_entity_for_book
+from app.services.entity_validation import (
+    validate_and_associate_entities,
+)
 from app.services.job_manager import handle_stale_jobs
 from app.services.scoring import (
     author_tier_to_score,
@@ -416,43 +417,6 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
 
     db.commit()
     logger.info(f"Copied {len(listing_s3_keys)} images for book {book_id}")
-
-
-def _collect_entity_validation(
-    db: Session,
-    entity_type: str,
-    name: str,
-) -> tuple[int | None, EntityValidationError | None, str | None]:
-    """Validate entity and return results without raising exceptions.
-
-    This helper collects validation results so callers can validate multiple
-    entities before deciding whether to raise errors. This enables surfacing
-    ALL validation errors at once, not just the first one.
-
-    Args:
-        db: Database session.
-        entity_type: Type of entity ("binder", "publisher").
-        name: Name of entity to validate.
-
-    Returns:
-        Tuple of (entity_id, error, warning):
-        - (id, None, None): Exact match found
-        - (None, error, None): Validation error (similar entity exists)
-        - (None, None, warning): Entity not found (warning message)
-    """
-    result = validate_entity_for_book(db, entity_type, name, allow_unknown=True)
-
-    if result is None:
-        # Entity not found - return warning
-        warning = f"{entity_type.capitalize()} '{name}' not found - association skipped"
-        return (None, None, warning)
-
-    if isinstance(result, EntityValidationError):
-        # Validation error (similar entity exists)
-        return (None, result, None)
-
-    # Exact match found
-    return (result, None, None)
 
 
 @router.get("", response_model=BookListResponse)
@@ -1478,44 +1442,25 @@ def update_book_analysis(
     warnings: list[str] = []
 
     # VALIDATION PHASE: Validate ALL entities upfront before any mutations
-    # This ensures we surface ALL errors at once, not just the first one
-    binder_id_to_set: int | None = None
-    binder_error: EntityValidationError | None = None
-    publisher_id_to_set: int | None = None
-    publisher_error: EntityValidationError | None = None
-    binder_name: str | None = None
-    publisher_name: str | None = None
+    # This uses the shared validation function (#1014 - extracted duplicate logic)
+    binder_name = parsed.binder_identification.get("name") if parsed.binder_identification else None
+    publisher_name = (
+        parsed.publisher_identification.get("name") if parsed.publisher_identification else None
+    )
 
-    if parsed.binder_identification and parsed.binder_identification.get("name"):
-        binder_name = parsed.binder_identification["name"]
-        binder_id, binder_error, binder_warning = _collect_entity_validation(
-            db, "binder", binder_name
-        )
-        if binder_id:
-            binder_id_to_set = binder_id
-        elif binder_warning:
-            warnings.append(binder_warning)
+    validation_result = validate_and_associate_entities(
+        db,
+        binder_name=binder_name,
+        publisher_name=publisher_name,
+    )
 
-    if parsed.publisher_identification and parsed.publisher_identification.get("name"):
-        publisher_name = parsed.publisher_identification["name"]
-        publisher_id, publisher_error, publisher_warning = _collect_entity_validation(
-            db, "publisher", publisher_name
-        )
-        if publisher_id:
-            publisher_id_to_set = publisher_id
-        elif publisher_warning:
-            warnings.append(publisher_warning)
+    # Add warnings from validation (log mode visibility - #1013)
+    warnings.extend(validation_result.warnings)
 
-    # Check for validation errors AFTER validating both entities
-    # This surfaces ALL errors at once, not just the first one
-    all_errors: list[EntityValidationError] = []
-    if binder_error:
-        all_errors.append(binder_error)
-    if publisher_error:
-        all_errors.append(publisher_error)
-
-    if all_errors and not force:
+    # Handle validation errors
+    if validation_result.has_errors and not force:
         # Surface all errors - return 409 if any is similar_entity_exists, else 400
+        all_errors = validation_result.errors
         status_code = 409 if any(e.error == "similar_entity_exists" for e in all_errors) else 400
         if len(all_errors) == 1:
             raise HTTPException(status_code=status_code, detail=all_errors[0].model_dump())
@@ -1529,31 +1474,23 @@ def update_book_analysis(
             )
 
     # If force=True, append warnings for bypassed errors with fuzzy match details
-    if force:
-        if binder_error and binder_name:
-            if binder_error.suggestions:
-                top = binder_error.suggestions[0]
+    if force and validation_result.has_errors:
+        for error in validation_result.errors:
+            if error.suggestions:
+                top = error.suggestions[0]
                 warnings.append(
-                    f"Binder '{binder_name}' fuzzy matches '{top.name}' "
+                    f"{error.entity_type.capitalize()} '{error.input}' fuzzy matches '{top.name}' "
                     f"({top.match:.0%}) - skipped due to force=true"
                 )
             else:
                 warnings.append(
-                    f"Binder '{binder_name}' validation skipped due to force=true "
-                    f"({binder_error.error})"
+                    f"{error.entity_type.capitalize()} '{error.input}' validation skipped due to force=true "
+                    f"({error.error})"
                 )
-        if publisher_error and publisher_name:
-            if publisher_error.suggestions:
-                top = publisher_error.suggestions[0]
-                warnings.append(
-                    f"Publisher '{publisher_name}' fuzzy matches '{top.name}' "
-                    f"({top.match:.0%}) - skipped due to force=true"
-                )
-            else:
-                warnings.append(
-                    f"Publisher '{publisher_name}' validation skipped due to force=true "
-                    f"({publisher_error.error})"
-                )
+
+    # Get entity IDs from validation result
+    binder_id_to_set = validation_result.binder_id
+    publisher_id_to_set = validation_result.publisher_id
 
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)
