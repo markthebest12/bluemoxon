@@ -505,6 +505,9 @@ async def _async_handler(event: dict) -> dict:
             orphan_result = cleanup_orphaned_images(db, bucket=bucket, delete=delete_orphans)
             result["orphans_found"] = orphan_result["found"]
             result["orphans_deleted"] = orphan_result["deleted"]
+            # Pass through detailed scan results for /cleanup/orphans/scan endpoint
+            result["total_bytes"] = orphan_result.get("total_bytes", 0)
+            result["orphans_by_book"] = orphan_result.get("orphans_by_book", [])
 
         if action in ("all", "archives"):
             archive_result = await retry_failed_archives(db)
