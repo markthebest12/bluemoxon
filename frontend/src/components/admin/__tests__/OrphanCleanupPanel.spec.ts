@@ -299,4 +299,188 @@ describe("OrphanCleanupPanel", () => {
       expect(wrapper.find('[data-testid="delete-complete"]').exists()).toBe(false);
     });
   });
+
+  describe("listings cleanup", () => {
+    const mockListingsScanResult = {
+      total_count: 10,
+      total_bytes: 5000,
+      age_threshold_days: 30,
+      listings_by_item: [
+        { item_id: "123456789", count: 5, bytes: 2500, oldest: "2025-12-01T00:00:00Z" },
+        { item_id: "987654321", count: 5, bytes: 2500, oldest: "2025-11-15T00:00:00Z" },
+      ],
+    };
+
+    const mockEmptyListingsScanResult = {
+      total_count: 0,
+      total_bytes: 0,
+      age_threshold_days: 30,
+      listings_by_item: [],
+    };
+
+    it("renders listings scan button initially", () => {
+      const wrapper = mount(OrphanCleanupPanel);
+
+      expect(wrapper.find('[data-testid="listings-scan-button"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-scan-button"]').text()).toContain(
+        "Scan for Stale Listings"
+      );
+    });
+
+    it("shows loading state while scanning listings", async () => {
+      vi.mocked(api.get).mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ data: mockListingsScanResult }), 1000)
+          )
+      );
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+
+      expect(wrapper.find('[data-testid="listings-scan-button"]').text()).toContain("Scanning...");
+      expect(
+        wrapper.find('[data-testid="listings-scan-button"]').attributes("disabled")
+      ).toBeDefined();
+    });
+
+    it("displays listings scan results after scanning", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="listings-scan-results"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-count"]').text()).toBe("10");
+    });
+
+    it("shows no stale listings message when count is 0", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockEmptyListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="listings-no-stale"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-delete-button"]').exists()).toBe(false);
+    });
+
+    it("shows toggle details button after listings scan", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="listings-toggle-details"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-toggle-details"]').text()).toContain(
+        "Show Details"
+      );
+    });
+
+    it("expands listings details when clicked", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="listings-details"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="listings-toggle-details"]').trigger("click");
+
+      expect(wrapper.find('[data-testid="listings-details"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-toggle-details"]').text()).toContain(
+        "Hide Details"
+      );
+    });
+
+    it("shows listings grouped by item_id in details", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+      await wrapper.find('[data-testid="listings-toggle-details"]').trigger("click");
+
+      const details = wrapper.find('[data-testid="listings-details"]');
+      expect(details.text()).toContain("123456789");
+      expect(details.text()).toContain("987654321");
+    });
+
+    it("shows confirmation when listings delete clicked", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      await wrapper.find('[data-testid="listings-delete-button"]').trigger("click");
+
+      expect(wrapper.find('[data-testid="listings-confirm-delete"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-cancel-delete"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain("Delete all stale listing images?");
+    });
+
+    it("cancels listings confirmation when cancel clicked", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+      await wrapper.find('[data-testid="listings-delete-button"]').trigger("click");
+      await wrapper.find('[data-testid="listings-cancel-delete"]').trigger("click");
+
+      expect(wrapper.find('[data-testid="listings-confirm-delete"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="listings-delete-button"]').exists()).toBe(true);
+    });
+
+    it("shows completion summary after listings deletion", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+      vi.mocked(api.post).mockResolvedValue({
+        data: { deleted_count: 10, total_bytes: 5000 },
+      });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+      await wrapper.find('[data-testid="listings-delete-button"]').trigger("click");
+      await wrapper.find('[data-testid="listings-confirm-delete"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="listings-delete-complete"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain("Listings Cleanup Complete");
+      expect(wrapper.text()).toContain("10");
+    });
+
+    it("resets to initial state after clicking listings done", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: mockListingsScanResult });
+      vi.mocked(api.post).mockResolvedValue({
+        data: { deleted_count: 10, total_bytes: 5000 },
+      });
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+      await wrapper.find('[data-testid="listings-delete-button"]').trigger("click");
+      await wrapper.find('[data-testid="listings-confirm-delete"]').trigger("click");
+      await flushPromises();
+
+      await wrapper.find('[data-testid="listings-done-button"]').trigger("click");
+
+      expect(wrapper.find('[data-testid="listings-scan-button"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="listings-delete-complete"]').exists()).toBe(false);
+    });
+
+    it("handles listings scan errors gracefully", async () => {
+      vi.mocked(api.get).mockRejectedValue(new Error("Network error"));
+
+      const wrapper = mount(OrphanCleanupPanel);
+      await wrapper.find('[data-testid="listings-scan-button"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.text()).toContain("Network error");
+    });
+  });
 });

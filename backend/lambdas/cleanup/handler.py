@@ -1,6 +1,7 @@
 """Cleanup Lambda handler for stale data maintenance."""
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
 import boto3
@@ -12,9 +13,40 @@ from app.models import Book
 from app.models.image import BookImage
 from app.services.archive import archive_url
 
+logger = logging.getLogger(__name__)
+
 # Batch size limits to prevent Lambda timeout (300s max)
 EXPIRED_CHECK_BATCH_SIZE = 25  # 10s timeout × 25 = ~250s max
 ARCHIVE_RETRY_BATCH_SIZE = 10  # Archive calls can be slow
+
+
+def _calculate_orphaned_keys(s3_keys_stripped: set[str], db_keys: set[str]) -> set[str]:
+    """Filter out valid thumbnails and return true orphans.
+
+    Handles flat-format thumbnails (thumb_{id}_{uuid}.ext) that aren't stored
+    in DB but are derived from main images.
+
+    Args:
+        s3_keys_stripped: Set of S3 keys with prefix stripped
+        db_keys: Set of keys referenced in database
+
+    Returns:
+        Set of orphaned keys (not in DB and not valid thumbnails)
+    """
+    orphaned = set()
+    for stripped_key in s3_keys_stripped:
+        if stripped_key in db_keys:
+            continue  # Direct match in DB - not orphan
+
+        # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
+        # If so, check if the main image (without thumb_ prefix) exists in DB
+        if stripped_key.startswith("thumb_"):
+            main_key = stripped_key[6:]  # Remove "thumb_" prefix
+            if main_key in db_keys:
+                continue  # Main image exists in DB - thumbnail is valid, not orphan
+
+        orphaned.add(stripped_key)
+    return orphaned
 
 
 def cleanup_stale_evaluations(db: Session) -> int:
@@ -149,22 +181,7 @@ def cleanup_orphaned_images(
     db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
 
     # Find orphaned keys (in S3 but not in DB)
-    # Compare using stripped keys (without prefix)
-    # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
-    # They're derived from main images, so check if main image exists
-    orphaned_stripped = set()
-    for stripped_key in s3_keys_stripped:
-        if stripped_key in db_keys:
-            continue  # Direct match in DB - not orphan
-
-        # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
-        # If so, check if the main image (without thumb_ prefix) exists in DB
-        if stripped_key.startswith("thumb_"):
-            main_key = stripped_key[6:]  # Remove "thumb_" prefix
-            if main_key in db_keys:
-                continue  # Main image exists in DB - thumbnail is valid, not orphan
-
-        orphaned_stripped.add(stripped_key)
+    orphaned_stripped = _calculate_orphaned_keys(s3_keys_stripped, db_keys)
 
     # Convert back to full S3 keys for deletion
     orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
@@ -335,21 +352,7 @@ def cleanup_orphaned_images_with_progress(
             db.close()
 
         # Phase 3: Calculate orphans (no DB)
-        # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
-        # They're derived from main images, so check if main image exists
-        orphaned_stripped = set()
-        for stripped_key in s3_keys_stripped:
-            if stripped_key in db_keys:
-                continue  # Direct match in DB - not orphan
-
-            # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
-            # If so, check if the main image (without thumb_ prefix) exists in DB
-            if stripped_key.startswith("thumb_"):
-                main_key = stripped_key[6:]  # Remove "thumb_" prefix
-                if main_key in db_keys:
-                    continue  # Main image exists in DB - thumbnail is valid, not orphan
-
-            orphaned_stripped.add(stripped_key)
+        orphaned_stripped = _calculate_orphaned_keys(s3_keys_stripped, db_keys)
 
         orphaned_full_keys = [f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped]
 
@@ -457,6 +460,120 @@ def cleanup_orphaned_images_with_progress(
         except Exception:  # noqa: S110 - Don't mask original error
             pass
         return {"error": str(e)}
+
+
+def cleanup_stale_listings(
+    bucket: str,
+    age_days: int = 30,
+    delete: bool = False,
+    max_items: int = 10000,
+) -> dict:
+    """Find and optionally delete stale listing images.
+
+    Scans the listings/ S3 prefix and identifies objects older than
+    the specified age threshold. No database interaction needed.
+
+    Args:
+        bucket: S3 bucket name
+        age_days: Delete objects older than this many days (default 30)
+        delete: If True, delete stale objects. Otherwise dry run.
+        max_items: Maximum stale items to process (default 10000, prevents timeout)
+
+    Returns:
+        Dict with:
+        - total_count: number of stale objects found (up to max_items)
+        - total_bytes: total size of stale objects
+        - age_threshold_days: the threshold used
+        - listings_by_item: list of groups with item_id, count, bytes, oldest
+        - deleted_count: number deleted (0 if delete=False)
+        - failed_count: number failed to delete
+        - truncated: True if more stale items exist beyond max_items
+    """
+    s3 = boto3.client("s3")
+    S3_LISTINGS_PREFIX = "listings/"
+    S3_DELETE_BATCH_SIZE = 1000
+
+    cutoff_date = datetime.now(UTC) - timedelta(days=age_days)
+
+    # Scan listings/ prefix with max_items limit to prevent timeout
+    paginator = s3.get_paginator("list_objects_v2")
+    stale_keys: list[tuple[str, int, datetime]] = []  # (key, size, last_modified)
+    truncated = False
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=S3_LISTINGS_PREFIX):
+        for obj in page.get("Contents", []):
+            last_modified = obj["LastModified"]
+            # Ensure timezone-aware comparison
+            if last_modified.tzinfo is None:
+                last_modified = last_modified.replace(tzinfo=UTC)
+
+            if last_modified < cutoff_date:
+                if len(stale_keys) >= max_items:
+                    truncated = True
+                    break
+                stale_keys.append((obj["Key"], obj.get("Size", 0), last_modified))
+        if truncated:
+            break
+
+    # Group by item_id
+    items_map: dict[str, list[tuple[str, int, datetime]]] = {}
+    for key, size, last_modified in stale_keys:
+        # Extract item_id from path: listings/{item_id}/filename
+        parts = key.split("/")
+        if len(parts) >= 2:
+            item_id = parts[1]
+            if item_id not in items_map:
+                items_map[item_id] = []
+            items_map[item_id].append((key, size, last_modified))
+
+    # Build listings_by_item response
+    listings_by_item = []
+    for item_id in sorted(items_map.keys()):
+        items = items_map[item_id]
+        item_bytes = sum(size for _, size, _ in items)
+        oldest = min(lm for _, _, lm in items)
+        listings_by_item.append(
+            {
+                "item_id": item_id,
+                "count": len(items),
+                "bytes": item_bytes,
+                "oldest": oldest.isoformat(),
+            }
+        )
+
+    total_count = len(stale_keys)
+    total_bytes = sum(size for _, size, _ in stale_keys)
+
+    # Delete if requested
+    deleted_count = 0
+    failed_count = 0
+    if delete and stale_keys:
+        all_keys = [key for key, _, _ in stale_keys]
+
+        # Batch delete (max 1000 per call)
+        for i in range(0, len(all_keys), S3_DELETE_BATCH_SIZE):
+            batch = all_keys[i : i + S3_DELETE_BATCH_SIZE]
+            delete_request = {"Objects": [{"Key": k} for k in batch], "Quiet": False}
+            response = s3.delete_objects(Bucket=bucket, Delete=delete_request)
+            deleted_count += len(response.get("Deleted", []))
+            # Track failed deletions (permission issues, versioning conflicts, throttling)
+            errors = response.get("Errors", [])
+            if errors:
+                failed_count += len(errors)
+                logger.error(
+                    f"Failed to delete {len(errors)} objects: "
+                    f"{[e.get('Key', 'unknown') for e in errors[:5]]}"
+                )
+
+    return {
+        "total_count": total_count,
+        "total_bytes": total_bytes,
+        "age_threshold_days": age_days,
+        "listings_by_item": listings_by_item,
+        "deleted_count": deleted_count,
+        "failed_count": failed_count,
+        "truncated": truncated,
+    }
 
 
 async def retry_failed_archives(db: Session) -> dict:

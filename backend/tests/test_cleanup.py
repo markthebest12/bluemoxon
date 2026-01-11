@@ -1221,3 +1221,249 @@ class TestHandlerWithJobId:
 
         mock_stale.assert_called_once()
         assert result["stale_evaluations_archived"] == 5
+
+
+class TestCleanupStaleListings:
+    """Tests for cleanup_stale_listings function."""
+
+    def test_finds_old_files(self):
+        """Files older than threshold are identified as stale."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_01.webp",
+                        "Size": 2000,
+                        "LastModified": old_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=False)
+
+        assert result["total_count"] == 2
+        assert result["total_bytes"] == 3000
+
+    def test_keeps_recent_files(self):
+        """Files newer than threshold are not marked stale."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        recent_date = datetime.now(UTC) - timedelta(days=5)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": recent_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=False)
+
+        assert result["total_count"] == 0
+
+    def test_mixed_ages_in_folder(self):
+        """Only old files deleted from mixed-age folder."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+        recent_date = datetime.now(UTC) - timedelta(days=5)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_01.webp",
+                        "Size": 2000,
+                        "LastModified": recent_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=False)
+
+        assert result["total_count"] == 1
+        assert result["total_bytes"] == 1000
+
+    def test_empty_prefix(self):
+        """Empty listings prefix returns zero count."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [{"Contents": []}]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=False)
+
+        assert result["total_count"] == 0
+        assert result["total_bytes"] == 0
+
+    def test_groups_by_item_id(self):
+        """Results are grouped by item_id."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/111111/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/222222/image_00.webp",
+                        "Size": 2000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/222222/image_01.webp",
+                        "Size": 3000,
+                        "LastModified": old_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=False)
+
+        assert len(result["listings_by_item"]) == 2
+
+        item_111111 = next(i for i in result["listings_by_item"] if i["item_id"] == "111111")
+        assert item_111111["count"] == 1
+        assert item_111111["bytes"] == 1000
+
+        item_222222 = next(i for i in result["listings_by_item"] if i["item_id"] == "222222")
+        assert item_222222["count"] == 2
+        assert item_222222["bytes"] == 5000
+
+    def test_delete_mode(self):
+        """Delete mode actually deletes files."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_01.webp",
+                        "Size": 2000,
+                        "LastModified": old_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_s3.delete_objects.return_value = {
+            "Deleted": [
+                {"Key": "listings/123456/image_00.webp"},
+                {"Key": "listings/123456/image_01.webp"},
+            ],
+            "Errors": [],
+        }
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=True)
+
+        assert result["deleted_count"] == 2
+        assert result["failed_count"] == 0
+        mock_s3.delete_objects.assert_called_once()
+
+    def test_delete_mode_tracks_errors(self):
+        """Delete mode tracks failed deletions from S3 Errors array."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_01.webp",
+                        "Size": 2000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_02.webp",
+                        "Size": 3000,
+                        "LastModified": old_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_s3.delete_objects.return_value = {
+            "Deleted": [{"Key": "listings/123456/image_00.webp"}],
+            "Errors": [
+                {
+                    "Key": "listings/123456/image_01.webp",
+                    "Code": "AccessDenied",
+                    "Message": "Access Denied",
+                },
+                {
+                    "Key": "listings/123456/image_02.webp",
+                    "Code": "InternalError",
+                    "Message": "Internal Error",
+                },
+            ],
+        }
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=True)
+
+        assert result["deleted_count"] == 1
+        assert result["failed_count"] == 2

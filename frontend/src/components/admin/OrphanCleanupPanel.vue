@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { api } from "@/services/api";
 import { formatBytes, formatCost } from "@/utils/format";
 import { useCleanupJobPolling } from "@/composables/useCleanupJobPolling";
+import { getErrorMessage } from "@/types/errors";
 
 interface OrphanGroup {
   folder_id: number;
@@ -102,6 +103,88 @@ function reset() {
   deleteSummary.value = null;
   confirmingDelete.value = false;
   scanError.value = null;
+}
+
+// Listings cleanup state
+interface ListingsItem {
+  item_id: string;
+  count: number;
+  bytes: number;
+  oldest: string;
+}
+
+interface ListingsScanResult {
+  total_count: number;
+  total_bytes: number;
+  age_threshold_days: number;
+  listings_by_item: ListingsItem[];
+}
+
+const listingsScanning = ref(false);
+const listingsScanResult = ref<ListingsScanResult | null>(null);
+const listingsDeleting = ref(false);
+const listingsShowDetails = ref(false);
+const listingsConfirmDelete = ref(false);
+const listingsError = ref<string | null>(null);
+const listingsDeleteComplete = ref(false);
+const listingsDeleteSummary = ref<{ count: number; bytes: number } | null>(null);
+
+const hasStaleListings = computed(() => {
+  return listingsScanResult.value && listingsScanResult.value.total_count > 0;
+});
+
+const isListingsWorking = computed(() => {
+  return listingsScanning.value || listingsDeleting.value;
+});
+
+async function scanListings() {
+  listingsScanning.value = true;
+  listingsError.value = null;
+  listingsScanResult.value = null;
+  listingsDeleteComplete.value = false;
+  listingsDeleteSummary.value = null;
+
+  try {
+    const response = await api.get("/admin/cleanup/listings/scan");
+    listingsScanResult.value = response.data;
+  } catch (e) {
+    listingsError.value = getErrorMessage(e, "Failed to scan listings");
+  } finally {
+    listingsScanning.value = false;
+  }
+}
+
+async function deleteListings() {
+  listingsDeleting.value = true;
+  listingsError.value = null;
+
+  try {
+    const response = await api.post("/admin/cleanup/listings/delete", { age_days: 30 });
+    listingsDeleteComplete.value = true;
+    listingsDeleteSummary.value = {
+      count: response.data.deleted_count,
+      bytes: response.data.total_bytes,
+    };
+    listingsScanResult.value = null;
+    listingsConfirmDelete.value = false;
+  } catch (e) {
+    listingsError.value = getErrorMessage(e, "Failed to delete listings");
+  } finally {
+    listingsDeleting.value = false;
+  }
+}
+
+function resetListings() {
+  listingsScanResult.value = null;
+  listingsDeleteComplete.value = false;
+  listingsDeleteSummary.value = null;
+  listingsConfirmDelete.value = false;
+  listingsError.value = null;
+  listingsShowDetails.value = false;
+}
+
+function formatDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString();
 }
 </script>
 
@@ -392,6 +475,291 @@ function reset() {
       >
         Done
       </button>
+    </div>
+
+    <!-- Stale Listings Cleanup Section -->
+    <div class="mt-8 pt-8 border-t border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">Stale Listings Cleanup</h3>
+
+      <!-- Initial state: Scan button -->
+      <div v-if="!listingsScanResult && !listingsDeleteComplete" class="space-y-4">
+        <p class="text-sm text-gray-600">
+          Scan for listing images older than 30 days that were never imported into books. These
+          temporary files can be safely removed to free up storage.
+        </p>
+
+        <div class="flex gap-3">
+          <button
+            data-testid="listings-scan-button"
+            :disabled="isListingsWorking"
+            class="px-4 py-2 bg-victorian-hunter-600 text-white rounded hover:bg-victorian-hunter-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="scanListings"
+          >
+            <span v-if="listingsScanning" class="flex items-center gap-2">
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Scanning...
+            </span>
+            <span v-else>Scan for Stale Listings</span>
+          </button>
+        </div>
+
+        <!-- Scan error -->
+        <div
+          v-if="listingsError"
+          class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+        >
+          {{ listingsError }}
+        </div>
+      </div>
+
+      <!-- Scan results -->
+      <div v-if="listingsScanResult && !listingsDeleteComplete" class="space-y-4">
+        <!-- Summary stats - stale found -->
+        <div
+          v-if="hasStaleListings"
+          data-testid="listings-scan-results"
+          class="p-4 bg-amber-50 border border-amber-200 rounded"
+        >
+          <div class="flex items-center gap-2 mb-2">
+            <svg
+              class="w-5 h-5 text-amber-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span class="font-medium text-amber-800">Stale Listings Found</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="text-gray-600">Files:</span>
+              <span class="ml-2 font-medium" data-testid="listings-count">{{
+                listingsScanResult.total_count
+              }}</span>
+            </div>
+            <div>
+              <span class="text-gray-600">Size:</span>
+              <span class="ml-2 font-medium" data-testid="listings-size">{{
+                formatBytes(listingsScanResult.total_bytes)
+              }}</span>
+            </div>
+            <div>
+              <span class="text-gray-600">Age:</span>
+              <span class="ml-2 font-medium"
+                >{{ listingsScanResult.age_threshold_days }}+ days</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- No stale listings found -->
+        <div
+          v-else
+          data-testid="listings-no-stale"
+          class="p-4 bg-green-50 border border-green-200 rounded text-green-700"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span>No stale listings found. All listing images are recent.</span>
+          </div>
+        </div>
+
+        <!-- Expandable details -->
+        <div v-if="hasStaleListings">
+          <button
+            data-testid="listings-toggle-details"
+            class="text-sm text-victorian-hunter-600 hover:text-victorian-hunter-700 flex items-center gap-1"
+            @click="listingsShowDetails = !listingsShowDetails"
+          >
+            <svg
+              class="w-4 h-4 transition-transform"
+              :class="{ 'rotate-90': listingsShowDetails }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            {{ listingsShowDetails ? "Hide Details" : "Show Details" }}
+          </button>
+
+          <div
+            v-if="listingsShowDetails"
+            data-testid="listings-details"
+            class="mt-3 max-h-64 overflow-y-auto border border-gray-200 rounded"
+          >
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-left">
+                  <th class="px-3 py-2 font-medium text-gray-600">Listing ID</th>
+                  <th class="px-3 py-2 font-medium text-gray-600 text-right">Files</th>
+                  <th class="px-3 py-2 font-medium text-gray-600 text-right">Size</th>
+                  <th class="px-3 py-2 font-medium text-gray-600 text-right">Oldest</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="item in listingsScanResult.listings_by_item"
+                  :key="item.item_id"
+                  class="border-t border-gray-100"
+                >
+                  <td class="px-3 py-2 font-mono text-xs">{{ item.item_id }}</td>
+                  <td class="px-3 py-2 text-right tabular-nums">{{ item.count }}</td>
+                  <td class="px-3 py-2 text-right tabular-nums">{{ formatBytes(item.bytes) }}</td>
+                  <td class="px-3 py-2 text-right tabular-nums">{{ formatDate(item.oldest) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div v-if="hasStaleListings" class="flex gap-3 pt-2">
+          <!-- Delete confirmation inline -->
+          <div v-if="listingsConfirmDelete" class="flex items-center gap-3">
+            <span class="text-sm text-gray-600">Delete all stale listing images?</span>
+            <button
+              data-testid="listings-confirm-delete"
+              :disabled="listingsDeleting"
+              class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+              @click="deleteListings"
+            >
+              <span v-if="listingsDeleting" class="flex items-center gap-2">
+                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Deleting...
+              </span>
+              <span v-else>Yes, Delete</span>
+            </button>
+            <button
+              data-testid="listings-cancel-delete"
+              :disabled="listingsDeleting"
+              class="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+              @click="listingsConfirmDelete = false"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <template v-else>
+            <button
+              data-testid="listings-delete-button"
+              :disabled="isListingsWorking"
+              class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="listingsConfirmDelete = true"
+            >
+              Delete Stale Listings
+            </button>
+            <button
+              class="px-4 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-50 transition-colors"
+              @click="resetListings"
+            >
+              Cancel
+            </button>
+          </template>
+        </div>
+
+        <!-- Rescan button when no stale listings -->
+        <div v-else class="flex gap-3 pt-2">
+          <button
+            class="px-4 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-50 transition-colors"
+            @click="resetListings"
+          >
+            Done
+          </button>
+        </div>
+
+        <!-- Error during delete -->
+        <div
+          v-if="listingsError"
+          class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+        >
+          {{ listingsError }}
+        </div>
+      </div>
+
+      <!-- Completion summary -->
+      <div
+        v-if="listingsDeleteComplete && listingsDeleteSummary"
+        data-testid="listings-delete-complete"
+        class="space-y-4"
+      >
+        <div class="p-4 bg-green-50 border border-green-200 rounded">
+          <div class="flex items-center gap-2 mb-2">
+            <svg
+              class="w-5 h-5 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span class="font-medium text-green-800">Listings Cleanup Complete</span>
+          </div>
+          <div class="text-sm text-green-700">
+            Successfully deleted {{ listingsDeleteSummary.count }} stale listing images, freeing
+            {{ formatBytes(listingsDeleteSummary.bytes) }} of storage.
+          </div>
+        </div>
+
+        <button
+          data-testid="listings-done-button"
+          class="px-4 py-2 bg-victorian-hunter-600 text-white rounded hover:bg-victorian-hunter-700 transition-colors"
+          @click="resetListings"
+        >
+          Done
+        </button>
+      </div>
     </div>
   </div>
 </template>
