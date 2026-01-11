@@ -32,6 +32,10 @@
 #     - A bastion host with access to both databases
 #     - AWS DMS for cross-account replication
 #     The S3 sync works via local download/upload and doesn't require peering.
+#
+# Post-sync behavior:
+#   - Dashboard stats may show stale data for up to 5 minutes (Redis cache TTL)
+#   - Cache self-corrects without intervention
 # =============================================================================
 
 set -euo pipefail
@@ -297,15 +301,24 @@ if [ "$SYNC_IMAGES" = true ]; then
     if ! confirm "This will overwrite staging images with production data."; then
         log_info "Skipping images sync."
     else
+        # Exclude non-image prefixes:
+        # - lambda/, deploy/ - Lambda deployment packages (staging has its own)
+        # - data-import/ - One-time import files
+        # - listings/ - Transient scraper staging area (staging can scrape fresh)
+        S3_EXCLUDES="--exclude lambda/* --exclude deploy/* --exclude data-import/* --exclude listings/*"
+
         if [ "$DRY_RUN" = true ]; then
             log_info "[DRY RUN] Would:"
-            log_info "  1. Download all objects from s3://${PROD_IMAGES_BUCKET}"
+            log_info "  1. Download book images from s3://${PROD_IMAGES_BUCKET}"
             log_info "  2. Upload to s3://${STAGING_IMAGES_BUCKET} (staging account)"
-            # Count prod objects
-            PROD_COUNT=$(aws --profile "$PROD_PROFILE" s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive 2>/dev/null | wc -l | tr -d ' ')
-            log_info "  Total objects to sync: $PROD_COUNT"
+            log_info "  Excluding: lambda/, deploy/, data-import/, listings/"
+            log_info "  Note: No --delete flag - staging keeps orphaned files"
+            # Count prod objects (excluding the same prefixes)
+            PROD_COUNT=$(aws --profile "$PROD_PROFILE" s3 ls "s3://${PROD_IMAGES_BUCKET}" --recursive 2>/dev/null | grep -v -E " (lambda|deploy|data-import|listings)/" | wc -l | tr -d ' ')
+            log_info "  Total objects to sync: ~$PROD_COUNT"
         else
             log_info "Starting S3 sync..."
+            log_info "Excluding: lambda/, deploy/, data-import/, listings/"
 
             # Sync from prod to staging using cross-account sync
             # First download to temp, then upload to staging
@@ -313,7 +326,7 @@ if [ "$SYNC_IMAGES" = true ]; then
             trap "rm -rf $TEMP_DIR" EXIT
 
             log_info "Downloading from production..."
-            aws --profile "$PROD_PROFILE" s3 sync "s3://${PROD_IMAGES_BUCKET}" "$TEMP_DIR" --quiet
+            aws --profile "$PROD_PROFILE" s3 sync "s3://${PROD_IMAGES_BUCKET}" "$TEMP_DIR" $S3_EXCLUDES --quiet
 
             log_info "Uploading to staging..."
             aws --profile "$STAGING_PROFILE" s3 sync "$TEMP_DIR" "s3://${STAGING_IMAGES_BUCKET}" --quiet
