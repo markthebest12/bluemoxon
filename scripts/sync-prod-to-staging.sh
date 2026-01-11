@@ -208,6 +208,44 @@ fetch_redis_endpoint() {
     log_info "  Endpoint: ${STAGING_REDIS_ENDPOINT:0:50}..."
 }
 
+# Flush staging Redis cache
+flush_redis_cache() {
+    if [ "$FLUSH_CACHE" != true ]; then
+        log_info "Skipping cache flush (--skip-cache)"
+        return 0
+    fi
+
+    if [ -z "$STAGING_REDIS_ENDPOINT" ]; then
+        log_warn "No Redis endpoint available, skipping cache flush"
+        return 0
+    fi
+
+    log_info "Flushing staging Redis cache..."
+
+    # Check for redis-cli
+    if ! command -v redis-cli &> /dev/null; then
+        log_warn "redis-cli not found. Install with: brew install redis"
+        log_warn "Cache flush skipped - dashboard may show stale data for up to 5 minutes"
+        return 0
+    fi
+
+    # Parse endpoint (format: rediss://host:port)
+    REDIS_HOST=$(echo "$STAGING_REDIS_ENDPOINT" | sed 's|rediss://||' | cut -d: -f1)
+    REDIS_PORT=$(echo "$STAGING_REDIS_ENDPOINT" | sed 's|rediss://||' | cut -d: -f2)
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY RUN] Would flush Redis cache at $REDIS_HOST:$REDIS_PORT"
+        return 0
+    fi
+
+    # Execute FLUSHALL with TLS
+    if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" --tls FLUSHALL; then
+        log_success "Redis cache flushed successfully"
+    else
+        log_warn "Failed to flush Redis cache - dashboard may show stale data"
+    fi
+}
+
 show_help() {
     head -30 "$0" | grep -E '^#' | tail -n +2 | sed 's/^# //' | sed 's/^#//'
     exit 0
