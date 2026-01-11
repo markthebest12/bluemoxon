@@ -220,6 +220,64 @@ describe("BookMetadataSection", () => {
       expect(wrapper.text()).not.toContain("Condition Notes");
     });
 
+    describe("condition display formatting", () => {
+      it("shows human-readable label instead of DB value", () => {
+        const book = createBook({ condition_grade: "NEAR_FINE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Near Fine");
+        expect(wrapper.text()).not.toContain("NEAR_FINE");
+      });
+
+      it("shows description underneath label", () => {
+        const book = createBook({ condition_grade: "NEAR_FINE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Approaching fine, very minor defects");
+      });
+
+      it("shows dash when condition is null", () => {
+        const book = createBook({ condition_grade: null });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        const text = wrapper.text();
+        expect(text).toContain("Condition");
+        // Should show dash, not crash
+      });
+    });
+
+    describe("publisher tier formatting", () => {
+      it("formats TIER_2 as Tier 2", () => {
+        const book = createBook({
+          publisher: { id: 1, name: "Test Publisher", tier: "TIER_2" },
+        });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("(Tier 2)");
+        expect(wrapper.text()).not.toContain("TIER_2");
+      });
+
+      it("handles null tier gracefully", () => {
+        const book = createBook({
+          publisher: { id: 1, name: "Test Publisher", tier: null },
+        });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Test Publisher");
+        // Should not crash or show "(null)"
+      });
+    });
+
     it("displays computed era from year_start", () => {
       const book = createBook({ year_start: 1870, year_end: null });
       const wrapper = mount(BookMetadataSection, {

@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { BOOK_STATUSES, BOOK_STATUS_OPTIONS } from "@/constants";
+import {
+  BOOK_STATUSES,
+  BOOK_STATUS_OPTIONS,
+  CONDITION_GRADE_OPTIONS,
+  PUBLISHER_TIER_OPTIONS,
+} from "@/constants";
 import type { Book } from "@/stores/books";
 import { computeEra } from "@/utils/book-helpers";
 
@@ -41,6 +46,18 @@ function getStatusLabel(statusValue: string): string {
   return option ? option.label : statusValue.replace("_", " ");
 }
 
+function getConditionDisplay(grade: string | null) {
+  if (!grade) return null;
+  const option = CONDITION_GRADE_OPTIONS.find((c) => c.value === grade);
+  return option || { label: grade, description: "" };
+}
+
+function getTierLabel(tier: string | null): string {
+  if (!tier) return "";
+  const option = PUBLISHER_TIER_OPTIONS.find((t) => t.value === tier);
+  return option ? option.label : tier.replace("_", " ");
+}
+
 // Event handlers
 function onStatusChange(newStatus: string) {
   emit("status-changed", newStatus);
@@ -58,7 +75,7 @@ function onStatusChange(newStatus: string) {
           <dd class="font-medium">
             {{ book.publisher?.name || "-" }}
             <span v-if="book.publisher?.tier" class="text-xs text-moxon-600">
-              ({{ book.publisher.tier }})
+              ({{ getTierLabel(book.publisher.tier) }})
             </span>
             <!-- First Edition Badge -->
             <span
@@ -133,7 +150,7 @@ function onStatusChange(newStatus: string) {
               :value="book.status"
               :disabled="updatingStatus"
               :class="[
-                'px-2 py-1 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
+                'min-w-[120px] px-3 py-1.5 rounded-sm text-sm font-medium border-0 cursor-pointer no-print',
                 getStatusColor(book.status),
                 updatingStatus ? 'opacity-50' : '',
               ]"
@@ -168,8 +185,16 @@ function onStatusChange(newStatus: string) {
         </div>
         <div>
           <dt class="text-sm text-gray-500">Condition</dt>
-          <dd class="font-medium">
-            {{ book.condition_grade || "-" }}
+          <dd>
+            <template v-if="getConditionDisplay(book.condition_grade)">
+              <span class="font-medium">{{
+                getConditionDisplay(book.condition_grade)?.label
+              }}</span>
+              <p class="text-xs text-gray-500 mt-0.5">
+                {{ getConditionDisplay(book.condition_grade)?.description }}
+              </p>
+            </template>
+            <span v-else class="font-medium">-</span>
           </dd>
         </div>
         <div>
