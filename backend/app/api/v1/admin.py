@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime
 from typing import Literal
+from uuid import UUID
 
 import boto3
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -17,6 +18,7 @@ from app.db.session import get_db
 from app.models.admin_config import AdminConfig
 from app.models.author import Author
 from app.models.binder import Binder
+from app.models.cleanup_job import CleanupJob
 from app.models.publisher import Publisher
 from app.services import tiered_scoring
 from app.services.bedrock import (
@@ -188,6 +190,57 @@ class CleanupResult(BaseModel):
     archives_retried: int = 0
     archives_succeeded: int = 0
     archives_failed: int = 0
+
+
+# New models for orphan scan and cleanup job tracking
+
+
+class OrphanGroup(BaseModel):
+    """A group of orphaned images for a specific book folder."""
+
+    folder_id: int
+    book_id: int | None
+    book_title: str | None
+    count: int
+    bytes: int
+    keys: list[str]
+
+
+class OrphanScanResult(BaseModel):
+    """Result of scanning for orphaned images."""
+
+    total_count: int
+    total_bytes: int
+    orphans_by_book: list[OrphanGroup]
+
+
+class DeleteJobRequest(BaseModel):
+    """Request to start an orphan deletion job."""
+
+    total_count: int
+    total_bytes: int
+
+
+class DeleteJobResponse(BaseModel):
+    """Response when a deletion job is started."""
+
+    job_id: UUID
+    status: str
+
+
+class CleanupJobStatus(BaseModel):
+    """Status of a cleanup job."""
+
+    job_id: UUID
+    status: str
+    progress_pct: float
+    total_count: int
+    total_bytes: int
+    deleted_count: int
+    deleted_bytes: int
+    error_message: str | None = None
+    created_at: str
+    completed_at: str | None = None
 
 
 def get_scoring_config() -> dict:
@@ -455,4 +508,127 @@ def run_cleanup(
         archives_retried=result.get("archives_retried", 0),
         archives_succeeded=result.get("archives_succeeded", 0),
         archives_failed=result.get("archives_failed", 0),
+    )
+
+
+@router.get("/cleanup/orphans/scan", response_model=OrphanScanResult)
+def scan_orphans(_user=Depends(require_admin)):
+    """Scan for orphaned images with sizes.
+
+    Invokes the cleanup Lambda with action='orphans' and delete_orphans=False
+    to get a detailed report of orphaned images grouped by book folder.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    lambda_client = boto3.client("lambda", region_name=settings.aws_region)
+
+    # Build payload for cleanup Lambda
+    payload = {
+        "action": "orphans",
+        "delete_orphans": False,
+        "bucket": settings.images_bucket,
+        "return_details": True,  # Request detailed orphan info
+    }
+
+    # Invoke cleanup Lambda synchronously
+    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    response = lambda_client.invoke(
+        FunctionName=function_name,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(payload),
+    )
+
+    # Parse response
+    result = json.loads(response["Payload"].read())
+
+    # Check for Lambda error
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=f"Scan error: {result['error']}")
+
+    # Map Lambda response to OrphanScanResult
+    orphans_by_book = [
+        OrphanGroup(
+            folder_id=group.get("folder_id", 0),
+            book_id=group.get("book_id"),
+            book_title=group.get("book_title"),
+            count=group.get("count", 0),
+            bytes=group.get("bytes", 0),
+            keys=group.get("keys", []),
+        )
+        for group in result.get("orphans_by_book", [])
+    ]
+
+    return OrphanScanResult(
+        total_count=result.get("orphans_found", 0),
+        total_bytes=result.get("total_bytes", 0),
+        orphans_by_book=orphans_by_book,
+    )
+
+
+@router.post("/cleanup/orphans/delete", response_model=DeleteJobResponse, status_code=202)
+def start_orphan_delete(
+    request: DeleteJobRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Start an orphan deletion job.
+
+    Creates a CleanupJob record to track the deletion progress.
+    The actual deletion is performed asynchronously by invoking
+    the cleanup Lambda with the job_id.
+
+    Returns 202 Accepted with job_id for status polling.
+    """
+    from app.config import get_settings
+
+    job = CleanupJob(
+        total_count=request.total_count,
+        total_bytes=request.total_bytes,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    # Invoke Lambda asynchronously for background deletion
+    settings = get_settings()
+    lambda_client = boto3.client("lambda", region_name=settings.aws_region)
+
+    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    lambda_client.invoke(
+        FunctionName=function_name,
+        InvocationType="Event",  # Async invocation
+        Payload=json.dumps(
+            {
+                "job_id": str(job.id),
+                "bucket": settings.images_bucket,
+            }
+        ),
+    )
+
+    return DeleteJobResponse(job_id=job.id, status=job.status)
+
+
+@router.get("/cleanup/jobs/{job_id}", response_model=CleanupJobStatus)
+def get_cleanup_job_status(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Get the status of a cleanup job."""
+    job = db.get(CleanupJob, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return CleanupJobStatus(
+        job_id=job.id,
+        status=job.status,
+        progress_pct=job.progress_pct,
+        total_count=job.total_count,
+        total_bytes=job.total_bytes,
+        deleted_count=job.deleted_count,
+        deleted_bytes=job.deleted_bytes,
+        error_message=job.error_message,
+        created_at=job.created_at.isoformat(),
+        completed_at=job.completed_at.isoformat() if job.completed_at else None,
     )

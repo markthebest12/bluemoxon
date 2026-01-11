@@ -245,6 +245,105 @@ def cleanup_orphaned_images(
     return result
 
 
+def cleanup_orphaned_images_with_progress(
+    bucket: str,
+    job_id: str,
+    batch_size: int = 500,
+) -> dict:
+    """Delete orphans with progress updates to DB.
+
+    This function is invoked asynchronously by Lambda to perform batch
+    deletion of orphaned images while updating progress in the database.
+
+    Args:
+        bucket: S3 bucket name containing images
+        job_id: UUID of the CleanupJob to track progress
+        batch_size: Update progress every N items deleted
+
+    Returns:
+        Dict with deleted count and bytes_freed, or error details
+    """
+    from app.models.cleanup_job import CleanupJob
+
+    db = SessionLocal()
+    try:
+        job = db.get(CleanupJob, job_id)
+        if not job:
+            return {"error": f"Job {job_id} not found"}
+
+        job.status = "running"
+        db.commit()
+
+        s3 = boto3.client("s3")
+
+        # S3 prefix for book images
+        S3_BOOKS_PREFIX = "books/"
+
+        # Build list of orphan items with sizes using same logic as cleanup_orphaned_images
+        paginator = s3.get_paginator("list_objects_v2")
+        s3_keys_full = set()
+        s3_keys_stripped = set()
+        s3_key_sizes: dict[str, int] = {}
+
+        for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
+            for obj in page.get("Contents", []):
+                full_key = obj["Key"]
+                size = obj.get("Size", 0)
+                s3_keys_full.add(full_key)
+                s3_key_sizes[full_key] = size
+                if full_key.startswith(S3_BOOKS_PREFIX):
+                    stripped_key = full_key[len(S3_BOOKS_PREFIX) :]
+                    s3_keys_stripped.add(stripped_key)
+
+        # Get all image keys from database
+        from app.models.image import BookImage
+
+        db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
+
+        # Find orphaned keys
+        orphaned_stripped = s3_keys_stripped - db_keys
+        orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
+
+        # Build list of (key, size) tuples for deletion
+        orphan_items = [(key, s3_key_sizes.get(key, 0)) for key in orphaned_full_keys]
+
+        deleted_count = 0
+        deleted_bytes = 0
+
+        for key, size in orphan_items:
+            s3.delete_object(Bucket=bucket, Key=key)
+            deleted_count += 1
+            deleted_bytes += size
+
+            # Update progress every batch_size items
+            if deleted_count % batch_size == 0:
+                job.deleted_count = deleted_count
+                job.deleted_bytes = deleted_bytes
+                db.commit()
+
+        # Final update
+        job.deleted_count = deleted_count
+        job.deleted_bytes = deleted_bytes
+        job.status = "completed"
+        job.completed_at = datetime.now(UTC)
+        db.commit()
+
+        return {"deleted": deleted_count, "bytes_freed": deleted_bytes}
+    except Exception as e:
+        # Update job with failure status
+        try:
+            job = db.get(CleanupJob, job_id)
+            if job:
+                job.status = "failed"
+                job.error_message = str(e)
+                db.commit()
+        except Exception:  # noqa: S110 - Don't mask original error
+            pass
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
 async def retry_failed_archives(db: Session) -> dict:
     """Retry archiving for books with failed archive status.
 
@@ -351,10 +450,14 @@ async def _async_handler(event: dict) -> dict:
 def handler(event: dict, context) -> dict:
     """Cleanup Lambda handler.
 
-    Event payload:
+    Event payload for standard cleanup:
         action: "all" | "stale" | "expired" | "orphans" | "archives"
         bucket: S3 bucket name (required for orphans action)
         delete_orphans: bool (default False)
+
+    Event payload for background deletion with progress:
+        job_id: UUID of CleanupJob to track progress
+        bucket: S3 bucket name
 
     Args:
         event: Lambda event dict
@@ -363,4 +466,12 @@ def handler(event: dict, context) -> dict:
     Returns:
         Dict with cleanup results
     """
+    # Check for job_id - indicates background deletion with progress tracking
+    if event.get("job_id"):
+        return cleanup_orphaned_images_with_progress(
+            bucket=event["bucket"],
+            job_id=event["job_id"],
+        )
+
+    # Standard cleanup action
     return asyncio.run(_async_handler(event))
