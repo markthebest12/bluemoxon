@@ -485,6 +485,30 @@ MIGRATION_5BD4BB0308B4_SQL = [
     """ALTER TABLE books DROP COLUMN IF EXISTS _condition_grade_backup""",
 ]
 
+# Migration SQL for z0012345cdef_add_cleanup_jobs_table
+# Creates cleanup_jobs table for tracking async cleanup operations
+MIGRATION_Z0012345CDEF_SQL = [
+    """CREATE TABLE IF NOT EXISTS cleanup_jobs (
+        id UUID PRIMARY KEY,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        total_count INTEGER NOT NULL DEFAULT 0,
+        total_bytes BIGINT NOT NULL DEFAULT 0,
+        deleted_count INTEGER NOT NULL DEFAULT 0,
+        deleted_bytes BIGINT NOT NULL DEFAULT 0,
+        error_message TEXT,
+        created_at TIMESTAMP WITH TIME ZONE,
+        updated_at TIMESTAMP WITH TIME ZONE,
+        completed_at TIMESTAMP WITH TIME ZONE
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_cleanup_jobs_status ON cleanup_jobs(status)",
+]
+
+# Migration SQL for z1012345efgh_add_failed_count_to_cleanup_jobs
+# Adds failed_count column to track partial failures during batch delete
+MIGRATION_Z1012345EFGH_SQL = [
+    "ALTER TABLE cleanup_jobs ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -714,5 +738,15 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "5bd4bb0308b4",
         "name": "normalize_condition_grade_casing",
         "sql_statements": MIGRATION_5BD4BB0308B4_SQL,
+    },
+    {
+        "id": "z0012345cdef",
+        "name": "add_cleanup_jobs_table",
+        "sql_statements": MIGRATION_Z0012345CDEF_SQL,
+    },
+    {
+        "id": "z1012345efgh",
+        "name": "add_failed_count_to_cleanup_jobs",
+        "sql_statements": MIGRATION_Z1012345EFGH_SQL,
     },
 ]
