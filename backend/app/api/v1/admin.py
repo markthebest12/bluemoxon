@@ -1,7 +1,7 @@
 """Admin configuration API endpoints."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -238,6 +238,7 @@ class CleanupJobStatus(BaseModel):
     total_bytes: int
     deleted_count: int
     deleted_bytes: int
+    failed_count: int = 0
     error_message: str | None = None
     created_at: str
     completed_at: str | None = None
@@ -579,8 +580,19 @@ def start_orphan_delete(
     the cleanup Lambda with the job_id.
 
     Returns 202 Accepted with job_id for status polling.
+    Returns 409 Conflict if a job is already in progress.
     """
     from app.config import get_settings
+
+    # Check for existing in-progress job
+    existing_job = db.execute(
+        select(CleanupJob).where(CleanupJob.status.in_(["pending", "running"]))
+    ).scalar_one_or_none()
+    if existing_job:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A cleanup job is already in progress (job_id: {existing_job.id})",
+        )
 
     job = CleanupJob(
         total_count=request.total_count,
@@ -620,6 +632,16 @@ def get_cleanup_job_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Detect timeout: pending job older than 5 minutes means Lambda failed to start
+    if job.status == "pending":
+        job_age = datetime.now(UTC) - job.created_at
+        if job_age > timedelta(minutes=5):
+            job.status = "failed"
+            job.error_message = "Job timed out waiting to start (Lambda may have failed)"
+            job.completed_at = datetime.now(UTC)
+            db.commit()
+            db.refresh(job)
+
     return CleanupJobStatus(
         job_id=job.id,
         status=job.status,
@@ -628,6 +650,7 @@ def get_cleanup_job_status(
         total_bytes=job.total_bytes,
         deleted_count=job.deleted_count,
         deleted_bytes=job.deleted_bytes,
+        failed_count=job.failed_count,
         error_message=job.error_message,
         created_at=job.created_at.isoformat(),
         completed_at=job.completed_at.isoformat() if job.completed_at else None,

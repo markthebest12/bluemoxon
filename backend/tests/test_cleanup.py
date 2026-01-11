@@ -921,6 +921,7 @@ class TestCleanupWithProgress:
         mock_job.status = "pending"
         mock_job.deleted_count = 0
         mock_job.deleted_bytes = 0
+        mock_job.failed_count = 0
         mock_db.get.return_value = mock_job
 
         # Setup mock S3 client with paginator
@@ -943,16 +944,27 @@ class TestCleanupWithProgress:
         # Mock empty DB keys (all S3 keys are orphans)
         mock_db.query.return_value.all.return_value = []
 
-        # Run cleanup with small batch size to trigger progress updates
+        # Mock delete_objects response (batch delete API)
+        mock_s3.delete_objects.return_value = {
+            "Deleted": [
+                {"Key": "books/orphan1/image.jpg"},
+                {"Key": "books/orphan2/image.jpg"},
+                {"Key": "books/orphan3/image.jpg"},
+            ],
+            "Errors": [],
+        }
+
+        # Run cleanup with small progress interval to trigger updates
         result = cleanup_orphaned_images_with_progress(
             bucket="test-bucket",
             job_id="test-job-id",
-            batch_size=2,
+            progress_update_interval=2,
         )
 
         # Verify result
         assert result["deleted"] == 3
         assert result["bytes_freed"] == 6000
+        assert result["failed_count"] == 0
 
         # Verify job status was updated
         assert mock_job.status == "completed"
@@ -960,22 +972,32 @@ class TestCleanupWithProgress:
         assert mock_job.deleted_bytes == 6000
         assert mock_job.completed_at is not None
 
-        # Verify S3 delete was called 3 times
-        assert mock_s3.delete_object.call_count == 3
+        # Verify S3 batch delete was called (not individual delete_object)
+        assert mock_s3.delete_objects.call_count == 1
+        assert mock_s3.delete_object.call_count == 0
 
-        # Verify DB commits happened (initial status + batch updates + final)
+        # Verify DB commits happened (phase 4 + progress updates + final)
         assert mock_db.commit.call_count >= 2
 
-        # Verify session was closed
-        mock_db.close.assert_called_once()
+        # Verify sessions were closed (multiple open/close cycles)
+        assert mock_db.close.call_count >= 3
 
     @patch("lambdas.cleanup.handler.SessionLocal")
-    def test_job_not_found_returns_error(self, mock_session_local):
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_job_not_found_returns_error(self, mock_boto_client, mock_session_local):
         """Test that missing job returns error."""
         from lambdas.cleanup.handler import cleanup_orphaned_images_with_progress
 
+        # Mock S3 client with empty scan result
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [{"Contents": []}]
+
         mock_db = MagicMock()
         mock_session_local.return_value = mock_db
+        mock_db.query.return_value.all.return_value = []  # Empty DB keys
         mock_db.get.return_value = None  # Job not found
 
         result = cleanup_orphaned_images_with_progress(
@@ -985,7 +1007,8 @@ class TestCleanupWithProgress:
 
         assert "error" in result
         assert "not found" in result["error"]
-        mock_db.close.assert_called_once()
+        # Multiple close calls due to phased connection management
+        assert mock_db.close.call_count >= 1
 
     @patch("lambdas.cleanup.handler.SessionLocal")
     @patch("lambdas.cleanup.handler.boto3.client")

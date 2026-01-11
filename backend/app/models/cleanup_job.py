@@ -1,7 +1,7 @@
 """Cleanup Job model for tracking async cleanup operations."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import BigInteger, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -33,6 +33,7 @@ class CleanupJob(Base):
     # Progress
     deleted_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     deleted_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Error tracking
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -40,12 +41,12 @@ class CleanupJob(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=datetime.now(UTC),
+        onupdate=datetime.now(UTC),
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

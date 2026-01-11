@@ -68,8 +68,9 @@ async function scan() {
     const response = await api.get("/admin/cleanup/orphans/scan");
     scanResult.value = response.data;
   } catch (e: unknown) {
-    const err = e as { message?: string };
-    scanError.value = err.message || "Failed to scan for orphans";
+    const axiosErr = e as { response?: { data?: { detail?: string } }; message?: string };
+    scanError.value =
+      axiosErr.response?.data?.detail || axiosErr.message || "Failed to scan for orphans";
   } finally {
     scanning.value = false;
   }
@@ -89,8 +90,9 @@ async function startDelete() {
     startPolling(response.data.job_id);
   } catch (e: unknown) {
     deleting.value = false;
-    const err = e as { message?: string };
-    scanError.value = err.message || "Failed to start delete job";
+    const axiosErr = e as { response?: { data?: { detail?: string } }; message?: string };
+    scanError.value =
+      axiosErr.response?.data?.detail || axiosErr.message || "Failed to start delete job";
   }
 }
 

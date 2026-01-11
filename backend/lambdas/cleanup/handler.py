@@ -248,40 +248,44 @@ def cleanup_orphaned_images(
 def cleanup_orphaned_images_with_progress(
     bucket: str,
     job_id: str,
-    batch_size: int = 500,
+    progress_update_interval: int = 500,
 ) -> dict:
     """Delete orphans with progress updates to DB.
 
     This function is invoked asynchronously by Lambda to perform batch
     deletion of orphaned images while updating progress in the database.
 
+    Designed to avoid Lambda timeout with proper DB connection management:
+    - Phase 1: S3 scan (no DB connection held)
+    - Phase 2: Quick DB query for referenced keys
+    - Phase 3: Calculate orphans (no DB)
+    - Phase 4: Update job with fresh totals and set status to running
+    - Phase 5: Delete in batches using delete_objects API, update progress
+    - Phase 6: Final status update
+
     Args:
         bucket: S3 bucket name containing images
         job_id: UUID of the CleanupJob to track progress
-        batch_size: Update progress every N items deleted
+        progress_update_interval: Update progress every N items deleted
 
     Returns:
-        Dict with deleted count and bytes_freed, or error details
+        Dict with deleted count, bytes_freed, and failed_count
     """
     from app.models.cleanup_job import CleanupJob
 
-    db = SessionLocal()
+    s3 = boto3.client("s3")
+    S3_BOOKS_PREFIX = "books/"
+    S3_DELETE_BATCH_SIZE = 1000  # Max keys per delete_objects call
+
+    # Track results
+    deleted_count = 0
+    deleted_bytes = 0
+    failed_count = 0
+    error_message = None
+
     try:
-        job = db.get(CleanupJob, job_id)
-        if not job:
-            return {"error": f"Job {job_id} not found"}
-
-        job.status = "running"
-        db.commit()
-
-        s3 = boto3.client("s3")
-
-        # S3 prefix for book images
-        S3_BOOKS_PREFIX = "books/"
-
-        # Build list of orphan items with sizes using same logic as cleanup_orphaned_images
+        # Phase 1: S3 scan (no DB connection)
         paginator = s3.get_paginator("list_objects_v2")
-        s3_keys_full = set()
         s3_keys_stripped = set()
         s3_key_sizes: dict[str, int] = {}
 
@@ -289,59 +293,126 @@ def cleanup_orphaned_images_with_progress(
             for obj in page.get("Contents", []):
                 full_key = obj["Key"]
                 size = obj.get("Size", 0)
-                s3_keys_full.add(full_key)
                 s3_key_sizes[full_key] = size
                 if full_key.startswith(S3_BOOKS_PREFIX):
                     stripped_key = full_key[len(S3_BOOKS_PREFIX) :]
                     s3_keys_stripped.add(stripped_key)
 
-        # Get all image keys from database
-        from app.models.image import BookImage
+        # Phase 2: Quick DB query for referenced keys (acquire, query, release)
+        db = SessionLocal()
+        try:
+            db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
+        finally:
+            db.close()
 
-        db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
-
-        # Find orphaned keys
+        # Phase 3: Calculate orphans (no DB)
         orphaned_stripped = s3_keys_stripped - db_keys
-        orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
+        orphaned_full_keys = [f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped]
 
-        # Build list of (key, size) tuples for deletion
+        # Calculate fresh totals from scan
+        total_count = len(orphaned_full_keys)
+        total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
+
+        # Phase 4: Update job with fresh totals and set status to running
+        db = SessionLocal()
+        try:
+            job = db.get(CleanupJob, job_id)
+            if not job:
+                return {"error": f"Job {job_id} not found"}
+
+            # Fix 1: Update totals from fresh scan (not stale frontend values)
+            job.total_count = total_count
+            job.total_bytes = total_bytes
+            job.status = "running"
+            db.commit()
+        finally:
+            db.close()
+
+        # Phase 5: Delete in batches using delete_objects API
+        # Build list of (key, size) for tracking bytes
         orphan_items = [(key, s3_key_sizes.get(key, 0)) for key in orphaned_full_keys]
 
-        deleted_count = 0
-        deleted_bytes = 0
+        # Process in batches of S3_DELETE_BATCH_SIZE (1000 max for delete_objects)
+        for batch_start in range(0, len(orphan_items), S3_DELETE_BATCH_SIZE):
+            batch_end = min(batch_start + S3_DELETE_BATCH_SIZE, len(orphan_items))
+            batch = orphan_items[batch_start:batch_end]
 
-        for key, size in orphan_items:
-            s3.delete_object(Bucket=bucket, Key=key)
-            deleted_count += 1
-            deleted_bytes += size
+            # Build delete request
+            delete_keys = [{"Key": key} for key, _ in batch]
 
-            # Update progress every batch_size items
-            if deleted_count % batch_size == 0:
-                job.deleted_count = deleted_count
-                job.deleted_bytes = deleted_bytes
-                db.commit()
+            # Call delete_objects API (up to 1000 keys per call)
+            response = s3.delete_objects(
+                Bucket=bucket,
+                Delete={"Objects": delete_keys, "Quiet": False},
+            )
 
-        # Final update
-        job.deleted_count = deleted_count
-        job.deleted_bytes = deleted_bytes
-        job.status = "completed"
-        job.completed_at = datetime.now(UTC)
-        db.commit()
+            # Track successful deletes
+            deleted_list = response.get("Deleted", [])
+            deleted_keys_set = {d["Key"] for d in deleted_list}
+            for key, size in batch:
+                if key in deleted_keys_set:
+                    deleted_count += 1
+                    deleted_bytes += size
 
-        return {"deleted": deleted_count, "bytes_freed": deleted_bytes}
-    except Exception as e:
-        # Update job with failure status
+            # Track failed deletes (Fix 7)
+            errors_list = response.get("Errors", [])
+            failed_count += len(errors_list)
+
+            # Update progress after each batch (acquire, update, release)
+            if deleted_count >= progress_update_interval or batch_end == len(orphan_items):
+                db = SessionLocal()
+                try:
+                    job = db.get(CleanupJob, job_id)
+                    if job:
+                        job.deleted_count = deleted_count
+                        job.deleted_bytes = deleted_bytes
+                        db.commit()
+                finally:
+                    db.close()
+
+        # Build error message if there were partial failures
+        if failed_count > 0:
+            error_message = f"{failed_count} objects failed to delete"
+
+        # Phase 6: Final status update (acquire, update, release)
+        db = SessionLocal()
         try:
             job = db.get(CleanupJob, job_id)
             if job:
-                job.status = "failed"
-                job.error_message = str(e)
+                job.deleted_count = deleted_count
+                job.deleted_bytes = deleted_bytes
+                job.failed_count = failed_count
+                job.status = "completed"  # Completed even with partial failures
+                job.completed_at = datetime.now(UTC)
+                if error_message:
+                    job.error_message = error_message
                 db.commit()
+        finally:
+            db.close()
+
+        return {
+            "deleted": deleted_count,
+            "bytes_freed": deleted_bytes,
+            "failed_count": failed_count,
+        }
+    except Exception as e:
+        # Update job with failure status (for exceptions, not partial failures)
+        try:
+            db = SessionLocal()
+            try:
+                job = db.get(CleanupJob, job_id)
+                if job:
+                    job.status = "failed"
+                    job.error_message = str(e)
+                    job.deleted_count = deleted_count
+                    job.deleted_bytes = deleted_bytes
+                    job.failed_count = failed_count
+                    db.commit()
+            finally:
+                db.close()
         except Exception:  # noqa: S110 - Don't mask original error
             pass
         return {"error": str(e)}
-    finally:
-        db.close()
 
 
 async def retry_failed_archives(db: Session) -> dict:
