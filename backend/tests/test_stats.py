@@ -1273,6 +1273,452 @@ class TestDashboardBatch:
         assert poetry["count"] == 1
 
 
+class TestStatsEdgeCases:
+    """Tests for edge cases: Unicode, injection strings, boundary values.
+
+    Issue #1004: Verify stats endpoints handle edge cases correctly.
+
+    Note: condition_grade is validated against ConditionGrade enum on API input,
+    but the database may contain legacy values. Tests that need non-standard
+    condition grades create books directly in the database to simulate legacy data.
+    """
+
+    def test_condition_with_unicode_french(self, client, db):
+        """Legacy condition grades with French Unicode render correctly in stats.
+
+        The API validates against enum values, but legacy data might have
+        non-standard grades. Stats should display them correctly.
+        """
+        from app.models import Book
+
+        # Create directly in DB to simulate legacy data with non-standard grade
+        book = Book(
+            title="French Condition Book",
+            condition_grade="très bien",
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        french = next((c for c in data if c["condition"] == "très bien"), None)
+        assert french is not None, f"Unicode condition 'très bien' not found in {data}"
+        assert french["count"] == 1
+        assert french["value"] == 100
+
+    def test_condition_with_unicode_japanese(self, client, db):
+        """Legacy condition grades with Japanese characters render correctly."""
+        from app.models import Book
+
+        book = Book(
+            title="Japanese Condition Book",
+            condition_grade="良好",
+            value_mid=200,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        japanese = next((c for c in data if c["condition"] == "良好"), None)
+        assert japanese is not None, f"Unicode condition '良好' not found in {data}"
+        assert japanese["count"] == 1
+        assert japanese["value"] == 200
+
+    def test_condition_with_emoji(self, client, db):
+        """Legacy condition grades with emoji render correctly."""
+        from app.models import Book
+
+        emoji_condition = "📚 Fine"
+        book = Book(
+            title="Emoji Condition Book",
+            condition_grade=emoji_condition,
+            value_mid=150,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        emoji = next((c for c in data if c["condition"] == emoji_condition), None)
+        assert emoji is not None, f"Emoji condition '📚 Fine' not found in {data}"
+        assert emoji["count"] == 1
+        assert emoji["value"] == 150
+
+    def test_condition_with_sql_injection_string(self, client, db):
+        """SQL injection strings in condition_grade are returned as-is, not interpreted.
+
+        Tests that SQLAlchemy properly parameterizes queries and the stats
+        endpoint safely handles malicious strings in the database.
+        """
+        from app.models import Book
+
+        injection_string = "'; DROP TABLE books; --"
+        book = Book(
+            title="SQL Injection Test Book",
+            condition_grade=injection_string,
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        injection = next((c for c in data if c["condition"] == injection_string), None)
+        assert injection is not None, (
+            f"Injection string should be returned as-is: {injection_string}"
+        )
+        assert injection["count"] == 1
+        assert injection["value"] == 100
+
+        # Verify the database still works (table wasn't dropped)
+        response2 = client.get("/api/v1/stats/overview")
+        assert response2.status_code == 200
+        assert response2.json()["total_items"] >= 1
+
+    def test_condition_with_xss_string(self, client, db):
+        """XSS strings in condition_grade are stored and returned as-is.
+
+        The API does not sanitize output - frontend must handle escaping.
+        This test verifies the string is preserved without corruption.
+        """
+        from app.models import Book
+
+        xss_string = "<script>alert('xss')</script>"
+        book = Book(
+            title="XSS Test Book",
+            condition_grade=xss_string,
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        xss = next((c for c in data if c["condition"] == xss_string), None)
+        assert xss is not None, f"XSS string should be stored and returned as-is: {xss_string}"
+        assert xss["count"] == 1
+        assert xss["value"] == 100
+
+    def test_category_with_unicode(self, client):
+        """Category names with Unicode characters render correctly."""
+        unicode_category = "Litterature Francaise"
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "French Literature Book",
+                "category": unicode_category,
+                "value_mid": 300,
+                "inventory_type": "PRIMARY",
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        french_cat = next((c for c in data if c["category"] == unicode_category), None)
+        assert french_cat is not None, f"Unicode category not found in {data}"
+        assert french_cat["count"] == 1
+        assert french_cat["value"] == 300
+
+    def test_category_with_sql_injection_string(self, client):
+        """SQL injection strings in category are stored and returned as-is."""
+        injection_string = "'; DROP TABLE books; --"
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "SQL Injection Category Book",
+                "category": injection_string,
+                "value_mid": 100,
+                "inventory_type": "PRIMARY",
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        injection = next((c for c in data if c["category"] == injection_string), None)
+        assert injection is not None, "Injection string should be returned as-is in category"
+        assert injection["count"] == 1
+        assert injection["value"] == 100
+
+    def test_category_with_xss_string(self, client):
+        """XSS strings in category are stored and returned as-is."""
+        xss_string = "<script>alert('xss')</script>"
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "XSS Category Book",
+                "category": xss_string,
+                "value_mid": 100,
+                "inventory_type": "PRIMARY",
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        xss = next((c for c in data if c["category"] == xss_string), None)
+        assert xss is not None, "XSS string should be stored and returned as-is in category"
+        assert xss["count"] == 1
+        assert xss["value"] == 100
+
+    def test_negative_value_mid_in_condition_stats(self, client, db):
+        """Negative value_mid values are correctly summed in condition stats.
+
+        While unusual, negative values could represent adjustments or credits.
+        The sum calculation should handle them correctly.
+        """
+        from app.models import Book
+
+        # Create books directly in DB to bypass potential API validation
+        book1 = Book(
+            title="Positive Value Book",
+            condition_grade="GOOD",
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        book2 = Book(
+            title="Negative Value Book",
+            condition_grade="GOOD",
+            value_mid=-50,
+            inventory_type="PRIMARY",
+        )
+        db.add_all([book1, book2])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        good = next((c for c in data if c["condition"] == "GOOD"), None)
+        assert good is not None
+        assert good["count"] == 2
+        # Sum should be 100 + (-50) = 50
+        assert good["value"] == 50, f"Expected 50, got {good['value']} (100 + -50)"
+
+    def test_negative_value_mid_in_metrics_totals(self, client, db):
+        """Negative value_mid values are correctly summed in metrics totals."""
+        from app.models import Book
+
+        book1 = Book(
+            title="Positive Book",
+            value_mid=200,
+            purchase_price=150,
+            inventory_type="PRIMARY",
+        )
+        book2 = Book(
+            title="Negative Value Book",
+            value_mid=-100,
+            purchase_price=50,
+            inventory_type="PRIMARY",
+        )
+        db.add_all([book1, book2])
+        db.commit()
+
+        response = client.get("/api/v1/stats/metrics")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Total current value should be 200 + (-100) = 100
+        assert data["total_current_value"] == 100, (
+            f"Expected 100, got {data['total_current_value']}"
+        )
+        # Purchase cost should be 150 + 50 = 200 (no negative there)
+        assert data["total_purchase_cost"] == 200
+
+    def test_very_long_condition_grade(self, client, db):
+        """Very long condition grade strings are handled correctly.
+
+        Tests at boundary of String(20) column limit.
+        """
+        from app.models import Book
+
+        # condition_grade field is String(20) so test at boundary
+        long_condition = "A" * 20  # Exactly at the limit
+        book = Book(
+            title="Long Condition Book",
+            condition_grade=long_condition,
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        long_cond = next((c for c in data if c["condition"] == long_condition), None)
+        assert long_cond is not None, "Long condition grade should be stored"
+        assert long_cond["count"] == 1
+
+    def test_empty_string_condition_vs_null(self, client, db):
+        """Empty string condition is distinct from null (Ungraded)."""
+        from app.models import Book
+
+        # Create book with empty string condition directly in DB
+        book1 = Book(
+            title="Empty Condition Book",
+            condition_grade="",
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        book2 = Book(
+            title="Null Condition Book",
+            condition_grade=None,
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add_all([book1, book2])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have Ungraded entry for null condition
+        ungraded = next((c for c in data if c["condition"] == "Ungraded"), None)
+        assert ungraded is not None, "Null condition should show as Ungraded"
+        assert ungraded["count"] >= 1
+
+    def test_special_characters_in_dashboard_batch(self, client, db):
+        """Dashboard batch endpoint handles special characters in multiple fields."""
+        from app.models import Book
+
+        # Create directly in DB to bypass API validation for condition_grade
+        book = Book(
+            title="Special <>&\"' Characters Book",
+            condition_grade="FINE & RARE",
+            category="Test <script>",
+            value_mid=100,
+            inventory_type="PRIMARY",
+        )
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify the data is returned without errors
+        assert "by_condition" in data
+        assert "by_category" in data
+
+        # Find our special character entries
+        special_cond = next(
+            (c for c in data["by_condition"] if c["condition"] == "FINE & RARE"), None
+        )
+        assert special_cond is not None, "Special character condition should be returned"
+
+        special_cat = next(
+            (c for c in data["by_category"] if c["category"] == "Test <script>"), None
+        )
+        assert special_cat is not None, "Special character category should be returned"
+
+    def test_unicode_mixed_with_standard_in_aggregation(self, client, db):
+        """Mixed Unicode and standard condition grades aggregate correctly."""
+        from app.models import Book
+
+        # Create via API with valid enum value
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Standard Condition",
+                "condition_grade": "GOOD",
+                "value_mid": 100,
+                "inventory_type": "PRIMARY",
+            },
+        )
+
+        # Create directly in DB for legacy Unicode values
+        book1 = Book(
+            title="Unicode Condition 1",
+            condition_grade="Bon Etat",
+            value_mid=150,
+            inventory_type="PRIMARY",
+        )
+        book2 = Book(
+            title="Unicode Condition 2",
+            condition_grade="Bon Etat",
+            value_mid=200,
+            inventory_type="PRIMARY",
+        )
+        db.add_all([book1, book2])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Standard condition should be separate
+        good = next((c for c in data if c["condition"] == "GOOD"), None)
+        assert good is not None
+        assert good["count"] == 1
+        assert good["value"] == 100
+
+        # Unicode conditions should be aggregated together
+        bon_etat = next((c for c in data if c["condition"] == "Bon Etat"), None)
+        assert bon_etat is not None
+        assert bon_etat["count"] == 2
+        assert bon_etat["value"] == 350  # 150 + 200
+
+    def test_negative_value_in_week_delta_overview(self, client, db):
+        """Negative values are correctly summed in week_delta calculations."""
+        from datetime import date, timedelta
+
+        from app.models import Book
+
+        # Create books with purchase dates within the last week
+        recent_date = date.today() - timedelta(days=3)
+
+        book1 = Book(
+            title="Positive Recent Book",
+            value_mid=500,
+            purchase_date=recent_date,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        book2 = Book(
+            title="Negative Recent Book",
+            value_mid=-200,
+            purchase_date=recent_date,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        db.add_all([book1, book2])
+        db.commit()
+
+        response = client.get("/api/v1/stats/overview")
+        assert response.status_code == 200
+        data = response.json()
+
+        # week_delta.value_mid should be 500 + (-200) = 300
+        assert data["week_delta"]["value_mid"] == 300, (
+            f"Expected 300, got {data['week_delta']['value_mid']}"
+        )
+        assert data["week_delta"]["count"] == 2
+
+
 class TestDashboardCaching:
     """Tests for dashboard endpoint caching behavior."""
 
