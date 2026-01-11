@@ -12,5 +12,8 @@ export function formatCost(bytes: number): string {
   const GB = 1024 * 1024 * 1024;
   const costPerGB = 0.023;
   const cost = (bytes / GB) * costPerGB;
+  if (cost > 0 && cost < 0.01) {
+    return `~<$0.01/month`;
+  }
   return `~$${cost.toFixed(2)}/month`;
 }

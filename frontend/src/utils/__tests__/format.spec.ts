@@ -24,6 +24,10 @@ describe("formatCost", () => {
   });
 
   it("handles small sizes", () => {
-    expect(formatCost(1000000)).toBe("~$0.00/month");
+    expect(formatCost(1000000)).toBe("~<$0.01/month");
+  });
+
+  it("handles zero", () => {
+    expect(formatCost(0)).toBe("~$0.00/month");
   });
 });
