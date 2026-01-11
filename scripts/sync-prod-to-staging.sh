@@ -233,13 +233,19 @@ flush_redis_cache() {
     REDIS_HOST=$(echo "$STAGING_REDIS_ENDPOINT" | sed 's|rediss://||' | cut -d: -f1)
     REDIS_PORT=$(echo "$STAGING_REDIS_ENDPOINT" | sed 's|rediss://||' | cut -d: -f2)
 
+    # Validate parsed values
+    if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_PORT" ]; then
+        log_warn "Could not parse Redis endpoint: $STAGING_REDIS_ENDPOINT"
+        return 0
+    fi
+
     if [ "$DRY_RUN" = true ]; then
         log_info "[DRY RUN] Would flush Redis cache at $REDIS_HOST:$REDIS_PORT"
         return 0
     fi
 
-    # Execute FLUSHALL with TLS
-    if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" --tls FLUSHALL; then
+    # Execute FLUSHALL with TLS (10 second timeout to prevent hanging)
+    if timeout 10 redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" --tls FLUSHALL; then
         log_success "Redis cache flushed successfully"
     else
         log_warn "Failed to flush Redis cache - dashboard may show stale data"
