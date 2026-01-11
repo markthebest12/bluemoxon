@@ -188,6 +188,26 @@ verify_database_health() {
     fi
 }
 
+# Fetch staging Redis endpoint from Terraform outputs
+fetch_redis_endpoint() {
+    log_info "Fetching staging Redis endpoint..."
+
+    # Use subshell to avoid directory change affecting the main script
+    STAGING_REDIS_ENDPOINT=$(
+        cd infra/terraform 2>/dev/null || exit 1
+        AWS_PROFILE="$STAGING_PROFILE" terraform output -raw redis_url 2>/dev/null
+    ) || true
+
+    if [ -z "$STAGING_REDIS_ENDPOINT" ]; then
+        log_warn "Could not fetch Redis endpoint from Terraform"
+        log_warn "Cache flush will be skipped"
+        FLUSH_CACHE=false
+        return 0
+    fi
+
+    log_info "  Endpoint: ${STAGING_REDIS_ENDPOINT:0:50}..."
+}
+
 show_help() {
     head -30 "$0" | grep -E '^#' | tail -n +2 | sed 's/^# //' | sed 's/^#//'
     exit 0
