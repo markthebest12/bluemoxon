@@ -95,6 +95,7 @@ interface Filters {
   q?: string;
   inventory_type?: string;
   category?: string;
+  category__isnull?: boolean; // Filter for uncategorized books (NULL category)
   status?: string;
   publisher_id?: number;
   publisher_tier?: string;
@@ -103,6 +104,7 @@ interface Filters {
   binding_authenticated?: boolean;
   binding_type?: string;
   condition_grade?: string;
+  condition_grade__isnull?: boolean; // Filter for ungraded books (NULL condition)
   min_value?: number;
   max_value?: number;
   year_start?: number;

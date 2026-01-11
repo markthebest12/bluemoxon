@@ -442,6 +442,11 @@ def list_books(
         query = query.filter(Book.inventory_type == params.inventory_type)
     if params.category:
         query = query.filter(Book.category == params.category)
+    if params.category__isnull is not None:
+        if params.category__isnull:
+            query = query.filter(Book.category.is_(None))
+        else:
+            query = query.filter(Book.category.isnot(None))
     if params.status:
         query = query.filter(Book.status == params.status)
     if params.publisher_id:
@@ -458,6 +463,11 @@ def list_books(
         query = query.filter(Book.binding_type == params.binding_type)
     if params.condition_grade:
         query = query.filter(Book.condition_grade == params.condition_grade)
+    if params.condition_grade__isnull is not None:
+        if params.condition_grade__isnull:
+            query = query.filter(Book.condition_grade.is_(None))
+        else:
+            query = query.filter(Book.condition_grade.isnot(None))
     if params.min_value is not None:
         query = query.filter(Book.value_mid >= params.min_value)
     if params.max_value is not None:
