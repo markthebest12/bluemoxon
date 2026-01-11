@@ -579,3 +579,97 @@ class TestConfidenceScoring:
         matches = fuzzy_match_entity(db, "publisher", "Test Publisher", threshold=0.0)
         assert len(matches) >= 1
         assert 0.0 <= matches[0].confidence <= 1.0
+
+
+class TestNormalizationContract:
+    """Document the normalization contract for fuzzy_match_entity.
+
+    IMPORTANT: fuzzy_match_entity() expects RAW (unnormalized) input.
+    It normalizes internally using type-specific normalization rules.
+
+    This contract exists because:
+    - validate_entity_for_book normalizes for exact match, then passes raw to fuzzy
+    - The function handles normalization consistently for all callers
+    - Passing pre-normalized input would result in double-normalization
+
+    See GitHub issue #1016 for context on this design decision.
+    """
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear cache before and after each test."""
+        for entity_type in ["publisher", "author", "binder"]:
+            invalidate_entity_cache(entity_type)
+        yield
+        for entity_type in ["publisher", "author", "binder"]:
+            invalidate_entity_cache(entity_type)
+
+    def test_expects_raw_input_not_prenormalized(self, db):
+        """fuzzy_match_entity expects raw input - it normalizes internally.
+
+        This test documents the API contract. Callers should pass the original
+        user input, NOT pre-normalized values. The function handles all
+        normalization consistently.
+        """
+        from app.models.publisher import Publisher
+
+        # Database has normalized name
+        pub = Publisher(name="Harper & Brothers", tier="TIER_1")
+        db.add(pub)
+        db.flush()
+
+        # Raw input with location suffix (common in auction data)
+        raw_input = "Harper & Brothers, New York"
+
+        # This should match because fuzzy_match_entity normalizes internally
+        matches = fuzzy_match_entity(db, "publisher", raw_input, threshold=0.80)
+
+        assert len(matches) >= 1
+        assert matches[0].name == "Harper & Brothers"
+        assert matches[0].confidence >= 0.95
+
+    def test_normalizes_input_before_comparison(self, db):
+        """Verify that input normalization happens before fuzzy comparison.
+
+        The function should:
+        1. Normalize the input name using type-specific rules
+        2. Compare against pre-normalized cached entity names
+        3. Return matches above threshold
+        """
+        from app.models.author import Author
+
+        # Database has normalized name (no honorific)
+        author = Author(name="Walter Scott", tier="TIER_1")
+        db.add(author)
+        db.flush()
+
+        # Raw input with honorific that normalization should strip
+        raw_input = "Sir Walter Scott"
+
+        # Should match because author normalization strips honorifics
+        matches = fuzzy_match_entity(db, "author", raw_input, threshold=0.75)
+
+        assert len(matches) >= 1
+        assert matches[0].name == "Walter Scott"
+
+    def test_binder_normalization_strips_parentheticals(self, db):
+        """Binder normalization removes location parentheticals.
+
+        Example: "Bayntun (of Bath)" -> "Bayntun"
+        This is applied internally by fuzzy_match_entity.
+        """
+        from app.models.binder import Binder
+
+        binder = Binder(name="Bayntun", tier="TIER_1")
+        db.add(binder)
+        db.flush()
+
+        # Raw input with parenthetical
+        raw_input = "Bayntun (of Bath)"
+
+        matches = fuzzy_match_entity(db, "binder", raw_input, threshold=0.80)
+
+        assert len(matches) >= 1
+        assert matches[0].name == "Bayntun"
+        # After normalization, should be very high confidence
+        assert matches[0].confidence >= 0.95
