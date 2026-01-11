@@ -1245,6 +1245,24 @@ class TestIsNullFiltering:
         assert book2.id not in book_ids
         assert book3.id not in book_ids
 
+    def test_mutual_exclusion_category_and_category__isnull(self, client):
+        """Test that passing both category and category__isnull returns 400."""
+        response = client.get(
+            "/api/v1/books",
+            params={"category": "Victorian Poetry", "category__isnull": "true"},
+        )
+        assert response.status_code == 400
+        assert "mutually exclusive" in response.json()["detail"]
+
+    def test_mutual_exclusion_condition_grade_and_condition_grade__isnull(self, client):
+        """Test that passing both condition_grade and condition_grade__isnull returns 400."""
+        response = client.get(
+            "/api/v1/books",
+            params={"condition_grade": "FINE", "condition_grade__isnull": "true"},
+        )
+        assert response.status_code == 400
+        assert "mutually exclusive" in response.json()["detail"]
+
 
 class TestAnalysisEntityValidation:
     """Test entity validation in analysis upload endpoint."""

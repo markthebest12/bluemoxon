@@ -425,6 +425,18 @@ def list_books(
     db: Session = Depends(get_db),
 ):
     """List books with filtering and pagination."""
+    # Validate mutual exclusion: cannot pass both field and field__isnull
+    if params.category is not None and params.category__isnull is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot specify both 'category' and 'category__isnull' - they are mutually exclusive",
+        )
+    if params.condition_grade is not None and params.condition_grade__isnull is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot specify both 'condition_grade' and 'condition_grade__isnull' - they are mutually exclusive",
+        )
+
     query = db.query(Book)
 
     # Apply search query
