@@ -260,19 +260,25 @@ def fuzzy_match_entity(
 ) -> list[EntityMatch]:
     """Find existing entities that fuzzy-match the given name.
 
+    IMPORTANT: This function expects RAW (unnormalized) input. It normalizes
+    internally using type-specific rules before matching. Do NOT pass
+    pre-normalized values - this would cause double-normalization issues.
+
     Uses cached entity lists to avoid O(n) DB queries per lookup.
     Cache expires after ENTITY_CACHE_TTL_SECONDS.
 
     The matching process:
-    1. Apply type-specific normalization to input name
-    2. Query all entities of the type (cached, 5-min TTL)
+    1. Apply type-specific normalization to input name (handles location
+       suffixes, honorifics, parentheticals, diacritics per entity type)
+    2. Query all entities of the type (cached, 5-min TTL, with pre-normalized names)
     3. Score with rapidfuzz token_sort_ratio (word-order independent)
     4. Return matches above threshold, sorted by confidence descending
 
     Args:
         db: Database session.
         entity_type: Type of entity to match ("publisher", "binder", "author").
-        name: Entity name to match.
+        name: Raw entity name to match (NOT pre-normalized). Pass the original
+            user input; normalization is handled internally.
         threshold: Minimum confidence score (0.0 to 1.0). Default 0.80 (publisher
             threshold). Callers should use config.get_settings() to get the
             appropriate threshold for each entity type. See DEFAULT_THRESHOLD_*
@@ -284,6 +290,10 @@ def fuzzy_match_entity(
 
     Raises:
         ValueError: If entity_type is not a valid type.
+
+    See Also:
+        - _normalize_for_entity_type: The normalization function used internally.
+        - TestNormalizationContract: Tests documenting this contract (issue #1016).
     """
     # Validate entity type
     if entity_type not in ("publisher", "binder", "author"):
