@@ -15,6 +15,7 @@ import type {
 import EntityManagementTable from "@/components/admin/EntityManagementTable.vue";
 import EntityFormModal from "@/components/admin/EntityFormModal.vue";
 import ReassignDeleteModal from "@/components/admin/ReassignDeleteModal.vue";
+import OrphanCleanupPanel from "@/components/admin/OrphanCleanupPanel.vue";
 
 // Tab state
 const activeTab = ref<"settings" | "status" | "scoring" | "reference" | "costs" | "maintenance">(
@@ -1313,36 +1314,7 @@ function getBarWidth(cost: number): string {
           </div>
 
           <!-- Orphan Images Section -->
-          <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h4 class="text-sm font-medium text-gray-900 mb-2">Orphaned Images</h4>
-            <p class="text-xs text-gray-600 mb-3">
-              Find S3 images not referenced by any book. Scan first, then delete if needed.
-            </p>
-            <div class="flex gap-2">
-              <button
-                :disabled="!!cleanupLoading"
-                class="btn-secondary py-1.5 px-3 text-sm disabled:opacity-50 flex items-center gap-2"
-                @click="runCleanup('orphans', false)"
-              >
-                <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
-                  >⏳</span
-                >
-                <span v-else aria-hidden="true">🔍</span>
-                Scan Only
-              </button>
-              <button
-                :disabled="!!cleanupLoading"
-                class="py-1.5 px-3 text-sm text-white bg-[var(--color-status-error-accent)] hover:bg-red-700 rounded-sm disabled:opacity-50 flex items-center gap-2"
-                @click="runCleanup('orphans', true)"
-              >
-                <span v-if="cleanupLoading === 'orphans'" class="animate-spin" aria-hidden="true"
-                  >⏳</span
-                >
-                <span v-else aria-hidden="true">🗑️</span>
-                Delete Orphans
-              </button>
-            </div>
-          </div>
+          <OrphanCleanupPanel class="mt-4" />
 
           <!-- Results Display -->
           <div
