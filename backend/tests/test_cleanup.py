@@ -790,6 +790,67 @@ class TestCleanupOrphanedImagesWithSize:
         assert book_group["book_id"] is None
         assert book_group["book_title"] is None
 
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_thumb_prefix_directories(self, mock_boto_client, db):
+        """Test that thumb_ prefixed directories are grouped with their main book."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Mix of main images and thumbnail directories for same book
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/500/image_00.webp", "Size": 100000},
+                    {"Key": "books/500/image_01.webp", "Size": 150000},
+                    {"Key": "books/thumb_500/image_00.webp", "Size": 10000},
+                    {"Key": "books/thumb_500/image_01.webp", "Size": 15000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # All 4 files should be grouped under folder_id 500
+        assert len(result["orphans_by_book"]) == 1
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 500
+        assert book_group["count"] == 4
+        assert book_group["bytes"] == 275000  # 100000 + 150000 + 10000 + 15000
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_flat_format_keys(self, mock_boto_client, db):
+        """Test that flat format keys (book_id_uuid.ext) are grouped correctly."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Flat format keys from manual uploads
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/10_abc123.jpg", "Size": 50000},
+                    {"Key": "books/10_def456.jpg", "Size": 60000},
+                    {"Key": "books/20_ghi789.png", "Size": 40000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # Should have 2 book groups (10 and 20)
+        assert len(result["orphans_by_book"]) == 2
+        # Check folder 10
+        folder_10 = next(g for g in result["orphans_by_book"] if g["folder_id"] == 10)
+        assert folder_10["count"] == 2
+        assert folder_10["bytes"] == 110000
+        # Check folder 20
+        folder_20 = next(g for g in result["orphans_by_book"] if g["folder_id"] == 20)
+        assert folder_20["count"] == 1
+        assert folder_20["bytes"] == 40000
+
 
 class TestRetryFailedArchives:
     """Tests for retry_failed_archives function."""

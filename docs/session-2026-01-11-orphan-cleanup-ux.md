@@ -2,10 +2,10 @@
 
 **Date:** 2026-01-11
 **GitHub Issue:** #1057
-**PRs:** #1058 (merged), #1059 (merged), #1061 (merged to prod), #1062 (merged to staging)
-**Branch:** `fix/1057-orphan-scan-details` (for format fix)
+**PRs:** #1058, #1059, #1061, #1062, #1064, #1066 (current)
+**Branch:** `fix/1057-thumb-prefix`
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/feat-1057-orphan-cleanup-ux`
-**Status:** Staging verified, ready for production promotion
+**Status:** Fixing thumb_ prefix directories not being grouped
 
 ---
 
@@ -16,11 +16,8 @@
 **THIS IS NOT OPTIONAL. INVOKE BEFORE ANY ACTION.**
 
 - `superpowers:using-superpowers` - ALWAYS at session start
-- `superpowers:receiving-code-review` - When handling review feedback
-- `superpowers:test-driven-development` - For all implementation
 - `superpowers:systematic-debugging` - For any bugs or unexpected behavior
 - `superpowers:verification-before-completion` - Before claiming work is done
-- `superpowers:finishing-a-development-branch` - When ready to merge
 
 ### NEVER Use These (Permission Prompt Triggers)
 
@@ -43,104 +40,74 @@ REQUIRED patterns:
 - bmx-api for all BlueMoxon API calls (no permission prompts)
 ```
 
-**Example - WRONG:**
-```bash
-cd /path && git add file.py && git commit -m "msg"
-```
-
-**Example - CORRECT:**
-```bash
-git -C /path add file.py
-```
-Then separate call:
-```bash
-git -C /path commit -m "msg"
-```
-
 ---
 
-## Completed Work
-
-### PR #1058 - Main Feature (MERGED)
-- Full orphan cleanup UX with size display, progress tracking
-- Batch delete using S3 `delete_objects` API
-- Concurrent job prevention (409 Conflict)
-- Lambda timeout detection
-- Background job with progress updates
-
-### PR #1059 - Bug Fix (MERGED)
-- Lambda handler wasn't passing through `total_bytes` and `orphans_by_book`
-- Added pass-through in `_async_handler`
-
-### PR #1061 - Production Promotion (MERGED)
-- Promoted #1058 and #1059 to production
-
-### PR #1062 - Format Fix (MERGED to staging)
-- Handles both S3 key formats: nested and flat
-- Fix in `backend/lambdas/cleanup/handler.py` lines 161-183
-
----
-
-## Bug Fixed: Flat S3 Key Format Not Parsed
+## Current Bug: thumb_ Directories Not Grouped
 
 ### Problem
-Production showed 2472 orphans but `orphans_by_book` was empty.
+Production shows 2472 total orphans but only 48 are grouped in `orphans_by_book`. Missing 2424 files.
 
-### Root Cause
-Two S3 key formats exist:
-1. **Nested (scraper imports):** `books/{book_id}/image_NN.webp` - WORKED
-2. **Flat (manual uploads):** `books/{book_id}_{uuid}.ext` - FAILED to parse
+### Root Cause (CONFIRMED)
+Three S3 key formats exist, but code only handled two:
+1. **Nested (scraper):** `books/{book_id}/image.webp` - ✓ WORKED
+2. **Flat (uploads):** `books/{book_id}_{uuid}.ext` - ✓ WORKED (PR #1062)
+3. **Nested thumb:** `books/thumb_{book_id}/image.webp` - ✗ SKIPPED
 
-The code only handled nested format:
-```python
-# OLD - only handles nested
-folder_id = int(parts[1])  # "500" works, "10_uuid.jpg" fails with ValueError
+For `books/thumb_500/image.webp`:
+- `parts[1]` = `"thumb_500"`
+- `int("thumb_500")` → ValueError
+- `int("thumb_500".split("_")[0])` → `int("thumb")` → ValueError
+- **SKIP** → 2424 orphan thumbnails not grouped
+
+### Evidence
+```bash
+AWS_PROFILE=bmx-prod aws s3 ls s3://bluemoxon-images/books/ --recursive | grep "/thumb_" | wc -l
+# Output: 2424  # Exactly the missing count!
 ```
 
-### Fix Applied
+### Fix (PR #1066)
+Strip `thumb_` prefix before parsing book ID:
 ```python
-# NEW - handles both formats
+folder_part = parts[1]
+
+# Strip thumb_ prefix if present (nested thumbnail directories)
+if folder_part.startswith("thumb_"):
+    folder_part = folder_part[6:]  # Remove "thumb_" prefix
+
 try:
-    # Try nested format first (parts[1] is just the book_id)
-    folder_id = int(parts[1])
+    folder_id = int(folder_part)
 except ValueError:
-    # Try flat format: extract book_id before underscore
-    try:
-        folder_id = int(parts[1].split("_")[0])
-    except (ValueError, IndexError):
-        continue
+    ...
 ```
 
 ---
 
-## Next Steps
+## Completed PRs
 
-1. **Sync staging with main (resolve conflicts)**
-2. **Push merged staging**
-3. **Create promotion PR to main**
-4. **Verify in production:**
-   ```bash
-   bmx-api --prod GET /admin/cleanup/orphans/scan
-   ```
-   Should return populated `orphans_by_book` for ALL orphans
+| PR | Description | Status |
+|----|-------------|--------|
+| #1058 | Main orphan cleanup UX feature | Merged to prod |
+| #1059 | Pass through orphan scan details | Merged to prod |
+| #1061 | Promote to production | Merged |
+| #1062 | Handle flat S3 key format | Merged to staging |
+| #1064 | Promote format fix to prod | Merged |
+| #1066 | Handle thumb_ prefix directories | In progress |
 
 ---
 
 ## Key Files
 
-- `backend/lambdas/cleanup/handler.py` - Main cleanup logic (format fix is here)
-- `backend/app/api/v1/admin.py` - API endpoints for cleanup
-- `backend/app/models/cleanup_job.py` - CleanupJob model
-- `frontend/src/components/admin/OrphanCleanupPanel.vue` - Frontend UI
-- `backend/tests/test_cleanup.py` - Tests (40 tests, all passing)
+- `backend/lambdas/cleanup/handler.py` - Main cleanup logic (lines 161-190)
+- `backend/tests/test_cleanup.py` - Tests (42 tests now)
 
 ---
 
 ## S3 Key Format Reference
 
-| Source | Format | Example | Environment |
-|--------|--------|---------|-------------|
-| Manual Upload | Flat | `books/10_abc123def.jpg` | Both |
-| Scraper Import | Nested | `books/500/image_00.webp` | Both |
+| Source | Format | Example |
+|--------|--------|---------|
+| Manual Upload | Flat | `books/10_abc123.jpg` |
+| Scraper Import | Nested | `books/500/image_00.webp` |
+| Scraper Thumbnail | Nested thumb | `books/thumb_500/image_00.webp` |
 
-Both formats exist in both staging and production. The format is determined by how the image was added, not by environment.
+All formats exist in both staging and production.

@@ -159,20 +159,27 @@ def cleanup_orphaned_images(
     total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
 
     # Group orphans by book ID extracted from S3 key
-    # Two formats exist:
-    #   1. Nested (scraper): books/{book_id}/image_name.webp -> parts[1] = "500"
-    #   2. Flat (uploads):   books/{book_id}_{uuid}.ext     -> parts[1] = "10_abc123.jpg"
+    # Three formats exist:
+    #   1. Nested (scraper):     books/{book_id}/image.webp       -> parts[1] = "500"
+    #   2. Nested thumb:         books/thumb_{book_id}/image.webp -> parts[1] = "thumb_500"
+    #   3. Flat (uploads):       books/{book_id}_{uuid}.ext       -> parts[1] = "10_abc.jpg"
     orphans_by_folder: dict[int, list[tuple[str, int]]] = {}
     for key in orphaned_full_keys:
         parts = key.split("/")
         if len(parts) >= 2:
+            folder_part = parts[1]
+
+            # Strip thumb_ prefix if present (nested thumbnail directories)
+            if folder_part.startswith("thumb_"):
+                folder_part = folder_part[6:]  # Remove "thumb_" prefix
+
             try:
-                # Try nested format first (parts[1] is just the book_id)
-                folder_id = int(parts[1])
+                # Try nested format first (folder_part is just the book_id)
+                folder_id = int(folder_part)
             except ValueError:
                 # Try flat format: extract book_id before underscore
                 try:
-                    folder_id = int(parts[1].split("_")[0])
+                    folder_id = int(folder_part.split("_")[0])
                 except (ValueError, IndexError):
                     # Neither format matches, skip this key
                     continue
