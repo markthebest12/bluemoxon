@@ -32,6 +32,10 @@
 #     - A bastion host with access to both databases
 #     - AWS DMS for cross-account replication
 #     The S3 sync works via local download/upload and doesn't require peering.
+#
+# Post-sync behavior:
+#   - Dashboard stats may show stale data for up to 5 minutes (Redis cache TTL)
+#   - Cache self-corrects without intervention
 # =============================================================================
 
 set -euo pipefail
