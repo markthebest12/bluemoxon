@@ -30,6 +30,7 @@ from app.services.bedrock import (
 )
 from app.services.cost_explorer import get_costs as fetch_costs
 from app.version import get_version_info
+from lambdas.cleanup.handler import cleanup_stale_listings
 
 router = APIRouter()
 
@@ -242,6 +243,36 @@ class CleanupJobStatus(BaseModel):
     error_message: str | None = None
     created_at: str
     completed_at: str | None = None
+
+
+# Models for listings cleanup
+
+
+class ListingGroup(BaseModel):
+    """A group of stale listing images for a specific item."""
+
+    item_id: str
+    count: int
+    bytes: int
+    oldest: str
+
+
+class ListingsScanResult(BaseModel):
+    """Result of scanning for stale listing images."""
+
+    total_count: int
+    total_bytes: int
+    age_threshold_days: int
+    listings_by_item: list[ListingGroup]
+    deleted_count: int = 0
+    failed_count: int = 0
+    truncated: bool = False
+
+
+class ListingsDeleteRequest(BaseModel):
+    """Request to delete stale listing images."""
+
+    age_days: int = 30
 
 
 def get_scoring_config() -> dict:
@@ -654,4 +685,80 @@ def get_cleanup_job_status(
         error_message=job.error_message,
         created_at=job.created_at.isoformat(),
         completed_at=job.completed_at.isoformat() if job.completed_at else None,
+    )
+
+
+@router.get("/cleanup/listings/scan", response_model=ListingsScanResult)
+def scan_stale_listings(
+    age_days: int = 30,
+    _user=Depends(require_admin),
+):
+    """Scan for stale listing images (dry run).
+
+    Returns count and size of listings older than age_days threshold.
+    Listings are temporary images scraped from eBay that haven't been
+    imported into the book library.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    result = cleanup_stale_listings(bucket=settings.images_bucket, age_days=age_days, delete=False)
+
+    # Map result to response model
+    listings_by_item = [
+        ListingGroup(
+            item_id=item.get("item_id", ""),
+            count=item.get("count", 0),
+            bytes=item.get("bytes", 0),
+            oldest=item.get("oldest", ""),
+        )
+        for item in result.get("listings_by_item", [])
+    ]
+
+    return ListingsScanResult(
+        total_count=result.get("total_count", 0),
+        total_bytes=result.get("total_bytes", 0),
+        age_threshold_days=result.get("age_threshold_days", age_days),
+        listings_by_item=listings_by_item,
+        deleted_count=result.get("deleted_count", 0),
+        failed_count=result.get("failed_count", 0),
+        truncated=result.get("truncated", False),
+    )
+
+
+@router.post("/cleanup/listings/delete", response_model=ListingsScanResult)
+def delete_stale_listings(
+    request: ListingsDeleteRequest,
+    _user=Depends(require_admin),
+):
+    """Delete stale listing images.
+
+    Permanently removes listings older than age_days threshold.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    result = cleanup_stale_listings(
+        bucket=settings.images_bucket, age_days=request.age_days, delete=True
+    )
+
+    # Map result to response model
+    listings_by_item = [
+        ListingGroup(
+            item_id=item.get("item_id", ""),
+            count=item.get("count", 0),
+            bytes=item.get("bytes", 0),
+            oldest=item.get("oldest", ""),
+        )
+        for item in result.get("listings_by_item", [])
+    ]
+
+    return ListingsScanResult(
+        total_count=result.get("total_count", 0),
+        total_bytes=result.get("total_bytes", 0),
+        age_threshold_days=result.get("age_threshold_days", request.age_days),
+        listings_by_item=listings_by_item,
+        deleted_count=result.get("deleted_count", 0),
+        failed_count=result.get("failed_count", 0),
+        truncated=result.get("truncated", False),
     )
