@@ -1,6 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { wantsNewTab, navigateToBooks, normalizeChartFilter } from "./chart-navigation";
+import {
+  wantsNewTab,
+  navigateToBooks,
+  normalizeChartFilter,
+  normalizeEra,
+} from "./chart-navigation";
 import type { Router } from "vue-router";
+
+describe("normalizeEra", () => {
+  it("strips trailing date range from era", () => {
+    expect(normalizeEra("Victorian (1837-1901)")).toBe("Victorian");
+  });
+
+  it("handles era with extra whitespace before parenthesis", () => {
+    expect(normalizeEra("Edwardian  (1901-1910)")).toBe("Edwardian");
+  });
+
+  it("returns era unchanged when no parentheses", () => {
+    expect(normalizeEra("Victorian")).toBe("Victorian");
+  });
+
+  it("handles empty string", () => {
+    expect(normalizeEra("")).toBe("");
+  });
+
+  it("preserves non-date parentheses and only strips trailing date range", () => {
+    expect(normalizeEra("Georgian (Early) (1714-1760)")).toBe("Georgian (Early)");
+  });
+});
 
 describe("normalizeChartFilter", () => {
   it("converts Uncategorized to category__isnull=true", () => {
@@ -149,6 +176,21 @@ describe("navigateToBooks", () => {
     expect(mockPush).toHaveBeenCalledWith({
       path: "/books",
       query: { condition_grade__isnull: "true" },
+    });
+  });
+
+  it("normalizes era filter by stripping trailing date range", () => {
+    navigateToBooks(mockRouter, { era: "Victorian (1837-1901)" });
+
+    expect(mockPush).toHaveBeenCalledWith({ path: "/books", query: { era: "Victorian" } });
+  });
+
+  it("preserves other filters when normalizing era", () => {
+    navigateToBooks(mockRouter, { era: "Edwardian (1901-1910)", status: "IN_COLLECTION" });
+
+    expect(mockPush).toHaveBeenCalledWith({
+      path: "/books",
+      query: { era: "Edwardian", status: "IN_COLLECTION" },
     });
   });
 });
