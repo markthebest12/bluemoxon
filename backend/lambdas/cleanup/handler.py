@@ -99,8 +99,6 @@ def cleanup_orphaned_images(
     db: Session,
     bucket: str,
     delete: bool = False,
-    max_deletions: int = 100,
-    force_delete: bool = False,
 ) -> dict:
     """Find and optionally delete orphaned images in S3.
 
@@ -112,13 +110,14 @@ def cleanup_orphaned_images(
         db: Database session
         bucket: S3 bucket name
         delete: If True, delete orphaned images. Otherwise dry run.
-        max_deletions: Maximum number of deletions allowed (default 100).
-            Prevents accidental mass deletion.
-        force_delete: If True, ignore max_deletions limit for intentional
-            bulk cleanup operations.
 
     Returns:
-        Dict with found, deleted counts and list of orphaned keys
+        Dict with:
+        - total_count: number of orphans
+        - total_bytes: total size of all orphans
+        - orphans_by_book: list of groups with folder_id, book_id, book_title, count, bytes, keys
+        - deleted: number deleted (0 if delete=False)
+        - found/orphans_found: legacy fields for backwards compatibility
     """
     s3 = boto3.client("s3")
 
@@ -130,11 +129,15 @@ def cleanup_orphaned_images(
     paginator = s3.get_paginator("list_objects_v2")
     s3_keys_full = set()  # Full S3 keys with prefix (for deletion)
     s3_keys_stripped = set()  # Keys without prefix (for comparison with DB)
+    # Track size per key for byte calculations
+    s3_key_sizes: dict[str, int] = {}
 
     for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
         for obj in page.get("Contents", []):
             full_key = obj["Key"]
+            size = obj.get("Size", 0)
             s3_keys_full.add(full_key)
+            s3_key_sizes[full_key] = size
             # Strip the books/ prefix to match DB storage format
             # DB stores: "515/image_00.webp"
             # S3 stores: "books/515/image_00.webp"
@@ -152,12 +155,56 @@ def cleanup_orphaned_images(
     # Convert back to full S3 keys for deletion
     orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
 
+    # Calculate total bytes for all orphans
+    total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
+
+    # Group orphans by book folder (the first directory under books/)
+    # Key format: books/{folder_id}/image_name.webp
+    orphans_by_folder: dict[int, list[tuple[str, int]]] = {}
+    for key in orphaned_full_keys:
+        parts = key.split("/")
+        if len(parts) >= 2:
+            try:
+                folder_id = int(parts[1])
+                size = s3_key_sizes.get(key, 0)
+                if folder_id not in orphans_by_folder:
+                    orphans_by_folder[folder_id] = []
+                orphans_by_folder[folder_id].append((key, size))
+            except ValueError:
+                # Non-integer folder name, skip
+                pass
+
+    # Resolve book IDs to titles
+    folder_ids = list(orphans_by_folder.keys())
+    book_titles: dict[int, str | None] = {}
+    book_exists: dict[int, bool] = {}
+    if folder_ids:
+        books = db.query(Book.id, Book.title).filter(Book.id.in_(folder_ids)).all()
+        for book_id, title in books:
+            book_titles[book_id] = title
+            book_exists[book_id] = True
+
+    # Build orphans_by_book list with size info
+    orphans_by_book = []
+    for folder_id in sorted(orphans_by_folder.keys()):
+        items = orphans_by_folder[folder_id]
+        folder_bytes = sum(size for _, size in items)
+        folder_keys = [key for key, _ in items]
+
+        orphans_by_book.append(
+            {
+                "folder_id": folder_id,
+                "book_id": folder_id if book_exists.get(folder_id) else None,
+                "book_title": book_titles.get(folder_id),
+                "count": len(items),
+                "bytes": folder_bytes,
+                "keys": folder_keys[:10],  # Cap keys to prevent huge response
+            }
+        )
+
     deleted = 0
     if delete:
-        deletion_limit = None if force_delete else max_deletions
         for key in orphaned_full_keys:
-            if deletion_limit is not None and deleted >= deletion_limit:
-                break
             s3.delete_object(Bucket=bucket, Key=key)
             deleted += 1
 
@@ -179,6 +226,8 @@ def cleanup_orphaned_images(
         "total_objects_scanned": len(s3_keys_full),
         "objects_in_database": len(db_keys),
         "orphans_found": len(orphaned_full_keys),
+        "total_bytes": total_bytes,
+        "orphans_by_book": orphans_by_book,
         "orphans_by_prefix": orphans_by_prefix,
         "orphan_percentage": orphan_percentage,
         "sample_orphan_keys": list(orphaned_full_keys)[:10],
@@ -194,6 +243,176 @@ def cleanup_orphaned_images(
     result["keys"] = list(orphaned_full_keys)[:100]
 
     return result
+
+
+def cleanup_orphaned_images_with_progress(
+    bucket: str,
+    job_id: str,
+    progress_update_interval: int = 500,
+) -> dict:
+    """Delete orphans with progress updates to DB.
+
+    This function is invoked asynchronously by Lambda to perform batch
+    deletion of orphaned images while updating progress in the database.
+
+    Designed to avoid Lambda timeout with proper DB connection management:
+    - Phase 1: S3 scan (no DB connection held)
+    - Phase 2: Quick DB query for referenced keys
+    - Phase 3: Calculate orphans (no DB)
+    - Phase 4: Update job with fresh totals and set status to running
+    - Phase 5: Delete in batches using delete_objects API, update progress
+    - Phase 6: Final status update
+
+    Args:
+        bucket: S3 bucket name containing images
+        job_id: UUID of the CleanupJob to track progress
+        progress_update_interval: Update progress every N items deleted
+
+    Returns:
+        Dict with deleted count, bytes_freed, and failed_count
+    """
+    from app.models.cleanup_job import CleanupJob
+
+    s3 = boto3.client("s3")
+    S3_BOOKS_PREFIX = "books/"
+    S3_DELETE_BATCH_SIZE = 1000  # Max keys per delete_objects call
+
+    # Track results
+    deleted_count = 0
+    deleted_bytes = 0
+    failed_count = 0
+    error_message = None
+
+    try:
+        # Phase 1: S3 scan (no DB connection)
+        paginator = s3.get_paginator("list_objects_v2")
+        s3_keys_stripped = set()
+        s3_key_sizes: dict[str, int] = {}
+
+        for page in paginator.paginate(Bucket=bucket, Prefix=S3_BOOKS_PREFIX):
+            for obj in page.get("Contents", []):
+                full_key = obj["Key"]
+                size = obj.get("Size", 0)
+                s3_key_sizes[full_key] = size
+                if full_key.startswith(S3_BOOKS_PREFIX):
+                    stripped_key = full_key[len(S3_BOOKS_PREFIX) :]
+                    s3_keys_stripped.add(stripped_key)
+
+        # Phase 2: Quick DB query for referenced keys (acquire, query, release)
+        db = SessionLocal()
+        try:
+            db_keys = {key for (key,) in db.query(BookImage.s3_key).all() if key}
+        finally:
+            db.close()
+
+        # Phase 3: Calculate orphans (no DB)
+        orphaned_stripped = s3_keys_stripped - db_keys
+        orphaned_full_keys = [f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped]
+
+        # Calculate fresh totals from scan
+        total_count = len(orphaned_full_keys)
+        total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
+
+        # Phase 4: Update job with fresh totals and set status to running
+        db = SessionLocal()
+        try:
+            job = db.get(CleanupJob, job_id)
+            if not job:
+                return {"error": f"Job {job_id} not found"}
+
+            # Fix 1: Update totals from fresh scan (not stale frontend values)
+            job.total_count = total_count
+            job.total_bytes = total_bytes
+            job.status = "running"
+            db.commit()
+        finally:
+            db.close()
+
+        # Phase 5: Delete in batches using delete_objects API
+        # Build list of (key, size) for tracking bytes
+        orphan_items = [(key, s3_key_sizes.get(key, 0)) for key in orphaned_full_keys]
+
+        # Process in batches of S3_DELETE_BATCH_SIZE (1000 max for delete_objects)
+        for batch_start in range(0, len(orphan_items), S3_DELETE_BATCH_SIZE):
+            batch_end = min(batch_start + S3_DELETE_BATCH_SIZE, len(orphan_items))
+            batch = orphan_items[batch_start:batch_end]
+
+            # Build delete request
+            delete_keys = [{"Key": key} for key, _ in batch]
+
+            # Call delete_objects API (up to 1000 keys per call)
+            response = s3.delete_objects(
+                Bucket=bucket,
+                Delete={"Objects": delete_keys, "Quiet": False},
+            )
+
+            # Track successful deletes
+            deleted_list = response.get("Deleted", [])
+            deleted_keys_set = {d["Key"] for d in deleted_list}
+            for key, size in batch:
+                if key in deleted_keys_set:
+                    deleted_count += 1
+                    deleted_bytes += size
+
+            # Track failed deletes (Fix 7)
+            errors_list = response.get("Errors", [])
+            failed_count += len(errors_list)
+
+            # Update progress after each batch (acquire, update, release)
+            if deleted_count >= progress_update_interval or batch_end == len(orphan_items):
+                db = SessionLocal()
+                try:
+                    job = db.get(CleanupJob, job_id)
+                    if job:
+                        job.deleted_count = deleted_count
+                        job.deleted_bytes = deleted_bytes
+                        db.commit()
+                finally:
+                    db.close()
+
+        # Build error message if there were partial failures
+        if failed_count > 0:
+            error_message = f"{failed_count} objects failed to delete"
+
+        # Phase 6: Final status update (acquire, update, release)
+        db = SessionLocal()
+        try:
+            job = db.get(CleanupJob, job_id)
+            if job:
+                job.deleted_count = deleted_count
+                job.deleted_bytes = deleted_bytes
+                job.failed_count = failed_count
+                job.status = "completed"  # Completed even with partial failures
+                job.completed_at = datetime.now(UTC)
+                if error_message:
+                    job.error_message = error_message
+                db.commit()
+        finally:
+            db.close()
+
+        return {
+            "deleted": deleted_count,
+            "bytes_freed": deleted_bytes,
+            "failed_count": failed_count,
+        }
+    except Exception as e:
+        # Update job with failure status (for exceptions, not partial failures)
+        try:
+            db = SessionLocal()
+            try:
+                job = db.get(CleanupJob, job_id)
+                if job:
+                    job.status = "failed"
+                    job.error_message = str(e)
+                    job.deleted_count = deleted_count
+                    job.deleted_bytes = deleted_bytes
+                    job.failed_count = failed_count
+                    db.commit()
+            finally:
+                db.close()
+        except Exception:  # noqa: S110 - Don't mask original error
+            pass
+        return {"error": str(e)}
 
 
 async def retry_failed_archives(db: Session) -> dict:
@@ -286,6 +505,9 @@ async def _async_handler(event: dict) -> dict:
             orphan_result = cleanup_orphaned_images(db, bucket=bucket, delete=delete_orphans)
             result["orphans_found"] = orphan_result["found"]
             result["orphans_deleted"] = orphan_result["deleted"]
+            # Pass through detailed scan results for /cleanup/orphans/scan endpoint
+            result["total_bytes"] = orphan_result.get("total_bytes", 0)
+            result["orphans_by_book"] = orphan_result.get("orphans_by_book", [])
 
         if action in ("all", "archives"):
             archive_result = await retry_failed_archives(db)
@@ -302,10 +524,14 @@ async def _async_handler(event: dict) -> dict:
 def handler(event: dict, context) -> dict:
     """Cleanup Lambda handler.
 
-    Event payload:
+    Event payload for standard cleanup:
         action: "all" | "stale" | "expired" | "orphans" | "archives"
         bucket: S3 bucket name (required for orphans action)
         delete_orphans: bool (default False)
+
+    Event payload for background deletion with progress:
+        job_id: UUID of CleanupJob to track progress
+        bucket: S3 bucket name
 
     Args:
         event: Lambda event dict
@@ -314,4 +540,12 @@ def handler(event: dict, context) -> dict:
     Returns:
         Dict with cleanup results
     """
+    # Check for job_id - indicates background deletion with progress tracking
+    if event.get("job_id"):
+        return cleanup_orphaned_images_with_progress(
+            bucket=event["bucket"],
+            job_id=event["job_id"],
+        )
+
+    # Standard cleanup action
     return asyncio.run(_async_handler(event))

@@ -539,56 +539,6 @@ class TestCleanupOrphanedImages:
         assert "books/515/image_00.webp" not in result["keys"]
         assert "books/515/image_01.webp" not in result["keys"]
 
-    @patch("lambdas.cleanup.handler.boto3.client")
-    def test_max_deletions_guard_stops_at_limit(self, mock_boto_client, db):
-        """Test that deletion stops at max_deletions limit.
-
-        Prevents accidental mass deletion even if orphan detection is correct.
-        """
-        mock_s3 = MagicMock()
-        mock_boto_client.return_value = mock_s3
-
-        mock_paginator = MagicMock()
-        mock_s3.get_paginator.return_value = mock_paginator
-        # 10 orphans in S3
-        mock_paginator.paginate.return_value = [
-            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
-        ]
-
-        # No images in DB - all 10 are orphans
-        result = cleanup_orphaned_images(db, bucket="test-bucket", delete=True, max_deletions=5)
-
-        # Should only delete 5, even though 10 orphans found
-        assert result["orphans_found"] == 10
-        assert result["deleted"] == 5
-        assert mock_s3.delete_object.call_count == 5
-
-    @patch("lambdas.cleanup.handler.boto3.client")
-    def test_max_deletions_guard_allows_override(self, mock_boto_client, db):
-        """Test that force_delete=True allows exceeding max_deletions.
-
-        For intentional bulk cleanup operations.
-        """
-        mock_s3 = MagicMock()
-        mock_boto_client.return_value = mock_s3
-
-        mock_paginator = MagicMock()
-        mock_s3.get_paginator.return_value = mock_paginator
-        # 10 orphans in S3
-        mock_paginator.paginate.return_value = [
-            {"Contents": [{"Key": f"books/orphan{i}/photo.jpg"} for i in range(10)]}
-        ]
-
-        # No images in DB - all 10 are orphans
-        result = cleanup_orphaned_images(
-            db, bucket="test-bucket", delete=True, max_deletions=5, force_delete=True
-        )
-
-        # Should delete all 10 with force_delete override
-        assert result["orphans_found"] == 10
-        assert result["deleted"] == 10
-        assert mock_s3.delete_object.call_count == 10
-
 
 class TestCleanupHandler:
     """Tests for the main Lambda handler function."""
@@ -731,6 +681,116 @@ class TestCleanupHandler:
         assert "bucket" in result["error"].lower()
 
 
+class TestCleanupOrphanedImagesWithSize:
+    """Tests for orphan scan with size information."""
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_returns_size_per_orphan(self, mock_boto_client, db):
+        """Test that scan returns size for each orphan."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/123/image_00.webp", "Size": 102400},
+                    {"Key": "books/123/image_01.webp", "Size": 204800},
+                    {"Key": "books/456/image_00.webp", "Size": 51200},
+                ]
+            }
+        ]
+
+        # No images in DB = all are orphans
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        assert result["total_bytes"] == 358400  # 102400 + 204800 + 51200
+        assert "orphans_by_book" in result
+        assert len(result["orphans_by_book"]) == 2  # Two book folders (123 and 456)
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_groups_by_book_with_size(self, mock_boto_client, db):
+        """Test that orphans are grouped by book folder with aggregated sizes."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/123/image_00.webp", "Size": 100000},
+                    {"Key": "books/123/image_01.webp", "Size": 200000},
+                ]
+            }
+        ]
+
+        # No images in DB = all are orphans
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 123
+        assert book_group["count"] == 2
+        assert book_group["bytes"] == 300000
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_resolves_book_titles(self, mock_boto_client, db):
+        """Test that book titles are resolved from DB when available."""
+        from app.models import Book
+
+        # Create a book in DB with known ID
+        book = Book(title="Test Victorian Book")
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Orphan in a folder matching the book ID
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": f"books/{book_id}/orphan_image.webp", "Size": 50000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == book_id
+        assert book_group["book_id"] == book_id
+        assert book_group["book_title"] == "Test Victorian Book"
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_unknown_book_folder(self, mock_boto_client, db):
+        """Test that orphans in unknown book folders have null book info."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Orphan in a folder with no matching book in DB
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/99999/orphan_image.webp", "Size": 50000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 99999
+        assert book_group["book_id"] is None
+        assert book_group["book_title"] is None
+
+
 class TestRetryFailedArchives:
     """Tests for retry_failed_archives function."""
 
@@ -841,3 +901,185 @@ class TestRetryFailedArchives:
         # Verify
         assert result["retried"] == 0
         mock_archive.assert_not_called()
+
+
+class TestCleanupWithProgress:
+    """Tests for cleanup_orphaned_images_with_progress function."""
+
+    @patch("lambdas.cleanup.handler.SessionLocal")
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_job_updates_progress_during_deletion(self, mock_boto_client, mock_session_local):
+        """Test that job progress is updated during batch deletion."""
+        from lambdas.cleanup.handler import cleanup_orphaned_images_with_progress
+
+        # Setup mock DB session and job
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+
+        mock_job = MagicMock()
+        mock_job.id = "test-job-id"
+        mock_job.status = "pending"
+        mock_job.deleted_count = 0
+        mock_job.deleted_bytes = 0
+        mock_job.failed_count = 0
+        mock_db.get.return_value = mock_job
+
+        # Setup mock S3 client with paginator
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # 3 orphaned images - all will be deleted
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/orphan1/image.jpg", "Size": 1000},
+                    {"Key": "books/orphan2/image.jpg", "Size": 2000},
+                    {"Key": "books/orphan3/image.jpg", "Size": 3000},
+                ]
+            }
+        ]
+
+        # Mock empty DB keys (all S3 keys are orphans)
+        mock_db.query.return_value.all.return_value = []
+
+        # Mock delete_objects response (batch delete API)
+        mock_s3.delete_objects.return_value = {
+            "Deleted": [
+                {"Key": "books/orphan1/image.jpg"},
+                {"Key": "books/orphan2/image.jpg"},
+                {"Key": "books/orphan3/image.jpg"},
+            ],
+            "Errors": [],
+        }
+
+        # Run cleanup with small progress interval to trigger updates
+        result = cleanup_orphaned_images_with_progress(
+            bucket="test-bucket",
+            job_id="test-job-id",
+            progress_update_interval=2,
+        )
+
+        # Verify result
+        assert result["deleted"] == 3
+        assert result["bytes_freed"] == 6000
+        assert result["failed_count"] == 0
+
+        # Verify job status was updated
+        assert mock_job.status == "completed"
+        assert mock_job.deleted_count == 3
+        assert mock_job.deleted_bytes == 6000
+        assert mock_job.completed_at is not None
+
+        # Verify S3 batch delete was called (not individual delete_object)
+        assert mock_s3.delete_objects.call_count == 1
+        assert mock_s3.delete_object.call_count == 0
+
+        # Verify DB commits happened (phase 4 + progress updates + final)
+        assert mock_db.commit.call_count >= 2
+
+        # Verify sessions were closed (multiple open/close cycles)
+        assert mock_db.close.call_count >= 3
+
+    @patch("lambdas.cleanup.handler.SessionLocal")
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_job_not_found_returns_error(self, mock_boto_client, mock_session_local):
+        """Test that missing job returns error."""
+        from lambdas.cleanup.handler import cleanup_orphaned_images_with_progress
+
+        # Mock S3 client with empty scan result
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [{"Contents": []}]
+
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+        mock_db.query.return_value.all.return_value = []  # Empty DB keys
+        mock_db.get.return_value = None  # Job not found
+
+        result = cleanup_orphaned_images_with_progress(
+            bucket="test-bucket",
+            job_id="nonexistent-job-id",
+        )
+
+        assert "error" in result
+        assert "not found" in result["error"]
+        # Multiple close calls due to phased connection management
+        assert mock_db.close.call_count >= 1
+
+    @patch("lambdas.cleanup.handler.SessionLocal")
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_job_marked_failed_on_error(self, mock_boto_client, mock_session_local):
+        """Test that job is marked as failed when an error occurs."""
+        from lambdas.cleanup.handler import cleanup_orphaned_images_with_progress
+
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+
+        mock_job = MagicMock()
+        mock_job.id = "test-job-id"
+        mock_job.status = "pending"
+        mock_db.get.return_value = mock_job
+
+        # Setup S3 to raise an exception
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        mock_s3.get_paginator.side_effect = Exception("S3 connection error")
+
+        result = cleanup_orphaned_images_with_progress(
+            bucket="test-bucket",
+            job_id="test-job-id",
+        )
+
+        assert "error" in result
+        assert "S3 connection error" in result["error"]
+
+        # Verify job was marked as failed
+        assert mock_job.status == "failed"
+        assert mock_job.error_message == "S3 connection error"
+        mock_db.close.assert_called_once()
+
+
+class TestHandlerWithJobId:
+    """Tests for handler routing to progress tracking."""
+
+    @patch("lambdas.cleanup.handler.cleanup_orphaned_images_with_progress")
+    def test_handler_routes_job_id_to_progress_tracking(self, mock_progress_fn):
+        """Test that handler routes job_id events to progress tracking function."""
+        from lambdas.cleanup.handler import handler
+
+        mock_progress_fn.return_value = {"deleted": 10, "bytes_freed": 50000}
+
+        event = {
+            "job_id": "test-job-123",
+            "bucket": "test-bucket",
+        }
+        result = handler(event, None)
+
+        # Verify progress function was called
+        mock_progress_fn.assert_called_once_with(
+            bucket="test-bucket",
+            job_id="test-job-123",
+        )
+        assert result["deleted"] == 10
+        assert result["bytes_freed"] == 50000
+
+    @patch("lambdas.cleanup.handler.SessionLocal")
+    @patch("lambdas.cleanup.handler.cleanup_stale_evaluations")
+    def test_handler_routes_action_to_standard_cleanup(self, mock_stale, mock_session_local):
+        """Test that handler routes action events to standard cleanup."""
+        from lambdas.cleanup.handler import handler
+
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+        mock_stale.return_value = 5
+
+        # Event without job_id should use standard cleanup
+        event = {"action": "stale"}
+        result = handler(event, None)
+
+        mock_stale.assert_called_once()
+        assert result["stale_evaluations_archived"] == 5
