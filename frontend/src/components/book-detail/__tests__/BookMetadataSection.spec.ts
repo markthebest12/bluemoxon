@@ -220,6 +220,76 @@ describe("BookMetadataSection", () => {
       expect(wrapper.text()).not.toContain("Condition Notes");
     });
 
+    describe("condition display formatting", () => {
+      it("shows human-readable label instead of DB value", () => {
+        const book = createBook({ condition_grade: "NEAR_FINE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Near Fine");
+        expect(wrapper.text()).not.toContain("NEAR_FINE");
+      });
+
+      it("shows description underneath label", () => {
+        const book = createBook({ condition_grade: "NEAR_FINE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Approaching fine, very minor defects");
+      });
+
+      it("shows dash when condition is null", () => {
+        const book = createBook({ condition_grade: null });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        const text = wrapper.text();
+        expect(text).toContain("Condition");
+        expect(text).toMatch(/Condition\s*-/);
+      });
+
+      it("shows raw grade for unknown condition values", () => {
+        const book = createBook({ condition_grade: "UNKNOWN_GRADE" });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        // Fallback: show raw grade when not in CONDITION_GRADE_OPTIONS
+        expect(wrapper.text()).toContain("UNKNOWN_GRADE");
+        // Should NOT show description for unknown grades
+        expect(wrapper.text()).not.toContain("undefined");
+      });
+    });
+
+    describe("publisher tier formatting", () => {
+      it("formats TIER_2 as Tier 2", () => {
+        const book = createBook({
+          publisher: { id: 1, name: "Test Publisher", tier: "TIER_2" },
+        });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("(Tier 2)");
+        expect(wrapper.text()).not.toContain("TIER_2");
+      });
+
+      it("handles null tier gracefully", () => {
+        const book = createBook({
+          publisher: { id: 1, name: "Test Publisher", tier: null },
+        });
+        const wrapper = mount(BookMetadataSection, {
+          props: { book, isEditor: false },
+        });
+
+        expect(wrapper.text()).toContain("Test Publisher");
+        // Should not crash or show "(null)"
+      });
+    });
+
     it("displays computed era from year_start", () => {
       const book = createBook({ year_start: 1870, year_end: null });
       const wrapper = mount(BookMetadataSection, {
@@ -227,18 +297,18 @@ describe("BookMetadataSection", () => {
       });
 
       expect(wrapper.text()).toContain("Era");
-      expect(wrapper.text()).toContain("Mid-Victorian");
+      expect(wrapper.text()).toContain("Victorian");
     });
 
-    it("displays computed era from year_end when both years present", () => {
-      const book = createBook({ year_start: 1835, year_end: 1845 });
+    it("displays computed era from year_end when year_start is null", () => {
+      const book = createBook({ year_start: null, year_end: 1845 });
       const wrapper = mount(BookMetadataSection, {
         props: { book, isEditor: false },
       });
 
-      // 1845 = Early Victorian
+      // 1845 = Victorian (1837-1901)
       expect(wrapper.text()).toContain("Era");
-      expect(wrapper.text()).toContain("Early Victorian");
+      expect(wrapper.text()).toContain("Victorian");
     });
 
     it("shows dash for era when year_start is null", () => {

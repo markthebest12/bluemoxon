@@ -790,6 +790,144 @@ class TestCleanupOrphanedImagesWithSize:
         assert book_group["book_id"] is None
         assert book_group["book_title"] is None
 
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_thumb_prefix_directories(self, mock_boto_client, db):
+        """Test that thumb_ prefixed directories are grouped with their main book."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Mix of main images and thumbnail directories for same book
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/500/image_00.webp", "Size": 100000},
+                    {"Key": "books/500/image_01.webp", "Size": 150000},
+                    {"Key": "books/thumb_500/image_00.webp", "Size": 10000},
+                    {"Key": "books/thumb_500/image_01.webp", "Size": 15000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # All 4 files should be grouped under folder_id 500
+        assert len(result["orphans_by_book"]) == 1
+        book_group = result["orphans_by_book"][0]
+        assert book_group["folder_id"] == 500
+        assert book_group["count"] == 4
+        assert book_group["bytes"] == 275000  # 100000 + 150000 + 10000 + 15000
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_scan_handles_flat_format_keys(self, mock_boto_client, db):
+        """Test that flat format keys (book_id_uuid.ext) are grouped correctly."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Flat format keys from manual uploads
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/10_abc123.jpg", "Size": 50000},
+                    {"Key": "books/10_def456.jpg", "Size": 60000},
+                    {"Key": "books/20_ghi789.png", "Size": 40000},
+                ]
+            }
+        ]
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # Should have 2 book groups (10 and 20)
+        assert len(result["orphans_by_book"]) == 2
+        # Check folder 10
+        folder_10 = next(g for g in result["orphans_by_book"] if g["folder_id"] == 10)
+        assert folder_10["count"] == 2
+        assert folder_10["bytes"] == 110000
+        # Check folder 20
+        folder_20 = next(g for g in result["orphans_by_book"] if g["folder_id"] == 20)
+        assert folder_20["count"] == 1
+        assert folder_20["bytes"] == 40000
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_flat_format_thumbnails_excluded_when_main_image_in_db(self, mock_boto_client, db):
+        """Test that flat-format thumbnails are NOT orphans if main image exists in DB.
+
+        Flat-format thumbnails (thumb_{id}_{uuid}.ext) are generated from main images
+        and NOT stored in the database. They should only be considered orphans if
+        the corresponding main image ({id}_{uuid}.ext) is ALSO not in DB.
+        """
+        from app.models.image import BookImage
+
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # S3 has both main images and their thumbnails
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    # Main images
+                    {"Key": "books/386_00_cover.jpg", "Size": 100000},
+                    {"Key": "books/386_01_spine.jpg", "Size": 80000},
+                    # Thumbnails (derived from main images - NOT in DB)
+                    {"Key": "books/thumb_386_00_cover.jpg", "Size": 10000},
+                    {"Key": "books/thumb_386_01_spine.jpg", "Size": 8000},
+                    # True orphan - main image not in DB either
+                    {"Key": "books/thumb_999_orphan.jpg", "Size": 5000},
+                ]
+            }
+        ]
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        # DB has only the MAIN images (without thumb_ prefix)
+        image1 = BookImage(book_id=book.id, s3_key="386_00_cover.jpg")
+        image2 = BookImage(book_id=book.id, s3_key="386_01_spine.jpg")
+        db.add_all([image1, image2])
+        db.commit()
+
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # Only the true orphan thumbnail should be found
+        # Main images match DB = not orphans
+        # Thumbnails with matching main image in DB = not orphans
+        # thumb_999_orphan.jpg has no main image (999_orphan.jpg) in DB = orphan
+        assert result["orphans_found"] == 1
+        assert "books/thumb_999_orphan.jpg" in result["keys"]
+        # The thumbnails with corresponding main images should NOT be orphans
+        assert "books/thumb_386_00_cover.jpg" not in result["keys"]
+        assert "books/thumb_386_01_spine.jpg" not in result["keys"]
+
+    @patch("lambdas.cleanup.handler.boto3.client")
+    def test_flat_format_thumbnail_orphan_when_no_main_image(self, mock_boto_client, db):
+        """Test that flat-format thumbnails ARE orphans if main image not in DB."""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        mock_paginator = MagicMock()
+        mock_s3.get_paginator.return_value = mock_paginator
+        # Only thumbnail in S3, no main image anywhere
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "books/thumb_deleted_book_cover.jpg", "Size": 10000},
+                ]
+            }
+        ]
+
+        # No images in DB at all
+        result = cleanup_orphaned_images(db, "test-bucket", delete=False)
+
+        # Thumbnail should be orphan since main image doesn't exist in DB
+        assert result["orphans_found"] == 1
+        assert "books/thumb_deleted_book_cover.jpg" in result["keys"]
+
 
 class TestRetryFailedArchives:
     """Tests for retry_failed_archives function."""

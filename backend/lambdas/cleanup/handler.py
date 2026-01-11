@@ -150,7 +150,21 @@ def cleanup_orphaned_images(
 
     # Find orphaned keys (in S3 but not in DB)
     # Compare using stripped keys (without prefix)
-    orphaned_stripped = s3_keys_stripped - db_keys
+    # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
+    # They're derived from main images, so check if main image exists
+    orphaned_stripped = set()
+    for stripped_key in s3_keys_stripped:
+        if stripped_key in db_keys:
+            continue  # Direct match in DB - not orphan
+
+        # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
+        # If so, check if the main image (without thumb_ prefix) exists in DB
+        if stripped_key.startswith("thumb_"):
+            main_key = stripped_key[6:]  # Remove "thumb_" prefix
+            if main_key in db_keys:
+                continue  # Main image exists in DB - thumbnail is valid, not orphan
+
+        orphaned_stripped.add(stripped_key)
 
     # Convert back to full S3 keys for deletion
     orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
@@ -159,20 +173,27 @@ def cleanup_orphaned_images(
     total_bytes = sum(s3_key_sizes.get(key, 0) for key in orphaned_full_keys)
 
     # Group orphans by book ID extracted from S3 key
-    # Two formats exist:
-    #   1. Nested (scraper): books/{book_id}/image_name.webp -> parts[1] = "500"
-    #   2. Flat (uploads):   books/{book_id}_{uuid}.ext     -> parts[1] = "10_abc123.jpg"
+    # Three formats exist:
+    #   1. Nested (scraper):     books/{book_id}/image.webp       -> parts[1] = "500"
+    #   2. Nested thumb:         books/thumb_{book_id}/image.webp -> parts[1] = "thumb_500"
+    #   3. Flat (uploads):       books/{book_id}_{uuid}.ext       -> parts[1] = "10_abc.jpg"
     orphans_by_folder: dict[int, list[tuple[str, int]]] = {}
     for key in orphaned_full_keys:
         parts = key.split("/")
         if len(parts) >= 2:
+            folder_part = parts[1]
+
+            # Strip thumb_ prefix if present (nested thumbnail directories)
+            if folder_part.startswith("thumb_"):
+                folder_part = folder_part[6:]  # Remove "thumb_" prefix
+
             try:
-                # Try nested format first (parts[1] is just the book_id)
-                folder_id = int(parts[1])
+                # Try nested format first (folder_part is just the book_id)
+                folder_id = int(folder_part)
             except ValueError:
                 # Try flat format: extract book_id before underscore
                 try:
-                    folder_id = int(parts[1].split("_")[0])
+                    folder_id = int(folder_part.split("_")[0])
                 except (ValueError, IndexError):
                     # Neither format matches, skip this key
                     continue
@@ -314,7 +335,22 @@ def cleanup_orphaned_images_with_progress(
             db.close()
 
         # Phase 3: Calculate orphans (no DB)
-        orphaned_stripped = s3_keys_stripped - db_keys
+        # BUT: flat-format thumbnails (thumb_{id}_{uuid}.ext) are NOT stored in DB
+        # They're derived from main images, so check if main image exists
+        orphaned_stripped = set()
+        for stripped_key in s3_keys_stripped:
+            if stripped_key in db_keys:
+                continue  # Direct match in DB - not orphan
+
+            # Check if this is a flat-format thumbnail (thumb_{id}_{uuid}.ext)
+            # If so, check if the main image (without thumb_ prefix) exists in DB
+            if stripped_key.startswith("thumb_"):
+                main_key = stripped_key[6:]  # Remove "thumb_" prefix
+                if main_key in db_keys:
+                    continue  # Main image exists in DB - thumbnail is valid, not orphan
+
+            orphaned_stripped.add(stripped_key)
+
         orphaned_full_keys = [f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped]
 
         # Calculate fresh totals from scan
