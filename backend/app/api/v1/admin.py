@@ -30,6 +30,7 @@ from app.services.bedrock import (
 )
 from app.services.cost_explorer import get_costs as fetch_costs
 from app.version import get_version_info
+from lambdas.cleanup.handler import cleanup_stale_listings
 
 router = APIRouter()
 
@@ -264,6 +265,8 @@ class ListingsScanResult(BaseModel):
     age_threshold_days: int
     listings_by_item: list[ListingGroup]
     deleted_count: int = 0
+    failed_count: int = 0
+    truncated: bool = False
 
 
 class ListingsDeleteRequest(BaseModel):
@@ -685,40 +688,6 @@ def get_cleanup_job_status(
     )
 
 
-def cleanup_stale_listings(
-    bucket: str,
-    age_days: int = 30,
-    delete: bool = False,
-) -> dict:
-    """Find and optionally delete stale listing images.
-
-    Stub implementation - will be replaced by handler.cleanup_stale_listings.
-    This stub exists to allow API tests to pass before the handler is implemented.
-
-    Args:
-        bucket: S3 bucket name
-        age_days: Delete objects older than this (default 30)
-        delete: If True, delete. Otherwise dry run.
-
-    Returns:
-        Dict with count, bytes, grouped by item_id, deleted count
-    """
-    # Import here to avoid circular imports when handler is implemented
-    try:
-        from lambdas.cleanup.handler import cleanup_stale_listings as handler_cleanup
-
-        return handler_cleanup(bucket=bucket, age_days=age_days, delete=delete)
-    except ImportError:
-        # Handler not implemented yet - return empty result
-        return {
-            "total_count": 0,
-            "total_bytes": 0,
-            "age_threshold_days": age_days,
-            "listings_by_item": [],
-            "deleted_count": 0,
-        }
-
-
 @router.get("/cleanup/listings/scan", response_model=ListingsScanResult)
 def scan_stale_listings(
     age_days: int = 30,
@@ -752,6 +721,8 @@ def scan_stale_listings(
         age_threshold_days=result.get("age_threshold_days", age_days),
         listings_by_item=listings_by_item,
         deleted_count=result.get("deleted_count", 0),
+        failed_count=result.get("failed_count", 0),
+        truncated=result.get("truncated", False),
     )
 
 
@@ -788,4 +759,6 @@ def delete_stale_listings(
         age_threshold_days=result.get("age_threshold_days", request.age_days),
         listings_by_item=listings_by_item,
         deleted_count=result.get("deleted_count", 0),
+        failed_count=result.get("failed_count", 0),
+        truncated=result.get("truncated", False),
     )

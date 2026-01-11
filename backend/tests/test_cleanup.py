@@ -1413,4 +1413,57 @@ class TestCleanupStaleListings:
             result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=True)
 
         assert result["deleted_count"] == 2
+        assert result["failed_count"] == 0
         mock_s3.delete_objects.assert_called_once()
+
+    def test_delete_mode_tracks_errors(self):
+        """Delete mode tracks failed deletions from S3 Errors array."""
+        from lambdas.cleanup.handler import cleanup_stale_listings
+
+        old_date = datetime.now(UTC) - timedelta(days=45)
+
+        mock_s3 = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "listings/123456/image_00.webp",
+                        "Size": 1000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_01.webp",
+                        "Size": 2000,
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "listings/123456/image_02.webp",
+                        "Size": 3000,
+                        "LastModified": old_date,
+                    },
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+        mock_s3.delete_objects.return_value = {
+            "Deleted": [{"Key": "listings/123456/image_00.webp"}],
+            "Errors": [
+                {
+                    "Key": "listings/123456/image_01.webp",
+                    "Code": "AccessDenied",
+                    "Message": "Access Denied",
+                },
+                {
+                    "Key": "listings/123456/image_02.webp",
+                    "Code": "InternalError",
+                    "Message": "Internal Error",
+                },
+            ],
+        }
+
+        with patch("boto3.client", return_value=mock_s3):
+            result = cleanup_stale_listings(bucket="test-bucket", age_days=30, delete=True)
+
+        assert result["deleted_count"] == 1
+        assert result["failed_count"] == 2

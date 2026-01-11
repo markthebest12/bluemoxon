@@ -416,6 +416,7 @@ class TestListingsCleanupEndpoints:
                     }
                 ],
                 "deleted_count": 0,
+                "failed_count": 0,
             }
 
             response = client.get("/api/v1/admin/cleanup/listings/scan")
@@ -435,6 +436,7 @@ class TestListingsCleanupEndpoints:
                 "age_threshold_days": 60,
                 "listings_by_item": [],
                 "deleted_count": 0,
+                "failed_count": 0,
             }
 
             response = client.get("/api/v1/admin/cleanup/listings/scan?age_days=60")
@@ -453,6 +455,7 @@ class TestListingsCleanupEndpoints:
                 "age_threshold_days": 30,
                 "listings_by_item": [],
                 "deleted_count": 10,
+                "failed_count": 0,
             }
 
             response = client.post("/api/v1/admin/cleanup/listings/delete", json={"age_days": 30})
@@ -463,3 +466,22 @@ class TestListingsCleanupEndpoints:
             mock_cleanup.assert_called_once()
             call_kwargs = mock_cleanup.call_args[1]
             assert call_kwargs["delete"] is True
+
+    def test_listings_delete_reports_failed_count(self, client: TestClient):
+        """Delete endpoint reports failed deletions."""
+        with patch("app.api.v1.admin.cleanup_stale_listings") as mock_cleanup:
+            mock_cleanup.return_value = {
+                "total_count": 10,
+                "total_bytes": 5000,
+                "age_threshold_days": 30,
+                "listings_by_item": [],
+                "deleted_count": 8,
+                "failed_count": 2,
+            }
+
+            response = client.post("/api/v1/admin/cleanup/listings/delete", json={"age_days": 30})
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["deleted_count"] == 8
+            assert data["failed_count"] == 2
