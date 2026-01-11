@@ -1294,7 +1294,7 @@ class TestStatsEdgeCases:
         # Create directly in DB to simulate legacy data with non-standard grade
         book = Book(
             title="French Condition Book",
-            condition_grade="tres bien",
+            condition_grade="très bien",
             value_mid=100,
             inventory_type="PRIMARY",
         )
@@ -1305,8 +1305,8 @@ class TestStatsEdgeCases:
         assert response.status_code == 200
         data = response.json()
 
-        french = next((c for c in data if c["condition"] == "tres bien"), None)
-        assert french is not None, f"Unicode condition 'tres bien' not found in {data}"
+        french = next((c for c in data if c["condition"] == "très bien"), None)
+        assert french is not None, f"Unicode condition 'très bien' not found in {data}"
         assert french["count"] == 1
         assert french["value"] == 100
 
@@ -1316,7 +1316,7 @@ class TestStatsEdgeCases:
 
         book = Book(
             title="Japanese Condition Book",
-            condition_grade="ryoukou",
+            condition_grade="良好",
             value_mid=200,
             inventory_type="PRIMARY",
         )
@@ -1327,8 +1327,8 @@ class TestStatsEdgeCases:
         assert response.status_code == 200
         data = response.json()
 
-        japanese = next((c for c in data if c["condition"] == "ryoukou"), None)
-        assert japanese is not None, f"Unicode condition 'ryoukou' not found in {data}"
+        japanese = next((c for c in data if c["condition"] == "良好"), None)
+        assert japanese is not None, f"Unicode condition '良好' not found in {data}"
         assert japanese["count"] == 1
         assert japanese["value"] == 200
 
@@ -1336,7 +1336,7 @@ class TestStatsEdgeCases:
         """Legacy condition grades with emoji render correctly."""
         from app.models import Book
 
-        emoji_condition = "Fine Book"
+        emoji_condition = "📚 Fine"
         book = Book(
             title="Emoji Condition Book",
             condition_grade=emoji_condition,
@@ -1351,7 +1351,7 @@ class TestStatsEdgeCases:
         data = response.json()
 
         emoji = next((c for c in data if c["condition"] == emoji_condition), None)
-        assert emoji is not None, f"Emoji condition not found in {data}"
+        assert emoji is not None, f"Emoji condition '📚 Fine' not found in {data}"
         assert emoji["count"] == 1
         assert emoji["value"] == 150
 
