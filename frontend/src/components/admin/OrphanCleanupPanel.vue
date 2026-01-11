@@ -232,7 +232,7 @@ function formatDate(isoString: string): string {
       <!-- Scan error -->
       <div
         v-if="scanError"
-        class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+        class="p-3 bg-red-900/30 border border-red-800/50 rounded text-sm text-red-300"
       >
         {{ scanError }}
       </div>
@@ -362,7 +362,7 @@ function formatDate(isoString: string): string {
           <span class="text-sm text-gray-600">Delete all orphaned images?</span>
           <button
             data-testid="confirm-delete"
-            class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+            class="px-3 py-1.5 bg-red-800/80 text-red-100 text-sm rounded hover:bg-red-700/80 transition-colors"
             @click="startDelete"
           >
             Yes, Delete
@@ -380,7 +380,7 @@ function formatDate(isoString: string): string {
           <button
             data-testid="delete-button"
             :disabled="isWorking"
-            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-2 bg-red-800/80 text-red-100 rounded hover:bg-red-700/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="confirmingDelete = true"
           >
             Delete Orphans
@@ -443,7 +443,10 @@ function formatDate(isoString: string): string {
       </div>
 
       <!-- Job error -->
-      <div v-if="jobError" class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+      <div
+        v-if="jobError"
+        class="p-3 bg-red-900/30 border border-red-800/50 rounded text-sm text-red-300"
+      >
         {{ jobError }}
       </div>
     </div>
@@ -520,7 +523,7 @@ function formatDate(isoString: string): string {
         <!-- Scan error -->
         <div
           v-if="listingsError"
-          class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+          class="p-3 bg-red-900/30 border border-red-800/50 rounded text-sm text-red-300"
         >
           {{ listingsError }}
         </div>
@@ -653,7 +656,7 @@ function formatDate(isoString: string): string {
             <button
               data-testid="listings-confirm-delete"
               :disabled="listingsDeleting"
-              class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+              class="px-3 py-1.5 bg-red-800/80 text-red-100 text-sm rounded hover:bg-red-700/80 transition-colors disabled:opacity-50"
               @click="deleteListings"
             >
               <span v-if="listingsDeleting" class="flex items-center gap-2">
@@ -690,7 +693,7 @@ function formatDate(isoString: string): string {
             <button
               data-testid="listings-delete-button"
               :disabled="isListingsWorking"
-              class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 bg-red-800/80 text-red-100 rounded hover:bg-red-700/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               @click="listingsConfirmDelete = true"
             >
               Delete Stale Listings
@@ -717,7 +720,7 @@ function formatDate(isoString: string): string {
         <!-- Error during delete -->
         <div
           v-if="listingsError"
-          class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+          class="p-3 bg-red-900/30 border border-red-800/50 rounded text-sm text-red-300"
         >
           {{ listingsError }}
         </div>
