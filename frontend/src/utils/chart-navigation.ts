@@ -1,18 +1,19 @@
 import type { Router } from "vue-router";
 
 /**
- * Normalizes era value by stripping date range parentheses.
+ * Normalizes era value by stripping trailing date range parentheses.
  * Stats API returns era with dates like "Victorian (1837-1901)"
  * but the books API expects just "Victorian".
  *
- * @param era The era value, possibly with parentheses
- * @returns The era name without date range
+ * Only strips trailing (YYYY-YYYY) patterns to preserve legitimate
+ * parenthetical content like "Georgian (Early)".
+ *
+ * @param era The era value, possibly with date range parentheses
+ * @returns The era name without trailing date range
  */
 export function normalizeEra(era: string): string {
-  if (era.includes("(")) {
-    return era.split("(")[0].trim();
-  }
-  return era;
+  // Only strip trailing (YYYY-YYYY) date ranges, not other parenthetical content
+  return era.replace(/\s*\(\d{4}-\d{4}\)$/, "");
 }
 
 /**

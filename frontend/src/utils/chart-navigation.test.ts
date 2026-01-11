@@ -19,8 +19,8 @@ describe("normalizeEra", () => {
     expect(normalizeEra("")).toBe("");
   });
 
-  it("handles era with multiple parentheses", () => {
-    expect(normalizeEra("Georgian (Early) (1714-1760)")).toBe("Georgian");
+  it("preserves non-date parentheses and only strips trailing date range", () => {
+    expect(normalizeEra("Georgian (Early) (1714-1760)")).toBe("Georgian (Early)");
   });
 });
 
