@@ -443,7 +443,9 @@ class TestDiscountPctOnPurchasePriceUpdate:
         data = response.json()
 
         # discount_pct should be calculated: (475 - 400) / 475 * 100 = 15.79%
-        assert data["discount_pct"] is not None, "discount_pct should be calculated when purchase_price changes"
+        assert data["discount_pct"] is not None, (
+            "discount_pct should be calculated when purchase_price changes"
+        )
         assert float(data["discount_pct"]) == pytest.approx(15.79, rel=0.01)
 
 
@@ -478,7 +480,9 @@ class TestClearingInputsClearsCalculatedFields:
         data = response.json()
 
         # discount_pct should be None since purchase_price is now null
-        assert data["discount_pct"] is None, "discount_pct should be cleared when purchase_price is null"
+        assert data["discount_pct"] is None, (
+            "discount_pct should be cleared when purchase_price is null"
+        )
 
     def test_clearing_value_mid_clears_discount_pct(self, client, db):
         """Setting value_mid to null should clear discount_pct."""
