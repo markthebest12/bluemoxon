@@ -67,7 +67,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     try {
       // Get today's date in browser timezone (YYYY-MM-DD format)
       const today = new Date().toLocaleDateString("en-CA");
-      const response = await api.get(`/stats/dashboard?reference_date=${today}&days=30`, {
+      const response = await api.get(`/stats/dashboard?reference_date=${today}&days=90`, {
         signal,
       });
 
