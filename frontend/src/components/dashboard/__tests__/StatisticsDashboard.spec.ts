@@ -181,5 +181,37 @@ describe("StatisticsDashboard chart helpers", () => {
 
       expect(tooltipResult).toEqual([]);
     });
+
+    it("formats condition chart labels as human-readable text", () => {
+      const dataWithConditions: DashboardStats = {
+        ...mockDashboardData,
+        by_condition: [
+          { condition: "NEAR_FINE", count: 5, value: 1000 },
+          { condition: "VERY_GOOD", count: 3, value: 600 },
+          { condition: "FINE", count: 2, value: 800 },
+          { condition: "Ungraded", count: 1, value: 100 }, // Backend converts null to "Ungraded"
+        ],
+      };
+
+      const wrapper = mount(StatisticsDashboard, {
+        props: { data: dataWithConditions },
+        global: {
+          stubs: {
+            Line: true,
+            Doughnut: true,
+            Bar: true,
+          },
+        },
+      });
+
+      const vm = wrapper.vm as unknown as {
+        conditionChartData: {
+          labels: string[];
+        };
+      };
+
+      // Verify labels are human-readable, not raw enum values
+      expect(vm.conditionChartData.labels).toEqual(["Near Fine", "Very Good", "Fine", "Ungraded"]);
+    });
   });
 });
