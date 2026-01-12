@@ -211,7 +211,7 @@ def get_overview_stats(db: Session) -> dict:
     }
 
 
-def get_dashboard_optimized(db: Session, reference_date: str = None, days: int = 30) -> dict:
+def get_dashboard_optimized(db: Session, reference_date: str = None, days: int = 90) -> dict:
     """Get all dashboard stats with optimized queries and caching.
 
     Caches the complete dashboard response for 5 minutes.

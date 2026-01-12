@@ -5,6 +5,7 @@ import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
 import type { DashboardStats } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
+import { formatConditionGrade } from "@/utils/format";
 
 const router = useRouter();
 import {
@@ -353,7 +354,7 @@ const getConditionColor = (condition: string): string =>
 const conditionChartData = computed(() => {
   const conditions = props.data?.by_condition ?? [];
   return {
-    labels: conditions.map((d) => d.condition),
+    labels: conditions.map((d) => formatConditionGrade(d.condition)),
     datasets: [
       {
         data: conditions.map((d) => d.count),
@@ -588,7 +589,7 @@ const authorChartOptions = computed(() => ({
       <!-- Cumulative Value Growth - full width at bottom -->
       <div class="card-static p-4! col-span-1 lg:col-span-2">
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
-          Est. Value Growth (Last 30 Days)
+          Est. Value Growth (Last 3 Months)
         </h3>
         <div class="h-48 md:h-64">
           <Line
