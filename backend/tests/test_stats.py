@@ -1814,6 +1814,7 @@ class TestAcquisitionsDailyDefaults:
         The value growth chart should show 3 months by default, not 30 days.
         """
         import inspect
+
         from app.api.v1.stats import get_acquisitions_daily
 
         sig = inspect.signature(get_acquisitions_daily)
@@ -1828,6 +1829,7 @@ class TestAcquisitionsDailyDefaults:
     def test_dashboard_service_default_days_is_90(self):
         """Verify dashboard service function defaults to 90 days."""
         import inspect
+
         from app.services.dashboard_stats import get_dashboard_optimized
 
         sig = inspect.signature(get_dashboard_optimized)
