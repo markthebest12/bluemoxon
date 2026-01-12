@@ -531,9 +531,7 @@ def get_acquisitions_by_month(db: Session = Depends(get_db), _user=Depends(requi
     ]
 
 
-def query_acquisitions_daily(
-    db: Session, reference_date: str = None, days: int = 30
-) -> list[dict]:
+def query_acquisitions_daily(db: Session, reference_date: str = None, days: int = 30) -> list[dict]:
     """Internal: Query daily acquisition data without auth check.
 
     Used by both the API endpoint and dashboard aggregation.
