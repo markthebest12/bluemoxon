@@ -1477,9 +1477,11 @@ jobs:
           echo "Deep health check passed!"
 
       - name: Test API books endpoint
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/books?per_page=1")
+          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" "${API_BASE}/api/v1/books?per_page=1")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then
@@ -1547,11 +1549,13 @@ jobs:
           exit 0
 
       - name: Test image endpoint
+        env:
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           API_BASE="${{ steps.urls.outputs.api_base }}"
           ENV="${{ needs.configure.outputs.environment }}"
 
-          book_response=$(curl -s "${API_BASE}/api/v1/books?has_images=true&per_page=1")
+          book_response=$(curl -s -H "X-API-Key: ${BMX_API_KEY}" "${API_BASE}/api/v1/books?has_images=true&per_page=1")
           total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
 
           if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
