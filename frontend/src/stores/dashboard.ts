@@ -4,7 +4,7 @@ import { api } from "@/services/api";
 import type { DashboardStats, CachedDashboard } from "@/types/dashboard";
 
 export const CACHE_KEY = "bmx_dashboard_cache";
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2; // v2: Added days field to cache
 export const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 export const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 hours hard TTL
 
@@ -56,6 +56,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       version: CACHE_VERSION,
       data: stats,
       timestamp: Date.now(),
+      days: selectedDays.value,
     };
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
@@ -106,7 +107,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
     // 1. Try cached data first
     const cached = getFromCache();
-    if (cached) {
+    if (cached && cached.days === selectedDays.value) {
       data.value = cached.data;
       loading.value = false;
 
@@ -158,9 +159,14 @@ export const useDashboardStore = defineStore("dashboard", () => {
   }
 
   async function setDays(days: number): Promise<void> {
+    cleanup(); // Abort any in-flight request first
     selectedDays.value = days;
-    // Invalidate cache and fetch fresh with new days parameter
-    invalidateCache();
+    // Clear localStorage but keep showing current data (stale-while-revalidate)
+    localStorage.removeItem(CACHE_KEY);
+    isStale.value = true;
+    loading.value = true;
+    error.value = null;
+    // Fetch fresh data - loadDashboard will see no cache and fetch
     await loadDashboard();
   }
 

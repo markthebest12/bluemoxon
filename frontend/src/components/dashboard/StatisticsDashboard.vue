@@ -13,20 +13,17 @@ const dashboardStore = useDashboardStore();
 
 // Time range options for the selector buttons
 const timeRangeOptions = [
-  { days: 7, label: "1W" },
-  { days: 30, label: "1M" },
-  { days: 90, label: "3M" },
-  { days: 180, label: "6M" },
+  { days: 7, label: "1W", title: "1 Week" },
+  { days: 30, label: "1M", title: "1 Month" },
+  { days: 90, label: "3M", title: "3 Months" },
+  { days: 180, label: "6M", title: "6 Months" },
 ];
 
 // Dynamic chart title based on selected days
 const valueGrowthTitle = computed(() => {
-  const days = dashboardStore.selectedDays;
-  if (days === 7) return "Est. Value Growth (Last 1 Week)";
-  if (days === 30) return "Est. Value Growth (Last 1 Month)";
-  if (days === 90) return "Est. Value Growth (Last 3 Months)";
-  if (days === 180) return "Est. Value Growth (Last 6 Months)";
-  return `Est. Value Growth (Last ${days} Days)`;
+  const option = timeRangeOptions.find((o) => o.days === dashboardStore.selectedDays);
+  const rangeText = option?.title ?? `${dashboardStore.selectedDays} Days`;
+  return `Est. Value Growth (Last ${rangeText})`;
 });
 import {
   Chart as ChartJS,
@@ -622,6 +619,7 @@ const authorChartOptions = computed(() => ({
               data-testid="time-range-btn"
               class="time-range-btn"
               :class="{ active: dashboardStore.selectedDays === option.days }"
+              :disabled="dashboardStore.loading"
               @click="dashboardStore.setDays(option.days)"
             >
               {{ option.label }}
@@ -660,7 +658,9 @@ const authorChartOptions = computed(() => ({
 
 /* Time range selector buttons */
 .time-range-btn {
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  min-height: 2.75rem; /* 44px - iOS recommended touch target */
+  min-width: 2.75rem;
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: 9999px;
@@ -678,5 +678,10 @@ const authorChartOptions = computed(() => ({
 .time-range-btn.active {
   background-color: rgb(26, 58, 47);
   color: white;
+}
+
+.time-range-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

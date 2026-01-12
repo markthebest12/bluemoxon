@@ -270,7 +270,10 @@ describe("StatisticsDashboard chart helpers", () => {
 
     it("calls store.setDays when button is clicked", async () => {
       const store = useDashboardStore();
-      const setDaysSpy = vi.spyOn(store, "setDays");
+      store.loading = false; // Buttons are disabled when loading
+      // Mock setDays to avoid it changing loading state (which would disable other buttons)
+      const setDaysSpy = vi.fn();
+      store.setDays = setDaysSpy;
 
       const wrapper = mount(StatisticsDashboard, {
         props: { data: mockDashboardData },

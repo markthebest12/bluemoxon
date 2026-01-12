@@ -94,6 +94,7 @@ describe("dashboard store", () => {
       version: CACHE_VERSION,
       data: mockDashboardData,
       timestamp: Date.now(),
+      days: 90, // Must match default selectedDays
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
 
@@ -117,6 +118,7 @@ describe("dashboard store", () => {
       version: CACHE_VERSION,
       data: mockDashboardData,
       timestamp: staleTimestamp,
+      days: 90, // Must match default selectedDays
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
 
@@ -323,21 +325,65 @@ describe("dashboard store", () => {
       );
     });
 
+    it("handles rapid time range changes correctly (race condition)", async () => {
+      const { api } = await import("@/services/api");
+
+      // Create data for 30-day response (7-day request gets aborted)
+      const data30Days: DashboardStats = {
+        ...mockDashboardData,
+        overview: { ...mockDashboardData.overview, total_items: 30 },
+      };
+
+      // Track calls to verify correct behavior
+      let callCount = 0;
+      let secondResolve: ((value: { data: DashboardStats }) => void) | null = null;
+
+      vi.mocked(api.get).mockImplementation(() => {
+        callCount++;
+        const currentCall = callCount;
+        return new Promise((resolve) => {
+          if (currentCall === 2) {
+            secondResolve = resolve;
+          }
+          // First request never resolves (simulates being aborted)
+        });
+      });
+
+      const store = useDashboardStore();
+
+      // Rapid clicks: 1W then 1M
+      store.setDays(7); // Don't await - fire and forget (gets aborted)
+      // Before first request completes, click 1M
+      const promise2 = store.setDays(30);
+
+      // First request should have been aborted, second should be in flight
+      expect(store.selectedDays).toBe(30);
+
+      // Resolve the second request (the one that should be active)
+      secondResolve!({ data: data30Days });
+      await promise2;
+
+      // Final state should show 30-day data
+      expect(store.selectedDays).toBe(30);
+      expect(store.data?.overview.total_items).toBe(30);
+    });
+
     it("setDays invalidates cache before fetching", async () => {
       const { api } = await import("@/services/api");
       vi.mocked(api.get).mockResolvedValue({ data: mockDashboardData });
 
-      // Setup fresh cache
+      // Setup fresh cache with days=90 (matches default selectedDays)
       const cached = {
         version: CACHE_VERSION,
         data: mockDashboardData,
         timestamp: Date.now(),
+        days: 90,
       };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
 
       const store = useDashboardStore();
       await store.loadDashboard();
-      expect(api.get).not.toHaveBeenCalled(); // Uses cache
+      expect(api.get).not.toHaveBeenCalled(); // Uses cache (days match)
 
       vi.clearAllMocks();
 
