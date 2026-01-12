@@ -801,12 +801,8 @@ def update_book(
             book.is_first_edition = inferred
 
     # Recalculate discount_pct if relevant values changed (value_mid or purchase_price)
-    if (
-        "value_mid" in update_data
-        or "value_low" in update_data
-        or "value_high" in update_data
-        or "purchase_price" in update_data
-    ):
+    # Formula: (value_mid - purchase_price) / value_mid - only these two inputs matter
+    if "value_mid" in update_data or "purchase_price" in update_data:
         recalculate_discount_pct(book)
 
     # Recalculate roi_pct if relevant values changed (value_mid or acquisition_cost)
