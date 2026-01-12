@@ -8,10 +8,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.auth import CurrentUser, require_admin, require_editor, require_viewer
+from app.auth import (
+    CurrentUser,
+    get_current_user,
+    require_admin,
+    require_editor,
+    require_viewer,
+)
 from app.db import get_db
 from app.main import app
 from app.models.base import Base
+
+
+# Mock viewer user for tests (lowest privilege level)
+def get_mock_viewer():
+    """Return a mock viewer user for tests."""
+    return CurrentUser(
+        cognito_sub="test-viewer-123",
+        email="viewer@example.com",
+        role="viewer",
+        db_user=None,
+    )
 
 
 # Mock editor user for tests
@@ -67,7 +84,7 @@ def db():
 
 @pytest.fixture(scope="function")
 def client(db):
-    """Create a test client with database override and mock auth."""
+    """Create a test client with database override and mock auth (admin level)."""
 
     def override_get_db():
         try:
@@ -79,6 +96,47 @@ def client(db):
     app.dependency_overrides[require_viewer] = get_mock_editor
     app.dependency_overrides[require_editor] = get_mock_editor
     app.dependency_overrides[require_admin] = get_mock_admin
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def unauthenticated_client(db):
+    """Create a test client without auth overrides (401 expected)."""
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def viewer_client(db):
+    """Create a test client with viewer-level auth (403 expected on admin endpoints).
+
+    Overrides get_current_user to return a viewer user, allowing the actual
+    role check in require_admin to run and return 403 for non-admin users.
+    """
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    # Override get_current_user to return viewer (bypasses 401 auth check)
+    # This allows require_admin to run its is_admin check and return 403
+    app.dependency_overrides[get_current_user] = get_mock_viewer
+    app.dependency_overrides[require_viewer] = get_mock_viewer
+    app.dependency_overrides[require_editor] = get_mock_viewer
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

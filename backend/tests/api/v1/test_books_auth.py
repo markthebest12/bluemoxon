@@ -1,47 +1,26 @@
-"""Tests for books GET endpoint authentication."""
+"""Tests for books GET endpoint authentication.
+
+Uses shared fixtures from conftest.py:
+- db: Fresh database for each test
+- unauthenticated_client: Client without auth (expects 401)
+- client: Client with full auth (expects 200)
+"""
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.db import get_db
-from app.main import app
 from app.models import Author, Book
-from app.models.base import Base
-from tests.conftest import TestingSessionLocal, engine
 
 
 class TestBooksGetAuth:
     """Tests for books GET endpoint authentication requirements."""
 
     @pytest.fixture
-    def unauthenticated_client(self, db):
-        """Client without auth overrides."""
-
-        def override_get_db():
-            try:
-                yield db
-            finally:
-                pass
-
-        app.dependency_overrides[get_db] = override_get_db
-        with TestClient(app) as test_client:
-            yield test_client
-        app.dependency_overrides.clear()
-
-    @pytest.fixture
-    def db(self):
-        """Create a fresh database for each test."""
-        Base.metadata.create_all(bind=engine)
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-            Base.metadata.drop_all(bind=engine)
-
-    @pytest.fixture
     def sample_book(self, db):
-        """Create a sample book for testing."""
+        """Create a sample book for testing.
+
+        Uses the shared db fixture from conftest.py to ensure the book
+        is visible to both unauthenticated_client and client fixtures.
+        """
         author = Author(name="Test Author")
         db.add(author)
         db.flush()
@@ -56,6 +35,7 @@ class TestBooksGetAuth:
         db.refresh(book)
         return book
 
+    # Unauthenticated access tests (401)
     def test_books_list_requires_auth(self, unauthenticated_client):
         """Test that GET /books returns 401 without authentication."""
         response = unauthenticated_client.get("/api/v1/books")
@@ -81,6 +61,7 @@ class TestBooksGetAuth:
         response = unauthenticated_client.get(f"/api/v1/books/{sample_book.id}/scores/breakdown")
         assert response.status_code == 401
 
+    # Authenticated access tests (200)
     def test_books_list_works_with_auth(self, client):
         """Test that GET /books works with authentication."""
         response = client.get("/api/v1/books")
@@ -89,4 +70,9 @@ class TestBooksGetAuth:
     def test_books_get_works_with_auth(self, client, sample_book):
         """Test that GET /books/{id} works with authentication."""
         response = client.get(f"/api/v1/books/{sample_book.id}")
+        assert response.status_code == 200
+
+    def test_books_scores_works_with_auth(self, client, sample_book):
+        """Test that GET /books/{id}/scores/breakdown works with authentication."""
+        response = client.get(f"/api/v1/books/{sample_book.id}/scores/breakdown")
         assert response.status_code == 200
