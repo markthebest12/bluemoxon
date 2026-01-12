@@ -1409,6 +1409,7 @@ graph TB
     end
     subgraph Data["Data Layer"]
         Aurora[(Aurora PostgreSQL<br/>Serverless v2)]
+        ElastiCache[(ElastiCache Redis<br/>Serverless)]
         S3_Img[S3 Images]
         S3_Web[S3 Static Site]
         Secrets[Secrets Manager]
@@ -1422,6 +1423,7 @@ graph TB
     CF -->|API| APIGW
     APIGW -->|Invoke| Lambda
     Lambda -->|Query| Aurora
+    Lambda -->|Cache| ElastiCache
     Lambda -->|Read/Write| S3_Img
     Lambda -->|Secrets| Secrets
     APIGW -->|Validate JWT| Cognito
@@ -1429,6 +1431,7 @@ graph TB
     style CF fill:#9C27B0,color:#fff
     style Lambda fill:#FF9800,color:#fff
     style Aurora fill:#2196F3,color:#fff
+    style ElastiCache fill:#DC382D,color:#fff
     style Cognito fill:#4CAF50,color:#fff
             </div>
         </div>
@@ -1512,6 +1515,7 @@ flowchart TB
                 <ul>
                     <li><strong>AWS Lambda</strong> - Serverless compute</li>
                     <li><strong>Aurora Serverless v2</strong> - Auto-scaling DB</li>
+                    <li><strong>ElastiCache Redis</strong> - Dashboard caching</li>
                     <li><strong>CloudFront</strong> - Global CDN</li>
                     <li><strong>Cognito</strong> - Authentication</li>
                     <li><strong>Terraform</strong> - Infrastructure as code</li>

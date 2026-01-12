@@ -132,7 +132,24 @@ This creates:
    - Truncate staging table (CASCADE)
    - Copy all rows from production
 5. **Re-enable FK Checks**: Restores foreign key constraints
-6. **Report**: Returns summary of tables created, synced, and row counts
+6. **Flush Redis Cache**: Clears staging ElastiCache to prevent stale dashboard data
+7. **Report**: Returns summary of tables created, synced, and row counts
+
+### Redis Cache Flush
+
+After syncing the database, the staging Redis cache must be flushed to prevent stale dashboard statistics. The sync script automatically flushes Redis when the `REDIS_HOST` environment variable is set.
+
+**Why this matters:** Dashboard stats are cached for 5 minutes. Without flushing, the staging dashboard would show production metrics for up to 5 minutes after sync.
+
+**Manual flush (if needed):**
+```bash
+# Connect to staging Redis via Lambda
+aws lambda invoke \
+    --function-name bluemoxon-staging-api \
+    --profile bmx-staging \
+    --payload '{"path": "/api/v1/admin/cache/flush", "httpMethod": "POST"}' \
+    .tmp/flush-response.json
+```
 
 **Note:** The sync Lambda can initialize an empty staging database by creating tables automatically.
 This eliminates the need to run Alembic migrations separately.
