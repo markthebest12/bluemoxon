@@ -1822,8 +1822,7 @@ class TestAcquisitionsDailyDefaults:
 
         # Extract the default from the Query object
         assert days_param.default.default == 90, (
-            f"Expected default days=90 for 3-month chart, "
-            f"got {days_param.default.default}"
+            f"Expected default days=90 for 3-month chart, got {days_param.default.default}"
         )
 
     def test_dashboard_service_default_days_is_90(self):
@@ -1836,6 +1835,5 @@ class TestAcquisitionsDailyDefaults:
         days_param = sig.parameters["days"]
 
         assert days_param.default == 90, (
-            f"Expected default days=90 for dashboard service, "
-            f"got {days_param.default}"
+            f"Expected default days=90 for dashboard service, got {days_param.default}"
         )

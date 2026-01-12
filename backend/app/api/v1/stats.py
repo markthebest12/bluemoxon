@@ -609,7 +609,12 @@ def get_acquisitions_daily(
         default=None,
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
     ),
-    days: int = Query(default=90, ge=7, le=180, description="Number of days to look back (default: 90 for 3-month view)"),
+    days: int = Query(
+        default=90,
+        ge=7,
+        le=180,
+        description="Number of days to look back (default: 90 for 3-month view)",
+    ),
 ):
     """Get daily acquisition data for the last N days.
 
