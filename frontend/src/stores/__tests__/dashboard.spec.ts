@@ -292,6 +292,63 @@ describe("dashboard store", () => {
     });
   });
 
+  describe("time range selector", () => {
+    it("has selectedDays ref defaulting to 90", () => {
+      const store = useDashboardStore();
+      expect(store.selectedDays).toBe(90);
+    });
+
+    it("setDays updates selectedDays value", async () => {
+      const store = useDashboardStore();
+      expect(store.selectedDays).toBe(90);
+
+      store.setDays(30);
+      expect(store.selectedDays).toBe(30);
+    });
+
+    it("setDays refetches data with new days parameter", async () => {
+      const { api } = await import("@/services/api");
+      vi.mocked(api.get).mockResolvedValue({ data: mockDashboardData });
+
+      const store = useDashboardStore();
+      await store.loadDashboard();
+
+      vi.clearAllMocks();
+
+      await store.setDays(7);
+
+      expect(api.get).toHaveBeenCalledWith(
+        expect.stringMatching(/days=7/),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+    });
+
+    it("setDays invalidates cache before fetching", async () => {
+      const { api } = await import("@/services/api");
+      vi.mocked(api.get).mockResolvedValue({ data: mockDashboardData });
+
+      // Setup fresh cache
+      const cached = {
+        version: CACHE_VERSION,
+        data: mockDashboardData,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+
+      const store = useDashboardStore();
+      await store.loadDashboard();
+      expect(api.get).not.toHaveBeenCalled(); // Uses cache
+
+      vi.clearAllMocks();
+
+      // setDays should bypass cache and fetch fresh
+      await store.setDays(180);
+
+      expect(api.get).toHaveBeenCalled();
+      expect(store.selectedDays).toBe(180);
+    });
+  });
+
   describe("error handling", () => {
     it("sets error on fetch failure", async () => {
       const { api } = await import("@/services/api");

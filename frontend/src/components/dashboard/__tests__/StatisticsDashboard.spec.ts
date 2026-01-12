@@ -1,10 +1,58 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { formatAcquisitionTooltip } from "../chartHelpers";
 import StatisticsDashboard from "../StatisticsDashboard.vue";
 import type { AcquisitionDay, DashboardStats } from "@/types/dashboard";
+import { useDashboardStore } from "@/stores/dashboard";
+
+// Shared mock data for all tests
+const mockDashboardData: DashboardStats = {
+  overview: {
+    primary: { count: 10, volumes: 20, value_low: 1000, value_mid: 1500, value_high: 2000 },
+    extended: { count: 1 },
+    flagged: { count: 0 },
+    total_items: 11,
+    authenticated_bindings: 5,
+    in_transit: 2,
+    week_delta: { count: 3, volumes: 5, value_mid: 500, authenticated_bindings: 1 },
+  },
+  bindings: [],
+  by_era: [],
+  by_publisher: [],
+  by_author: [],
+  by_condition: [],
+  by_category: [],
+  acquisitions_daily: [
+    {
+      date: "2026-01-05",
+      label: "Jan 05",
+      count: 3,
+      value: 450,
+      cost: 200,
+      cumulative_count: 10,
+      cumulative_value: 5000,
+      cumulative_cost: 2000,
+    },
+    {
+      date: "2026-01-06",
+      label: "Jan 06",
+      count: 0,
+      value: 0,
+      cost: 0,
+      cumulative_count: 10,
+      cumulative_value: 5000,
+      cumulative_cost: 2000,
+    },
+  ],
+};
 
 describe("StatisticsDashboard chart helpers", () => {
+  // Setup Pinia before all tests since component now uses dashboard store
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
   describe("formatAcquisitionTooltip", () => {
     it("uses the day label in tooltip, not hardcoded 'today'", () => {
       const day: AcquisitionDay = {
@@ -74,46 +122,6 @@ describe("StatisticsDashboard chart helpers", () => {
   });
 
   describe("StatisticsDashboard component integration", () => {
-    const mockDashboardData: DashboardStats = {
-      overview: {
-        primary: { count: 10, volumes: 20, value_low: 1000, value_mid: 1500, value_high: 2000 },
-        extended: { count: 1 },
-        flagged: { count: 0 },
-        total_items: 11,
-        authenticated_bindings: 5,
-        in_transit: 2,
-        week_delta: { count: 3, volumes: 5, value_mid: 500, authenticated_bindings: 1 },
-      },
-      bindings: [],
-      by_era: [],
-      by_publisher: [],
-      by_author: [],
-      by_condition: [],
-      by_category: [],
-      acquisitions_daily: [
-        {
-          date: "2026-01-05",
-          label: "Jan 05",
-          count: 3,
-          value: 450,
-          cost: 200,
-          cumulative_count: 10,
-          cumulative_value: 5000,
-          cumulative_cost: 2000,
-        },
-        {
-          date: "2026-01-06",
-          label: "Jan 06",
-          count: 0,
-          value: 0,
-          cost: 0,
-          cumulative_count: 10,
-          cumulative_value: 5000,
-          cumulative_cost: 2000,
-        },
-      ],
-    };
-
     it("uses formatAcquisitionTooltip in lineChartOptions tooltip callback", () => {
       const wrapper = mount(StatisticsDashboard, {
         props: { data: mockDashboardData },
@@ -212,6 +220,98 @@ describe("StatisticsDashboard chart helpers", () => {
 
       // Verify labels are human-readable, not raw enum values
       expect(vm.conditionChartData.labels).toEqual(["Near Fine", "Very Good", "Fine", "Ungraded"]);
+    });
+  });
+
+  describe("time range selector", () => {
+    it("renders time range selector buttons", () => {
+      const wrapper = mount(StatisticsDashboard, {
+        props: { data: mockDashboardData },
+        global: {
+          stubs: {
+            Line: true,
+            Doughnut: true,
+            Bar: true,
+          },
+        },
+      });
+
+      const buttons = wrapper.findAll('[data-testid="time-range-btn"]');
+      expect(buttons).toHaveLength(4);
+
+      // Verify button labels
+      const labels = buttons.map((btn) => btn.text());
+      expect(labels).toEqual(["1W", "1M", "3M", "6M"]);
+    });
+
+    it("highlights the active button based on store selectedDays", () => {
+      const store = useDashboardStore();
+      store.selectedDays = 30; // 1M
+
+      const wrapper = mount(StatisticsDashboard, {
+        props: { data: mockDashboardData },
+        global: {
+          stubs: {
+            Line: true,
+            Doughnut: true,
+            Bar: true,
+          },
+        },
+      });
+
+      const buttons = wrapper.findAll('[data-testid="time-range-btn"]');
+      // 1M button (index 1) should be active
+      expect(buttons[1].classes()).toContain("active");
+      // Others should not be active
+      expect(buttons[0].classes()).not.toContain("active");
+      expect(buttons[2].classes()).not.toContain("active");
+      expect(buttons[3].classes()).not.toContain("active");
+    });
+
+    it("calls store.setDays when button is clicked", async () => {
+      const store = useDashboardStore();
+      const setDaysSpy = vi.spyOn(store, "setDays");
+
+      const wrapper = mount(StatisticsDashboard, {
+        props: { data: mockDashboardData },
+        global: {
+          stubs: {
+            Line: true,
+            Doughnut: true,
+            Bar: true,
+          },
+        },
+      });
+
+      const buttons = wrapper.findAll('[data-testid="time-range-btn"]');
+
+      // Click 1W button
+      await buttons[0].trigger("click");
+      expect(setDaysSpy).toHaveBeenCalledWith(7);
+
+      // Click 6M button
+      await buttons[3].trigger("click");
+      expect(setDaysSpy).toHaveBeenCalledWith(180);
+    });
+
+    it("updates chart title based on selected range", () => {
+      const store = useDashboardStore();
+      store.selectedDays = 7;
+
+      const wrapper = mount(StatisticsDashboard, {
+        props: { data: mockDashboardData },
+        global: {
+          stubs: {
+            Line: true,
+            Doughnut: true,
+            Bar: true,
+          },
+        },
+      });
+
+      // Find the value growth chart title
+      const title = wrapper.find('[data-testid="value-growth-title"]');
+      expect(title.text()).toContain("Last 1 Week");
     });
   });
 });

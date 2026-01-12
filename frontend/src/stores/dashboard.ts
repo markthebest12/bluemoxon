@@ -14,6 +14,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const loading = ref(true);
   const isStale = ref(false);
   const error = ref<string | null>(null);
+  const selectedDays = ref(90);
 
   // Request deduplication
   let pendingRequest: Promise<void> | null = null;
@@ -67,9 +68,12 @@ export const useDashboardStore = defineStore("dashboard", () => {
     try {
       // Get today's date in browser timezone (YYYY-MM-DD format)
       const today = new Date().toLocaleDateString("en-CA");
-      const response = await api.get(`/stats/dashboard?reference_date=${today}&days=90`, {
-        signal,
-      });
+      const response = await api.get(
+        `/stats/dashboard?reference_date=${today}&days=${selectedDays.value}`,
+        {
+          signal,
+        }
+      );
 
       // Check if request was aborted
       if (signal?.aborted) return;
@@ -153,12 +157,20 @@ export const useDashboardStore = defineStore("dashboard", () => {
     pendingRequest = null;
   }
 
+  async function setDays(days: number): Promise<void> {
+    selectedDays.value = days;
+    // Invalidate cache and fetch fresh with new days parameter
+    invalidateCache();
+    await loadDashboard();
+  }
+
   return {
     // State
     data,
     loading,
     isStale,
     error,
+    selectedDays,
 
     // Computed
     hasData,
@@ -168,6 +180,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     loadDashboard,
     invalidateCache,
     cleanup,
+    setDays,
   };
 });
 
