@@ -4,7 +4,7 @@ import { api } from "@/services/api";
 import type { DashboardStats, CachedDashboard } from "@/types/dashboard";
 
 export const CACHE_KEY = "bmx_dashboard_cache";
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2; // v2: Added days field to cache
 export const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 export const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 hours hard TTL
 
@@ -14,6 +14,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const loading = ref(true);
   const isStale = ref(false);
   const error = ref<string | null>(null);
+  const selectedDays = ref(90);
 
   // Request deduplication
   let pendingRequest: Promise<void> | null = null;
@@ -55,6 +56,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       version: CACHE_VERSION,
       data: stats,
       timestamp: Date.now(),
+      days: selectedDays.value,
     };
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
@@ -67,9 +69,12 @@ export const useDashboardStore = defineStore("dashboard", () => {
     try {
       // Get today's date in browser timezone (YYYY-MM-DD format)
       const today = new Date().toLocaleDateString("en-CA");
-      const response = await api.get(`/stats/dashboard?reference_date=${today}&days=90`, {
-        signal,
-      });
+      const response = await api.get(
+        `/stats/dashboard?reference_date=${today}&days=${selectedDays.value}`,
+        {
+          signal,
+        }
+      );
 
       // Check if request was aborted
       if (signal?.aborted) return;
@@ -102,7 +107,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
     // 1. Try cached data first
     const cached = getFromCache();
-    if (cached) {
+    if (cached && cached.days === selectedDays.value) {
       data.value = cached.data;
       loading.value = false;
 
@@ -153,12 +158,25 @@ export const useDashboardStore = defineStore("dashboard", () => {
     pendingRequest = null;
   }
 
+  async function setDays(days: number): Promise<void> {
+    cleanup(); // Abort any in-flight request first
+    selectedDays.value = days;
+    // Clear localStorage but keep showing current data (stale-while-revalidate)
+    localStorage.removeItem(CACHE_KEY);
+    isStale.value = true;
+    loading.value = true;
+    error.value = null;
+    // Fetch fresh data - loadDashboard will see no cache and fetch
+    await loadDashboard();
+  }
+
   return {
     // State
     data,
     loading,
     isStale,
     error,
+    selectedDays,
 
     // Computed
     hasData,
@@ -168,6 +186,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     loadDashboard,
     invalidateCache,
     cleanup,
+    setDays,
   };
 });
 
