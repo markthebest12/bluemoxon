@@ -101,8 +101,9 @@ def recalculate_discount_pct(book: Book) -> None:
 
     Formula: discount = (value_mid - purchase_price) / value_mid * 100
     """
-    # Cannot calculate without both values
+    # Cannot calculate without both values - clear stale discount
     if book.purchase_price is None or book.value_mid is None:
+        book.discount_pct = None
         return
 
     # Invalid value_mid (zero or negative) - clear discount
@@ -110,9 +111,9 @@ def recalculate_discount_pct(book: Book) -> None:
         book.discount_pct = None
         return
 
-    # Calculate fresh discount
-    discount = (float(book.value_mid) - float(book.purchase_price)) / float(book.value_mid) * 100
-    book.discount_pct = Decimal(str(round(discount, 2)))
+    # Calculate fresh discount using Decimal arithmetic for precision
+    discount = (book.value_mid - book.purchase_price) / book.value_mid * 100
+    book.discount_pct = discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def recalculate_roi_pct(book: Book) -> None:
@@ -125,8 +126,9 @@ def recalculate_roi_pct(book: Book) -> None:
 
     Formula: roi = (value_mid - acquisition_cost) / acquisition_cost * 100
     """
-    # Cannot calculate without both values
+    # Cannot calculate without both values - clear stale ROI
     if book.acquisition_cost is None or book.value_mid is None:
+        book.roi_pct = None
         return
 
     # Invalid acquisition_cost (zero or negative) - clear ROI

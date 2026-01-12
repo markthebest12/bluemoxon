@@ -713,7 +713,14 @@ def create_book(
     db.refresh(book)
 
     # Calculate ROI if both value_mid and acquisition_cost are provided
-    recalculate_roi_pct(book)
+    # Only call if inputs exist to preserve any manually set values
+    if book.value_mid is not None and book.acquisition_cost is not None:
+        recalculate_roi_pct(book)
+
+    # Calculate discount_pct if both value_mid and purchase_price are provided
+    # Only call if inputs exist to preserve any manually set values
+    if book.value_mid is not None and book.purchase_price is not None:
+        recalculate_discount_pct(book)
 
     # Copy images from listing folder to book folder if S3 keys provided
     if listing_s3_keys:
@@ -797,8 +804,9 @@ def update_book(
         if inferred is not None:
             book.is_first_edition = inferred
 
-    # Recalculate discount_pct if relevant values changed
-    if "value_mid" in update_data or "value_low" in update_data or "value_high" in update_data:
+    # Recalculate discount_pct if relevant values changed (value_mid or purchase_price)
+    # Formula: (value_mid - purchase_price) / value_mid - only these two inputs matter
+    if "value_mid" in update_data or "purchase_price" in update_data:
         recalculate_discount_pct(book)
 
     # Recalculate roi_pct if relevant values changed (value_mid or acquisition_cost)
