@@ -38,6 +38,7 @@ flowchart TB
 
         subgraph Data
             Aurora[(Aurora<br/>Serverless v2)]
+            Redis[(ElastiCache<br/>Redis)]
             S3F[S3<br/>Frontend]
             S3I[S3<br/>Images]
         end
@@ -55,6 +56,7 @@ flowchart TB
     User --> CF2 --> S3I
     User --> APIGW --> Lambda
     Lambda --> Aurora
+    Lambda --> Redis
     Lambda --> S3I
     Lambda --> Cognito
     Lambda --> SQS --> Worker
@@ -75,12 +77,13 @@ infra/terraform/
 ├── envs/
 │   ├── staging.tfvars   # Staging environment values
 │   └── prod.tfvars      # Production environment values
-└── modules/             # 14 reusable modules
+└── modules/             # 15 reusable modules
     ├── api-gateway/     # HTTP API + custom domain
     ├── cloudfront/      # CDN distributions
     ├── cognito/         # User pools + clients
     ├── db-sync-lambda/  # Prod→Staging data sync
     ├── dns/             # Route 53 records
+    ├── elasticache/     # Redis serverless cache
     ├── github-oidc/     # GitHub Actions auth
     ├── lambda/          # API function + IAM
     ├── landing-site/    # Marketing site

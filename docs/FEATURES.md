@@ -12,7 +12,18 @@
 ### Dashboard Performance
 - **API Batching** - Single `/dashboard/batch` endpoint replaces 6 individual calls
 - **Client-side Caching** - `useDashboardCache` composable with 5-minute TTL
+- **Server-side Caching** - ElastiCache Redis for dashboard statistics (5-minute TTL)
 - **~40% Faster** - Reduced network round trips
+
+### Interactive Charts
+- **Clickable Charts** - Click any chart segment to navigate to filtered book list
+- **Chart Navigation** - Pie charts, bar charts, and era distributions link to relevant filters
+- **Deep Links** - Each click generates proper URL parameters for bookmarking/sharing
+
+### Advanced Filtering
+- **Uncategorized Filter** - Find books without assigned categories
+- **Ungraded Filter** - Find books without condition grades
+- **Null Filters** - `__isnull` parameter support for finding incomplete data
 
 ### Vue 3 Composables
 - **`useToast`** - Centralized toast notifications with duplicate suppression
