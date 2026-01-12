@@ -1800,3 +1800,40 @@ class TestDashboardCaching:
         data = response.json()
         assert "overview" in data
         assert "bindings" in data
+
+
+class TestAcquisitionsDailyDefaults:
+    """Tests for acquisition daily endpoint default values.
+
+    Issue #1093: Value growth chart should default to 90 days (3 months).
+    """
+
+    def test_default_days_is_90(self):
+        """Verify the default days parameter is 90 (3 months).
+
+        The value growth chart should show 3 months by default, not 30 days.
+        """
+        import inspect
+
+        from app.api.v1.stats import get_acquisitions_daily
+
+        sig = inspect.signature(get_acquisitions_daily)
+        days_param = sig.parameters["days"]
+
+        # Extract the default from the Query object
+        assert days_param.default.default == 90, (
+            f"Expected default days=90 for 3-month chart, got {days_param.default.default}"
+        )
+
+    def test_dashboard_service_default_days_is_90(self):
+        """Verify dashboard service function defaults to 90 days."""
+        import inspect
+
+        from app.services.dashboard_stats import get_dashboard_optimized
+
+        sig = inspect.signature(get_dashboard_optimized)
+        days_param = sig.parameters["days"]
+
+        assert days_param.default == 90, (
+            f"Expected default days=90 for dashboard service, got {days_param.default}"
+        )

@@ -5,8 +5,26 @@ import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
 import type { DashboardStats } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
+import { formatConditionGrade } from "@/utils/format";
+import { useDashboardStore } from "@/stores/dashboard";
 
 const router = useRouter();
+const dashboardStore = useDashboardStore();
+
+// Time range options for the selector buttons
+const timeRangeOptions = [
+  { days: 7, label: "1W", title: "1 Week" },
+  { days: 30, label: "1M", title: "1 Month" },
+  { days: 90, label: "3M", title: "3 Months" },
+  { days: 180, label: "6M", title: "6 Months" },
+];
+
+// Dynamic chart title based on selected days
+const valueGrowthTitle = computed(() => {
+  const option = timeRangeOptions.find((o) => o.days === dashboardStore.selectedDays);
+  const rangeText = option?.title ?? `${dashboardStore.selectedDays} Days`;
+  return `Est. Value Growth (Last ${rangeText})`;
+});
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -353,7 +371,7 @@ const getConditionColor = (condition: string): string =>
 const conditionChartData = computed(() => {
   const conditions = props.data?.by_condition ?? [];
   return {
-    labels: conditions.map((d) => d.condition),
+    labels: conditions.map((d) => formatConditionGrade(d.condition)),
     datasets: [
       {
         data: conditions.map((d) => d.count),
@@ -587,9 +605,27 @@ const authorChartOptions = computed(() => ({
 
       <!-- Cumulative Value Growth - full width at bottom -->
       <div class="card-static p-4! col-span-1 lg:col-span-2">
-        <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
-          Est. Value Growth (Last 30 Days)
-        </h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3
+            data-testid="value-growth-title"
+            class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
+          >
+            {{ valueGrowthTitle }}
+          </h3>
+          <div class="flex gap-1">
+            <button
+              v-for="option in timeRangeOptions"
+              :key="option.days"
+              data-testid="time-range-btn"
+              class="time-range-btn"
+              :class="{ active: dashboardStore.selectedDays === option.days }"
+              :disabled="dashboardStore.loading"
+              @click="dashboardStore.setDays(option.days)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
         <div class="h-48 md:h-64">
           <Line
             v-if="props.data.acquisitions_daily.length > 0"
@@ -618,5 +654,34 @@ const authorChartOptions = computed(() => ({
 
 .card-static:hover {
   box-shadow: 0 0 0 2px rgba(26, 58, 47, 0.2);
+}
+
+/* Time range selector buttons */
+.time-range-btn {
+  padding: 0.5rem 0.75rem;
+  min-height: 2.75rem; /* 44px - iOS recommended touch target */
+  min-width: 2.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  border: 1px solid rgb(26, 58, 47);
+  background-color: transparent;
+  color: rgb(26, 58, 47);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.time-range-btn:hover {
+  background-color: rgba(26, 58, 47, 0.1);
+}
+
+.time-range-btn.active {
+  background-color: rgb(26, 58, 47);
+  color: white;
+}
+
+.time-range-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
