@@ -23,7 +23,7 @@ from app.api.v1.images import (
     get_cloudfront_url,
     get_thumbnail_key,
 )
-from app.auth import require_admin, require_editor
+from app.auth import require_admin, require_editor, require_viewer
 from app.config import get_settings
 from app.db import get_db
 from app.models import (
@@ -423,6 +423,7 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
 def list_books(
     params: BookListParams = Depends(),
     db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
 ):
     """List books with filtering and pagination."""
     # Validate mutual exclusion: cannot pass both field and field__isnull
@@ -624,7 +625,7 @@ def list_books(
 
 
 @router.get("/{book_id}", response_model=BookResponse)
-def get_book(book_id: int, db: Session = Depends(get_db)):
+def get_book(book_id: int, db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get a single book by ID."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -1222,6 +1223,7 @@ def calculate_book_scores(
 def get_book_score_breakdown(
     book_id: int,
     db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
 ):
     """
     Get detailed score breakdown explaining why each score was calculated.
@@ -1385,7 +1387,7 @@ def check_duplicate_title(
 
 # Analysis endpoints
 @router.get("/{book_id}/analysis")
-def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
+def get_book_analysis(book_id: int, db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get parsed analysis for a book."""
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
@@ -1418,7 +1420,9 @@ def get_book_analysis(book_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{book_id}/analysis/raw")
-def get_book_analysis_raw(book_id: int, db: Session = Depends(get_db)):
+def get_book_analysis_raw(
+    book_id: int, db: Session = Depends(get_db), _user=Depends(require_viewer)
+):
     """Get raw markdown analysis for a book.
 
     Returns the analysis with structured data block stripped for display.
