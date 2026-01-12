@@ -329,8 +329,12 @@ def get_scoring_config() -> dict:
 
 
 @router.get("/config", response_model=ConfigResponse)
-def get_config(response: Response, db: Session = Depends(get_db)):
-    """Get admin configuration."""
+def get_config(
+    response: Response,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Get admin configuration (admin only)."""
     response.headers["Cache-Control"] = "no-store"
     result = db.execute(select(AdminConfig))
     configs = {c.key: c.value for c in result.scalars().all()}
@@ -359,8 +363,12 @@ def update_config(
 
 
 @router.get("/system-info", response_model=SystemInfoResponse)
-def get_system_info(response: Response, db: Session = Depends(get_db)):
-    """Get comprehensive system information for admin dashboard.
+def get_system_info(
+    response: Response,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Get comprehensive system information for admin dashboard (admin only).
 
     Returns version info, health checks, infrastructure config,
     limits, scoring configuration, and tiered entities.
@@ -473,8 +481,9 @@ def get_costs(
         description="IANA timezone name (e.g., 'America/Los_Angeles') for MTD calculation",
     ),
     refresh: bool = False,
+    _user=Depends(require_admin),
 ):
-    """Get AWS cost data for admin dashboard.
+    """Get AWS cost data for admin dashboard (admin only).
 
     Args:
         timezone: Optional timezone for determining current month. If provided,

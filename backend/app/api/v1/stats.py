@@ -1,4 +1,12 @@
-"""Statistics API endpoints."""
+"""Statistics API endpoints.
+
+Note on `_user` parameter naming:
+    The underscore prefix is used because the parameter value is not used
+    directly in the function body - it exists solely for FastAPI's dependency
+    injection to enforce authentication. The auth check happens in the
+    Depends() call; the function receives the user but doesn't need to
+    inspect it. This is a common pattern for auth-only dependencies.
+"""
 
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -7,6 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
+from app.auth import require_viewer
 from app.db import get_db
 from app.models import Binder, Book, Publisher
 from app.schemas.stats import DashboardResponse
@@ -16,7 +25,7 @@ router = APIRouter()
 
 
 @router.get("/overview")
-def get_overview(db: Session = Depends(get_db)):
+def get_overview(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get collection overview statistics.
 
     Returns current stats for ON_HAND books only, plus week-over-week changes.
@@ -125,7 +134,7 @@ def get_overview(db: Session = Depends(get_db)):
 
 
 @router.get("/metrics")
-def get_collection_metrics(db: Session = Depends(get_db)):
+def get_collection_metrics(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get detailed collection metrics including Victorian %, ROI, discount averages."""
     # Victorian detection: year_start OR year_end in 1837-1901 (matches get_by_era)
     victorian_case = case(
@@ -197,7 +206,7 @@ def get_collection_metrics(db: Session = Depends(get_db)):
 
 
 @router.get("/by-category")
-def get_by_category(db: Session = Depends(get_db)):
+def get_by_category(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get counts by category."""
     results = (
         db.query(
@@ -221,7 +230,7 @@ def get_by_category(db: Session = Depends(get_db)):
 
 
 @router.get("/by-condition")
-def get_by_condition(db: Session = Depends(get_db)):
+def get_by_condition(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get counts by condition grade."""
     results = (
         db.query(
@@ -245,9 +254,12 @@ def get_by_condition(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/by-publisher")
-def get_by_publisher(db: Session = Depends(get_db)):
-    """Get counts by publisher with tier info."""
+def query_by_publisher(db: Session) -> list[dict]:
+    """Internal: Query publisher stats without auth check.
+
+    Used by both the API endpoint and dashboard aggregation.
+    Auth is enforced at the endpoint level, not here.
+    """
     results = (
         db.query(
             Publisher.id,
@@ -277,16 +289,17 @@ def get_by_publisher(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/by-author")
-def get_by_author(db: Session = Depends(get_db)):
-    """Get counts by author with sample book titles.
+@router.get("/by-publisher")
+def get_by_publisher(db: Session = Depends(get_db), _user=Depends(require_viewer)):
+    """Get counts by publisher with tier info."""
+    return query_by_publisher(db)
 
-    Returns:
-        - count: Number of book records (a 24-volume set counts as 1)
-        - total_volumes: Sum of all volumes (a 24-volume set contributes 24)
-        - titles: Same as count, number of distinct book records
 
-    Performance: Uses 2 batch queries instead of N+1 (one query per author).
+def query_by_author(db: Session) -> list[dict]:
+    """Internal: Query author stats without auth check.
+
+    Used by both the API endpoint and dashboard aggregation.
+    Auth is enforced at the endpoint level, not here.
     """
     from app.models import Author
 
@@ -356,9 +369,26 @@ def get_by_author(db: Session = Depends(get_db)):
     return author_data
 
 
-@router.get("/bindings")
-def get_bindings(db: Session = Depends(get_db)):
-    """Get authenticated binding counts by binder."""
+@router.get("/by-author")
+def get_by_author(db: Session = Depends(get_db), _user=Depends(require_viewer)):
+    """Get counts by author with sample book titles.
+
+    Returns:
+        - count: Number of book records (a 24-volume set counts as 1)
+        - total_volumes: Sum of all volumes (a 24-volume set contributes 24)
+        - titles: Same as count, number of distinct book records
+
+    Performance: Uses 2 batch queries instead of N+1 (one query per author).
+    """
+    return query_by_author(db)
+
+
+def query_bindings(db: Session) -> list[dict]:
+    """Internal: Query binding stats without auth check.
+
+    Used by both the API endpoint and dashboard aggregation.
+    Auth is enforced at the endpoint level, not here.
+    """
     results = (
         db.query(
             Binder.id,
@@ -389,8 +419,14 @@ def get_bindings(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/bindings")
+def get_bindings(db: Session = Depends(get_db), _user=Depends(require_viewer)):
+    """Get authenticated binding counts by binder."""
+    return query_bindings(db)
+
+
 @router.get("/by-era")
-def get_by_era(db: Session = Depends(get_db)):
+def get_by_era(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get counts by era (Victorian, Romantic, etc.)."""
     # Use COALESCE to prefer year_start, fall back to year_end
     year_col = func.coalesce(Book.year_start, Book.year_end)
@@ -427,7 +463,7 @@ def get_by_era(db: Session = Depends(get_db)):
 
 
 @router.get("/pending-deliveries")
-def get_pending_deliveries(db: Session = Depends(get_db)):
+def get_pending_deliveries(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get list of books currently in transit."""
     books = (
         db.query(Book)
@@ -454,7 +490,7 @@ def get_pending_deliveries(db: Session = Depends(get_db)):
 
 
 @router.get("/acquisitions-by-month")
-def get_acquisitions_by_month(db: Session = Depends(get_db)):
+def get_acquisitions_by_month(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get acquisition counts and values by month for trend analysis."""
     from sqlalchemy import extract
 
@@ -495,19 +531,11 @@ def get_acquisitions_by_month(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/acquisitions-daily")
-def get_acquisitions_daily(
-    db: Session = Depends(get_db),
-    reference_date: str = Query(
-        default=None,
-        description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
-    ),
-    days: int = Query(default=30, ge=7, le=90, description="Number of days to look back"),
-):
-    """Get daily acquisition data for the last N days.
+def query_acquisitions_daily(db: Session, reference_date: str = None, days: int = 30) -> list[dict]:
+    """Internal: Query daily acquisition data without auth check.
 
-    Returns cumulative value growth day by day, useful for trend charts.
-    The reference_date should be the current date in the user's timezone.
+    Used by both the API endpoint and dashboard aggregation.
+    Auth is enforced at the endpoint level, not here.
     """
     # Parse reference date or use today
     if reference_date:
@@ -573,8 +601,26 @@ def get_acquisitions_daily(
     return result
 
 
+@router.get("/acquisitions-daily")
+def get_acquisitions_daily(
+    db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
+    reference_date: str = Query(
+        default=None,
+        description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
+    ),
+    days: int = Query(default=30, ge=7, le=90, description="Number of days to look back"),
+):
+    """Get daily acquisition data for the last N days.
+
+    Returns cumulative value growth day by day, useful for trend charts.
+    The reference_date should be the current date in the user's timezone.
+    """
+    return query_acquisitions_daily(db, reference_date, days)
+
+
 @router.get("/value-by-category")
-def get_value_by_category(db: Session = Depends(get_db)):
+def get_value_by_category(db: Session = Depends(get_db), _user=Depends(require_viewer)):
     """Get value distribution by major categories for pie chart."""
     # Get premium binding value
     premium_value = (
@@ -617,6 +663,7 @@ def get_value_by_category(db: Session = Depends(get_db)):
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
     db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
     reference_date: str = Query(
         default=None,
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
