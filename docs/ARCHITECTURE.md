@@ -46,6 +46,11 @@ BlueMoxon is a serverless book collection management application deployed on AWS
         │                   │  (DB Credentials)  │          │ (Claude 4.5)  │
         │                   └───────────────────┘          │ Napoleon AI   │
         │                                                  └───────────────┘
+        │                   ┌───────────────────┐
+        │                   │  ElastiCache      │
+        │                   │  Redis Serverless │
+        │                   │  (Dashboard Cache)│
+        │                   └───────────────────┘
 ```
 
 ## Environments
@@ -72,11 +77,11 @@ Both environments are deployed via Terraform with isolated resources (separate C
 
 ## Terraform Modules
 
-Infrastructure is managed via 14 Terraform modules in `infra/terraform/modules/`:
+Infrastructure is managed via 15 Terraform modules in `infra/terraform/modules/`:
 
 ```mermaid
 flowchart TD
-    subgraph Modules["Terraform Modules (14)"]
+    subgraph Modules["Terraform Modules (15)"]
         VPC["vpc-networking<br/>VPC endpoints, NAT Gateway"]
         DNS["dns<br/>Route 53 records"]
         ACM["(ACM certs imported)"]
@@ -88,6 +93,7 @@ flowchart TD
         Cognito["cognito<br/>User pools + clients"]
         Secrets["secrets<br/>DB credentials"]
         RDS["rds<br/>Aurora Serverless v2"]
+        Redis["elasticache<br/>Redis Serverless"]
 
         Lambda["lambda<br/>API function + IAM"]
         APIGW["api-gateway<br/>HTTP API + routes"]
@@ -97,9 +103,11 @@ flowchart TD
     end
 
     VPC --> RDS
+    VPC --> Redis
     VPC --> Lambda
     Secrets --> Lambda
     RDS --> Lambda
+    Redis --> Lambda
     Cognito --> Lambda
     S3 --> Lambda
     S3 --> CF
@@ -119,6 +127,7 @@ flowchart TD
 | `cognito` | User pool, app client, domain |
 | `db-sync-lambda` | Lambda for prod→staging data sync |
 | `dns` | Route 53 A/AAAA records |
+| `elasticache` | Redis Serverless cache, security group |
 | `github-oidc` | OIDC provider, IAM role for GitHub Actions |
 | `lambda` | Function, IAM role, VPC config |
 | `landing-site` | S3 + CloudFront for marketing site |

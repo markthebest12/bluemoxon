@@ -2,6 +2,45 @@
 
 Base URL: `/api/v1`
 
+## Authentication
+
+All endpoints (except health checks) require authentication. Two methods are supported:
+
+### JWT Authentication (Web App)
+Include the Cognito JWT token in the Authorization header:
+```
+Authorization: Bearer <jwt_token>
+```
+
+### API Key Authentication (CLI/Automation)
+Include the API key in the X-API-Key header:
+```
+X-API-Key: <api_key>
+```
+
+### Role Requirements
+
+| Role | Access |
+|------|--------|
+| **Viewer** | Read-only access to books, stats, exports |
+| **Editor** | Viewer + create/update books, analyses |
+| **Admin** | Editor + user management, config, costs |
+
+### Endpoint Auth Summary
+
+| Endpoint Pattern | Required Role |
+|------------------|---------------|
+| `GET /books/*` | Viewer |
+| `GET /stats/*` | Viewer |
+| `GET /export/*` | Viewer |
+| `POST/PUT/PATCH/DELETE /books/*` | Editor |
+| `GET /admin/config` | Admin |
+| `GET /admin/system-info` | Admin |
+| `GET /admin/costs` | Admin |
+| `GET /health/*` | None (public) |
+
+---
+
 ## Books API
 
 ### List Books

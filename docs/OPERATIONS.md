@@ -73,13 +73,37 @@ curl -X POST https://api.bluemoxon.com/api/v1/health/migrate
 - If you see "duplicate key" errors
 - After manual database operations
 
-### Cleanup Orphan Records
+### Cleanup Orphan S3 Images
 
-Remove orphaned database records:
+Remove orphaned images from S3 (images not associated with any book):
 
 ```bash
-curl -X POST https://api.bluemoxon.com/api/v1/health/cleanup-orphans
+# Scan for orphans (dry run)
+curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/orphan-scan
+
+# Delete orphans (with confirmation)
+curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/orphan-cleanup
 ```
+
+**Features (v1.2):**
+- **Size display** - Shows total size of orphaned files before deletion
+- **Progress tracking** - Real-time progress updates during cleanup
+- **Confirmation** - Requires explicit confirmation before deletion
+- **Grouping** - Orphans grouped by book ID for easier review
+
+### Cleanup Listings Directory
+
+Remove orphaned listing images from S3 `listings/` prefix:
+
+```bash
+# Scan for orphan listings
+curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/listings-scan
+
+# Delete orphan listings
+curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/listings-cleanup
+```
+
+**Note:** Listing images are temporary - they're copied to book images on acquisition. The `listings/` directory can be cleaned periodically.
 
 ### Prod → Staging Sync
 
