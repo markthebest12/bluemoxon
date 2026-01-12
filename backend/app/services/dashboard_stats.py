@@ -244,11 +244,12 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     logger.debug(f"Dashboard cache MISS: {cache_key}")
 
     # Cache miss - execute queries
+    # Import internal query functions (no auth param) instead of endpoint functions
     from app.api.v1.stats import (
-        get_acquisitions_daily,
-        get_bindings,
-        get_by_author,
-        get_by_publisher,
+        query_acquisitions_daily,
+        query_bindings,
+        query_by_author,
+        query_by_publisher,
     )
 
     # Consolidated queries (2 queries instead of ~9)
@@ -256,10 +257,11 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     dimensions = get_dimension_stats(db)
 
     # Individual queries that remain (complex logic)
-    bindings = get_bindings(db)
-    by_publisher = get_by_publisher(db)
-    by_author = get_by_author(db)
-    acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
+    # Using internal query functions - auth is checked at the dashboard endpoint level
+    bindings = query_bindings(db)
+    by_publisher = query_by_publisher(db)
+    by_author = query_by_author(db)
+    acquisitions_daily = query_acquisitions_daily(db, reference_date, days)
 
     result = {
         "overview": overview,

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.auth import CurrentUser, require_viewer
 from app.db import get_db
 from app.models import Book
 
@@ -18,6 +19,7 @@ router = APIRouter()
 def export_csv(
     inventory_type: str = Query(default="PRIMARY"),
     db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_viewer),
 ):
     """Export books to CSV format matching PRIMARY_COLLECTION.csv structure."""
     books = db.query(Book).filter(Book.inventory_type == inventory_type).order_by(Book.id).all()
@@ -109,6 +111,7 @@ def _format_notes(book: Book) -> str:
 def export_json(
     inventory_type: str = Query(default="PRIMARY"),
     db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_viewer),
 ):
     """Export books to JSON format with all details."""
     books = db.query(Book).filter(Book.inventory_type == inventory_type).order_by(Book.id).all()
