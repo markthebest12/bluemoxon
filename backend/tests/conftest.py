@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.auth import CurrentUser, require_admin, require_editor
+from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models.base import Base
@@ -76,6 +76,7 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_viewer] = get_mock_editor
     app.dependency_overrides[require_editor] = get_mock_editor
     app.dependency_overrides[require_admin] = get_mock_admin
     with TestClient(app) as test_client:

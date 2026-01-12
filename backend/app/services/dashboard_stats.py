@@ -256,10 +256,13 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     dimensions = get_dimension_stats(db)
 
     # Individual queries that remain (complex logic)
-    bindings = get_bindings(db)
-    by_publisher = get_by_publisher(db)
-    by_author = get_by_author(db)
-    acquisitions_daily = get_acquisitions_daily(db, reference_date, days)
+    # Note: Pass _user=None for internal calls - auth is checked at the endpoint level
+    bindings = get_bindings(db=db, _user=None)
+    by_publisher = get_by_publisher(db=db, _user=None)
+    by_author = get_by_author(db=db, _user=None)
+    acquisitions_daily = get_acquisitions_daily(
+        db=db, _user=None, reference_date=reference_date, days=days
+    )
 
     result = {
         "overview": overview,
