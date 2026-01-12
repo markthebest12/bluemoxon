@@ -332,3 +332,116 @@ class TestRecalculateRoiPct:
 
         # roi = (300 - 200) / 200 * 100 = 50%
         assert float(book.roi_pct) == pytest.approx(50.00, rel=0.01)
+
+
+class TestDiscountPctOnBookCreation:
+    """Tests for discount_pct calculation when creating books via POST.
+
+    Bug #1078: create_book calls recalculate_roi_pct but NOT recalculate_discount_pct.
+    """
+
+    def test_create_book_calculates_discount_pct(self, client, db):
+        """Creating book with purchase_price and value_mid should calculate discount_pct.
+
+        This is the main bug: POST /books calculates roi_pct but not discount_pct.
+        """
+        response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "The Woman in White",
+                "purchase_price": "448.00",
+                "value_mid": "475.00",
+                "status": "ON_HAND",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+
+        # discount_pct should be calculated: (475 - 448) / 475 * 100 = 5.68%
+        assert data["discount_pct"] is not None, "discount_pct should be calculated on create"
+        assert float(data["discount_pct"]) == pytest.approx(5.68, rel=0.01)
+
+    def test_create_book_calculates_both_discount_and_roi(self, client, db):
+        """Creating book with all values should calculate both discount_pct and roi_pct."""
+        response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "Val D'Arno",
+                "purchase_price": "169.63",
+                "acquisition_cost": "169.63",
+                "value_mid": "260.00",
+                "status": "ON_HAND",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+
+        # discount_pct = (260 - 169.63) / 260 * 100 = 34.76%
+        assert data["discount_pct"] is not None, "discount_pct should be calculated"
+        assert float(data["discount_pct"]) == pytest.approx(34.76, rel=0.01)
+
+        # roi_pct = (260 - 169.63) / 169.63 * 100 = 53.27%
+        assert data["roi_pct"] is not None, "roi_pct should be calculated"
+        assert float(data["roi_pct"]) == pytest.approx(53.27, rel=0.01)
+
+
+class TestDiscountPctOnPurchasePriceUpdate:
+    """Tests for discount_pct recalculation when purchase_price is updated.
+
+    Bug #1078: update_book triggers recalculate_discount_pct only for value_* fields,
+    not when purchase_price changes.
+    """
+
+    def test_update_purchase_price_recalculates_discount(self, client, db):
+        """Updating purchase_price via PUT should recalculate discount_pct."""
+        # Create book with initial values
+        book = Book(
+            title="Test Book",
+            purchase_price=Decimal("100.00"),
+            value_mid=Decimal("200.00"),
+            discount_pct=Decimal("50.00"),  # Correct for 100/200
+            status="ON_HAND",
+        )
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        # Update purchase_price - discount should recalculate
+        response = client.put(
+            f"/api/v1/books/{book_id}",
+            json={"purchase_price": "150.00"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # discount_pct should be recalculated: (200 - 150) / 200 * 100 = 25%
+        assert float(data["discount_pct"]) == pytest.approx(25.00, rel=0.01)
+
+    def test_update_purchase_price_alone_triggers_discount_recalc(self, client, db):
+        """Updating ONLY purchase_price (not value_mid) should still recalculate discount."""
+        book = Book(
+            title="Test Book",
+            purchase_price=Decimal("448.00"),
+            value_mid=Decimal("475.00"),
+            discount_pct=None,  # Bug: was never calculated
+            status="ON_HAND",
+        )
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        # Update only purchase_price
+        response = client.put(
+            f"/api/v1/books/{book_id}",
+            json={"purchase_price": "400.00"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # discount_pct should be calculated: (475 - 400) / 475 * 100 = 15.79%
+        assert data["discount_pct"] is not None, "discount_pct should be calculated when purchase_price changes"
+        assert float(data["discount_pct"]) == pytest.approx(15.79, rel=0.01)
