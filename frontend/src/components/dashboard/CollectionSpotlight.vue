@@ -152,7 +152,7 @@ async function fetchSpotlightBooks(): Promise<void> {
         })
       );
 
-      topBooks = response.data.items || response.data;
+      topBooks = response.data; // /books/top returns array directly
       setCachedBooks(topBooks);
     }
 
