@@ -31,7 +31,6 @@ const SPOTLIGHT_COUNT = 3;
 const SPOTLIGHT_LIMIT = 34; // Fetch top books from /books/top endpoint
 const CACHE_KEY = "bmx_spotlight_cache";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const SEED_KEY = "bmx_spotlight_seed";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 500;
 
@@ -58,32 +57,11 @@ function navigateToBook(bookId: number, event?: MouseEvent): void {
   }
 }
 
-// Simple seeded PRNG (mulberry32)
-function createSeededRandom(seed: number): () => number {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Get or create session seed for consistent shuffle
-function getSessionSeed(): number {
-  const stored = sessionStorage.getItem(SEED_KEY);
-  if (stored) {
-    return parseInt(stored, 10);
-  }
-  const seed = Math.floor(Math.random() * 2147483647);
-  sessionStorage.setItem(SEED_KEY, seed.toString());
-  return seed;
-}
-
-// Shuffle array (Fisher-Yates) with seeded random
-function shuffleArraySeeded<T>(array: T[], random: () => number): T[] {
+// Shuffle array (Fisher-Yates) with true random - different on each page load
+function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
+    const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
@@ -171,10 +149,8 @@ async function fetchSpotlightBooks(): Promise<void> {
       setCachedBooks(topBooks);
     }
 
-    // Shuffle with session-consistent seed and pick spotlight books
-    const seed = getSessionSeed();
-    const random = createSeededRandom(seed);
-    const shuffled = shuffleArraySeeded(topBooks, random);
+    // Shuffle randomly and pick spotlight books (different on each page load)
+    const shuffled = shuffleArray(topBooks);
     spotlightBooks.value = shuffled.slice(0, SPOTLIGHT_COUNT);
   } catch (e: unknown) {
     const message =
@@ -342,9 +318,10 @@ onMounted(() => {
             {{ book.publisher_name }}
           </p>
 
-          <!-- Value -->
+          <!-- Value (FMV) -->
           <p v-if="book.value_mid" class="text-lg font-display text-victorian-gold-dark">
             {{ formatCurrency(book.value_mid) }}
+            <span class="text-xs text-victorian-ink-muted font-sans ml-1">FMV</span>
           </p>
         </div>
       </div>
