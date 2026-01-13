@@ -698,6 +698,238 @@ class TestBindingStats:
         assert data[0]["count"] == 2
         assert data[0]["value"] == 1250
 
+    def test_bindings_includes_founded_and_closed_year(self, client, db):
+        """Test binder response includes founded_year and closed_year fields.
+
+        Issue #1099: Binder tooltips should show operation dates.
+        """
+        from app.models import Binder
+
+        # Create binder with operation dates
+        binder = Binder(
+            name="Riviere",
+            full_name="Robert Rivière & Son",
+            founded_year=1829,
+            closed_year=1939,
+        )
+        db.add(binder)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Riviere Binding",
+                "binder_id": binder.id,
+                "binding_authenticated": True,
+                "value_mid": 800,
+            },
+        )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        riviere = next((b for b in data if b["binder"] == "Riviere"), None)
+        assert riviere is not None
+        assert riviere["founded_year"] == 1829
+        assert riviere["closed_year"] == 1939
+
+    def test_bindings_handles_null_founded_and_closed_year(self, client, db):
+        """Test binder response handles null founded_year and closed_year.
+
+        Issue #1099: Binder fields should be null-safe.
+        """
+        from app.models import Binder
+
+        # Create binder without operation dates
+        binder = Binder(name="Unknown Binder", full_name="Unknown Victorian Binder")
+        db.add(binder)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Unknown Binder Book",
+                "binder_id": binder.id,
+                "binding_authenticated": True,
+                "value_mid": 100,
+            },
+        )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        unknown = next((b for b in data if b["binder"] == "Unknown Binder"), None)
+        assert unknown is not None
+        assert unknown["founded_year"] is None
+        assert unknown["closed_year"] is None
+
+    def test_bindings_sample_titles_limit(self, client, db):
+        """Test that sample_titles contains at most 5 titles.
+
+        Issue #1099: Performance optimization - sample_titles should be limited
+        to 5 books to avoid excessive data transfer.
+        """
+        from app.models import Binder
+
+        binder = Binder(name="Prolific Binder", full_name="Prolific Victorian Binder")
+        db.add(binder)
+        db.commit()
+
+        # Create 10 authenticated books for this binder
+        for i in range(10):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Prolific Book {i + 1}",
+                    "binder_id": binder.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        prolific = next((b for b in data if b["binder"] == "Prolific Binder"), None)
+        assert prolific is not None
+        assert prolific["count"] == 10, "Should have 10 book records"
+        # sample_titles should be limited to 5
+        assert len(prolific["sample_titles"]) <= 5, "sample_titles should contain at most 5 titles"
+
+    def test_bindings_has_more_flag(self, client, db):
+        """Test that has_more flag correctly indicates if more books exist.
+
+        Issue #1099: has_more should be True when binder has more than 5 books,
+        False when 5 or fewer.
+        """
+        from app.models import Binder
+
+        # Binder with 6 books (has_more should be True)
+        binder_many = Binder(name="Many Books Binder", full_name="Binder With Many")
+        db.add(binder_many)
+        db.commit()
+
+        for i in range(6):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Many Book {i + 1}",
+                    "binder_id": binder_many.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        # Binder with 3 books (has_more should be False)
+        binder_few = Binder(name="Few Books Binder", full_name="Binder With Few")
+        db.add(binder_few)
+        db.commit()
+
+        for i in range(3):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Few Book {i + 1}",
+                    "binder_id": binder_few.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        many = next((b for b in data if b["binder"] == "Many Books Binder"), None)
+        assert many is not None
+        assert many["has_more"] is True, "has_more should be True when binder has more than 5 books"
+
+        few = next((b for b in data if b["binder"] == "Few Books Binder"), None)
+        assert few is not None
+        assert few["has_more"] is False, "has_more should be False when binder has 5 or fewer books"
+
+    def test_bindings_multiple_binders_sample_titles(self, client, db):
+        """Test that sample_titles works correctly for multiple binders.
+
+        Issue #1099: This tests the batch query approach - verifying that
+        sample_titles are correctly associated with each binder when
+        fetching data for multiple binders at once.
+        """
+        from app.models import Binder
+
+        # Create first binder with specific titles
+        binder1 = Binder(name="Binder One", full_name="First Victorian Binder")
+        db.add(binder1)
+        db.commit()
+
+        binder1_titles = ["Alpha Binding", "Beta Binding", "Gamma Binding"]
+        for title in binder1_titles:
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder1.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        # Create second binder with different titles
+        binder2 = Binder(name="Binder Two", full_name="Second Victorian Binder")
+        db.add(binder2)
+        db.commit()
+
+        binder2_titles = ["Delta Binding", "Epsilon Binding"]
+        for title in binder2_titles:
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder2.id,
+                    "binding_authenticated": True,
+                    "value_mid": 200,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify Binder One has correct sample_titles
+        b1 = next((b for b in data if b["binder"] == "Binder One"), None)
+        assert b1 is not None
+        assert b1["count"] == 3
+        assert len(b1["sample_titles"]) == 3
+        # All of binder1's titles should be in the sample
+        for title in binder1_titles:
+            assert title in b1["sample_titles"], (
+                f"'{title}' should be in Binder One's sample_titles"
+            )
+        # None of binder2's titles should be in binder1's sample
+        for title in binder2_titles:
+            assert title not in b1["sample_titles"], (
+                f"'{title}' should NOT be in Binder One's sample_titles"
+            )
+
+        # Verify Binder Two has correct sample_titles
+        b2 = next((b for b in data if b["binder"] == "Binder Two"), None)
+        assert b2 is not None
+        assert b2["count"] == 2
+        assert len(b2["sample_titles"]) == 2
+        # All of binder2's titles should be in the sample
+        for title in binder2_titles:
+            assert title in b2["sample_titles"], (
+                f"'{title}' should be in Binder Two's sample_titles"
+            )
+        # None of binder1's titles should be in binder2's sample
+        for title in binder1_titles:
+            assert title not in b2["sample_titles"], (
+                f"'{title}' should NOT be in Binder Two's sample_titles"
+            )
+
 
 class TestByEra:
     """Tests for GET /api/v1/stats/by-era."""
@@ -896,6 +1128,63 @@ class TestByPublisher:
         assert ch is not None
         assert ch["tier"] == "TIER_1"
         assert ch["count"] == 1
+
+    def test_by_publisher_includes_description_and_founded_year(self, client, db):
+        """Test publisher response includes description and founded_year fields.
+
+        Issue #1097: Publisher tooltips should show description and founded year.
+        """
+        from app.models import Publisher
+
+        # Create publisher with description and founded_year
+        publisher = Publisher(
+            name="Macmillan",
+            tier="TIER_1",
+            description="Premier Victorian publisher of literature and poetry",
+            founded_year=1843,
+        )
+        db.add(publisher)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Macmillan Book", "publisher_id": publisher.id, "value_mid": 300},
+        )
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        macmillan = next((p for p in data if p["publisher"] == "Macmillan"), None)
+        assert macmillan is not None
+        assert macmillan["description"] == "Premier Victorian publisher of literature and poetry"
+        assert macmillan["founded_year"] == 1843
+
+    def test_by_publisher_handles_null_description_and_founded_year(self, client, db):
+        """Test publisher response handles null description and founded_year.
+
+        Issue #1097: Publisher fields should be null-safe.
+        """
+        from app.models import Publisher
+
+        # Create publisher without description or founded_year
+        publisher = Publisher(name="Unknown Press", tier="TIER_2")
+        db.add(publisher)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Unknown Book", "publisher_id": publisher.id, "value_mid": 50},
+        )
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        unknown = next((p for p in data if p["publisher"] == "Unknown Press"), None)
+        assert unknown is not None
+        assert unknown["description"] is None
+        assert unknown["founded_year"] is None
 
 
 class TestByAuthor:
@@ -1114,6 +1403,110 @@ class TestByAuthor:
                 f"'{title}' should NOT be in Author Two's sample_titles"
             )
 
+    def test_by_author_includes_era_and_birth_death_years(self, client, db):
+        """Test author response includes era, birth_year, and death_year fields.
+
+        Issue #1097: Author tooltips should show era and lifespan.
+        """
+        from app.models import Author
+
+        # Create author with metadata
+        author = Author(
+            name="Alfred Tennyson",
+            era="Victorian",
+            birth_year=1809,
+            death_year=1892,
+        )
+        db.add(author)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "In Memoriam",
+                "author_id": author.id,
+                "value_mid": 500,
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        tennyson = next((a for a in data if a["author"] == "Alfred Tennyson"), None)
+        assert tennyson is not None
+        assert tennyson["era"] == "Victorian"
+        assert tennyson["birth_year"] == 1809
+        assert tennyson["death_year"] == 1892
+
+    def test_by_author_handles_null_era_and_years(self, client, db):
+        """Test author response handles null era and year fields.
+
+        Issue #1097: Author fields should be null-safe.
+        """
+        from app.models import Author
+
+        # Create author without metadata
+        author = Author(name="Anonymous Author")
+        db.add(author)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Anonymous Work",
+                "author_id": author.id,
+                "value_mid": 100,
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        anon = next((a for a in data if a["author"] == "Anonymous Author"), None)
+        assert anon is not None
+        assert anon["era"] is None
+        assert anon["birth_year"] is None
+        assert anon["death_year"] is None
+
+    def test_by_author_partial_years(self, client, db):
+        """Test author with only birth_year or only death_year.
+
+        Issue #1097: Frontend shows "b. 1809" or "d. 1892" for partial data.
+        """
+        from app.models import Author
+
+        # Author with only birth year
+        author1 = Author(name="Living Author", birth_year=1950)
+        # Author with only death year
+        author2 = Author(name="Ancient Author", death_year=1600)
+        db.add_all([author1, author2])
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Modern Work", "author_id": author1.id, "value_mid": 100},
+        )
+        client.post(
+            "/api/v1/books",
+            json={"title": "Ancient Work", "author_id": author2.id, "value_mid": 200},
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        living = next((a for a in data if a["author"] == "Living Author"), None)
+        assert living is not None
+        assert living["birth_year"] == 1950
+        assert living["death_year"] is None
+
+        ancient = next((a for a in data if a["author"] == "Ancient Author"), None)
+        assert ancient is not None
+        assert ancient["birth_year"] is None
+        assert ancient["death_year"] == 1600
+
 
 class TestValueByCategory:
     """Tests for GET /api/v1/stats/value-by-category."""
@@ -1271,6 +1664,92 @@ class TestDashboardBatch:
         poetry = next((c for c in data["by_category"] if c["category"] == "Victorian Poetry"), None)
         assert poetry is not None
         assert poetry["count"] == 1
+
+    def test_dashboard_includes_references(self, client):
+        """Test dashboard includes era and condition reference definitions."""
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify references section exists
+        assert "references" in data
+        assert data["references"] is not None
+
+        # Verify eras structure
+        eras = data["references"]["eras"]
+        assert "Victorian (1837-1901)" in eras
+        victorian = eras["Victorian (1837-1901)"]
+        assert victorian["label"] == "Victorian"
+        assert victorian["years"] == "1837-1901"
+        assert "description" in victorian
+
+        # Verify conditions structure
+        conditions = data["references"]["conditions"]
+        assert "FINE" in conditions
+        fine = conditions["FINE"]
+        assert fine["label"] == "Fine"
+        assert "description" in fine
+
+        # Verify all expected condition grades are present
+        expected_conditions = ["FINE", "NEAR_FINE", "VERY_GOOD", "GOOD", "FAIR", "POOR"]
+        for condition in expected_conditions:
+            assert condition in conditions, f"Missing condition: {condition}"
+
+    def test_dashboard_bindings_include_enhanced_fields(self, client, db):
+        """Test dashboard bindings include founded_year, closed_year, sample_titles, has_more.
+
+        Issue #1099: Binder tooltips should show operation dates and sample titles.
+        This test ensures the dashboard endpoint returns all binder fields, not just
+        the subset defined in the original BinderData schema.
+        """
+        from app.models import Binder
+
+        # Create binder with operation years
+        binder = Binder(
+            name="Zaehnsdorf",
+            full_name="Joseph Zaehnsdorf & Sons",
+            founded_year=1842,
+            closed_year=1947,
+        )
+        db.add(binder)
+        db.commit()
+
+        # Create authenticated books for this binder
+        for i, title in enumerate(["Book One", "Book Two", "Book Three"]):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100 * (i + 1),
+                },
+            )
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find our binder in the response
+        bindings = data["bindings"]
+        assert len(bindings) > 0, "Expected at least one binder"
+
+        zaehnsdorf = next((b for b in bindings if b["binder"] == "Zaehnsdorf"), None)
+        assert zaehnsdorf is not None, "Zaehnsdorf binder not found in response"
+
+        # Verify enhanced fields are present (these were missing before fix)
+        assert "founded_year" in zaehnsdorf, "founded_year field missing from dashboard bindings"
+        assert "closed_year" in zaehnsdorf, "closed_year field missing from dashboard bindings"
+        assert "sample_titles" in zaehnsdorf, "sample_titles field missing from dashboard bindings"
+        assert "has_more" in zaehnsdorf, "has_more field missing from dashboard bindings"
+
+        # Verify values are correct
+        assert zaehnsdorf["founded_year"] == 1842
+        assert zaehnsdorf["closed_year"] == 1947
+        assert zaehnsdorf["count"] == 3
+        assert len(zaehnsdorf["sample_titles"]) == 3
+        assert "Book One" in zaehnsdorf["sample_titles"]
+        assert zaehnsdorf["has_more"] is False  # Only 3 books, not more than 5
 
 
 class TestStatsEdgeCases:

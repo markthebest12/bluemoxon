@@ -27,6 +27,10 @@ export interface BinderData {
   full_name: string;
   count: number;
   value: number;
+  founded_year?: number | null;
+  closed_year?: number | null;
+  sample_titles?: string[];
+  has_more?: boolean;
 }
 
 export interface EraData {
@@ -42,6 +46,8 @@ export interface PublisherData {
   count: number;
   value: number;
   volumes: number;
+  description?: string | null;
+  founded_year?: number | null;
 }
 
 export interface AuthorData {
@@ -53,6 +59,9 @@ export interface AuthorData {
   titles: number;
   sample_titles: string[];
   has_more: boolean;
+  era?: string | null;
+  birth_year?: number | null;
+  death_year?: number | null;
 }
 
 export interface ConditionData {
@@ -65,6 +74,22 @@ export interface CategoryData {
   category: string;
   count: number;
   value: number;
+}
+
+export interface EraDefinition {
+  label: string;
+  years: string;
+  description: string;
+}
+
+export interface ConditionDefinition {
+  label: string;
+  description: string;
+}
+
+export interface ReferenceDefinitions {
+  eras: Record<string, EraDefinition>;
+  conditions: Record<string, ConditionDefinition>;
 }
 
 export interface AcquisitionDay {
@@ -87,6 +112,7 @@ export interface DashboardStats {
   acquisitions_daily: AcquisitionDay[];
   by_condition: ConditionData[];
   by_category: CategoryData[];
+  references?: ReferenceDefinitions;
 }
 
 export interface CachedDashboard {

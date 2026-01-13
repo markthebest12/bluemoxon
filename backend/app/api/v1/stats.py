@@ -14,12 +14,68 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.auth import require_viewer
 from app.db import get_db
 from app.models import Binder, Book, Publisher
 from app.schemas.stats import DashboardResponse
 from app.utils import safe_float
+
+
+def batch_fetch_sample_titles(
+    db: Session,
+    fk_column: InstrumentedAttribute[int | None],
+    ids: list[int],
+    additional_filters: list | None = None,
+    limit: int = 5,
+) -> dict[int, list[str]]:
+    """Batch fetch sample book titles for a list of entity IDs.
+
+    Uses a window function to efficiently fetch up to `limit` titles per entity
+    in a single query, avoiding N+1 queries.
+
+    Args:
+        db: Database session
+        fk_column: The Book foreign key column to partition by (e.g., Book.author_id)
+        ids: List of entity IDs to fetch titles for
+        additional_filters: Optional list of additional filter conditions
+        limit: Maximum number of titles per entity (default 5)
+
+    Returns:
+        Dict mapping entity_id -> list of title strings
+    """
+    if not ids:
+        return {}
+
+    # Build filter list
+    filters = [fk_column.in_(ids), Book.inventory_type == "PRIMARY"]
+    if additional_filters:
+        filters.extend(additional_filters)
+
+    # Window function query to get ranked titles per entity
+    subq = (
+        db.query(
+            fk_column,
+            Book.title,
+            func.row_number().over(partition_by=fk_column, order_by=Book.id).label("rn"),
+        )
+        .filter(*filters)
+        .subquery()
+    )
+
+    # Fetch only top N titles per entity
+    sample_titles_rows = (
+        db.query(subq.c[fk_column.key], subq.c.title).filter(subq.c.rn <= limit).all()
+    )
+
+    # Build lookup dict
+    titles_by_entity: dict[int, list[str]] = defaultdict(list)
+    for entity_id, title in sample_titles_rows:
+        titles_by_entity[entity_id].append(title)
+
+    return titles_by_entity
+
 
 router = APIRouter()
 
@@ -268,6 +324,8 @@ def query_by_publisher(db: Session) -> list[dict]:
             func.count(Book.id),
             func.sum(Book.value_mid),
             func.sum(Book.volumes),
+            Publisher.description,
+            Publisher.founded_year,
         )
         .join(Book, Book.publisher_id == Publisher.id)
         .filter(Book.inventory_type == "PRIMARY")
@@ -284,6 +342,8 @@ def query_by_publisher(db: Session) -> list[dict]:
             "count": row[3],
             "value": safe_float(row[4]),
             "volumes": row[5] or 0,
+            "description": row[6],
+            "founded_year": row[7],
         }
         for row in results
     ]
@@ -303,7 +363,7 @@ def query_by_author(db: Session) -> list[dict]:
     """
     from app.models import Author
 
-    # Query 1: Aggregation (unchanged)
+    # Query 1: Aggregation with author metadata
     results = (
         db.query(
             Author.id,
@@ -311,6 +371,9 @@ def query_by_author(db: Session) -> list[dict]:
             func.count(Book.id),  # Number of book records
             func.sum(Book.value_mid),
             func.sum(Book.volumes),  # Total volumes across all records
+            Author.era,
+            Author.birth_year,
+            Author.death_year,
         )
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
@@ -325,31 +388,13 @@ def query_by_author(db: Session) -> list[dict]:
     if not author_ids:
         return []
 
-    # Query 2: Batch fetch sample titles using window function
-    subq = (
-        db.query(
-            Book.author_id,
-            Book.title,
-            func.row_number().over(partition_by=Book.author_id, order_by=Book.id).label("rn"),
-        )
-        .filter(
-            Book.author_id.in_(author_ids),
-            Book.inventory_type == "PRIMARY",
-        )
-        .subquery()
-    )
-
-    sample_titles_rows = db.query(subq.c.author_id, subq.c.title).filter(subq.c.rn <= 5).all()
-
-    # Build lookup dict: author_id -> [titles]
-    titles_by_author = defaultdict(list)
-    for author_id, title in sample_titles_rows:
-        titles_by_author[author_id].append(title)
+    # Batch fetch sample titles using helper
+    titles_by_author = batch_fetch_sample_titles(db, Book.author_id, author_ids)
 
     # Build response using the lookup
     author_data = []
     for row in results:
-        author_id, author_name, record_count, value, volumes = row
+        author_id, author_name, record_count, value, volumes, era, birth_year, death_year = row
         sample_titles = titles_by_author.get(author_id, [])
 
         author_data.append(
@@ -363,6 +408,9 @@ def query_by_author(db: Session) -> list[dict]:
                 "titles": record_count,  # Number of distinct titles/sets
                 "sample_titles": sample_titles,
                 "has_more": record_count > 5,
+                "era": era,
+                "birth_year": birth_year,
+                "death_year": death_year,
             }
         )
 
@@ -389,6 +437,7 @@ def query_bindings(db: Session) -> list[dict]:
     Used by both the API endpoint and dashboard aggregation.
     Auth is enforced at the endpoint level, not here.
     """
+    # Query 1: Aggregation with binder metadata
     results = (
         db.query(
             Binder.id,
@@ -396,6 +445,8 @@ def query_bindings(db: Session) -> list[dict]:
             Binder.full_name,
             func.count(Book.id),
             func.sum(Book.value_mid),
+            Binder.founded_year,
+            Binder.closed_year,
         )
         .join(Book, Book.binder_id == Binder.id)
         .filter(
@@ -407,6 +458,20 @@ def query_bindings(db: Session) -> list[dict]:
         .all()
     )
 
+    # Collect binder IDs for sample titles query
+    binder_ids = [row[0] for row in results]
+
+    if not binder_ids:
+        return []
+
+    # Batch fetch sample titles using helper (with authenticated binding filter)
+    titles_by_binder = batch_fetch_sample_titles(
+        db,
+        Book.binder_id,
+        binder_ids,
+        additional_filters=[Book.binding_authenticated.is_(True)],
+    )
+
     return [
         {
             "binder_id": row[0],
@@ -414,6 +479,10 @@ def query_bindings(db: Session) -> list[dict]:
             "full_name": row[2],
             "count": row[3],
             "value": safe_float(row[4]),
+            "founded_year": row[5],
+            "closed_year": row[6],
+            "sample_titles": titles_by_binder.get(row[0], []),
+            "has_more": row[3] > 5,
         }
         for row in results
     ]
@@ -673,7 +742,9 @@ def get_dashboard(
         default=None,
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
     ),
-    days: int = Query(default=30, ge=7, le=90, description="Number of days for acquisitions"),
+    days: int = Query(
+        default=30, ge=7, le=180, description="Number of days for acquisitions (default: 30)"
+    ),
 ) -> DashboardResponse:
     """Get all dashboard statistics in a single request.
 

@@ -509,6 +509,13 @@ MIGRATION_Z1012345EFGH_SQL = [
     "ALTER TABLE cleanup_jobs ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0",
 ]
 
+# Migration SQL for z2012345ghij_add_binder_operation_years
+# Adds founded_year and closed_year columns to binders table for tooltip display
+MIGRATION_Z2012345GHIJ_SQL = [
+    "ALTER TABLE binders ADD COLUMN IF NOT EXISTS founded_year INTEGER",
+    "ALTER TABLE binders ADD COLUMN IF NOT EXISTS closed_year INTEGER",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -748,5 +755,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "z1012345efgh",
         "name": "add_failed_count_to_cleanup_jobs",
         "sql_statements": MIGRATION_Z1012345EFGH_SQL,
+    },
+    {
+        "id": "z2012345ghij",
+        "name": "add_binder_operation_years",
+        "sql_statements": MIGRATION_Z2012345GHIJ_SQL,
     },
 ]

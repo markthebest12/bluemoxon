@@ -146,3 +146,36 @@ export const BOOK_CATEGORIES = [
   "Education",
   "Literature",
 ] as const;
+
+/**
+ * Dashboard stat card definitions with tooltips.
+ * Used for overview metrics on the dashboard.
+ */
+export const DASHBOARD_STAT_CARDS = {
+  ON_HAND: {
+    label: "On Hand",
+    description: "Total number of books currently in your collection with On Hand status",
+    filterParam: "status=ON_HAND",
+  },
+  VOLUMES: {
+    label: "Volumes",
+    description: "Total individual volumes across all books (multi-volume sets count each volume)",
+    filterParam: "status=ON_HAND",
+  },
+  EST_VALUE: {
+    label: "Est. Value",
+    description: "Estimated mid-range market value of your On Hand collection",
+    filterParam: "status=ON_HAND",
+  },
+  PREMIUM: {
+    label: "Premium",
+    description:
+      "Books with authenticated premium bindings (Zaehnsdorf, Riviere, Sangorski & Sutcliffe, etc.)",
+    filterParam: "binding_authenticated=true&status=ON_HAND",
+  },
+} as const;
+
+export type DashboardStatCard = keyof typeof DASHBOARD_STAT_CARDS;
+
+// Note: Era definitions are now served by the API via /stats/dashboard references.eras
+// Frontend uses the EraDefinition interface from types/dashboard.ts

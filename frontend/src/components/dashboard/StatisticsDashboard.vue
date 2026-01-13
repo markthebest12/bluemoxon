@@ -2,14 +2,33 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
-import type { DashboardStats } from "@/types/dashboard";
-import { formatAcquisitionTooltip } from "./chartHelpers";
+import type { DashboardStats, EraDefinition, AuthorData, PublisherData } from "@/types/dashboard";
+import { formatAcquisitionTooltip, yAxisLabelTooltipPlugin } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
 import { formatConditionGrade } from "@/utils/format";
 import { useDashboardStore } from "@/stores/dashboard";
+import BaseTooltip from "@/components/BaseTooltip.vue";
 
 const router = useRouter();
 const dashboardStore = useDashboardStore();
+
+// Props - receive data from parent (moved up for helper access)
+const props = defineProps<{
+  data: DashboardStats;
+}>();
+
+// Helper to get condition label from API references (single source of truth)
+function getConditionLabel(condition: string): string {
+  const def = props.data.references?.conditions[condition];
+  return def?.label ?? formatConditionGrade(condition);
+}
+
+// Helper to get condition description from API references (single source of truth)
+function getConditionDescription(condition: string): string {
+  // Use canonical condition value (e.g., "FINE", "VERY_GOOD")
+  const def = props.data.references?.conditions[condition];
+  return def?.description ?? "";
+}
 
 // Time range options for the selector buttons
 const timeRangeOptions = [
@@ -51,13 +70,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  yAxisLabelTooltipPlugin
 );
-
-// Props - receive data from parent
-const props = defineProps<{
-  data: DashboardStats;
-}>();
 
 // Colors - Victorian Design System
 const chartColors = {
@@ -127,7 +142,10 @@ const lineChartOptions = computed(() => ({
 }));
 
 // Factory function for doughnut chart options to reduce duplication
-function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event | null) => void) {
+function createDoughnutChartOptions(
+  onClick: (index: number, nativeEvent?: Event | null) => void,
+  options?: { hideLegend?: boolean }
+) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -137,14 +155,16 @@ function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event
       }
     },
     plugins: {
-      legend: {
-        position: "bottom" as const,
-        labels: {
-          boxWidth: 12,
-          padding: 8,
-          font: { size: 11 },
-        },
-      },
+      legend: options?.hideLegend
+        ? { display: false }
+        : {
+            position: "bottom" as const,
+            labels: {
+              boxWidth: 12,
+              padding: 8,
+              font: { size: 11 },
+            },
+          },
       tooltip: {
         callbacks: {
           label: (context: TooltipItem<"doughnut">) => {
@@ -160,14 +180,18 @@ function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event
 }
 
 // Chart-specific options with click handlers
+// Hide legend for condition chart - we render custom legend with tooltips
 const conditionChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
-    const condition = props.data.by_condition[index]?.condition;
-    if (condition) {
-      // navigateToBooks handles "Ungraded" -> condition_grade__isnull=true
-      navigateToBooks(router, { condition_grade: condition }, nativeEvent);
-    }
-  })
+  createDoughnutChartOptions(
+    (index: number, nativeEvent?: Event | null) => {
+      const condition = props.data.by_condition[index]?.condition;
+      if (condition) {
+        // navigateToBooks handles "Ungraded" -> condition_grade__isnull=true
+        navigateToBooks(router, { condition_grade: condition }, nativeEvent);
+      }
+    },
+    { hideLegend: true }
+  )
 );
 
 const categoryChartOptions = computed(() =>
@@ -180,17 +204,21 @@ const categoryChartOptions = computed(() =>
   })
 );
 
+// Hide legend for bindings chart - we render custom legend with tooltips
 const bindingsChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
-    const binder = props.data.bindings[index];
-    if (binder?.binder_id) {
-      navigateToBooks(
-        router,
-        { binder_id: binder.binder_id, binding_authenticated: "true" },
-        nativeEvent
-      );
-    }
-  })
+  createDoughnutChartOptions(
+    (index: number, nativeEvent?: Event | null) => {
+      const binder = props.data.bindings[index];
+      if (binder?.binder_id) {
+        navigateToBooks(
+          router,
+          { binder_id: binder.binder_id, binding_authenticated: "true" },
+          nativeEvent
+        );
+      }
+    },
+    { hideLegend: true }
+  )
 );
 
 const eraChartOptions = computed(() => ({
@@ -210,9 +238,23 @@ const eraChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        title: (items: TooltipItem<"bar">[]) => {
+          if (items.length > 0) {
+            const era = props.data.by_era[items[0].dataIndex]?.era;
+            const def = props.data.references?.eras[era] as EraDefinition | undefined;
+            return def ? `${def.label} (${def.years})` : era;
+          }
+          return "";
+        },
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          return `${value} ${value === 1 ? "book" : "books"}`;
+          const era = props.data.by_era[context.dataIndex]?.era;
+          const def = props.data.references?.eras[era] as EraDefinition | undefined;
+          const lines = [`${value} ${value === 1 ? "book" : "books"}`];
+          if (def?.description) {
+            lines.push(def.description);
+          }
+          return lines;
         },
       },
     },
@@ -234,16 +276,29 @@ const eraChartOptions = computed(() => ({
   },
 }));
 
+// Maximum number of tier 1 publishers to show in chart
+const MAX_TIER1_PUBLISHERS = 5;
+
+// Helper to get filtered tier1 publishers (used in both chart data and options)
+const tier1Publishers = computed(() =>
+  props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, MAX_TIER1_PUBLISHERS)
+);
+
+// Computed label tooltips for publisher chart (must match chart data order)
+const publisherLabelTooltips = computed(() =>
+  tier1Publishers.value.map((publisher) => formatPublisherLabelTooltip(publisher))
+);
+
 const publisherChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: publisherLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
-      // Match chart data: filter to TIER_1 and slice to top 5
-      const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5);
-      const publisher = tier1[index];
+      const publisher = tier1Publishers.value[index];
       if (publisher?.publisher_id) {
         navigateToBooks(router, { publisher_id: publisher.publisher_id }, event.native);
       }
@@ -253,6 +308,7 @@ const publisherChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count. Hover on publisher name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
           return `${value} ${value === 1 ? "book" : "books"}`;
@@ -322,19 +378,16 @@ const eraChartData = computed(() => ({
   ],
 }));
 
-const publisherChartData = computed(() => {
-  const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
-  return {
-    labels: tier1.slice(0, 5).map((d) => d.publisher),
-    datasets: [
-      {
-        data: tier1.slice(0, 5).map((d) => d.count),
-        backgroundColor: chartColors.gold,
-        borderRadius: 4,
-      },
-    ],
-  };
-});
+const publisherChartData = computed(() => ({
+  labels: tier1Publishers.value.map((d) => d.publisher),
+  datasets: [
+    {
+      data: tier1Publishers.value.map((d) => d.count),
+      backgroundColor: chartColors.gold,
+      borderRadius: 4,
+    },
+  ],
+}));
 
 // Explicit color mapping for condition grades (not index-based)
 // Uses high-contrast colors: best conditions = cool/green, worst = warm/red
@@ -371,7 +424,7 @@ const getConditionColor = (condition: string): string =>
 const conditionChartData = computed(() => {
   const conditions = props.data?.by_condition ?? [];
   return {
-    labels: conditions.map((d) => formatConditionGrade(d.condition)),
+    labels: conditions.map((d) => getConditionLabel(d.condition)),
     datasets: [
       {
         data: conditions.map((d) => d.count),
@@ -430,11 +483,145 @@ const authorChartData = computed(() => ({
   ],
 }));
 
-// Custom options for author chart with enhanced tooltips showing book titles
+// Helper to format author lifespan
+function formatAuthorLifespan(author: {
+  birth_year?: number | null;
+  death_year?: number | null;
+}): string {
+  if (author.birth_year && author.death_year) {
+    return `${author.birth_year}–${author.death_year}`;
+  } else if (author.birth_year) {
+    return `b. ${author.birth_year}`;
+  } else if (author.death_year) {
+    return `d. ${author.death_year}`;
+  }
+  return "Dates unknown";
+}
+
+// Helper to format binder operation years
+function formatBinderYears(binder: {
+  founded_year?: number | null;
+  closed_year?: number | null;
+}): string | null {
+  if (binder.founded_year && binder.closed_year) {
+    return `${binder.founded_year}–${binder.closed_year}`;
+  } else if (binder.founded_year) {
+    return `Est. ${binder.founded_year}`;
+  }
+  return null;
+}
+
+// Helper to format binder tooltip content with dates and sample titles
+function formatBinderTooltip(binder: {
+  full_name?: string | null;
+  binder: string;
+  count: number;
+  founded_year?: number | null;
+  closed_year?: number | null;
+  sample_titles?: string[];
+  has_more?: boolean;
+}): string {
+  const lines: string[] = [];
+
+  // Full name
+  if (binder.full_name) {
+    lines.push(binder.full_name);
+  }
+
+  // Operation years
+  const years = formatBinderYears(binder);
+  if (years) {
+    lines.push(years);
+  }
+
+  // Book count
+  lines.push(`${binder.count} ${binder.count === 1 ? "book" : "books"}`);
+
+  // Sample titles
+  if (binder.sample_titles && binder.sample_titles.length > 0) {
+    binder.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (binder.has_more) {
+      const moreCount = binder.count - binder.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Helper to format author tooltip for Y-axis label hover
+function formatAuthorLabelTooltip(author: AuthorData): string {
+  const lines: string[] = [];
+
+  // Era and lifespan
+  const lifespan = formatAuthorLifespan(author);
+  if (author.era || lifespan) {
+    const parts = [];
+    if (author.era) parts.push(author.era);
+    if (lifespan) parts.push(lifespan);
+    lines.push(parts.join(" • "));
+  }
+
+  // Book/title count
+  lines.push(
+    `${author.count} ${author.count === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}`
+  );
+
+  // Sample titles
+  if (author.sample_titles && author.sample_titles.length > 0) {
+    author.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (author.has_more) {
+      const moreCount = author.titles - author.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Helper to format publisher tooltip for Y-axis label hover
+function formatPublisherLabelTooltip(publisher: PublisherData): string {
+  const lines: string[] = [];
+
+  // Founded year
+  if (publisher.founded_year) {
+    lines.push(`Founded: ${publisher.founded_year}`);
+  }
+
+  // Book count
+  lines.push(`${publisher.count} ${publisher.count === 1 ? "book" : "books"}`);
+
+  // Description (truncate if long)
+  if (publisher.description) {
+    const desc = publisher.description;
+    if (desc.length > 80) {
+      lines.push(desc.substring(0, 77) + "...");
+    } else {
+      lines.push(desc);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Computed label tooltips for author chart (must match chart data order)
+const authorLabelTooltips = computed(() =>
+  filteredAuthorData.value.slice(0, 8).map((author) => formatAuthorLabelTooltip(author))
+);
+
+// Custom options for author chart with enhanced tooltips showing era and book titles
 const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: authorLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
@@ -448,27 +635,12 @@ const authorChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count/value. Hover on author name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          const authorIndex = context.dataIndex;
-          const author = filteredAuthorData.value[authorIndex];
-
-          if (author && author.sample_titles && author.sample_titles.length > 0) {
-            const lines = [
-              `${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`,
-            ];
-            author.sample_titles.forEach((title: string) => {
-              // Truncate long titles
-              const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
-              lines.push(`  • ${truncated}`);
-            });
-            if (author.has_more) {
-              const moreCount = author.titles - author.sample_titles.length;
-              lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
-            }
-            return lines;
-          }
-          return `${value} ${value === 1 ? "book" : "books"}`;
+          const author = filteredAuthorData.value[context.dataIndex];
+          const titles = author?.titles ?? 0;
+          return `${value} ${value === 1 ? "book" : "books"} across ${titles} ${titles === 1 ? "title" : "titles"}`;
         },
       },
     },
@@ -503,7 +675,7 @@ const authorChartOptions = computed(() => ({
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Premium Bindings
         </h3>
-        <div class="h-48 md:h-56">
+        <div class="h-36 md:h-44">
           <Doughnut
             v-if="props.data.bindings.length > 0"
             :data="binderChartData"
@@ -512,6 +684,35 @@ const authorChartOptions = computed(() => ({
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No binding data available
           </p>
+        </div>
+        <!-- Custom legend with tooltips for binder full names -->
+        <div
+          v-if="props.data.bindings.length > 0"
+          class="chart-legend flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+        >
+          <BaseTooltip
+            v-for="(binder, index) in props.data.bindings"
+            :key="binder.binder_id"
+            :content="formatBinderTooltip(binder)"
+            position="top"
+          >
+            <button
+              class="legend-btn flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              :aria-label="`Filter books by ${binder.full_name || binder.binder} binding`"
+              @click="
+                navigateToBooks(router, {
+                  binder_id: binder.binder_id,
+                  binding_authenticated: 'true',
+                })
+              "
+            >
+              <span
+                class="w-3 h-3 rounded-sm inline-block"
+                :style="{ backgroundColor: binderChartData.datasets[0].backgroundColor[index] }"
+              ></span>
+              <span class="text-gray-600">{{ binder.binder }}</span>
+            </button>
+          </BaseTooltip>
         </div>
       </div>
 
@@ -574,7 +775,7 @@ const authorChartOptions = computed(() => ({
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Books by Condition
         </h3>
-        <div class="h-48 md:h-56">
+        <div class="h-36 md:h-44">
           <Doughnut
             v-if="props.data?.by_condition?.length > 0"
             :data="conditionChartData"
@@ -583,6 +784,30 @@ const authorChartOptions = computed(() => ({
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No condition data available
           </p>
+        </div>
+        <!-- Custom legend with tooltips -->
+        <div
+          v-if="props.data?.by_condition?.length > 0"
+          class="chart-legend flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+        >
+          <BaseTooltip
+            v-for="(item, index) in props.data.by_condition"
+            :key="item.condition"
+            :content="getConditionDescription(item.condition) || item.condition"
+            position="top"
+          >
+            <button
+              class="legend-btn flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              :aria-label="`Filter books by ${getConditionLabel(item.condition)} condition`"
+              @click="navigateToBooks(router, { condition_grade: item.condition })"
+            >
+              <span
+                class="w-3 h-3 rounded-sm inline-block"
+                :style="{ backgroundColor: conditionChartData.datasets[0].backgroundColor[index] }"
+              ></span>
+              <span class="text-gray-600">{{ getConditionLabel(item.condition) }}</span>
+            </button>
+          </BaseTooltip>
         </div>
       </div>
 
@@ -664,24 +889,49 @@ const authorChartOptions = computed(() => ({
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: 9999px;
-  border: 1px solid rgb(26, 58, 47);
+  border: 1px solid var(--color-accent-primary);
   background-color: transparent;
-  color: rgb(26, 58, 47);
+  color: var(--color-accent-primary);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .time-range-btn:hover {
-  background-color: rgba(26, 58, 47, 0.1);
+  background-color: color-mix(in srgb, var(--color-accent-primary) 15%, transparent);
 }
 
 .time-range-btn.active {
-  background-color: rgb(26, 58, 47);
-  color: white;
+  background-color: var(--color-accent-primary);
+  color: var(--color-surface-primary);
 }
 
 .time-range-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Chart legend container - handle overflow with scroll */
+.chart-legend {
+  max-height: 4rem; /* ~3 rows of legend items */
+  overflow-y: auto;
+}
+
+/* Legend button accessibility - focus styles for keyboard navigation */
+.legend-btn {
+  border-radius: 0.125rem;
+}
+
+.legend-btn:focus {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.legend-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.legend-btn:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
 }
 </style>
