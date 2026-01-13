@@ -318,9 +318,10 @@ onMounted(() => {
             {{ book.publisher_name }}
           </p>
 
-          <!-- Value -->
+          <!-- Value (FMV) -->
           <p v-if="book.value_mid" class="text-lg font-display text-victorian-gold-dark">
             {{ formatCurrency(book.value_mid) }}
+            <span class="text-xs text-victorian-ink-muted font-sans ml-1">FMV</span>
           </p>
         </div>
       </div>
