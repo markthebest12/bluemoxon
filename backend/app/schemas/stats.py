@@ -48,6 +48,10 @@ class BinderData(BaseModel):
     full_name: str | None
     count: int
     value: float
+    founded_year: int | None = None
+    closed_year: int | None = None
+    sample_titles: list[str] = Field(default_factory=list)
+    has_more: bool = False
 
 
 class EraData(BaseModel):

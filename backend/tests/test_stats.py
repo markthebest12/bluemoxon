@@ -1695,6 +1695,62 @@ class TestDashboardBatch:
         for condition in expected_conditions:
             assert condition in conditions, f"Missing condition: {condition}"
 
+    def test_dashboard_bindings_include_enhanced_fields(self, client, db):
+        """Test dashboard bindings include founded_year, closed_year, sample_titles, has_more.
+
+        Issue #1099: Binder tooltips should show operation dates and sample titles.
+        This test ensures the dashboard endpoint returns all binder fields, not just
+        the subset defined in the original BinderData schema.
+        """
+        from app.models import Binder
+
+        # Create binder with operation years
+        binder = Binder(
+            name="Zaehnsdorf",
+            full_name="Joseph Zaehnsdorf & Sons",
+            founded_year=1842,
+            closed_year=1947,
+        )
+        db.add(binder)
+        db.commit()
+
+        # Create authenticated books for this binder
+        for i, title in enumerate(["Book One", "Book Two", "Book Three"]):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100 * (i + 1),
+                },
+            )
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find our binder in the response
+        bindings = data["bindings"]
+        assert len(bindings) > 0, "Expected at least one binder"
+
+        zaehnsdorf = next((b for b in bindings if b["binder"] == "Zaehnsdorf"), None)
+        assert zaehnsdorf is not None, "Zaehnsdorf binder not found in response"
+
+        # Verify enhanced fields are present (these were missing before fix)
+        assert "founded_year" in zaehnsdorf, "founded_year field missing from dashboard bindings"
+        assert "closed_year" in zaehnsdorf, "closed_year field missing from dashboard bindings"
+        assert "sample_titles" in zaehnsdorf, "sample_titles field missing from dashboard bindings"
+        assert "has_more" in zaehnsdorf, "has_more field missing from dashboard bindings"
+
+        # Verify values are correct
+        assert zaehnsdorf["founded_year"] == 1842
+        assert zaehnsdorf["closed_year"] == 1947
+        assert zaehnsdorf["count"] == 3
+        assert len(zaehnsdorf["sample_titles"]) == 3
+        assert "Book One" in zaehnsdorf["sample_titles"]
+        assert zaehnsdorf["has_more"] is False  # Only 3 books, not more than 5
+
 
 class TestStatsEdgeCases:
     """Tests for edge cases: Unicode, injection strings, boundary values.
