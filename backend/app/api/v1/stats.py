@@ -399,6 +399,7 @@ def query_bindings(db: Session) -> list[dict]:
     Used by both the API endpoint and dashboard aggregation.
     Auth is enforced at the endpoint level, not here.
     """
+    # Query 1: Aggregation with binder metadata
     results = (
         db.query(
             Binder.id,
@@ -406,6 +407,8 @@ def query_bindings(db: Session) -> list[dict]:
             Binder.full_name,
             func.count(Book.id),
             func.sum(Book.value_mid),
+            Binder.founded_year,
+            Binder.closed_year,
         )
         .join(Book, Book.binder_id == Binder.id)
         .filter(
@@ -417,6 +420,34 @@ def query_bindings(db: Session) -> list[dict]:
         .all()
     )
 
+    # Collect binder IDs for sample titles query
+    binder_ids = [row[0] for row in results]
+
+    if not binder_ids:
+        return []
+
+    # Query 2: Batch fetch sample titles using window function
+    subq = (
+        db.query(
+            Book.binder_id,
+            Book.title,
+            func.row_number().over(partition_by=Book.binder_id, order_by=Book.id).label("rn"),
+        )
+        .filter(
+            Book.binder_id.in_(binder_ids),
+            Book.binding_authenticated.is_(True),
+            Book.inventory_type == "PRIMARY",
+        )
+        .subquery()
+    )
+
+    sample_titles_rows = db.query(subq.c.binder_id, subq.c.title).filter(subq.c.rn <= 5).all()
+
+    # Build lookup dict: binder_id -> [titles]
+    titles_by_binder = defaultdict(list)
+    for binder_id, title in sample_titles_rows:
+        titles_by_binder[binder_id].append(title)
+
     return [
         {
             "binder_id": row[0],
@@ -424,6 +455,10 @@ def query_bindings(db: Session) -> list[dict]:
             "full_name": row[2],
             "count": row[3],
             "value": safe_float(row[4]),
+            "founded_year": row[5],
+            "closed_year": row[6],
+            "sample_titles": titles_by_binder.get(row[0], []),
+            "has_more": row[3] > 5,
         }
         for row in results
     ]

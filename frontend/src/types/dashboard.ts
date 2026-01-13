@@ -27,6 +27,10 @@ export interface BinderData {
   full_name: string;
   count: number;
   value: number;
+  founded_year?: number | null;
+  closed_year?: number | null;
+  sample_titles?: string[];
+  has_more?: boolean;
 }
 
 export interface EraData {

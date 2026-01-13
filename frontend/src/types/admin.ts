@@ -50,6 +50,8 @@ export interface PublisherEntity extends EntityTier {
 export interface BinderEntity extends EntityTier {
   full_name?: string | null;
   authentication_markers?: string | null;
+  founded_year?: number | null;
+  closed_year?: number | null;
 }
 
 export interface ReassignRequest {

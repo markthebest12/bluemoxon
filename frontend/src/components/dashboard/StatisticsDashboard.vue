@@ -521,6 +521,60 @@ function formatAuthorLifespan(author: {
   return "Dates unknown";
 }
 
+// Helper to format binder operation years
+function formatBinderYears(binder: {
+  founded_year?: number | null;
+  closed_year?: number | null;
+}): string | null {
+  if (binder.founded_year && binder.closed_year) {
+    return `${binder.founded_year}–${binder.closed_year}`;
+  } else if (binder.founded_year) {
+    return `Est. ${binder.founded_year}`;
+  }
+  return null;
+}
+
+// Helper to format binder tooltip content with dates and sample titles
+function formatBinderTooltip(binder: {
+  full_name?: string | null;
+  binder: string;
+  count: number;
+  founded_year?: number | null;
+  closed_year?: number | null;
+  sample_titles?: string[];
+  has_more?: boolean;
+}): string {
+  const lines: string[] = [];
+
+  // Full name
+  if (binder.full_name) {
+    lines.push(binder.full_name);
+  }
+
+  // Operation years
+  const years = formatBinderYears(binder);
+  if (years) {
+    lines.push(years);
+  }
+
+  // Book count
+  lines.push(`${binder.count} ${binder.count === 1 ? "book" : "books"}`);
+
+  // Sample titles
+  if (binder.sample_titles && binder.sample_titles.length > 0) {
+    binder.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (binder.has_more) {
+      const moreCount = binder.count - binder.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 // Custom options for author chart with enhanced tooltips showing era and book titles
 const authorChartOptions = computed(() => ({
   responsive: true,
@@ -625,7 +679,7 @@ const authorChartOptions = computed(() => ({
           <BaseTooltip
             v-for="(binder, index) in props.data.bindings"
             :key="binder.binder_id"
-            :content="binder.full_name || binder.binder"
+            :content="formatBinderTooltip(binder)"
             position="top"
           >
             <button

@@ -154,7 +154,7 @@ export const BOOK_CATEGORIES = [
 export const DASHBOARD_STAT_CARDS = {
   ON_HAND: {
     label: "On Hand",
-    description: "Total number of books currently in your collection with ON_HAND status",
+    description: "Total number of books currently in your collection with On Hand status",
     filterParam: "status=ON_HAND",
   },
   VOLUMES: {
@@ -164,7 +164,7 @@ export const DASHBOARD_STAT_CARDS = {
   },
   EST_VALUE: {
     label: "Est. Value",
-    description: "Estimated mid-range market value of your ON_HAND collection",
+    description: "Estimated mid-range market value of your On Hand collection",
     filterParam: "status=ON_HAND",
   },
   PREMIUM: {
