@@ -171,7 +171,7 @@ export const DASHBOARD_STAT_CARDS = {
     label: "Premium",
     description:
       "Books with authenticated premium bindings (Zaehnsdorf, Riviere, Sangorski & Sutcliffe, etc.)",
-    filterParam: "binding_authenticated=true",
+    filterParam: "binding_authenticated=true&status=ON_HAND",
   },
 } as const;
 
