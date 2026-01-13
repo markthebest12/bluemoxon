@@ -2,12 +2,27 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/services/api";
-import type { Book } from "@/stores/books";
+
+// Spotlight book interface - matches API response (flat fields)
+interface SpotlightBook {
+  id: number;
+  title: string;
+  author_name: string | null;
+  value_mid: number | null;
+  primary_image_url: string | null;
+  binder_name: string | null;
+  binding_authenticated: boolean;
+  binding_type: string | null;
+  year_start: number | null;
+  year_end: number | null;
+  publisher_name: string | null;
+  category: string | null;
+}
 
 const router = useRouter();
 
 // State
-const spotlightBooks = ref<Book[]>([]);
+const spotlightBooks = ref<SpotlightBook[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -96,12 +111,12 @@ async function withRetry<T>(
 
 // Cache interface
 interface SpotlightCache {
-  books: Book[];
+  books: SpotlightBook[];
   timestamp: number;
 }
 
 // Get cached data if valid
-function getCachedBooks(): Book[] | null {
+function getCachedBooks(): SpotlightBook[] | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
@@ -120,7 +135,7 @@ function getCachedBooks(): Book[] | null {
 }
 
 // Save books to cache
-function setCachedBooks(books: Book[]): void {
+function setCachedBooks(books: SpotlightBook[]): void {
   try {
     const data: SpotlightCache = {
       books,
@@ -140,7 +155,7 @@ async function fetchSpotlightBooks(): Promise<void> {
   try {
     // Check cache first
     const cachedBooks = getCachedBooks();
-    let topBooks: Book[];
+    let topBooks: SpotlightBook[];
 
     if (cachedBooks) {
       topBooks = cachedBooks;
@@ -172,13 +187,51 @@ async function fetchSpotlightBooks(): Promise<void> {
   }
 }
 
-// Check if book has premium binding
-const hasPremiumBinding = (book: Book): boolean => {
-  return book.binding_authenticated && book.binder !== null;
+// High-quality binding keywords (show binder even if not authenticated)
+const PREMIUM_BINDING_KEYWORDS = [
+  "calf",
+  "morocco",
+  "levant",
+  "vellum",
+  "crushed",
+  "tree calf",
+  "polished calf",
+];
+
+// Check if book has notable binding worth displaying
+const hasNotableBinding = (book: SpotlightBook): boolean => {
+  // Always show if authenticated with known binder
+  if (book.binding_authenticated && book.binder_name) {
+    return true;
+  }
+  // Show if binding type contains premium keywords
+  if (book.binding_type) {
+    const bindingLower = book.binding_type.toLowerCase();
+    return PREMIUM_BINDING_KEYWORDS.some((kw) => bindingLower.includes(kw));
+  }
+  return false;
+};
+
+// Get binding display text
+const getBindingDisplay = (book: SpotlightBook): string => {
+  if (book.binding_authenticated && book.binder_name) {
+    return book.binder_name;
+  }
+  // For non-authenticated premium bindings, show binding type
+  return book.binding_type || "";
+};
+
+// Format year display
+const formatYear = (book: SpotlightBook): string => {
+  if (!book.year_start) return "";
+  if (book.year_end && book.year_end !== book.year_start) {
+    return `${book.year_start}-${book.year_end}`;
+  }
+  return String(book.year_start);
 };
 
 // Get image URL with fallback
-const getImageUrl = (book: Book): string => {
+const getImageUrl = (book: SpotlightBook): string => {
   return book.primary_image_url || placeholderUrl;
 };
 
@@ -253,12 +306,20 @@ onMounted(() => {
             class="w-full h-full object-cover"
           />
 
-          <!-- Premium Binding Badge -->
+          <!-- Notable Binding Badge -->
           <div
-            v-if="hasPremiumBinding(book)"
-            class="absolute top-2 left-2 bg-victorian-burgundy text-victorian-paper-cream text-xs px-2 py-0.5 rounded-xs font-medium shadow-sm"
+            v-if="hasNotableBinding(book)"
+            class="absolute top-2 left-2 bg-victorian-burgundy text-victorian-paper-cream text-xs px-2 py-0.5 rounded-xs font-medium shadow-sm max-w-[calc(100%-1rem)] truncate"
           >
-            {{ book.binder?.name }}
+            {{ getBindingDisplay(book) }}
+          </div>
+
+          <!-- Category Badge -->
+          <div
+            v-if="book.category"
+            class="absolute bottom-2 left-2 bg-victorian-hunter-800/90 text-victorian-paper-cream text-xs px-2 py-0.5 rounded-xs font-medium shadow-sm"
+          >
+            {{ book.category }}
           </div>
         </div>
 
@@ -269,9 +330,16 @@ onMounted(() => {
             {{ book.title }}
           </h3>
 
-          <!-- Author -->
-          <p v-if="book.author" class="text-sm text-victorian-ink-muted truncate">
-            {{ book.author.name }}
+          <!-- Author & Year -->
+          <p class="text-sm text-victorian-ink-muted truncate">
+            <span v-if="book.author_name">{{ book.author_name }}</span>
+            <span v-if="book.author_name && formatYear(book)" class="mx-1">·</span>
+            <span v-if="formatYear(book)">{{ formatYear(book) }}</span>
+          </p>
+
+          <!-- Publisher -->
+          <p v-if="book.publisher_name" class="text-xs text-victorian-ink-muted/70 truncate">
+            {{ book.publisher_name }}
           </p>
 
           <!-- Value -->
