@@ -7,9 +7,19 @@ import { formatAcquisitionTooltip } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
 import { formatConditionGrade } from "@/utils/format";
 import { useDashboardStore } from "@/stores/dashboard";
+import BaseTooltip from "@/components/BaseTooltip.vue";
+import { CONDITION_GRADE_OPTIONS, ERA_DEFINITIONS } from "@/constants";
 
 const router = useRouter();
 const dashboardStore = useDashboardStore();
+
+// Helper to get condition description from CONDITION_GRADE_OPTIONS
+function getConditionDescription(condition: string): string {
+  const option = CONDITION_GRADE_OPTIONS.find(
+    (opt) => opt.value === condition || opt.label === condition
+  );
+  return option?.description ?? "";
+}
 
 // Time range options for the selector buttons
 const timeRangeOptions = [
@@ -127,7 +137,10 @@ const lineChartOptions = computed(() => ({
 }));
 
 // Factory function for doughnut chart options to reduce duplication
-function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event | null) => void) {
+function createDoughnutChartOptions(
+  onClick: (index: number, nativeEvent?: Event | null) => void,
+  options?: { hideLegend?: boolean }
+) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -137,14 +150,16 @@ function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event
       }
     },
     plugins: {
-      legend: {
-        position: "bottom" as const,
-        labels: {
-          boxWidth: 12,
-          padding: 8,
-          font: { size: 11 },
-        },
-      },
+      legend: options?.hideLegend
+        ? { display: false }
+        : {
+            position: "bottom" as const,
+            labels: {
+              boxWidth: 12,
+              padding: 8,
+              font: { size: 11 },
+            },
+          },
       tooltip: {
         callbacks: {
           label: (context: TooltipItem<"doughnut">) => {
@@ -160,14 +175,18 @@ function createDoughnutChartOptions(onClick: (index: number, nativeEvent?: Event
 }
 
 // Chart-specific options with click handlers
+// Hide legend for condition chart - we render custom legend with tooltips
 const conditionChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
-    const condition = props.data.by_condition[index]?.condition;
-    if (condition) {
-      // navigateToBooks handles "Ungraded" -> condition_grade__isnull=true
-      navigateToBooks(router, { condition_grade: condition }, nativeEvent);
-    }
-  })
+  createDoughnutChartOptions(
+    (index: number, nativeEvent?: Event | null) => {
+      const condition = props.data.by_condition[index]?.condition;
+      if (condition) {
+        // navigateToBooks handles "Ungraded" -> condition_grade__isnull=true
+        navigateToBooks(router, { condition_grade: condition }, nativeEvent);
+      }
+    },
+    { hideLegend: true }
+  )
 );
 
 const categoryChartOptions = computed(() =>
@@ -180,17 +199,21 @@ const categoryChartOptions = computed(() =>
   })
 );
 
+// Hide legend for bindings chart - we render custom legend with tooltips
 const bindingsChartOptions = computed(() =>
-  createDoughnutChartOptions((index: number, nativeEvent?: Event | null) => {
-    const binder = props.data.bindings[index];
-    if (binder?.binder_id) {
-      navigateToBooks(
-        router,
-        { binder_id: binder.binder_id, binding_authenticated: "true" },
-        nativeEvent
-      );
-    }
-  })
+  createDoughnutChartOptions(
+    (index: number, nativeEvent?: Event | null) => {
+      const binder = props.data.bindings[index];
+      if (binder?.binder_id) {
+        navigateToBooks(
+          router,
+          { binder_id: binder.binder_id, binding_authenticated: "true" },
+          nativeEvent
+        );
+      }
+    },
+    { hideLegend: true }
+  )
 );
 
 const eraChartOptions = computed(() => ({
@@ -210,9 +233,23 @@ const eraChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        title: (items: TooltipItem<"bar">[]) => {
+          if (items.length > 0) {
+            const era = props.data.by_era[items[0].dataIndex]?.era;
+            const def = ERA_DEFINITIONS[era as keyof typeof ERA_DEFINITIONS];
+            return def ? `${def.label} (${def.years})` : era;
+          }
+          return "";
+        },
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          return `${value} ${value === 1 ? "book" : "books"}`;
+          const era = props.data.by_era[context.dataIndex]?.era;
+          const def = ERA_DEFINITIONS[era as keyof typeof ERA_DEFINITIONS];
+          const lines = [`${value} ${value === 1 ? "book" : "books"}`];
+          if (def?.description) {
+            lines.push(def.description);
+          }
+          return lines;
         },
       },
     },
@@ -234,6 +271,11 @@ const eraChartOptions = computed(() => ({
   },
 }));
 
+// Helper to get filtered tier1 publishers (used in both chart data and options)
+const tier1Publishers = computed(() =>
+  props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5)
+);
+
 const publisherChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -241,9 +283,7 @@ const publisherChartOptions = computed(() => ({
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
-      // Match chart data: filter to TIER_1 and slice to top 5
-      const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5);
-      const publisher = tier1[index];
+      const publisher = tier1Publishers.value[index];
       if (publisher?.publisher_id) {
         navigateToBooks(router, { publisher_id: publisher.publisher_id }, event.native);
       }
@@ -255,7 +295,34 @@ const publisherChartOptions = computed(() => ({
       callbacks: {
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          return `${value} ${value === 1 ? "book" : "books"}`;
+          const publisher = tier1Publishers.value[context.dataIndex];
+          const lines = [`${value} ${value === 1 ? "book" : "books"}`];
+
+          // Add founded year if available
+          if (publisher?.founded_year) {
+            lines.push(`Founded: ${publisher.founded_year}`);
+          }
+          // Add description if available
+          if (publisher?.description) {
+            // Wrap long descriptions
+            const desc = publisher.description;
+            if (desc.length > 60) {
+              const words = desc.split(" ");
+              let line = "";
+              for (const word of words) {
+                if ((line + word).length > 55) {
+                  lines.push(line.trim());
+                  line = word + " ";
+                } else {
+                  line += word + " ";
+                }
+              }
+              if (line.trim()) lines.push(line.trim());
+            } else {
+              lines.push(desc);
+            }
+          }
+          return lines;
         },
       },
     },
@@ -322,19 +389,16 @@ const eraChartData = computed(() => ({
   ],
 }));
 
-const publisherChartData = computed(() => {
-  const tier1 = props.data.by_publisher.filter((p) => p.tier === "TIER_1");
-  return {
-    labels: tier1.slice(0, 5).map((d) => d.publisher),
-    datasets: [
-      {
-        data: tier1.slice(0, 5).map((d) => d.count),
-        backgroundColor: chartColors.gold,
-        borderRadius: 4,
-      },
-    ],
-  };
-});
+const publisherChartData = computed(() => ({
+  labels: tier1Publishers.value.map((d) => d.publisher),
+  datasets: [
+    {
+      data: tier1Publishers.value.map((d) => d.count),
+      backgroundColor: chartColors.gold,
+      borderRadius: 4,
+    },
+  ],
+}));
 
 // Explicit color mapping for condition grades (not index-based)
 // Uses high-contrast colors: best conditions = cool/green, worst = warm/red
@@ -430,7 +494,22 @@ const authorChartData = computed(() => ({
   ],
 }));
 
-// Custom options for author chart with enhanced tooltips showing book titles
+// Helper to format author lifespan
+function formatAuthorLifespan(author: {
+  birth_year?: number | null;
+  death_year?: number | null;
+}): string | null {
+  if (author.birth_year && author.death_year) {
+    return `${author.birth_year}–${author.death_year}`;
+  } else if (author.birth_year) {
+    return `b. ${author.birth_year}`;
+  } else if (author.death_year) {
+    return `d. ${author.death_year}`;
+  }
+  return null;
+}
+
+// Custom options for author chart with enhanced tooltips showing era and book titles
 const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -453,10 +532,24 @@ const authorChartOptions = computed(() => ({
           const authorIndex = context.dataIndex;
           const author = filteredAuthorData.value[authorIndex];
 
+          const lines: string[] = [];
+
+          // Add era and lifespan on first line if available
+          const lifespan = author ? formatAuthorLifespan(author) : null;
+          if (author?.era || lifespan) {
+            const parts = [];
+            if (author.era) parts.push(author.era);
+            if (lifespan) parts.push(lifespan);
+            lines.push(parts.join(" • "));
+          }
+
+          // Add book count
+          lines.push(
+            `${value} ${value === 1 ? "book" : "books"} across ${author?.titles ?? 0} ${(author?.titles ?? 0) === 1 ? "title" : "titles"}`
+          );
+
+          // Add sample titles
           if (author && author.sample_titles && author.sample_titles.length > 0) {
-            const lines = [
-              `${value} ${value === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}:`,
-            ];
             author.sample_titles.forEach((title: string) => {
               // Truncate long titles
               const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
@@ -466,9 +559,8 @@ const authorChartOptions = computed(() => ({
               const moreCount = author.titles - author.sample_titles.length;
               lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
             }
-            return lines;
           }
-          return `${value} ${value === 1 ? "book" : "books"}`;
+          return lines;
         },
       },
     },
@@ -503,7 +595,7 @@ const authorChartOptions = computed(() => ({
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Premium Bindings
         </h3>
-        <div class="h-48 md:h-56">
+        <div class="h-36 md:h-44">
           <Doughnut
             v-if="props.data.bindings.length > 0"
             :data="binderChartData"
@@ -512,6 +604,34 @@ const authorChartOptions = computed(() => ({
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No binding data available
           </p>
+        </div>
+        <!-- Custom legend with tooltips for binder full names -->
+        <div
+          v-if="props.data.bindings.length > 0"
+          class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+        >
+          <BaseTooltip
+            v-for="(binder, index) in props.data.bindings"
+            :key="binder.binder_id"
+            :content="binder.full_name || binder.binder"
+            position="top"
+          >
+            <button
+              class="flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              @click="
+                navigateToBooks(router, {
+                  binder_id: binder.binder_id,
+                  binding_authenticated: 'true',
+                })
+              "
+            >
+              <span
+                class="w-3 h-3 rounded-sm inline-block"
+                :style="{ backgroundColor: binderChartData.datasets[0].backgroundColor[index] }"
+              ></span>
+              <span class="text-gray-600">{{ binder.binder }}</span>
+            </button>
+          </BaseTooltip>
         </div>
       </div>
 
@@ -574,7 +694,7 @@ const authorChartOptions = computed(() => ({
         <h3 class="text-sm font-medium text-victorian-ink-muted uppercase tracking-wider mb-3">
           Books by Condition
         </h3>
-        <div class="h-48 md:h-56">
+        <div class="h-36 md:h-44">
           <Doughnut
             v-if="props.data?.by_condition?.length > 0"
             :data="conditionChartData"
@@ -583,6 +703,29 @@ const authorChartOptions = computed(() => ({
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No condition data available
           </p>
+        </div>
+        <!-- Custom legend with tooltips -->
+        <div
+          v-if="props.data?.by_condition?.length > 0"
+          class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+        >
+          <BaseTooltip
+            v-for="(item, index) in props.data.by_condition"
+            :key="item.condition"
+            :content="getConditionDescription(item.condition) || item.condition"
+            position="top"
+          >
+            <button
+              class="flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              @click="navigateToBooks(router, { condition_grade: item.condition })"
+            >
+              <span
+                class="w-3 h-3 rounded-sm inline-block"
+                :style="{ backgroundColor: conditionChartData.datasets[0].backgroundColor[index] }"
+              ></span>
+              <span class="text-gray-600">{{ formatConditionGrade(item.condition) }}</span>
+            </button>
+          </BaseTooltip>
         </div>
       </div>
 
@@ -664,20 +807,20 @@ const authorChartOptions = computed(() => ({
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: 9999px;
-  border: 1px solid rgb(26, 58, 47);
+  border: 1px solid var(--color-accent-primary);
   background-color: transparent;
-  color: rgb(26, 58, 47);
+  color: var(--color-accent-primary);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .time-range-btn:hover {
-  background-color: rgba(26, 58, 47, 0.1);
+  background-color: color-mix(in srgb, var(--color-accent-primary) 15%, transparent);
 }
 
 .time-range-btn.active {
-  background-color: rgb(26, 58, 47);
-  color: white;
+  background-color: var(--color-accent-primary);
+  color: var(--color-surface-primary);
 }
 
 .time-range-btn:disabled {

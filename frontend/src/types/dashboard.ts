@@ -42,6 +42,8 @@ export interface PublisherData {
   count: number;
   value: number;
   volumes: number;
+  description?: string | null;
+  founded_year?: number | null;
 }
 
 export interface AuthorData {
@@ -53,6 +55,9 @@ export interface AuthorData {
   titles: number;
   sample_titles: string[];
   has_more: boolean;
+  era?: string | null;
+  birth_year?: number | null;
+  death_year?: number | null;
 }
 
 export interface ConditionData {
