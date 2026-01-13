@@ -139,6 +139,9 @@ function syncFiltersFromUrl() {
     booksStore.filters.binding_authenticated = undefined;
   }
 
+  // Status filter from URL (ON_HAND, IN_TRANSIT, etc.)
+  booksStore.filters.status = (route.query.status as string) || undefined;
+
   // Chart filter syncs
   booksStore.filters.condition_grade = (route.query.condition_grade as string) || undefined;
   booksStore.filters.condition_grade__isnull =
