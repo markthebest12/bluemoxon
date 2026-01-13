@@ -24,6 +24,7 @@ from app.api.v1.images import (
     get_thumbnail_key,
 )
 from app.auth import require_admin, require_editor, require_viewer
+from app.cache import get_redis
 from app.config import get_settings
 from app.db import get_db
 from app.models import (
@@ -44,6 +45,7 @@ from app.schemas.book import (
     BookListParams,
     BookListResponse,
     BookResponse,
+    BookSpotlightItem,
     BookUpdate,
     DuplicateCheckRequest,
     DuplicateCheckResponse,
@@ -622,6 +624,104 @@ def list_books(
         per_page=params.per_page,
         pages=(total + params.per_page - 1) // params.per_page,
     )
+
+
+@router.get("/top", response_model=list[BookSpotlightItem])
+def get_top_books(
+    limit: int = Query(default=34, ge=1, le=100, description="Number of top books to return"),
+    inventory_type: str = Query(default="PRIMARY", description="Inventory type filter"),
+    db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
+):
+    """Get top books by value for Collection Spotlight feature.
+
+    Returns lightweight book data optimized for spotlight display.
+    Results are cached for 5 minutes in Redis.
+
+    Args:
+        limit: Number of books to return (default 34, ~20% of ~170 books)
+        inventory_type: Filter by inventory type (default PRIMARY)
+    """
+    cache_key = f"books:top:{inventory_type}:{limit}"
+    client = get_redis()
+
+    if client:
+        try:
+            cached_value = client.get(cache_key)
+            if cached_value:
+                logger.debug(f"Top books cache HIT: {cache_key}")
+                import json
+
+                cached_data = json.loads(cached_value)
+                return [BookSpotlightItem(**item) for item in cached_data]
+        except Exception as e:
+            logger.warning(f"Top books cache GET failed: {e}")
+
+    logger.debug(f"Top books cache MISS: {cache_key}")
+
+    books = (
+        db.query(Book)
+        .outerjoin(Author, Book.author_id == Author.id)
+        .outerjoin(Binder, Book.binder_id == Binder.id)
+        .outerjoin(Publisher, Book.publisher_id == Publisher.id)
+        .filter(
+            Book.inventory_type == inventory_type,
+            Book.value_mid > 0,
+        )
+        .order_by(Book.value_mid.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for book in books:
+        primary_image_url = None
+        if book.images:
+            primary_image = None
+            for img in book.images:
+                if img.is_primary:
+                    primary_image = img
+                    break
+            if not primary_image:
+                primary_image = min(book.images, key=lambda x: x.display_order)
+
+            if primary_image:
+                if settings.is_aws_lambda:
+                    primary_image_url = get_cloudfront_url(primary_image.s3_key)
+                else:
+                    base_url = settings.base_url or "http://localhost:8000"
+                    primary_image_url = (
+                        f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
+                    )
+
+        items.append(
+            BookSpotlightItem(
+                id=book.id,
+                title=book.title,
+                author_name=book.author.name if book.author else None,
+                value_mid=book.value_mid,
+                primary_image_url=primary_image_url,
+                binder_name=book.binder.name if book.binder else None,
+                binding_authenticated=book.binding_authenticated,
+                binding_type=book.binding_type,
+                year_start=book.year_start,
+                year_end=book.year_end,
+                publisher_name=book.publisher.name if book.publisher else None,
+                category=book.category,
+            )
+        )
+
+    if client:
+        try:
+            import json
+
+            serialized = json.dumps([item.model_dump(mode="json") for item in items])
+            client.setex(cache_key, 300, serialized)
+            logger.debug(f"Top books cached: {cache_key}")
+        except Exception as e:
+            logger.warning(f"Top books cache SET failed: {e}")
+
+    return items
 
 
 @router.get("/{book_id}", response_model=BookResponse)

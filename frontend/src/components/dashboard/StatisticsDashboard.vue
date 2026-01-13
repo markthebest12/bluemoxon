@@ -59,7 +59,9 @@ import {
 } from "chart.js";
 import { Line, Doughnut, Bar } from "vue-chartjs";
 
-// Register Chart.js components
+// Register Chart.js components (global plugins only)
+// Note: yAxisLabelTooltipPlugin is registered per-chart for author/publisher charts
+// to avoid processing mouse events on charts that don't need label tooltips
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -743,6 +745,7 @@ const authorChartOptions = computed(() => ({
             v-if="filteredAuthorData.length > 0"
             :data="authorChartData"
             :options="authorChartOptions"
+            :plugins="[yAxisLabelTooltipPlugin]"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No author data available
@@ -763,6 +766,7 @@ const authorChartOptions = computed(() => ({
             v-if="hasTier1Publishers"
             :data="publisherChartData"
             :options="publisherChartOptions"
+            :plugins="[yAxisLabelTooltipPlugin]"
           />
           <p v-else class="text-victorian-ink-muted text-sm text-center py-8">
             No Tier 1 publisher data available

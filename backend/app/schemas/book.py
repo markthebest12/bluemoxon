@@ -358,3 +358,27 @@ class DuplicateCheckResponse(BaseModel):
 
     has_duplicates: bool
     matches: list[DuplicateMatch]
+
+
+class BookSpotlightItem(BaseModel):
+    """Lightweight book item for Collection Spotlight feature.
+
+    Contains only fields needed for spotlight display, optimized for performance.
+    """
+
+    id: int
+    title: str
+    author_name: str | None = None
+    value_mid: Decimal | None = None
+    primary_image_url: str | None = None
+    # Binder info - show if authenticated or high-quality binding
+    binder_name: str | None = None
+    binding_authenticated: bool = False
+    binding_type: str | None = None
+    # Additional showcase fields
+    year_start: int | None = None
+    year_end: int | None = None
+    publisher_name: str | None = None
+    category: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)

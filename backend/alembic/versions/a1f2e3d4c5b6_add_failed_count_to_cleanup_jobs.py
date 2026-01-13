@@ -1,6 +1,6 @@
 """Add failed_count column to cleanup_jobs table.
 
-Revision ID: z1012345efgh
+Revision ID: a1f2e3d4c5b6
 Revises: z0012345cdef
 Create Date: 2026-01-11
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "z1012345efgh"
+revision = "a1f2e3d4c5b6"
 down_revision = "z0012345cdef"
 branch_labels = None
 depends_on = None

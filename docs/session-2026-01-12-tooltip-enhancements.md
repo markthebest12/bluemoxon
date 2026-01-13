@@ -1,9 +1,9 @@
 # Session: Dashboard Tooltip Enhancements
 
-**Date:** 2026-01-12
-**Branch:** `feat/tooltip-improvements`
-**PR:** #1099
-**Status:** Ready for review
+**Date:** 2026-01-12 to 2026-01-13
+**Branch:** `feat/tooltip-improvements`, `fix/binder-schema-dashboard-fields`
+**PRs:** #1099, #1100, #1101
+**Status:** MERGED TO PRODUCTION
 
 ## Background
 
@@ -133,17 +133,48 @@ After PR #1098 (tooltip clipping fixes), additional tooltip enhancements were re
 - **P3-10 (Test order)**: Tests use `in` operator (membership), not list comparison
 - **P3-11 (beforeDestroy)**: This is Chart.js plugin API, not Vue lifecycle
 
-## Next Steps
+---
 
-1. **Commit and push** code review fixes
-2. **Merge to staging** after approval
-3. **Run migration** on staging database
-4. **Test tooltips** - Verify:
-   - Author axis label hover shows era, dates, sample titles
-   - Publisher axis label hover shows founded year, description
-   - Binder legend hover shows operation dates and sample titles
-   - Left edge tooltip clipping is fixed
-   - Bar tooltips show simple count, labels show details
+## Post-Merge Bug Fix (PR #1100)
+
+### Issue Discovered
+
+After PR #1099 was merged to staging, testing revealed binder tooltips were NOT showing sample titles. The API returned bindings without `founded_year`, `closed_year`, `sample_titles`, `has_more` fields.
+
+### Root Cause (Systematic Debugging)
+
+**Data Flow Traced:**
+1. `/stats/bindings` endpoint → Returns all fields ✓
+2. `/stats/dashboard` endpoint → Missing fields ✗
+3. Traced to `DashboardResponse` schema using `list[BinderData]`
+4. `BinderData` Pydantic schema was missing 4 fields
+
+**Root Cause:** `query_bindings()` returned all fields, but Pydantic silently dropped them during serialization because `BinderData` schema didn't define them.
+
+### Fix (TDD)
+
+1. **RED:** Wrote failing test `test_dashboard_bindings_include_enhanced_fields`
+2. **GREEN:** Added missing fields to `BinderData` schema:
+   ```python
+   founded_year: int | None = None
+   closed_year: int | None = None
+   sample_titles: list[str] = Field(default_factory=list)
+   has_more: bool = False
+   ```
+3. **VERIFY:** All 73 stats tests pass
+
+### Lesson Learned
+
+**Tests weren't written when features were added.** If PR #1099 had included a test verifying "dashboard endpoint returns binder sample_titles", this bug would have been caught before merge.
+
+---
+
+## Production Promotion (PR #1101)
+
+- PR #1099 + #1100 merged to staging
+- Migration verified on staging
+- Binder tooltips verified working in browser
+- Promoted to production via PR #1101
 
 ## Files Modified
 
