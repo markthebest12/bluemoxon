@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.auth import require_viewer
 from app.db import get_db
@@ -24,7 +25,7 @@ from app.utils import safe_float
 
 def batch_fetch_sample_titles(
     db: Session,
-    fk_column,
+    fk_column: InstrumentedAttribute[int | None],
     ids: list[int],
     additional_filters: list | None = None,
     limit: int = 5,

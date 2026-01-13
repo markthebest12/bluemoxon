@@ -25,6 +25,8 @@ export function formatAcquisitionTooltip(day: AcquisitionDay | undefined): strin
 
 // Tooltip DOM element (shared across all charts using this plugin)
 let tooltipEl: HTMLDivElement | null = null;
+// Track how many charts are using this tooltip (for cleanup)
+let activeChartCount = 0;
 
 function getOrCreateTooltip(): HTMLDivElement {
   if (!tooltipEl) {
@@ -51,12 +53,24 @@ function getOrCreateTooltip(): HTMLDivElement {
   return tooltipEl;
 }
 
+function removeTooltip(): void {
+  if (tooltipEl && tooltipEl.parentNode) {
+    tooltipEl.parentNode.removeChild(tooltipEl);
+    tooltipEl = null;
+  }
+}
+
 interface LabelTooltipOptions {
   labelTooltips?: string[];
 }
 
 export const yAxisLabelTooltipPlugin: Plugin<"bar", LabelTooltipOptions> = {
   id: "yAxisLabelTooltip",
+
+  // Track chart initialization for cleanup
+  afterInit() {
+    activeChartCount++;
+  },
 
   afterEvent(chart: Chart<"bar">, args) {
     const { event } = args;
@@ -93,16 +107,20 @@ export const yAxisLabelTooltipPlugin: Plugin<"bar", LabelTooltipOptions> = {
       return;
     }
 
-    // Find which label the mouse is over
+    // Find which label the mouse is over using actual tick positions
     const labels = yScale.ticks;
     let hoveredIndex = -1;
 
     for (let i = 0; i < labels.length; i++) {
       const labelY = yScale.getPixelForTick(i);
-      // Use a vertical range around the label (labels have some height)
-      const labelHeight = yScale.height / labels.length;
-      const labelTop = labelY - labelHeight / 2;
-      const labelBottom = labelY + labelHeight / 2;
+      // Calculate hit box using distance to neighboring ticks (handles non-uniform spacing)
+      const prevY = i > 0 ? yScale.getPixelForTick(i - 1) : labelY - yScale.height / labels.length;
+      const nextY =
+        i < labels.length - 1
+          ? yScale.getPixelForTick(i + 1)
+          : labelY + yScale.height / labels.length;
+      const labelTop = labelY - Math.abs(labelY - prevY) / 2;
+      const labelBottom = labelY + Math.abs(nextY - labelY) / 2;
 
       if (event.y >= labelTop && event.y <= labelBottom) {
         hoveredIndex = i;
@@ -142,7 +160,13 @@ export const yAxisLabelTooltipPlugin: Plugin<"bar", LabelTooltipOptions> = {
 
   // Clean up tooltip when chart is destroyed
   beforeDestroy() {
-    if (tooltipEl) {
+    activeChartCount--;
+    // Only remove from DOM when no charts are using it
+    if (activeChartCount <= 0) {
+      removeTooltip();
+      activeChartCount = 0;
+    } else if (tooltipEl) {
+      // Just hide if other charts still using it
       tooltipEl.style.opacity = "0";
     }
   },

@@ -14,6 +14,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const loading = ref(true);
   const isStale = ref(false);
   const error = ref<string | null>(null);
+  // Default to 90 days (3 months) for better trend visibility
+  // Changed from 30 days in PR #1099 to show more acquisition history
   const selectedDays = ref(90);
 
   // Request deduplication

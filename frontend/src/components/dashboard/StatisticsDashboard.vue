@@ -279,11 +279,6 @@ const eraChartOptions = computed(() => ({
 // Maximum number of tier 1 publishers to show in chart
 const MAX_TIER1_PUBLISHERS = 5;
 
-// Tooltip text wrapping: Chart.js doesn't support maxWidth for custom callbacks,
-// so we manually wrap long text. These values work well for typical tooltip widths.
-const TOOLTIP_LINE_LENGTH = 55; // Characters before wrapping
-const TOOLTIP_WRAP_THRESHOLD = 60; // Only wrap if text exceeds this length
-
 // Helper to get filtered tier1 publishers (used in both chart data and options)
 const tier1Publishers = computed(() =>
   props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, MAX_TIER1_PUBLISHERS)
@@ -313,36 +308,10 @@ const publisherChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count. Hover on publisher name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          const publisher = tier1Publishers.value[context.dataIndex];
-          const lines = [`${value} ${value === 1 ? "book" : "books"}`];
-
-          // Add founded year if available
-          if (publisher?.founded_year) {
-            lines.push(`Founded: ${publisher.founded_year}`);
-          }
-          // Add description if available
-          if (publisher?.description) {
-            // Wrap long descriptions to fit tooltip width
-            const desc = publisher.description;
-            if (desc.length > TOOLTIP_WRAP_THRESHOLD) {
-              const words = desc.split(" ");
-              let line = "";
-              for (const word of words) {
-                if ((line + word).length > TOOLTIP_LINE_LENGTH) {
-                  lines.push(line.trim());
-                  line = word + " ";
-                } else {
-                  line += word + " ";
-                }
-              }
-              if (line.trim()) lines.push(line.trim());
-            } else {
-              lines.push(desc);
-            }
-          }
-          return lines;
+          return `${value} ${value === 1 ? "book" : "books"}`;
         },
       },
     },
@@ -666,40 +635,12 @@ const authorChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count/value. Hover on author name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          const authorIndex = context.dataIndex;
-          const author = filteredAuthorData.value[authorIndex];
-
-          const lines: string[] = [];
-
-          // Add era and lifespan on first line if available
-          const lifespan = author ? formatAuthorLifespan(author) : null;
-          if (author?.era || lifespan) {
-            const parts = [];
-            if (author.era) parts.push(author.era);
-            if (lifespan) parts.push(lifespan);
-            lines.push(parts.join(" • "));
-          }
-
-          // Add book count
-          lines.push(
-            `${value} ${value === 1 ? "book" : "books"} across ${author?.titles ?? 0} ${(author?.titles ?? 0) === 1 ? "title" : "titles"}`
-          );
-
-          // Add sample titles
-          if (author && author.sample_titles && author.sample_titles.length > 0) {
-            author.sample_titles.forEach((title: string) => {
-              // Truncate long titles
-              const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
-              lines.push(`  • ${truncated}`);
-            });
-            if (author.has_more) {
-              const moreCount = author.titles - author.sample_titles.length;
-              lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
-            }
-          }
-          return lines;
+          const author = filteredAuthorData.value[context.dataIndex];
+          const titles = author?.titles ?? 0;
+          return `${value} ${value === 1 ? "book" : "books"} across ${titles} ${titles === 1 ? "title" : "titles"}`;
         },
       },
     },
