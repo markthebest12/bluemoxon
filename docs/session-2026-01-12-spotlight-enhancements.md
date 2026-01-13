@@ -1,8 +1,8 @@
 # Session: Collection Spotlight Enhancements
 
-**Date:** 2026-01-12
-**Branch:** feat/collection-spotlight-integration (merged to staging)
-**PR:** #1102 (merged)
+**Date:** 2026-01-12 - 2026-01-13
+**Status:** ✅ COMPLETED - Deployed to production
+**PRs:** #1102 (initial), #1103 (enhancements), #1104 (production)
 
 ## Summary
 
@@ -12,35 +12,34 @@ Collection Spotlight feature was deployed but displaying minimal information (ti
 - Binder (if authenticated OR high-quality binding like calf/morocco)
 - Category
 
-## Issue
+## Completed Changes
 
-The frontend component had two problems:
-1. **Field mismatch**: Template used nested objects (`book.author.name`, `book.binder?.name`) but API returns flat strings (`author_name`, `binder_name`)
-2. **Missing showcase data**: Only displayed title + value, not the richer metadata discussed in design
-
-## Changes In Progress
-
-### Backend (completed)
+### Backend
 - Updated `BookSpotlightItem` schema to add: `binding_type`, `year_start`, `year_end`, `publisher_name`, `category`
 - Updated `/books/top` endpoint to join Publisher table and include new fields
 
-### Frontend (in progress)
-Need to update `CollectionSpotlight.vue`:
-1. Define proper `SpotlightBook` interface matching API response (flat fields)
-2. Fix field references in template (`author_name` not `book.author.name`)
-3. Add display for: year, publisher, category
-4. Update binder badge logic: show if `binding_authenticated` OR `binding_type` contains premium keywords (calf, morocco, levant, etc.)
+### Frontend
+Updated `CollectionSpotlight.vue`:
+1. Created proper `SpotlightBook` interface matching API response (flat fields)
+2. Fixed field references in template (`author_name` not `book.author.name`)
+3. Added year display (format: `year_start` or `year_start-year_end`)
+4. Added publisher name line
+5. Added category badge (bottom-left of image)
+6. Added binder badge logic: shows if `binding_authenticated` OR `binding_type` contains premium keywords
 
-## Next Steps
+### Premium Binding Keywords
+```typescript
+const PREMIUM_BINDING_KEYWORDS = [
+  "calf", "morocco", "levant", "vellum", "crushed", "tree calf", "polished calf"
+];
+```
 
-1. Create `SpotlightBook` interface in component
-2. Update template to use flat field names
-3. Add year display (format: `year_start` or `year_start-year_end`)
-4. Add publisher name line
-5. Add category badge/line
-6. Update binder badge logic for high-quality non-authenticated bindings
-7. Test locally, commit, push, verify CI passes
-8. Merge to staging
+## Verification
+
+Production verified 2026-01-13:
+- API returns all enhanced fields (`/books/top`)
+- Frontend displays: author·year, publisher, value, category badge, binder badge
+- Smoke tests passing
 
 ## Technical Notes
 
