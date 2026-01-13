@@ -2,8 +2,8 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
-import type { DashboardStats, EraDefinition } from "@/types/dashboard";
-import { formatAcquisitionTooltip } from "./chartHelpers";
+import type { DashboardStats, EraDefinition, AuthorData, PublisherData } from "@/types/dashboard";
+import { formatAcquisitionTooltip, yAxisLabelTooltipPlugin } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
 import { formatConditionGrade } from "@/utils/format";
 import { useDashboardStore } from "@/stores/dashboard";
@@ -70,7 +70,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  yAxisLabelTooltipPlugin
 );
 
 // Colors - Victorian Design System
@@ -278,20 +279,22 @@ const eraChartOptions = computed(() => ({
 // Maximum number of tier 1 publishers to show in chart
 const MAX_TIER1_PUBLISHERS = 5;
 
-// Tooltip text wrapping: Chart.js doesn't support maxWidth for custom callbacks,
-// so we manually wrap long text. These values work well for typical tooltip widths.
-const TOOLTIP_LINE_LENGTH = 55; // Characters before wrapping
-const TOOLTIP_WRAP_THRESHOLD = 60; // Only wrap if text exceeds this length
-
 // Helper to get filtered tier1 publishers (used in both chart data and options)
 const tier1Publishers = computed(() =>
   props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, MAX_TIER1_PUBLISHERS)
+);
+
+// Computed label tooltips for publisher chart (must match chart data order)
+const publisherLabelTooltips = computed(() =>
+  tier1Publishers.value.map((publisher) => formatPublisherLabelTooltip(publisher))
 );
 
 const publisherChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: publisherLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
@@ -305,36 +308,10 @@ const publisherChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count. Hover on publisher name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          const publisher = tier1Publishers.value[context.dataIndex];
-          const lines = [`${value} ${value === 1 ? "book" : "books"}`];
-
-          // Add founded year if available
-          if (publisher?.founded_year) {
-            lines.push(`Founded: ${publisher.founded_year}`);
-          }
-          // Add description if available
-          if (publisher?.description) {
-            // Wrap long descriptions to fit tooltip width
-            const desc = publisher.description;
-            if (desc.length > TOOLTIP_WRAP_THRESHOLD) {
-              const words = desc.split(" ");
-              let line = "";
-              for (const word of words) {
-                if ((line + word).length > TOOLTIP_LINE_LENGTH) {
-                  lines.push(line.trim());
-                  line = word + " ";
-                } else {
-                  line += word + " ";
-                }
-              }
-              if (line.trim()) lines.push(line.trim());
-            } else {
-              lines.push(desc);
-            }
-          }
-          return lines;
+          return `${value} ${value === 1 ? "book" : "books"}`;
         },
       },
     },
@@ -521,11 +498,130 @@ function formatAuthorLifespan(author: {
   return "Dates unknown";
 }
 
+// Helper to format binder operation years
+function formatBinderYears(binder: {
+  founded_year?: number | null;
+  closed_year?: number | null;
+}): string | null {
+  if (binder.founded_year && binder.closed_year) {
+    return `${binder.founded_year}–${binder.closed_year}`;
+  } else if (binder.founded_year) {
+    return `Est. ${binder.founded_year}`;
+  }
+  return null;
+}
+
+// Helper to format binder tooltip content with dates and sample titles
+function formatBinderTooltip(binder: {
+  full_name?: string | null;
+  binder: string;
+  count: number;
+  founded_year?: number | null;
+  closed_year?: number | null;
+  sample_titles?: string[];
+  has_more?: boolean;
+}): string {
+  const lines: string[] = [];
+
+  // Full name
+  if (binder.full_name) {
+    lines.push(binder.full_name);
+  }
+
+  // Operation years
+  const years = formatBinderYears(binder);
+  if (years) {
+    lines.push(years);
+  }
+
+  // Book count
+  lines.push(`${binder.count} ${binder.count === 1 ? "book" : "books"}`);
+
+  // Sample titles
+  if (binder.sample_titles && binder.sample_titles.length > 0) {
+    binder.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (binder.has_more) {
+      const moreCount = binder.count - binder.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Helper to format author tooltip for Y-axis label hover
+function formatAuthorLabelTooltip(author: AuthorData): string {
+  const lines: string[] = [];
+
+  // Era and lifespan
+  const lifespan = formatAuthorLifespan(author);
+  if (author.era || lifespan) {
+    const parts = [];
+    if (author.era) parts.push(author.era);
+    if (lifespan) parts.push(lifespan);
+    lines.push(parts.join(" • "));
+  }
+
+  // Book/title count
+  lines.push(
+    `${author.count} ${author.count === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}`
+  );
+
+  // Sample titles
+  if (author.sample_titles && author.sample_titles.length > 0) {
+    author.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (author.has_more) {
+      const moreCount = author.titles - author.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Helper to format publisher tooltip for Y-axis label hover
+function formatPublisherLabelTooltip(publisher: PublisherData): string {
+  const lines: string[] = [];
+
+  // Founded year
+  if (publisher.founded_year) {
+    lines.push(`Founded: ${publisher.founded_year}`);
+  }
+
+  // Book count
+  lines.push(`${publisher.count} ${publisher.count === 1 ? "book" : "books"}`);
+
+  // Description (truncate if long)
+  if (publisher.description) {
+    const desc = publisher.description;
+    if (desc.length > 80) {
+      lines.push(desc.substring(0, 77) + "...");
+    } else {
+      lines.push(desc);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Computed label tooltips for author chart (must match chart data order)
+const authorLabelTooltips = computed(() =>
+  filteredAuthorData.value.slice(0, 8).map((author) => formatAuthorLabelTooltip(author))
+);
+
 // Custom options for author chart with enhanced tooltips showing era and book titles
 const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: authorLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
@@ -539,40 +635,12 @@ const authorChartOptions = computed(() => ({
     legend: { display: false },
     tooltip: {
       callbacks: {
+        // Bar tooltip: Simple count/value. Hover on author name for full details.
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
-          const authorIndex = context.dataIndex;
-          const author = filteredAuthorData.value[authorIndex];
-
-          const lines: string[] = [];
-
-          // Add era and lifespan on first line if available
-          const lifespan = author ? formatAuthorLifespan(author) : null;
-          if (author?.era || lifespan) {
-            const parts = [];
-            if (author.era) parts.push(author.era);
-            if (lifespan) parts.push(lifespan);
-            lines.push(parts.join(" • "));
-          }
-
-          // Add book count
-          lines.push(
-            `${value} ${value === 1 ? "book" : "books"} across ${author?.titles ?? 0} ${(author?.titles ?? 0) === 1 ? "title" : "titles"}`
-          );
-
-          // Add sample titles
-          if (author && author.sample_titles && author.sample_titles.length > 0) {
-            author.sample_titles.forEach((title: string) => {
-              // Truncate long titles
-              const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
-              lines.push(`  • ${truncated}`);
-            });
-            if (author.has_more) {
-              const moreCount = author.titles - author.sample_titles.length;
-              lines.push(`  ...and ${moreCount} more ${moreCount === 1 ? "title" : "titles"}`);
-            }
-          }
-          return lines;
+          const author = filteredAuthorData.value[context.dataIndex];
+          const titles = author?.titles ?? 0;
+          return `${value} ${value === 1 ? "book" : "books"} across ${titles} ${titles === 1 ? "title" : "titles"}`;
         },
       },
     },
@@ -625,7 +693,7 @@ const authorChartOptions = computed(() => ({
           <BaseTooltip
             v-for="(binder, index) in props.data.bindings"
             :key="binder.binder_id"
-            :content="binder.full_name || binder.binder"
+            :content="formatBinderTooltip(binder)"
             position="top"
           >
             <button

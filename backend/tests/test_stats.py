@@ -698,6 +698,238 @@ class TestBindingStats:
         assert data[0]["count"] == 2
         assert data[0]["value"] == 1250
 
+    def test_bindings_includes_founded_and_closed_year(self, client, db):
+        """Test binder response includes founded_year and closed_year fields.
+
+        Issue #1099: Binder tooltips should show operation dates.
+        """
+        from app.models import Binder
+
+        # Create binder with operation dates
+        binder = Binder(
+            name="Riviere",
+            full_name="Robert Rivière & Son",
+            founded_year=1829,
+            closed_year=1939,
+        )
+        db.add(binder)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Riviere Binding",
+                "binder_id": binder.id,
+                "binding_authenticated": True,
+                "value_mid": 800,
+            },
+        )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        riviere = next((b for b in data if b["binder"] == "Riviere"), None)
+        assert riviere is not None
+        assert riviere["founded_year"] == 1829
+        assert riviere["closed_year"] == 1939
+
+    def test_bindings_handles_null_founded_and_closed_year(self, client, db):
+        """Test binder response handles null founded_year and closed_year.
+
+        Issue #1099: Binder fields should be null-safe.
+        """
+        from app.models import Binder
+
+        # Create binder without operation dates
+        binder = Binder(name="Unknown Binder", full_name="Unknown Victorian Binder")
+        db.add(binder)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Unknown Binder Book",
+                "binder_id": binder.id,
+                "binding_authenticated": True,
+                "value_mid": 100,
+            },
+        )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        unknown = next((b for b in data if b["binder"] == "Unknown Binder"), None)
+        assert unknown is not None
+        assert unknown["founded_year"] is None
+        assert unknown["closed_year"] is None
+
+    def test_bindings_sample_titles_limit(self, client, db):
+        """Test that sample_titles contains at most 5 titles.
+
+        Issue #1099: Performance optimization - sample_titles should be limited
+        to 5 books to avoid excessive data transfer.
+        """
+        from app.models import Binder
+
+        binder = Binder(name="Prolific Binder", full_name="Prolific Victorian Binder")
+        db.add(binder)
+        db.commit()
+
+        # Create 10 authenticated books for this binder
+        for i in range(10):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Prolific Book {i + 1}",
+                    "binder_id": binder.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        prolific = next((b for b in data if b["binder"] == "Prolific Binder"), None)
+        assert prolific is not None
+        assert prolific["count"] == 10, "Should have 10 book records"
+        # sample_titles should be limited to 5
+        assert len(prolific["sample_titles"]) <= 5, "sample_titles should contain at most 5 titles"
+
+    def test_bindings_has_more_flag(self, client, db):
+        """Test that has_more flag correctly indicates if more books exist.
+
+        Issue #1099: has_more should be True when binder has more than 5 books,
+        False when 5 or fewer.
+        """
+        from app.models import Binder
+
+        # Binder with 6 books (has_more should be True)
+        binder_many = Binder(name="Many Books Binder", full_name="Binder With Many")
+        db.add(binder_many)
+        db.commit()
+
+        for i in range(6):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Many Book {i + 1}",
+                    "binder_id": binder_many.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        # Binder with 3 books (has_more should be False)
+        binder_few = Binder(name="Few Books Binder", full_name="Binder With Few")
+        db.add(binder_few)
+        db.commit()
+
+        for i in range(3):
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": f"Few Book {i + 1}",
+                    "binder_id": binder_few.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        many = next((b for b in data if b["binder"] == "Many Books Binder"), None)
+        assert many is not None
+        assert many["has_more"] is True, "has_more should be True when binder has more than 5 books"
+
+        few = next((b for b in data if b["binder"] == "Few Books Binder"), None)
+        assert few is not None
+        assert few["has_more"] is False, "has_more should be False when binder has 5 or fewer books"
+
+    def test_bindings_multiple_binders_sample_titles(self, client, db):
+        """Test that sample_titles works correctly for multiple binders.
+
+        Issue #1099: This tests the batch query approach - verifying that
+        sample_titles are correctly associated with each binder when
+        fetching data for multiple binders at once.
+        """
+        from app.models import Binder
+
+        # Create first binder with specific titles
+        binder1 = Binder(name="Binder One", full_name="First Victorian Binder")
+        db.add(binder1)
+        db.commit()
+
+        binder1_titles = ["Alpha Binding", "Beta Binding", "Gamma Binding"]
+        for title in binder1_titles:
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder1.id,
+                    "binding_authenticated": True,
+                    "value_mid": 100,
+                },
+            )
+
+        # Create second binder with different titles
+        binder2 = Binder(name="Binder Two", full_name="Second Victorian Binder")
+        db.add(binder2)
+        db.commit()
+
+        binder2_titles = ["Delta Binding", "Epsilon Binding"]
+        for title in binder2_titles:
+            client.post(
+                "/api/v1/books",
+                json={
+                    "title": title,
+                    "binder_id": binder2.id,
+                    "binding_authenticated": True,
+                    "value_mid": 200,
+                },
+            )
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify Binder One has correct sample_titles
+        b1 = next((b for b in data if b["binder"] == "Binder One"), None)
+        assert b1 is not None
+        assert b1["count"] == 3
+        assert len(b1["sample_titles"]) == 3
+        # All of binder1's titles should be in the sample
+        for title in binder1_titles:
+            assert title in b1["sample_titles"], (
+                f"'{title}' should be in Binder One's sample_titles"
+            )
+        # None of binder2's titles should be in binder1's sample
+        for title in binder2_titles:
+            assert title not in b1["sample_titles"], (
+                f"'{title}' should NOT be in Binder One's sample_titles"
+            )
+
+        # Verify Binder Two has correct sample_titles
+        b2 = next((b for b in data if b["binder"] == "Binder Two"), None)
+        assert b2 is not None
+        assert b2["count"] == 2
+        assert len(b2["sample_titles"]) == 2
+        # All of binder2's titles should be in the sample
+        for title in binder2_titles:
+            assert title in b2["sample_titles"], (
+                f"'{title}' should be in Binder Two's sample_titles"
+            )
+        # None of binder1's titles should be in binder2's sample
+        for title in binder1_titles:
+            assert title not in b2["sample_titles"], (
+                f"'{title}' should NOT be in Binder Two's sample_titles"
+            )
+
 
 class TestByEra:
     """Tests for GET /api/v1/stats/by-era."""

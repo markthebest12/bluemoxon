@@ -154,7 +154,7 @@ export const BOOK_CATEGORIES = [
 export const DASHBOARD_STAT_CARDS = {
   ON_HAND: {
     label: "On Hand",
-    description: "Total number of books currently in your collection with ON_HAND status",
+    description: "Total number of books currently in your collection with On Hand status",
     filterParam: "status=ON_HAND",
   },
   VOLUMES: {
@@ -164,7 +164,7 @@ export const DASHBOARD_STAT_CARDS = {
   },
   EST_VALUE: {
     label: "Est. Value",
-    description: "Estimated mid-range market value of your ON_HAND collection",
+    description: "Estimated mid-range market value of your On Hand collection",
     filterParam: "status=ON_HAND",
   },
   PREMIUM: {
@@ -177,41 +177,5 @@ export const DASHBOARD_STAT_CARDS = {
 
 export type DashboardStatCard = keyof typeof DASHBOARD_STAT_CARDS;
 
-/**
- * Era definitions with year ranges for tooltips.
- * Matches backend era classification in stats.py
- */
-export const ERA_DEFINITIONS = {
-  "Pre-Romantic (before 1800)": {
-    label: "Pre-Romantic",
-    years: "Before 1800",
-    description: "Works published before the Romantic period",
-  },
-  "Romantic (1800-1836)": {
-    label: "Romantic",
-    years: "1800-1836",
-    description: "The Romantic era, featuring Wordsworth, Coleridge, Byron, Shelley, Keats",
-  },
-  "Victorian (1837-1901)": {
-    label: "Victorian",
-    years: "1837-1901",
-    description: "Queen Victoria's reign, the golden age of British publishing",
-  },
-  "Edwardian (1902-1910)": {
-    label: "Edwardian",
-    years: "1902-1910",
-    description: "King Edward VII's reign, continuation of Victorian traditions",
-  },
-  "Post-1910": {
-    label: "Post-1910",
-    years: "After 1910",
-    description: "Modern era, after the Edwardian period",
-  },
-  Unknown: {
-    label: "Unknown",
-    years: "No date",
-    description: "Books without a recorded publication date",
-  },
-} as const;
-
-export type EraDefinition = (typeof ERA_DEFINITIONS)[keyof typeof ERA_DEFINITIONS];
+// Note: Era definitions are now served by the API via /stats/dashboard references.eras
+// Frontend uses the EraDefinition interface from types/dashboard.ts

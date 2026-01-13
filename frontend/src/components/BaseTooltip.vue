@@ -8,7 +8,9 @@ const props = defineProps<{
 
 const isVisible = ref(false);
 const triggerRef = ref<HTMLElement | null>(null);
+const tooltipRef = ref<HTMLElement | null>(null);
 const tooltipPosition = ref({ top: 0, left: 0 });
+const tooltipOffset = ref({ x: 0 }); // Offset for boundary clamping
 
 function updatePosition() {
   if (!triggerRef.value) return;
@@ -49,9 +51,40 @@ function handleScrollResize() {
   updatePosition();
 }
 
+function clampToViewport() {
+  if (!tooltipRef.value || !triggerRef.value) return;
+
+  const tooltip = tooltipRef.value.getBoundingClientRect();
+  const pos = props.position || "top";
+  const padding = 8; // Minimum distance from viewport edge
+
+  // Only adjust horizontal position for top/bottom tooltips
+  if (pos === "top" || pos === "bottom") {
+    let offsetX = 0;
+
+    // Check left edge
+    if (tooltip.left < padding) {
+      offsetX = padding - tooltip.left;
+    }
+    // Check right edge
+    else if (tooltip.right > window.innerWidth - padding) {
+      offsetX = window.innerWidth - padding - tooltip.right;
+    }
+
+    tooltipOffset.value.x = offsetX;
+  }
+}
+
 function show() {
   updatePosition();
+  tooltipOffset.value.x = 0; // Reset offset
   isVisible.value = true;
+
+  // Clamp after render so we can measure actual tooltip size
+  requestAnimationFrame(() => {
+    clampToViewport();
+  });
+
   window.addEventListener("scroll", handleScrollResize, true);
   window.addEventListener("resize", handleScrollResize);
 }
@@ -79,7 +112,7 @@ const tooltipStyle = computed(() => {
   };
 
   if (pos === "top" || pos === "bottom") {
-    style.left = `${tooltipPosition.value.left}px`;
+    style.left = `${tooltipPosition.value.left + tooltipOffset.value.x}px`;
     style.transform = "translateX(-50%)";
     if (pos === "top") {
       style.bottom = `${window.innerHeight - tooltipPosition.value.top}px`;
@@ -128,6 +161,7 @@ defineExpose({ show, hide, isVisible });
     <Teleport to="body">
       <div
         v-show="isVisible"
+        ref="tooltipRef"
         role="tooltip"
         class="px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg whitespace-pre-line max-w-xs"
         :style="tooltipStyle"
