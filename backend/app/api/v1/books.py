@@ -663,6 +663,7 @@ def get_top_books(
         db.query(Book)
         .outerjoin(Author, Book.author_id == Author.id)
         .outerjoin(Binder, Book.binder_id == Binder.id)
+        .outerjoin(Publisher, Book.publisher_id == Publisher.id)
         .filter(
             Book.inventory_type == inventory_type,
             Book.value_mid > 0,
@@ -702,6 +703,11 @@ def get_top_books(
                 primary_image_url=primary_image_url,
                 binder_name=book.binder.name if book.binder else None,
                 binding_authenticated=book.binding_authenticated,
+                binding_type=book.binding_type,
+                year_start=book.year_start,
+                year_end=book.year_end,
+                publisher_name=book.publisher.name if book.publisher else None,
+                category=book.category,
             )
         )
 
