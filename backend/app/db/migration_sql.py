@@ -503,13 +503,13 @@ MIGRATION_Z0012345CDEF_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_cleanup_jobs_status ON cleanup_jobs(status)",
 ]
 
-# Migration SQL for z1012345efgh_add_failed_count_to_cleanup_jobs
+# Migration SQL for a1f2e3d4c5b6_add_failed_count_to_cleanup_jobs
 # Adds failed_count column to track partial failures during batch delete
 MIGRATION_Z1012345EFGH_SQL = [
     "ALTER TABLE cleanup_jobs ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0",
 ]
 
-# Migration SQL for z2012345ghij_add_binder_operation_years
+# Migration SQL for b2c3d4e5f6a7_add_binder_operation_years
 # Adds founded_year and closed_year columns to binders table for tooltip display
 MIGRATION_Z2012345GHIJ_SQL = [
     "ALTER TABLE binders ADD COLUMN IF NOT EXISTS founded_year INTEGER",
@@ -752,12 +752,12 @@ MIGRATIONS: list[MigrationDef] = [
         "sql_statements": MIGRATION_Z0012345CDEF_SQL,
     },
     {
-        "id": "z1012345efgh",
+        "id": "a1f2e3d4c5b6",
         "name": "add_failed_count_to_cleanup_jobs",
         "sql_statements": MIGRATION_Z1012345EFGH_SQL,
     },
     {
-        "id": "z2012345ghij",
+        "id": "b2c3d4e5f6a7",
         "name": "add_binder_operation_years",
         "sql_statements": MIGRATION_Z2012345GHIJ_SQL,
     },
