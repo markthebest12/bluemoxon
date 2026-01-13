@@ -13,8 +13,12 @@ const error = ref<string | null>(null);
 
 // Constants
 const SPOTLIGHT_COUNT = 3;
-const TOP_PERCENT = 0.2; // Top 20%
-const PAGE_SIZE = 20; // API default page size
+const SPOTLIGHT_LIMIT = 34; // Fetch top books from /books/top endpoint
+const CACHE_KEY = "bmx_spotlight_cache";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const SEED_KEY = "bmx_spotlight_seed";
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 500;
 
 // Use API placeholder for books without images
 const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
@@ -39,69 +43,129 @@ function navigateToBook(bookId: number, event?: MouseEvent): void {
   }
 }
 
-// Shuffle array (Fisher-Yates)
-function shuffleArray<T>(array: T[]): T[] {
+// Simple seeded PRNG (mulberry32)
+function createSeededRandom(seed: number): () => number {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Get or create session seed for consistent shuffle
+function getSessionSeed(): number {
+  const stored = sessionStorage.getItem(SEED_KEY);
+  if (stored) {
+    return parseInt(stored, 10);
+  }
+  const seed = Math.floor(Math.random() * 2147483647);
+  sessionStorage.setItem(SEED_KEY, seed.toString());
+  return seed;
+}
+
+// Shuffle array (Fisher-Yates) with seeded random
+function shuffleArraySeeded<T>(array: T[], random: () => number): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
 }
 
-// Fetch all books and select spotlight
+// Retry wrapper for API calls
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number = MAX_RETRIES,
+  delay: number = RETRY_DELAY_MS
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+// Cache interface
+interface SpotlightCache {
+  books: Book[];
+  timestamp: number;
+}
+
+// Get cached data if valid
+function getCachedBooks(): Book[] | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+
+    const data: SpotlightCache = JSON.parse(cached);
+    const age = Date.now() - data.timestamp;
+    if (age > CACHE_TTL_MS) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data.books;
+  } catch {
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+}
+
+// Save books to cache
+function setCachedBooks(books: Book[]): void {
+  try {
+    const data: SpotlightCache = {
+      books,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded)
+  }
+}
+
+// Fetch spotlight books using /books/top endpoint
 async function fetchSpotlightBooks(): Promise<void> {
   loading.value = true;
   error.value = null;
 
   try {
-    // First, get the first page to know total count
-    const firstResponse = await api.get("/books", {
-      params: {
-        inventory_type: "PRIMARY",
-        page: 1,
-        per_page: PAGE_SIZE,
-      },
-    });
+    // Check cache first
+    const cachedBooks = getCachedBooks();
+    let topBooks: Book[];
 
-    const totalCount = firstResponse.data.total;
-    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-    let allBooks: Book[] = firstResponse.data.items;
+    if (cachedBooks) {
+      topBooks = cachedBooks;
+    } else {
+      // Fetch from API with retry logic
+      const response = await withRetry(() =>
+        api.get("/books/top", {
+          params: { limit: SPOTLIGHT_LIMIT },
+        })
+      );
 
-    // Fetch remaining pages if needed
-    if (totalPages > 1) {
-      const pagePromises = [];
-      for (let page = 2; page <= totalPages; page++) {
-        pagePromises.push(
-          api.get("/books", {
-            params: {
-              inventory_type: "PRIMARY",
-              page,
-              per_page: PAGE_SIZE,
-            },
-          })
-        );
-      }
-
-      const responses = await Promise.all(pagePromises);
-      for (const response of responses) {
-        allBooks = allBooks.concat(response.data.items);
-      }
+      topBooks = response.data.items || response.data;
+      setCachedBooks(topBooks);
     }
 
-    // Sort by value_mid descending and take top 20%
-    const sortedBooks = allBooks
-      .filter((book) => book.value_mid !== null && book.value_mid > 0)
-      .sort((a, b) => (b.value_mid || 0) - (a.value_mid || 0));
-
-    const topCount = Math.ceil(sortedBooks.length * TOP_PERCENT);
-    const pool = sortedBooks.slice(0, topCount);
-
-    // Shuffle and pick spotlight books
-    const shuffled = shuffleArray(pool);
+    // Shuffle with session-consistent seed and pick spotlight books
+    const seed = getSessionSeed();
+    const random = createSeededRandom(seed);
+    const shuffled = shuffleArraySeeded(topBooks, random);
     spotlightBooks.value = shuffled.slice(0, SPOTLIGHT_COUNT);
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Failed to load spotlight books";
+    const message =
+      e instanceof Error
+        ? `Failed to load spotlight books: ${e.message}`
+        : "Failed to load spotlight books. Please try again later.";
     error.value = message;
   } finally {
     loading.value = false;
@@ -219,13 +283,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Line clamp for title truncation */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>
