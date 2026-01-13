@@ -897,6 +897,63 @@ class TestByPublisher:
         assert ch["tier"] == "TIER_1"
         assert ch["count"] == 1
 
+    def test_by_publisher_includes_description_and_founded_year(self, client, db):
+        """Test publisher response includes description and founded_year fields.
+
+        Issue #1097: Publisher tooltips should show description and founded year.
+        """
+        from app.models import Publisher
+
+        # Create publisher with description and founded_year
+        publisher = Publisher(
+            name="Macmillan",
+            tier="TIER_1",
+            description="Premier Victorian publisher of literature and poetry",
+            founded_year=1843,
+        )
+        db.add(publisher)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Macmillan Book", "publisher_id": publisher.id, "value_mid": 300},
+        )
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        macmillan = next((p for p in data if p["publisher"] == "Macmillan"), None)
+        assert macmillan is not None
+        assert macmillan["description"] == "Premier Victorian publisher of literature and poetry"
+        assert macmillan["founded_year"] == 1843
+
+    def test_by_publisher_handles_null_description_and_founded_year(self, client, db):
+        """Test publisher response handles null description and founded_year.
+
+        Issue #1097: Publisher fields should be null-safe.
+        """
+        from app.models import Publisher
+
+        # Create publisher without description or founded_year
+        publisher = Publisher(name="Unknown Press", tier="TIER_2")
+        db.add(publisher)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Unknown Book", "publisher_id": publisher.id, "value_mid": 50},
+        )
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        unknown = next((p for p in data if p["publisher"] == "Unknown Press"), None)
+        assert unknown is not None
+        assert unknown["description"] is None
+        assert unknown["founded_year"] is None
+
 
 class TestByAuthor:
     """Tests for GET /api/v1/stats/by-author."""
@@ -1114,6 +1171,110 @@ class TestByAuthor:
                 f"'{title}' should NOT be in Author Two's sample_titles"
             )
 
+    def test_by_author_includes_era_and_birth_death_years(self, client, db):
+        """Test author response includes era, birth_year, and death_year fields.
+
+        Issue #1097: Author tooltips should show era and lifespan.
+        """
+        from app.models import Author
+
+        # Create author with metadata
+        author = Author(
+            name="Alfred Tennyson",
+            era="Victorian",
+            birth_year=1809,
+            death_year=1892,
+        )
+        db.add(author)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "In Memoriam",
+                "author_id": author.id,
+                "value_mid": 500,
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        tennyson = next((a for a in data if a["author"] == "Alfred Tennyson"), None)
+        assert tennyson is not None
+        assert tennyson["era"] == "Victorian"
+        assert tennyson["birth_year"] == 1809
+        assert tennyson["death_year"] == 1892
+
+    def test_by_author_handles_null_era_and_years(self, client, db):
+        """Test author response handles null era and year fields.
+
+        Issue #1097: Author fields should be null-safe.
+        """
+        from app.models import Author
+
+        # Create author without metadata
+        author = Author(name="Anonymous Author")
+        db.add(author)
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Anonymous Work",
+                "author_id": author.id,
+                "value_mid": 100,
+            },
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        anon = next((a for a in data if a["author"] == "Anonymous Author"), None)
+        assert anon is not None
+        assert anon["era"] is None
+        assert anon["birth_year"] is None
+        assert anon["death_year"] is None
+
+    def test_by_author_partial_years(self, client, db):
+        """Test author with only birth_year or only death_year.
+
+        Issue #1097: Frontend shows "b. 1809" or "d. 1892" for partial data.
+        """
+        from app.models import Author
+
+        # Author with only birth year
+        author1 = Author(name="Living Author", birth_year=1950)
+        # Author with only death year
+        author2 = Author(name="Ancient Author", death_year=1600)
+        db.add_all([author1, author2])
+        db.commit()
+
+        client.post(
+            "/api/v1/books",
+            json={"title": "Modern Work", "author_id": author1.id, "value_mid": 100},
+        )
+        client.post(
+            "/api/v1/books",
+            json={"title": "Ancient Work", "author_id": author2.id, "value_mid": 200},
+        )
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        living = next((a for a in data if a["author"] == "Living Author"), None)
+        assert living is not None
+        assert living["birth_year"] == 1950
+        assert living["death_year"] is None
+
+        ancient = next((a for a in data if a["author"] == "Ancient Author"), None)
+        assert ancient is not None
+        assert ancient["birth_year"] is None
+        assert ancient["death_year"] == 1600
+
 
 class TestValueByCategory:
     """Tests for GET /api/v1/stats/value-by-category."""
@@ -1271,6 +1432,36 @@ class TestDashboardBatch:
         poetry = next((c for c in data["by_category"] if c["category"] == "Victorian Poetry"), None)
         assert poetry is not None
         assert poetry["count"] == 1
+
+    def test_dashboard_includes_references(self, client):
+        """Test dashboard includes era and condition reference definitions."""
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify references section exists
+        assert "references" in data
+        assert data["references"] is not None
+
+        # Verify eras structure
+        eras = data["references"]["eras"]
+        assert "Victorian (1837-1901)" in eras
+        victorian = eras["Victorian (1837-1901)"]
+        assert victorian["label"] == "Victorian"
+        assert victorian["years"] == "1837-1901"
+        assert "description" in victorian
+
+        # Verify conditions structure
+        conditions = data["references"]["conditions"]
+        assert "FINE" in conditions
+        fine = conditions["FINE"]
+        assert fine["label"] == "Fine"
+        assert "description" in fine
+
+        # Verify all expected condition grades are present
+        expected_conditions = ["FINE", "NEAR_FINE", "VERY_GOOD", "GOOD", "FAIR", "POOR"]
+        for condition in expected_conditions:
+            assert condition in conditions, f"Missing condition: {condition}"
 
 
 class TestStatsEdgeCases:

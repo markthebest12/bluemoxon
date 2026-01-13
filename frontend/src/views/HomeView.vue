@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { useDashboardStore } from "@/stores/dashboard";
 import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
+import BaseTooltip from "@/components/BaseTooltip.vue";
+import { DASHBOARD_STAT_CARDS } from "@/constants";
+
+const router = useRouter();
 
 const dashboardStore = useDashboardStore();
 
@@ -41,6 +46,18 @@ function getTrendArrow(value: number): string {
   if (value < 0) return "↓";
   return "→";
 }
+
+function navigateToStat(filterParam: string, event?: MouseEvent): void {
+  // Parse filterParam and build URL with proper encoding
+  const params = new URLSearchParams(filterParam);
+  params.set("inventory_type", "PRIMARY");
+  const url = `/books?${params.toString()}`;
+  if (event?.metaKey || event?.ctrlKey) {
+    window.open(url, "_blank");
+  } else {
+    void router.push(url);
+  }
+}
 </script>
 
 <template>
@@ -66,15 +83,20 @@ function getTrendArrow(value: number): string {
 
     <div v-else-if="dashboardStore.data" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <!-- Total Collections -->
-      <div class="card-static p-3! md:p-6! relative overflow-hidden">
+      <div
+        class="card-static p-3! md:p-6! relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-victorian-hunter-600/30 transition-all"
+        @click="navigateToStat(DASHBOARD_STAT_CARDS.ON_HAND.filterParam, $event)"
+      >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
         ></div>
-        <h3
-          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
-        >
-          On Hand
-        </h3>
+        <BaseTooltip :content="DASHBOARD_STAT_CARDS.ON_HAND.description" position="bottom">
+          <h3
+            class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider cursor-help"
+          >
+            On Hand
+          </h3>
+        </BaseTooltip>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
             {{ dashboardStore.data.overview.primary.count }}
@@ -99,15 +121,20 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Total Volumes -->
-      <div class="card-static p-3! md:p-6! relative overflow-hidden">
+      <div
+        class="card-static p-3! md:p-6! relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-victorian-hunter-600/30 transition-all"
+        @click="navigateToStat(DASHBOARD_STAT_CARDS.VOLUMES.filterParam, $event)"
+      >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-hunter-800/5 to-transparent"
         ></div>
-        <h3
-          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
-        >
-          Volumes
-        </h3>
+        <BaseTooltip :content="DASHBOARD_STAT_CARDS.VOLUMES.description" position="bottom">
+          <h3
+            class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider cursor-help"
+          >
+            Volumes
+          </h3>
+        </BaseTooltip>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-hunter-800">
             {{ dashboardStore.data.overview.primary.volumes }}
@@ -129,15 +156,20 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Collection Value -->
-      <div class="card-static p-3! md:p-6! relative overflow-hidden">
+      <div
+        class="card-static p-3! md:p-6! relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-victorian-gold/30 transition-all"
+        @click="navigateToStat(DASHBOARD_STAT_CARDS.EST_VALUE.filterParam, $event)"
+      >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-gold/10 to-transparent"
         ></div>
-        <h3
-          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
-        >
-          Est. Value
-        </h3>
+        <BaseTooltip :content="DASHBOARD_STAT_CARDS.EST_VALUE.description" position="bottom">
+          <h3
+            class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider cursor-help"
+          >
+            Est. Value
+          </h3>
+        </BaseTooltip>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-xl md:text-3xl font-display text-victorian-gold-dark">
             {{ formatCurrency(dashboardStore.data.overview.primary.value_mid) }}
@@ -172,15 +204,20 @@ function getTrendArrow(value: number): string {
       </div>
 
       <!-- Authenticated Bindings -->
-      <div class="card-static p-3! md:p-6! relative overflow-hidden">
+      <div
+        class="card-static p-3! md:p-6! relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-victorian-burgundy/30 transition-all"
+        @click="navigateToStat(DASHBOARD_STAT_CARDS.PREMIUM.filterParam, $event)"
+      >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-victorian-burgundy/10 to-transparent"
         ></div>
-        <h3
-          class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider"
-        >
-          Premium
-        </h3>
+        <BaseTooltip :content="DASHBOARD_STAT_CARDS.PREMIUM.description" position="bottom">
+          <h3
+            class="text-xs md:text-sm font-medium text-victorian-ink-muted uppercase tracking-wider cursor-help"
+          >
+            Premium
+          </h3>
+        </BaseTooltip>
         <div class="flex items-baseline gap-2 mt-1 md:mt-2">
           <p class="text-2xl md:text-3xl font-display text-victorian-burgundy">
             {{ dashboardStore.data.overview.authenticated_bindings }}

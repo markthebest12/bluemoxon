@@ -268,6 +268,8 @@ def query_by_publisher(db: Session) -> list[dict]:
             func.count(Book.id),
             func.sum(Book.value_mid),
             func.sum(Book.volumes),
+            Publisher.description,
+            Publisher.founded_year,
         )
         .join(Book, Book.publisher_id == Publisher.id)
         .filter(Book.inventory_type == "PRIMARY")
@@ -284,6 +286,8 @@ def query_by_publisher(db: Session) -> list[dict]:
             "count": row[3],
             "value": safe_float(row[4]),
             "volumes": row[5] or 0,
+            "description": row[6],
+            "founded_year": row[7],
         }
         for row in results
     ]
@@ -303,7 +307,7 @@ def query_by_author(db: Session) -> list[dict]:
     """
     from app.models import Author
 
-    # Query 1: Aggregation (unchanged)
+    # Query 1: Aggregation with author metadata
     results = (
         db.query(
             Author.id,
@@ -311,6 +315,9 @@ def query_by_author(db: Session) -> list[dict]:
             func.count(Book.id),  # Number of book records
             func.sum(Book.value_mid),
             func.sum(Book.volumes),  # Total volumes across all records
+            Author.era,
+            Author.birth_year,
+            Author.death_year,
         )
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
@@ -349,7 +356,7 @@ def query_by_author(db: Session) -> list[dict]:
     # Build response using the lookup
     author_data = []
     for row in results:
-        author_id, author_name, record_count, value, volumes = row
+        author_id, author_name, record_count, value, volumes, era, birth_year, death_year = row
         sample_titles = titles_by_author.get(author_id, [])
 
         author_data.append(
@@ -363,6 +370,9 @@ def query_by_author(db: Session) -> list[dict]:
                 "titles": record_count,  # Number of distinct titles/sets
                 "sample_titles": sample_titles,
                 "has_more": record_count > 5,
+                "era": era,
+                "birth_year": birth_year,
+                "death_year": death_year,
             }
         )
 
@@ -673,7 +683,9 @@ def get_dashboard(
         default=None,
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
     ),
-    days: int = Query(default=30, ge=7, le=90, description="Number of days for acquisitions"),
+    days: int = Query(
+        default=30, ge=7, le=180, description="Number of days for acquisitions (default: 30)"
+    ),
 ) -> DashboardResponse:
     """Get all dashboard statistics in a single request.
 
