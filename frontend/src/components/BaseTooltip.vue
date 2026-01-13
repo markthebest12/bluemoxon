@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onUnmounted } from "vue";
 
 const props = defineProps<{
   content: string;
@@ -45,33 +45,33 @@ function updatePosition() {
   }
 }
 
+function handleScrollResize() {
+  updatePosition();
+}
+
 function show() {
   updatePosition();
   isVisible.value = true;
+  window.addEventListener("scroll", handleScrollResize, true);
+  window.addEventListener("resize", handleScrollResize);
 }
 
 function hide() {
   isVisible.value = false;
+  window.removeEventListener("scroll", handleScrollResize, true);
+  window.removeEventListener("resize", handleScrollResize);
 }
-
-// Update position on scroll/resize while visible
-function handleScrollResize() {
-  if (isVisible.value) {
-    updatePosition();
-  }
-}
-
-onMounted(() => {
-  window.addEventListener("scroll", handleScrollResize, true);
-  window.addEventListener("resize", handleScrollResize);
-});
 
 onUnmounted(() => {
+  // Clean up in case unmounted while visible
   window.removeEventListener("scroll", handleScrollResize, true);
   window.removeEventListener("resize", handleScrollResize);
 });
 
 const tooltipStyle = computed(() => {
+  // Only compute positioning when visible to avoid style conflicts with v-show
+  if (!isVisible.value) return {};
+
   const pos = props.position || "top";
   const style: Record<string, string> = {
     position: "fixed",
@@ -108,6 +108,9 @@ const arrowClass = computed(() => {
     "right-full top-1/2 -translate-y-1/2 -mr-1": pos === "right",
   };
 });
+
+// Expose for testing (JSDOM doesn't trigger mouseenter properly)
+defineExpose({ show, hide, isVisible });
 </script>
 
 <template>
