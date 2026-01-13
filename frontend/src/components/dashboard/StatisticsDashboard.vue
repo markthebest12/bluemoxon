@@ -72,7 +72,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  yAxisLabelTooltipPlugin
 );
 
 // Colors - Victorian Design System
