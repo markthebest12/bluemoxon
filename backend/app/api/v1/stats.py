@@ -684,7 +684,7 @@ def get_dashboard(
         description="Reference date in YYYY-MM-DD format (defaults to today UTC)",
     ),
     days: int = Query(
-        default=90, ge=7, le=180, description="Number of days for acquisitions (default: 90)"
+        default=30, ge=7, le=180, description="Number of days for acquisitions (default: 30)"
     ),
 ) -> DashboardResponse:
     """Get all dashboard statistics in a single request.

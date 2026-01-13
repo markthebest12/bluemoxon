@@ -81,6 +81,44 @@ class AuthorData(BaseModel):
     titles: int = Field(description="Number of distinct book records")
     sample_titles: list[str] = Field(default_factory=list)
     has_more: bool = False
+    era: str | None = None
+    birth_year: int | None = None
+    death_year: int | None = None
+
+
+class PublisherDataExtended(BaseModel):
+    """Books grouped by publisher with extended metadata."""
+
+    publisher_id: int
+    publisher: str
+    tier: str | None
+    count: int
+    value: float
+    volumes: int
+    description: str | None = None
+    founded_year: int | None = None
+
+
+class EraDefinition(BaseModel):
+    """Era definition with label, year range, and description."""
+
+    label: str
+    years: str
+    description: str
+
+
+class ConditionDefinition(BaseModel):
+    """Condition grade definition with label and description."""
+
+    label: str
+    description: str
+
+
+class ReferenceDefinitions(BaseModel):
+    """Reference data definitions for UI display."""
+
+    eras: dict[str, EraDefinition]
+    conditions: dict[str, ConditionDefinition]
 
 
 class AcquisitionDay(BaseModel):
@@ -118,8 +156,10 @@ class DashboardResponse(BaseModel):
     overview: OverviewStats
     bindings: list[BinderData]
     by_era: list[EraData]
-    by_publisher: list[PublisherData]
+    by_publisher: list[PublisherDataExtended]
     by_author: list[AuthorData]
     acquisitions_daily: list[AcquisitionDay]
     by_condition: list[ConditionData]
     by_category: list[CategoryData]
+    # Reference definitions for UI display (single source of truth)
+    references: ReferenceDefinitions | None = None

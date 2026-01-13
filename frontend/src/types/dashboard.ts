@@ -72,6 +72,22 @@ export interface CategoryData {
   value: number;
 }
 
+export interface EraDefinition {
+  label: string;
+  years: string;
+  description: string;
+}
+
+export interface ConditionDefinition {
+  label: string;
+  description: string;
+}
+
+export interface ReferenceDefinitions {
+  eras: Record<string, EraDefinition>;
+  conditions: Record<string, ConditionDefinition>;
+}
+
 export interface AcquisitionDay {
   date: string;
   label: string;
@@ -92,6 +108,7 @@ export interface DashboardStats {
   acquisitions_daily: AcquisitionDay[];
   by_condition: ConditionData[];
   by_category: CategoryData[];
+  references?: ReferenceDefinitions;
 }
 
 export interface CachedDashboard {

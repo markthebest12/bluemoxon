@@ -2,23 +2,32 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
-import type { DashboardStats } from "@/types/dashboard";
+import type { DashboardStats, EraDefinition } from "@/types/dashboard";
 import { formatAcquisitionTooltip } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
 import { formatConditionGrade } from "@/utils/format";
 import { useDashboardStore } from "@/stores/dashboard";
 import BaseTooltip from "@/components/BaseTooltip.vue";
-import { CONDITION_GRADE_OPTIONS, ERA_DEFINITIONS } from "@/constants";
 
 const router = useRouter();
 const dashboardStore = useDashboardStore();
 
-// Helper to get condition description from CONDITION_GRADE_OPTIONS
+// Props - receive data from parent (moved up for helper access)
+const props = defineProps<{
+  data: DashboardStats;
+}>();
+
+// Helper to get condition label from API references (single source of truth)
+function getConditionLabel(condition: string): string {
+  const def = props.data.references?.conditions[condition];
+  return def?.label ?? formatConditionGrade(condition);
+}
+
+// Helper to get condition description from API references (single source of truth)
 function getConditionDescription(condition: string): string {
-  const option = CONDITION_GRADE_OPTIONS.find(
-    (opt) => opt.value === condition || opt.label === condition
-  );
-  return option?.description ?? "";
+  // Use canonical condition value (e.g., "FINE", "VERY_GOOD")
+  const def = props.data.references?.conditions[condition];
+  return def?.description ?? "";
 }
 
 // Time range options for the selector buttons
@@ -63,11 +72,6 @@ ChartJS.register(
   Legend,
   Filler
 );
-
-// Props - receive data from parent
-const props = defineProps<{
-  data: DashboardStats;
-}>();
 
 // Colors - Victorian Design System
 const chartColors = {
@@ -236,7 +240,7 @@ const eraChartOptions = computed(() => ({
         title: (items: TooltipItem<"bar">[]) => {
           if (items.length > 0) {
             const era = props.data.by_era[items[0].dataIndex]?.era;
-            const def = ERA_DEFINITIONS[era as keyof typeof ERA_DEFINITIONS];
+            const def = props.data.references?.eras[era] as EraDefinition | undefined;
             return def ? `${def.label} (${def.years})` : era;
           }
           return "";
@@ -244,7 +248,7 @@ const eraChartOptions = computed(() => ({
         label: (context: TooltipItem<"bar">) => {
           const value = context.raw as number;
           const era = props.data.by_era[context.dataIndex]?.era;
-          const def = ERA_DEFINITIONS[era as keyof typeof ERA_DEFINITIONS];
+          const def = props.data.references?.eras[era] as EraDefinition | undefined;
           const lines = [`${value} ${value === 1 ? "book" : "books"}`];
           if (def?.description) {
             lines.push(def.description);
@@ -271,9 +275,17 @@ const eraChartOptions = computed(() => ({
   },
 }));
 
+// Maximum number of tier 1 publishers to show in chart
+const MAX_TIER1_PUBLISHERS = 5;
+
+// Tooltip text wrapping: Chart.js doesn't support maxWidth for custom callbacks,
+// so we manually wrap long text. These values work well for typical tooltip widths.
+const TOOLTIP_LINE_LENGTH = 55; // Characters before wrapping
+const TOOLTIP_WRAP_THRESHOLD = 60; // Only wrap if text exceeds this length
+
 // Helper to get filtered tier1 publishers (used in both chart data and options)
 const tier1Publishers = computed(() =>
-  props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, 5)
+  props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, MAX_TIER1_PUBLISHERS)
 );
 
 const publisherChartOptions = computed(() => ({
@@ -304,13 +316,13 @@ const publisherChartOptions = computed(() => ({
           }
           // Add description if available
           if (publisher?.description) {
-            // Wrap long descriptions
+            // Wrap long descriptions to fit tooltip width
             const desc = publisher.description;
-            if (desc.length > 60) {
+            if (desc.length > TOOLTIP_WRAP_THRESHOLD) {
               const words = desc.split(" ");
               let line = "";
               for (const word of words) {
-                if ((line + word).length > 55) {
+                if ((line + word).length > TOOLTIP_LINE_LENGTH) {
                   lines.push(line.trim());
                   line = word + " ";
                 } else {
@@ -435,7 +447,7 @@ const getConditionColor = (condition: string): string =>
 const conditionChartData = computed(() => {
   const conditions = props.data?.by_condition ?? [];
   return {
-    labels: conditions.map((d) => formatConditionGrade(d.condition)),
+    labels: conditions.map((d) => getConditionLabel(d.condition)),
     datasets: [
       {
         data: conditions.map((d) => d.count),
@@ -498,7 +510,7 @@ const authorChartData = computed(() => ({
 function formatAuthorLifespan(author: {
   birth_year?: number | null;
   death_year?: number | null;
-}): string | null {
+}): string {
   if (author.birth_year && author.death_year) {
     return `${author.birth_year}–${author.death_year}`;
   } else if (author.birth_year) {
@@ -506,7 +518,7 @@ function formatAuthorLifespan(author: {
   } else if (author.death_year) {
     return `d. ${author.death_year}`;
   }
-  return null;
+  return "Dates unknown";
 }
 
 // Custom options for author chart with enhanced tooltips showing era and book titles
@@ -608,7 +620,7 @@ const authorChartOptions = computed(() => ({
         <!-- Custom legend with tooltips for binder full names -->
         <div
           v-if="props.data.bindings.length > 0"
-          class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+          class="chart-legend flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
         >
           <BaseTooltip
             v-for="(binder, index) in props.data.bindings"
@@ -617,7 +629,8 @@ const authorChartOptions = computed(() => ({
             position="top"
           >
             <button
-              class="flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              class="legend-btn flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              :aria-label="`Filter books by ${binder.full_name || binder.binder} binding`"
               @click="
                 navigateToBooks(router, {
                   binder_id: binder.binder_id,
@@ -707,7 +720,7 @@ const authorChartOptions = computed(() => ({
         <!-- Custom legend with tooltips -->
         <div
           v-if="props.data?.by_condition?.length > 0"
-          class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
+          class="chart-legend flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2"
         >
           <BaseTooltip
             v-for="(item, index) in props.data.by_condition"
@@ -716,14 +729,15 @@ const authorChartOptions = computed(() => ({
             position="top"
           >
             <button
-              class="flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              class="legend-btn flex items-center gap-1 text-xs cursor-pointer hover:opacity-80"
+              :aria-label="`Filter books by ${getConditionLabel(item.condition)} condition`"
               @click="navigateToBooks(router, { condition_grade: item.condition })"
             >
               <span
                 class="w-3 h-3 rounded-sm inline-block"
                 :style="{ backgroundColor: conditionChartData.datasets[0].backgroundColor[index] }"
               ></span>
-              <span class="text-gray-600">{{ formatConditionGrade(item.condition) }}</span>
+              <span class="text-gray-600">{{ getConditionLabel(item.condition) }}</span>
             </button>
           </BaseTooltip>
         </div>
@@ -826,5 +840,30 @@ const authorChartOptions = computed(() => ({
 .time-range-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Chart legend container - handle overflow with scroll */
+.chart-legend {
+  max-height: 4rem; /* ~3 rows of legend items */
+  overflow-y: auto;
+}
+
+/* Legend button accessibility - focus styles for keyboard navigation */
+.legend-btn {
+  border-radius: 0.125rem;
+}
+
+.legend-btn:focus {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.legend-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.legend-btn:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
 }
 </style>

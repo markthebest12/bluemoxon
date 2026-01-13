@@ -48,7 +48,10 @@ function getTrendArrow(value: number): string {
 }
 
 function navigateToStat(filterParam: string, event?: MouseEvent): void {
-  const url = `/books?inventory_type=PRIMARY&${filterParam}`;
+  // Parse filterParam and build URL with proper encoding
+  const params = new URLSearchParams(filterParam);
+  params.set("inventory_type", "PRIMARY");
+  const url = `/books?${params.toString()}`;
   if (event?.metaKey || event?.ctrlKey) {
     window.open(url, "_blank");
   } else {

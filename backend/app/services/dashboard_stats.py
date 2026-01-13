@@ -263,6 +263,9 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     by_author = query_by_author(db)
     acquisitions_daily = query_acquisitions_daily(db, reference_date, days)
 
+    # Import reference definitions (single source of truth)
+    from app.constants import CONDITION_GRADE_DEFINITIONS, ERA_DEFINITIONS
+
     result = {
         "overview": overview,
         "bindings": bindings,
@@ -272,6 +275,10 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
         "acquisitions_daily": acquisitions_daily,
         "by_condition": dimensions["by_condition"],
         "by_category": dimensions["by_category"],
+        "references": {
+            "eras": ERA_DEFINITIONS,
+            "conditions": CONDITION_GRADE_DEFINITIONS,
+        },
     }
 
     # Store in cache
