@@ -177,5 +177,19 @@ export const DASHBOARD_STAT_CARDS = {
 
 export type DashboardStatCard = keyof typeof DASHBOARD_STAT_CARDS;
 
+/**
+ * Dashboard chart and display constants.
+ */
+export const DASHBOARD = {
+  /** Number of books shown in the Collection Spotlight carousel */
+  SPOTLIGHT_COUNT: 3,
+  /** Top percentage of books by value eligible for spotlight (20%) */
+  TOP_PERCENT: 0.2,
+  /** Maximum number of sample titles shown in tooltips (matches backend limit) */
+  SAMPLE_TITLES_LIMIT: 5,
+  /** Maximum number of authors shown in the author chart */
+  AUTHOR_CHART_LIMIT: 8,
+} as const;
+
 // Note: Era definitions are now served by the API via /stats/dashboard references.eras
 // Frontend uses the EraDefinition interface from types/dashboard.ts

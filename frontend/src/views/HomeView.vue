@@ -3,6 +3,7 @@ import { onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useDashboardStore } from "@/stores/dashboard";
 import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
+import CollectionSpotlight from "@/components/dashboard/CollectionSpotlight.vue";
 import BaseTooltip from "@/components/BaseTooltip.vue";
 import { DASHBOARD_STAT_CARDS } from "@/constants";
 
@@ -239,28 +240,8 @@ function navigateToStat(filterParam: string, event?: MouseEvent): void {
       </div>
     </div>
 
-    <!-- Quick Links -->
-    <div class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-      <RouterLink to="/books" class="card group">
-        <h3
-          class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700"
-        >
-          Browse Collection
-        </h3>
-        <p class="text-victorian-ink-muted mt-2">Search and filter your complete book inventory</p>
-      </RouterLink>
-
-      <RouterLink to="/books?inventory_type=PRIMARY&binding_authenticated=true" class="card group">
-        <h3
-          class="text-lg font-display text-victorian-ink-black group-hover:text-victorian-hunter-700"
-        >
-          Premium Bindings
-        </h3>
-        <p class="text-victorian-ink-muted mt-2">
-          View authenticated Zaehnsdorf, Riviere, and more
-        </p>
-      </RouterLink>
-    </div>
+    <!-- Collection Spotlight - showcases top value books -->
+    <CollectionSpotlight />
 
     <!-- Statistics Dashboard - pass data as prop -->
     <StatisticsDashboard v-if="dashboardStore.data" :data="dashboardStore.data" />

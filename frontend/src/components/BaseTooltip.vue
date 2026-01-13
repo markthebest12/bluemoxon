@@ -7,6 +7,8 @@ const props = defineProps<{
 }>();
 
 const isVisible = ref(false);
+const isPositioned = ref(false); // True after clampToViewport completes (prevents flash)
+const listenersAdded = ref(false); // Track if scroll/resize listeners are active (P2-11)
 const triggerRef = ref<HTMLElement | null>(null);
 const tooltipRef = ref<HTMLElement | null>(null);
 const tooltipPosition = ref({ top: 0, left: 0 });
@@ -78,21 +80,33 @@ function clampToViewport() {
 function show() {
   updatePosition();
   tooltipOffset.value.x = 0; // Reset offset
+  isPositioned.value = false; // Hide until positioned (P1-4)
   isVisible.value = true;
 
   // Clamp after render so we can measure actual tooltip size
+  // Only reveal tooltip AFTER positioning is complete (P1-4: fixes race condition)
   requestAnimationFrame(() => {
     clampToViewport();
+    isPositioned.value = true;
   });
 
-  window.addEventListener("scroll", handleScrollResize, true);
-  window.addEventListener("resize", handleScrollResize);
+  // Only add listeners if not already added (P2-11: prevents listener accumulation)
+  if (!listenersAdded.value) {
+    window.addEventListener("scroll", handleScrollResize, true);
+    window.addEventListener("resize", handleScrollResize);
+    listenersAdded.value = true;
+  }
 }
 
 function hide() {
   isVisible.value = false;
-  window.removeEventListener("scroll", handleScrollResize, true);
-  window.removeEventListener("resize", handleScrollResize);
+  isPositioned.value = false;
+  // Remove listeners and clear flag (P2-11)
+  if (listenersAdded.value) {
+    window.removeEventListener("scroll", handleScrollResize, true);
+    window.removeEventListener("resize", handleScrollResize);
+    listenersAdded.value = false;
+  }
 }
 
 onUnmounted(() => {
@@ -163,7 +177,8 @@ defineExpose({ show, hide, isVisible });
         v-show="isVisible"
         ref="tooltipRef"
         role="tooltip"
-        class="px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg whitespace-pre-line max-w-xs"
+        class="px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg whitespace-pre-line max-w-xs transition-opacity duration-75"
+        :class="{ 'opacity-0': !isPositioned, 'opacity-100': isPositioned }"
         :style="tooltipStyle"
       >
         {{ content }}
