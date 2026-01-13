@@ -21,6 +21,61 @@ from app.models import Binder, Book, Publisher
 from app.schemas.stats import DashboardResponse
 from app.utils import safe_float
 
+
+def batch_fetch_sample_titles(
+    db: Session,
+    fk_column,
+    ids: list[int],
+    additional_filters: list | None = None,
+    limit: int = 5,
+) -> dict[int, list[str]]:
+    """Batch fetch sample book titles for a list of entity IDs.
+
+    Uses a window function to efficiently fetch up to `limit` titles per entity
+    in a single query, avoiding N+1 queries.
+
+    Args:
+        db: Database session
+        fk_column: The Book foreign key column to partition by (e.g., Book.author_id)
+        ids: List of entity IDs to fetch titles for
+        additional_filters: Optional list of additional filter conditions
+        limit: Maximum number of titles per entity (default 5)
+
+    Returns:
+        Dict mapping entity_id -> list of title strings
+    """
+    if not ids:
+        return {}
+
+    # Build filter list
+    filters = [fk_column.in_(ids), Book.inventory_type == "PRIMARY"]
+    if additional_filters:
+        filters.extend(additional_filters)
+
+    # Window function query to get ranked titles per entity
+    subq = (
+        db.query(
+            fk_column,
+            Book.title,
+            func.row_number().over(partition_by=fk_column, order_by=Book.id).label("rn"),
+        )
+        .filter(*filters)
+        .subquery()
+    )
+
+    # Fetch only top N titles per entity
+    sample_titles_rows = (
+        db.query(subq.c[fk_column.key], subq.c.title).filter(subq.c.rn <= limit).all()
+    )
+
+    # Build lookup dict
+    titles_by_entity: dict[int, list[str]] = defaultdict(list)
+    for entity_id, title in sample_titles_rows:
+        titles_by_entity[entity_id].append(title)
+
+    return titles_by_entity
+
+
 router = APIRouter()
 
 
@@ -332,26 +387,8 @@ def query_by_author(db: Session) -> list[dict]:
     if not author_ids:
         return []
 
-    # Query 2: Batch fetch sample titles using window function
-    subq = (
-        db.query(
-            Book.author_id,
-            Book.title,
-            func.row_number().over(partition_by=Book.author_id, order_by=Book.id).label("rn"),
-        )
-        .filter(
-            Book.author_id.in_(author_ids),
-            Book.inventory_type == "PRIMARY",
-        )
-        .subquery()
-    )
-
-    sample_titles_rows = db.query(subq.c.author_id, subq.c.title).filter(subq.c.rn <= 5).all()
-
-    # Build lookup dict: author_id -> [titles]
-    titles_by_author = defaultdict(list)
-    for author_id, title in sample_titles_rows:
-        titles_by_author[author_id].append(title)
+    # Batch fetch sample titles using helper
+    titles_by_author = batch_fetch_sample_titles(db, Book.author_id, author_ids)
 
     # Build response using the lookup
     author_data = []
@@ -426,27 +463,13 @@ def query_bindings(db: Session) -> list[dict]:
     if not binder_ids:
         return []
 
-    # Query 2: Batch fetch sample titles using window function
-    subq = (
-        db.query(
-            Book.binder_id,
-            Book.title,
-            func.row_number().over(partition_by=Book.binder_id, order_by=Book.id).label("rn"),
-        )
-        .filter(
-            Book.binder_id.in_(binder_ids),
-            Book.binding_authenticated.is_(True),
-            Book.inventory_type == "PRIMARY",
-        )
-        .subquery()
+    # Batch fetch sample titles using helper (with authenticated binding filter)
+    titles_by_binder = batch_fetch_sample_titles(
+        db,
+        Book.binder_id,
+        binder_ids,
+        additional_filters=[Book.binding_authenticated.is_(True)],
     )
-
-    sample_titles_rows = db.query(subq.c.binder_id, subq.c.title).filter(subq.c.rn <= 5).all()
-
-    # Build lookup dict: binder_id -> [titles]
-    titles_by_binder = defaultdict(list)
-    for binder_id, title in sample_titles_rows:
-        titles_by_binder[binder_id].append(title)
 
     return [
         {

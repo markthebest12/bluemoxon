@@ -2,8 +2,8 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import type { TooltipItem, ChartEvent, ActiveElement } from "chart.js";
-import type { DashboardStats, EraDefinition } from "@/types/dashboard";
-import { formatAcquisitionTooltip } from "./chartHelpers";
+import type { DashboardStats, EraDefinition, AuthorData, PublisherData } from "@/types/dashboard";
+import { formatAcquisitionTooltip, yAxisLabelTooltipPlugin } from "./chartHelpers";
 import { navigateToBooks } from "@/utils/chart-navigation";
 import { formatConditionGrade } from "@/utils/format";
 import { useDashboardStore } from "@/stores/dashboard";
@@ -70,7 +70,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  yAxisLabelTooltipPlugin
 );
 
 // Colors - Victorian Design System
@@ -288,10 +289,17 @@ const tier1Publishers = computed(() =>
   props.data.by_publisher.filter((p) => p.tier === "TIER_1").slice(0, MAX_TIER1_PUBLISHERS)
 );
 
+// Computed label tooltips for publisher chart (must match chart data order)
+const publisherLabelTooltips = computed(() =>
+  tier1Publishers.value.map((publisher) => formatPublisherLabelTooltip(publisher))
+);
+
 const publisherChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: publisherLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
@@ -575,11 +583,76 @@ function formatBinderTooltip(binder: {
   return lines.join("\n");
 }
 
+// Helper to format author tooltip for Y-axis label hover
+function formatAuthorLabelTooltip(author: AuthorData): string {
+  const lines: string[] = [];
+
+  // Era and lifespan
+  const lifespan = formatAuthorLifespan(author);
+  if (author.era || lifespan) {
+    const parts = [];
+    if (author.era) parts.push(author.era);
+    if (lifespan) parts.push(lifespan);
+    lines.push(parts.join(" • "));
+  }
+
+  // Book/title count
+  lines.push(
+    `${author.count} ${author.count === 1 ? "book" : "books"} across ${author.titles} ${author.titles === 1 ? "title" : "titles"}`
+  );
+
+  // Sample titles
+  if (author.sample_titles && author.sample_titles.length > 0) {
+    author.sample_titles.forEach((title: string) => {
+      const truncated = title.length > 35 ? title.substring(0, 32) + "..." : title;
+      lines.push(`  • ${truncated}`);
+    });
+    if (author.has_more) {
+      const moreCount = author.titles - author.sample_titles.length;
+      lines.push(`  ...and ${moreCount} more`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Helper to format publisher tooltip for Y-axis label hover
+function formatPublisherLabelTooltip(publisher: PublisherData): string {
+  const lines: string[] = [];
+
+  // Founded year
+  if (publisher.founded_year) {
+    lines.push(`Founded: ${publisher.founded_year}`);
+  }
+
+  // Book count
+  lines.push(`${publisher.count} ${publisher.count === 1 ? "book" : "books"}`);
+
+  // Description (truncate if long)
+  if (publisher.description) {
+    const desc = publisher.description;
+    if (desc.length > 80) {
+      lines.push(desc.substring(0, 77) + "...");
+    } else {
+      lines.push(desc);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Computed label tooltips for author chart (must match chart data order)
+const authorLabelTooltips = computed(() =>
+  filteredAuthorData.value.slice(0, 8).map((author) => formatAuthorLabelTooltip(author))
+);
+
 // Custom options for author chart with enhanced tooltips showing era and book titles
 const authorChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: "y" as const,
+  // Label tooltips for Y-axis hover (via yAxisLabelTooltipPlugin)
+  labelTooltips: authorLabelTooltips.value,
   onClick: (event: ChartEvent, elements: ActiveElement[]) => {
     if (elements.length > 0) {
       const index = elements[0].index;
