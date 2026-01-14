@@ -27,6 +27,7 @@ from app.auth import require_admin, require_editor, require_viewer
 from app.cache import get_redis
 from app.config import get_settings
 from app.db import get_db
+from app.enums import OWNED_STATUSES
 from app.models import (
     AnalysisJob,
     Author,
@@ -667,6 +668,7 @@ def get_top_books(
         .filter(
             Book.inventory_type == inventory_type,
             Book.value_mid > 0,
+            Book.status.in_(OWNED_STATUSES),
         )
         .order_by(Book.value_mid.desc())
         .limit(limit)
