@@ -27,6 +27,7 @@ from app.auth import require_admin, require_editor, require_viewer
 from app.cache import get_redis
 from app.config import get_settings
 from app.db import get_db
+from app.enums import OWNED_STATUSES
 from app.models import (
     AnalysisJob,
     Author,
@@ -667,9 +668,7 @@ def get_top_books(
         .filter(
             Book.inventory_type == inventory_type,
             Book.value_mid > 0,
-            # Only include books that are owned (ON_HAND) or purchased (IN_TRANSIT)
-            # Exclude EVALUATING (not yet purchased) and REMOVED (sold/gone)
-            Book.status.in_(["ON_HAND", "IN_TRANSIT"]),
+            Book.status.in_(OWNED_STATUSES),
         )
         .order_by(Book.value_mid.desc())
         .limit(limit)

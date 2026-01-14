@@ -1657,7 +1657,7 @@ class TestTopBooks:
     """Tests for GET /api/v1/books/top (Collection Spotlight)."""
 
     def test_top_books_excludes_evaluating_status(self, client):
-        """Top books endpoint should only return ON_HAND books, not EVALUATING.
+        """Top books endpoint should only return owned books, not EVALUATING.
 
         The spotlight is for "rediscovering your collection" - books you own.
         Books in EVALUATING status are still being considered for acquisition
@@ -1665,6 +1665,7 @@ class TestTopBooks:
 
         Fixes: https://github.com/markthebest12/bluemoxon/issues/1112
         """
+        # Use high values to ensure books appear in top results regardless of limit
         # Create a book that SHOULD appear (ON_HAND, PRIMARY, has value)
         on_hand_response = client.post(
             "/api/v1/books",
@@ -1672,20 +1673,21 @@ class TestTopBooks:
                 "title": "The Rubaiyat of Omar Khayyam",
                 "status": "ON_HAND",
                 "inventory_type": "PRIMARY",
-                "value_mid": 1500,
+                "value_mid": 999999,  # High value ensures it's in top results
             },
         )
         assert on_hand_response.status_code == 201
         on_hand_book = on_hand_response.json()
 
         # Create a book that should NOT appear (EVALUATING status)
+        # Even with a higher value, EVALUATING should be excluded
         evaluating_response = client.post(
             "/api/v1/books",
             json={
                 "title": "Idylls of the King",
                 "status": "EVALUATING",
                 "inventory_type": "PRIMARY",
-                "value_mid": 2000,  # Higher value but still should be excluded
+                "value_mid": 9999999,  # Even higher value but still should be excluded
             },
         )
         assert evaluating_response.status_code == 201
@@ -1708,6 +1710,7 @@ class TestTopBooks:
 
     def test_top_books_excludes_removed_status(self, client):
         """Top books should also exclude REMOVED status books."""
+        # Use high values to ensure books appear in top results regardless of limit
         # Create ON_HAND book (should appear)
         on_hand_response = client.post(
             "/api/v1/books",
@@ -1715,7 +1718,7 @@ class TestTopBooks:
                 "title": "In Memoriam",
                 "status": "ON_HAND",
                 "inventory_type": "PRIMARY",
-                "value_mid": 800,
+                "value_mid": 999999,  # High value ensures it's in top results
             },
         )
         assert on_hand_response.status_code == 201
@@ -1728,7 +1731,7 @@ class TestTopBooks:
                 "title": "Sold Book",
                 "status": "REMOVED",
                 "inventory_type": "PRIMARY",
-                "value_mid": 3000,
+                "value_mid": 9999999,  # Even higher value but still should be excluded
             },
         )
         assert removed_response.status_code == 201
@@ -1744,6 +1747,7 @@ class TestTopBooks:
 
     def test_top_books_includes_in_transit(self, client):
         """Top books should include IN_TRANSIT books (purchased, on the way)."""
+        # Use high value to ensure book appears in top results regardless of limit
         # IN_TRANSIT books are purchased - they're part of the collection
         in_transit_response = client.post(
             "/api/v1/books",
@@ -1751,7 +1755,7 @@ class TestTopBooks:
                 "title": "A Christmas Carol",
                 "status": "IN_TRANSIT",
                 "inventory_type": "PRIMARY",
-                "value_mid": 1200,
+                "value_mid": 999999,  # High value ensures it's in top results
             },
         )
         assert in_transit_response.status_code == 201
