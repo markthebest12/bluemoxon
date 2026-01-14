@@ -1084,6 +1084,34 @@
             </div>
             <div class="screenshot-card">
                 <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/collection-spotlight.png" alt="Collection Spotlight">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Collection Spotlight</h4>
+                    <p>Rotating showcase of top-value books with rich metadata, FMV, and premium binding badges.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="screenshots/dashboard-charts.png" alt="Interactive Dashboard Charts">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Interactive Charts</h4>
+                    <p>Hover for tooltips with book counts and sample titles. Click any segment to filter your collection.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
                     <img src="screenshots/collection.png" alt="Collection Browser">
                     <div class="zoom-hint">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1384,6 +1412,34 @@
                 </div>
             </div>
         </div>
+
+        <div class="name-origin" style="margin-bottom: 2rem;">
+            <div class="name-grid">
+                <div class="name-card">
+                    <h3>Collection Spotlight</h3>
+                    <p>
+                        The dashboard now showcases your <strong>top-value books</strong> in a rotating spotlight. Each card
+                        displays rich metadata: author, publication year, publisher, and estimated FMV. Premium bindings
+                        (morocco, calf, vellum) and authenticated binderies get special badges. Books shuffle randomly
+                        on each page load.
+                    </p>
+                    <p class="quote">
+                        "Your finest acquisitions, front and center - a different selection every visit."
+                    </p>
+                </div>
+                <div class="name-card">
+                    <h3>Interactive Dashboard Charts</h3>
+                    <p>
+                        Charts are now <strong>clickable and informative</strong>. Hover over any segment to see book counts,
+                        percentages, and sample titles. Click to filter the collection view by that category, era, author,
+                        or condition. Tooltips show up to 5 representative titles so you know exactly what's in each slice.
+                    </p>
+                    <p class="quote">
+                        "From overview to detail in one click - explore your collection visually."
+                    </p>
+                </div>
+            </div>
+        </div>
     </section>
 
     <!-- Architecture Section -->
@@ -1530,6 +1586,31 @@ flowchart TB
                     <li><strong>JWT Auth</strong> - Cognito tokens</li>
                     <li><strong>TLS 1.3</strong> - Encryption in transit</li>
                 </ul>
+            </div>
+        </div>
+
+        <!-- Performance Optimizations -->
+        <div class="diagram-container" style="margin-top: 3rem;">
+            <h4>Performance Optimizations</h4>
+            <div class="tech-grid" style="margin-top: 1rem;">
+                <div class="tech-card">
+                    <h4>Redis Caching</h4>
+                    <ul>
+                        <li><strong>ElastiCache Serverless</strong> - Auto-scaling Redis</li>
+                        <li><strong>Dashboard Stats</strong> - Cached for instant loads</li>
+                        <li><strong>Reference Data</strong> - Authors, publishers, binders</li>
+                        <li><strong>Smart Invalidation</strong> - Updates on data changes</li>
+                    </ul>
+                </div>
+                <div class="tech-card">
+                    <h4>Cold Start UX</h4>
+                    <ul>
+                        <li><strong>API Retry Logic</strong> - Automatic retry on timeout</li>
+                        <li><strong>Reference Pre-caching</strong> - Load entities on startup</li>
+                        <li><strong>Graceful Degradation</strong> - Show cached data first</li>
+                        <li><strong>Loading States</strong> - Skeleton UI during fetch</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </section>
