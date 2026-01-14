@@ -17,6 +17,36 @@ if TYPE_CHECKING:
     from app.models import Book
 
 
+def get_author_owned_book_count(db: Session, author_id: int | None, exclude_book_id: int) -> int:
+    """Count owned books by the same author, excluding a specific book.
+
+    Only counts books with OWNED_STATUSES (ON_HAND, IN_TRANSIT).
+    EVALUATING and REMOVED books are not counted.
+
+    Args:
+        db: Database session
+        author_id: Author ID to filter by (returns 0 if None)
+        exclude_book_id: Book ID to exclude from count (the book being scored)
+
+    Returns:
+        Number of owned books by this author (excluding the specified book)
+    """
+    if not author_id:
+        return 0
+
+    from app.models import Book as BookModel
+
+    return (
+        db.query(BookModel)
+        .filter(
+            BookModel.author_id == author_id,
+            BookModel.id != exclude_book_id,
+            BookModel.status.in_(OWNED_STATUSES),
+        )
+        .count()
+    )
+
+
 @dataclass
 class ScoreFactor:
     """A single scoring factor with explanation."""
@@ -662,17 +692,7 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
     if book.author:
         author_tier = book.author.tier
         author_priority = author_tier_to_score(author_tier)
-        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
-        # EVALUATING books should not count toward "second work by author" bonus
-        author_book_count = (
-            db.query(BookModel)
-            .filter(
-                BookModel.author_id == book.author_id,
-                BookModel.id != book.id,
-                BookModel.status.in_(OWNED_STATUSES),
-            )
-            .count()
-        )
+        author_book_count = get_author_owned_book_count(db, book.author_id, book.id)
 
     if book.publisher:
         publisher_tier = book.publisher.tier
