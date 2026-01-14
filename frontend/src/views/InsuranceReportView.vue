@@ -487,7 +487,7 @@ const exportCSV = () => {
                 :class="[
                   book.binding_authenticated
                     ? 'bg-victorian-gold-muted/10 border-b border-victorian-gold-muted'
-                    : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique',
+                    : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique dark:border-victorian-hunter-700',
                 ]"
               >
                 <td class="p-2">{{ book.title }}</td>
