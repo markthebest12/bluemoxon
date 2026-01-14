@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from app.enums import BookStatus
 from app.models.author import Author
 from app.models.book import Book
 from app.services.scoring import (
@@ -780,7 +781,7 @@ class TestAuthorBookCountStatusFilter:
         book1 = Book(
             title="Lavengro",
             author_id=author.id,
-            status="EVALUATING",
+            status=BookStatus.EVALUATING,
             value_mid=650,
             purchase_price=268,
         )
@@ -792,7 +793,7 @@ class TestAuthorBookCountStatusFilter:
         book2 = Book(
             title="The Romany Rye",
             author_id=author.id,
-            status="EVALUATING",
+            status=BookStatus.EVALUATING,
             value_mid=400,
             purchase_price=200,
         )
@@ -825,7 +826,7 @@ class TestAuthorBookCountStatusFilter:
         book1 = Book(
             title="Oliver Twist",
             author_id=author.id,
-            status="ON_HAND",
+            status=BookStatus.ON_HAND,
             value_mid=500,
             purchase_price=200,
         )
@@ -837,7 +838,7 @@ class TestAuthorBookCountStatusFilter:
         book2 = Book(
             title="Great Expectations",
             author_id=author.id,
-            status="EVALUATING",
+            status=BookStatus.EVALUATING,
             value_mid=600,
             purchase_price=300,
         )
@@ -868,7 +869,7 @@ class TestAuthorBookCountStatusFilter:
         book1 = Book(
             title="Tess of the d'Urbervilles",
             author_id=author.id,
-            status="IN_TRANSIT",
+            status=BookStatus.IN_TRANSIT,
             value_mid=450,
             purchase_price=180,
         )
@@ -880,7 +881,7 @@ class TestAuthorBookCountStatusFilter:
         book2 = Book(
             title="Far from the Madding Crowd",
             author_id=author.id,
-            status="EVALUATING",
+            status=BookStatus.EVALUATING,
             value_mid=550,
             purchase_price=250,
         )
@@ -894,4 +895,54 @@ class TestAuthorBookCountStatusFilter:
         # Since book1 is IN_TRANSIT, book2 SHOULD get the "second work by author" bonus
         assert result["collection_impact"] == 15, (
             "IN_TRANSIT books should count toward 'second work by author' bonus"
+        )
+
+    def test_author_book_count_excludes_removed_books(self, db):
+        """author_book_count should NOT include REMOVED status books.
+
+        REMOVED books are no longer in the collection, so they should not
+        count toward the "second work by author" bonus. This ensures that
+        if a book is removed from the collection, new acquisitions by the
+        same author are treated as new author additions.
+        """
+        from app.models import Author, Book
+        from app.services.scoring import calculate_and_persist_book_scores
+
+        # Create an author
+        author = Author(name="Anthony Trollope")
+        db.add(author)
+        db.commit()
+        db.refresh(author)
+
+        # Create first book by author - REMOVED (sold/disposed)
+        book1 = Book(
+            title="Barchester Towers",
+            author_id=author.id,
+            status=BookStatus.REMOVED,
+            value_mid=300,
+            purchase_price=150,
+        )
+        db.add(book1)
+        db.commit()
+        db.refresh(book1)
+
+        # Create second book by author - EVALUATING
+        book2 = Book(
+            title="The Warden",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=400,
+            purchase_price=200,
+        )
+        db.add(book2)
+        db.commit()
+        db.refresh(book2)
+
+        # Calculate scores for book2 (the EVALUATING one)
+        result = calculate_and_persist_book_scores(book2, db)
+
+        # Since book1 is REMOVED, author_book_count = 0 (no owned books)
+        # This means book2 gets the "new author" bonus (+30) NOT "second work" (+15)
+        assert result["collection_impact"] == 30, (
+            "REMOVED books should NOT count toward 'second work by author' bonus"
         )

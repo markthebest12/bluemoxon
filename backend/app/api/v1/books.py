@@ -73,9 +73,10 @@ from app.services.entity_validation import (
 from app.services.job_manager import handle_stale_jobs
 from app.services.scoring import (
     author_tier_to_score,
-    calculate_all_scores,
     calculate_all_scores_with_breakdown,
+    calculate_and_persist_book_scores,
     calculate_title_similarity,
+    get_author_owned_book_count,
     is_duplicate_title,
     recalculate_discount_pct,
     recalculate_roi_pct,
@@ -100,73 +101,6 @@ settings = get_settings()
 
 # Analysis job timeout threshold (matches Lambda timeout)
 STALE_JOB_THRESHOLD_MINUTES = 15
-
-
-def _calculate_and_persist_scores(book: Book, db: Session) -> None:
-    """Calculate and persist scores for a book."""
-    author_priority = 0
-    publisher_tier = None
-    binder_tier = None
-    author_book_count = 0
-
-    if book.author:
-        author_priority = author_tier_to_score(book.author.tier)
-        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
-        # EVALUATING books should not count toward "second work by author" bonus
-        author_book_count = (
-            db.query(Book)
-            .filter(
-                Book.author_id == book.author_id,
-                Book.id != book.id,
-                Book.status.in_(OWNED_STATUSES),
-            )
-            .count()
-        )
-
-    if book.publisher:
-        publisher_tier = book.publisher.tier
-
-    if book.binder:
-        binder_tier = book.binder.tier
-
-    is_duplicate = False
-    if book.author_id:
-        # Only consider books actually in collection (in_transit or on_hand)
-        # Books in evaluation/wishlist don't count as duplicates
-        other_books = (
-            db.query(Book)
-            .filter(
-                Book.author_id == book.author_id,
-                Book.id != book.id,
-                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
-            )
-            .all()
-        )
-        for other in other_books:
-            if is_duplicate_title(book.title, other.title):
-                is_duplicate = True
-                break
-
-    scores = calculate_all_scores(
-        purchase_price=book.purchase_price,
-        value_mid=book.value_mid,
-        publisher_tier=publisher_tier,
-        binder_tier=binder_tier,
-        year_start=book.year_start,
-        is_complete=book.is_complete,
-        condition_grade=book.condition_grade,
-        author_priority_score=author_priority,
-        author_book_count=author_book_count,
-        is_duplicate=is_duplicate,
-        completes_set=False,
-        volume_count=book.volumes or 1,
-    )
-
-    book.investment_grade = scores["investment_grade"]
-    book.strategic_fit = scores["strategic_fit"]
-    book.collection_impact = scores["collection_impact"]
-    book.overall_score = scores["overall_score"]
-    book.scores_calculated_at = datetime.now()
 
 
 def get_api_base_url() -> str:
@@ -838,7 +772,7 @@ def create_book(
         _copy_listing_images_to_book(book.id, listing_s3_keys, db)
 
     # Auto-calculate scores
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
     db.commit()
     db.refresh(book)
 
@@ -1317,7 +1251,7 @@ def calculate_book_scores(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # Use shared helper function
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
     db.commit()
     db.refresh(book)
 
@@ -1359,17 +1293,7 @@ def get_book_score_breakdown(
         author_priority = author_tier_to_score(book.author.tier)
         author_name = book.author.name
         author_tier = book.author.tier
-        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
-        # EVALUATING books should not count toward "second work by author" bonus
-        author_book_count = (
-            db.query(Book)
-            .filter(
-                Book.author_id == book.author_id,
-                Book.id != book.id,
-                Book.status.in_(OWNED_STATUSES),
-            )
-            .count()
-        )
+        author_book_count = get_author_owned_book_count(db, book.author_id, book.id)
 
     if book.publisher:
         publisher_tier = book.publisher.tier
@@ -1433,7 +1357,7 @@ def calculate_all_book_scores(
 
     for book in books:
         try:
-            _calculate_and_persist_scores(book, db)
+            calculate_and_persist_book_scores(book, db)
             updated += 1
         except Exception as e:
             errors.append({"book_id": book.id, "error": str(e)})
@@ -1726,7 +1650,7 @@ def update_book_analysis(
 
     # Always recalculate scores when analysis is created/updated
     # Analysis content affects scoring (condition, market data, comparables)
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
 
     db.commit()
 
@@ -1793,7 +1717,7 @@ def reparse_book_analysis(
     book.analysis.recommendations = parsed.recommendations
 
     # Recalculate scores when analysis is reparsed
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
 
     db.commit()
     return {
@@ -1917,7 +1841,7 @@ def generate_analysis(
 
     # Always recalculate scores when analysis is generated
     # Analysis content affects scoring (condition, market data, comparables)
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
 
     db.commit()
     db.refresh(analysis)
@@ -2015,7 +1939,7 @@ def re_extract_structured_data(
         recalculate_discount_pct(book)
 
     # Recalculate scores with new values
-    _calculate_and_persist_scores(book, db)
+    calculate_and_persist_book_scores(book, db)
 
     db.commit()
 
@@ -2097,7 +2021,7 @@ def re_extract_all_degraded(
             recalculate_discount_pct(book)
 
         # Recalculate scores
-        _calculate_and_persist_scores(book, db)
+        calculate_and_persist_book_scores(book, db)
 
         succeeded += 1
         results.append(
