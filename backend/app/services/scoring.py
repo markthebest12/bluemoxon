@@ -8,6 +8,7 @@ from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
+from app.enums import OWNED_STATUSES
 from app.services.set_detection import detect_set_completion
 
 if TYPE_CHECKING:
@@ -661,9 +662,15 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
     if book.author:
         author_tier = book.author.tier
         author_priority = author_tier_to_score(author_tier)
+        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
+        # EVALUATING books should not count toward "second work by author" bonus
         author_book_count = (
             db.query(BookModel)
-            .filter(BookModel.author_id == book.author_id, BookModel.id != book.id)
+            .filter(
+                BookModel.author_id == book.author_id,
+                BookModel.id != book.id,
+                BookModel.status.in_(OWNED_STATUSES),
+            )
             .count()
         )
 

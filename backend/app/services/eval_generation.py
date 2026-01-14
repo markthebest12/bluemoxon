@@ -18,6 +18,7 @@ from decimal import Decimal
 from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
+from app.enums import OWNED_STATUSES
 from app.models import Book, BookImage, EvalRunbook
 from app.services.bedrock import (
     fetch_book_images_for_bedrock,
@@ -568,11 +569,19 @@ def generate_eval_runbook(
     # Check if publisher matches author requirement
     publisher_matches = _check_publisher_matches_author(author_name, publisher_name)
 
-    # Count author's books in collection
+    # Count author's books in collection (only owned books)
     author_book_count = 0
     if book.author_id:
+        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
+        # EVALUATING books should not count toward "second work by author" bonus
         author_book_count = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(OWNED_STATUSES),
+            )
+            .count()
         )
 
     # Check for duplicates - only consider books actually in collection
