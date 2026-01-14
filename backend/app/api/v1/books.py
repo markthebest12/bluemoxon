@@ -111,8 +111,16 @@ def _calculate_and_persist_scores(book: Book, db: Session) -> None:
 
     if book.author:
         author_priority = author_tier_to_score(book.author.tier)
+        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
+        # EVALUATING books should not count toward "second work by author" bonus
         author_book_count = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(OWNED_STATUSES),
+            )
+            .count()
         )
 
     if book.publisher:
@@ -1351,8 +1359,16 @@ def get_book_score_breakdown(
         author_priority = author_tier_to_score(book.author.tier)
         author_name = book.author.name
         author_tier = book.author.tier
+        # Only count owned books (ON_HAND, IN_TRANSIT) for author_book_count
+        # EVALUATING books should not count toward "second work by author" bonus
         author_book_count = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
+            db.query(Book)
+            .filter(
+                Book.author_id == book.author_id,
+                Book.id != book.id,
+                Book.status.in_(OWNED_STATUSES),
+            )
+            .count()
         )
 
     if book.publisher:
