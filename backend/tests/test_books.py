@@ -1651,3 +1651,115 @@ Buy this book.
         assert "Riviere & Son" in warning_header
         # Should include confidence percentage
         assert "%" in warning_header
+
+
+class TestTopBooks:
+    """Tests for GET /api/v1/books/top (Collection Spotlight)."""
+
+    def test_top_books_excludes_evaluating_status(self, client):
+        """Top books endpoint should only return ON_HAND books, not EVALUATING.
+
+        The spotlight is for "rediscovering your collection" - books you own.
+        Books in EVALUATING status are still being considered for acquisition
+        and should not appear in the spotlight.
+
+        Fixes: https://github.com/markthebest12/bluemoxon/issues/1112
+        """
+        # Create a book that SHOULD appear (ON_HAND, PRIMARY, has value)
+        on_hand_response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "The Rubaiyat of Omar Khayyam",
+                "status": "ON_HAND",
+                "inventory_type": "PRIMARY",
+                "value_mid": 1500,
+            },
+        )
+        assert on_hand_response.status_code == 201
+        on_hand_book = on_hand_response.json()
+
+        # Create a book that should NOT appear (EVALUATING status)
+        evaluating_response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "Idylls of the King",
+                "status": "EVALUATING",
+                "inventory_type": "PRIMARY",
+                "value_mid": 2000,  # Higher value but still should be excluded
+            },
+        )
+        assert evaluating_response.status_code == 201
+        evaluating_book = evaluating_response.json()
+
+        # Call the top books endpoint
+        response = client.get("/api/v1/books/top")
+        assert response.status_code == 200
+
+        top_books = response.json()
+        top_book_ids = [book["id"] for book in top_books]
+
+        # ON_HAND book should be included
+        assert on_hand_book["id"] in top_book_ids, "ON_HAND book should appear in spotlight"
+
+        # EVALUATING book should NOT be included
+        assert evaluating_book["id"] not in top_book_ids, (
+            "EVALUATING book should NOT appear in spotlight"
+        )
+
+    def test_top_books_excludes_removed_status(self, client):
+        """Top books should also exclude REMOVED status books."""
+        # Create ON_HAND book (should appear)
+        on_hand_response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "In Memoriam",
+                "status": "ON_HAND",
+                "inventory_type": "PRIMARY",
+                "value_mid": 800,
+            },
+        )
+        assert on_hand_response.status_code == 201
+        on_hand_book = on_hand_response.json()
+
+        # Create REMOVED book (should NOT appear)
+        removed_response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "Sold Book",
+                "status": "REMOVED",
+                "inventory_type": "PRIMARY",
+                "value_mid": 3000,
+            },
+        )
+        assert removed_response.status_code == 201
+        removed_book = removed_response.json()
+
+        response = client.get("/api/v1/books/top")
+        assert response.status_code == 200
+
+        top_book_ids = [book["id"] for book in response.json()]
+
+        assert on_hand_book["id"] in top_book_ids
+        assert removed_book["id"] not in top_book_ids, "REMOVED book should NOT appear in spotlight"
+
+    def test_top_books_includes_in_transit(self, client):
+        """Top books should include IN_TRANSIT books (purchased, on the way)."""
+        # IN_TRANSIT books are purchased - they're part of the collection
+        in_transit_response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "A Christmas Carol",
+                "status": "IN_TRANSIT",
+                "inventory_type": "PRIMARY",
+                "value_mid": 1200,
+            },
+        )
+        assert in_transit_response.status_code == 201
+        in_transit_book = in_transit_response.json()
+
+        response = client.get("/api/v1/books/top")
+        assert response.status_code == 200
+
+        top_book_ids = [book["id"] for book in response.json()]
+
+        assert in_transit_book["id"] in top_book_ids, "IN_TRANSIT book should appear in spotlight"

@@ -667,6 +667,9 @@ def get_top_books(
         .filter(
             Book.inventory_type == inventory_type,
             Book.value_mid > 0,
+            # Only include books that are owned (ON_HAND) or purchased (IN_TRANSIT)
+            # Exclude EVALUATING (not yet purchased) and REMOVED (sold/gone)
+            Book.status.in_(["ON_HAND", "IN_TRANSIT"]),
         )
         .order_by(Book.value_mid.desc())
         .limit(limit)
