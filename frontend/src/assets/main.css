@@ -213,6 +213,10 @@ layer(utilities);
   .bg-victorian-paper-cream {
     background-color: var(--color-surface-secondary);
   }
+  /* Table even row override - darker background for better contrast */
+  .even\:bg-victorian-paper-cream:nth-child(2n) {
+    background-color: rgba(26, 58, 47, 0.3);
+  }
   .bg-victorian-paper-aged {
     background-color: var(--color-surface-secondary);
   }
