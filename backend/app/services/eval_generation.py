@@ -26,6 +26,7 @@ from app.services.bedrock import (
 )
 from app.services.fmv_lookup import lookup_fmv
 from app.services.image_cleanup import delete_unrelated_images
+from app.services.scoring import get_author_owned_book_count
 from app.services.set_detection import detect_set_completion
 from app.services.tiered_scoring import (
     QUALITY_FLOOR,
@@ -568,12 +569,8 @@ def generate_eval_runbook(
     # Check if publisher matches author requirement
     publisher_matches = _check_publisher_matches_author(author_name, publisher_name)
 
-    # Count author's books in collection
-    author_book_count = 0
-    if book.author_id:
-        author_book_count = (
-            db.query(Book).filter(Book.author_id == book.author_id, Book.id != book.id).count()
-        )
+    # Count author's owned books in collection
+    author_book_count = get_author_owned_book_count(db, book.author_id, book.id)
 
     # Check for duplicates - only consider books actually in collection
     is_duplicate = False

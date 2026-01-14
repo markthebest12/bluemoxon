@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from app.enums import BookStatus
 from app.models.author import Author
 from app.models.book import Book
 from app.services.scoring import (
@@ -747,3 +748,201 @@ class TestCalculateAllScoresWithBreakdown:
         assert result["investment_grade"] == result["breakdown"]["investment_grade"]["score"]
         assert result["strategic_fit"] == result["breakdown"]["strategic_fit"]["score"]
         assert result["collection_impact"] == result["breakdown"]["collection_impact"]["score"]
+
+
+class TestAuthorBookCountStatusFilter:
+    """Tests for author_book_count filtering by status.
+
+    The scoring should only count owned books (ON_HAND, IN_TRANSIT) when
+    calculating author_book_count for the "second work by author" bonus.
+    Books in EVALUATING status should not be counted.
+
+    Fixes: https://github.com/markthebest12/bluemoxon/issues/1116
+    """
+
+    def test_author_book_count_excludes_evaluating_books(self, db):
+        """author_book_count should NOT include EVALUATING status books.
+
+        When two books by the same author are both EVALUATING, neither
+        should get the "second work by author" bonus because neither
+        is owned yet. Instead, each should get the "new author" bonus (+30)
+        because acquiring it would be the first owned book by this author.
+        """
+        from app.models import Author, Book
+        from app.services.scoring import calculate_and_persist_book_scores
+
+        # Create an author
+        author = Author(name="George Borrow")
+        db.add(author)
+        db.commit()
+        db.refresh(author)
+
+        # Create first book by author - EVALUATING status
+        book1 = Book(
+            title="Lavengro",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=650,
+            purchase_price=268,
+        )
+        db.add(book1)
+        db.commit()
+        db.refresh(book1)
+
+        # Create second book by author - also EVALUATING status
+        book2 = Book(
+            title="The Romany Rye",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=400,
+            purchase_price=200,
+        )
+        db.add(book2)
+        db.commit()
+        db.refresh(book2)
+
+        # Calculate scores for book2
+        result = calculate_and_persist_book_scores(book2, db)
+
+        # Since both books are EVALUATING, author_book_count = 0 (no owned books)
+        # This means book2 gets the "new author" bonus (+30) NOT "second work" (+15)
+        # because acquiring it would be the first owned book by this author
+        assert result["collection_impact"] == 30, (
+            "EVALUATING books should get 'new author' bonus (30), not 'second work' (15)"
+        )
+
+    def test_author_book_count_includes_on_hand_books(self, db):
+        """author_book_count SHOULD include ON_HAND status books."""
+        from app.models import Author, Book
+        from app.services.scoring import calculate_and_persist_book_scores
+
+        # Create an author
+        author = Author(name="Charles Dickens")
+        db.add(author)
+        db.commit()
+        db.refresh(author)
+
+        # Create first book by author - ON_HAND (owned)
+        book1 = Book(
+            title="Oliver Twist",
+            author_id=author.id,
+            status=BookStatus.ON_HAND,
+            value_mid=500,
+            purchase_price=200,
+        )
+        db.add(book1)
+        db.commit()
+        db.refresh(book1)
+
+        # Create second book by author - EVALUATING
+        book2 = Book(
+            title="Great Expectations",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=600,
+            purchase_price=300,
+        )
+        db.add(book2)
+        db.commit()
+        db.refresh(book2)
+
+        # Calculate scores for book2 (the EVALUATING one)
+        result = calculate_and_persist_book_scores(book2, db)
+
+        # Since book1 is ON_HAND, book2 SHOULD get the "second work by author" bonus
+        assert result["collection_impact"] == 15, (
+            "ON_HAND books should count toward 'second work by author' bonus"
+        )
+
+    def test_author_book_count_includes_in_transit_books(self, db):
+        """author_book_count SHOULD include IN_TRANSIT status books."""
+        from app.models import Author, Book
+        from app.services.scoring import calculate_and_persist_book_scores
+
+        # Create an author
+        author = Author(name="Thomas Hardy")
+        db.add(author)
+        db.commit()
+        db.refresh(author)
+
+        # Create first book by author - IN_TRANSIT (purchased, on the way)
+        book1 = Book(
+            title="Tess of the d'Urbervilles",
+            author_id=author.id,
+            status=BookStatus.IN_TRANSIT,
+            value_mid=450,
+            purchase_price=180,
+        )
+        db.add(book1)
+        db.commit()
+        db.refresh(book1)
+
+        # Create second book by author - EVALUATING
+        book2 = Book(
+            title="Far from the Madding Crowd",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=550,
+            purchase_price=250,
+        )
+        db.add(book2)
+        db.commit()
+        db.refresh(book2)
+
+        # Calculate scores for book2 (the EVALUATING one)
+        result = calculate_and_persist_book_scores(book2, db)
+
+        # Since book1 is IN_TRANSIT, book2 SHOULD get the "second work by author" bonus
+        assert result["collection_impact"] == 15, (
+            "IN_TRANSIT books should count toward 'second work by author' bonus"
+        )
+
+    def test_author_book_count_excludes_removed_books(self, db):
+        """author_book_count should NOT include REMOVED status books.
+
+        REMOVED books are no longer in the collection, so they should not
+        count toward the "second work by author" bonus. This ensures that
+        if a book is removed from the collection, new acquisitions by the
+        same author are treated as new author additions.
+        """
+        from app.models import Author, Book
+        from app.services.scoring import calculate_and_persist_book_scores
+
+        # Create an author
+        author = Author(name="Anthony Trollope")
+        db.add(author)
+        db.commit()
+        db.refresh(author)
+
+        # Create first book by author - REMOVED (sold/disposed)
+        book1 = Book(
+            title="Barchester Towers",
+            author_id=author.id,
+            status=BookStatus.REMOVED,
+            value_mid=300,
+            purchase_price=150,
+        )
+        db.add(book1)
+        db.commit()
+        db.refresh(book1)
+
+        # Create second book by author - EVALUATING
+        book2 = Book(
+            title="The Warden",
+            author_id=author.id,
+            status=BookStatus.EVALUATING,
+            value_mid=400,
+            purchase_price=200,
+        )
+        db.add(book2)
+        db.commit()
+        db.refresh(book2)
+
+        # Calculate scores for book2 (the EVALUATING one)
+        result = calculate_and_persist_book_scores(book2, db)
+
+        # Since book1 is REMOVED, author_book_count = 0 (no owned books)
+        # This means book2 gets the "new author" bonus (+30) NOT "second work" (+15)
+        assert result["collection_impact"] == 30, (
+            "REMOVED books should NOT count toward 'second work by author' bonus"
+        )
