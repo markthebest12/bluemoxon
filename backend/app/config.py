@@ -223,3 +223,17 @@ def get_scraper_environment() -> str:
         or os.getenv("BMX_ENVIRONMENT")
         or os.getenv("ENVIRONMENT", "staging")
     )
+
+
+def get_cleanup_environment() -> str:
+    """Get the environment string for cleanup Lambda naming.
+
+    Uses BMX_CLEANUP_ENVIRONMENT if set (for prod where cleanup Lambda is named
+    bluemoxon-prod-cleanup but BMX_ENVIRONMENT is "production"), otherwise
+    falls back to BMX_ENVIRONMENT, ENVIRONMENT, or "staging".
+    """
+    return (
+        os.getenv("BMX_CLEANUP_ENVIRONMENT")
+        or os.getenv("BMX_ENVIRONMENT")
+        or os.getenv("ENVIRONMENT", "staging")
+    )

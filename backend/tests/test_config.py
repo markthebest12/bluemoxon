@@ -317,3 +317,28 @@ class TestEnvironmentDetection:
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
             assert settings.is_production is False
+
+
+def test_get_cleanup_environment_priority(monkeypatch):
+    """Test get_cleanup_environment() checks BMX_CLEANUP_ENVIRONMENT first."""
+    from app.config import get_cleanup_environment
+
+    # Clear all env vars first
+    monkeypatch.delenv("BMX_CLEANUP_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("BMX_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+    # Should default to staging
+    assert get_cleanup_environment() == "staging"
+
+    # ENVIRONMENT should be next in fallback
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    assert get_cleanup_environment() == "prod"
+
+    # BMX_ENVIRONMENT should override ENVIRONMENT
+    monkeypatch.setenv("BMX_ENVIRONMENT", "production")
+    assert get_cleanup_environment() == "production"
+
+    # BMX_CLEANUP_ENVIRONMENT should override all
+    monkeypatch.setenv("BMX_CLEANUP_ENVIRONMENT", "prod")
+    assert get_cleanup_environment() == "prod"
