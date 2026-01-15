@@ -15,9 +15,8 @@ class BookStatus(StrEnum):
     REMOVED = "REMOVED"
 
 
-# Books that are "owned" - purchased or in collection (not evaluating or removed)
-# Use this for queries filtering to collection books (spotlight, stats, etc.)
-OWNED_STATUSES = [BookStatus.IN_TRANSIT, BookStatus.ON_HAND]
+# Statuses representing books physically owned (in collection)
+OWNED_STATUSES: tuple[BookStatus, ...] = (BookStatus.IN_TRANSIT, BookStatus.ON_HAND)
 
 
 class InventoryType(StrEnum):

@@ -9,6 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from app.enums import OWNED_STATUSES
+from app.services.book_queries import get_other_books_by_author
 from app.services.set_detection import detect_set_completion
 
 if TYPE_CHECKING:
@@ -680,9 +681,6 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
     Returns:
         Dict with investment_grade, strategic_fit, collection_impact, overall_score
     """
-    # Import here to avoid circular imports
-    from app.models import Book as BookModel
-
     author_priority = 0
     author_tier = None
     publisher_tier = None
@@ -701,22 +699,10 @@ def calculate_and_persist_book_scores(book: Book, db: Session) -> dict[str, int]
         binder_tier = book.binder.tier
 
     is_duplicate = False
-    if book.author_id:
-        # Only consider books actually in collection (in_transit or on_hand)
-        # Books in evaluation/wishlist don't count as duplicates
-        other_books = (
-            db.query(BookModel)
-            .filter(
-                BookModel.author_id == book.author_id,
-                BookModel.id != book.id,
-                BookModel.status.in_(["IN_TRANSIT", "ON_HAND"]),
-            )
-            .all()
-        )
-        for other in other_books:
-            if is_duplicate_title(book.title, other.title):
-                is_duplicate = True
-                break
+    for other in get_other_books_by_author(book, db):
+        if is_duplicate_title(book.title, other.title):
+            is_duplicate = True
+            break
 
     scores = calculate_all_scores(
         purchase_price=book.purchase_price,
