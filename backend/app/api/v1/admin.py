@@ -512,7 +512,7 @@ def run_cleanup(
     - archives: Retry failed Wayback archives
     - all: Run all of the above
     """
-    from app.config import get_settings
+    from app.config import get_cleanup_environment, get_settings
 
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
@@ -525,7 +525,7 @@ def run_cleanup(
     }
 
     # Invoke cleanup Lambda synchronously
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    function_name = f"bluemoxon-{get_cleanup_environment()}-cleanup"
     response = lambda_client.invoke(
         FunctionName=function_name,
         InvocationType="RequestResponse",
@@ -559,7 +559,7 @@ def scan_orphans(_user=Depends(require_admin)):
     Invokes the cleanup Lambda with action='orphans' and delete_orphans=False
     to get a detailed report of orphaned images grouped by book folder.
     """
-    from app.config import get_settings
+    from app.config import get_cleanup_environment, get_settings
 
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
@@ -573,7 +573,7 @@ def scan_orphans(_user=Depends(require_admin)):
     }
 
     # Invoke cleanup Lambda synchronously
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    function_name = f"bluemoxon-{get_cleanup_environment()}-cleanup"
     response = lambda_client.invoke(
         FunctionName=function_name,
         InvocationType="RequestResponse",
@@ -622,7 +622,7 @@ def start_orphan_delete(
     Returns 202 Accepted with job_id for status polling.
     Returns 409 Conflict if a job is already in progress.
     """
-    from app.config import get_settings
+    from app.config import get_cleanup_environment, get_settings
 
     # Check for existing in-progress job
     existing_job = db.execute(
@@ -646,7 +646,7 @@ def start_orphan_delete(
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
 
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
+    function_name = f"bluemoxon-{get_cleanup_environment()}-cleanup"
     lambda_client.invoke(
         FunctionName=function_name,
         InvocationType="Event",  # Async invocation
