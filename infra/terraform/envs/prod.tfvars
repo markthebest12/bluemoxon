@@ -113,6 +113,7 @@ environment_name_override = "production"
 # Scraper environment override - prod scraper Lambda is named bluemoxon-prod-scraper
 # but BMX_ENVIRONMENT is "production", so we need this separate override
 scraper_environment_override = "prod"
+cleanup_environment_override = "prod"
 
 # Cognito settings - preserve existing prod configuration
 cognito_mfa_configuration        = "OPTIONAL"
@@ -176,7 +177,7 @@ lambda_iam_role_name_override   = "bluemoxon-lambda-role"
 api_gateway_name_override       = "bluemoxon-api"
 cognito_user_pool_name_override = "bluemoxon-users"
 cognito_domain_override         = "bluemoxon"
-cleanup_function_name_override  = "bluemoxon-production-cleanup"
+cleanup_function_name_override  = "bluemoxon-prod-cleanup"
 
 # Logs bucket for CloudFront access logs (prod only)
 logs_bucket_name = "bluemoxon-logs"
