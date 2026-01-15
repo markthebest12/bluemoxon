@@ -67,6 +67,7 @@ from app.services.bedrock import (
     get_model_id,
     invoke_bedrock,
 )
+from app.services.book_queries import get_other_books_by_author
 from app.services.entity_validation import (
     validate_and_associate_entities,
 )
@@ -1304,23 +1305,11 @@ def get_book_score_breakdown(
         binder_name = book.binder.name
 
     is_duplicate = False
-    if book.author_id:
-        # Only consider books actually in collection (in_transit or on_hand)
-        # Books in evaluation/wishlist don't count as duplicates
-        other_books = (
-            db.query(Book)
-            .filter(
-                Book.author_id == book.author_id,
-                Book.id != book.id,
-                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
-            )
-            .all()
-        )
-        for other in other_books:
-            if is_duplicate_title(book.title, other.title):
-                is_duplicate = True
-                duplicate_title = other.title
-                break
+    for other in get_other_books_by_author(book, db):
+        if is_duplicate_title(book.title, other.title):
+            is_duplicate = True
+            duplicate_title = other.title
+            break
 
     result = calculate_all_scores_with_breakdown(
         purchase_price=book.purchase_price,

@@ -24,6 +24,7 @@ from app.services.bedrock import (
     get_bedrock_client,
     get_model_id,
 )
+from app.services.book_queries import get_other_books_by_author
 from app.services.fmv_lookup import lookup_fmv
 from app.services.image_cleanup import delete_unrelated_images
 from app.services.scoring import get_author_owned_book_count
@@ -574,24 +575,12 @@ def generate_eval_runbook(
 
     # Check for duplicates - only consider books actually in collection
     is_duplicate = False
-    if book.author_id:
-        from app.services.scoring import is_duplicate_title
+    from app.services.scoring import is_duplicate_title
 
-        # Only consider books actually in collection (in_transit or on_hand)
-        # Books in evaluation/wishlist don't count as duplicates
-        other_books = (
-            db.query(Book)
-            .filter(
-                Book.author_id == book.author_id,
-                Book.id != book.id,
-                Book.status.in_(["IN_TRANSIT", "ON_HAND"]),
-            )
-            .all()
-        )
-        for other in other_books:
-            if is_duplicate_title(book.title, other.title):
-                is_duplicate = True
-                break
+    for other in get_other_books_by_author(book, db):
+        if is_duplicate_title(book.title, other.title):
+            is_duplicate = True
+            break
 
     # Calculate quality score
     tiered_quality_score = calculate_quality_score(
