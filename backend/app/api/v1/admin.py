@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.health import check_cognito, check_database, check_s3
 from app.auth import require_admin
 from app.cold_start import get_cold_start_status
+from app.config import get_cleanup_environment, get_settings
 from app.db.session import get_db
 from app.models.admin_config import AdminConfig
 from app.models.author import Author
@@ -498,6 +499,36 @@ def get_costs(
     return CostResponse(**fetch_costs(timezone=timezone, force_refresh=refresh))
 
 
+def _invoke_cleanup_lambda(
+    lambda_client, payload: dict, invocation_type: str = "RequestResponse"
+) -> dict:
+    """Invoke cleanup Lambda with fallback for deployment transitions.
+
+    During deployment, the Lambda may be renamed (e.g., bluemoxon-production-cleanup
+    to bluemoxon-prod-cleanup). This function tries the new name first, then falls
+    back to the old name if not found.
+    """
+    settings = get_settings()
+    new_name = f"bluemoxon-{get_cleanup_environment()}-cleanup"
+    old_name = f"bluemoxon-{settings.environment}-cleanup"
+
+    try:
+        return lambda_client.invoke(
+            FunctionName=new_name,
+            InvocationType=invocation_type,
+            Payload=json.dumps(payload),
+        )
+    except lambda_client.exceptions.ResourceNotFoundException:
+        # Fallback to old name during deployment transition
+        if new_name != old_name:
+            return lambda_client.invoke(
+                FunctionName=old_name,
+                InvocationType=invocation_type,
+                Payload=json.dumps(payload),
+            )
+        raise
+
+
 @router.post("/cleanup", response_model=CleanupResult)
 def run_cleanup(
     request: CleanupRequest,
@@ -512,8 +543,6 @@ def run_cleanup(
     - archives: Retry failed Wayback archives
     - all: Run all of the above
     """
-    from app.config import get_settings
-
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
 
@@ -524,13 +553,8 @@ def run_cleanup(
         "bucket": settings.images_bucket,
     }
 
-    # Invoke cleanup Lambda synchronously
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
-    response = lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType="RequestResponse",
-        Payload=json.dumps(payload),
-    )
+    # Invoke cleanup Lambda with fallback for deployment transitions
+    response = _invoke_cleanup_lambda(lambda_client, payload)
 
     # Parse response
     result = json.loads(response["Payload"].read())
@@ -559,8 +583,6 @@ def scan_orphans(_user=Depends(require_admin)):
     Invokes the cleanup Lambda with action='orphans' and delete_orphans=False
     to get a detailed report of orphaned images grouped by book folder.
     """
-    from app.config import get_settings
-
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
 
@@ -572,13 +594,8 @@ def scan_orphans(_user=Depends(require_admin)):
         "return_details": True,  # Request detailed orphan info
     }
 
-    # Invoke cleanup Lambda synchronously
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
-    response = lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType="RequestResponse",
-        Payload=json.dumps(payload),
-    )
+    # Invoke cleanup Lambda with fallback for deployment transitions
+    response = _invoke_cleanup_lambda(lambda_client, payload)
 
     # Parse response
     result = json.loads(response["Payload"].read())
@@ -622,8 +639,6 @@ def start_orphan_delete(
     Returns 202 Accepted with job_id for status polling.
     Returns 409 Conflict if a job is already in progress.
     """
-    from app.config import get_settings
-
     # Check for existing in-progress job
     existing_job = db.execute(
         select(CleanupJob).where(CleanupJob.status.in_(["pending", "running"]))
@@ -646,17 +661,11 @@ def start_orphan_delete(
     settings = get_settings()
     lambda_client = boto3.client("lambda", region_name=settings.aws_region)
 
-    function_name = f"bluemoxon-{settings.environment}-cleanup"
-    lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType="Event",  # Async invocation
-        Payload=json.dumps(
-            {
-                "job_id": str(job.id),
-                "bucket": settings.images_bucket,
-            }
-        ),
-    )
+    payload = {
+        "job_id": str(job.id),
+        "bucket": settings.images_bucket,
+    }
+    _invoke_cleanup_lambda(lambda_client, payload, invocation_type="Event")
 
     return DeleteJobResponse(job_id=job.id, status=job.status)
 

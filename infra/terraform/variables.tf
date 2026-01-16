@@ -268,6 +268,12 @@ variable "scraper_environment_override" {
   default     = null
 }
 
+variable "cleanup_environment_override" {
+  type        = string
+  default     = null
+  description = "Override for BMX_CLEANUP_ENVIRONMENT env var used to build cleanup Lambda function name. Set to 'prod' when cleanup Lambda is named bluemoxon-prod-cleanup but BMX_ENVIRONMENT is 'production'."
+}
+
 variable "lambda_memory_size" {
   type        = number
   description = "Memory allocation for Lambda function (MB)"

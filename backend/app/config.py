@@ -208,18 +208,31 @@ def get_settings() -> Settings:
     return settings
 
 
-def get_scraper_environment() -> str:
-    """Get environment name for scraper Lambda function naming.
+def get_lambda_environment(service: str) -> str:
+    """Get environment for Lambda naming (handles prod vs production mismatch).
 
-    Uses BMX_SCRAPER_ENVIRONMENT if set (for prod where scraper Lambda is named
-    bluemoxon-prod-scraper but BMX_ENVIRONMENT is "production"), otherwise
-    falls back to BMX_ENVIRONMENT or ENVIRONMENT.
+    In production, BMX_ENVIRONMENT is "production" but Lambda functions are named
+    with "prod" (e.g., bluemoxon-prod-scraper). This function checks for a
+    service-specific override first (e.g., BMX_SCRAPER_ENVIRONMENT=prod).
+
+    Args:
+        service: Lambda service name (e.g., "scraper", "cleanup")
 
     Returns:
-        Environment string for building scraper function name (e.g., "staging", "prod")
+        Environment string for building Lambda function name (e.g., "staging", "prod")
     """
     return (
-        os.getenv("BMX_SCRAPER_ENVIRONMENT")
+        os.getenv(f"BMX_{service.upper()}_ENVIRONMENT")
         or os.getenv("BMX_ENVIRONMENT")
         or os.getenv("ENVIRONMENT", "staging")
     )
+
+
+def get_scraper_environment() -> str:
+    """Get environment for scraper Lambda naming."""
+    return get_lambda_environment("scraper")
+
+
+def get_cleanup_environment() -> str:
+    """Get environment for cleanup Lambda naming."""
+    return get_lambda_environment("cleanup")
