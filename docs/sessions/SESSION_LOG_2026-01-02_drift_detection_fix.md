@@ -9,6 +9,7 @@
 ## Background
 
 The drift detection workflow was failing with:
+
 ```
 Error: User: arn:aws:sts::266672885920:assumed-role/github-actions-deploy/GitHubActions
 is not authorized to perform: s3:ListBucket on resource:
@@ -43,17 +44,21 @@ These files contain bucket, key, region, dynamodb_table, and encrypt settings.
 ## Changes Made
 
 ### PR #761 (Merged to staging)
+
 - Quick fix for bucket name only
 - **Superseded by PR #762**
 
 ### PR #762 (Merged to staging)
+
 - Uses `backends/*.hcl` files as single source of truth
 - Both `deploy.yml` and `drift-detection.yml` now use:
+
   ```yaml
   terraform init -backend-config="backends/prod.hcl"
   # OR
   terraform init -backend-config="backends/staging.hcl"
   ```
+
 - **Verified:** Terraform Init now passes for BOTH staging and production
 
 ---
@@ -71,9 +76,11 @@ These files contain bucket, key, region, dynamodb_table, and encrypt settings.
 The Terraform Plan step still fails for production because the IAM role lacks read permissions. To fix:
 
 1. Add to `infra/terraform/envs/prod.tfvars`:
+
    ```hcl
    enable_github_oidc_drift_detection = true
    ```
+
 2. Apply Terraform to production (requires manual apply or separate workflow)
 3. Re-run drift detection to verify
 
@@ -84,6 +91,7 @@ The Terraform Plan step still fails for production because the IAM role lacks re
 ### 1. ALWAYS Use Superpowers Skills
 
 Invoke relevant skills BEFORE any action:
+
 - `superpowers:systematic-debugging` - For any bug, failure, or unexpected behavior
 - `superpowers:brainstorming` - Before any creative/implementation work
 - `superpowers:verification-before-completion` - Before claiming work is done

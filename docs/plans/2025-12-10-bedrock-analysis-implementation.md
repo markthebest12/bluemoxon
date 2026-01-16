@@ -23,6 +23,7 @@ Before starting implementation:
 ## Task 1: Add Bedrock Client and Prompt Loader
 
 **Files:**
+
 - Create: `backend/app/services/__init__.py`
 - Create: `backend/app/services/bedrock.py`
 - Create: `backend/tests/test_bedrock.py`
@@ -233,6 +234,7 @@ git commit -m "feat: add Bedrock client and prompt loader service"
 ## Task 2: Add Source URL Fetcher
 
 **Files:**
+
 - Modify: `backend/app/services/bedrock.py`
 - Modify: `backend/tests/test_bedrock.py`
 
@@ -354,6 +356,7 @@ git commit -m "feat: add source URL content fetcher for Bedrock context"
 ## Task 3: Add Image Fetcher for Bedrock
 
 **Files:**
+
 - Modify: `backend/app/services/bedrock.py`
 - Modify: `backend/tests/test_bedrock.py`
 
@@ -494,6 +497,7 @@ git commit -m "feat: add image fetcher for Bedrock analysis context"
 ## Task 4: Add Bedrock Invoke Function
 
 **Files:**
+
 - Modify: `backend/app/services/bedrock.py`
 - Modify: `backend/tests/test_bedrock.py`
 
@@ -698,6 +702,7 @@ git commit -m "feat: add Bedrock message builder and invoke function"
 ## Task 5: Add Generate Analysis API Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 - Create: `backend/tests/test_generate_analysis.py`
 
@@ -967,6 +972,7 @@ git commit -m "feat: add POST /books/{id}/analysis/generate endpoint"
 ## Task 6: Update conftest for Admin Mock
 
 **Files:**
+
 - Modify: `backend/tests/conftest.py`
 
 ### Step 1: Add admin mock to conftest
@@ -1079,6 +1085,7 @@ git commit -m "test: add admin mock to conftest for generate endpoint tests"
 ## Task 7: Add Frontend Books Store Action
 
 **Files:**
+
 - Modify: `frontend/src/stores/books.ts`
 - Create: `frontend/src/stores/__tests__/books-generate.spec.ts`
 
@@ -1233,6 +1240,7 @@ git commit -m "feat: add generateAnalysis action to books store"
 ## Task 8: Add Generate Button to AnalysisViewer
 
 **Files:**
+
 - Modify: `frontend/src/components/books/AnalysisViewer.vue`
 
 ### Step 1: Update AnalysisViewer component
@@ -1351,6 +1359,7 @@ git commit -m "feat: add generate/regenerate button to AnalysisViewer"
 ## Task 9: Add Generate Button to AcquisitionsView
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 
 ### Step 1: Add generate action to EVALUATING cards
@@ -1416,6 +1425,7 @@ git commit -m "feat: add generate analysis button to acquisitions dashboard"
 ## Task 10: Upload Napoleon Prompt to S3
 
 **Files:**
+
 - Create: `infrastructure/prompts/napoleon-framework/v1.md`
 
 ### Step 1: Create the prompt file
@@ -1452,6 +1462,7 @@ git commit -m "feat: add Napoleon framework prompt for Bedrock"
 ## Task 11: Add Bedrock Permissions to Lambda
 
 **Files:**
+
 - Modify: `infra/lib/backend-stack.ts` (or equivalent CDK/Terraform)
 
 ### Step 1: Add Bedrock permissions
@@ -1521,7 +1532,7 @@ git push origin staging
 
 ### Step 5: Manual test on staging
 
-1. Navigate to https://staging.app.bluemoxon.com
+1. Navigate to <https://staging.app.bluemoxon.com>
 2. Login as admin
 3. Go to a book detail page
 4. Open the Analysis viewer

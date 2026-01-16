@@ -27,6 +27,7 @@ curl -s https://api.bluemoxon.com/api/v1/health/deep | jq
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "healthy",
@@ -69,6 +70,7 @@ curl -X POST https://api.bluemoxon.com/api/v1/health/migrate
 ```
 
 **When to run:**
+
 - After deploying code with new migrations
 - If you see "duplicate key" errors
 - After manual database operations
@@ -86,6 +88,7 @@ curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/orphan-cleanup
 ```
 
 **Features (v1.2):**
+
 - **Size display** - Shows total size of orphaned files before deletion
 - **Progress tracking** - Real-time progress updates during cleanup
 - **Confirmation** - Requires explicit confirmation before deletion
@@ -110,17 +113,20 @@ curl -X POST https://api.bluemoxon.com/api/v1/admin/maintenance/listings-cleanup
 Sync production data to staging for testing:
 
 **Option 1: Lambda-based sync (recommended)**
+
 ```bash
 aws lambda invoke --function-name bluemoxon-staging-db-sync --profile bmx-staging --payload '{}' .tmp/sync-response.json
 cat .tmp/sync-response.json | jq
 ```
 
 **Option 2: Script-based sync**
+
 ```bash
 ./scripts/sync-prod-to-staging.sh
 ```
 
 Options:
+
 - `--images-only` - Only sync S3 images
 - `--db-only` - Only sync database
 - `--dry-run` - Show what would be done
@@ -169,12 +175,14 @@ AWS_PROFILE=bmx-staging aws lambda get-function-configuration --function-name bl
 Analysis jobs run in SQS-triggered Lambda to bypass API Gateway's 29s timeout.
 
 **Check job status:**
+
 ```bash
 bmx-api GET /books/{book_id}
 # Look for analysis_job_status: "running" | "completed" | "failed"
 ```
 
 **View worker logs:**
+
 ```bash
 AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-analysis-worker --since 10m
 ```
@@ -187,6 +195,7 @@ bmx-api GET /books/{book_id}
 ```
 
 **View worker logs:**
+
 ```bash
 AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-eval-runbook-worker --since 10m
 ```
@@ -213,12 +222,14 @@ AWS_PROFILE=bmx-staging aws sqs get-queue-attributes \
 **Root Cause:** Lambda cannot reach AWS services (VPC endpoint issue)
 
 **Diagnosis:**
+
 ```bash
 # If this works but deep health fails, it's VPC networking
 bmx-api GET /books?limit=1
 ```
 
 **Fix:** Check VPC endpoints exist:
+
 - `com.amazonaws.us-west-2.secretsmanager` (Interface)
 - `com.amazonaws.us-west-2.s3` (Gateway)
 - `com.amazonaws.us-west-2.cognito-idp` (Interface)
@@ -228,11 +239,13 @@ bmx-api GET /books?limit=1
 **Symptom:** Deep health hangs on S3 check
 
 **Diagnosis:**
+
 ```bash
 AWS_PROFILE=bmx-staging aws s3 ls s3://bluemoxon-staging-images
 ```
 
 **Fix:**
+
 ```bash
 AWS_PROFILE=bmx-staging aws s3 mb s3://bluemoxon-staging-images --region us-west-2
 ```
@@ -240,12 +253,15 @@ AWS_PROFILE=bmx-staging aws s3 mb s3://bluemoxon-staging-images --region us-west
 ### Cognito Login Issues
 
 **"Invalid email or password"**
+
 - Clear browser localStorage
 - Retry with fresh session
 
 **"Invalid code received for user" (MFA)**
+
 - MFA token stale after pool recreation
 - Reset MFA:
+
 ```bash
 cd infra/terraform
 POOL_ID=$(AWS_PROFILE=bmx-staging terraform output -raw cognito_user_pool_id)
@@ -256,7 +272,9 @@ AWS_PROFILE=bmx-staging aws cognito-idp admin-set-user-mfa-preference \
 ```
 
 **User not appearing**
+
 - Run Cognito sync:
+
 ```bash
 AWS_PROFILE=bmx-staging aws lambda invoke \
   --function-name bluemoxon-staging-db-sync \
@@ -270,6 +288,7 @@ AWS_PROFILE=bmx-staging aws lambda invoke \
 **Symptom:** Analysis jobs fail with throttling errors
 
 **Diagnosis:**
+
 ```bash
 AWS_PROFILE=bmx-staging aws logs filter-log-events \
   --log-group-name /aws/lambda/bluemoxon-staging-analysis-worker \
@@ -277,6 +296,7 @@ AWS_PROFILE=bmx-staging aws logs filter-log-events \
 ```
 
 **Mitigation:**
+
 - Workers use exponential backoff with jitter
 - Max 3 retries, base delay 5s
 - Consider reducing concurrent analysis requests
@@ -286,6 +306,7 @@ AWS_PROFILE=bmx-staging aws logs filter-log-events \
 **Symptom:** eBay returns 429 or blocked page
 
 **Diagnosis:** Check scraper logs for rate limiting patterns:
+
 ```bash
 AWS_PROFILE=bmx-staging aws logs filter-log-events \
   --log-group-name /aws/lambda/bluemoxon-staging-scraper \
@@ -293,6 +314,7 @@ AWS_PROFILE=bmx-staging aws logs filter-log-events \
 ```
 
 **Mitigation:**
+
 - Wait before retrying (eBay blocks are temporary)
 - Reduce concurrent scraper invocations
 - Warmup keeps container hot to reduce cold starts
@@ -306,6 +328,7 @@ AWS_PROFILE=bmx-staging aws logs filter-log-events \
 Dashboard: `bluemoxon-monitoring`
 
 Key metrics:
+
 - Lambda invocations and errors
 - API Gateway latency and 4xx/5xx rates
 - RDS connections and CPU
@@ -329,6 +352,7 @@ Key metrics:
 See [ROLLBACK.md](ROLLBACK.md) for full procedures.
 
 Quick rollback:
+
 ```bash
 # List versions
 AWS_PROFILE=bmx-prod aws lambda list-versions-by-function --function-name bluemoxon-api
@@ -340,8 +364,10 @@ AWS_PROFILE=bmx-prod aws lambda update-alias --function-name bluemoxon-api --nam
 ### Disable Feature
 
 To disable a failing feature without rollback:
+
 1. Add feature flag to environment
 2. Update Lambda configuration:
+
 ```bash
 AWS_PROFILE=bmx-prod aws lambda update-function-configuration \
   --function-name bluemoxon-api \
@@ -359,6 +385,7 @@ See [ROLLBACK.md](ROLLBACK.md) for database recovery procedures.
 ### Image Size Issues
 
 When analysis jobs fail with "Input is too long" errors, the total base64 payload size exceeds Bedrock's input limit. This is caused by:
+
 - Too many images
 - Large image file sizes (high-quality JPEGs)
 
@@ -379,36 +406,42 @@ When analysis jobs fail with "Input is too long" errors, the total base64 payloa
 2. If > 12 images, resize to 800px:
 
 Create temp directory:
+
 ```bash
 mkdir -p .tmp/book{BOOK_ID}
 ```
 
 Download images from S3:
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp s3://bluemoxon-images/books/ .tmp/book{BOOK_ID}/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
 ```
 
 Resize to 800px max dimension:
+
 ```bash
 sips --resampleHeightWidthMax 800 .tmp/book{BOOK_ID}/*.jpeg
 ```
 
 Upload back to S3:
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
 ```
 
-3. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
+1. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
 
-4. Verify success: `bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'`
+2. Verify success: `bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'`
 
 ### Stale Analysis Jobs
 
 Jobs that show as "running" for more than 15 minutes are automatically marked as failed:
+
 - On `GET /analysis/status` call
 - On `POST /analysis/generate-async` re-trigger (allows immediate retry)
 
 To check for stale jobs:
+
 ```bash
 bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
 ```
@@ -421,9 +454,9 @@ bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
 
 | Service | URL |
 |---------|-----|
-| Frontend | https://staging.app.bluemoxon.com |
-| API | https://staging.api.bluemoxon.com |
-| Health | https://staging.api.bluemoxon.com/api/v1/health/deep |
+| Frontend | <https://staging.app.bluemoxon.com> |
+| API | <https://staging.api.bluemoxon.com> |
+| Health | <https://staging.api.bluemoxon.com/api/v1/health/deep> |
 
 ### AWS Profile
 

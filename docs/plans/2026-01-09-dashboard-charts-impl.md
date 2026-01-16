@@ -13,6 +13,7 @@
 ## Task 1: Backend - Add ConditionData Schema
 
 **Files:**
+
 - Modify: `backend/app/schemas/stats.py:96` (before DashboardResponse)
 
 **Step 1: Add ConditionData and CategoryData models**
@@ -71,6 +72,7 @@ git commit -m "feat(backend): add ConditionData and CategoryData schemas"
 ## Task 2: Backend - Write Failing Test for by-condition Endpoint
 
 **Files:**
+
 - Modify: `backend/tests/test_stats.py` (add new test class after TestStatsByCategory)
 
 **Step 1: Write failing test class**
@@ -164,6 +166,7 @@ git commit -m "test(backend): add failing tests for by-condition endpoint"
 ## Task 3: Backend - Implement by-condition Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/stats.py` (add new endpoint after get_by_category)
 
 **Step 1: Add get_by_condition endpoint**
@@ -212,6 +215,7 @@ git commit -m "feat(backend): add /stats/by-condition endpoint"
 ## Task 4: Backend - Write Failing Test for Dashboard Batch Update
 
 **Files:**
+
 - Modify: `backend/tests/test_stats.py` (add test for dashboard including new fields)
 
 **Step 1: Find or create TestDashboard class, add test**
@@ -271,6 +275,7 @@ git commit -m "test(backend): add failing test for dashboard batch with conditio
 ## Task 5: Backend - Update Dashboard Batch Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/stats.py:587-616` (get_dashboard function)
 
 **Step 1: Update get_dashboard to include new data**
@@ -337,6 +342,7 @@ git commit -m "feat(backend): include by_condition and by_category in dashboard 
 ## Task 6: Frontend - Add TypeScript Types
 
 **Files:**
+
 - Modify: `frontend/src/types/dashboard.ts`
 
 **Step 1: Add ConditionData interface**
@@ -391,6 +397,7 @@ git commit -m "feat(frontend): add ConditionData and CategoryData types"
 ## Task 7: Frontend - Add Condition Grade Chart
 
 **Files:**
+
 - Modify: `frontend/src/components/dashboard/StatisticsDashboard.vue`
 
 **Step 1: Add conditionChartData computed property**
@@ -458,6 +465,7 @@ git commit -m "feat(frontend): add condition grade doughnut chart"
 ## Task 8: Frontend - Add Category Chart
 
 **Files:**
+
 - Modify: `frontend/src/components/dashboard/StatisticsDashboard.vue`
 
 **Step 1: Add categoryChartData computed property**
@@ -567,6 +575,7 @@ Run: `git push -u origin feat/965-dashboard-charts`
 **Step 2: Create PR**
 
 Run:
+
 ```bash
 gh pr create --base staging --title "feat: Add condition and category charts to dashboard (#965)" --body "$(cat <<'EOF'
 ## Summary

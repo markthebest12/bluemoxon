@@ -8,6 +8,7 @@
 ## Solution Overview
 
 Replace synchronous analysis generation with async job queue pattern:
+
 1. API creates job record, sends message to SQS, returns immediately
 2. Worker Lambda processes job in background (up to 10 minutes)
 3. Frontend polls for job status
@@ -40,11 +41,13 @@ CREATE INDEX idx_analysis_jobs_book_status ON analysis_jobs(book_id, status);
 Start async analysis generation.
 
 **Request:**
+
 ```json
 { "model": "sonnet" }  // optional, defaults to sonnet
 ```
 
 **Response (202 Accepted):**
+
 ```json
 {
   "job_id": "uuid",
@@ -55,6 +58,7 @@ Start async analysis generation.
 ```
 
 **Errors:**
+
 - 409 Conflict: Job already in progress for this book
 - 404: Book not found
 
@@ -63,6 +67,7 @@ Start async analysis generation.
 Get status of latest analysis job.
 
 **Response:**
+
 ```json
 {
   "job_id": "uuid",
@@ -155,6 +160,7 @@ const analysisJob = ref<{
 <<<<<<< HEAD
 - **Stale job detection:** Status endpoint auto-fails jobs stuck >15 minutes (handles Lambda crashes/timeouts)
 =======
+
 >>>>>>> 08cb3d3 (docs: Add async analysis jobs design for Bedrock timeout fix)
 
 ## Migration Path

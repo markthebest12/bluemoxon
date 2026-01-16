@@ -15,6 +15,7 @@
 ## Task 1: Backend - Add Cold Start Detection
 
 **Files:**
+
 - Modify: `backend/app/main.py`
 
 **Step 1: Add cold start flag**
@@ -68,6 +69,7 @@ git commit -m "feat: add cold start detection for admin dashboard"
 ## Task 2: Backend - Add System Info Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/admin.py`
 - Reference: `backend/app/api/v1/health.py` (reuse check functions)
 - Reference: `backend/app/services/tiered_scoring.py` (import constants)
@@ -309,6 +311,7 @@ git commit -m "feat: add /admin/system-info endpoint for dashboard"
 ## Task 3: Backend - Add Test for System Info Endpoint
 
 **Files:**
+
 - Create: `backend/tests/api/v1/test_admin_system_info.py`
 
 **Step 1: Write the test file**
@@ -424,6 +427,7 @@ git commit -m "test: add tests for /admin/system-info endpoint"
 ## Task 4: Frontend - Add requiresEditor Router Guard
 
 **Files:**
+
 - Modify: `frontend/src/router/index.ts`
 
 **Step 1: Add requiresEditor guard logic**
@@ -431,6 +435,7 @@ git commit -m "test: add tests for /admin/system-info endpoint"
 Find the `router.beforeEach` section and update the guard logic. After the `requiresAdmin` check, add editor check:
 
 Change this block:
+
 ```typescript
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     // Admin-only routes redirect to home if not admin
@@ -439,6 +444,7 @@ Change this block:
 ```
 
 To:
+
 ```typescript
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     // Admin-only routes redirect to home if not admin
@@ -479,6 +485,7 @@ git commit -m "feat: add requiresEditor guard, allow editors to access /admin/co
 ## Task 5: Frontend - Add Config Menu Item to NavBar
 
 **Files:**
+
 - Modify: `frontend/src/components/layout/NavBar.vue`
 
 **Step 1: Add Config link to desktop dropdown**
@@ -496,6 +503,7 @@ Find the dropdown menu section (after Profile link, before Admin Settings). Add:
 ```
 
 Insert between:
+
 ```vue
                   <RouterLink
                     to="/profile"
@@ -545,6 +553,7 @@ git commit -m "feat: add Config menu item for editors and admins"
 ## Task 6: Frontend - Add API Service Method
 
 **Files:**
+
 - Modify: `frontend/src/services/api.ts` (or create type if needed)
 
 **Step 1: Check existing api service structure**
@@ -626,6 +635,7 @@ git commit -m "feat: add TypeScript types for admin system-info API"
 ## Task 7: Frontend - Refactor AdminConfigView to Tabbed Interface
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Rewrite the entire component**

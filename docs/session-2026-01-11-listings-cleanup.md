@@ -63,12 +63,14 @@ Current cleanup Lambda explicitly excludes `listings/` prefix.
 ## Implementation Options
 
 ### Option A: Age-based cleanup (simpler)
+
 - Delete all `listings/*` objects older than 30 days
 - Assumption: if not imported within 30 days, it's abandoned
 - Pros: Simple, no DB queries needed
 - Cons: Could delete listings still being evaluated
 
 ### Option B: Reference-based cleanup (safer)
+
 - Query Books for `source_item_id` values
 - Delete listings where item_id matches a Book (already imported)
 - Keep listings with no Book match (might still be evaluating)
@@ -76,6 +78,7 @@ Current cleanup Lambda explicitly excludes `listings/` prefix.
 - Cons: More complex, requires DB queries
 
 ### Option C: Hybrid approach
+
 - Use both age AND reference checking
 - Delete if: (older than X days) AND (has matching Book OR no activity)
 
@@ -104,7 +107,7 @@ Current cleanup Lambda explicitly excludes `listings/` prefix.
 ## Progress Log
 
 ### 2026-01-11: Session Start
+
 - Created worktree from staging
 - Fetched issue #1056 requirements
 - Starting design phase with brainstorming skill
-

@@ -34,6 +34,7 @@ poetry run ruff check --fix .
 ```
 
 **Configuration** (`pyproject.toml`):
+
 ```toml
 [tool.ruff]
 target-version = "py311"
@@ -68,6 +69,7 @@ poetry run mypy app/
 ```
 
 **Configuration** (`pyproject.toml`):
+
 ```toml
 [tool.mypy]
 python_version = "3.11"
@@ -109,6 +111,7 @@ poetry run pytest --cov=app --cov-report=html
 ```
 
 **Configuration** (`pyproject.toml`):
+
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -117,6 +120,7 @@ addopts = "-v --tb=short"
 ```
 
 **Sample Test Structure:**
+
 ```
 backend/tests/
 ├── conftest.py          # Fixtures (test DB, client)
@@ -127,6 +131,7 @@ backend/tests/
 ```
 
 **Sample Test** (`tests/conftest.py`):
+
 ```python
 import pytest
 from fastapi.testclient import TestClient
@@ -163,6 +168,7 @@ def client(db):
 ```
 
 **Sample Test** (`tests/test_books.py`):
+
 ```python
 def test_list_books_empty(client):
     response = client.get("/api/v1/books")
@@ -196,6 +202,7 @@ poetry add --group dev testcontainers
 ```
 
 **Sample** (`tests/integration/conftest.py`):
+
 ```python
 import pytest
 from testcontainers.postgres import PostgresContainer
@@ -232,6 +239,7 @@ npm run lint -- --fix
 ```
 
 **Configuration** (`.eslintrc.cjs`):
+
 ```javascript
 module.exports = {
   root: true,
@@ -268,6 +276,7 @@ npx vue-tsc --noEmit
 ```
 
 **Script** (`package.json`):
+
 ```json
 {
   "scripts": {
@@ -292,6 +301,7 @@ npx prettier --write "src/**/*.{ts,vue,css}"
 ```
 
 **Configuration** (`.prettierrc`):
+
 ```json
 {
   "semi": false,
@@ -319,6 +329,7 @@ npm run test:coverage
 ```
 
 **Configuration** (`vite.config.ts`):
+
 ```typescript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -337,6 +348,7 @@ export default defineConfig({
 ```
 
 **Scripts** (`package.json`):
+
 ```json
 {
   "scripts": {
@@ -348,6 +360,7 @@ export default defineConfig({
 ```
 
 **Sample Test** (`src/stores/__tests__/books.test.ts`):
+
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -465,6 +478,7 @@ frontend-build:
 Create a script to run all validations locally before pushing:
 
 **`scripts/validate.sh`:**
+
 ```bash
 #!/bin/bash
 set -e

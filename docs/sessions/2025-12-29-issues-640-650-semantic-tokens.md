@@ -8,6 +8,7 @@
 ## CRITICAL WORKFLOW REQUIREMENTS
 
 ### Superpowers Skills - ALWAYS USE
+
 - **superpowers:brainstorming** - Before ANY creative work
 - **superpowers:test-driven-development** - For all implementation
 - **superpowers:verification-before-completion** - Before claiming complete
@@ -16,6 +17,7 @@
 ### Bash Command Rules - NEVER VIOLATE
 
 **NEVER use these (trigger permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -23,6 +25,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of &&
 - `bmx-api` for all BlueMoxon API calls
@@ -32,17 +35,21 @@
 ## Overview
 
 Two related dark mode follow-up issues:
+
 - **#650**: Create semantic STATUS color tokens (success, warning, error, info)
 - **#640**: Apply semantic tokens to remaining views
 
 ## Token Design (APPROVED)
 
 ### Naming Convention
+
 `--color-status-{type}-{variant}` where:
+
 - **Types:** success, warning, error, info
 - **Variants:** bg, text, border, solid, solid-text, accent
 
 ### Light Mode Values (added to @theme block)
+
 ```css
 --color-status-success-bg: #dcfce7;
 --color-status-success-text: #166534;
@@ -54,6 +61,7 @@ Two related dark mode follow-up issues:
 ```
 
 ### Dark Mode Values (added to .dark block)
+
 ```css
 --color-status-success-bg: #1a2e1a;
 --color-status-success-text: #86efac;
@@ -68,7 +76,8 @@ Two related dark mode follow-up issues:
 
 ## Progress - Issue #650
 
-### ALL COMPONENTS COMPLETED:
+### ALL COMPONENTS COMPLETED
+
 - [x] Created branch `refactor/650-semantic-status-tokens` from origin/staging
 - [x] Added 24 light mode semantic tokens to `@theme` block in main.css
 - [x] Added 24 dark mode token overrides to `.dark` block in main.css
@@ -99,7 +108,8 @@ Two related dark mode follow-up issues:
 - [x] Ran `npm run type-check` - PASSED
 - [x] Verified no remaining old patterns with grep
 
-### NEXT STEPS:
+### NEXT STEPS
+
 1. Create PR targeting staging for user review
 2. After review approval, merge to staging
 3. Visual verification in staging (light and dark modes)
@@ -110,9 +120,11 @@ Two related dark mode follow-up issues:
 ## Key Files Modified
 
 ### Core Theme
+
 - `frontend/src/assets/main.css` - 24 light + 24 dark mode semantic tokens
 
 ### Components Updated (25 total)
+
 - `frontend/src/components/ArchiveStatusBadge.vue`
 - `frontend/src/components/AddToWatchlistModal.vue`
 - `frontend/src/components/EditWatchlistModal.vue`
@@ -141,9 +153,11 @@ Two related dark mode follow-up issues:
 ---
 
 ## Design Document
+
 See: `docs/plans/2025-12-29-semantic-status-tokens-design.md`
 
 ## Related PRs
+
 - PR to be created targeting staging
 
 ---

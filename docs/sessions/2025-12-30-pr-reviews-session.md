@@ -8,9 +8,11 @@
 ## CRITICAL RULES - READ FIRST
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **IF A SKILL APPLIES TO YOUR TASK, YOU MUST USE IT. This is not negotiable.**
 
 Before ANY action, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:writing-plans` - Before multi-step implementation
 - `superpowers:executing-plans` - When implementing a plan
@@ -21,6 +23,7 @@ Before ANY action, check if a skill applies:
 - `superpowers:finishing-a-development-branch` - When implementation complete
 
 ### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
+
 ```bash
 # BAD - NEVER DO:
 # This is a comment before command    # Comments with #
@@ -33,6 +36,7 @@ cd dir || exit 1                      # || chaining
 ```
 
 ### 3. ALWAYS Use These Patterns Instead
+
 ```bash
 # GOOD - Simple single-line commands:
 aws lambda get-function --function-name foo
@@ -55,10 +59,12 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 ## PRs Reviewed
 
 ### PR #680: Entity Management UI Improvements
+
 **Status:** APPROVED
 **Changes:** Focus trapping, semantic status tokens, validation improvements
 
 **Key Fixes Applied:**
+
 - Created custom `useFocusTrap.ts` composable (avoids VueUse 7.x→14.x version conflict)
 - Created custom `useDebounce.ts` composable
 - Fixed error handling: DEV gets `console.error`, TEST silent, PROD gets `console.warn`
@@ -67,10 +73,12 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 ---
 
 ### PR #682: Cleanup Lambda
+
 **Status:** APPROVED
 **Changes:** New Lambda for database maintenance tasks
 
 **Key Fixes Applied:**
+
 - Async handler pattern: `asyncio.run(_async_handler(event))`
 - S3 pagination with `get_paginator("list_objects_v2")`
 - Direct `SessionLocal()` instead of `next(get_db())` for Lambda
@@ -80,16 +88,19 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 ---
 
 ### PR #684: Lambda Layers
+
 **Status:** APPROVED
 **Changes:** Separate Python dependencies into Lambda Layer (~50MB → <1MB code packages)
 
 **Key Fixes Applied:**
+
 1. **Race condition fixed:** Layer updated BEFORE code (old code + new layer = safe)
 2. **Layer version reuse:** Conditional publish only when content changes
 3. **Rollback support:** Captures state, prints recovery commands on failure
 4. **Cleanup Lambda version publish:** Added for consistency
 
 **Architecture:**
+
 - `build-layer` job builds layer with poetry.lock hash caching
 - `build-backend` copies only app code (no pip install)
 - Deploy: update layer → wait → update code → wait → publish version
@@ -97,14 +108,17 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 ---
 
 ### PR #686: Cleanup Lambda Orphan Fix
+
 **Status:** APPROVED WITH RESERVATIONS
 **Changes:** Fix critical bug that deleted ~6,900 valid S3 objects
 
 **Root Cause:**
+
 1. No prefix filter on S3 listing (listed entire bucket)
 2. Key format mismatch (S3: `books/123/img.jpg`, DB: `123/img.jpg`)
 
 **Key Fixes Applied:**
+
 - `books/` prefix filter on S3 listing
 - Strip prefix before DB comparison
 - `max_deletions` guard (default 100) with `force_delete` override
@@ -113,16 +127,19 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 - Legacy `keys` field capped to 100 items
 
 **Must Fix:**
+
 - Align postmortem with actual implementation (`books/` not `images/`)
 - Remove session log files from commits
 
 ---
 
 ### PR #691: Staging to Production Promotion
+
 **Status:** IN REVIEW (session compacted)
 **Changes:** 45 files, combines cleanup fix with Lambda Layers
 
 **Concerns:**
+
 - Very large PR (45 files, 5464 additions)
 - Alembic revision IDs look fabricated (`u4567890stuv`, `v5678901uvwx`)
 - Session logs still being committed
@@ -132,6 +149,7 @@ bmx-api POST /admin/cleanup '{"action": "stale"}'
 ## Key Technical Patterns
 
 ### Lambda Async Handler Pattern
+
 ```python
 def handler(event: dict, context) -> dict:
     return asyncio.run(_async_handler(event))
@@ -145,6 +163,7 @@ async def _async_handler(event: dict) -> dict:
 ```
 
 ### S3 Orphan Detection Pattern
+
 ```python
 S3_BOOKS_PREFIX = "books/"
 
@@ -162,6 +181,7 @@ orphaned_full_keys = {f"{S3_BOOKS_PREFIX}{k}" for k in orphaned_stripped}
 ```
 
 ### Vue Set Reactivity Pattern
+
 ```typescript
 // BAD - Vue doesn't detect Set mutations
 savingIds.value.add(key)

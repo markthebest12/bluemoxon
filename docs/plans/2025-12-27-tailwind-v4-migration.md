@@ -13,6 +13,7 @@
 ## Task 1: Capture Baseline Screenshots
 
 **Files:**
+
 - Create: `frontend/.tmp/screenshots/before/` (directory)
 
 **Step 1: Create screenshots directory**
@@ -35,12 +36,12 @@ Using Playwright MCP, navigate to each page and screenshot:
 
 | Page | URL | Filename |
 |------|-----|----------|
-| Home | http://localhost:5173/ | `home-desktop.png` |
-| Books | http://localhost:5173/books | `books-desktop.png` |
-| Book Detail | http://localhost:5173/books/1 | `detail-desktop.png` |
-| Login | http://localhost:5173/login | `login-desktop.png` |
-| Book Create | http://localhost:5173/books/new | `create-desktop.png` |
-| Book Edit | http://localhost:5173/books/1/edit | `edit-desktop.png` |
+| Home | <http://localhost:5173/> | `home-desktop.png` |
+| Books | <http://localhost:5173/books> | `books-desktop.png` |
+| Book Detail | <http://localhost:5173/books/1> | `detail-desktop.png` |
+| Login | <http://localhost:5173/login> | `login-desktop.png` |
+| Book Create | <http://localhost:5173/books/new> | `create-desktop.png` |
+| Book Edit | <http://localhost:5173/books/1/edit> | `edit-desktop.png` |
 
 **Step 4: Capture mobile screenshots (390x844)**
 
@@ -63,6 +64,7 @@ Expected: 12 PNG files.
 ## Task 2: Run Tailwind Upgrade Tool
 
 **Files:**
+
 - Modify: `frontend/package.json`
 - Modify: `frontend/vite.config.ts`
 - Modify: `frontend/postcss.config.js`
@@ -106,11 +108,13 @@ If build fails, note the errors for Task 3.
 ## Task 3: Fix Build Errors (if any)
 
 **Files:**
+
 - Modify: Files identified from build errors
 
 **Step 1: Review build errors**
 
 If Task 2 Step 4 failed, analyze errors:
+
 - Missing dependencies → `npm install <package>`
 - Syntax errors in CSS → Fix in `main.css`
 - Config issues → Fix in `vite.config.ts`
@@ -132,6 +136,7 @@ Expected: Build completes without errors.
 ## Task 4: Verify Victorian Theme Colors
 
 **Files:**
+
 - Modify: `frontend/src/assets/main.css` (if needed)
 
 **Step 1: Check theme conversion**
@@ -189,6 +194,7 @@ Check that `@layer components` section with `.btn-primary`, `.card`, etc. is int
 ## Task 5: Fix Deprecated Utility Classes
 
 **Files:**
+
 - Modify: Vue components in `frontend/src/`
 
 **Step 1: Search for known deprecated utilities**
@@ -218,6 +224,7 @@ cd frontend && npm run build
 ## Task 6: Run Test Suite
 
 **Files:**
+
 - None (verification only)
 
 **Step 1: Run type check**
@@ -249,6 +256,7 @@ Expected: No errors (warnings OK).
 ## Task 7: Capture After Screenshots
 
 **Files:**
+
 - Create: `frontend/.tmp/screenshots/after/` (directory)
 
 **Step 1: Create screenshots directory**
@@ -280,11 +288,13 @@ Kill the background dev server process.
 ## Task 8: Compare Screenshots
 
 **Files:**
+
 - None (verification only)
 
 **Step 1: Visual comparison**
 
 Open before/after screenshots side by side:
+
 - `frontend/.tmp/screenshots/before/home-desktop.png`
 - `frontend/.tmp/screenshots/after/home-desktop.png`
 
@@ -293,6 +303,7 @@ Compare all 12 pairs.
 **Step 2: Document any differences**
 
 Note any visual regressions:
+
 - Color differences
 - Font changes
 - Layout shifts
@@ -307,6 +318,7 @@ If differences found, investigate and fix in `main.css` or component files.
 ## Task 9: Clean Up Obsolete Files
 
 **Files:**
+
 - Delete: `frontend/tailwind.config.js` (if still exists)
 - Modify: `frontend/postcss.config.js` (simplify if needed)
 
@@ -343,6 +355,7 @@ cd frontend && npm run build
 ## Task 10: Final Verification and Commit
 
 **Files:**
+
 - All modified files
 
 **Step 1: Run full validation**
@@ -389,6 +402,7 @@ git push -u origin feat/tailwind-v4-migration
 ## Task 11: Create PR to Staging
 
 **Files:**
+
 - None (GitHub operation)
 
 **Step 1: Create PR**
@@ -431,6 +445,7 @@ STOP here and wait for user approval before merging.
 ## Task 12: Merge to Staging and Validate
 
 **Files:**
+
 - None (GitHub/AWS operation)
 
 **Step 1: Merge PR after approval**
@@ -448,7 +463,8 @@ gh run watch <run-id> --exit-status
 
 **Step 3: Validate staging**
 
-Visit https://staging.app.bluemoxon.com and verify:
+Visit <https://staging.app.bluemoxon.com> and verify:
+
 - Home page loads correctly
 - Victorian styling intact
 - Forms render properly
@@ -459,6 +475,7 @@ Visit https://staging.app.bluemoxon.com and verify:
 ## Task 13: Create PR to Production
 
 **Files:**
+
 - None (GitHub operation)
 
 **Step 1: Create promotion PR**

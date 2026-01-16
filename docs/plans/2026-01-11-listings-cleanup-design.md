@@ -33,6 +33,7 @@ GET /api/v1/admin/cleanup/listings/scan?age_days=30
 ```
 
 **Response:**
+
 ```json
 {
   "total_count": 147,
@@ -57,6 +58,7 @@ Body: {"age_days": 30}
 ```
 
 **Response:**
+
 ```json
 {
   "deleted_count": 147,
@@ -87,6 +89,7 @@ def cleanup_stale_listings(
 ```
 
 **Algorithm:**
+
 1. Paginate through `listings/` prefix using S3 `list_objects_v2`
 2. For each object, check `LastModified` against cutoff date
 3. If older than threshold → mark as stale
@@ -94,6 +97,7 @@ def cleanup_stale_listings(
 5. If `delete=True`, batch delete using `delete_objects` API (1000 keys/call)
 
 **Key characteristics:**
+
 - No database interaction (S3-only)
 - Per-file age check (not per-folder)
 - Groups results by `item_id` for UI display
@@ -147,9 +151,9 @@ Extend `OrphanCleanupPanel.vue` with a second card for listings cleanup:
 
 ### API Tests (`test_admin_cleanup.py`)
 
-7. `test_listings_scan_endpoint`
-8. `test_listings_delete_endpoint`
-9. `test_listings_scan_custom_age`
+1. `test_listings_scan_endpoint`
+2. `test_listings_delete_endpoint`
+3. `test_listings_scan_custom_age`
 
 **Mocking:** Mock `boto3.client("s3")` with fake responses including `LastModified` timestamps.
 

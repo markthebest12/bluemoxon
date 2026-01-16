@@ -13,6 +13,7 @@
 ## Task 1: Add `addToWatchlist` action to acquisitions store
 
 **Files:**
+
 - Modify: `frontend/src/stores/acquisitions.ts`
 - Test: `frontend/src/stores/__tests__/acquisitions.spec.ts`
 
@@ -108,6 +109,7 @@ git commit -m "feat: add addToWatchlist action to acquisitions store"
 ## Task 2: Add create actions to references store
 
 **Files:**
+
 - Modify: `frontend/src/stores/references.ts`
 - Test: `frontend/src/stores/__tests__/references.spec.ts` (create if needed)
 
@@ -237,6 +239,7 @@ git commit -m "feat: add create actions for authors, publishers, binders"
 ## Task 3: Create ComboboxWithAdd component
 
 **Files:**
+
 - Create: `frontend/src/components/ComboboxWithAdd.vue`
 - Test: `frontend/src/components/__tests__/ComboboxWithAdd.spec.ts`
 
@@ -496,6 +499,7 @@ git commit -m "feat: add ComboboxWithAdd component with inline creation"
 ## Task 4: Create AddToWatchlistModal component
 
 **Files:**
+
 - Create: `frontend/src/components/AddToWatchlistModal.vue`
 - Test: `frontend/src/components/__tests__/AddToWatchlistModal.spec.ts`
 
@@ -902,6 +906,7 @@ git commit -m "feat: add AddToWatchlistModal component"
 ## Task 5: Wire up modal in AcquisitionsView
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 - Test: `frontend/src/views/__tests__/AcquisitionsView.spec.ts`
 
@@ -947,11 +952,13 @@ Expected: FAIL with "Cannot find '[data-testid="add-to-watchlist"]'"
 Modify `frontend/src/views/AcquisitionsView.vue`:
 
 1. Add import at top of script:
+
 ```typescript
 import AddToWatchlistModal from "@/components/AddToWatchlistModal.vue";
 ```
 
-2. Add state for modal:
+1. Add state for modal:
+
 ```typescript
 const showWatchlistModal = ref(false);
 
@@ -969,7 +976,8 @@ function handleWatchlistAdded() {
 }
 ```
 
-3. Replace the router-link (lines 117-123) with a button:
+1. Replace the router-link (lines 117-123) with a button:
+
 ```html
 <!-- Add Item Button -->
 <button
@@ -981,7 +989,8 @@ function handleWatchlistAdded() {
 </button>
 ```
 
-4. Add the modal at the bottom of the template (before closing `</div>`):
+1. Add the modal at the bottom of the template (before closing `</div>`):
+
 ```html
 <!-- Add to Watchlist Modal -->
 <AddToWatchlistModal

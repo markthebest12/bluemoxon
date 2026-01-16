@@ -20,6 +20,7 @@
 ## Task 1: Verify the Fix Locally
 
 **Files:**
+
 - Modified: `frontend/src/views/InsuranceReportView.vue:487-491`
 
 **Step 1: Check the current change**
@@ -27,6 +28,7 @@
 Run: `git diff HEAD~1 frontend/src/views/InsuranceReportView.vue`
 
 Expected: Shows the dark mode class addition:
+
 ```diff
 -                    : 'even:bg-victorian-paper-cream border-b border-victorian-paper-antique',
 +                    : 'even:bg-victorian-paper-cream dark:even:bg-victorian-hunter-800/30 border-b border-victorian-paper-antique dark:border-victorian-hunter-700',
@@ -67,6 +69,7 @@ Run: `git add frontend/src/views/InsuranceReportView.vue`
 **Step 3: Commit with conventional commit message**
 
 Run:
+
 ```bash
 git commit -m "$(cat <<'EOF'
 fix(ui): Improve dark mode contrast for insurance report table
@@ -110,7 +113,7 @@ Expected: Deploy completes with all smoke tests passing
 
 **Step 1: Open staging insurance report**
 
-URL: https://staging.app.bluemoxon.com/reports/insurance
+URL: <https://staging.app.bluemoxon.com/reports/insurance>
 
 **Step 2: Toggle to dark mode**
 
@@ -149,7 +152,7 @@ Expected: Production deploy completes with smoke tests passing
 
 **Step 1: Open production insurance report**
 
-URL: https://app.bluemoxon.com/reports/insurance
+URL: <https://app.bluemoxon.com/reports/insurance>
 
 **Step 2: Toggle to dark mode and verify**
 
@@ -160,11 +163,13 @@ Expected: Table rows readable with proper contrast in dark mode
 ## Summary
 
 This plan addresses:
+
 1. Dark mode visibility fix for insurance report table
 2. Proper staging validation before production
 3. Promotion of all Dependabot dependency updates to production
 
 Total changes being promoted:
+
 - vue-tsc 3.2.1 → 3.2.2
 - globals 15.15.0 → 17.0.0
 - focus-trap 7.7.1 → 7.8.0

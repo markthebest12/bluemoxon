@@ -1,7 +1,7 @@
 # Session: Issue #590 - Bedrock Cost Reporting Shows Zero
 
 **Date:** 2025-12-25
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/590
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/590>
 **Status:** ✅ RESOLVED - Production restored and Bedrock costs displaying correctly
 
 ---
@@ -15,10 +15,12 @@ Issue #590 is **RESOLVED**. Production API is healthy and Bedrock costs are disp
 ## What Was Fixed
 
 **Two code/infra issues fixed:**
+
 1. **Code:** LINKED_ACCOUNT filter doesn't work for management account (PR #591, #592)
 2. **IAM:** Lambda needed `organizations:DescribeOrganization` permission (PR #593, #594)
 
 **Collateral damage resolved:**
+
 - Terraform state drift caused Lambda deletion during apply
 - API Gateway integration updated to point to correct Lambda (`bluemoxon-prod-api`)
 - Lambda permission added for API Gateway invocation
@@ -69,19 +71,23 @@ During investigation, discovered that ALL Bedrock costs are attributed to stagin
 ## Next Steps
 
 ### Immediate (after chat compacts)
+
 1. **Merge PR #597 to main** - Promotes scraper image_tag fix to production
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote scraper image_tag fix to production"
    gh pr merge <PR_NUMBER> --squash --admin
    ```
 
 ### Follow-up
+
 2. **Submit AWS Support ticket** - Via AWS Console (billing questions are free)
    - File: `docs/sessions/2025-12-25-aws-support-ticket-bedrock-billing.md`
-   - Console: https://console.aws.amazon.com/support/home
+   - Console: <https://console.aws.amazon.com/support/home>
    - Type: Account and billing → Billing → Charges - Usage
 
-3. **Close GitHub issue #590** - Once PR #597 is merged
+2. **Close GitHub issue #590** - Once PR #597 is merged
+
    ```bash
    gh issue close 590 --comment "Resolved. Bedrock costs now displaying correctly. See session notes for details."
    ```

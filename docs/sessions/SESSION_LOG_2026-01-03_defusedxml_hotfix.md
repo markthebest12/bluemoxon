@@ -33,23 +33,28 @@ PR #773 (tracking worker redesign) introduced a USPS carrier plugin that imports
 ## Technical Details
 
 ### Error
+
 ```
 [ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'defusedxml'
 ```
 
 ### Import Chain
+
 `backend/app/services/carriers/usps.py:7`:
+
 ```python
 import defusedxml.ElementTree as ET
 ```
 
 ### Layer Build Process
+
 1. `deploy.yml` checks if layer exists in S3 using hash of source file
 2. If exists, skips rebuild and uses cached layer
 3. If not, builds layer from `requirements.txt` using Docker
 4. Cache key was using `poetry.lock` hash, but layer is built from `requirements.txt`
 
 ### Fix in deploy.yml
+
 ```yaml
 # Before (wrong):
 LOCK_HASH=$(sha256sum backend/poetry.lock | cut -d' ' -f1 | head -c 16)
@@ -61,6 +66,7 @@ REQ_HASH=$(sha256sum backend/requirements.txt | cut -d' ' -f1 | head -c 16)
 ## Prevention
 
 When adding new production dependencies:
+
 1. Add to `pyproject.toml` main dependencies
 2. Run `poetry lock` to update lock file
 3. **ALSO add to `requirements.txt`** (manually maintained for Lambda layer)

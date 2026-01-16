@@ -7,6 +7,7 @@
 ## Problem Summary
 
 Multiple inconsistent ways to check if running in AWS Lambda:
+
 1. `is_production()` function in images.py (confusingly named - returns True for staging too)
 2. Inline `database_secret_arn` checks in books.py
 3. Direct `settings.environment` checks
@@ -15,20 +16,24 @@ Multiple inconsistent ways to check if running in AWS Lambda:
 ## Solution
 
 Added computed properties to Settings class:
+
 - `is_aws_lambda` - True when running in AWS Lambda (staging or production)
 - `is_production` - True only in production environment
 
 ## Changes Made
 
 ### 1. `backend/app/config.py`
+
 - Added `is_aws_lambda` property - checks `database_secret_arn` or `database_secret_name` (with empty string handling)
 - Added `is_production` property - checks `environment == "production"`
 
 ### 2. `backend/app/api/v1/images.py`
+
 - Removed `is_production()` function definition (lines 52-54)
 - Replaced all 8 `is_production()` calls with `settings.is_aws_lambda`
 
 ### 3. `backend/app/api/v1/books.py`
+
 - Removed `is_production` import from images.py
 - Replaced 4 production checks with `settings.is_aws_lambda`:
   - `get_api_base_url()` function
@@ -37,6 +42,7 @@ Added computed properties to Settings class:
   - `delete_book()`
 
 ### 4. `backend/tests/test_config.py`
+
 - Added `TestEnvironmentDetection` class with 9 tests covering:
   - `is_aws_lambda` True with secret_arn, secret_name, or both
   - `is_aws_lambda` False without secrets
@@ -44,6 +50,7 @@ Added computed properties to Settings class:
   - Independence of the two properties
 
 ### 5. `backend/tests/test_books.py`
+
 - Updated 2 tests that were mocking the old `is_production` function
 - Now mock via `settings.database_secret_arn` attribute
 
@@ -78,6 +85,7 @@ All 101 tests pass (38 config, 10 images, 53 books)
 ### CRITICAL WORKFLOW REQUIREMENTS
 
 **ALWAYS use Superpowers skills at all stages:**
+
 - `superpowers:brainstorming` before any creative/feature work
 - `superpowers:test-driven-development` for all code changes
 - `superpowers:systematic-debugging` for any bugs
@@ -85,6 +93,7 @@ All 101 tests pass (38 config, 10 images, 53 books)
 - `superpowers:requesting-code-review` when completing tasks
 
 **BASH COMMAND RULES - NEVER use these (trigger permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -92,6 +101,7 @@ All 101 tests pass (38 config, 10 images, 53 books)
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -102,6 +112,7 @@ All 101 tests pass (38 config, 10 images, 53 books)
 **Status:** All code changes complete, tests pass (101), ready to commit and create PR
 
 **Files changed:**
+
 - `backend/app/config.py` - Added `is_aws_lambda` and `is_production` properties
 - `backend/app/api/v1/images.py` - Removed `is_production()` function, use `settings.is_aws_lambda`
 - `backend/app/api/v1/books.py` - Replace inline checks with `settings.is_aws_lambda`
@@ -109,6 +120,7 @@ All 101 tests pass (38 config, 10 images, 53 books)
 - `backend/tests/test_books.py` - Updated 2 tests for new mock pattern
 
 **What remains:**
+
 1. `git commit` with proper message
 2. `git push -u origin refactor/issue-806-consolidate-is-production`
 3. `gh pr create --base staging` for user review

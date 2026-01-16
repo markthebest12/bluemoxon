@@ -19,6 +19,7 @@ Move all inline imports to the top of the file, organized per PEP 8:
 ## Import Consolidation
 
 ### Standard Library
+
 ```python
 import logging
 import os
@@ -31,6 +32,7 @@ from typing import Any, Literal
 ```
 
 ### Third-Party
+
 ```python
 import boto3
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -41,6 +43,7 @@ from sqlalchemy.orm import Session
 ```
 
 ### Local - Models
+
 ```python
 from app.models import (
     AnalysisJob, Author, Book, BookAnalysis, BookImage,
@@ -49,7 +52,9 @@ from app.models import (
 ```
 
 ### Local - Services/Utils
+
 Consolidate scattered imports from:
+
 - `app.services.scoring`
 - `app.services.tracking`
 - `app.services.tracking_poller`

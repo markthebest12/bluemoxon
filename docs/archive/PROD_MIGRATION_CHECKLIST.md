@@ -94,6 +94,7 @@ terraform import 'module.images_cdn[0].aws_cloudfront_distribution.this' <IMAGES
 ### 2.3 Cognito (#110)
 
 **Current State (Updated 2024-12-08):**
+
 | Environment | Account | User Pool ID | Client ID | Notes |
 |-------------|---------|--------------|-----------|-------|
 | **Prod** | 266672885920 | `us-west-2_PvdIpXVKF` | `3ndaok3psd2ncqfjrdb57825he` | Production users |
@@ -113,6 +114,7 @@ terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ```
 
 **Configuration (updated in `.github/workflows/deploy.yml`):**
+
 - Each environment uses its own Cognito pool (separate authentication)
 - Frontend builds with environment-specific Cognito config
 - Auth code handles `cognito_sub` migration when users switch environments
@@ -120,10 +122,12 @@ terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 **Callback URLs:**
 
 Staging Cognito client (`48ik81mrpc6anouk234sq31fbt`):
+
 - `http://localhost:5173/auth/callback`
 - `https://staging.app.bluemoxon.com/auth/callback`
 
 Prod Cognito client (`3ndaok3psd2ncqfjrdb57825he`):
+
 - `http://localhost:5173/callback`
 - `https://bluemoxon.com/callback`
 - `https://www.bluemoxon.com/callback`
@@ -135,6 +139,7 @@ Prod Cognito client (`3ndaok3psd2ncqfjrdb57825he`):
 
 **Required Auth Flows (ExplicitAuthFlows):**
 The Cognito client MUST have these auth flows enabled for Amplify SDK `signIn` to work:
+
 - `ALLOW_USER_PASSWORD_AUTH` - Required for direct username/password authentication
 - `ALLOW_USER_SRP_AUTH` - Secure Remote Password protocol (recommended)
 - `ALLOW_REFRESH_TOKEN_AUTH` - Required for token refresh
@@ -157,6 +162,7 @@ terraform import 'module.api_gateway.aws_apigatewayv2_api.this' <API_ID>
 ### 2.5 Route53 & ACM (#111)
 
 **Route53 Hosted Zone** - Use data source (don't import, registrar-managed):
+
 ```hcl
 data "aws_route53_zone" "main" {
   name = "bluemoxon.com"
@@ -165,6 +171,7 @@ data "aws_route53_zone" "main" {
 ```
 
 **Route53 Records** to create/import:
+
 | Record | Type | Target |
 |--------|------|--------|
 | `bluemoxon.com` | A/AAAA | Landing CloudFront |
@@ -175,6 +182,7 @@ data "aws_route53_zone" "main" {
 | `staging.api.bluemoxon.com` | A | Staging API Gateway |
 
 **ACM Certificates** - Keep external, pass ARNs to Terraform:
+
 | Domain | Region | ARN |
 |--------|--------|-----|
 | `*.bluemoxon.com` | us-east-1 | `arn:aws:acm:us-east-1:266672885920:certificate/92395aeb-a01e-4a48-b4bd-0a9f1c04e861` |
@@ -183,12 +191,13 @@ data "aws_route53_zone" "main" {
 
 ### 2.7 Landing Site (#154) - Prod Only
 
-Marketing website at bluemoxon.com / www.bluemoxon.com (no staging equivalent).
+Marketing website at bluemoxon.com / <www.bluemoxon.com> (no staging equivalent).
 
 **Resources:**
+
 - S3 bucket: `bluemoxon-landing`
 - CloudFront: `ES60BQB34DNYS` (dui69hltsg2ds.cloudfront.net)
-- Aliases: bluemoxon.com, www.bluemoxon.com
+- Aliases: bluemoxon.com, <www.bluemoxon.com>
 - Uses same wildcard cert as app
 
 ```bash
@@ -237,6 +246,7 @@ terraform plan -var-file=envs/prod.tfvars
 ### 3.2 Document Resource IDs
 
 Update `infra/terraform/envs/prod.tfvars`:
+
 ```hcl
 environment        = "prod"
 aws_account_id     = "266672885920"
@@ -270,6 +280,7 @@ When setting up custom domains, the certificate must be in the **same account** 
 ### DNS Validation
 
 ACM certificates can be validated via DNS in a different account:
+
 1. Request certificate in target account
 2. Get DNS validation record
 3. Create CNAME in Route53 (prod account owns bluemoxon.com)
@@ -310,12 +321,14 @@ aws apigatewayv2 create-api-mapping \
 ## Cognito URL Updates
 
 When changing domains, update Cognito app client:
+
 - Callback URLs: `https://app.bluemoxon.com/auth/callback`
 - Logout URLs: `https://app.bluemoxon.com`
 
 ## Lambda CORS Updates
 
 Update Lambda environment variable:
+
 ```
 CORS_ORIGINS=https://app.bluemoxon.com,http://localhost:5173
 ```
@@ -335,6 +348,7 @@ When Lambda is deployed in a VPC (for RDS access), it **cannot reach AWS service
 ### Current State (Staging Account 652617421195)
 
 Created manually 2024-12-07:
+
 - S3 Gateway Endpoint: `vpce-0fa311c71ef94ad87`
 - Secrets Manager Interface Endpoint: (existed)
 - Cognito Interface Endpoint: `vpce-0256de046ef7a09f4`
@@ -355,6 +369,7 @@ terraform import 'aws_vpc_endpoint.secretsmanager' <endpoint-id>
 ### Deep Health Check Dependencies
 
 The `/api/v1/health/deep` endpoint requires network access to:
+
 1. **RDS** (PostgreSQL) - via VPC internal routing
 2. **S3** - for images bucket check - needs VPC endpoint
 3. **Cognito** - for user pool describe - needs VPC endpoint
@@ -367,6 +382,7 @@ The `/api/v1/health/deep` endpoint requires network access to:
 ### Interface Endpoint Security Groups
 
 Interface endpoints require security groups that allow HTTPS (443) from Lambda security group:
+
 - Lambda SG → Endpoint SG on port 443
 
 ### S3 Bucket Requirements
@@ -378,6 +394,7 @@ If bucket is deleted, deep health check will fail (S3 check hangs/times out).
 ## Rollback Plan
 
 If anything goes wrong:
+
 1. Resources exist in AWS regardless of Terraform state
 2. Can always remove from state: `terraform state rm <resource>`
 3. Can re-import: `terraform import <resource> <id>`
@@ -394,12 +411,14 @@ This section documents issues discovered during the staging Terraform conformanc
 **Error:** `InvalidParameter: VPC vpce-xxx availability zone(s) [us-west-2d] must be a subset of the VPC endpoint service's availability zones`
 
 **Solution:** Added `cognito_endpoint_subnet_ids` variable to Terraform:
+
 - `infra/terraform/variables.tf` - Root variable with fallback
 - `infra/terraform/modules/vpc-networking/variables.tf` - Module variable
 - `infra/terraform/modules/vpc-networking/main.tf` - Uses variable with fallback to `private_subnet_ids`
 - `infra/terraform/main.tf` - Passes variable to module
 
 **Prod Action Required:**
+
 ```hcl
 # In envs/prod.tfvars, if VPC has us-west-2d subnets:
 cognito_endpoint_subnet_ids = [
@@ -413,10 +432,12 @@ cognito_endpoint_subnet_ids = [
 **Problem:** When Terraform destroys and recreates Cognito, the pool ID and client ID change.
 
 **Impact:** After destroy/apply cycle:
+
 - Old: `us-west-2_5pOhFH6LN` → New: `us-west-2_xhoIfvlHv`
 - Config files and workflows reference old IDs
 
 **Solution:** Updated `infra/config/staging.json` with new Cognito IDs:
+
 ```json
 "cognito": {
   "user_pool_id": "us-west-2_xhoIfvlHv",
@@ -426,6 +447,7 @@ cognito_endpoint_subnet_ids = [
 ```
 
 **Prod Action Required:**
+
 - CRITICAL: Avoid destroying Cognito in prod (users would lose access)
 - If must recreate: Update `infra/config/production.json` immediately after
 
@@ -436,6 +458,7 @@ cognito_endpoint_subnet_ids = [
 **Error:** `InvalidRequestException: You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key`
 
 **Options to Fix:**
+
 1. **Re-encrypt prod secret** with customer-managed KMS key (requires key policy update)
 2. **Use local sync script** with network access to both databases
 3. **Use AWS DMS** for cross-account replication
@@ -447,6 +470,7 @@ cognito_endpoint_subnet_ids = [
 **Problem:** Sync script had wrong bucket name `bluemoxon-staging-images` instead of `bluemoxon-images-staging`.
 
 **Convention:** `bluemoxon-{resource}-{environment}` NOT `bluemoxon-{environment}-{resource}`
+
 - Correct: `bluemoxon-images-staging`, `bluemoxon-frontend-staging`
 - Wrong: `bluemoxon-staging-images`, `bluemoxon-staging-frontend`
 
@@ -459,6 +483,7 @@ cognito_endpoint_subnet_ids = [
 **Solution:** Run `poetry run ruff format .` before committing.
 
 **CI Requirement:** All Python code must pass:
+
 ```bash
 poetry run ruff check .
 poetry run ruff format --check .
@@ -469,6 +494,7 @@ poetry run ruff format --check .
 **Problem:** After Terraform applies, Lambda has placeholder code (not actual application). Health check fails until GitHub deploy workflow runs.
 
 **Sequence Required:**
+
 1. Terraform apply (creates Lambda with placeholder)
 2. GitHub deploy workflow (deploys actual code)
 3. Database sync (creates tables)
@@ -515,12 +541,14 @@ Environment-specific configuration is centralized in JSON files at `infra/config
 ### Usage
 
 **GitHub Actions workflows** read from these files via `jq`:
+
 ```bash
 CONFIG_FILE="infra/config/staging.json"
 COGNITO_POOL_ID=$(jq -r '.cognito.user_pool_id' $CONFIG_FILE)
 ```
 
 **Terraform** can read via `jsondecode(file(...))`:
+
 ```hcl
 locals {
   config = jsondecode(file("${path.module}/../../config/${var.environment}.json"))
@@ -539,6 +567,7 @@ locals {
 ### Adding New Configuration
 
 When adding new config values:
+
 1. Add to both `staging.json` and `production.json`
 2. Update workflow to read new value via `jq`
 3. Add to smoke tests if validation needed
@@ -552,17 +581,20 @@ This section tracks manual changes made to production infrastructure that need t
 **Issue:** CloudFront was returning HTML error pages (HTTP 200, Content-Type: text/html) instead of actual images.
 
 **Root Cause:**
+
 - API was generating URLs like `https://d2yd5bvqaomg54.cloudfront.net/books/33_xxx.jpg`
 - CloudFront cache behavior only routes `/book-images/*` to images S3 bucket
 - Paths like `/books/*` fell through to default behavior (frontend bucket), returning `index.html`
 
 **Fix Applied:**
 Changed Lambda environment variable from:
+
 - `BMX_IMAGES_CDN_DOMAIN=d2yd5bvqaomg54.cloudfront.net`
 To:
 - `BMX_IMAGES_CDN_URL=https://app.bluemoxon.com/book-images`
 
 **AWS CLI Command:**
+
 ```bash
 aws lambda update-function-configuration \
   --function-name bluemoxon-api \
@@ -572,6 +604,7 @@ aws lambda update-function-configuration \
 
 **Terraform Update:**
 Updated `infra/terraform/main.tf` line 292:
+
 ```hcl
 # Before:
 BMX_IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""

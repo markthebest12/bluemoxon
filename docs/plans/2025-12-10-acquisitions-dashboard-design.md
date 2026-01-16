@@ -59,6 +59,7 @@ PATCH /books/{id}/acquire
 ```
 
 **Request body:**
+
 ```json
 {
   "purchase_price": 164.14,
@@ -78,6 +79,7 @@ POST /books/parse-order-details
 ```
 
 **Request body:**
+
 ```json
 {
   "text": "Order date: Dec 10, 2025\nOrder total: US $164.14\n..."
@@ -85,6 +87,7 @@ POST /books/parse-order-details
 ```
 
 **Response:**
+
 ```json
 {
   "purchase_price": 164.14,
@@ -100,6 +103,7 @@ POST /books/parse-listing
 ```
 
 **Request body:**
+
 ```json
 {
   "url": "https://www.ebay.com/itm/317643900374"

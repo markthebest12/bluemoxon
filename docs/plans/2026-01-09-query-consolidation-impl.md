@@ -13,6 +13,7 @@
 ## Task 1: Create Test File with Fixtures
 
 **Files:**
+
 - Create: `backend/tests/test_dashboard_consolidation.py`
 
 **Step 1: Write the test file skeleton with fixtures**
@@ -168,6 +169,7 @@ git commit -m "test: add fixture for dashboard consolidation tests"
 ## Task 2: Write Parallel Comparison Test for Dimension Stats
 
 **Files:**
+
 - Modify: `backend/tests/test_dashboard_consolidation.py`
 
 **Step 1: Add imports and parallel comparison test**
@@ -248,10 +250,11 @@ git commit -m "test: add failing parallel comparison for dimension stats"
 ## Task 3: Create dashboard_stats.py with Stub
 
 **Files:**
+
 - Create: `backend/app/services/__init__.py` (if not exists)
 - Create: `backend/app/services/dashboard_stats.py`
 
-**Step 1: Ensure services directory exists with __init__.py**
+**Step 1: Ensure services directory exists with **init**.py**
 
 Check if exists, create if needed:
 
@@ -315,6 +318,7 @@ git commit -m "feat: add dashboard_stats service stub"
 ## Task 4: Implement get_dimension_stats() with GROUPING SETS
 
 **Files:**
+
 - Modify: `backend/app/services/dashboard_stats.py`
 
 **Step 1: Replace get_dimension_stats stub with implementation**
@@ -463,6 +467,7 @@ git commit -m "feat: implement get_dimension_stats for condition/category/era"
 ## Task 5: Write Parallel Comparison Test for Overview Stats
 
 **Files:**
+
 - Modify: `backend/tests/test_dashboard_consolidation.py`
 
 **Step 1: Add overview parallel comparison tests**
@@ -516,6 +521,7 @@ git commit -m "test: add failing parallel comparison for overview stats"
 ## Task 6: Implement get_overview_stats()
 
 **Files:**
+
 - Modify: `backend/app/services/dashboard_stats.py`
 
 **Step 1: Replace get_overview_stats stub with implementation**
@@ -643,6 +649,7 @@ git commit -m "feat: implement get_overview_stats with conditional aggregation"
 ## Task 7: Create get_dashboard_optimized() and Wire Up Endpoint
 
 **Files:**
+
 - Modify: `backend/app/services/dashboard_stats.py`
 - Modify: `backend/app/api/v1/stats.py`
 
@@ -747,6 +754,7 @@ git commit -m "feat: wire up optimized dashboard endpoint (#1001)"
 ## Task 8: Add Property-Based Tests (Keep After Refactor)
 
 **Files:**
+
 - Modify: `backend/tests/test_dashboard_consolidation.py`
 
 **Step 1: Add property tests**

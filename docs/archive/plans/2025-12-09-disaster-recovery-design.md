@@ -74,6 +74,7 @@ aws rds create-db-snapshot \
 ### Images Bucket (versioning enabled)
 
 **Recover deleted object:**
+
 ```bash
 # List versions including delete markers
 aws s3api list-object-versions \
@@ -93,6 +94,7 @@ aws s3api copy-object \
 ### Frontend Bucket
 
 **If objects deleted:** Redeploy from CI/CD.
+
 ```bash
 gh workflow run deploy.yml
 # Or manually:

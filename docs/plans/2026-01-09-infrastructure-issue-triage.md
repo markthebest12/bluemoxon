@@ -48,6 +48,7 @@ The carrier tracking feature (#516) is being deprioritized. These dependent issu
 | #229 | Epic: eliminate enable_* divergence | Has caused real deployment failures (staging worked, prod didn't). |
 
 **Reframe**: Don't pursue full tfvars parity. Instead:
+
 1. Document known divergences and why they exist
 2. Add comments in tfvars explaining which flags are intentionally different
 3. Consider adding CI check that warns when staging PR might behave differently in prod
@@ -65,6 +66,7 @@ Current infrastructure costs are reasonable for the value delivered:
 | **Total** | **~$60** | Well-optimized serverless architecture |
 
 The proposed "cost saving" issues (#477, #476) claimed ~$80/mo savings but actual analysis shows:
+
 - Staging RDS is already the smallest instance class
 - NAT Gateway is already disabled in production
 - Staging NAT costs are proportional to actual usage (scales to near-zero when idle)
@@ -72,11 +74,13 @@ The proposed "cost saving" issues (#477, #476) claimed ~$80/mo savings but actua
 ## Strategic Direction
 
 Focus infrastructure effort on:
+
 1. **Bedrock/AI features** - This is where product value comes from
 2. **Operational stability** - Keep deploys working, don't add complexity
 3. **Documentation** - Better docs over more automation
 
 Avoid:
+
 - Premature optimization for costs that aren't material
 - Infrastructure features for product features that may be cut
 - "Consistency" work that doesn't solve real problems
@@ -84,25 +88,31 @@ Avoid:
 ## Appendix: AWS Well-Architected Assessment
 
 ### Operational Excellence
+
 - **Current**: Good - Terraform IaC, CI/CD, health checks
 - **Gap**: Documentation of staging/prod differences (addressed by #229 reframe)
 
 ### Security
+
 - **Current**: Strong - IAM least privilege, VPC isolation, encryption at rest
 - **Gap**: None identified
 
 ### Reliability
+
 - **Current**: Adequate for scale - Multi-AZ RDS, S3 versioning, DLQs
 - **Gap**: None material for current traffic levels
 
 ### Performance Efficiency
+
 - **Current**: Good - Serverless auto-scaling, CloudFront CDN, appropriate Lambda sizing
 - **Gap**: None identified
 
 ### Cost Optimization
+
 - **Current**: Well-optimized - Scales to zero, no over-provisioning
 - **Gap**: None material - proposed savings don't justify effort
 
 ### Sustainability
+
 - **Current**: Serverless = efficient resource utilization
 - **Gap**: None identified

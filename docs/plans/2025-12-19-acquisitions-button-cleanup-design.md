@@ -6,6 +6,7 @@
 ## Problem
 
 The Analysis and Eval Runbook buttons on Acquisitions view cards have two issues:
+
 1. Buttons are centered and spread out - looks awkward
 2. Eval Runbook section is missing Generate/Regenerate buttons
 
@@ -23,6 +24,7 @@ Change from centered/spread to left-aligned compact rows:
 ```
 
 **CSS Changes:**
+
 - Remove `flex-1` from buttons (stops stretching)
 - Remove `justify-center` from buttons (left-aligns text)
 - Add `justify-start` to container rows
@@ -48,6 +50,7 @@ Note: Generate button is a rare fallback - eval runbooks are normally auto-gener
 ### Scope
 
 Apply changes to all 3 columns in Acquisitions view:
+
 - Evaluating (yellow)
 - In Transit (blue)
 - Received (green)

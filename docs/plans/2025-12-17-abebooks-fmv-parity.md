@@ -15,6 +15,7 @@
 ### Task 1: Add Test for Source-Specific Prompt Text
 
 **Files:**
+
 - Modify: `backend/tests/test_fmv_lookup.py`
 
 **Step 1: Write the failing test**
@@ -87,6 +88,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv commit -m "tes
 ### Task 2: Implement Source-Specific Prompt Text
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py:455-501`
 
 **Step 1: Update `_extract_comparables_with_claude()` function**
@@ -137,6 +139,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv commit -m "fea
 ### Task 3: Add Test for AbeBooks Context-Aware Query
 
 **Files:**
+
 - Modify: `backend/tests/test_fmv_lookup.py`
 
 **Step 1: Write the failing test**
@@ -183,6 +186,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv commit -m "tes
 ### Task 4: Update AbeBooks Function Signature
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py:646-673`
 
 **Step 1: Update `lookup_abebooks_comparables()` signature and implementation**
@@ -266,6 +270,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv commit -m "fea
 ### Task 5: Update lookup_fmv() Caller
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py:714-715`
 
 **Step 1: Update the call to `lookup_abebooks_comparables()`**
@@ -316,6 +321,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv commit -m "fea
 ### Task 6: Add Integration Test (Optional)
 
 **Files:**
+
 - Modify: `backend/tests/test_fmv_lookup.py`
 
 **Step 1: Add integration test with mocked HTTP**
@@ -393,6 +399,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-abebooks-fmv push -u origin
 ```
 
 Create PR:
+
 ```bash
 gh pr create --repo markthebest12/bluemoxon --base staging --head fix/abebooks-fmv-parity --title "fix: AbeBooks FMV parity with context-aware queries (#379)" --body "## Summary
 - Fix prompt to say 'active listings' instead of 'sold listings' for AbeBooks

@@ -13,6 +13,7 @@
 ## Task 1: Add Redis Dependency
 
 **Files:**
+
 - Modify: `backend/pyproject.toml`
 
 **Step 1: Add redis to dependencies**
@@ -41,6 +42,7 @@ git commit -m "chore: Add redis dependency for dashboard caching"
 ## Task 2: Add redis_url to Settings
 
 **Files:**
+
 - Modify: `backend/app/config.py`
 - Test: `backend/tests/test_config.py` (if exists, otherwise skip)
 
@@ -75,6 +77,7 @@ git commit -m "feat: Add redis_url config setting"
 ## Task 3: Write Cache Module Tests (TDD)
 
 **Files:**
+
 - Create: `backend/tests/test_cache.py`
 
 **Step 1: Write failing tests**
@@ -261,6 +264,7 @@ git commit -m "test: Add cache module tests (TDD - failing)"
 ## Task 4: Implement Cache Module
 
 **Files:**
+
 - Create: `backend/app/cache.py`
 
 **Step 1: Create cache module**
@@ -387,6 +391,7 @@ git commit -m "feat: Implement cache module with graceful degradation"
 ## Task 5: Write Dashboard Caching Tests (TDD)
 
 **Files:**
+
 - Modify: `backend/tests/test_stats.py`
 
 **Step 1: Add caching integration tests**
@@ -468,6 +473,7 @@ git commit -m "test: Add dashboard caching integration tests (TDD - failing)"
 ## Task 6: Integrate Caching into Dashboard Service
 
 **Files:**
+
 - Modify: `backend/app/services/dashboard_stats.py`
 
 **Step 1: Add caching to get_dashboard_optimized**
@@ -591,6 +597,7 @@ Expected: No formatting issues
 **Step 3: Fix any issues found and commit**
 
 If issues found, fix and commit:
+
 ```bash
 git add -A
 git commit -m "fix: Address linting/test issues"
@@ -601,6 +608,7 @@ git commit -m "fix: Address linting/test issues"
 ## Task 8: Create ElastiCache Terraform Module
 
 **Files:**
+
 - Create: `infra/terraform/modules/elasticache/main.tf`
 - Create: `infra/terraform/modules/elasticache/variables.tf`
 - Create: `infra/terraform/modules/elasticache/outputs.tf`
@@ -751,6 +759,7 @@ git commit -m "feat: Add ElastiCache Terraform module"
 ## Task 9: Integrate ElastiCache into Staging
 
 **Files:**
+
 - Modify: `infra/terraform/main.tf`
 - Modify: `infra/terraform/envs/staging.tfvars`
 

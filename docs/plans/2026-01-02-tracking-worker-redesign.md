@@ -33,6 +33,7 @@ The carrier API tracking implementation has architectural issues:
 ### Database Changes
 
 **1. Phone number CHECK constraint:**
+
 ```sql
 ALTER TABLE users
 ADD CONSTRAINT users_phone_number_e164
@@ -40,6 +41,7 @@ CHECK (phone_number IS NULL OR phone_number ~ '^\+[1-9]\d{1,14}$');
 ```
 
 **2. Circuit breaker table:**
+
 ```sql
 CREATE TABLE carrier_circuit_state (
     carrier_name VARCHAR(50) PRIMARY KEY,
@@ -53,15 +55,18 @@ CREATE TABLE carrier_circuit_state (
 ### Code Changes
 
 **Remove from `main.py`:**
+
 - Delete EventBridge routing (lines 125-144)
 
 **New files:**
+
 - `backend/app/workers/tracking_dispatcher.py` - EventBridge handler
 - `backend/app/workers/tracking_worker.py` - SQS handler
 - `backend/app/models/carrier_circuit.py` - Circuit state model
 - `backend/app/services/circuit_breaker.py` - Circuit breaker logic
 
 **Remove:**
+
 - `detect_and_get_carrier()` from `carriers/__init__.py` - require explicit carrier
 
 ### Terraform
@@ -77,6 +82,7 @@ New module: `infra/terraform/modules/tracking-worker/`
 | `aws_cloudwatch_event_rule.hourly` | Hourly trigger |
 
 **Key settings:**
+
 - Worker timeout: 60s
 - Worker concurrency: 10 (limit parallel carrier calls)
 - SQS visibility timeout: 120s
@@ -92,6 +98,7 @@ New module: `infra/terraform/modules/tracking-worker/`
 ## Files to Create/Modify
 
 ### Create
+
 - `backend/app/workers/tracking_dispatcher.py`
 - `backend/app/workers/tracking_worker.py`
 - `backend/app/models/carrier_circuit.py`
@@ -105,6 +112,7 @@ New module: `infra/terraform/modules/tracking-worker/`
 - `infra/terraform/modules/tracking-worker/outputs.tf`
 
 ### Modify
+
 - `backend/app/main.py` - Remove EventBridge routing
 - `backend/app/services/carriers/__init__.py` - Remove `detect_and_get_carrier()`
 - `backend/app/services/tracking_poller.py` - Refactor into worker

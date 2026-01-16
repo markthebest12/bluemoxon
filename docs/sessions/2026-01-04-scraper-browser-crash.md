@@ -3,14 +3,17 @@
 ## CRITICAL RULES FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.**
 
 Key skills for this issue:
+
 - `superpowers:systematic-debugging` - Root cause investigation before fixes
 - `superpowers:verification-before-completion` - Evidence before claims, always
 - `superpowers:test-driven-development` - For implementing fixes
 
-### 2. Bash Command Formatting - NEVER USE:
+### 2. Bash Command Formatting - NEVER USE
+
 ```
 # comment lines before commands     <- TRIGGERS PERMISSION PROMPT
 \ backslash line continuations      <- TRIGGERS PERMISSION PROMPT
@@ -19,7 +22,8 @@ $(...) command substitution         <- TRIGGERS PERMISSION PROMPT
 ! in quoted strings                 <- CORRUPTS VALUES (bash history expansion)
 ```
 
-### 3. Bash Command Formatting - ALWAYS USE:
+### 3. Bash Command Formatting - ALWAYS USE
+
 ```bash
 # Simple single-line commands
 poetry run ruff check backend/
@@ -39,7 +43,7 @@ bmx-api --prod POST /health/recalculate-discounts
 
 ## Issue Summary
 
-**Problem:** eBay scraper hangs when importing Australian listing https://www.ebay.com/itm/373571964136
+**Problem:** eBay scraper hangs when importing Australian listing <https://www.ebay.com/itm/373571964136>
 
 **User report:** "second time in a row" - consistent failure
 
@@ -125,12 +129,14 @@ except Exception as e:
 | **Staging** | `.x-item-title` found | Success, 9 images uploaded |
 
 **Evidence:**
+
 - Both Lambdas are NOT in a VPC (using Lambda's shared public IP pool)
 - Different AWS accounts = different IP pools
 - Production IPs were blocked/rate-limited by eBay
 - Staging IPs were not blocked
 
 **Why now?** Likely causes:
+
 1. AWS rotated Lambda IPs to a blocked range
 2. Cumulative scraping from production account triggered eBay rate limiting
 3. FMV search at 19:33:36 (60 listings) may have triggered scrutiny
@@ -148,6 +154,7 @@ AWS_PROFILE=bmx-prod aws lambda update-function-configuration \
 ```
 
 **Result:** SUCCESS
+
 ```
 Content loaded using selector: .x-item-title ✅
 Got HTML: 965784 chars ✅
@@ -162,6 +169,7 @@ Init Duration: 810.21 ms (cold start confirms new container)
 If this happens again:
 
 1. **Quick fix:** Redeploy Lambda to get new container/IP
+
    ```bash
    AWS_PROFILE=bmx-prod aws lambda update-function-configuration \
      --function-name bluemoxon-prod-scraper \

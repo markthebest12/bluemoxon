@@ -94,6 +94,7 @@ function handler(event) {
 ### Environment Configuration
 
 **prod.tfvars:**
+
 ```hcl
 secondary_origin_bucket_name        = "bluemoxon-images"
 secondary_origin_bucket_domain_name = "bluemoxon-images.s3.us-west-2.amazonaws.com"
@@ -103,6 +104,7 @@ images_cdn_url_override             = "https://app.bluemoxon.com/book-images"
 ```
 
 **staging.tfvars:**
+
 ```hcl
 secondary_origin_bucket_name        = "bluemoxon-staging-images"
 secondary_origin_bucket_domain_name = "bluemoxon-staging-images.s3.us-west-2.amazonaws.com"
@@ -137,6 +139,7 @@ curl -sI "https://app.bluemoxon.com/book-images/books/10_0b810ca69dbd43f0b09dc51
 ## Rollback Plan
 
 Revert `images_cdn_url_override` to direct CloudFront domains:
+
 - Production: `https://d1yejmcspwgw9x.cloudfront.net`
 - Staging: `https://d2zwmzka4w6cws.cloudfront.net`
 

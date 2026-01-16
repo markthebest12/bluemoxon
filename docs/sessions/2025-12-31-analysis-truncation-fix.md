@@ -9,9 +9,11 @@
 ## CRITICAL SESSION RULES (READ FIRST)
 
 ### 1. ALWAYS USE SUPERPOWERS SKILLS
+
 **MANDATORY:** Invoke relevant skills BEFORE any response or action. Even 1% chance = invoke the skill.
 
 **Key skills for this work:**
+
 - `superpowers:brainstorming` - Before creative/feature work (design phase)
 - `superpowers:writing-plans` - Before implementation (creates detailed step-by-step plan)
 - `superpowers:executing-plans` - When implementing from a plan doc
@@ -24,14 +26,16 @@
 
 **For GH #743 implementation:** Use `superpowers:writing-plans` first to create detailed plan, then execute with chosen method.
 
-### 2. BASH COMMAND RULES - NEVER USE (triggers permission prompts):
+### 2. BASH COMMAND RULES - NEVER USE (triggers permission prompts)
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
 - `||` or `&&` chaining
 - `!` in quoted strings (corrupts passwords)
 
-### 3. BASH COMMAND RULES - ALWAYS USE:
+### 3. BASH COMMAND RULES - ALWAYS USE
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of &&
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -41,6 +45,7 @@
 ## Progress Summary (2026-01-01 16:55 UTC)
 
 ### Successfully Fixed This Session
+
 | Book | Images | Resized To | Status |
 |------|--------|------------|--------|
 | 60   | 16     | 1200px     | SUCCESS - `analysis_issues: null` |
@@ -53,7 +58,9 @@
 | 53   | 12     | 800px      | SUCCESS - `analysis_issues: null` |
 
 ### Follow-up Improvements
+
 See GitHub issue #743 for improvements identified during this session:
+
 1. Change default model to Opus (both sync and async endpoints)
 2. Improve error messages for image size issues
 3. Fix warning icon hover tooltip (replace HTML title with Vue tooltip)
@@ -61,6 +68,7 @@ See GitHub issue #743 for improvements identified during this session:
 5. Document image resize thresholds in ops runbook
 
 ### Timeout Books (Different Issue - Not Addressed Yet)
+
 - 22, 339, 400, 48, 337 (5 books)
 - These need investigation - may be complex analyses exceeding 15-min Lambda timeout
 
@@ -69,6 +77,7 @@ See GitHub issue #743 for improvements identified during this session:
 ## Key Findings: Image Resize Thresholds
 
 ### CONFIRMED WORKING THRESHOLDS
+
 | Max Dimension | Max Images | Notes |
 |---------------|------------|-------|
 | 1600px        | 12         | Book 51 worked |
@@ -76,13 +85,16 @@ See GitHub issue #743 for improvements identified during this session:
 | 800px         | 18-20      | Books 67, 66, 489, 65 all worked |
 
 ### ROOT CAUSE DISCOVERY
+
 The issue is NOT just pixel count - it's **base64 payload size**:
+
 - Book 18 (worked @ 1200px): Images 120-424KB each
 - Book 67 (failed @ 1200px): Images 675KB-1.8MB each
 
 High-quality JPEGs with large file sizes create massive base64 payloads that exceed Bedrock's input limit, even at same pixel dimensions.
 
 ### SOLUTION: 800px is the safe floor
+
 - User specified: **Do not go lower than 800px**
 - 800px works reliably for 18-20 images regardless of JPEG quality
 
@@ -90,7 +102,7 @@ High-quality JPEGs with large file sizes create massive base64 payloads that exc
 
 ## Next Steps: Implement GH #743
 
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/743
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/743>
 
 ### Status: NEEDS MORE DETAIL BEFORE EXECUTION
 
@@ -124,6 +136,7 @@ Bedrock `max_tokens` parameter set too low (16000) for comprehensive 12-section 
 ## Solution Implemented
 
 ### PR #737 - Analysis Truncation Fix (merged to main)
+
 1. **bedrock.py:409** - Changed `max_tokens` from 16000 to 32000
 2. **bedrock.py:463-469** - Added `stop_reason` logging to detect truncation
 3. **book.py schema** - Added `analysis_issues: list[str] | None` field
@@ -131,9 +144,11 @@ Bedrock `max_tokens` parameter set too low (16000) for comprehensive 12-section 
 5. **Frontend** - Added `AnalysisIssuesWarning.vue` component
 
 ### PR #740 - Metadata Block Stripping (merged to main)
+
 - Fixed `strip_structured_data()` to also strip `## 14. Metadata Block` section
 
 ### PR #741 - Case-Insensitive Metadata Stripping (merged to main)
+
 - P0 code review fix: Made metadata block stripping case-insensitive
 - Uses regex with `IGNORECASE` flag
 
@@ -142,6 +157,7 @@ Bedrock `max_tokens` parameter set too low (16000) for comprehensive 12-section 
 ## Batch Re-Analysis Results
 
 ### Final Summary
+
 | Metric | Count |
 |--------|-------|
 | Original truncated | 143 |
@@ -159,36 +175,43 @@ Bedrock `max_tokens` parameter set too low (16000) for comprehensive 12-section 
 **For each book needing resize:**
 
 ### Step 1: Create temp directory
+
 ```bash
 mkdir -p .tmp/book{BOOK_ID}
 ```
 
 ### Step 2: Get image S3 keys
+
 ```bash
 bmx-api --prod GET "/books/{BOOK_ID}/images" | jq -r '.[].s3_key'
 ```
 
 ### Step 3: Download images (bulk)
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp s3://bluemoxon-images/books/ .tmp/book{BOOK_ID}/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
 ```
 
 ### Step 4: Resize all images to 800px max
+
 ```bash
 sips --resampleHeightWidthMax 800 .tmp/book{BOOK_ID}/*.jpeg
 ```
 
 ### Step 5: Upload back to S3 (bulk)
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
 ```
 
 ### Step 6: Trigger re-analysis
+
 ```bash
 bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'
 ```
 
 ### Step 7: Verify success
+
 ```bash
 bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'
 ```
@@ -198,6 +221,7 @@ bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'
 ## Files Modified
 
 ### Backend
+
 - `backend/app/api/v1/books.py` - Added `_get_analysis_issues()` helper
 - `backend/app/schemas/book.py` - Added `analysis_issues` field
 - `backend/app/services/bedrock.py` - Increased max_tokens, added stop_reason logging
@@ -206,6 +230,7 @@ bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'
 - `backend/tests/test_books.py` - Added TestGetAnalysisIssues class (7 tests)
 
 ### Frontend
+
 - `frontend/src/composables/useFormatters.ts` - Added `formatAnalysisIssues`
 - `frontend/src/components/AnalysisIssuesWarning.vue` - New component
 - `frontend/src/stores/books.ts` - Added analysis_issues to interface

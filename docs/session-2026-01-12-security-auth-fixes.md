@@ -3,7 +3,9 @@
 ## CRITICAL RULES FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **MANDATORY at every stage - NO EXCEPTIONS:**
+
 - `superpowers:using-superpowers` - Start of ANY task
 - `superpowers:writing-plans` - Before implementation
 - `superpowers:test-driven-development` - For ALL code changes
@@ -13,14 +15,16 @@
 
 **If you think there is even a 1% chance a skill might apply, you MUST invoke it.**
 
-### 2. Bash Command Rules - NEVER USE (triggers permission prompts):
+### 2. Bash Command Rules - NEVER USE (triggers permission prompts)
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command substitution
 - `||` or `&&` chaining
 - `!` in quoted strings (bash history expansion)
 
-### 3. Bash Command Rules - ALWAYS USE:
+### 3. Bash Command Rules - ALWAYS USE
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -44,17 +48,19 @@ Security review identified 4 vulnerabilities where endpoints lacked authenticati
 
 ## Implementation Status
 
-**PR #1081:** https://github.com/markthebest12/bluemoxon/pull/1081
+**PR #1081:** <https://github.com/markthebest12/bluemoxon/pull/1081>
 **Branch:** `fix/security-auth-endpoints`
 **Working Directory:** `/Users/mark/projects/bluemoxon/.worktrees/fix-vuln-001-export`
 
-### All Vulnerabilities Fixed:
+### All Vulnerabilities Fixed
+
 - [x] VULN-001: Added `require_viewer` to export endpoints
 - [x] VULN-002: Added `require_admin` to admin GET endpoints
 - [x] VULN-003: Added `require_viewer` to 13 stats endpoints
 - [x] VULN-004: Added `require_viewer` to 5 books GET endpoints
 
-### Code Review Feedback Addressed:
+### Code Review Feedback Addressed
+
 1. [x] Added `/stats/value-by-category` to test coverage (was missing)
 2. [x] Refactored `dashboard_stats.py` - extracted internal `query_*` functions
 3. [x] Added viewer→403 role escalation tests for admin endpoints
@@ -64,10 +70,12 @@ Security review identified 4 vulnerabilities where endpoints lacked authenticati
 7. [x] Added `test_books_scores_works_with_auth` success test
 8. [x] Fixed ruff formatting issue
 
-### Test Results:
+### Test Results
+
 - **47 auth tests passing** (26 stats + 9 admin + 4 export + 8 books)
 
-### Commits on Branch:
+### Commits on Branch
+
 - `5d985a4` - style: Format stats.py with ruff
 - `045d9bc` - fix: Address code review feedback for security auth PR
 - (earlier commits for initial implementation)
@@ -76,7 +84,8 @@ Security review identified 4 vulnerabilities where endpoints lacked authenticati
 
 ## Additional Work Completed
 
-### Script Security Fixes:
+### Script Security Fixes
+
 - **profile-scripts:** Fixed hardcoded `/Users/mark` → `$HOME` in `mcpupdate` (pushed)
 - **book-collection/.tmp/:** Removed hardcoded API keys, now reads from `~/.bmx/prod.key` (local only, .tmp is gitignored)
 
@@ -84,12 +93,15 @@ Security review identified 4 vulnerabilities where endpoints lacked authenticati
 
 ## Next Steps
 
-### Immediate (PR #1081):
+### Immediate (PR #1081)
+
 1. **Wait for CI to pass** - Currently running after formatting fix
 2. **Merge to staging:**
+
    ```bash
    gh pr merge 1081 --squash --delete-branch
    ```
+
 3. **Validate in staging:**
    - Unauthenticated requests to `/export/json` return 401
    - Unauthenticated requests to `/admin/system-info` return 401
@@ -98,11 +110,13 @@ Security review identified 4 vulnerabilities where endpoints lacked authenticati
    - Authenticated requests still work
 
 4. **Promote to production:**
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote staging to production (security auth fixes)"
    ```
 
-### To Resume Session:
+### To Resume Session
+
 ```bash
 cd /Users/mark/projects/bluemoxon/.worktrees/fix-vuln-001-export/backend
 gh pr checks 1081 --repo markthebest12/bluemoxon
@@ -130,7 +144,9 @@ gh pr checks 1081 --repo markthebest12/bluemoxon
 ## Key Architectural Decisions
 
 ### Internal Query Functions Pattern
+
 Created `query_*` functions in `stats.py` for DB logic without auth dependency:
+
 - `query_by_publisher(db)`
 - `query_by_author(db)`
 - `query_bindings(db)`
@@ -139,10 +155,13 @@ Created `query_*` functions in `stats.py` for DB logic without auth dependency:
 **Why:** Decouples service layer (`dashboard_stats.py`) from endpoint signatures. Endpoints handle auth via `Depends(require_viewer)`, internal calls use `query_*` directly.
 
 ### `_user` Naming Convention
+
 Underscore prefix indicates param used only for dependency injection (auth check), not accessed in function body. Documented in `stats.py` module docstring.
 
 ### Shared Test Fixtures
+
 Moved common fixtures to `conftest.py`:
+
 - `db` - Fresh database per test
 - `client` - Admin-level auth
 - `unauthenticated_client` - No auth (expects 401)
@@ -153,10 +172,12 @@ Moved common fixtures to `conftest.py`:
 ## Validation Commands
 
 After merge to staging:
+
 ```bash
 curl -s https://staging.api.bluemoxon.com/api/v1/stats/dashboard
 curl -s https://staging.api.bluemoxon.com/api/v1/admin/system-info
 curl -s https://staging.api.bluemoxon.com/api/v1/export/json
 curl -s https://staging.api.bluemoxon.com/api/v1/books
 ```
+
 All should return `{"detail":"Authentication required"}` with 401 status.

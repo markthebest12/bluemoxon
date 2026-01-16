@@ -17,6 +17,7 @@
 ### Task 1.1: Create Quality Score Tests
 
 **Files:**
+
 - Create: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Write the failing tests**
@@ -293,6 +294,7 @@ git commit -m "test: add quality score tests for tiered recommendations #388"
 ### Task 1.2: Implement Quality Score Function
 
 **Files:**
+
 - Create: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Write minimal implementation**
@@ -426,6 +428,7 @@ git commit -m "feat: add calculate_quality_score function #388"
 ### Task 1.3: Add Strategic Fit Score Tests
 
 **Files:**
+
 - Modify: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Add strategic fit tests to test file**
@@ -530,6 +533,7 @@ git commit -m "test: add strategic fit score tests #388"
 ### Task 1.4: Implement Strategic Fit Score Function
 
 **Files:**
+
 - Modify: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Add strategic fit function**
@@ -602,6 +606,7 @@ git commit -m "feat: add calculate_strategic_fit_score function #388"
 ### Task 2.1: Add Price Position and Combined Score Tests
 
 **Files:**
+
 - Modify: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Add tests**
@@ -711,6 +716,7 @@ git commit -m "test: add price position and combined score tests #388"
 ### Task 2.2: Implement Price Position and Combined Score
 
 **Files:**
+
 - Modify: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Add functions**
@@ -790,6 +796,7 @@ git commit -m "feat: add price position and combined score functions #388"
 ### Task 2.3: Add Recommendation Matrix Tests
 
 **Files:**
+
 - Modify: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Add matrix tests**
@@ -902,6 +909,7 @@ git commit -m "test: add recommendation matrix tests with floor rules #388"
 ### Task 2.4: Implement Recommendation Matrix
 
 **Files:**
+
 - Modify: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Add matrix function**
@@ -1005,6 +1013,7 @@ git commit -m "feat: add recommendation matrix with floor rules #388"
 ### Task 3.1: Add Suggested Offer Tests
 
 **Files:**
+
 - Modify: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Add tests**
@@ -1091,6 +1100,7 @@ git commit -m "test: add suggested offer price tests #388"
 ### Task 3.2: Implement Suggested Offer
 
 **Files:**
+
 - Modify: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Add function**
@@ -1163,6 +1173,7 @@ git commit -m "feat: add suggested offer price calculation #388"
 ### Task 3.3: Add Reasoning Generation Tests
 
 **Files:**
+
 - Modify: `backend/tests/test_tiered_scoring.py`
 
 **Step 1: Add tests**
@@ -1246,6 +1257,7 @@ git commit -m "test: add reasoning generation tests #388"
 ### Task 3.4: Implement Reasoning Generation
 
 **Files:**
+
 - Modify: `backend/app/services/tiered_scoring.py`
 
 **Step 1: Add function**
@@ -1343,6 +1355,7 @@ git commit -m "feat: add templated reasoning generation #388"
 ### Task 4.1: Create Alembic Migration
 
 **Files:**
+
 - Create: `backend/alembic/versions/xxxx_add_tiered_recommendation_fields.py`
 
 **Step 1: Generate migration**
@@ -1463,6 +1476,7 @@ git commit -m "migration: add tiered recommendation fields to eval_runbooks #388
 ### Task 4.2: Update EvalRunbook Model
 
 **Files:**
+
 - Modify: `backend/app/models/eval_runbook.py`
 
 **Step 1: Add new fields to model**
@@ -1507,6 +1521,7 @@ git commit -m "feat: add tiered recommendation fields to EvalRunbook model #388"
 ### Task 4.3: Update EvalRunbook Schema
 
 **Files:**
+
 - Modify: `backend/app/schemas/eval_runbook.py`
 
 **Step 1: Add new fields to schemas**
@@ -1547,6 +1562,7 @@ git commit -m "feat: add tiered recommendation fields to EvalRunbook schema #388
 ### Task 5.1: Update Eval Generation Service
 
 **Files:**
+
 - Modify: `backend/app/services/eval_generation.py`
 
 **Step 1: Import new scoring functions**
@@ -1748,6 +1764,7 @@ git commit -m "feat: integrate tiered scoring into eval runbook generation #388"
 ### Task 6.1: Update EvalRunbook Store Types
 
 **Files:**
+
 - Modify: `frontend/src/stores/evalRunbook.ts`
 
 **Step 1: Add new fields to EvalRunbook interface**
@@ -1790,6 +1807,7 @@ git commit -m "feat: add tiered recommendation types to evalRunbook store #388"
 ### Task 6.2: Update EvalRunbookModal Display
 
 **Files:**
+
 - Modify: `frontend/src/components/books/EvalRunbookModal.vue`
 
 **Step 1: Add tier badge computed properties**

@@ -77,6 +77,7 @@ PATCH /api/v1/books/{book_id}/tracking
 **Response:** Standard `BookResponse` with tracking fields populated.
 
 **Validation:**
+
 - Book must be in `IN_TRANSIT` status (400 otherwise)
 - If carrier cannot be auto-detected and not provided, return 400
 
@@ -112,6 +113,7 @@ PATCH /api/v1/books/{book_id}/tracking
 ```
 
 **Behavior:**
+
 - On number input blur → run auto-detect, show hint
 - Carrier dropdown always visible for override
 - "Other" shows URL input field
@@ -120,11 +122,13 @@ PATCH /api/v1/books/{book_id}/tracking
 ### IN_TRANSIT Card Changes
 
 **Before tracking:**
+
 ```
 [Add Tracking]  [Mark Received]
 ```
 
 **After tracking:**
+
 ```
 UPS: 1Z99...6784 →  [Mark Received]
 ```

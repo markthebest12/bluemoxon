@@ -24,6 +24,7 @@ Add a protected admin endpoint to the main API Lambda to reset sequences now.
 **Location:** `backend/app/api/v1/admin.py`
 
 **Behavior:**
+
 1. Query all tables with serial/identity columns
 2. For each table, get sequence name via `pg_get_serial_sequence()`
 3. Set sequence to `COALESCE(MAX(id), 0) + 1`
@@ -36,6 +37,7 @@ Add `reset_sequences()` function to `backend/lambdas/db_sync/handler.py`.
 **Integration:** Called automatically at end of `sync_databases()` after validation.
 
 **Function:**
+
 ```python
 def reset_sequences(conn) -> list[dict]:
     """Reset all sequences to MAX(id) + 1 after data sync."""
@@ -71,6 +73,7 @@ def reset_sequences(conn) -> list[dict]:
 ### Part 3: Cleanup
 
 After db_sync update is deployed and verified:
+
 1. Remove `POST /api/v1/admin/reset-sequences` endpoint
 2. Remove admin router from `backend/app/api/v1/__init__.py`
 3. Delete `backend/app/api/v1/admin.py`
@@ -91,8 +94,10 @@ Tracked in issue #155.
 ## Files Changed
 
 **New (temporary):**
+
 - `backend/app/api/v1/admin.py`
 
 **Modified:**
+
 - `backend/app/api/v1/__init__.py` (add admin router)
 - `backend/lambdas/db_sync/handler.py` (add reset_sequences)

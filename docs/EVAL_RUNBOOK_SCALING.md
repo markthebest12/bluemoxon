@@ -25,12 +25,14 @@ This document outlines the scaling path for the Eval Runbook generation system, 
 ```
 
 **Characteristics:**
+
 - Synchronous, blocking request
 - 30-60 second response time
 - Simple to debug and maintain
 - Adequate for single-user workflow
 
 **Limitations:**
+
 - No parallelism (FMV lookups are sequential)
 - Single point of failure (if Claude API slow, whole request slow)
 - No retry granularity (failure = retry everything)
@@ -97,6 +99,7 @@ When scaling to multiple users, migrate to AWS Step Functions for orchestration:
 ```
 
 **Benefits:**
+
 - True parallelism (Claude + eBay + AbeBooks run simultaneously)
 - Granular retries (retry just the failed step)
 - Better timeout handling (each step has own limit)
@@ -181,6 +184,7 @@ When scaling to multiple users, migrate to AWS Step Functions for orchestration:
 ### When to Migrate
 
 Consider migrating to Phase 2 when:
+
 - Multiple users are importing books concurrently
 - Import times become unacceptable (>90 seconds)
 - Need for better observability into each step
@@ -247,11 +251,13 @@ module "lambda_fetch_listing" {
 ## Cost Comparison
 
 ### Phase 1 (Current)
+
 - Single Lambda execution: ~60 seconds
 - Cost per import: ~$0.001 (Lambda) + ~$0.03 (Claude) + ~$0.01 (eBay API)
 - **Total: ~$0.04 per import**
 
 ### Phase 2 (Step Functions)
+
 - Multiple shorter Lambda executions: ~30 seconds total (parallel)
 - Step Functions: $0.025 per 1000 state transitions (~6 transitions = $0.00015)
 - Cost per import: ~$0.0008 (Lambda) + ~$0.03 (Claude) + ~$0.01 (eBay API) + $0.00015 (SF)
@@ -264,6 +270,7 @@ Step Functions adds minimal cost but provides significant operational benefits.
 ## API Changes for Phase 2
 
 ### Current (Phase 1)
+
 ```
 POST /books/import-ebay
 Request: { "url": "https://ebay.com/..." }
@@ -272,6 +279,7 @@ Time: 30-60 seconds (blocking)
 ```
 
 ### Future (Phase 2)
+
 ```
 POST /books/import-ebay
 Request: { "url": "https://ebay.com/..." }
@@ -295,6 +303,7 @@ Response: {
 ```
 
 ### WebSocket Alternative (Real-time)
+
 ```
 WS /ws/import/{execution_id}
 Messages:

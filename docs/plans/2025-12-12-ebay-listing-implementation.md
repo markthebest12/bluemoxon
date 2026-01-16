@@ -17,6 +17,7 @@ Implement Phase 4: eBay listing integration per design doc `2025-12-12-ebay-list
 **Goal:** URL normalization and parsing for eBay URLs.
 
 **Test first:**
+
 ```python
 # backend/tests/test_listing_utils.py
 import pytest
@@ -64,6 +65,7 @@ class TestEbayUrlParsing:
 ```
 
 **Implementation:**
+
 ```python
 # backend/app/services/listing.py
 import re
@@ -117,6 +119,7 @@ def normalize_ebay_url(url: str) -> tuple[str, str]:
 **Goal:** Fuzzy match author/publisher/binder names against existing records.
 
 **Test first:**
+
 ```python
 # backend/tests/test_reference_matching.py
 import pytest
@@ -162,6 +165,7 @@ class TestReferenceMatching:
 ```
 
 **Implementation:**
+
 ```python
 # backend/app/services/listing.py (add to existing file)
 import re
@@ -255,6 +259,7 @@ def match_binder(name: str, db: Session, threshold: float = 0.9) -> dict | None:
 **Goal:** Extract structured data from listing HTML using Claude Haiku.
 
 **Test first:**
+
 ```python
 # backend/tests/test_listing_extraction.py
 import pytest
@@ -326,6 +331,7 @@ class TestListingExtraction:
 ```
 
 **Implementation:**
+
 ```python
 # backend/app/services/listing.py (add to existing file)
 import json
@@ -404,6 +410,7 @@ def extract_listing_data(html: str) -> dict:
 **Goal:** Create separate Lambda for Playwright-based scraping.
 
 **Files to create:**
+
 ```
 scraper/
 ├── handler.py
@@ -412,6 +419,7 @@ scraper/
 ```
 
 **handler.py:**
+
 ```python
 import json
 import base64
@@ -491,6 +499,7 @@ def handler(event, context):
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM mcr.microsoft.com/playwright/python:v1.40.0-focal
 
@@ -505,11 +514,13 @@ CMD ["handler.handler"]
 ```
 
 **requirements.txt:**
+
 ```
 playwright==1.40.0
 ```
 
 **Terraform (add to lambda module):**
+
 ```hcl
 resource "aws_lambda_function" "scraper" {
   function_name = "bluemoxon-${var.environment}-scraper"
@@ -537,6 +548,7 @@ resource "aws_lambda_function" "scraper" {
 **Goal:** Main API Lambda invokes scraper Lambda with fallback to httpx.
 
 **Test first:**
+
 ```python
 # backend/tests/test_scraper_service.py
 import pytest
@@ -578,6 +590,7 @@ class TestScraperService:
 ```
 
 **Implementation:**
+
 ```python
 # backend/app/services/listing.py (add to existing file)
 import boto3
@@ -685,6 +698,7 @@ def fetch_listing(url: str, method: str = "playwright") -> dict:
 **Goal:** `POST /listings/extract` API endpoint with full flow.
 
 **Test first:**
+
 ```python
 # backend/tests/test_listings_api.py
 import pytest
@@ -752,6 +766,7 @@ class TestExtractListingEndpoint:
 ```
 
 **Implementation:**
+
 ```python
 # backend/app/api/v1/listings.py
 from fastapi import APIRouter, Depends, HTTPException
@@ -880,6 +895,7 @@ def extract_listing(
 ```
 
 **Register router in main.py:**
+
 ```python
 from app.api.v1 import listings
 app.include_router(listings.router, prefix="/api/v1")
@@ -896,11 +912,13 @@ app.include_router(listings.router, prefix="/api/v1")
 **Goal:** Add `source_expired` and `listing_fetched_at` columns.
 
 **Create migration:**
+
 ```bash
 cd backend && alembic revision -m "add listing tracking fields"
 ```
 
 **Migration file:**
+
 ```python
 # backend/alembic/versions/xxxx_add_listing_tracking_fields.py
 from alembic import op
@@ -921,6 +939,7 @@ def downgrade():
 ```
 
 **Update model:**
+
 ```python
 # backend/app/models/book.py (add fields)
 source_expired: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -936,6 +955,7 @@ listing_fetched_at: Mapped[datetime | None] = mapped_column(DateTime)
 **Goal:** Create `ImportListingModal.vue` component.
 
 **Component:**
+
 ```vue
 <!-- frontend/src/components/ImportListingModal.vue -->
 <template>
@@ -1345,6 +1365,7 @@ function handleListingAdded() {
 **Goal:** Create cleanup Lambda for stale items, expired URLs, orphaned images.
 
 **handler.py:**
+
 ```python
 # cleanup/handler.py
 import json
@@ -1476,6 +1497,7 @@ def run_cleanup(
 **Goal:** Manual E2E testing, fix bugs, polish UI.
 
 **Test scenarios:**
+
 1. Happy path: Paste URL → Extract → Preview → Add to Watchlist
 2. Mobile URL normalization
 3. Rate limit → Retry → Success

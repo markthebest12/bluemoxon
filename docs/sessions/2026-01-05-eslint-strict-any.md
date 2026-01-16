@@ -17,6 +17,7 @@ The frontend ESLint config had `@typescript-eslint/no-explicit-any: "off"` with 
 ## Changes Made
 
 1. **ESLint config updated:**
+
    ```javascript
    // Disallow explicit any - use proper types instead
    "@typescript-eslint/no-explicit-any": "error",
@@ -54,10 +55,12 @@ The frontend ESLint config had `@typescript-eslint/no-explicit-any: "off"` with 
 ## Code Review Feedback (ALL FIXED)
 
 ### P1 - HIGH: Inconsistent Error Handling ✅ FIXED
+
 - Replaced all 23 inline error patterns with `getErrorMessage()` across 6 files
 - Files updated: admin.ts, listings.ts, evalRunbook.ts, AdminConfigView.vue, AcquisitionsView.vue, BookDetailView.vue
 
 ### P1 - HIGH: Type Guard is Logically Broken ✅ FIXED
+
 ```typescript
 // Before (broken - matched all Errors):
 return typeof e === "object" && e !== null && ("response" in e || "message" in e);
@@ -67,7 +70,9 @@ return typeof e === "object" && e !== null && "response" in e;
 ```
 
 ### P2 - MEDIUM: HTTP Status Checking Not Centralized ✅ FIXED
+
 Added `getHttpStatus()` helper to `types/errors.ts`:
+
 ```typescript
 export function getHttpStatus(e: unknown): number | undefined {
   if (typeof e === "object" && e !== null && "response" in e) {
@@ -78,6 +83,7 @@ export function getHttpStatus(e: unknown): number | undefined {
 ```
 
 ### P2 - MEDIUM: 15 Warnings Left Unfixed ✅ FIXED
+
 - Added prop defaults in `withDefaults()` for 13 optional props across:
   - ArchiveStatusBadge.vue (1 prop)
   - ScoreCard.vue (5 props)
@@ -85,9 +91,11 @@ export function getHttpStatus(e: unknown): number | undefined {
 - Added eslint-disable-next-line for 2 v-html usages in AnalysisViewer.vue with explanation
 
 ### P2 - MEDIUM: Test Mocks Are Type-Safety Theater
+
 **Deferred:** Would require significant refactor of test utilities. Current pattern works and tests pass.
 
 ### P3 - LOW: Interface Scattering ✅ FIXED (partial)
+
 - Consolidated duplicate `BookImage` interface to `types/books.ts`
 - Updated BookDetailView.vue and ImageCarousel.vue to import from shared location
 - Remaining interfaces (ExtractedOrderData, SearchResult) are component-specific
@@ -99,6 +107,7 @@ export function getHttpStatus(e: unknown): number | undefined {
 ### 1. Superpowers Skills - MANDATORY
 
 **ALWAYS invoke relevant skills BEFORE any action:**
+
 - `superpowers:brainstorming` - Before any creative/feature work
 - `superpowers:systematic-debugging` - Before fixing any bug
 - `superpowers:test-driven-development` - Before implementing features

@@ -2,6 +2,7 @@
 
 **Date:** December 30, 2025
 **Issues:**
+
 1. Analysis regeneration not updating in UI
 2. Opus 4.5 model access denied in Bedrock
 **Status:** INVESTIGATION COMPLETE - Fix needed for Opus access
@@ -11,11 +12,13 @@
 ## Background
 
 ### Issue Reported
+
 User regenerated analysis for book 553 (Greville Memoirs) but UI still showed old timestamp "December 30, 2025 at 8:49 PM Pacific" instead of updated analysis.
 
 ### Root Cause Discovered
 
 **The Opus regeneration job FAILED with AccessDeniedException:**
+
 ```
 AccessDeniedException: Model access is denied due to IAM user or service role is
 not authorized to perform the required AWS Marketplace actions
@@ -30,7 +33,9 @@ to this model.
 ```bash
 bmx-api --prod GET /books/553/analysis/status
 ```
+
 Returns:
+
 ```json
 {
   "job_id": "d87d1067-0749-4929-95ef-9628971b5262",
@@ -61,6 +66,7 @@ Returns:
 Production eval worker was calling staging scraper Lambda because `get_scraper_environment()` didn't check `ENVIRONMENT` env var.
 
 **Fix applied to `app/config.py`:**
+
 ```python
 def get_scraper_environment() -> str:
     return (
@@ -75,27 +81,35 @@ def get_scraper_environment() -> str:
 ## Next Steps
 
 ### IMMEDIATE - FMV Fix
+
 1. **Push branch and create PR**
+
    ```bash
    git push -u origin fix/fmv-scraper-environment
    ```
+
    Then:
+
    ```bash
    gh pr create --base staging --title "fix(config): check ENVIRONMENT env var for scraper Lambda targeting (#718)"
    ```
 
 2. **After merge to staging, validate**
+
    ```bash
    bmx-api POST /books/538/eval-runbook/generate
    ```
+
    Verify comparables appear in response.
 
 3. **Promote to production**
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote staging to production (FMV scraper fix)"
    ```
 
 ### IMMEDIATE - Opus Access
+
 1. **Check Bedrock Model Access in AWS Console**
    - Navigate to: Bedrock > Model Access
    - Verify Claude Opus 4.5 is enabled
@@ -106,6 +120,7 @@ def get_scraper_environment() -> str:
    - Sonnet job was running successfully when session ended
 
 ### FOLLOW-UP Issues
+
 | Issue | Title | Status |
 |-------|-------|--------|
 | #718 | fix: Production FMV lookup calling staging scraper | PR pending |
@@ -131,6 +146,7 @@ def get_scraper_environment() -> str:
 ### 1. ALWAYS Use Superpowers Skills
 
 Before ANY task, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:systematic-debugging` - Before fixing bugs
 - `superpowers:verification-before-completion` - Before claiming work done
@@ -142,6 +158,7 @@ Before ANY task, check if a skill applies:
 ### 2. Bash Command Rules - NEVER USE
 
 These trigger permission prompts and break auto-approve:
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -156,16 +173,20 @@ These trigger permission prompts and break auto-approve:
 - Use command description field instead of inline comments
 
 **Example - WRONG:**
+
 ```bash
 # Check status and update
 bmx-api GET /books/553 && bmx-api PUT /books/553 '{"volumes": 8}'
 ```
 
 **Example - CORRECT:**
+
 ```bash
 bmx-api GET /books/553
 ```
+
 Then separate call:
+
 ```bash
 bmx-api PUT /books/553 '{"volumes": 8}'
 ```
@@ -182,11 +203,13 @@ bmx-api PUT /books/553 '{"volumes": 8}'
 ## Sonnet Job Status
 
 A Sonnet regeneration job was started for book 553:
+
 - **Job ID:** `fb99b78c-ed3b-45d0-9fc2-d85bb56ad206`
 - **Status at session end:** `running` (Bedrock invocation in progress)
 - **Expected completion:** ~5 minutes after 05:49 UTC
 
 Check status with:
+
 ```bash
 bmx-api --prod GET /books/553/analysis/status
 ```

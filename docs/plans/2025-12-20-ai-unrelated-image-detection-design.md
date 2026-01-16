@@ -50,6 +50,7 @@ Return image indices that are UNRELATED to the listing.
 ### Response Format
 
 Add to existing response structure:
+
 ```json
 {
   "condition_grade": "Good",
@@ -66,6 +67,7 @@ Add to existing response structure:
 ### Action on Detection
 
 When `unrelated_images` is non-empty:
+
 1. Log identified unrelated images with reasons
 2. Mark images for deletion from book's carousel
 3. Delete the S3 objects
@@ -78,6 +80,7 @@ When `unrelated_images` is non-empty:
 **Function:** `_analyze_images_with_claude()`
 
 **Changes:**
+
 1. Extend prompt to ask about image relevance
 2. Parse `unrelated_images` from response
 3. Return unrelated indices to caller
@@ -93,11 +96,13 @@ When `unrelated_images` is non-empty:
 ## Testing
 
 **Unit tests:**
+
 - Mock Claude response with unrelated_images field
 - Verify parsing extracts indices correctly
 - Verify empty array when all images related
 
 **Integration tests:**
+
 - Book 506 should identify images 17-23 as unrelated
 - Book 515 should identify image 17 as unrelated
 

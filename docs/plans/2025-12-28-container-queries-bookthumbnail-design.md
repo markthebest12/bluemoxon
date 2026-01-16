@@ -22,6 +22,7 @@ Replace BookThumbnail's rigid `size` prop with Tailwind v4 container queries so 
 ### BookThumbnail.vue Changes
 
 **Props (remove size):**
+
 ```typescript
 // Before
 defineProps<{
@@ -38,6 +39,7 @@ defineProps<{
 ```
 
 **Template:**
+
 ```vue
 <template>
   <!-- Wrapper becomes @container -->
@@ -65,6 +67,7 @@ defineProps<{
 ### Parent Component Changes
 
 **BooksView.vue:**
+
 ```vue
 <!-- Before -->
 <BookThumbnail :book-id="book.id" :image-url="book.primary_image_url" size="md" />
@@ -76,6 +79,7 @@ defineProps<{
 ```
 
 **BookDetailView.vue:**
+
 ```vue
 <!-- Before -->
 <BookThumbnail :book-id="booksStore.currentBook.id" size="lg" />

@@ -3,7 +3,7 @@
 **Date**: 2025-12-29 (Updated 2025-12-30)
 **Issues**: #189, #190, #191
 **Branch**: `feat/cleanup-lambda`
-**PR**: https://github.com/markthebest12/bluemoxon/pull/682
+**PR**: <https://github.com/markthebest12/bluemoxon/pull/682>
 
 ---
 
@@ -14,6 +14,7 @@
 **Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke.
 
 Required skills:
+
 - `superpowers:using-superpowers` - **INVOKE FIRST** at session start
 - `superpowers:systematic-debugging` - For any bugs/failures
 - `superpowers:test-driven-development` - For ALL implementation
@@ -24,6 +25,7 @@ Required skills:
 ### 2. Bash Command Rules (NEVER VIOLATE)
 
 **NEVER use (trigger permission prompts):**
+
 ```bash
 # This is a comment - NEVER
 command \
@@ -35,6 +37,7 @@ echo 'Test1234!'  # NEVER - ! in quotes
 ```
 
 **ALWAYS use:**
+
 ```bash
 command --option value
 ```
@@ -42,12 +45,14 @@ command --option value
 Make SEPARATE Bash tool calls for each command - NOT chained with &&
 
 For API calls use bmx-api (no permission prompts):
+
 ```bash
 bmx-api GET /books
 bmx-api --prod GET /books
 ```
 
 ### 3. Workflow Rules
+
 - PRs reviewed before staging merge
 - PRs reviewed before prod merge
 - TDD for all implementation
@@ -62,14 +67,17 @@ bmx-api --prod GET /books
 **Problem:** Lambda package too large for direct upload (72MB > 66MB limit).
 
 **Solution:** Implement Lambda Layers to split dependencies from code:
+
 - **Dependencies Layer (~50MB):** All Python packages, shared across Lambdas
 - **Function Code (<1MB):** `app/` + `lambdas/` only
 
 **Design Documents Created:**
+
 - `docs/plans/2025-12-30-lambda-layers-design.md` - Full architecture design
 - `docs/plans/2025-12-30-lambda-layers.md` - Step-by-step implementation plan
 
 **Key Architectural Decisions:**
+
 1. One layer per environment (staging/prod separate)
 2. Layer cached by `poetry.lock` hash - only rebuilds when dependencies change
 3. Layer stored in S3 with versioned naming: `layer-{hash}.zip`
@@ -120,28 +128,34 @@ bmx-api --prod GET /books
 The Lambda package is too large for direct upload. Must use S3:
 
 **Option A: AWS CLI (Quick fix)**
+
 ```bash
 # Download existing API Lambda package
 AWS_PROFILE=bmx-staging aws lambda get-function --function-name bluemoxon-staging-api --query 'Code.Location' --output text > .tmp/lambda-url.txt
 ```
+
 ```bash
 curl -s -o .tmp/base-lambda.zip "$(cat .tmp/lambda-url.txt)"
 ```
+
 ```bash
 # Add lambdas directory (excluding .tmp)
 cd /Users/mark/projects/bluemoxon/backend
 zip -r .tmp/base-lambda.zip lambdas/__init__.py lambdas/cleanup/ -x "*.pyc" -x "*__pycache__*"
 ```
+
 ```bash
 # Upload to S3
 AWS_PROFILE=bmx-staging aws s3 cp .tmp/base-lambda.zip s3://bluemoxon-frontend-staging/lambda/cleanup.zip
 ```
+
 ```bash
 # Create Lambda from S3
 AWS_PROFILE=bmx-staging aws lambda create-function --function-name bluemoxon-staging-cleanup --runtime python3.12 --role arn:aws:iam::652617421195:role/bluemoxon-staging-cleanup-role --handler lambdas.cleanup.handler.handler --code S3Bucket=bluemoxon-frontend-staging,S3Key=lambda/cleanup.zip --timeout 300 --memory-size 256 --environment "Variables={DATABASE_SECRET_ARN=arn:aws:secretsmanager:us-west-2:652617421195:secret:bluemoxon-staging/database-ayNNLZ,ENVIRONMENT=staging,IMAGES_BUCKET=bluemoxon-images-staging}" --vpc-config SubnetIds=subnet-09eeb023cb49a83d5,subnet-0bfb299044084bad3,subnet-0ceb0276fa36428f2,SecurityGroupIds=sg-050fb5268bcd06443
 ```
 
 **Option B: Fix Terraform module (Proper fix)**
+
 - Modify `modules/cleanup-lambda/main.tf` to support S3 source
 - Add `s3_bucket` and `s3_key` variables
 - Update deploy workflow to upload Lambda package to S3
@@ -149,11 +163,13 @@ AWS_PROFILE=bmx-staging aws lambda create-function --function-name bluemoxon-sta
 ### 2. Fix Deploy Workflow Bug
 
 The deploy workflow at `.github/workflows/deploy.yml` line 412 only copies `app/`:
+
 ```bash
 cp -r /app/app /output/
 ```
 
 **Must add:**
+
 ```bash
 cp -r /app/lambdas /output/
 ```
@@ -167,6 +183,7 @@ bmx-api POST /admin/cleanup '{"action":"all"}'
 ### 4. Promote to Production
 
 After staging verified:
+
 ```bash
 gh pr create --base main --head staging --title "chore: Promote staging to production - Cleanup Lambda"
 ```
@@ -207,8 +224,10 @@ gh pr create --base main --head staging --title "chore: Promote staging to produ
 
 1. **NEVER use `db_password=DUMMY_VALUE`** - Terraform will apply it to RDS even with -target
 2. **Get real password from Secrets Manager first**:
+
    ```bash
    AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value --secret-id bluemoxon-staging/database --query 'SecretString' --output text
    ```
+
 3. **Lambda direct upload limit is ~66MB** - Use S3 for larger packages
 4. **Deploy workflow bug** - Must copy ALL code directories, not just `app/`

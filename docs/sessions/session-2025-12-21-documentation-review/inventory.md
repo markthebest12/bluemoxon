@@ -236,6 +236,7 @@ API.md + API_REFERENCE.md
 ## Next Steps
 
 Phase 2 will audit the codebase to identify:
+
 1. Features not documented
 2. API endpoints missing from API_REFERENCE.md
 3. Resiliency patterns (retry logic, error handling) needing diagrams

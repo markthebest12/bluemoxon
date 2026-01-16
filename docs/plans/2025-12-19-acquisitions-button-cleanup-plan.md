@@ -13,6 +13,7 @@
 ## Task 1: Add Eval Runbook Handler and State
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue:205-221` (near handleGenerateAnalysis)
 - Modify: `frontend/src/views/AcquisitionsView.vue:317` (near startingAnalysis ref)
 
@@ -60,16 +61,19 @@ git commit -m "feat(acquisitions): Add eval runbook generation handler (#461)"
 ## Task 2: Fix Layout - Evaluating Column Analysis Section
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue:461-526`
 
 **Step 1: Update Analysis container div**
 
 Change line 461 from:
+
 ```html
 <div class="mt-2 flex items-center gap-2">
 ```
 
 To:
+
 ```html
 <div class="mt-2 flex items-center justify-start gap-3">
 ```
@@ -77,11 +81,13 @@ To:
 **Step 2: Update View Analysis button**
 
 Change line 466 from:
+
 ```html
 class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 ```
@@ -89,11 +95,13 @@ class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 **Step 3: Update Analysis progress indicator**
 
 Change line 474 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 flex items-center gap-1"
 ```
@@ -101,11 +109,13 @@ class="text-xs text-blue-600 flex items-center gap-1"
 **Step 4: Update Analysis failed indicator**
 
 Change line 488 from:
+
 ```html
 class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-red-600 flex items-center gap-1"
 ```
@@ -113,11 +123,13 @@ class="text-xs text-red-600 flex items-center gap-1"
 **Step 5: Update Generate Analysis button**
 
 Change line 503 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
 ```
@@ -139,16 +151,19 @@ git commit -m "style(acquisitions): Left-align Evaluating column analysis button
 ## Task 3: Fix Layout & Add Buttons - Evaluating Column Eval Runbook Section
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue:528-558`
 
 **Step 1: Update Eval Runbook container div**
 
 Change line 529 from:
+
 ```html
 <div class="mt-1 flex items-center gap-2">
 ```
 
 To:
+
 ```html
 <div class="mt-1 flex items-center justify-start gap-3">
 ```
@@ -156,11 +171,13 @@ To:
 **Step 2: Update View Eval Runbook button**
 
 Change line 538 from:
+
 ```html
 class="flex-1 text-xs text-purple-700 hover:text-purple-900 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-purple-700 hover:text-purple-900 flex items-center gap-1"
 ```
@@ -168,11 +185,13 @@ class="text-xs text-purple-700 hover:text-purple-900 flex items-center gap-1"
 **Step 3: Update Eval Runbook progress indicator**
 
 Change line 546 from:
+
 ```html
 class="flex-1 text-xs text-purple-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-purple-600 flex items-center gap-1"
 ```
@@ -234,16 +253,19 @@ git commit -m "feat(acquisitions): Add eval runbook buttons to Evaluating column
 ## Task 4: Fix Layout - In Transit Column Analysis Section
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue:708-774`
 
 **Step 1: Update Analysis container div**
 
 Change line 709 from:
+
 ```html
 <div class="mt-2 flex items-center gap-2">
 ```
 
 To:
+
 ```html
 <div class="mt-2 flex items-center justify-start gap-3">
 ```
@@ -251,11 +273,13 @@ To:
 **Step 2: Update View Analysis button**
 
 Change line 714 from:
+
 ```html
 class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 ```
@@ -263,11 +287,13 @@ class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 **Step 3: Update Analysis progress indicator**
 
 Change line 722 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 flex items-center gap-1"
 ```
@@ -275,11 +301,13 @@ class="text-xs text-blue-600 flex items-center gap-1"
 **Step 4: Update Analysis failed indicator**
 
 Change line 736 from:
+
 ```html
 class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-red-600 flex items-center gap-1"
 ```
@@ -287,11 +315,13 @@ class="text-xs text-red-600 flex items-center gap-1"
 **Step 5: Update Generate Analysis button**
 
 Change line 751 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
 ```
@@ -313,6 +343,7 @@ git commit -m "style(acquisitions): Left-align In Transit column analysis button
 ## Task 5: Add Eval Runbook Section - In Transit Column
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue` (after line 774)
 
 **Step 1: Add Eval Runbook section**
@@ -404,16 +435,19 @@ git commit -m "feat(acquisitions): Add eval runbook section to In Transit column
 ## Task 6: Fix Layout - Received Column Analysis Section
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue:838-904`
 
 **Step 1: Update Analysis container div**
 
 Change line 839 from:
+
 ```html
 <div class="mt-2 flex items-center gap-2">
 ```
 
 To:
+
 ```html
 <div class="mt-2 flex items-center justify-start gap-3">
 ```
@@ -421,11 +455,13 @@ To:
 **Step 2: Update View Analysis button**
 
 Change line 844 from:
+
 ```html
 class="flex-1 text-xs text-green-700 hover:text-green-900 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 ```
@@ -433,11 +469,13 @@ class="text-xs text-green-700 hover:text-green-900 flex items-center gap-1"
 **Step 3: Update Analysis progress indicator**
 
 Change line 852 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 flex items-center gap-1"
 ```
@@ -445,11 +483,13 @@ class="text-xs text-blue-600 flex items-center gap-1"
 **Step 4: Update Analysis failed indicator**
 
 Change line 866 from:
+
 ```html
 class="flex-1 text-xs text-red-600 flex items-center justify-center gap-1"
 ```
 
 To:
+
 ```html
 class="text-xs text-red-600 flex items-center gap-1"
 ```
@@ -457,11 +497,13 @@ class="text-xs text-red-600 flex items-center gap-1"
 **Step 5: Update Generate Analysis button**
 
 Change line 881 from:
+
 ```html
 class="flex-1 text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 disabled:opacity-50"
 ```
 
 To:
+
 ```html
 class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 disabled:opacity-50"
 ```
@@ -483,6 +525,7 @@ git commit -m "style(acquisitions): Left-align Received column analysis buttons 
 ## Task 7: Add Eval Runbook Section - Received Column
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue` (after Analysis section ~line 904)
 
 **Step 1: Add Eval Runbook section**

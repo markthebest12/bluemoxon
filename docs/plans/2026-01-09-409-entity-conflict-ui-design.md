@@ -35,6 +35,7 @@ When creating publishers, authors, or binders that match existing entities, the 
 ### ComboboxWithAdd.vue
 
 New props:
+
 ```ts
 interface Props {
   modelValue: number | null;
@@ -47,6 +48,7 @@ interface Props {
 ```
 
 New internal state:
+
 ```ts
 const conflictState = ref<{
   input: string;

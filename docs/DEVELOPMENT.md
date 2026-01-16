@@ -66,8 +66,8 @@ cd backend
 poetry run uvicorn app.main:app --reload --port 8000
 ```
 
-API available at: http://localhost:8000
-Docs available at: http://localhost:8000/docs
+API available at: <http://localhost:8000>
+Docs available at: <http://localhost:8000/docs>
 
 ### Frontend (Terminal 2)
 
@@ -76,7 +76,7 @@ cd frontend
 npm run dev
 ```
 
-App available at: http://localhost:5173
+App available at: <http://localhost:5173>
 
 ## Environment Variables
 
@@ -134,6 +134,7 @@ pre-commit run --all-files
 ```
 
 **Hooks configured:**
+
 | Hook | Purpose |
 |------|---------|
 | Ruff | Python linting + formatting |
@@ -162,6 +163,7 @@ npm run type-check           # TypeScript
 ### Strict TypeScript Rules
 
 ESLint is configured with strict rules (#808):
+
 - `@typescript-eslint/no-explicit-any` - Warns on `any` usage
 - `@typescript-eslint/explicit-function-return-types` - Requires return types
 - Type-safe Vue component props

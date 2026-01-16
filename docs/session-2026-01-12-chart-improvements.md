@@ -7,12 +7,14 @@
 ## Summary
 
 Improve dashboard charts:
+
 1. Human-readable condition labels (NEAR_FINE → "Near Fine")
 2. Extend value growth chart from 30 days to 3 months (90 days)
 
 ## Findings from Codebase Search
 
 ### Condition Labels
+
 - **Frontend constants**: `frontend/src/constants/index.ts` lines 62-90
   - `CONDITION_GRADES` enum and `CONDITION_GRADE_OPTIONS` with display labels
 - **Backend stats**: `backend/app/services/dashboard_stats.py` lines 77-84
@@ -22,6 +24,7 @@ Improve dashboard charts:
   - Lines 323-347: Color mappings for each condition
 
 ### Value Growth Chart
+
 - **Backend API**: `backend/app/api/v1/stats.py` line 612
   - `days: int = Query(default=30, ge=7, le=90...)` - hardcoded default
 - **Dashboard service**: `backend/app/services/dashboard_stats.py` line 214
@@ -30,6 +33,7 @@ Improve dashboard charts:
   - Title: "Est. Value Growth (Last 30 Days)"
 
 ### Existing Formatting Utilities
+
 - `frontend/src/utils/format.ts` - formatBytes, formatCost
 - `frontend/src/composables/useFormatters.ts` - formatAnalysisIssues
 - `frontend/src/constants/index.ts` - CONDITION_GRADE_OPTIONS has label property
@@ -50,6 +54,7 @@ Improve dashboard charts:
 ## TDD Approach
 
 Write tests first for:
+
 - [ ] `formatConditionGrade()` utility function
 - [ ] Backend 90-day default change
 

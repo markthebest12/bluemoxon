@@ -13,6 +13,7 @@
 ## Task 1: Backend - Add Size to Orphan Scan Response
 
 **Files:**
+
 - Modify: `backend/lambdas/cleanup/handler.py:98-196`
 - Test: `backend/tests/test_cleanup.py`
 
@@ -196,6 +197,7 @@ git commit -m "feat(cleanup): Add size info to orphan scan response"
 ## Task 2: Backend - Create CleanupJob Model
 
 **Files:**
+
 - Create: `backend/app/models/cleanup_job.py`
 - Modify: `backend/app/models/__init__.py`
 - Create: `backend/alembic/versions/xxxx_add_cleanup_jobs_table.py`
@@ -372,6 +374,7 @@ git commit -m "feat(cleanup): Add CleanupJob model for progress tracking"
 ## Task 3: Backend - Add Cleanup Job API Endpoints
 
 **Files:**
+
 - Modify: `backend/app/api/v1/admin.py`
 - Test: `backend/tests/api/v1/test_admin_cleanup.py`
 
@@ -619,6 +622,7 @@ git commit -m "feat(cleanup): Add orphan scan and job status endpoints"
 ## Task 4: Backend - Implement Background Deletion with Progress
 
 **Files:**
+
 - Modify: `backend/lambdas/cleanup/handler.py`
 - Modify: `backend/app/api/v1/admin.py`
 - Test: `backend/tests/test_cleanup.py`
@@ -649,6 +653,7 @@ class TestCleanupWithProgress:
 Modify cleanup Lambda to accept `job_id` parameter and update job progress in DB as it deletes batches.
 
 The Lambda will:
+
 1. Query CleanupJob by ID
 2. Set status to "running"
 3. Delete in batches of 500, updating job progress after each batch
@@ -665,6 +670,7 @@ git commit -m "feat(cleanup): Add progress tracking to deletion job"
 ## Task 5: Frontend - Add Format Utilities
 
 **Files:**
+
 - Create: `frontend/src/utils/format.ts`
 - Test: `frontend/src/utils/__tests__/format.spec.ts`
 
@@ -769,6 +775,7 @@ git commit -m "feat(frontend): Add formatBytes and formatCost utilities"
 ## Task 6: Frontend - Create OrphanCleanupPanel Component
 
 **Files:**
+
 - Create: `frontend/src/components/admin/OrphanCleanupPanel.vue`
 - Test: `frontend/src/components/admin/__tests__/OrphanCleanupPanel.spec.ts`
 
@@ -857,6 +864,7 @@ describe('OrphanCleanupPanel', () => {
 **Step 2-5: Implement component**
 
 Create the Vue component with:
+
 - Scan button that calls `/admin/cleanup/orphans/scan`
 - Results display with count, size, cost
 - Expandable details list grouped by book
@@ -875,6 +883,7 @@ git commit -m "feat(frontend): Add OrphanCleanupPanel component"
 ## Task 7: Frontend - Integrate Component into AdminConfigView
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1-5: Replace old cleanup UI with new component**
@@ -892,6 +901,7 @@ git commit -m "feat(frontend): Integrate OrphanCleanupPanel into AdminConfigView
 ## Task 8: Frontend - Add Cleanup Job Polling
 
 **Files:**
+
 - Create: `frontend/src/composables/useCleanupJobPolling.ts`
 - Test: `frontend/src/composables/__tests__/useCleanupJobPolling.spec.ts`
 
@@ -927,9 +937,11 @@ git commit -m "feat(frontend): Add useCleanupJobPolling composable"
 ## Task 9: Integration Testing
 
 **Files:**
+
 - Test manually in staging environment
 
 **Steps:**
+
 1. Deploy to staging
 2. Navigate to Admin > Maintenance
 3. Click "Scan Only" - verify full results with sizes

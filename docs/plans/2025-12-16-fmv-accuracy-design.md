@@ -11,6 +11,7 @@
 FMV lookup returns irrelevant comparables because the search query lacks context. For a 7-volume Lockhart "Life of Scott" set worth ~$1,200, the search returned single volumes at $11-$125.
 
 **Root cause:** `_build_search_query()` only uses title keywords + author last name. It does NOT include:
+
 - Volume count (critical for sets)
 - Binding type (full calf vs cloth)
 - Edition info (first edition)
@@ -50,6 +51,7 @@ FMV calculation (weights by relevance tier)
 Constructs eBay search string from book metadata.
 
 ### Base Query
+
 - First 4-5 significant words from title (skip "the", "a", "of")
 - Author last name
 
@@ -67,6 +69,7 @@ Constructs eBay search string from book metadata.
 ### Example Transformation
 
 **Input metadata:**
+
 ```
 title: "Memoirs of the Life of Sir Walter Scott"
 author: "John Gibson Lockhart"
@@ -77,6 +80,7 @@ binder: "J. Leighton"
 ```
 
 **Generated query:**
+
 ```
 memoirs life walter scott lockhart 7 volumes calf binding first edition
 ```
@@ -117,6 +121,7 @@ Only include listings rated "high" or "medium".
 ## Section 3: FMV Calculation with Tiered Weighting
 
 ### Weighting Rules
+
 - HIGH relevance: weight = 1.0 (full influence)
 - MEDIUM relevance: weight = 0.5 (half influence)
 - LOW relevance: excluded from calculation
@@ -129,6 +134,7 @@ Only include listings rated "high" or "medium".
 4. If insufficient data: return `fmv_notes: "Insufficient comparable data"` with no range
 
 ### FMV Range from Weighted Set
+
 - `fmv_low`: 25th percentile of weighted prices
 - `fmv_high`: 75th percentile of weighted prices
 - `fmv_confidence`: "high" (>= 3 HIGH), "medium" (>= 3 MEDIUM), "low" (sparse data)

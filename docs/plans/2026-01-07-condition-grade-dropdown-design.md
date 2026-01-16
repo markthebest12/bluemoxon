@@ -34,6 +34,7 @@ Convert `condition_grade` from free-form text to a dropdown with human-readable 
 ### 1. Backend Changes
 
 **`backend/app/enums.py`** - Add NEAR_FINE:
+
 ```python
 class ConditionGrade(StrEnum):
     FINE = "FINE"
@@ -47,6 +48,7 @@ class ConditionGrade(StrEnum):
 ### 2. Database Migration
 
 One-time Alembic migration to normalize existing data:
+
 1. Map known legacy values to enum values
 2. For NULL/unmapped, pull from `book_analyses.condition_assessment->>'condition_grade'`
 3. Log unmapped values for manual review
@@ -54,6 +56,7 @@ One-time Alembic migration to normalize existing data:
 ### 3. Frontend Component
 
 **`frontend/src/components/SelectWithDescriptions.vue`** - Reusable dropdown:
+
 - Props: `modelValue`, `options: {value, label, description}[]`, `placeholder`, `disabled`
 - Custom dropdown (not native select) to support two-line options
 - Description text smaller (`text-xs text-gray-500`)
@@ -62,6 +65,7 @@ One-time Alembic migration to normalize existing data:
 ### 4. Frontend Constants
 
 **`frontend/src/constants/index.ts`**:
+
 ```typescript
 export const CONDITION_GRADE_OPTIONS = [
   { value: "FINE", label: "Fine", description: "Nearly as new, no defects" },
@@ -80,6 +84,7 @@ Replace text input with SelectWithDescriptions component.
 ## Implementation Order
 
 These can run in parallel:
+
 - **Stream A**: Backend enum + migration
 - **Stream B**: Frontend component + constants + BookForm update
 

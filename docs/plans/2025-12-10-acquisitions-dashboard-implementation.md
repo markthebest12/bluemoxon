@@ -18,6 +18,7 @@
 ### Task 1.1: Add New Status Values to Book Model
 
 **Files:**
+
 - Modify: `backend/app/models/book.py`
 
 **Step 1: Update status field docstring**
@@ -47,6 +48,7 @@ git commit -m "docs: Document valid status values including EVALUATING and CANCE
 ### Task 1.2: Add New Columns to Book Model
 
 **Files:**
+
 - Modify: `backend/app/models/book.py`
 
 **Step 1: Add imports for JSONB**
@@ -94,6 +96,7 @@ git commit -m "feat(models): Add source tracking and scoring columns to Book"
 ### Task 1.3: Create Alembic Migration
 
 **Files:**
+
 - Create: `backend/alembic/versions/xxxx_add_acquisition_columns.py`
 
 **Step 1: Generate migration**
@@ -158,6 +161,7 @@ git commit -m "feat(db): Add migration for acquisition tracking columns"
 ### Task 1.4: Update Book Schemas
 
 **Files:**
+
 - Modify: `backend/app/schemas/book.py`
 
 **Step 1: Add new fields to BookBase (around line 35)**
@@ -204,6 +208,7 @@ git commit -m "feat(schemas): Add acquisition tracking fields to book schemas"
 ### Task 2.1: Create Acquisition Schema
 
 **Files:**
+
 - Modify: `backend/app/schemas/book.py`
 
 **Step 1: Add AcquireRequest schema (at end of file)**
@@ -248,6 +253,7 @@ git commit -m "feat(schemas): Add AcquireRequest and ScoringSnapshot schemas"
 ### Task 2.2: Write Failing Test for Acquire Endpoint
 
 **Files:**
+
 - Create: `backend/tests/api/v1/test_acquire.py`
 
 **Step 1: Create test file**
@@ -412,6 +418,7 @@ git commit -m "test: Add failing tests for acquire endpoint"
 ### Task 2.3: Implement Acquire Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 
 **Step 1: Add import for AcquireRequest schema**
@@ -544,6 +551,7 @@ git commit -m "feat(api): Add acquire endpoint for EVALUATING -> IN_TRANSIT tran
 ### Task 3.1: Create Acquisitions Store
 
 **Files:**
+
 - Create: `frontend/src/stores/acquisitions.ts`
 
 **Step 1: Create the store**
@@ -678,6 +686,7 @@ git commit -m "feat(store): Add acquisitions store for dashboard state managemen
 ### Task 3.2: Create Acquisitions Dashboard View
 
 **Files:**
+
 - Create: `frontend/src/views/AcquisitionsView.vue`
 
 **Step 1: Create the view**
@@ -878,6 +887,7 @@ git commit -m "feat(ui): Add acquisitions dashboard view with Kanban layout"
 ### Task 3.3: Add Route for Acquisitions Dashboard
 
 **Files:**
+
 - Modify: `frontend/src/router/index.ts`
 
 **Step 1: Add route after admin route (around line 63)**
@@ -910,6 +920,7 @@ git commit -m "feat(router): Add /admin/acquisitions route"
 ### Task 4.1: Create Acquire Modal Component
 
 **Files:**
+
 - Create: `frontend/src/components/AcquireModal.vue`
 
 **Step 1: Create the component**
@@ -1088,11 +1099,13 @@ git commit -m "feat(ui): Add acquire modal component with order details form"
 ### Task 4.2: Wire Up Acquire Modal in Dashboard
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 
 **Step 1: Import and use the modal component**
 
 Add to script section:
+
 ```typescript
 import AcquireModal from "@/components/AcquireModal.vue";
 
@@ -1140,6 +1153,7 @@ git commit -m "feat(ui): Wire acquire modal into dashboard view"
 ### Task 5.1: Add Frontend Store Tests
 
 **Files:**
+
 - Create: `frontend/src/stores/__tests__/acquisitions.spec.ts`
 
 **Step 1: Create test file**
@@ -1241,6 +1255,7 @@ git commit -m "test: Add acquisitions store unit tests"
 ```bash
 cd backend && .venv/bin/python -m pytest tests -v --tb=short
 ```
+
 Expected: All tests pass
 
 **Step 2: Run frontend tests**
@@ -1248,11 +1263,13 @@ Expected: All tests pass
 ```bash
 cd frontend && npm test
 ```
+
 Expected: All tests pass
 
 **Step 3: Commit any fixes needed**
 
 If all tests pass:
+
 ```bash
 git status  # Should be clean
 ```
@@ -1264,6 +1281,7 @@ git status  # Should be clean
 ### Task 6.1: Update CLAUDE.md Acquisition Workflow
 
 **Files:**
+
 - Modify: `CLAUDE.md` (in main project root, not worktree)
 
 **Step 1: Update acquisition workflow section**
@@ -1292,9 +1310,11 @@ bmx-api PATCH /books/{id}/status?status=ON_HAND
 ```
 
 ### Deprecated (No Longer Used)
+
 - PRE_ analysis files in local repo
 - PENDING_DELIVERIES.txt
 - Manual updates to acquisition docs
+
 ```
 
 **Step 2: Commit**
@@ -1312,6 +1332,7 @@ git commit -m "docs: Update CLAUDE.md with acquisitions dashboard workflow"
 **Estimated Implementation Time:** ~4-6 hours with TDD approach
 
 **Key Files Created:**
+
 - `backend/app/schemas/book.py` - AcquireRequest, ScoringSnapshot schemas
 - `backend/alembic/versions/*_add_acquisition_columns.py` - Migration
 - `backend/tests/api/v1/test_acquire.py` - Acquire endpoint tests
@@ -1321,6 +1342,7 @@ git commit -m "docs: Update CLAUDE.md with acquisitions dashboard workflow"
 - `frontend/src/stores/__tests__/acquisitions.spec.ts` - Store tests
 
 **Key Files Modified:**
+
 - `backend/app/models/book.py` - New columns
 - `backend/app/api/v1/books.py` - Acquire endpoint
 - `frontend/src/router/index.ts` - New route

@@ -28,6 +28,7 @@ A Terraform module that creates a customer-managed KMS key with cross-account de
 ### Part 2: Post-Deploy Validation Suite
 
 Comprehensive validation integrated into the staging deploy workflow:
+
 - Infrastructure tests (VPC endpoints, Lambda, S3)
 - Deep health check (all components healthy)
 - API smoke tests (core endpoints work)
@@ -459,6 +460,7 @@ tests/e2e/
 ## Implementation Phases
 
 ### Phase 1: Cross-Account Secrets (Prerequisite)
+
 1. Create `modules/cross-account-secrets` Terraform module
 2. Apply to prod account (creates KMS key)
 3. Re-encrypt prod secret with new KMS key
@@ -466,12 +468,14 @@ tests/e2e/
 5. Test: Invoke db-sync Lambda, verify it succeeds
 
 ### Phase 2: Enhanced Smoke Tests
+
 1. Create `scripts/validate-infrastructure.sh`
 2. Create `scripts/smoke-tests.sh`
 3. Add to deploy-staging.yml after deploy job
 4. Test: Deploy to staging, verify new tests run
 
 ### Phase 3: E2E Tests
+
 1. Create `tests/e2e/staging-validation.spec.ts`
 2. Add Playwright setup to workflow
 3. Configure test user credentials in GitHub Secrets
@@ -479,6 +483,7 @@ tests/e2e/
 5. Test: Run full workflow, verify E2E passes
 
 ### Phase 4: Auto DB-Sync
+
 1. Add "check if DB empty" step to workflow
 2. Add "trigger db-sync" conditional step
 3. Add "wait for sync" with timeout
@@ -512,6 +517,7 @@ terraform apply -var-file=envs/staging.tfvars
 ## Rollback Plan
 
 If issues arise:
+
 1. Revert to direct environment variables (PROD_DB_HOST/USER/PASSWORD)
 2. Remove cross-account IAM policies
 3. KMS key can be disabled but not immediately deleted (30-day window)

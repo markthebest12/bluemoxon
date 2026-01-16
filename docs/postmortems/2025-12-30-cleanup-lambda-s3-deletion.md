@@ -14,6 +14,7 @@
 The cleanup Lambda's `cleanup_orphaned_images` function deleted ~6,892 objects from the staging S3 bucket, including non-image files (lambda packages, listings data, prompts, etc.). The function was designed to find orphaned book images but lacked prefix filtering, causing it to treat ALL non-BookImage files as orphans.
 
 **Impact:**
+
 - 5,089 files in `books/` prefix deleted
 - 1,486 files in `listings/` prefix deleted
 - 300 files in `images/` prefix deleted
@@ -64,6 +65,7 @@ The dry run returned only a count with no context:
 ```
 
 This count is meaningless without knowing:
+
 - Total objects in bucket
 - Expected prefix being scanned
 - Breakdown by prefix
@@ -140,6 +142,7 @@ def cleanup_orphaned_images(...) -> dict:
 ### 3. Example Output After Fix
 
 **Before (useless):**
+
 ```json
 {
   "orphans_found": 6892,
@@ -148,6 +151,7 @@ def cleanup_orphaned_images(...) -> dict:
 ```
 
 **After (actionable):**
+
 ```json
 {
   "scan_prefix": "books/",
@@ -167,6 +171,7 @@ def cleanup_orphaned_images(...) -> dict:
 ```
 
 If the key mismatch bug existed, the output would reveal it:
+
 ```json
 {
   "scan_prefix": "books/",

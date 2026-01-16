@@ -7,6 +7,7 @@
 ## Problem
 
 Frontend waterfall shows ~9 second blank page on cold start:
+
 1. `fetchAuthSession()` - 825ms (Cognito)
 2. `/users/me` API call - 7+ seconds (Lambda cold start)
 3. HomeView.vue loads (4KB, 179ms)
@@ -22,6 +23,7 @@ Render a static nav bar and loading skeleton in `index.html` that users see imme
 ### Visual Timeline
 
 **Before:**
+
 ```
 0s        1s        2s        3s        ...       9s
 |---------|---------|---------|---------|---------|
@@ -29,6 +31,7 @@ Render a static nav bar and loading skeleton in `index.html` that users see imme
 ```
 
 **After:**
+
 ```
 0s        1s        2s        3s        ...       9s
 |---------|---------|---------|---------|---------|
@@ -66,6 +69,7 @@ Add inside `<div id="app">`:
 ```
 
 Add inline `<style>` with critical CSS (~30 lines):
+
 - Nav bar styling matching NavBar.vue
 - Skeleton card dimensions matching BookCard.vue
 - Pulse animation for loading effect
@@ -108,10 +112,12 @@ Vue naturally replaces `#app` content when it mounts.
 ## Testing Strategy
 
 ### Unit Test (main.prefetch.spec.ts)
+
 - Verify `import()` called before `fetchAuthSession()` resolves
 - Verify `.catch()` handler doesn't throw
 
 ### E2E Test (app-shell.spec.ts)
+
 - Nav bar visible within 500ms
 - Skeleton cards visible before auth completes
 - Seamless replacement when Vue mounts (no flicker)

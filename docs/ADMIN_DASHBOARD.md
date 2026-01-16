@@ -39,6 +39,7 @@ Manage currency conversion rates for acquisition costs entered in foreign curren
 Real-time system health and deployment information.
 
 ### Version Info
+
 - **Version** - Current deployed version (format: `YYYY.MM.DD-<sha>`)
 - **Git SHA** - Full commit hash for traceability
 - **Deploy Time** - When this version was deployed (your local timezone)
@@ -53,11 +54,13 @@ Real-time system health and deployment information.
 | **Cognito** | User pool connectivity |
 
 **Status indicators:**
+
 - 🟢 `healthy` - Service responding normally
 - 🟡 `skipped` - Service not configured (e.g., Cognito in local dev)
 - 🔴 `unhealthy` - Service unreachable or erroring
 
 ### Cold Start Indicator
+
 Shows if this request triggered a Lambda cold start (first request after idle period).
 
 ---
@@ -79,7 +82,9 @@ Read-only display of configured AI models and their purposes.
 Displays the algorithm constants used for book recommendation scoring. Key tunables are marked with ★.
 
 ### Quality Points
+
 Points awarded for collection quality factors:
+
 - Publisher/Binder tier bonuses
 - Condition bonuses (Fine, Good)
 - Era bonuses (Victorian, Romantic)
@@ -87,19 +92,25 @@ Points awarded for collection quality factors:
 - Penalties for duplicates and large volumes
 
 ### Strategic Points
+
 Points for collection-building strategy:
+
 - New author acquisition
 - Second work by existing author
 - Completing a set
 - Publisher focus match
 
 ### Thresholds
+
 Score boundaries that determine recommendations:
+
 - **Price thresholds** - Excellent (<60%), Good (<75%), Fair (<85%)
 - **Floor scores** - Minimum scores to qualify for recommendation
 
 ### Offer Discounts
+
 Suggested discount percentages based on investment grade:
+
 - Grade 70-79: 15% discount
 - Grade 60-69: 20% discount
 - Grade 50-59: 25% discount
@@ -112,6 +123,7 @@ Suggested discount percentages based on investment grade:
 Displays tiered authors, publishers, and binders that receive scoring bonuses.
 
 ### Tier Hierarchy
+
 | Tier | Bonus | Description |
 |------|-------|-------------|
 | **Tier 1** | +15 pts | Premium/most desirable |
@@ -119,7 +131,9 @@ Displays tiered authors, publishers, and binders that receive scoring bonuses.
 | **Tier 3** | +5 pts | Of interest |
 
 ### Current Tiers
+
 Lists all entities with assigned tiers, grouped by type:
+
 - **Authors** - e.g., Darwin, Dickens, Lyell
 - **Publishers** - e.g., John Murray, Chapman & Hall
 - **Binders** - e.g., Zaehnsdorf, Rivière & Son
@@ -131,7 +145,9 @@ Lists all entities with assigned tiers, grouped by type:
 Full CRUD interface for managing reference entities (Authors, Publishers, Binders).
 
 ### Entity Lists
+
 Three sub-tabs for each entity type:
+
 - **Authors** - Manage author records
 - **Publishers** - Manage publisher records
 - **Binders** - Manage binder/bindery records
@@ -148,6 +164,7 @@ Three sub-tabs for each entity type:
 ### Entity Fields
 
 **Authors:**
+
 - Name (required)
 - Birth/Death years
 - Era (Victorian, Romantic, etc.)
@@ -156,6 +173,7 @@ Three sub-tabs for each entity type:
 - Priority Score
 
 **Publishers:**
+
 - Name (required)
 - Founded year
 - Description
@@ -163,6 +181,7 @@ Three sub-tabs for each entity type:
 - Preferred (bonus scoring)
 
 **Binders:**
+
 - Name (required)
 - Full Name (e.g., "Rivière & Son")
 - Authentication Markers
@@ -187,7 +206,9 @@ Use reassignment when merging duplicate entities:
 Database maintenance and cleanup operations.
 
 ### Orphan Detection
+
 Identifies database records without proper relationships:
+
 - Images without books
 - Analyses without books
 - Jobs without books
@@ -201,7 +222,9 @@ Identifies database records without proper relationships:
 | **Refresh Stats** | Update query planner stats | Safe - improves performance |
 
 ### Garbage Image Review
+
 Review images flagged as "garbage" by AI:
+
 - View flagged images
 - Override classification if incorrect
 - Permanently delete confirmed garbage
@@ -213,24 +236,31 @@ Review images flagged as "garbage" by AI:
 AWS Bedrock usage costs for the current month.
 
 ### Bedrock Model Costs
+
 Table showing month-to-date costs per AI model:
+
 - Model name and usage description
 - MTD cost in USD
 
 ### Daily Trend
+
 Bar chart showing Bedrock costs over the last 14 days. Useful for:
+
 - Identifying usage spikes
 - Monitoring cost trends
 - Correlating with activity
 
 ### Other AWS Costs
+
 Collapsible section showing non-Bedrock AWS costs:
+
 - S3 storage
 - CloudFront CDN
 - RDS database
 - Other services
 
 ### Caching
+
 Cost data is **cached for 1 hour** to minimize AWS Cost Explorer API calls. The `cached_at` timestamp shows when data was last fetched.
 
 ---
@@ -238,22 +268,26 @@ Cost data is **cached for 1 hour** to minimize AWS Cost Explorer API calls. The 
 ## Troubleshooting
 
 ### Dashboard won't load
+
 1. Check browser console for errors
 2. Verify you have Editor or Admin role
 3. Try refreshing the page
 
 ### Health check shows unhealthy
+
 1. Check the specific service error message
 2. For database: verify RDS is running
 3. For S3: check bucket permissions
 4. For Cognito: verify user pool exists
 
 ### Cost tab shows error
+
 - Cost Explorer permission may not be configured
 - Only works in deployed environments (not local dev)
 - Data may be unavailable for new AWS accounts
 
 ### Stale cost data
+
 Cost data caches for 1 hour. Wait for cache expiry or check `cached_at` timestamp.
 
 ---

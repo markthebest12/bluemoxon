@@ -1,11 +1,13 @@
 # Phase 8: Paste-to-Extract Order Details - Implementation Plan
 
 ## Overview
+
 Implement the paste-to-extract feature as designed in `2025-12-12-paste-order-extraction-design.md`.
 
 ## Task 1: Admin Config Infrastructure
 
 ### 1.1 Create Database Migration
+
 **File:** `backend/alembic/versions/XXXX_add_admin_config_table.py`
 
 ```python
@@ -38,6 +40,7 @@ def downgrade():
 Generate with: `cd backend && poetry run alembic revision -m "add_admin_config_table"`
 
 ### 1.2 Create Admin Config Model
+
 **File:** `backend/app/models/admin_config.py`
 
 ```python
@@ -54,6 +57,7 @@ class AdminConfig(Base):
 ```
 
 ### 1.3 Create Admin API Endpoints
+
 **File:** `backend/app/api/v1/admin.py`
 
 ```python
@@ -102,12 +106,14 @@ async def update_config(
 ```
 
 Register in `backend/app/api/v1/__init__.py`:
+
 ```python
 from app.api.v1 import admin
 router.include_router(admin.router, prefix="/admin", tags=["admin"])
 ```
 
 ### 1.4 Create AdminConfigView.vue
+
 **File:** `frontend/src/views/AdminConfigView.vue`
 
 ```vue
@@ -170,6 +176,7 @@ onMounted(loadConfig);
 ```
 
 Add route in `frontend/src/router/index.ts`:
+
 ```typescript
 {
   path: "/admin/config",
@@ -186,6 +193,7 @@ Add route in `frontend/src/router/index.ts`:
 ## Task 2: Order Extractor Service
 
 ### 2.1 Create Regex Extractor
+
 **File:** `backend/app/services/order_extractor.py`
 
 ```python
@@ -323,6 +331,7 @@ def extract_with_regex(text: str) -> ExtractionResult:
 ```
 
 ### 2.2 Add Unit Tests
+
 **File:** `backend/tests/test_order_extractor.py`
 
 ```python
@@ -383,6 +392,7 @@ Run: `cd backend && poetry run pytest tests/test_order_extractor.py -v`
 ## Task 3: Extract API Endpoint
 
 ### 3.1 Create Orders Router
+
 **File:** `backend/app/api/v1/orders.py`
 
 ```python
@@ -511,12 +521,14 @@ async def extract_order(
 ```
 
 Register in `backend/app/api/v1/__init__.py`:
+
 ```python
 from app.api.v1 import orders
 router.include_router(orders.router, prefix="/orders", tags=["orders"])
 ```
 
 **Verification:**
+
 ```bash
 bmx-api POST /orders/extract '{"text": "Order number: 21-13904-88107\nOrder total: £256.99"}'
 ```
@@ -526,6 +538,7 @@ bmx-api POST /orders/extract '{"text": "Order number: 21-13904-88107\nOrder tota
 ## Task 4: PasteOrderModal Component
 
 ### 4.1 Create Component
+
 **File:** `frontend/src/components/PasteOrderModal.vue`
 
 ```vue
@@ -743,9 +756,11 @@ async function copyTracking() {
 ## Task 5: Wire Into AcquireModal
 
 ### 5.1 Update AcquireModal.vue
+
 **File:** `frontend/src/components/AcquireModal.vue`
 
 Add imports and state:
+
 ```typescript
 import PasteOrderModal from "./PasteOrderModal.vue";
 
@@ -753,6 +768,7 @@ const showPasteModal = ref(false);
 ```
 
 Add handler:
+
 ```typescript
 function handlePasteApply(data: any) {
   if (data.order_number) form.value.order_number = data.order_number;
@@ -765,6 +781,7 @@ function handlePasteApply(data: any) {
 ```
 
 Add button in template header:
+
 ```vue
 <div class="p-4 border-b flex justify-between items-center">
   <h2 class="text-lg font-semibold">Acquire: {{ bookTitle }}</h2>
@@ -781,6 +798,7 @@ Add button in template header:
 ```
 
 Add modal component:
+
 ```vue
 <PasteOrderModal
   v-if="showPasteModal"

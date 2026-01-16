@@ -17,14 +17,17 @@ Refactor to eliminate duplicated SQL between Alembic migration files and health.
 ## Issue Details
 
 **Problem:** Migration SQL is duplicated in two places:
+
 1. Alembic migration files
 2. health.py (for `/health/migrate` endpoint)
 
 **Proposed Solutions from Issue:**
+
 1. Extract to shared constants module
 2. Generate health.py SQL from migration files with CI validation
 
 **Acceptance Criteria:**
+
 - [x] Single source of truth for migration SQL
 - [x] CI validation that health.py stays in sync with migrations
 - [x] No duplicate SQL definitions
@@ -32,11 +35,13 @@ Refactor to eliminate duplicated SQL between Alembic migration files and health.
 ## Progress Log
 
 ### Phase 1: Planning
+
 - [x] Explore current codebase structure
 - [x] Create implementation plan
 - [x] Get user approval
 
 ### Phase 2: Implementation
+
 - [x] Created `backend/app/db/migration_sql.py` as single source of truth
 - [x] Updated health.py to import from migration_sql.py (reduced by ~490 lines)
 - [x] Updated validation script to check migration_sql.py
@@ -64,12 +69,14 @@ Refactor to eliminate duplicated SQL between Alembic migration files and health.
 ### How to Add New Migrations
 
 1. **Create Alembic migration file:**
+
    ```bash
    cd backend
    poetry run alembic revision -m "your migration description"
    ```
 
 2. **Add SQL to migration_sql.py:**
+
    ```python
    # In backend/app/db/migration_sql.py
    MIGRATIONS["abc123def456"] = {
@@ -83,6 +90,7 @@ Refactor to eliminate duplicated SQL between Alembic migration files and health.
    ```
 
 3. **Use SQL in Alembic migration:**
+
    ```python
    # In the new migration file
    from app.db.migration_sql import get_migration_sql
@@ -126,4 +134,3 @@ Refactor to eliminate duplicated SQL between Alembic migration files and health.
 ### Execution Strategy
 
 These are independent refactors - can run in parallel using worktrees.
-

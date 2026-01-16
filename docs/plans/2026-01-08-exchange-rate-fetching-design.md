@@ -31,6 +31,7 @@ Hardcoded DEFAULT_RATES
 ### User Feedback
 
 Toast notification when falling back:
+
 - "Using cached exchange rate" (DB cache used)
 - "Using estimated exchange rate" (hardcoded used)
 
@@ -71,6 +72,7 @@ const liveRateCache = {
 | Live API + DB fail, hardcoded used | "Using estimated exchange rate" | warning |
 
 No toast when:
+
 - Live API succeeds (happy path)
 - Cache hit within 15 minutes (no fetch needed)
 

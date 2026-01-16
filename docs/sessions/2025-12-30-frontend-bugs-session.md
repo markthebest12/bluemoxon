@@ -5,6 +5,7 @@
 ## ⚠️ RESUME FROM HERE (Context Compaction Summary)
 
 ### Immediate Next Step
+
 **Merge PR #707 to production** - staging synced with main, waiting for CI.
 
 ```bash
@@ -15,6 +16,7 @@ gh run watch <run-id> --exit-status
 ```
 
 ### Completed This Session
+
 1. ✅ PR #698 (dark mode Tailwind base colors) merged to staging
 2. ✅ User validated dark mode in staging
 3. ✅ PR #707 created for staging→main promotion
@@ -22,6 +24,7 @@ gh run watch <run-id> --exit-status
 5. ✅ Issue #706 created for eBay short URL 503 timeout (root cause documented)
 
 ### Open Items
+
 | Item | Status | Next Action |
 |------|--------|-------------|
 | PR #707 | CI pending | Merge when CI passes |
@@ -46,6 +49,7 @@ gh run watch <run-id> --exit-status
 ## ⚠️ MANDATORY: Bash Command Formatting
 
 ### NEVER Use (Triggers Permission Prompts)
+
 ```bash
 # comment lines before commands    ← NEVER
 command \                          ← NEVER (line continuation)
@@ -57,6 +61,7 @@ echo "text with !"                 ← NEVER (history expansion)
 ```
 
 ### ALWAYS Use Instead
+
 ```bash
 git status                         # Simple single-line commands
 gh pr list
@@ -71,16 +76,19 @@ bmx-api --prod GET /admin/costs
 ## Issues to Address
 
 ### #683 - Costs not updating in config tab
+
 - **Status**: OPEN
 - **Problem**: Costs are not updating in the config tab
 - **Screenshot**: Shows config tab with cost values that aren't updating
 
 ### #681 - Highlighted rows unreadable in dark mode on config tab
+
 - **Status**: OPEN
 - **Problem**: Dark mode causes highlighted rows to be unreadable in config tab
 - **Screenshot**: Shows contrast issue with highlighted rows
 
 ### #692 - Mobile dark view acquisition tab white borders
+
 - **Status**: OPEN
 - **Problem**: White borders too contrasting on acquisition tab on mobile in dark mode
 - **Screenshots**: Shows border contrast issue on mobile view
@@ -88,20 +96,24 @@ bmx-api --prod GET /admin/costs
 ## Session Progress
 
 ### Investigation Phase
+
 - [x] Explore config tab component for costs issue (#683)
 - [x] Explore config tab styling for dark mode highlights (#681)
 - [x] Explore acquisition tab mobile styling (#692)
 
 ### Implementation Phase
+
 - [x] Fix costs updating (#683) - Backend Cache-Control headers
 - [x] Fix dark mode highlight contrast (#681) - CSS text color override
 - [x] Fix mobile dark mode borders (#692) - CSS variable override
 
 ### PR Status
+
 - ~~PR #693~~ - Closed (cargo-cult request headers)
 - **PR #694** - Combined proper fix for all three issues
 
 ## Notes
+
 - All changes will go through staging first for review
 - Using TDD approach per superpowers skills
 - PR review required before staging AND before prod
@@ -115,11 +127,13 @@ bmx-api --prod GET /admin/costs
 **Root cause**: Browser/CDN caching stale GET responses to `/admin/costs`.
 
 **Investigation findings:**
+
 - API returns fresh data (verified via CLI with current `cached_at` timestamp)
 - Frontend receives stale cached responses
 - Initial PR #693 used request-side `Cache-Control: no-cache` header (cargo cult - doesn't work)
 
 **Proper fix**: Add `Cache-Control: no-store` response headers to backend admin GET endpoints:
+
 - `/admin/config`
 - `/admin/system-info`
 - `/admin/costs`
@@ -129,6 +143,7 @@ bmx-api --prod GET /admin/costs
 ### #681 - Highlighted rows unreadable in dark mode
 
 **Root cause found:**
+
 - Scoring config tab uses `bg-yellow-50` for key tunables (line 833)
 - In dark mode, `bg-yellow-50` → `#3d3a28` (dark brownish)
 - BUT: No text color override is applied to rows with this highlight
@@ -144,10 +159,12 @@ Location: `main.css` line 215-220 - needs text color addition
 **Root cause**: Tailwind v4 base layer uses `--color-gray-200` CSS variable for default border color, but this variable wasn't overridden in dark mode.
 
 **Investigation findings:**
+
 - Base layer (line 378-384): `border-color: var(--color-gray-200, currentcolor);`
 - Existing class override `.dark .border-gray-200` had higher specificity but doesn't help elements using the base layer default
 
 **Fix**: Override the CSS variable in dark mode:
+
 ```css
 --color-gray-200: #3d4a3d;
 --color-gray-300: #4d5a4d;
@@ -158,6 +175,7 @@ Location: `main.css` line 215-220 - needs text color addition
 ## Session Activity Log
 
 ### Start: 2025-12-30
+
 - Fetched issues #683, #681, #692
 - Created session log
 - Explored AdminConfigView.vue (1405 lines) - config/costs tabs
@@ -166,6 +184,7 @@ Location: `main.css` line 215-220 - needs text color addition
 - Completed root cause analysis for all three issues
 
 ### Implementation: 2025-12-30
+
 - Initial agent dispatched PR #693 with frontend cache-busting (request-side headers)
 - **Code review caught issues:**
   1. Request-side `Cache-Control: no-cache` is cargo cult (browsers/CDN ignore it)
@@ -177,6 +196,7 @@ Location: `main.css` line 215-220 - needs text color addition
 - All tests pass
 
 ### Deployment: 2025-12-30
+
 - PR #694 merged to staging - deploy succeeded, smoke tests passed
 - User validated fixes in staging - "looks so much better"
 - PR #695 created for prod promotion - closed due to merge conflicts
@@ -210,12 +230,15 @@ All tasks completed successfully:
 ## NEW ISSUE: Maintenance Tab Dark Mode (PR #698)
 
 ### Problem
+
 Maintenance tab panels appear white in dark mode - `bg-white`, `bg-gray-50`, `text-gray-900` not adapting.
 
 ### Root Cause
+
 Nested class selectors (`.dark .bg-white { ... }`) have specificity issues with Tailwind v4 utilities.
 
 ### Solution Approach
+
 Global CSS variable overrides - define Tailwind base colors in `@theme`, override in `.dark`.
 
 ### PR #698 Status: REVISION PUSHED (awaiting CI)
@@ -229,6 +252,7 @@ Global CSS variable overrides - define Tailwind base colors in `@theme`, overrid
 | **P2** ✅ | Text vars used for bg/border | `gray-500: #6b7264`, `gray-600: #8a8d84` (dedicated gray values) |
 
 **Dark mode gray scale now:**
+
 ```css
 --color-gray-50: #2a2d26;                        /* lightest background */
 --color-gray-100: var(--color-surface-secondary); /* #2d3028 */
@@ -252,12 +276,14 @@ Global CSS variable overrides - define Tailwind base colors in `@theme`, overrid
 ### Status: IN PROGRESS (needs CI to pass after staging sync)
 
 **Background:**
+
 - Created PR #707 to promote #698 (dark mode) to production
 - Staging branch was out of sync with main
 - Synced staging with main locally (merged `origin/main` into staging)
 - Pushed updated staging branch
 
 **Next Steps:**
+
 1. Wait for CI to run on updated staging branch
 2. Merge PR #707 to main
 3. Watch deploy workflow: `gh run watch <run-id> --exit-status`
@@ -267,9 +293,11 @@ Global CSS variable overrides - define Tailwind base colors in `@theme`, overrid
 ## NEW ISSUE: eBay Short URL Import 503 Error (#706)
 
 ### Problem
+
 When importing from an eBay short URL (e.g., `https://ebay.us/m/5mjZoK`), extraction fails with 503 Gateway Timeout.
 
 ### Root Cause (Confirmed)
+
 1. **API Gateway has a hard 29-second timeout** (cannot be extended)
 2. `/listings/extract` invokes scraper Lambda synchronously (`InvocationType=RequestResponse`)
 3. Short URLs require Playwright to resolve redirect (httpx times out from Lambda VPC)
@@ -277,12 +305,15 @@ When importing from an eBay short URL (e.g., `https://ebay.us/m/5mjZoK`), extrac
 5. API Gateway returns 503 before Lambda completes
 
 ### Evidence from Logs
+
 - Scraper Lambda: Successfully processed (200 response)
 - API Lambda: Also returned 200 after ~40 seconds
 - But client received 503 because API Gateway timed out at 29 seconds
 
 ### Proposed Solution
+
 Modify `/extract-async` to support short URLs:
+
 1. Accept short URLs with generated job ID (UUID)
 2. Store job metadata in S3: `jobs/{job_id}/status.json`
 3. Invoke scraper async with job ID
@@ -290,9 +321,11 @@ Modify `/extract-async` to support short URLs:
 5. Status endpoint looks up job ID → resolved item_id → returns results
 
 ### Workaround
+
 Users can open short URL in browser, copy full `ebay.com/itm/{item_id}` URL, use that.
 
 ### Issue Created
+
 - **#706**: fix: eBay short URL (ebay.us) extraction times out with 503 error
 
 ---

@@ -23,6 +23,7 @@
 ## Task 1: Fix TOCTOU Race Condition (#1010)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py:29-38` (add Binder import)
 - Modify: `backend/app/api/v1/books.py:1456-1466` (add existence check)
 - Test: `backend/tests/api/v1/test_books_entity_validation.py` (new file)
@@ -110,6 +111,7 @@ Expected: FAIL (currently no existence check, test may not even match current co
 ### Step 1.3: Add Binder to imports in books.py
 
 Modify `backend/app/api/v1/books.py:29-38`:
+
 ```python
 from app.models import (
     AnalysisJob,
@@ -127,6 +129,7 @@ from app.models import (
 ### Step 1.4: Add existence check before FK assignment
 
 Modify `backend/app/api/v1/books.py:1456-1466`:
+
 ```python
     # MUTATION PHASE: All validations passed, now apply changes
     # Apply metadata (provenance, first edition)
@@ -178,12 +181,14 @@ git commit -m "fix(#1010): add TOCTOU check for entity existence before FK assig
 ## Task 2: Add force Parameter to Analysis Endpoint (#1011)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py:1400-1448` (add force param, skip validation when true)
 - Test: `backend/tests/api/v1/test_books_entity_validation.py`
 
 ### Step 2.1: Write failing test for force parameter
 
 Add to `backend/tests/api/v1/test_books_entity_validation.py`:
+
 ```python
 class TestForceParameterAnalysis:
     """Test force parameter bypasses entity validation in analysis."""
@@ -274,6 +279,7 @@ Expected: FAIL (no force parameter exists)
 ### Step 2.3: Add force parameter to analysis endpoint
 
 Modify `backend/app/api/v1/books.py:1400-1406`:
+
 ```python
 @router.put("/{book_id}/analysis")
 def update_book_analysis(
@@ -291,6 +297,7 @@ def update_book_analysis(
 ### Step 2.4: Update validation logic to respect force
 
 Modify `backend/app/api/v1/books.py:1430-1448`:
+
 ```python
     if parsed.binder_identification and parsed.binder_identification.get("name"):
         binder_name = parsed.binder_identification["name"]
@@ -340,6 +347,7 @@ git commit -m "feat(#1011): add force parameter to analysis endpoint for validat
 ## Task 3: Allow Unknown Entities in Analysis Context (#1012)
 
 **Files:**
+
 - Modify: `backend/app/services/entity_validation.py:112-172` (add allow_unknown param)
 - Modify: `backend/app/api/v1/books.py:1432,1442` (pass allow_unknown=True)
 - Test: `backend/tests/services/test_entity_validation_service.py`
@@ -347,6 +355,7 @@ git commit -m "feat(#1011): add force parameter to analysis endpoint for validat
 ### Step 3.1: Write failing test for allow_unknown parameter
 
 Add to `backend/tests/services/test_entity_validation_service.py`:
+
 ```python
 class TestAllowUnknownParameter:
     """Test allow_unknown parameter for analysis context."""
@@ -426,6 +435,7 @@ Expected: FAIL (allow_unknown parameter doesn't exist)
 ### Step 3.3: Add allow_unknown parameter to validate_entity_for_book
 
 Modify `backend/app/services/entity_validation.py:112-172`:
+
 ```python
 def validate_entity_for_book(
     db: Session,
@@ -490,6 +500,7 @@ Expected: PASS
 ### Step 3.5: Update books.py to use allow_unknown for analysis
 
 Modify `backend/app/api/v1/books.py:1432,1442`:
+
 ```python
         binder_result = validate_entity_for_book(db, "binder", binder_name, allow_unknown=True)
         # ...
@@ -571,6 +582,7 @@ gh pr checks <pr-number> --watch
 ## Execution Notes
 
 **Parallelism opportunity:** Tasks 1, 2, and 3 modify different sections of code and could theoretically be done in parallel worktrees if desired. However, they build on each other logically:
+
 - Task 1 (TOCTOU) is independent
 - Task 2 (force param) is independent
 - Task 3 (allow_unknown) depends on understanding how Task 2's force interacts

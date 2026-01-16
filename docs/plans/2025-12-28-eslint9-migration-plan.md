@@ -15,11 +15,13 @@
 ## Task 1: Update package.json Dependencies
 
 **Files:**
+
 - Modify: `frontend/package.json`
 
 **Step 1: Remove old packages from devDependencies**
 
 Remove these lines from `devDependencies`:
+
 ```json
 "@rushstack/eslint-patch": "^1.3.3",
 "@vue/eslint-config-prettier": "^10.2.0",
@@ -31,6 +33,7 @@ Remove these lines from `devDependencies`:
 **Step 2: Add new packages to devDependencies**
 
 Add these lines to `devDependencies`:
+
 ```json
 "@eslint/js": "^9.17.0",
 "eslint": "^9.17.0",
@@ -57,6 +60,7 @@ git commit -m "chore: update ESLint dependencies for v9 migration"
 ## Task 2: Create New Flat Config File
 
 **Files:**
+
 - Create: `frontend/eslint.config.js`
 
 **Step 1: Create the new config file**
@@ -120,6 +124,7 @@ git commit -m "feat: add ESLint 9 flat config"
 ## Task 3: Delete Legacy Config File
 
 **Files:**
+
 - Delete: `frontend/.eslintrc.cjs`
 
 **Step 1: Remove the old config file**
@@ -138,6 +143,7 @@ git commit -m "chore: remove legacy .eslintrc.cjs"
 ## Task 4: Update Lint Script in package.json
 
 **Files:**
+
 - Modify: `frontend/package.json`
 
 **Step 1: Check current lint script**
@@ -148,11 +154,13 @@ Old: `"lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix -
 **Step 2: Update to ESLint 9 syntax**
 
 Change the lint script to:
+
 ```json
 "lint": "eslint . --fix"
 ```
 
 ESLint 9 flat config:
+
 - Auto-detects file types from config
 - Uses .gitignore by default when no ignores specified
 - No need for `--ext` flag
@@ -169,6 +177,7 @@ git commit -m "chore: simplify lint script for ESLint 9"
 ## Task 5: Verify Migration Works
 
 **Files:**
+
 - None (verification only)
 
 **Step 1: Run lint**
@@ -189,6 +198,7 @@ Expected: Build completes successfully
 **Step 4: Test lint catches violations**
 
 Create temporary test file `frontend/src/lint-test.ts`:
+
 ```typescript
 const unusedVar = "test";
 ```
@@ -203,6 +213,7 @@ Delete test file: `rm frontend/src/lint-test.ts`
 ## Task 6: Final Cleanup and Commit
 
 **Files:**
+
 - None (just verification)
 
 **Step 1: Verify no uncommitted changes**
@@ -213,6 +224,7 @@ Expected: Clean working directory
 **Step 2: Run full verification suite**
 
 Run these in sequence:
+
 - `npm --prefix frontend run lint`
 - `npm --prefix frontend run type-check`
 - `npm --prefix frontend run build`
@@ -235,6 +247,7 @@ All should pass.
 ## Notes for PR Review
 
 When creating PR:
+
 1. Target: `staging` branch
 2. Title: `chore: migrate to ESLint 9 with flat config`
 3. Body should reference:

@@ -59,6 +59,7 @@ Update `frontend/eslint.config.js` to enable type-aware linting:
 ### Vue Event Handlers
 
 If excessive false positives in Vue `@click` handlers, consider:
+
 ```js
 "@typescript-eslint/no-misused-promises": [
   "error",

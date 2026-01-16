@@ -114,6 +114,7 @@ Variants: bg, text, border, solid, solid-text, accent
 ## Components to Update
 
 Priority order:
+
 1. `ArchiveStatusBadge.vue`
 2. `ProfileView.vue`
 3. `AdminView.vue`

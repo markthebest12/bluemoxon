@@ -10,6 +10,7 @@
 ## CRITICAL: Session Continuation Rules
 
 ### 1. ALWAYS Use Superpowers Skills
+
 ```
 IF task involves implementation → use superpowers:brainstorming FIRST
 IF task involves code changes → use superpowers:test-driven-development
@@ -17,9 +18,11 @@ IF task involves debugging → use superpowers:systematic-debugging
 IF receiving feedback → use superpowers:receiving-code-review
 IF completing work → use superpowers:verification-before-completion
 ```
+
 **This is not optional. Even 1% chance a skill applies = invoke it.**
 
 ### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
+
 ```bash
 # BAD - NEVER DO:
 # Comment lines before commands
@@ -32,6 +35,7 @@ cmd1 || cmd2            # || chaining
 ```
 
 ### 3. ALWAYS Use These Patterns
+
 ```bash
 # GOOD - Simple single-line commands:
 bmx-api GET /books
@@ -47,12 +51,14 @@ poetry run pytest tests/test_orders_api.py -v
 ## Background
 
 **Original Problem:**
+
 - `backend/app/api/v1/orders.py:118` had hardcoded 2024 exchange rates
 - GBP: 1.28 (stale), EUR: 1.10 (stale)
 - Unknown currencies silently returned 1.0 with no logging
 - AdminConfig DB table was source of truth but fallbacks were outdated
 
 **Architecture (unchanged):**
+
 1. Primary: DB lookup via AdminConfig table
 2. Fallback: Hardcoded rates in code (safety net only)
 
@@ -61,16 +67,19 @@ poetry run pytest tests/test_orders_api.py -v
 ## What Was Done
 
 ### Commit 1: Backend + Script
+
 - Updated fallback rates to Jan 2026 values (GBP: 1.35, EUR: 1.17)
 - Added warning logging when using fallback rates
 - Created `scripts/update-exchange-rates.sh` to fetch live rates
 - Added tests for logging behavior
 
 ### Commit 2: Frontend fetchLiveRate (REMOVED)
+
 - Added fetchLiveRate() to call frankfurter.app from browser
 - **PROBLEM**: Dead code (never wired up), external API risk, CORS issues
 
 ### Commit 3: Code Review Fixes
+
 Addressed all P0/P1/P3 issues from code review:
 
 | Issue | Fix |
@@ -87,6 +96,7 @@ Addressed all P0/P1/P3 issues from code review:
 ## Current State
 
 ### Files Changed (Final)
+
 | File | Status |
 |------|--------|
 | `backend/app/api/v1/orders.py` | One-time warning logging, updated fallbacks |
@@ -97,10 +107,12 @@ Addressed all P0/P1/P3 issues from code review:
 | `scripts/update-exchange-rates.sh` | Dependency + auth checks added |
 
 ### Tests
+
 - Backend: 5 passing
 - Frontend: 18 passing
 
 ### Staging DB
+
 - Rates already updated via API: GBP=1.3513, EUR=1.1706
 
 ---
@@ -108,17 +120,20 @@ Addressed all P0/P1/P3 issues from code review:
 ## Next Steps
 
 ### Immediate (Before Merge)
+
 1. Push latest commit: `git push`
 2. Wait for CI to pass on PR #893
 3. User reviews PR before merge to staging
 
 ### After Staging Merge
+
 1. Validate in staging environment
 2. Create PR from staging → main
 3. User reviews before production merge
 4. After prod merge: `./scripts/update-exchange-rates.sh --prod`
 
 ### Future
+
 - Consider periodic cron job to run update script
 - Monitor CloudWatch for fallback warnings (indicates DB config missing)
 
@@ -141,4 +156,3 @@ Addressed all P0/P1/P3 issues from code review:
 ```
 
 Requires: `jq`, `bc`, `curl`, and valid API key at `~/.bmx/{env}.key`
-

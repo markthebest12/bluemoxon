@@ -15,6 +15,7 @@
 ## Task 1: Extend Claude Vision Prompt
 
 **Files:**
+
 - Modify: `backend/app/services/eval_generation.py:246-287`
 
 **Step 1: Add image relevance instructions to the prompt**
@@ -95,6 +96,7 @@ git commit -m "feat: add image relevance detection to Claude Vision prompt"
 ## Task 2: Update Return Type and Default Values
 
 **Files:**
+
 - Modify: `backend/app/services/eval_generation.py:220-243` (default return dict)
 - Modify: `backend/app/services/eval_generation.py:324-331` (fallback return)
 - Modify: `backend/app/services/eval_generation.py:335-342` (error return)
@@ -131,6 +133,7 @@ git commit -m "feat: add unrelated_images field to analysis return type"
 ## Task 3: Add Image Deletion Function
 
 **Files:**
+
 - Create: `backend/app/services/image_cleanup.py`
 
 **Step 1: Create the image cleanup service**
@@ -264,6 +267,7 @@ git commit -m "feat: add image cleanup service for unrelated image deletion"
 ## Task 4: Integrate Cleanup into Eval Runbook Generation
 
 **Files:**
+
 - Modify: `backend/app/services/eval_generation.py:396-400`
 
 **Step 1: Add import at top of file**
@@ -313,6 +317,7 @@ git commit -m "feat: integrate unrelated image cleanup into eval runbook generat
 ## Task 5: Add Unit Tests
 
 **Files:**
+
 - Create: `backend/tests/services/test_image_cleanup.py`
 
 **Step 1: Create test file**

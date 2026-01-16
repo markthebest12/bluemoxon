@@ -46,6 +46,7 @@ Implement separate S3 bucket for Lambda artifacts to eliminate race condition be
 ## Notes
 
 **Correct deployment sequence:**
+
 1. Merge PR #910 (Terraform) to staging
 2. Apply Terraform: `AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars`
 3. Verify bucket: `aws s3 ls s3://bluemoxon-artifacts-staging/`

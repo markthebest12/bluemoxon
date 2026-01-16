@@ -8,9 +8,11 @@
 ## Issue #510: Insurance Report Theming
 
 ### Problem
+
 InsuranceReportView.vue is the only page not using the Victorian theme. It uses scoped CSS with Georgia serif font and hard-coded colors.
 
 ### Solution
+
 Refactor to use Tailwind Victorian theme classes:
 
 | Current | Replace With |
@@ -22,6 +24,7 @@ Refactor to use Tailwind Victorian theme classes:
 | Custom `.btn-primary` | Global `btn-primary` class |
 
 ### Files Modified
+
 - `frontend/src/views/InsuranceReportView.vue`
 
 ---
@@ -29,9 +32,11 @@ Refactor to use Tailwind Victorian theme classes:
 ## Issue #511: Print Capability
 
 ### Problem
+
 No print functionality on book view and analysis view pages.
 
 ### Solution
+
 Add subtle print buttons similar to InsuranceReportView:
 
 1. **BookDetailView.vue**
@@ -45,22 +50,26 @@ Add subtle print buttons similar to InsuranceReportView:
    - Print rendered markdown, hide editing UI
 
 ### Button Styling
+
 - Small gray/muted button (not prominent)
 - Printer icon
 - `.no-print` class to hide during printing
 
 ### Print CSS
+
 - `@media print` rules added to both components
 - Hide `.no-print` elements
 - Optimize layout for paper
 
 ### Files Modified
+
 - `frontend/src/views/BookDetailView.vue`
 - `frontend/src/components/books/AnalysisViewer.vue`
 
 ---
 
 ## Implementation Order
+
 1. Issue #510: Theme InsuranceReportView.vue
 2. Issue #511: Add print to BookDetailView.vue
 3. Issue #511: Add print to AnalysisViewer.vue

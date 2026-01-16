@@ -19,7 +19,8 @@
 ## Issues Completed
 
 ### Issue #510 - Insurance Report Theming
-**URL:** https://github.com/markthebest12/bluemoxon/issues/510
+
+**URL:** <https://github.com/markthebest12/bluemoxon/issues/510>
 
 **Problem:** InsuranceReportView.vue was the only page not using the Victorian theme.
 
@@ -28,7 +29,8 @@
 **Additional Fix:** Header layout regression - restored single-row layout by removing `flex-wrap` and adding `shrink-0`/`flex-1` classes.
 
 ### Issue #511 - Print Capability
-**URL:** https://github.com/markthebest12/bluemoxon/issues/511
+
+**URL:** <https://github.com/markthebest12/bluemoxon/issues/511>
 
 **Problem:** No print functionality on book view and analysis view pages.
 
@@ -116,6 +118,7 @@
 ### CLAUDE.md Compliance - BASH COMMANDS
 
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -123,6 +126,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)

@@ -13,6 +13,7 @@
 ## Task 1: Add tier field to Author model
 
 **Files:**
+
 - Modify: `backend/app/models/author.py`
 
 **Step 1: Add tier field**
@@ -39,6 +40,7 @@ git commit -m "feat(models): add tier field to Author model"
 ## Task 2: Create database migration
 
 **Files:**
+
 - Create: `backend/alembic/versions/XXXX_add_author_tier.py`
 
 **Step 1: Generate migration**
@@ -62,6 +64,7 @@ git commit -m "feat(db): add migration for author tier column"
 ## Task 3: Update Author schemas
 
 **Files:**
+
 - Modify: `backend/app/schemas/reference.py`
 
 **Step 1: Add tier to AuthorCreate (after line 16)**
@@ -99,15 +102,19 @@ git commit -m "feat(schemas): add tier field to Author schemas"
 ## Task 4: Update authors API to include tier
 
 **Files:**
+
 - Modify: `backend/app/api/v1/authors.py`
 
 **Step 1: Add tier to list_authors response (line 33)**
 
 Change from:
+
 ```python
             "priority_score": a.priority_score,
 ```
+
 To:
+
 ```python
             "priority_score": a.priority_score,
             "tier": a.tier,
@@ -142,6 +149,7 @@ git commit -m "feat(api): include tier in author API responses"
 ## Task 5: Add author tier to scoring calculation
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py`
 
 **Step 1: Create helper function to convert tier to score (add after line 91)**
@@ -166,20 +174,26 @@ def author_tier_to_score(tier: str | None) -> int:
 **Step 2: Update score_book to use tier instead of priority_score**
 
 In the score_book function around line 588, change:
+
 ```python
     author_priority = 0
 ```
+
 To:
+
 ```python
     author_priority = 0
     author_tier = None
 ```
 
 And around line 594, change:
+
 ```python
         author_priority = book.author.priority_score or 0
 ```
+
 To:
+
 ```python
         author_tier = book.author.tier
         author_priority = author_tier_to_score(author_tier)
@@ -202,11 +216,13 @@ git commit -m "feat(scoring): add author tier to scoring calculation"
 ## Task 6: Update scoring breakdown display
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py`
 
 **Step 1: Update breakdown text (around line 446-449)**
 
 Change from:
+
 ```python
     if author_priority_score > 0:
         score += author_priority_score
@@ -220,6 +236,7 @@ Change from:
 ```
 
 To (need to pass author_tier to this function):
+
 ```python
     if author_priority_score > 0:
         score += author_priority_score
@@ -234,6 +251,7 @@ To (need to pass author_tier to this function):
 ```
 
 **Note:** This requires threading `author_tier` through the function signatures. Add `author_tier: str | None = None` parameter to:
+
 - `calculate_strategic_fit_breakdown()` (line 330)
 - `calculate_all_scores()` (line 263)
 - Update calls to these functions
@@ -255,6 +273,7 @@ git commit -m "feat(scoring): update breakdown to show author tier label"
 ## Task 7: Write tests for author tier scoring
 
 **Files:**
+
 - Create: `backend/tests/services/test_author_tier.py`
 
 **Step 1: Write tests**
@@ -303,6 +322,7 @@ git commit -m "test: add tests for author tier scoring"
 ## Task 8: Apply data updates
 
 **Files:**
+
 - Create: `backend/alembic/versions/XXXX_seed_author_tiers.py`
 
 **Step 1: Create data migration**
@@ -406,12 +426,14 @@ Run: `git push -u origin feat/author-tier-scoring`
 **Step 2: Create PR**
 
 Run: `gh pr create --base staging --title "feat: Add author tier scoring (#528)" --body "## Summary
+
 - Add tier field to Author model (TIER_1, TIER_2, TIER_3)
 - Convert author tier to priority score in scoring calculation
 - Update API responses to include tier
 - Seed data for priority authors, publishers, binders
 
 ## Test Plan
+
 - [ ] CI passes
 - [ ] Deploy to staging
 - [ ] Verify book 521 shows Darwin as Tier 1 author

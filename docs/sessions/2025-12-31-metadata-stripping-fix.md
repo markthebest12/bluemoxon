@@ -4,6 +4,7 @@
 **Status:** ✅ DEPLOYED TO PRODUCTION
 **Branch:** `fix/strip-metadata-block`
 **PRs:**
+
 - #732 (initial fix, merged to staging)
 - #734 (code review fixes, merged to staging)
 - #733 (promotion PR, merged to main)
@@ -14,12 +15,14 @@
 ## SUMMARY FOR NEXT SESSION
 
 ### Current State
+
 - **Both PRs merged to staging** - code review fixes complete
 - **Three-phase validation complete** - all tests pass
 - **Metadata stripping verified** - no METADATA_START in stored analyses
 - Ready for promotion to production
 
 ### Deployment Complete
+
 - PR #733 merged to main (2026-01-01)
 - Deploy workflow completed successfully
 - All smoke tests passed
@@ -30,11 +33,12 @@
 ## VALIDATION RESULTS - COMPLETE (Post-PR #734)
 
 ### Test Books Created
+
 | Book ID | Title | eBay URL |
 |---------|-------|----------|
-| 543 | The Pictorial Edition of the Works of Shakespeare | https://www.ebay.com/itm/306605839040 |
-| 544 | The Works of William Shakespeare (Macmillan 1887) | https://www.ebay.com/itm/389364305921 |
-| 545 | The Life of Charlotte Bronte | https://www.ebay.com/itm/366031204655 |
+| 543 | The Pictorial Edition of the Works of Shakespeare | <https://www.ebay.com/itm/306605839040> |
+| 544 | The Works of William Shakespeare (Macmillan 1887) | <https://www.ebay.com/itm/389364305921> |
+| 545 | The Life of Charlotte Bronte | <https://www.ebay.com/itm/366031204655> |
 
 ### Three-Phase Comparison Table
 
@@ -83,10 +87,12 @@
 The user provided a detailed code review identifying P0/P1/P2 issues in PR #732:
 
 ### P0 - CRITICAL (Fixed)
+
 - **Issue:** Regex `.*?` non-greedy matching breaks on nested JSON (stops at first `}`)
 - **Fix:** Replaced regex with string `find()` method for both `strip_metadata_block()` and `extract_analysis_metadata()`
 
 ### P1 - HIGH (Fixed)
+
 - **Issue:** Log message lies when nothing is stripped ("Stripped metadata block" always logged)
 - **Fix:** Changed return type to `tuple[str, bool]` and added honest logging based on `was_stripped` boolean
 
@@ -97,10 +103,12 @@ The user provided a detailed code review identifying P0/P1/P2 issues in PR #732:
 - **Fix:** String find approach now correctly handles both with/without separator
 
 ### P2 - MEDIUM (Fixed)
+
 - **Issue:** No handling for metadata in middle of document
 - **Fix:** Added `test_strip_metadata_in_middle_of_document` test verifying this case works
 
 ### Tests Added (6 new tests)
+
 1. `test_strip_nested_json` - Deeply nested JSON objects
 2. `test_strip_without_separator` - No `---` before metadata
 3. `test_strip_metadata_in_middle_of_document` - Metadata not at end

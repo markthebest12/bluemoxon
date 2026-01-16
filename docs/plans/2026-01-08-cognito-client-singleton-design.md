@@ -41,11 +41,13 @@ def get_cognito_client() -> CognitoIdentityProviderClient:
 ### 2. Changes to `users.py`
 
 Replace 7 occurrences of:
+
 ```python
 cognito = boto3.client("cognito-idp", region_name=settings.aws_region)
 ```
 
 With:
+
 ```python
 from app.services.cognito import get_cognito_client
 
@@ -54,6 +56,7 @@ cognito = get_cognito_client()
 ```
 
 **Affected functions:**
+
 - `invite_user` (line 114)
 - `delete_user` (line 306)
 - `get_user_mfa_status` (line 347)
@@ -67,6 +70,7 @@ Also remove `import boto3` from users.py (keep `ClientError` from botocore).
 ### 3. Dependencies
 
 Add to `pyproject.toml` dev dependencies:
+
 ```toml
 mypy-boto3-cognito-idp = "^1.35"
 ```
@@ -74,6 +78,7 @@ mypy-boto3-cognito-idp = "^1.35"
 ### 4. Testing
 
 Mock pattern:
+
 ```python
 @patch("app.services.cognito.get_cognito_client")
 def test_invite_user(mock_get_client):
@@ -83,6 +88,7 @@ def test_invite_user(mock_get_client):
 ```
 
 Clear cache for error condition tests:
+
 ```python
 get_cognito_client.cache_clear()
 ```

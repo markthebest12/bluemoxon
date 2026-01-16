@@ -52,6 +52,7 @@ Implemented SQS-based async analysis infrastructure to handle 5+ minute Bedrock 
 **Problem:** `No module named 'app.database'`
 
 **Fix:**
+
 ```python
 # Before
 from app.database import SessionLocal
@@ -65,10 +66,12 @@ from app.db import SessionLocal
 **Problem:** `AccessDeniedException` - IAM policy had wrong model IDs
 
 **Root Cause:** Bedrock has two ID formats:
+
 - Foundation models: `anthropic.claude-sonnet-4-5-20250514`
 - Cross-region profiles: `us.anthropic.claude-sonnet-4-5-20250514-v1:0`
 
 **Fix:** Use wildcards to cover all versions:
+
 ```hcl
 bedrock_model_ids = [
   "anthropic.claude-sonnet-4-5-*",
@@ -83,6 +86,7 @@ bedrock_model_ids = [
 **Root Cause:** FMV data is nested in `market_analysis.valuation`, not top-level attributes
 
 **Fix:**
+
 ```python
 # Before (wrong)
 if parsed.fair_market_value_low is not None:
@@ -102,6 +106,7 @@ if fmv_low is not None:
 **Root Cause:** Lambda hard-crashes (timeout, OOM) can't execute cleanup code
 
 **Fix:** API-side detection in status endpoint:
+
 ```python
 STALE_JOB_THRESHOLD_MINUTES = 15
 
@@ -120,6 +125,7 @@ if job.status == "running":
 **Issue:** Multiple Lambda execution environments can run different code versions during deployment.
 
 **Mitigation:** Force Lambda configuration update to refresh environments:
+
 ```bash
 aws lambda update-function-configuration --function-name X --description "Force refresh"
 ```
@@ -133,21 +139,25 @@ aws lambda update-function-configuration --function-name X --description "Force 
 ### 3. Async Job Recovery
 
 **Pattern:** Jobs can get stuck in "running" if:
+
 - Lambda times out during Bedrock call
 - Lambda OOMs
 - Unhandled exception before status update
 
 **Solutions implemented:**
+
 1. Stale job detection in status endpoint (done)
 2. SQS DLQ captures repeated failures
 
 **Future considerations:**
+
 - Worker heartbeat updates during long operations
 - Idempotent re-processing for duplicate messages
 
 ## Testing Verification
 
 Verified end-to-end:
+
 - Book 2: Job `d6642edd` completed successfully, FMV updated to $175.00
 - Book 3: Job `acdcf964` completed successfully, FMV updated to $50.00
 
@@ -158,6 +168,7 @@ Changes deployed to staging via GitHub Actions workflow triggered by push to `st
 ### Config Updates Required
 
 Added to `infra/config/staging.json` and `production.json`:
+
 ```json
 {
   "lambda": {
@@ -169,6 +180,7 @@ Added to `infra/config/staging.json` and `production.json`:
 ### Deploy Workflow Updates
 
 Added worker Lambda deployment to `.github/workflows/deploy.yml`:
+
 ```yaml
 - name: Deploy Worker Lambda
   run: |

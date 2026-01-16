@@ -74,6 +74,7 @@ flowchart LR
 ```
 
 **Path Filters:**
+
 | Filter | Paths | Jobs Triggered |
 |--------|-------|----------------|
 | `backend` | `backend/**`, `poetry.lock`, `pyproject.toml` | backend-quality, backend-test |
@@ -131,6 +132,7 @@ flowchart TB
 ## Deploy Workflow (`deploy.yml`)
 
 **Unified workflow** for both staging and production - deploys based on branch:
+
 - Push to `staging` → deploys to staging environment
 - Push to `main` → deploys to production environment
 
@@ -191,6 +193,7 @@ flowchart TB
 
 **Path-Based Filtering:**
 Deploy workflow skips unchanged components:
+
 | Path Changes | Jobs Run |
 |--------------|----------|
 | `backend/**` | All Lambda deploys, migrations |
@@ -198,11 +201,13 @@ Deploy workflow skips unchanged components:
 | `scraper/**` | Scraper Lambda only |
 
 **Smart Layer Caching:**
+
 - Layer is cached by `requirements.txt` hash
 - Unchanged deps → reuses existing layer (saves ~60s)
 - Changed deps → rebuilds and publishes new layer
 
 **Pre-Deploy Drift Detection:**
+
 - Runs `terraform plan` before deploying
 - If drift detected → creates/updates GitHub issue with label `drift`
 - Non-blocking: deployment continues (warn-only mode)
@@ -224,6 +229,7 @@ Smoke tests detect partial deploy failures - if some Lambda deploys succeeded bu
 
 **Force Full Deploy:**
 Manual trigger option to rebuild all components:
+
 ```bash
 gh workflow run deploy.yml --ref main -f force_full_deploy=true
 ```
@@ -316,11 +322,13 @@ The CI pipeline includes comprehensive security scanning that **blocks deploymen
 ### SAST (Static Application Security Testing)
 
 **Bandit** - Python-specific security scanner
+
 - Checks for common security issues (SQL injection, hardcoded passwords, etc.)
 - Runs on all Python code in `app/`
 - Fails on HIGH severity issues
 
 **Semgrep** - Multi-language SAST
+
 - Rules: `p/python`, `p/javascript`, `p/typescript`, `p/security-audit`, `p/owasp-top-ten`
 - Covers Python, JavaScript/TypeScript, Vue templates
 - Checks for OWASP Top 10 vulnerabilities
@@ -351,6 +359,7 @@ flowchart LR
 ```
 
 **How it works:**
+
 1. Runs `terraform plan -detailed-exitcode` against current state
 2. If changes detected (exit code 2), creates GitHub issue with:
    - Resources to add/change/destroy
@@ -362,6 +371,7 @@ flowchart LR
 **Issue labels:** `drift`, `infra`, `priority:high`
 
 **Resolving drift:**
+
 ```bash
 cd infra/terraform
 AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
@@ -384,6 +394,7 @@ After deployment, automated smoke tests verify:
 11. **Scraper Lambda Version** - Scraper reports correct version (if deployed)
 
 If smoke tests fail:
+
 - The workflow is marked as failed
 - Changes are live (no automatic rollback)
 - Check `gh run view <id> --log-failed` for details
@@ -391,14 +402,17 @@ If smoke tests fail:
 
 **Partial Deploy Handling:**
 If some Lambdas succeeded but others failed, smoke tests detect this and fail with:
+
 ```
 CRITICAL: Partial deploy detected - some jobs FAILED while others succeeded!
 ```
+
 Run `force_full_deploy` to restore consistency.
 
 ## Version System
 
 Version is **auto-generated at deploy time**:
+
 - Format: `YYYY.MM.DD-<short-sha>` (e.g., `2025.12.06-9b22b0a`)
 - Visible via `X-App-Version` response header
 - Visible at `/api/v1/health/version` endpoint

@@ -9,12 +9,14 @@
 eBay sellers add promotional banners (e.g., "Visit My Store!") at the end of their image carousels. These get imported alongside legitimate book photos, degrading collection quality.
 
 **Examples:**
+
 - Book 515: image_17 is a seller store banner
 - Book 514: images 04-09 are seller promotional content
 
 ## Decision: Block Automatically
 
 After evaluating warn vs block approaches, **automatic blocking** was chosen because:
+
 - Cost of false positive (missing one book photo) is low - user can manually upload
 - Cost of false negative (ads in carousel) is higher - degrades collection quality
 - Keeps import flow simple with no UI changes required
@@ -22,6 +24,7 @@ After evaluating warn vs block approaches, **automatic blocking** was chosen bec
 ## Detection Logic
 
 Block an image if **both** conditions are met:
+
 1. Image is in the **last 3 positions** of the carousel
 2. Image has **wide aspect ratio** (width/height > 2.0)
 
@@ -43,12 +46,14 @@ Block an image if **both** conditions are met:
 **File:** `scraper/handler.py`
 
 **Constants:**
+
 ```python
 BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
 BANNER_POSITION_WINDOW = 3  # Check last N images
 ```
 
 **Detection function:**
+
 ```python
 def is_likely_banner(image_data: bytes, position: int, total_images: int) -> bool:
     """Detect if image is likely a seller banner."""
@@ -69,11 +74,13 @@ def is_likely_banner(image_data: bytes, position: int, total_images: int) -> boo
 ## Testing
 
 **Unit tests:**
+
 - Wide image at end position → blocked
 - Portrait image at end position → allowed
 - Wide image at start position → allowed
 
 **Manual validation:**
+
 - Book 515 image_17 should be blocked on re-scrape
 - Book 514 images should be evaluated
 
@@ -89,6 +96,7 @@ def is_likely_banner(image_data: bytes, position: int, total_images: int) -> boo
 ## Future Tuning
 
 If false positives occur:
+
 - Tighten aspect ratio threshold (2.5 instead of 2.0)
 - Reduce position window (last 2 instead of 3)
 - Add URL pattern matching as additional signal

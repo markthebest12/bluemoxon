@@ -17,6 +17,7 @@
 ## Task 1: Add fmv_confidence Field to Schema
 
 **Files:**
+
 - Modify: `backend/app/schemas/eval_runbook.py`
 - Test: `backend/tests/test_schemas.py` (if exists, otherwise skip test)
 
@@ -45,6 +46,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 2: Create Context-Aware Query Builder
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py`
 - Test: `backend/tests/test_fmv_lookup.py` (create if not exists)
 
@@ -222,6 +224,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 3: Create Claude Filtering Function
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py`
 - Test: `backend/tests/test_fmv_lookup.py`
 
@@ -390,6 +393,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 4: Create Weighted FMV Calculation
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py`
 - Test: `backend/tests/test_fmv_lookup.py`
 
@@ -549,6 +553,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 5: Update lookup_ebay_comparables Signature
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py`
 
 **Step 1: Update function signature and implementation**
@@ -649,6 +654,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 6: Update lookup_fmv to Use Weighted Calculation
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py`
 
 **Step 1: Update lookup_fmv function**
@@ -716,6 +722,7 @@ git -C /Users/mark/projects/bluemoxon/.worktrees/fix-fmv-accuracy commit -m "fea
 ## Task 7: Update Eval Runbook Endpoint to Pass Metadata
 
 **Files:**
+
 - Modify: `backend/app/api/v1/endpoints/eval_runbook.py`
 
 **Step 1: Find and update the FMV lookup call**

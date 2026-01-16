@@ -13,6 +13,7 @@
 ## Task 1: Add CloudFront Function Resource
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cloudfront/main.tf`
 
 **Step 1: Add CloudFront Function resource after OAC block (around line 34)**
@@ -62,6 +63,7 @@ git commit -m "feat(cloudfront): add CloudFront Function for path rewriting (#43
 ## Task 2: Add Secondary OAC Resource
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cloudfront/main.tf`
 
 **Step 1: Add secondary OAC resource after the path_rewrite function**
@@ -100,6 +102,7 @@ git commit -m "feat(cloudfront): add secondary OAC for images bucket (#430)"
 ## Task 3: Add Secondary Origin Block
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cloudfront/main.tf`
 
 **Step 1: Add dynamic secondary origin block inside aws_cloudfront_distribution**
@@ -134,6 +137,7 @@ git commit -m "feat(cloudfront): add secondary origin for images bucket (#430)"
 ## Task 4: Add Ordered Cache Behavior
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cloudfront/main.tf`
 
 **Step 1: Add ordered_cache_behavior block after default_cache_behavior**
@@ -187,6 +191,7 @@ git commit -m "feat(cloudfront): add ordered cache behavior for /book-images/* (
 ## Task 5: Add Secondary OAC Output
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cloudfront/outputs.tf`
 
 **Step 1: Add output for secondary OAC ID**
@@ -212,6 +217,7 @@ git commit -m "feat(cloudfront): export secondary OAC ID (#430)"
 ## Task 6: Update Root main.tf to Pass Images Bucket Config
 
 **Files:**
+
 - Modify: `infra/terraform/main.tf`
 
 **Step 1: Find the frontend_cdn module call (around line 86)**
@@ -249,6 +255,7 @@ git commit -m "feat(terraform): pass images bucket config to frontend_cdn module
 ## Task 7: Add Root Variables for Secondary Origin
 
 **Files:**
+
 - Modify: `infra/terraform/variables.tf`
 
 **Step 1: Check if variables already exist**
@@ -303,6 +310,7 @@ git commit -m "feat(terraform): add secondary origin variables (#430)"
 ## Task 8: Update staging.tfvars
 
 **Files:**
+
 - Modify: `infra/terraform/envs/staging.tfvars`
 
 **Step 1: Add secondary origin configuration**
@@ -331,6 +339,7 @@ git commit -m "feat(terraform): enable images path routing in staging (#430)"
 ## Task 9: Update prod.tfvars
 
 **Files:**
+
 - Modify: `infra/terraform/envs/prod.tfvars`
 
 **Step 1: Add secondary origin configuration**
@@ -361,6 +370,7 @@ git commit -m "feat(terraform): enable images path routing in prod (#430)"
 **Step 1: Initialize Terraform for staging**
 
 Run:
+
 ```bash
 cd infra/terraform
 AWS_PROFILE=bmx-staging terraform init -backend-config=backends/staging.conf
@@ -369,11 +379,13 @@ AWS_PROFILE=bmx-staging terraform init -backend-config=backends/staging.conf
 **Step 2: Plan staging changes**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars -var="db_password=staging-dummy"
 ```
 
 Expected: Plan shows:
+
 - 1 CloudFront Function to add
 - 1 OAC to add
 - CloudFront distribution to update (new origin + cache behavior)
@@ -381,6 +393,7 @@ Expected: Plan shows:
 **Step 3: Apply to staging**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_password=staging-dummy"
 ```
@@ -388,6 +401,7 @@ AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_p
 **Step 4: Wait for CloudFront deployment (5-10 minutes)**
 
 Run:
+
 ```bash
 sleep 300
 ```
@@ -395,6 +409,7 @@ sleep 300
 **Step 5: Verify path routing works**
 
 Run:
+
 ```bash
 curl -sI "https://staging.app.bluemoxon.com/book-images/books/10_0b810ca69dbd43f0b09dc51cd8785370.jpg" | grep -i content-type
 ```
@@ -413,16 +428,19 @@ git commit -m "chore: update terraform lock file" --allow-empty
 ## Task 11: Update Staging images_cdn_url_override
 
 **Files:**
+
 - Modify: `infra/terraform/envs/staging.tfvars`
 
 **Step 1: Update images_cdn_url_override to branded URL**
 
 Find and replace:
+
 ```hcl
 images_cdn_url_override = "https://d2zwmzka4w6cws.cloudfront.net"
 ```
 
 With:
+
 ```hcl
 images_cdn_url_override = "https://staging.app.bluemoxon.com/book-images"
 ```
@@ -430,6 +448,7 @@ images_cdn_url_override = "https://staging.app.bluemoxon.com/book-images"
 **Step 2: Apply to staging**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_password=staging-dummy"
 ```
@@ -437,6 +456,7 @@ AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars -var="db_p
 **Step 3: Verify API returns branded URLs**
 
 Run:
+
 ```bash
 bmx-api GET '/books/1' | jq '.images'
 ```
@@ -457,6 +477,7 @@ git commit -m "feat(terraform): use branded image URLs in staging (#430)"
 **Step 1: Initialize Terraform for production**
 
 Run:
+
 ```bash
 cd infra/terraform
 AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.conf -reconfigure
@@ -465,6 +486,7 @@ AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.conf -reconfig
 **Step 2: Plan production changes**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-prod terraform plan -var-file=envs/prod.tfvars -var="db_password=prod-dummy"
 ```
@@ -474,6 +496,7 @@ Expected: Same changes as staging
 **Step 3: Apply to production**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars -var="db_password=prod-dummy"
 ```
@@ -481,6 +504,7 @@ AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars -var="db_passwor
 **Step 4: Wait for CloudFront deployment**
 
 Run:
+
 ```bash
 sleep 300
 ```
@@ -488,6 +512,7 @@ sleep 300
 **Step 5: Verify path routing works**
 
 Run:
+
 ```bash
 curl -sI "https://app.bluemoxon.com/book-images/books/10_0b810ca69dbd43f0b09dc51cd8785370.jpg" | grep -i content-type
 ```
@@ -499,16 +524,19 @@ Expected: `content-type: image/jpeg`
 ## Task 13: Update Production images_cdn_url_override
 
 **Files:**
+
 - Modify: `infra/terraform/envs/prod.tfvars`
 
 **Step 1: Update images_cdn_url_override to branded URL**
 
 Find and replace:
+
 ```hcl
 images_cdn_url_override = "https://d1yejmcspwgw9x.cloudfront.net"
 ```
 
 With:
+
 ```hcl
 images_cdn_url_override = "https://app.bluemoxon.com/book-images"
 ```
@@ -516,6 +544,7 @@ images_cdn_url_override = "https://app.bluemoxon.com/book-images"
 **Step 2: Apply to production**
 
 Run:
+
 ```bash
 AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars -var="db_password=prod-dummy"
 ```
@@ -523,6 +552,7 @@ AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars -var="db_passwor
 **Step 3: Verify API returns branded URLs**
 
 Run:
+
 ```bash
 bmx-api --prod GET '/books/1' | jq '.images'
 ```
@@ -543,6 +573,7 @@ git commit -m "feat(terraform): use branded image URLs in production (#430)"
 **Step 1: Push branch**
 
 Run:
+
 ```bash
 git push -u origin feat/cloudfront-path-routing
 ```
@@ -550,6 +581,7 @@ git push -u origin feat/cloudfront-path-routing
 **Step 2: Create PR**
 
 Run:
+
 ```bash
 gh pr create --base staging --title "feat: Implement CloudFront path-based routing for images (#430)" --body "$(cat <<'EOF'
 ## Summary
@@ -577,6 +609,7 @@ EOF
 **Step 3: Wait for CI and merge**
 
 Run:
+
 ```bash
 gh pr checks --watch
 gh pr merge --squash --delete-branch

@@ -55,7 +55,7 @@ Returns expanded response with `details` object:
 }
 ```
 
-### When duplicate detected:
+### When duplicate detected
 
 ```json
 "collection": {
@@ -101,12 +101,14 @@ Returns expanded response with `details` object:
 ### Tooltip Content
 
 **Investment Grade:**
+
 ```
 33% discount ($701 / $1,050 FMV)
 → 35 points (30-39% tier)
 ```
 
 **Strategic Fit:**
+
 ```
 +35  Tier 1 Publisher (Blackwood)
 +20  Victorian Era (1866)
@@ -118,6 +120,7 @@ Returns expanded response with `details` object:
 ```
 
 **Collection Impact:**
+
 ```
 +15  Fills author gap (1 existing)
 -40  Duplicate: "Felix Holt" (ID: 498)

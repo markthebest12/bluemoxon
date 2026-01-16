@@ -48,6 +48,7 @@ archive_status        VARCHAR(20)   -- NULL, 'pending', 'success', 'failed'
 ```
 PATCH /books/{id}/acquire
 ```
+
 - Existing endpoint, add side effect: trigger Wayback archive if `source_url` exists
 - Archive happens async (don't block acquire response)
 - Returns book with `archive_status: "pending"`
@@ -57,6 +58,7 @@ PATCH /books/{id}/acquire
 ```
 POST /books/{id}/archive-source
 ```
+
 - Manual trigger for archiving
 - Request: `{}` (no body needed, uses existing `source_url`)
 - Response: `{ "status": "pending" | "success" | "failed", "archived_url": "..." }`
@@ -84,6 +86,7 @@ POST /books/{id}/archive-source
 **Rate limits:** ~15 requests/minute unauthenticated. Fine for acquisition volume.
 
 **Archived URL format:**
+
 ```
 https://web.archive.org/web/20251212153000/https://www.ebay.com/itm/123
 ```
@@ -118,6 +121,7 @@ https://web.archive.org/web/20251212153000/https://www.ebay.com/itm/123
 ### Book Detail Page
 
 Source URL section shows:
+
 - Link to original listing
 - Link to archived version (if success)
 - "Archive Now" button (if NULL or failed)
@@ -133,6 +137,7 @@ Source URL section shows:
 ## Implementation Tasks
 
 ### Backend
+
 1. Add migration: `source_archived_url`, `archive_status` columns
 2. Update Book model and schemas
 3. Create `archive_source()` service function (Wayback API call)
@@ -141,14 +146,16 @@ Source URL section shows:
 6. Add tests for archive service and endpoints
 
 ### Frontend
+
 7. Update Book types with new fields
-8. Add archive status badge component
-9. Add badge to EVALUATING cards in dashboard
-10. Add archive section to book detail page
-11. Add "Archive Now" button with loading state
-12. Add toast notifications for archive results
+2. Add archive status badge component
+3. Add badge to EVALUATING cards in dashboard
+4. Add archive section to book detail page
+5. Add "Archive Now" button with loading state
+6. Add toast notifications for archive results
 
 ### Deferred to #189
+
 - Retry failed archives in Cleanup Lambda
 
 ---

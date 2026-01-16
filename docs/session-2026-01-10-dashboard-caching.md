@@ -10,6 +10,7 @@
 ## CRITICAL: Bash Command Rules
 
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -17,6 +18,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -26,6 +28,7 @@
 ## CRITICAL: Superpowers Skills Required
 
 **MUST invoke relevant skills at ALL stages:**
+
 - `superpowers:using-superpowers` - Start of any task
 - `superpowers:brainstorming` - Before implementing features
 - `superpowers:test-driven-development` - When writing code
@@ -40,6 +43,7 @@
 From code review of #965, all stats endpoints hit the database on every request with no caching. With N users refreshing dashboards, we run N * 6+ aggregation queries.
 
 **Design Decisions:**
+
 - Cache scope: Batch level only (`/stats/dashboard`)
 - Backend: Redis/ElastiCache Serverless
 - Invalidation: TTL-only (5 minutes)
@@ -50,6 +54,7 @@ From code review of #965, all stats endpoints hit the database on every request 
 ## Current State
 
 ### Completed
+
 - [x] Phase 1: Design (docs/plans/2026-01-10-dashboard-caching-design.md)
 - [x] Phase 2: Implementation with TDD (11 tests)
 - [x] PR #1028 merged to staging
@@ -62,10 +67,12 @@ From code review of #965, all stats endpoints hit the database on every request 
 - [x] Production deploy succeeded (code is deployed)
 
 ### BLOCKER: VPC Mismatch
+
 - [x] **FIXED in main.tf** - ElastiCache module was using `data.aws_vpc.default[0].id` instead of `local.lambda_vpc_id`
 - [ ] **NEXT:** Commit fix, push through staging-first workflow, then apply Terraform
 
 **Error encountered:**
+
 ```
 Error: updating Security Group: You have specified two resources that belong to different networks.
 ```
@@ -73,6 +80,7 @@ Error: updating Security Group: You have specified two resources that belong to 
 **Root cause:** ElastiCache security group was being created in default VPC (`vpc-0d5fa6417423d70ff`) but Lambda security group is in dedicated VPC (`vpc-023f4b1dc7c2c4296`).
 
 **Fix applied (not yet committed):**
+
 ```terraform
 # main.tf line 269 - BEFORE:
 vpc_id = data.aws_vpc.default[0].id
@@ -82,6 +90,7 @@ vpc_id = local.lambda_vpc_id
 ```
 
 ### Pending
+
 - [ ] Commit VPC fix to main.tf
 - [ ] Push through staging-first workflow (PR to staging, then staging to main)
 - [ ] Apply Terraform to production (will create ElastiCache)
@@ -94,6 +103,7 @@ vpc_id = local.lambda_vpc_id
 ## Next Steps (Resume Here)
 
 1. **Commit and push the VPC fix:**
+
    ```
    cd /Users/mark/projects/bluemoxon
    git add infra/terraform/main.tf
@@ -104,6 +114,7 @@ vpc_id = local.lambda_vpc_id
 2. **Create PR to staging, merge, then promote to main**
 
 3. **Apply Terraform after merge:**
+
    ```
    cd /Users/mark/projects/bluemoxon/infra/terraform
    AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.hcl -reconfigure -input=false
@@ -111,6 +122,7 @@ vpc_id = local.lambda_vpc_id
    ```
 
 4. **Verify caching works:**
+
    ```
    AWS_PROFILE=bmx-prod aws lambda get-function-configuration --function-name bluemoxon-prod-api --query "Environment.Variables.BMX_REDIS_URL"
    bmx-api --prod GET /stats/dashboard
@@ -157,10 +169,12 @@ vpc_id = local.lambda_vpc_id
 ## Troubleshooting Notes
 
 **Issue 1:** `ModuleNotFoundError: No module named 'redis'`
+
 - Root cause: `requirements.txt` is manually maintained, not auto-generated from poetry.lock
 - Fix: Added `redis>=5.0.0` to `backend/requirements.txt`
 
 **Issue 2:** VPC mismatch for ElastiCache security group
+
 - Root cause: ElastiCache module using default VPC, Lambda in dedicated VPC
 - Fix: Changed `vpc_id = data.aws_vpc.default[0].id` to `vpc_id = local.lambda_vpc_id` in main.tf
 

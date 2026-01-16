@@ -17,6 +17,7 @@ Bedrock costs incorrectly attributed to linked account instead of calling accoun
 ## Description
 
 We have two AWS accounts in an AWS Organization:
+
 - **Management account:** 266672885920 (production)
 - **Linked account:** 652617421195 (staging)
 
@@ -25,10 +26,12 @@ Both accounts invoke Amazon Bedrock (Claude models) from Lambda functions. Howev
 ### Evidence
 
 **CloudWatch Logs confirm production invocations:**
+
 - Dec 13, 2025: bluemoxon-prod-analysis-worker invoked Bedrock (book 16)
 - Dec 15, 2025: bluemoxon-prod-analysis-worker invoked Bedrock (book 490)
 
 **Cost Explorer shows $0 for production Bedrock:**
+
 ```
 Account 266672885920 (prod): $0.00 Bedrock costs
 Account 652617421195 (staging): $63.63 Bedrock costs
@@ -56,6 +59,7 @@ Even on Dec 15 when production Lambda DID invoke Bedrock, the cost shows as $0 f
 ### Impact
 
 We cannot accurately track Bedrock costs per environment, which affects:
+
 - Cost allocation and budgeting
 - Environment-specific usage monitoring
 - Chargeback reporting

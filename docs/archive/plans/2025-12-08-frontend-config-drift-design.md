@@ -7,6 +7,7 @@
 ## Problem Statement
 
 When Terraform destroys/recreates Cognito (or any resource the frontend depends on):
+
 1. `infra/config/staging.json` has hardcoded Cognito pool ID
 2. Terraform creates NEW pool with different ID
 3. Config file is NOT updated automatically
@@ -121,6 +122,7 @@ The deploy role needs these Cognito permissions (likely already has them):
 ### Config File Role Change
 
 Config files (`infra/config/*.json`) become **fallback/bootstrap** instead of source of truth:
+
 - Used during first deploy before Cognito exists
 - Used if AWS API calls fail
 - Should still be kept reasonably up-to-date for documentation

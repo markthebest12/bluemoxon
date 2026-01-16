@@ -26,6 +26,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 **Audience:** Operations/Support
 
 **Content to include:**
+
 - Health check procedures (from health.py endpoints)
 - Database migration runbook
 - Prod→Staging sync procedures
@@ -34,6 +35,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 - Emergency procedures
 
 **Sources:**
+
 - CLAUDE.md troubleshooting section
 - feature-audit.md health.py section
 - DATABASE_SYNC.md (link to)
@@ -48,6 +50,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 **Audience:** Developers
 
 **Content to include:**
+
 - Napoleon Framework overview
 - STRUCTURED-DATA block format
 - Condition grade standards (ABAA)
@@ -56,6 +59,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 - Field extraction logic
 
 **Sources:**
+
 - prompts/napoleon-framework/v2.md
 - feature-audit.md Napoleon section
 - AnalysisViewer.vue stripping logic
@@ -69,6 +73,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 **Audience:** All
 
 **Structure:**
+
 ```markdown
 # BlueMoxon Documentation
 
@@ -101,6 +106,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 **Audience:** Developers
 
 **Content to include:**
+
 - Architecture overview
 - Container build process
 - ECR deployment
@@ -109,6 +115,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 - Local testing
 
 **Sources:**
+
 - feature-audit.md scraper section
 - scraper/handler.py
 - infra/terraform/modules/scraper-lambda/
@@ -122,6 +129,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 **Audience:** Developers
 
 **Content to include:**
+
 - Color palette (Victorian colors)
 - Typography
 - Component patterns
@@ -129,6 +137,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 - Print stylesheet considerations
 
 **Sources:**
+
 - StatisticsDashboard.vue chartColors
 - tailwind.config.js (if customized)
 - Print CSS from InsuranceReportView
@@ -171,25 +180,31 @@ Cross-referencing documentation inventory with code feature audit to create acti
 ### CLAUDE.md Reduction (36KB → <20KB)
 
 **Move to OPERATIONS.md:**
+
 - Troubleshooting section (~50 lines)
 - Health check procedures
 
 **Move to DEPLOYMENT.md:**
+
 - Staging-first workflow section (~60 lines)
 - Deploy configuration details
 
 **Move to CI_CD.md:**
+
 - Branching strategy section (~40 lines)
 - CI/CD workflow requirements (~80 lines)
 
 **Move to INFRASTRUCTURE.md:**
+
 - Terraform guidelines section (~200 lines)
 - AWS resources section (~20 lines)
 
 **Move to DATABASE.md:**
+
 - Database migrations section (~20 lines)
 
 **Keep in CLAUDE.md:**
+
 - Bash command formatting rules
 - BMX API call examples
 - Permission pattern guidelines
@@ -206,15 +221,18 @@ Cross-referencing documentation inventory with code feature audit to create acti
 ### API.md + API_REFERENCE.md Merge
 
 **Current state:**
+
 - API.md: ~140 lines, outdated
 - API_REFERENCE.md: ~335 lines, incomplete
 
 **Action:** Merge into single `API_REFERENCE.md`
+
 - Delete stale content from API.md
 - Add missing endpoints from feature-audit.md
 - Add request/response examples
 
 **Missing endpoints to add:**
+
 - `/health/live`, `/health/ready`, `/health/deep`, `/health/info`, `/health/version`
 - `/health/migrate`, `/health/cleanup-orphans`
 - `/listings/extract`, `/listings/extract-async`, `/listings/extract/{item_id}/status`
@@ -225,11 +243,13 @@ Cross-referencing documentation inventory with code feature audit to create acti
 ### Deployment Documentation
 
 **Current state:**
+
 - DEPLOYMENT.md: ~300 lines
 - CI_CD.md: ~285 lines
 - Overlap in deploy procedures
 
 **Action:** Keep separate but clarify purposes
+
 - DEPLOYMENT.md: Manual deployment, rollback procedures
 - CI_CD.md: Pipeline configuration, GitHub Actions
 - Remove duplicate procedures
@@ -253,6 +273,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 | All implementation docs | Various | Reference only |
 
 **Keep in plans/:**
+
 - Design docs from last 14 days
 - 2025-12-09-disaster-recovery-design.md (reference)
 - Active implementation plans
@@ -320,12 +341,14 @@ Cross-referencing documentation inventory with code feature audit to create acti
 ## 7. Execution Order
 
 ### Phase 4a: Quick Wins (1-2 hours)
+
 1. Create `docs/INDEX.md` (navigation hub)
 2. Move orphan docs to plans/
 3. Archive old plan documents
 4. Update session README status
 
 ### Phase 4b: CLAUDE.md Reduction (2-3 hours)
+
 1. Extract troubleshooting → OPERATIONS.md (new)
 2. Extract staging workflow → DEPLOYMENT.md
 3. Extract branching strategy → CI_CD.md
@@ -333,6 +356,7 @@ Cross-referencing documentation inventory with code feature audit to create acti
 5. Validate CLAUDE.md < 20KB
 
 ### Phase 4c: Documentation Gaps (3-4 hours)
+
 1. Create OPERATIONS.md runbook
 2. Expand BEDROCK.md with Napoleon framework
 3. Create scraper/README.md
@@ -340,17 +364,20 @@ Cross-referencing documentation inventory with code feature audit to create acti
 5. Delete obsolete API.md
 
 ### Phase 4d: Diagrams (2-3 hours)
+
 1. Bedrock retry/backoff sequence (BEDROCK.md)
 2. Async job architecture (INFRASTRUCTURE.md)
 3. eBay listing import flow (FEATURES.md)
 4. Auth flow diagram (FEATURES.md)
 
 ### Phase 4e: Terraform READMEs (1-2 hours)
+
 1. analysis-worker/README.md
 2. eval-runbook-worker/README.md
 3. scraper-lambda/README.md
 
 ### Phase 4f: Validation
+
 1. Verify every doc reachable from INDEX.md in 2 clicks
 2. Check no orphan documents
 3. Confirm CLAUDE.md < 20KB

@@ -13,16 +13,19 @@
 ## Task 1: Add Analysis Job State and Imports
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue:1-35`
 
 **Step 1: Add storeToRefs import**
 
 Find this line:
+
 ```typescript
 import { onMounted, ref, computed } from "vue";
 ```
 
 Replace with:
+
 ```typescript
 import { onMounted, ref, computed } from "vue";
 import { storeToRefs } from "pinia";
@@ -31,11 +34,13 @@ import { storeToRefs } from "pinia";
 **Step 2: Add activeAnalysisJobs destructure**
 
 Find this line (around line 18):
+
 ```typescript
 const authStore = useAuthStore();
 ```
 
 Add after it:
+
 ```typescript
 // Destructure reactive Map for job tracking
 const { activeAnalysisJobs } = storeToRefs(booksStore);
@@ -44,6 +49,7 @@ const { activeAnalysisJobs } = storeToRefs(booksStore);
 **Step 3: Add analysis generation state**
 
 Find this block (around line 33-35):
+
 ```typescript
 // Analysis state
 const analysisVisible = ref(false);
@@ -51,6 +57,7 @@ const hasAnalysis = computed(() => booksStore.currentBook?.has_analysis ?? false
 ```
 
 Replace with:
+
 ```typescript
 // Analysis state
 const analysisVisible = ref(false);
@@ -82,11 +89,13 @@ git commit -m "feat(book-detail): add analysis job state and imports"
 ## Task 2: Add Analysis Job Helper Functions
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue` (after existing functions, around line 200)
 
 **Step 1: Add helper functions**
 
 Find the `openAnalysis` function:
+
 ```typescript
 function openAnalysis() {
   analysisVisible.value = true;
@@ -94,6 +103,7 @@ function openAnalysis() {
 ```
 
 Add these functions immediately after it:
+
 ```typescript
 // Analysis job tracking
 function isAnalysisRunning(): boolean {
@@ -140,11 +150,13 @@ git commit -m "feat(book-detail): add analysis job helper functions"
 ## Task 3: Update Analysis Card Template
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue:574-585`
 
 **Step 1: Replace existing analysis card**
 
 Find this block:
+
 ```vue
           <!-- Analysis Button -->
           <div v-if="hasAnalysis" class="card bg-victorian-cream border-victorian-burgundy/20">
@@ -161,6 +173,7 @@ Find this block:
 ```
 
 Replace with:
+
 ```vue
           <!-- Analysis Card -->
           <div class="card bg-victorian-cream border-victorian-burgundy/20">
@@ -347,6 +360,7 @@ git commit -m "chore: fix lint/type issues in BookDetailView"
 ## Summary
 
 This plan adds generate/regenerate analysis buttons to BookDetailView with:
+
 - Model selector dropdown (Sonnet 4.5 / Opus 4.5)
 - Async job pattern matching AcquisitionsView
 - Four UI states: no analysis, job running, has analysis (editor), has analysis (viewer)

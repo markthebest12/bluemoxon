@@ -9,11 +9,13 @@
 ## Problem Statement
 
 Reference entities (publishers, binders, authors) proliferate when:
+
 1. AI generates slight variations ("Bayntun (of Bath)" vs "Bayntun")
 2. Manual entry introduces typos ("Macmilan" vs "Macmillan")
 3. Different name formats used ("Dickens, Charles" vs "Charles Dickens")
 
 Current protections are insufficient:
+
 - Publishers: Fuzzy matching at 90% threshold, but unknown names still auto-created
 - Binders: Hardcoded dict of known variants, unknown pass through
 - Authors: No protection at all
@@ -185,22 +187,26 @@ def fuzzy_match_entity(
 ### Normalization Rules
 
 **All types:**
+
 - Strip leading/trailing whitespace
 - Normalize unicode (NFD → NFC)
 - Collapse multiple spaces
 
 **Publisher-specific:** (already exists)
+
 - Strip location suffixes ("New York", "London", etc.)
 - Expand abbreviations ("Wm." → "William")
 - Handle dual publishers ("A / B" → "A")
 - Normalize "& Co" → "& Co."
 
 **Binder-specific:**
+
 - Strip parenthetical descriptions: "Bayntun (of Bath)" → "Bayntun"
 - Accent normalization: "Riviere" ↔ "Rivière"
 - Known alias mapping (existing TIER_1/TIER_2 dicts)
 
 **Author-specific:**
+
 - Name order normalization: "Dickens, Charles" ↔ "Charles Dickens"
 - Honorific handling: "Sir Walter Scott" ↔ "Walter Scott"
 - Accent normalization: "Bronte" ↔ "Brontë"
@@ -208,6 +214,7 @@ def fuzzy_match_entity(
 ### Caching
 
 Extend existing publisher cache pattern to all entity types:
+
 - In-memory cache per entity type
 - 5-minute TTL
 - Invalidate on create/update/delete
@@ -225,6 +232,7 @@ Extend existing publisher cache pattern to all entity types:
 - No breaking changes
 
 **Log format:**
+
 ```
 WARN: Entity validation would reject: publisher 'Bayntun (of Bath)'
       matches 'Bayntun' at 88% (book_count: 5)
@@ -272,11 +280,13 @@ ENTITY_VALIDATION_MODE=log  # log | enforce
 ## Testing Strategy
 
 **Unit tests:**
+
 - Normalization functions for each entity type
 - Fuzzy matching with various similarity levels
 - Cache invalidation
 
 **Integration tests:**
+
 - Book creation with similar entity names → 409
 - Book creation with unknown entity names → 400
 - Entity creation with similar names → 409
@@ -284,6 +294,7 @@ ENTITY_VALIDATION_MODE=log  # log | enforce
 - ID references always succeed
 
 **Threshold tuning tests:**
+
 - Known duplicates from production (should match)
 - Distinct entities (should not match)
 

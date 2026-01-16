@@ -1,11 +1,12 @@
 # Session: Issue #851 - Extract Currency Conversion Composable
 
 **Date:** 2026-01-05
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/851
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/851>
 
 ## Problem Statement
 
 ~30 lines of identical currency conversion logic duplicated across 4 components:
+
 - `BookForm.vue`
 - `AcquireModal.vue`
 - `AddToWatchlistModal.vue`
@@ -14,6 +15,7 @@
 ## Solution
 
 Create `useCurrencyConversion` composable to centralize:
+
 - `exchangeRates` ref with fallback rates
 - `currencySymbol` computed property
 - `loadExchangeRates()` function
@@ -22,6 +24,7 @@ Create `useCurrencyConversion` composable to centralize:
 ## Progress Log
 
 ### Session Start
+
 - Fetched issue #851 details
 - Identified 4 components with duplicated code
 - Planning TDD approach
@@ -52,11 +55,13 @@ Written to: `docs/plans/2026-01-05-issue-851-currency-composable-design.md`
 ## Implementation Log
 
 ### TDD Approach
+
 1. **RED**: Wrote 15 tests for useCurrencyConversion composable
 2. **GREEN**: Implemented composable to pass all tests
 3. **REFACTOR**: Used 4 parallel subagents to refactor components simultaneously
 
 ### Verification
+
 - All 217 frontend tests pass
 - ESLint: No errors
 - TypeScript: No errors

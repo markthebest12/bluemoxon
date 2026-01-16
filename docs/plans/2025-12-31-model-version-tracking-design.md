@@ -41,6 +41,7 @@ def invoke_bedrock(...) -> tuple[str, str]:
 ### 3. API Endpoints
 
 Update three endpoints:
+
 - `POST /{book_id}/analysis/generate` - save model_id
 - `POST /{book_id}/analysis/generate-async` - save model_id
 - `GET /{book_id}/analysis` - return model_id in response

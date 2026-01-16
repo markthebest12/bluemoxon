@@ -1,11 +1,13 @@
 # Issue #466: Provenance and First Edition Searchable Fields
 
 ## Status: DEPLOYED TO STAGING (Infrastructure Complete)
+
 **Pending:** Napoleon prompt not outputting structured metadata - needs debugging
 
 ## Summary
 
 Add structured, searchable boolean/tier fields for provenance and first edition status that:
+
 1. Are filterable in the UI
 2. Get auto-populated by AI during analysis
 3. Factor into valuation considerations
@@ -57,6 +59,7 @@ Add structured, searchable boolean/tier fields for provenance and first edition 
 ## Implementation Details
 
 ### 1. Database Migration
+
 **File:** `backend/alembic/versions/q0123456cdef_add_provenance_first_edition.py`
 
 ```python
@@ -72,6 +75,7 @@ def upgrade():
 **Note:** Migration also added to `backend/app/api/v1/health.py` for `/health/migrate` endpoint (idempotent SQL for Lambda deployment).
 
 ### 2. Book Model
+
 **File:** `backend/app/models/book.py` (lines 120-123)
 
 ```python
@@ -82,9 +86,11 @@ provenance_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, i
 ```
 
 ### 3. Pydantic Schemas
+
 **File:** `backend/app/schemas/book.py`
 
 **BookBase** (lines 38-40):
+
 ```python
 is_first_edition: bool | None = None
 has_provenance: bool = False
@@ -92,6 +98,7 @@ provenance_tier: str | None = None
 ```
 
 **BookUpdate** (lines 104-106):
+
 ```python
 is_first_edition: bool | None = None
 has_provenance: bool | None = None
@@ -101,9 +108,11 @@ provenance_tier: str | None = None
 **BookResponse** inherits from BookBase (line 158 comment confirms).
 
 ### 4. API Filters
+
 **File:** `backend/app/api/v1/books.py` (lines 252-254, 326-335)
 
 Query parameters:
+
 ```python
 has_provenance: bool | None = None,
 provenance_tier: str | None = None,
@@ -111,6 +120,7 @@ is_first_edition: bool | None = None,
 ```
 
 Filter logic:
+
 ```python
 if has_provenance is not None:
     query = query.filter(Book.has_provenance == has_provenance)
@@ -121,6 +131,7 @@ if is_first_edition is not None:
 ```
 
 ### 5. Analysis Metadata Parser
+
 **File:** `backend/app/services/analysis_parser.py`
 
 ```python
@@ -143,6 +154,7 @@ def apply_metadata_to_book(book, metadata: dict) -> list[str]:
 ```
 
 ### 6. Worker Integration
+
 **File:** `backend/app/worker.py` (lines 14, 216-223)
 
 ```python
@@ -157,9 +169,11 @@ if metadata:
 ```
 
 ### 7. Napoleon Prompt Update
+
 **Location:** S3 bucket (bluemoxon-prompts-{env}/napoleon/v2/prompt.md)
 
 **Required addition to prompt:**
+
 ```markdown
 ## Structured Metadata Output
 
@@ -186,9 +200,11 @@ Field definitions:
 **CURRENT ISSUE:** The Napoleon prompt may not have this section, or Claude is not outputting the metadata block. This needs debugging.
 
 ### 8. Frontend Types
+
 **File:** `frontend/src/stores/books.ts`
 
 Book interface:
+
 ```typescript
 is_first_edition: boolean | null
 has_provenance: boolean
@@ -196,29 +212,36 @@ provenance_tier: string | null
 ```
 
 Filters interface:
+
 ```typescript
 provenance_tier: string | null
 is_first_edition: boolean | null
 ```
 
 ### 9. Frontend Badges (BookDetailView)
+
 **File:** `frontend/src/views/BookDetailView.vue`
 
 Displays badges for:
+
 - First Edition (green badge if `is_first_edition === true`)
 - Provenance tier (colored badge based on tier level)
 
 ### 10. Frontend Filters (BooksView)
+
 **File:** `frontend/src/views/BooksView.vue`
 
 Filter dropdowns:
+
 - "First Edition" - Yes/No/Any
 - "Provenance Tier" - Tier 1/Tier 2/Tier 3/Any
 
 ### 11. Frontend Edit Form (BookForm)
+
 **File:** `frontend/src/components/books/BookForm.vue`
 
 Manual editing fields:
+
 - First Edition checkbox (tri-state: Yes/No/Unknown)
 - Has Provenance checkbox
 - Provenance Tier dropdown (only enabled when has_provenance is true)
@@ -229,7 +252,8 @@ Manual editing fields:
 
 **File:** `backend/tests/test_analysis_parser.py` - 19 tests
 
-### Extraction Tests:
+### Extraction Tests
+
 - `test_extract_valid_metadata` - Valid JSON extraction
 - `test_extract_no_markers` - No metadata markers present
 - `test_extract_invalid_json` - Malformed JSON handling
@@ -237,7 +261,8 @@ Manual editing fields:
 - `test_extract_multiline_json` - Multiline JSON formatting
 - `test_extract_whitespace_tolerance` - Whitespace between markers
 
-### Application Tests:
+### Application Tests
+
 - `test_apply_first_edition_true/false/null` - First edition values
 - `test_apply_provenance_with_tier` - Provenance + tier together
 - `test_apply_provenance_tier_requires_has_provenance` - Data integrity
@@ -253,24 +278,28 @@ Manual editing fields:
 
 ## API Usage
 
-### Filter by first edition:
+### Filter by first edition
+
 ```bash
 bmx-api GET "/books?is_first_edition=true"
 bmx-api GET "/books?is_first_edition=false"
 ```
 
-### Filter by provenance:
+### Filter by provenance
+
 ```bash
 bmx-api GET "/books?has_provenance=true"
 bmx-api GET "/books?provenance_tier=Tier%201"
 ```
 
-### Combined filters:
+### Combined filters
+
 ```bash
 bmx-api GET "/books?is_first_edition=true&has_provenance=true&provenance_tier=Tier%201"
 ```
 
-### Response includes new fields:
+### Response includes new fields
+
 ```json
 {
   "id": 123,
@@ -293,10 +322,12 @@ Instead of trying to get Napoleon to output structured data inline (unreliable),
 **See:** `docs/plans/2025-12-19-two-stage-extraction.md`
 
 **Architecture:**
+
 1. Stage 1: Napoleon generates analysis (unchanged)
 2. Stage 2: Focused extraction prompt takes analysis text → outputs JSON
 
 **Benefits:**
+
 - Decouples analysis quality from data extraction
 - Simple extraction prompt is much harder for AI to ignore
 - Falls back gracefully if extraction fails
@@ -305,7 +336,8 @@ Instead of trying to get Napoleon to output structured data inline (unreliable),
 
 ---
 
-### COMPLETED:
+### COMPLETED
+
 1. Database migration (deployed to staging)
 2. Book model with new fields
 3. Pydantic schemas
@@ -320,10 +352,12 @@ Instead of trying to get Napoleon to output structured data inline (unreliable),
 12. All CI checks passing
 13. Deployed to staging
 
-### PENDING - Napoleon Prompt Issue:
+### PENDING - Napoleon Prompt Issue
+
 The structured metadata is not appearing in analysis output. Debug steps:
 
 1. **Check Napoleon prompt in S3:**
+
    ```bash
    # Find correct bucket name
    AWS_PROFILE=bmx-staging aws s3 ls | grep prompt
@@ -342,6 +376,7 @@ The structured metadata is not appearing in analysis output. Debug steps:
    - Download current prompt
    - Add metadata section (see section 7 above)
    - Upload updated prompt:
+
      ```bash
      AWS_PROFILE=bmx-staging aws s3 cp .tmp/prompt.md s3://BUCKET_NAME/napoleon/v2/prompt.md
      ```
@@ -361,7 +396,8 @@ The structured metadata is not appearing in analysis output. Debug steps:
 
 ## Files Modified (Complete List)
 
-### Backend:
+### Backend
+
 - `backend/alembic/versions/q0123456cdef_add_provenance_first_edition.py` - Migration
 - `backend/app/models/book.py` - Model fields
 - `backend/app/schemas/book.py` - Pydantic schemas
@@ -371,13 +407,15 @@ The structured metadata is not appearing in analysis output. Debug steps:
 - `backend/app/worker.py` - Worker integration
 - `backend/tests/test_analysis_parser.py` - NEW: 19 tests
 
-### Frontend:
+### Frontend
+
 - `frontend/src/stores/books.ts` - Types
 - `frontend/src/views/BookDetailView.vue` - Badges
 - `frontend/src/views/BooksView.vue` - Filters
 - `frontend/src/components/books/BookForm.vue` - Edit form
 
-### Infrastructure:
+### Infrastructure
+
 - Napoleon prompt in S3 (needs update/verification)
 
 ---
@@ -393,11 +431,13 @@ The structured metadata is not appearing in analysis output. Debug steps:
 ## Regex Pattern Reference
 
 The parser uses this regex to find metadata:
+
 ```python
 pattern = r"<!-- METADATA_START -->\s*(\{.*?\})\s*<!-- METADATA_END -->"
 ```
 
 This matches:
+
 - Literal `<!-- METADATA_START -->`
 - Any whitespace
 - JSON object (non-greedy capture)

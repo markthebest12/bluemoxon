@@ -7,6 +7,7 @@
 ## Summary
 
 Two related improvements to the dashboard:
+
 1. **#1006:** Normalize `condition_grade` data to eliminate case inconsistencies
 2. **#1008:** Make all dashboard charts clickable, navigating to filtered book lists
 
@@ -21,9 +22,11 @@ Two related improvements to the dashboard:
 ## Part 1: Data Normalization (#1006)
 
 ### Problem
+
 The `condition_grade` field has mixed casing: "Good" vs "GOOD", "Fair" vs "FAIR".
 
 ### Solution
+
 New Alembic migration with idempotent SQL:
 
 ```sql
@@ -34,6 +37,7 @@ WHERE condition_grade IS NOT NULL
 ```
 
 ### Files
+
 - `backend/alembic/versions/xxxx_normalize_condition_grade_casing.py`
 
 ## Part 2: Clickable Charts (#1008)
@@ -53,11 +57,13 @@ WHERE condition_grade IS NOT NULL
 ### Backend Changes
 
 **New filter param** in `BookListParams`:
+
 ```python
 date_acquired: date | None = None
 ```
 
 **Query filter** in books endpoint:
+
 ```python
 if params.date_acquired:
     query = query.filter(func.date(Book.date_acquired) == params.date_acquired)
@@ -67,6 +73,7 @@ if params.date_acquired:
 
 **1. Extend URL sync** (`BooksView.vue`):
 Add these filters to `updateUrlWithFilters()`:
+
 - `condition_grade`
 - `category`
 - `era`
@@ -77,6 +84,7 @@ Add these filters to `updateUrlWithFilters()`:
 - `date_acquired`
 
 **2. Add click handlers** (`StatisticsDashboard.vue`):
+
 ```typescript
 onClick: (event, elements) => {
   if (elements.length > 0) {
@@ -87,6 +95,7 @@ onClick: (event, elements) => {
 ```
 
 ### Files to Modify
+
 - `backend/app/schemas/book.py` - add date_acquired param
 - `backend/app/api/v1/books.py` - add date filter logic
 - `frontend/src/stores/books.ts` - add date_acquired to Filters
@@ -103,10 +112,12 @@ onClick: (event, elements) => {
 ## Testing
 
 ### Backend
+
 - Migration: verify idempotent, normalizes all variants
 - API: `date_acquired` filter returns correct books
 
 ### Frontend
+
 - Chart clicks navigate with correct query params
 - URL sync round-trips all filter params
 - Back button restores filters correctly

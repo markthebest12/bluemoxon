@@ -28,6 +28,7 @@ Task 3 (Frontend UI)   ──┘
 ## Task 1: Backend Core Logic (cleanup handler)
 
 **Files:**
+
 - Modify: `backend/lambdas/cleanup/handler.py`
 - Test: `backend/tests/test_cleanup.py`
 
@@ -310,6 +311,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 2: API Endpoints
 
 **Files:**
+
 - Modify: `backend/app/api/v1/admin.py`
 - Test: `backend/tests/api/v1/test_admin_cleanup.py`
 
@@ -443,6 +445,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 3: Frontend UI
 
 **Files:**
+
 - Modify: `frontend/src/components/admin/OrphanCleanupPanel.vue`
 - Test: `frontend/src/components/admin/__tests__/OrphanCleanupPanel.spec.ts`
 

@@ -47,6 +47,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Task:** Address gaps in documentation review - redundant/uncommitted features
 
 **Skills Used:**
+
 - `superpowers:using-superpowers` - Workflow coordination
 - `superpowers:verification-before-completion` - Final validation
 
@@ -71,6 +72,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
    - Updated documentation links
 
 **Lessons Learned:**
+
 - Doc reviews should include GitHub issue audit
 - TODOs found should immediately become issues
 - ROADMAP.md should be reviewed for stale uncommitted items
@@ -82,6 +84,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Task:** Complete Phases 4c-4f after context compact
 
 **Completed:**
+
 1. **Phase 4c finished** - CLAUDE.md slimmed to 548 lines (19.4KB)
    - Token-Saving Guidelines condensed (-32 lines)
    - Temporary Files condensed (-19 lines)
@@ -109,10 +112,12 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Task:** Continue Phase 4c - Slim CLAUDE.md to under 20KB
 
 **Skills Used:**
+
 - `superpowers:brainstorming` - Initial design phase
 - `superpowers:using-superpowers` - Workflow coordination
 
 **Bash Command Rules (CRITICAL):**
+
 - NO `#` comment lines before commands
 - NO `\` backslash line continuations
 - NO `$(...)` or `$((...))` command substitution
@@ -122,6 +127,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 - Make sequential separate Bash tool calls instead of chaining
 
 **CLAUDE.md Consolidations Made:**
+
 1. Troubleshooting section → link to OPERATIONS.md (-38 lines)
 2. Terraform section (lines 705-919) → link to INFRASTRUCTURE.md (-190 lines)
 3. Staging Environment section → link to OPERATIONS.md (-61 lines)
@@ -135,10 +141,12 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Final State:** 548 lines, 19.4KB ✓ (target was <20KB)
 
 **Files Created This Session:**
+
 - `docs/INDEX.md` - Navigation hub
 - `docs/OPERATIONS.md` - Operations runbook (~250 lines)
 
 **Files Modified:**
+
 - `CLAUDE.md` - Slimmed from 955 to 599 lines
 - `docs/INFRASTRUCTURE.md` - Added detailed Terraform guidelines
 
@@ -149,6 +157,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Task:** Phase 2 Feature Audit (Frontend, Scripts), Phase 3 Gap Analysis, Phase 4a-4b
 
 **Completed:**
+
 - Frontend code audit (routes, stores, components)
 - Scripts/Scraper/Prompts audit
 - Gap analysis document
@@ -162,6 +171,7 @@ See [design document](../plans/2025-12-21-documentation-review-design.md) for fu
 **Task:** Phase 1 Documentation Inventory, Phase 2 Backend/Infrastructure Audit
 
 **Completed:**
+
 - Full documentation inventory
 - Backend code feature audit
 - Infrastructure code audit

@@ -13,6 +13,7 @@
 ## Task 1: Add Cost Explorer IAM Permission to Lambda Module
 
 **Files:**
+
 - Modify: `infra/terraform/modules/lambda/variables.tf`
 - Modify: `infra/terraform/modules/lambda/main.tf`
 
@@ -64,6 +65,7 @@ git commit -m "feat: add Cost Explorer IAM permission to Lambda module"
 ## Task 2: Enable Cost Explorer for API Lambda
 
 **Files:**
+
 - Modify: `infra/terraform/main.tf`
 
 **Step 1: Find the API Lambda module call and add cost_explorer_access**
@@ -86,6 +88,7 @@ git commit -m "feat: enable Cost Explorer access for API Lambda"
 ## Task 3: Create Cost Explorer Service
 
 **Files:**
+
 - Create: `backend/app/services/cost_explorer.py`
 
 **Step 1: Create the service file**
@@ -284,6 +287,7 @@ git commit -m "feat: add Cost Explorer service for Bedrock cost tracking"
 ## Task 4: Add Cost Endpoint to Admin API
 
 **Files:**
+
 - Modify: `backend/app/api/v1/admin.py`
 
 **Step 1: Add Pydantic models for cost response**
@@ -355,6 +359,7 @@ git commit -m "feat: add /admin/costs endpoint for cost dashboard"
 ## Task 5: Add TypeScript Types for Cost Tab
 
 **Files:**
+
 - Modify: `frontend/src/types/admin.ts`
 
 **Step 1: Add cost types**
@@ -403,6 +408,7 @@ git commit -m "feat: add TypeScript types for cost response"
 ## Task 6: Add Cost Tab to Frontend
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Add cost data ref and fetch function**
@@ -686,6 +692,7 @@ git push -u origin feat/admin-cost-tab
 ```
 
 Create PR:
+
 ```bash
 gh pr create --base staging --title "feat: Add Cost tab to admin dashboard" --body "## Summary
 - Add AWS Cost Explorer integration for Bedrock cost tracking

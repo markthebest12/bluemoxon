@@ -9,11 +9,14 @@
 ## Background
 
 ### The Problem
+
 User noticed that book 549 (Gibbon's Decline and Fall) displayed FMV comparables in the UI:
+
 - Shows 5 AbeBooks listings with prices ($150, $495, $275, $350, $225)
 - FMV range: $225-$350 with "high" confidence
 
 But nearly all other books show FMV range WITHOUT comparables:
+
 - Just shows price range (e.g., "$120-$200")
 - `ebay_comparables: []` and `abebooks_comparables: []` in eval runbook
 - `fmv_notes: "No comparable listings found"`
@@ -21,6 +24,7 @@ But nearly all other books show FMV range WITHOUT comparables:
 ### Root Cause Discovered
 
 **CloudWatch logs revealed the smoking gun:**
+
 ```
 [ERROR] Error invoking scraper Lambda for listing extraction:
 AccessDeniedException... User is not authorized to perform: lambda:InvokeFunction
@@ -30,6 +34,7 @@ on resource: arn:aws:lambda:us-west-2:...:function:bluemoxon-staging-scraper
 **The production eval worker was calling the STAGING scraper Lambda!**
 
 **Why:** `get_scraper_environment()` in `app/config.py` only checked:
+
 - `BMX_SCRAPER_ENVIRONMENT` (not set)
 - `BMX_ENVIRONMENT` (not set)
 - Default: `"staging"`
@@ -37,6 +42,7 @@ on resource: arn:aws:lambda:us-west-2:...:function:bluemoxon-staging-scraper
 But the Lambda has `ENVIRONMENT=prod` set - which wasn't being checked!
 
 ### Code Path
+
 1. `app/eval_worker.py:122` calls `generate_eval_runbook(run_fmv_lookup=True)`
 2. `app/services/eval_generation.py:459` calls `lookup_fmv()`
 3. `app/services/fmv_lookup.py:60` calls `get_scraper_environment()`
@@ -51,6 +57,7 @@ But the Lambda has `ENVIRONMENT=prod` set - which wasn't being checked!
 **File:** `app/config.py`
 
 **Change:** Updated `get_scraper_environment()` to also check `ENVIRONMENT`:
+
 ```python
 def get_scraper_environment() -> str:
     return (
@@ -68,7 +75,9 @@ def get_scraper_environment() -> str:
 ## Next Steps
 
 ### IMMEDIATE
+
 1. **Push branch and create PR to staging**
+
    ```bash
    git push -u origin fix/fmv-scraper-environment
    gh pr create --base staging --title "fix(config): check ENVIRONMENT env var for scraper Lambda targeting"
@@ -79,6 +88,7 @@ def get_scraper_environment() -> str:
    - Verify comparables appear in response
 
 3. **Promote to production**
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote staging to production (FMV scraper fix)"
    ```
@@ -88,6 +98,7 @@ def get_scraper_environment() -> str:
    - Use `POST /books/{id}/eval-runbook/generate` endpoint
 
 ### FOLLOW-UP ISSUES
+
 - #715: Record AI model version in Napoleon analysis
 - #716: Sonnet vs Opus image analysis quality investigation
 - #717: Volume extraction bug in eBay listing import
@@ -123,7 +134,9 @@ bmx-api --prod GET /books/549/eval-runbook | jq '{fmv_notes, ebay_comparables, a
 ## CRITICAL REMINDERS FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 Before ANY task, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:systematic-debugging` - Before fixing bugs
 - `superpowers:verification-before-completion` - Before claiming work done
@@ -132,7 +145,9 @@ Before ANY task, check if a skill applies:
 **If there's even a 1% chance a skill applies, INVOKE IT.**
 
 ### 2. Bash Command Rules - NEVER USE
+
 These trigger permission prompts and break auto-approve:
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -140,22 +155,27 @@ These trigger permission prompts and break auto-approve:
 - `!` in quoted strings (bash history expansion corrupts values)
 
 ### 3. Bash Command Rules - ALWAYS USE
+
 - Simple single-line commands only
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
 - Use command description field instead of inline comments
 
 **Example - WRONG:**
+
 ```bash
 # Check status and update
 bmx-api GET /books/553 && bmx-api PUT /books/553 '{"volumes": 8}'
 ```
 
 **Example - CORRECT:**
+
 ```bash
 bmx-api GET /books/553
 ```
+
 Then separate call:
+
 ```bash
 bmx-api PUT /books/553 '{"volumes": 8}'
 ```
@@ -163,10 +183,12 @@ bmx-api PUT /books/553 '{"volumes": 8}'
 ---
 
 ## Related Sessions
+
 - `2025-12-30-greville-memoirs-valuation-investigation.md` - Initial discovery during Greville investigation
 - `2025-12-30-issues-708-709.md` - Related FMV filtering work
 
 ## Git State at Session End
+
 - Branch: `fix/fmv-scraper-environment`
 - Commit: `6177fcb` (uncommitted changes: none)
 - Status: Ready to push and create PR

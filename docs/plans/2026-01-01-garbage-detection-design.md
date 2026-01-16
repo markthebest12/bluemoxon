@@ -7,6 +7,7 @@
 ## Problem
 
 Book 539 contains 5 garbage images that weren't filtered despite eval runbook running:
+
 - Image 19: Yarn/textile skeins (not a book)
 - Image 20: Decorative buttons (not a book)
 - Image 21: "From Friend to Friend" - different book
@@ -28,6 +29,7 @@ Scrape/Extract → [NEW: Garbage Detection] → Eval Runbook → Analysis
 New function `detect_garbage_images()` runs before `generate_eval_runbook()`.
 
 **Flow:**
+
 1. Fetch book's current images from DB
 2. Get listing title + author
 3. Call Claude Sonnet with all images + title/author
@@ -67,6 +69,7 @@ Return [] if all images show the correct book.
 ```
 
 **Response format:**
+
 ```json
 {"garbage_indices": [19, 20, 21, 22, 23]}
 ```
@@ -90,6 +93,7 @@ async def detect_garbage_images(
 ```
 
 **Call site in `books.py`:**
+
 ```python
 garbage_indices = await detect_garbage_images(
     book_id=book.id,
@@ -107,6 +111,7 @@ if garbage_indices:
 ## Testing Strategy
 
 **Unit tests (`test_eval_generation.py`):**
+
 1. Happy path - returns garbage indices for mixed images
 2. All valid - returns empty array when all images match
 3. All garbage - handles edge case
@@ -114,6 +119,7 @@ if garbage_indices:
 5. Claude failure - returns empty array, logs warning
 
 **Integration test:**
+
 - Use book 539's listing (`listings/397448193086/`)
 - Verify images 19-23 detected as garbage
 - Verify images 0-18 retained

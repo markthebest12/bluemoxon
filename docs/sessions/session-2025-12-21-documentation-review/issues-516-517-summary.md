@@ -129,6 +129,7 @@ test-driven-development → condition-based-waiting → testing-anti-patterns
 ## Bash Command Rules (CRITICAL)
 
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -136,6 +137,7 @@ test-driven-development → condition-based-waiting → testing-anti-patterns
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)

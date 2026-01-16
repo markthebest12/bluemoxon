@@ -13,6 +13,7 @@
 ## Task 1: Add precondition to cognito_user_pool_id output
 
 **Files:**
+
 - Modify: `infra/terraform/outputs.tf:35-38`
 
 **Step 1: Read current output definition**
@@ -54,6 +55,7 @@ git commit -m "infra: Add precondition to cognito_user_pool_id output"
 ## Task 2: Add precondition to cognito_client_id output
 
 **Files:**
+
 - Modify: `infra/terraform/outputs.tf:21-24`
 
 **Step 1: Add precondition block**
@@ -89,6 +91,7 @@ git commit -m "infra: Add precondition to cognito_client_id output"
 ## Task 3: Add precondition to cognito_domain output
 
 **Files:**
+
 - Modify: `infra/terraform/outputs.tf:26-33`
 
 **Step 1: Add precondition block**
@@ -128,6 +131,7 @@ git commit -m "infra: Add precondition to cognito_domain output"
 ## Task 4: Add precondition to lambda_function_name output
 
 **Files:**
+
 - Modify: `infra/terraform/outputs.tf:79-82`
 
 **Step 1: Add precondition block**
@@ -163,6 +167,7 @@ git commit -m "infra: Add precondition to lambda_function_name output"
 ## Task 5: Add precondition to lambda_invoke_arn output
 
 **Files:**
+
 - Modify: `infra/terraform/outputs.tf:89-92`
 
 **Step 1: Add precondition block**
@@ -198,6 +203,7 @@ git commit -m "infra: Add precondition to lambda_invoke_arn output"
 ## Task 6: Test preconditions catch missing values
 
 **Files:**
+
 - Temporarily modify: `infra/terraform/envs/prod.tfvars`
 
 **Step 1: Temporarily comment out an external value**
@@ -211,6 +217,7 @@ sed -i.bak 's/^cognito_user_pool_id_external/#cognito_user_pool_id_external/' in
 Run: `AWS_PROFILE=bmx-prod terraform plan -var-file=envs/prod.tfvars -var="db_password=test" 2>&1 | head -30`
 
 Expected output containing:
+
 ```
 Error: Resource precondition failed
 cognito_user_pool_id_external must be set when enable_cognito is false

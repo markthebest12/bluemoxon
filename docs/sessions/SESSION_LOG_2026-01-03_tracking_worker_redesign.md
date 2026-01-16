@@ -28,6 +28,7 @@ Code review on PR #771 identified 5 critical architectural issues:
 **Architecture**: EventBridge -> Dispatcher Lambda -> SQS Queue -> Worker Lambda
 
 **Files Created**:
+
 - `backend/app/workers/tracking_dispatcher.py` - Queries books, sends to SQS
 - `backend/app/workers/tracking_worker.py` - Fetches carrier API, updates DB
 - `backend/app/services/circuit_breaker.py` - Opens after 3 failures

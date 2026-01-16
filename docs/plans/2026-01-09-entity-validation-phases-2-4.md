@@ -15,6 +15,7 @@
 ## Task 1: Add validation helper function
 
 **Files:**
+
 - Create: `backend/app/services/entity_validation.py`
 - Test: `backend/tests/services/test_entity_validation_service.py`
 
@@ -156,6 +157,7 @@ git commit -m "feat(#967): add entity validation helper service"
 ## Task 2: Add validation to POST /publishers
 
 **Files:**
+
 - Modify: `backend/app/api/v1/publishers.py:68-97`
 - Test: `backend/tests/api/v1/test_publishers.py`
 
@@ -295,6 +297,7 @@ git commit -m "feat(#967): add validation to POST /publishers with force bypass"
 ## Task 3: Add validation to POST /binders
 
 **Files:**
+
 - Modify: `backend/app/api/v1/binders.py:67-93`
 - Test: `backend/tests/api/v1/test_binders.py`
 
@@ -425,6 +428,7 @@ git commit -m "feat(#967): add validation to POST /binders with force bypass"
 ## Task 4: Add validation to POST /authors
 
 **Files:**
+
 - Modify: `backend/app/api/v1/authors.py:76-105`
 - Test: `backend/tests/api/v1/test_authors.py`
 
@@ -592,6 +596,7 @@ Closes #967
 ## Task 6: Add validation mode config (Phase 4)
 
 **Files:**
+
 - Modify: `backend/app/config.py`
 - Modify: `backend/app/services/entity_validation.py`
 - Test: `backend/tests/services/test_entity_validation_service.py`
@@ -747,6 +752,7 @@ git commit -m "feat(#969): add entity validation mode config (log vs enforce)"
 ## Task 7: Add Terraform environment variables
 
 **Files:**
+
 - Modify: `infra/terraform/modules/lambda/variables.tf`
 - Modify: `infra/terraform/modules/lambda/main.tf`
 - Modify: `infra/terraform/envs/staging.tfvars`
@@ -874,12 +880,14 @@ Closes #967, #969"
 
 **Phase 3 (Book Endpoints) Deferred:**
 The book endpoints use `get_or_create_publisher()` and `get_or_create_binder()` which automatically create entities. Proper validation requires changing the book creation flow to:
+
 1. Require entity IDs upfront, OR
 2. Return validation errors before auto-creation
 
 This is a larger refactor that should be its own PR after Phases 2 and 4 are validated in production.
 
 **Rollout Plan:**
+
 1. Deploy with `ENTITY_VALIDATION_MODE=log` in staging
 2. Monitor CloudWatch logs for "would reject" warnings
 3. Tune thresholds based on false positive rate

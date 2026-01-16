@@ -7,6 +7,7 @@
 ## Overview
 
 The BlueMoxon API provides comprehensive management of a Victorian book collection, including:
+
 - Book inventory management (PRIMARY, EXTENDED, FLAGGED collections)
 - Reference data (Authors, Publishers, Binders)
 - Collection statistics and metrics
@@ -18,6 +19,7 @@ The BlueMoxon API provides comprehensive management of a Victorian book collecti
 ## Books
 
 ### List Books
+
 ```
 GET /books
 ```
@@ -25,6 +27,7 @@ GET /books
 List books with filtering and pagination.
 
 **Query Parameters:**
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `page` | integer | 1 | Page number (min: 1) |
@@ -42,6 +45,7 @@ List books with filtering and pagination.
 | `sort_order` | string | asc | asc or desc |
 
 **Response:**
+
 ```json
 {
   "items": [BookResponse],
@@ -53,6 +57,7 @@ List books with filtering and pagination.
 ```
 
 ### Get Book
+
 ```
 GET /books/{book_id}
 ```
@@ -62,6 +67,7 @@ Get a single book by ID with full details.
 **Response:** `BookResponse`
 
 ### Create Book
+
 ```
 POST /books
 ```
@@ -73,6 +79,7 @@ Create a new book. Selecting a `binder_id` automatically sets `binding_authentic
 **Response:** `BookResponse` (201 Created)
 
 ### Update Book
+
 ```
 PUT /books/{book_id}
 ```
@@ -84,6 +91,7 @@ Update an existing book. Changing `binder_id` automatically updates `binding_aut
 **Response:** `BookResponse`
 
 ### Delete Book
+
 ```
 DELETE /books/{book_id}
 ```
@@ -93,6 +101,7 @@ Delete a book from the collection.
 **Response:** 204 No Content
 
 ### Update Book Status
+
 ```
 PATCH /books/{book_id}/status?status={status}
 ```
@@ -102,6 +111,7 @@ Update delivery/inventory status.
 **Valid Statuses:** `IN_TRANSIT`, `ON_HAND`, `SOLD`, `REMOVED`
 
 **Response:**
+
 ```json
 {
   "message": "Status updated",
@@ -110,6 +120,7 @@ Update delivery/inventory status.
 ```
 
 ### Update Inventory Type
+
 ```
 PATCH /books/{book_id}/inventory-type?inventory_type={type}
 ```
@@ -119,6 +130,7 @@ Move book between inventory types.
 **Valid Types:** `PRIMARY`, `EXTENDED`, `FLAGGED`
 
 **Response:**
+
 ```json
 {
   "message": "Inventory type updated",
@@ -128,6 +140,7 @@ Move book between inventory types.
 ```
 
 ### Bulk Update Status
+
 ```
 POST /books/bulk/status?status={status}
 ```
@@ -135,11 +148,13 @@ POST /books/bulk/status?status={status}
 Update status for multiple books at once.
 
 **Request Body:**
+
 ```json
 [1, 2, 3, 4]  // Array of book IDs
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Updated 4 books",
@@ -148,6 +163,7 @@ Update status for multiple books at once.
 ```
 
 ### Check Duplicate Title
+
 ```
 GET /books/duplicates/check?title={title}
 ```
@@ -155,6 +171,7 @@ GET /books/duplicates/check?title={title}
 Check if a title already exists (duplicate detection for acquisitions).
 
 **Response:**
+
 ```json
 {
   "query": "Idylls of the King",
@@ -176,6 +193,7 @@ Check if a title already exists (duplicate detection for acquisitions).
 ## Search
 
 ### Full-Text Search
+
 ```
 GET /search
 ```
@@ -183,6 +201,7 @@ GET /search
 Search across books and analyses.
 
 **Query Parameters:**
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `q` | string | required | Search query (min 1 char) |
@@ -195,6 +214,7 @@ Search across books and analyses.
 ## Authors
 
 ### List Authors
+
 ```
 GET /authors
 ```
@@ -202,11 +222,13 @@ GET /authors
 List all authors, optionally filtered by search.
 
 **Query Parameters:**
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `search` | string | Filter by name (case-insensitive) |
 
 ### Get Author
+
 ```
 GET /authors/{author_id}
 ```
@@ -214,11 +236,13 @@ GET /authors/{author_id}
 Get author details with their books.
 
 ### Create Author
+
 ```
 POST /authors
 ```
 
 **Request Body:**
+
 ```json
 {
   "name": "Alfred Lord Tennyson",
@@ -230,11 +254,13 @@ POST /authors
 ```
 
 ### Update Author
+
 ```
 PUT /authors/{author_id}
 ```
 
 ### Delete Author
+
 ```
 DELETE /authors/{author_id}
 ```
@@ -246,6 +272,7 @@ Will fail if author has associated books.
 ## Publishers
 
 ### List Publishers
+
 ```
 GET /publishers
 ```
@@ -253,6 +280,7 @@ GET /publishers
 List all publishers, sorted by tier then name.
 
 ### Get Publisher
+
 ```
 GET /publishers/{publisher_id}
 ```
@@ -260,11 +288,13 @@ GET /publishers/{publisher_id}
 Get publisher details with their books.
 
 ### Create Publisher
+
 ```
 POST /publishers
 ```
 
 **Request Body:**
+
 ```json
 {
   "name": "Edward Moxon",
@@ -277,11 +307,13 @@ POST /publishers
 **Tier Values:** `TIER_1`, `TIER_2`, `TIER_3`, `OTHER`
 
 ### Update Publisher
+
 ```
 PUT /publishers/{publisher_id}
 ```
 
 ### Delete Publisher
+
 ```
 DELETE /publishers/{publisher_id}
 ```
@@ -293,6 +325,7 @@ Will fail if publisher has associated books.
 ## Binders (Authenticated Binding Houses)
 
 ### List Binders
+
 ```
 GET /binders
 ```
@@ -300,6 +333,7 @@ GET /binders
 List all premium binding houses.
 
 ### Get Binder
+
 ```
 GET /binders/{binder_id}
 ```
@@ -307,11 +341,13 @@ GET /binders/{binder_id}
 Get binder details with their books.
 
 ### Create Binder
+
 ```
 POST /binders
 ```
 
 **Request Body:**
+
 ```json
 {
   "name": "Zaehnsdorf",
@@ -321,11 +357,13 @@ POST /binders
 ```
 
 ### Update Binder
+
 ```
 PUT /binders/{binder_id}
 ```
 
 ### Delete Binder
+
 ```
 DELETE /binders/{binder_id}
 ```
@@ -337,6 +375,7 @@ Will fail if binder has associated books.
 ## Statistics
 
 ### Collection Overview
+
 ```
 GET /stats/overview
 ```
@@ -344,6 +383,7 @@ GET /stats/overview
 Get high-level collection statistics.
 
 **Response:**
+
 ```json
 {
   "primary": {
@@ -366,6 +406,7 @@ Get high-level collection statistics.
 ```
 
 ### Collection Metrics
+
 ```
 GET /stats/metrics
 ```
@@ -373,6 +414,7 @@ GET /stats/metrics
 Get detailed collection metrics including Victorian %, ROI, and discount averages.
 
 **Response:**
+
 ```json
 {
   "victorian_percentage": 95.8,
@@ -387,6 +429,7 @@ Get detailed collection metrics including Victorian %, ROI, and discount average
 ```
 
 ### By Category
+
 ```
 GET /stats/by-category
 ```
@@ -394,6 +437,7 @@ GET /stats/by-category
 Get counts and values by category.
 
 ### By Publisher
+
 ```
 GET /stats/by-publisher
 ```
@@ -401,6 +445,7 @@ GET /stats/by-publisher
 Get counts and values by publisher with tier info.
 
 ### By Author
+
 ```
 GET /stats/by-author
 ```
@@ -408,6 +453,7 @@ GET /stats/by-author
 Get counts and values by author.
 
 ### By Era
+
 ```
 GET /stats/by-era
 ```
@@ -415,6 +461,7 @@ GET /stats/by-era
 Get counts by historical era.
 
 **Response:**
+
 ```json
 [
   {"era": "Romantic (1800-1837)", "count": 5, "value": 2500.0},
@@ -424,6 +471,7 @@ Get counts by historical era.
 ```
 
 ### Authenticated Bindings
+
 ```
 GET /stats/bindings
 ```
@@ -431,6 +479,7 @@ GET /stats/bindings
 Get counts by premium binder.
 
 **Response:**
+
 ```json
 [
   {"binder": "Zaehnsdorf", "full_name": "Zaehnsdorf Ltd.", "count": 10, "value": 8500.0},
@@ -439,6 +488,7 @@ Get counts by premium binder.
 ```
 
 ### Pending Deliveries
+
 ```
 GET /stats/pending-deliveries
 ```
@@ -446,6 +496,7 @@ GET /stats/pending-deliveries
 Get list of books currently in transit.
 
 **Response:**
+
 ```json
 {
   "count": 2,
@@ -466,6 +517,7 @@ Get list of books currently in transit.
 ## Export
 
 ### Export to CSV
+
 ```
 GET /export/csv?inventory_type={type}
 ```
@@ -473,6 +525,7 @@ GET /export/csv?inventory_type={type}
 Export books to CSV format matching PRIMARY_COLLECTION.csv structure.
 
 **Query Parameters:**
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `inventory_type` | string | PRIMARY | PRIMARY, EXTENDED, FLAGGED |
@@ -480,6 +533,7 @@ Export books to CSV format matching PRIMARY_COLLECTION.csv structure.
 **Response:** CSV file download
 
 ### Export to JSON
+
 ```
 GET /export/json?inventory_type={type}
 ```
@@ -487,6 +541,7 @@ GET /export/json?inventory_type={type}
 Export books to JSON format with all details.
 
 **Response:**
+
 ```json
 {
   "export_date": "2025-11-29T12:00:00",
@@ -501,6 +556,7 @@ Export books to JSON format with all details.
 ## Schemas
 
 ### BookResponse
+
 ```json
 {
   "id": 1,
@@ -539,6 +595,7 @@ Export books to JSON format with all details.
 ```
 
 ### BookCreate
+
 ```json
 {
   "title": "Required",
@@ -569,6 +626,7 @@ Export books to JSON format with all details.
 ```
 
 ### AuthorResponse
+
 ```json
 {
   "id": 1,
@@ -582,6 +640,7 @@ Export books to JSON format with all details.
 ```
 
 ### PublisherResponse
+
 ```json
 {
   "id": 1,
@@ -594,6 +653,7 @@ Export books to JSON format with all details.
 ```
 
 ### BinderResponse
+
 ```json
 {
   "id": 1,
@@ -609,6 +669,7 @@ Export books to JSON format with all details.
 ## Book Analysis (AI-Powered)
 
 ### Generate Analysis
+
 ```
 POST /books/{book_id}/analysis/generate?model={model}
 ```
@@ -616,17 +677,20 @@ POST /books/{book_id}/analysis/generate?model={model}
 Generate a Napoleon framework analysis for a book using Claude AI via AWS Bedrock.
 
 **Query Parameters:**
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `model` | string | sonnet | AI model: `sonnet` (Claude 4.5 Sonnet) or `opus` (Claude 4.5 Opus) |
 
 **How it works:**
+
 1. Fetches book metadata and images from S3
 2. Loads Napoleon framework prompt from S3
 3. Invokes Claude via AWS Bedrock with images + metadata
 4. Stores analysis in database
 
 **Response:**
+
 ```json
 {
   "id": 42,
@@ -638,6 +702,7 @@ Generate a Napoleon framework analysis for a book using Claude AI via AWS Bedroc
 ```
 
 **Performance:**
+
 - Claude 4.5 Sonnet: ~20-30 seconds (10 images)
 - Claude 4.5 Opus: ~40-60 seconds (10 images)
 
@@ -646,6 +711,7 @@ Generate a Napoleon framework analysis for a book using Claude AI via AWS Bedroc
 ## Admin Configuration
 
 ### Get Config
+
 ```
 GET /admin/config
 ```
@@ -653,6 +719,7 @@ GET /admin/config
 Get current admin configuration values.
 
 **Response:**
+
 ```json
 {
   "gbp_to_usd_rate": 1.28,
@@ -661,6 +728,7 @@ Get current admin configuration values.
 ```
 
 ### Update Config
+
 ```
 PUT /admin/config
 ```
@@ -668,6 +736,7 @@ PUT /admin/config
 Update admin configuration values.
 
 **Request Body:**
+
 ```json
 {
   "gbp_to_usd_rate": 1.30,
@@ -676,6 +745,7 @@ Update admin configuration values.
 ```
 
 **Response:**
+
 ```json
 {
   "gbp_to_usd_rate": 1.30,
@@ -688,6 +758,7 @@ Update admin configuration values.
 ## Order Extraction
 
 ### Extract Order Details
+
 ```
 POST /orders/extract
 ```
@@ -695,6 +766,7 @@ POST /orders/extract
 Extract order details from pasted email/text using regex patterns.
 
 **Request Body:**
+
 ```json
 {
   "text": "Your order has been confirmed!\nOrder number: 21-13904-88107\nItem price: £239.00\nShipping: £17.99\nOrder total: £256.99"
@@ -702,6 +774,7 @@ Extract order details from pasted email/text using regex patterns.
 ```
 
 **Response:**
+
 ```json
 {
   "order_number": "21-13904-88107",
@@ -733,6 +806,7 @@ Extract order details from pasted email/text using regex patterns.
 ## Health Check
 
 ### Liveness Probe
+
 ```
 GET /health/live
 ```
@@ -740,11 +814,13 @@ GET /health/live
 Simple check that the service is running.
 
 **Response:**
+
 ```json
 {"status": "ok"}
 ```
 
 ### Readiness Probe
+
 ```
 GET /health/ready
 ```
@@ -752,6 +828,7 @@ GET /health/ready
 Checks if the service is ready to accept traffic.
 
 **Response:**
+
 ```json
 {
   "status": "ready",
@@ -762,6 +839,7 @@ Checks if the service is ready to accept traffic.
 ```
 
 ### Deep Health Check
+
 ```
 GET /health/deep
 ```
@@ -769,6 +847,7 @@ GET /health/deep
 Comprehensive health check validating all dependencies.
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -786,6 +865,7 @@ Comprehensive health check validating all dependencies.
 ```
 
 ### Service Info
+
 ```
 GET /health/info
 ```
@@ -793,6 +873,7 @@ GET /health/info
 Returns service metadata and version information.
 
 ### Run Migrations
+
 ```
 POST /health/migrate
 ```
@@ -804,6 +885,7 @@ Run pending database migrations (used for Lambda deployments).
 ## Error Responses
 
 ### 400 Bad Request
+
 ```json
 {
   "detail": "Invalid status. Must be one of: IN_TRANSIT, ON_HAND, SOLD, REMOVED"
@@ -811,6 +893,7 @@ Run pending database migrations (used for Lambda deployments).
 ```
 
 ### 404 Not Found
+
 ```json
 {
   "detail": "Book not found"
@@ -818,6 +901,7 @@ Run pending database migrations (used for Lambda deployments).
 ```
 
 ### 422 Validation Error
+
 ```json
 {
   "detail": [

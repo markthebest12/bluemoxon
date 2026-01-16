@@ -11,6 +11,7 @@
 **Session Log:** `docs/session-2025-12-22-smart-publisher-validation/`
 
 **CRITICAL Bash Rules:**
+
 - NEVER use `#`, `\`, `$(...)`, `&&`, `||`, or `!` in commands
 - Use simple single-line commands only
 - Use separate sequential Bash tool calls instead of chaining
@@ -22,11 +23,13 @@
 ### Task 1: Add rapidfuzz dependency
 
 **Files:**
+
 - Modify: `backend/pyproject.toml`
 
 **Step 1: Add rapidfuzz to dependencies**
 
 Add to `[tool.poetry.dependencies]` section:
+
 ```toml
 rapidfuzz = "^3.10.0"
 ```
@@ -50,6 +53,7 @@ Run: `git commit -m "chore: add rapidfuzz for fuzzy string matching"`
 ### Task 2: Write failing tests for publisher auto-correct rules
 
 **Files:**
+
 - Create: `backend/tests/test_publisher_validation.py`
 
 **Step 1: Write the failing tests**
@@ -133,6 +137,7 @@ Run: `git commit -m "test: add failing tests for publisher auto-correct rules"`
 ### Task 3: Implement auto_correct_publisher_name function
 
 **Files:**
+
 - Create: `backend/app/services/publisher_validation.py`
 
 **Step 1: Write minimal implementation**
@@ -243,6 +248,7 @@ Run: `git commit -m "feat: implement publisher name auto-correction rules"`
 ### Task 4: Write failing tests for publisher tier mappings
 
 **Files:**
+
 - Modify: `backend/tests/test_publisher_validation.py`
 
 **Step 1: Add failing tests**
@@ -333,6 +339,7 @@ Run: `git commit -m "test: add failing tests for publisher tier normalization"`
 ### Task 5: Implement normalize_publisher_name with tier mappings
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 
 **Step 1: Add tier mappings and normalize function**
@@ -435,6 +442,7 @@ Run: `git commit -m "feat: implement publisher tier normalization with known pub
 ### Task 6: Write failing tests for fuzzy matching
 
 **Files:**
+
 - Modify: `backend/tests/test_publisher_validation.py`
 
 **Step 1: Add failing tests**
@@ -531,6 +539,7 @@ Run: `git commit -m "test: add failing tests for publisher fuzzy matching"`
 ### Task 7: Implement fuzzy matching
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 
 **Step 1: Add imports and dataclass at top of file**
@@ -625,6 +634,7 @@ Run: `git commit -m "feat: implement fuzzy matching for publishers"`
 ### Task 8: Write failing tests for get_or_create_publisher
 
 **Files:**
+
 - Modify: `backend/tests/test_publisher_validation.py`
 
 **Step 1: Add failing tests**
@@ -717,6 +727,7 @@ Run: `git commit -m "test: add failing tests for get_or_create_publisher"`
 ### Task 9: Implement get_or_create_publisher
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 
 **Step 1: Add function**
@@ -780,6 +791,7 @@ def get_or_create_publisher(
 **Step 2: Add Publisher import at module level**
 
 At top of file, update imports:
+
 ```python
 from typing import TYPE_CHECKING
 
@@ -804,6 +816,7 @@ Run: `git commit -m "feat: implement get_or_create_publisher with fuzzy matching
 ### Task 10: Write failing tests for publisher extraction from markdown
 
 **Files:**
+
 - Modify: `backend/tests/test_markdown_parser.py`
 
 **Step 1: Add failing tests**
@@ -863,11 +876,13 @@ Run: `git commit -m "test: add failing tests for publisher extraction from markd
 ### Task 11: Add publisher_identification to ParsedAnalysis
 
 **Files:**
+
 - Modify: `backend/app/utils/markdown_parser.py`
 
 **Step 1: Add field to ParsedAnalysis dataclass**
 
 Add after `binder_identification`:
+
 ```python
     publisher_identification: dict | None = None
 ```
@@ -914,6 +929,7 @@ In `parse_analysis_markdown`, add before the return statement:
 ```
 
 Update the return to include it:
+
 ```python
     return ParsedAnalysis(
         executive_summary=sections.get("executive_summary"),
@@ -950,6 +966,7 @@ Run: `git commit -m "feat: extract publisher identification from analysis markdo
 ### Task 12: Write failing test for publisher integration in analysis save
 
 **Files:**
+
 - Modify: `backend/tests/test_books.py`
 
 **Step 1: Add failing test**
@@ -1011,11 +1028,13 @@ Run: `git commit -m "test: add failing test for publisher linking in analysis sa
 ### Task 13: Integrate publisher validation into update_book_analysis
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 
 **Step 1: Add import**
 
 After the existing reference import, add:
+
 ```python
     from app.services.publisher_validation import get_or_create_publisher
 ```
@@ -1039,6 +1058,7 @@ After the binder extraction section (around line 1401), add:
 **Step 3: Update return statement**
 
 Add `publisher_updated` to the return dict:
+
 ```python
     return {
         "message": "Analysis updated",
@@ -1097,6 +1117,7 @@ Run: `git push -u origin feat/smart-publisher-validation`
 **Step 2: Create PR to staging**
 
 Run: `gh pr create --base staging --title "feat: Smart publisher validation layer" --body "## Summary
+
 - Add publisher validation layer with auto-correction rules
 - Implement fuzzy matching against existing publishers
 - Auto-assign tiers based on known Victorian publishers
@@ -1104,6 +1125,7 @@ Run: `gh pr create --base staging --title "feat: Smart publisher validation laye
 - Follow binder service pattern for consistency
 
 ## Test Plan
+
 - [ ] All unit tests pass
 - [ ] Manual test: upload analysis with publisher info
 - [ ] Verify publisher linked correctly
@@ -1202,6 +1224,7 @@ After initial deployment, a code review identified 8 issues:
 **Problem:** `normalize_publisher_name()` used `if variant.lower() in corrected.lower()` which matched "Murray Printing Company" to "John Murray" as TIER_1.
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 - Modify: `backend/tests/test_publisher_validation.py`
 
@@ -1252,9 +1275,11 @@ for variant, canonical in TIER_2_PUBLISHERS.items():
 **Problem:** Original code used `db.rollback()` which nukes the entire transaction, potentially rolling back the caller's pending changes.
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 
 **Before (broken):**
+
 ```python
 try:
     db.flush()
@@ -1265,6 +1290,7 @@ return publisher  # Can be None!
 ```
 
 **After (correct with savepoint):**
+
 ```python
 from sqlalchemy.exc import IntegrityError
 
@@ -1289,6 +1315,7 @@ return publisher
 ```
 
 **Key changes:**
+
 1. Use `db.begin_nested()` for savepoint - only rolls back the nested block, not caller's transaction
 2. Add RuntimeError guard if publisher is None after IntegrityError (should never happen, but defensive)
 3. Added `from None` to satisfy linter (B904)
@@ -1300,6 +1327,7 @@ return publisher
 ### Task 20: Create GitHub issues for deferred work
 
 Created issues for future improvements:
+
 - **#575**: Use pg_trgm for O(1) fuzzy matching (addresses #2)
 - **#576**: Add publisher change audit trail (addresses #5)
 - **#577**: Load tier mappings from database (addresses #6)
@@ -1309,10 +1337,12 @@ Created issues for future improvements:
 ### Task 21: Deploy code review fixes
 
 **PRs merged:**
+
 - **#578**: fix: publisher validation - remove greedy substring matching and add race condition handling (staging)
 - **#579**: chore: Promote staging to production - Savepoint fix for race condition
 
 **Verification:**
+
 - ✅ 42/42 tests pass locally
 - ✅ Linter passes
 - ✅ Staging deploy + smoke tests passed

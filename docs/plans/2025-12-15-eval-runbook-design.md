@@ -61,11 +61,13 @@ Two side-by-side buttons on the book detail page:
 ```
 
 **Score visualization:**
+
 - Progress bar fills based on score (0-100)
 - Color coding: Red (<60), Yellow (60-79), Green (80+)
 - Badge shows PASS (yellow) or ACQUIRE (green)
 
 **Pricing row:**
+
 - **Asking** - Current price (editable)
 - **Est. FMV** - Market range from comparables
 - **Recommend** - Target price for 80+ score
@@ -101,6 +103,7 @@ When clicking [✏️ Edit] on the asking price:
 ```
 
 **Price edit features:**
+
 - Shows original listing price for reference
 - New price input field
 - Optional discount code field (for tracking)
@@ -303,12 +306,15 @@ CREATE TABLE eval_price_history (
 ## API Endpoints
 
 ### GET /api/v1/books/{id}/eval-runbook
+
 Returns the eval runbook for a book, or 404 if not generated.
 
 ### POST /api/v1/books/{id}/eval-runbook/generate
+
 Triggers generation of eval runbook (usually auto-called on eBay import).
 
 ### PATCH /api/v1/books/{id}/eval-runbook/price
+
 Updates the asking price and recalculates scoring.
 
 ```json

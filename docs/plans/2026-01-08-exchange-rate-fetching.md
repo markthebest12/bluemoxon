@@ -15,6 +15,7 @@
 ## Task 1: Add Warning Toast Type
 
 **Files:**
+
 - Modify: `frontend/src/composables/useToast.ts`
 - Modify: `frontend/src/composables/__tests__/useToast.spec.ts`
 
@@ -125,6 +126,7 @@ git commit -m "feat: add warning toast type for exchange rate fallback notificat
 ## Task 2: Add Live Rate Cache Structure
 
 **Files:**
+
 - Modify: `frontend/src/composables/useCurrencyConversion.ts`
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
@@ -223,6 +225,7 @@ git commit -m "feat: add live rate cache structure with 15-minute TTL"
 ## Task 3: Implement fetchLiveRate with Retry Logic
 
 **Files:**
+
 - Modify: `frontend/src/composables/useCurrencyConversion.ts`
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
@@ -342,6 +345,7 @@ git commit -m "feat: implement fetchLiveRate with 5s timeout per request"
 ## Task 4: Add Retry Logic Tests
 
 **Files:**
+
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
 **Step 1: Write test for retry on failure then success**
@@ -431,6 +435,7 @@ git commit -m "test: add retry logic tests for fetchLiveRate"
 ## Task 5: Add Cache Hit/Expiry Logic
 
 **Files:**
+
 - Modify: `frontend/src/composables/useCurrencyConversion.ts`
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
@@ -586,6 +591,7 @@ git commit -m "feat: add 15-minute cache TTL for live exchange rates"
 ## Task 6: Implement Fallback Chain with Toast
 
 **Files:**
+
 - Modify: `frontend/src/composables/useCurrencyConversion.ts`
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
@@ -740,6 +746,7 @@ git commit -m "feat: implement fallback chain with warning toast notifications"
 ## Task 7: Wire Up Currency Change Watch
 
 **Files:**
+
 - Modify: `frontend/src/composables/useCurrencyConversion.ts`
 - Modify: `frontend/src/composables/__tests__/useCurrencyConversion.spec.ts`
 
@@ -937,6 +944,7 @@ gh pr checks --watch
 ## Post-Implementation
 
 After PR is merged to staging:
+
 1. Test on staging.app.bluemoxon.com
 2. Create PR from staging → main
 3. Watch deploy workflow after merge

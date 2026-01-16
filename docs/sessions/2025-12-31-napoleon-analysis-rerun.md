@@ -6,14 +6,18 @@
 ## CRITICAL REMINDERS
 
 ### Superpowers Skills - MANDATORY
+
 **If there is even a 1% chance a skill might apply, you MUST invoke the skill.**
+
 - Use `superpowers:brainstorming` before any creative/feature work
 - Use `superpowers:systematic-debugging` before proposing fixes
 - Use `superpowers:verification-before-completion` before claiming work is done
 - Check skill applicability BEFORE any response or action
 
 ### Bash Command Rules - STRICT
+
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -21,6 +25,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -30,14 +35,17 @@
 ## Background
 
 ### Original Issue
+
 Napoleon publisher books in production have incomplete analyses due to what was initially thought to be Bedrock throttling. 124 books had `recommendations` field as `null`.
 
 ### Root Cause Investigation
+
 After re-running several batches (books 1-4, 21-27, 33, 41, 47, etc.), discovered **100% failure rate** - ALL re-run analyses still had null recommendations.
 
 **Key Finding:** The problem is NOT Bedrock throttling. It's **output token exhaustion**.
 
 ### Root Cause Identified
+
 1. `max_tokens=16000` in `bedrock.py:409` allows ~60K chars output
 2. Napoleon prompt requests 12+ sections totaling 500-700+ lines
 3. Model generates sections 1-4 in detail (~50K chars) but exhausts tokens before Section 12
@@ -46,6 +54,7 @@ After re-running several batches (books 1-4, 21-27, 33, 41, 47, etc.), discovere
 6. Claude Sonnet 4.5 supports up to **64K output tokens** - we're only using 16K
 
 **Evidence:**
+
 - Book 554: Bedrock returned 63,487 chars, but `recommendations` still null
 - Raw markdown ends mid-sentence at "David Copperfield, or" - truncated
 - `grep -c "Conclusions"` on raw markdown returns 0 - section never generated
@@ -58,12 +67,14 @@ After re-running several batches (books 1-4, 21-27, 33, 41, 47, etc.), discovere
 ### Backend Changes
 
 **1. Increase max_tokens (bedrock.py:409)**
+
 ```python
 # Change from 16000 to 32000
 max_tokens: int = 32000
 ```
 
 **2. Add stop_reason logging (bedrock.py:463-467)**
+
 ```python
 response_body = json.loads(response["body"].read())
 stop_reason = response_body.get("stop_reason", "unknown")
@@ -75,6 +86,7 @@ if stop_reason == "max_tokens":
 ```
 
 **3. Add analysis_issues to book list API response**
+
 ```python
 analysis_issues = []
 if book.analysis:
@@ -91,17 +103,20 @@ if book.analysis:
 ### Frontend Changes
 
 **1. Add analysis_issues to book type**
+
 ```typescript
 analysis_issues?: string[] | null;
 ```
 
 **2. Warning icon placement (TWO locations)**
+
 - Next to "View Analysis" link
 - On the book card itself (badge/indicator)
 
 **3. Icon style:** Amber/yellow warning triangle
 
 **4. Tooltip content (technical):**
+
 ```typescript
 function formatAnalysisIssues(issues: string[]): string {
   const labels: Record<string, string> = {
@@ -119,6 +134,7 @@ function formatAnalysisIssues(issues: string[]): string {
 ## Next Steps
 
 ### Immediate (before resuming re-runs)
+
 1. **Implement backend changes:**
    - Update `max_tokens` to 32000 in `backend/app/services/bedrock.py:409`
    - Add `stop_reason` logging in `invoke_bedrock()` function
@@ -135,8 +151,9 @@ function formatAnalysisIssues(issues: string[]): string {
 4. **Deploy to production**
 
 ### After fix deployed
+
 5. **Re-run all 124 incomplete Napoleon analyses** with new max_tokens limit
-6. **Verify recommendations section now appears** in re-run analyses
+2. **Verify recommendations section now appears** in re-run analyses
 
 ---
 
@@ -157,7 +174,8 @@ function formatAnalysisIssues(issues: string[]): string {
 
 ### DO NOT RE-RUN YET - Fix must be deployed first
 
-### 124 Books with NULL Recommendations (incomplete):
+### 124 Books with NULL Recommendations (incomplete)
+
 ```
 1, 2, 3, 4, 21, 22, 23, 24, 25, 26, 27, 33, 41, 47, 51, 53, 56, 57, 58, 60,
 62, 63, 64, 65, 66, 67, 68, 335, 336, 337, 340, 341, 342, 343, 345, 346, 347,
@@ -169,7 +187,8 @@ function formatAnalysisIssues(issues: string[]): string {
 563, 564, 565, 566, 567, 568, 569, 570
 ```
 
-### Special Notes:
+### Special Notes
+
 - **DO NOT touch book 373** (user explicit instruction)
 - Book 22 has stale "failed" job status - needs job cleared before retry
 - Books 51, 53 failed with "Input is too long" (12 images each) - separate issue

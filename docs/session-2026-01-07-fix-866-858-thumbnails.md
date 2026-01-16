@@ -10,12 +10,14 @@
 ## CRITICAL: Session Continuity Rules
 
 ### 1. ALWAYS Use Superpowers Skills
+
 - **systematic-debugging** - Before ANY bug fix
 - **test-driven-development** - Before writing implementation code
 - **receiving-code-review** - When handling review feedback
 - **verification-before-completion** - Before claiming work is done
 
 ### 2. NEVER Use These (Permission Prompts)
+
 ```bash
 # BAD - triggers prompts:
 # comment lines before commands
@@ -28,6 +30,7 @@ cmd1 || cmd2
 ```
 
 ### 3. ALWAYS Use Instead
+
 ```bash
 # GOOD - auto-approved:
 command1 --option value
@@ -40,11 +43,13 @@ bmx-api GET /books  # For all BlueMoxon API calls
 ## Background
 
 ### Issue #866: Silent Thumbnail Failure
+
 - `generate_thumbnail()` return value was ignored
 - Users never knew if thumbnail generation failed
 - Function was well-designed but callers discarded results
 
 ### Issue #858: Async/Sync I/O Mismatch
+
 - `upload_image()` declared `async def` but did blocking I/O
 - `open()`, `buffer.write()`, `s3.upload_file()` all blocking
 - Blocked event loop, defeating async purpose
@@ -54,6 +59,7 @@ bmx-api GET /books  # For all BlueMoxon API calls
 ## Solution Implemented
 
 ### Files Created/Modified
+
 | File | Change |
 |------|--------|
 | `backend/app/schemas/image.py` | NEW - `ImageUploadResponse` Pydantic model |
@@ -62,6 +68,7 @@ bmx-api GET /books  # For all BlueMoxon API calls
 | `.github/workflows/deploy.yml` | Fixed missing `download-artifact` step |
 
 ### API Response Schema
+
 ```python
 class ImageUploadResponse(BaseModel):
     id: int
@@ -76,6 +83,7 @@ class ImageUploadResponse(BaseModel):
 ```
 
 ### Async I/O Wrapping
+
 ```python
 # File write
 await asyncio.to_thread(write_file)
@@ -94,17 +102,21 @@ await asyncio.to_thread(s3.upload_file, ...)
 ## Current Status
 
 ### PR #913: MERGED to staging ✅
+
 - All code changes merged successfully
 - 1101 tests passing
 
 ### Staging Deploy: COMPLETED ✅
+
 - Deploy workflow fix (commit `b2dda0e`) added missing `download-artifact` step
 - API deployed: version `2026.01.07-b2dda0e`
 - Smoke test "frontend version mismatch" is **false positive** (no frontend changes → no frontend rebuild)
 - Backend API is healthy and functioning correctly
 
 ### Staging Verification: PASSED ✅
+
 All three `thumbnail_status` values verified:
+
 ```json
 // thumbnail_status: "generated" (success)
 {"id":4158,"thumbnail_status":"generated","thumbnail_error":null}
@@ -121,17 +133,20 @@ All three `thumbnail_status` values verified:
 ## Next Steps
 
 1. **Create PR staging → main** for production deploy
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote thumbnail fixes to production"
    ```
 
 2. **After PR merge:** Watch production deploy
+
    ```bash
    gh run list --workflow Deploy --branch main --limit 1
    gh run watch <run-id> --exit-status
    ```
 
 3. **Production verification:**
+
    ```bash
    bmx-api --prod GET /health/version
    bmx-api --prod --image test.jpg POST /books/<id>/images

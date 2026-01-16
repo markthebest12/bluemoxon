@@ -9,12 +9,14 @@
 ## CRITICAL REMINDERS FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 - **brainstorming** - Before any creative/design work
 - **test-driven-development** - Before implementing any feature
 - **verification-before-completion** - Before claiming work is done
 - **requesting-code-review** - After completing significant work
 
 ### 2. NEVER Use These (Permission Prompts)
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -22,6 +24,7 @@
 - `!` in quoted strings
 
 ### 3. ALWAYS Use
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -31,6 +34,7 @@
 ## Problem Statement
 
 The Acquisitions page header looked cluttered on mobile devices:
+
 - Title and subtitle competed for space with two action buttons
 - "Import from eBay" and "+ Add Manually" buttons took significant horizontal space
 - No responsive breakpoints - same layout on all screen sizes
@@ -38,17 +42,20 @@ The Acquisitions page header looked cluttered on mobile devices:
 ## Solution Implemented
 
 ### Design Decisions (via brainstorming skill)
+
 1. **Short text on mobile** - "Import" / "Add" (was icon-only, too ambiguous)
 2. **Hide subtitle on mobile** - `hidden sm:block`
 3. **Victorian ornament** - `❧` after title on desktop only, made larger (`text-xl`, `opacity-75`)
 
 ### Mobile Layout (< 640px)
+
 ```
 Acquisitions
 [🔗 Import] [+ Add]
 ```
 
 ### Desktop Layout (≥ 640px)
+
 ```
 Acquisitions ❧                   [🔗 Import from eBay] [+ Add Manually]
 Track books from watchlist through delivery
@@ -82,6 +89,7 @@ Track books from watchlist through delivery
 ## Deploy Status
 
 Production deploy **COMPLETE**: Run 20606602091 succeeded.
+
 - API health: `healthy`
 - All smoke tests passed
 
@@ -100,9 +108,11 @@ curl -s https://api.bluemoxon.com/api/v1/health/deep | jq '.status'
 ## Merge Conflict Resolution Notes
 
 When promoting staging to main, there was a conflict in `frontend/src/assets/main.css`:
+
 - **Keep staging version** (HEAD) - has complete dark mode color overrides
 - Main had a simpler version with fewer overrides
 - Resolved by keeping the more complete staging version
 
 ## Related Issues
+
 - #698 - Dark mode CSS fixes (merged during this session)

@@ -79,11 +79,13 @@ Book detail shows "Charles Darwin - Tier 1 author" instead of "not a priority au
 ## Effect on Book 521
 
 Before:
+
 - Author: "Charles Darwin - not a priority author" (+0)
 - Publisher: D. Appleton (null) (+0)
 - Strategic fit: 50
 
 After:
+
 - Author: "Charles Darwin - Tier 1 author" (+15)
 - Publisher: D. Appleton (null) (+0)
 - Strategic fit: 65

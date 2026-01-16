@@ -13,6 +13,7 @@
 ## Task 1: Database Migration - Phone CHECK Constraint
 
 **Files:**
+
 - Create: `backend/alembic/versions/x7890123abcd_phone_e164_constraint.py`
 
 **Step 1: Write the migration**
@@ -68,6 +69,7 @@ git commit -m "feat: add E.164 phone number CHECK constraint migration"
 ## Task 2: Database Migration - Circuit Breaker Table
 
 **Files:**
+
 - Modify: `backend/alembic/versions/x7890123abcd_phone_e164_constraint.py` (add to same migration)
 
 **Step 1: Update migration to include circuit breaker table**
@@ -114,6 +116,7 @@ git commit -m "feat: add circuit breaker table to migration"
 ## Task 3: Circuit Breaker Model
 
 **Files:**
+
 - Create: `backend/app/models/carrier_circuit.py`
 - Modify: `backend/app/models/__init__.py`
 - Create: `backend/tests/models/test_carrier_circuit.py`
@@ -192,7 +195,7 @@ class CarrierCircuit(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 ```
 
-**Step 4: Add to models/__init__.py**
+**Step 4: Add to models/**init**.py**
 
 ```python
 # Add to backend/app/models/__init__.py
@@ -217,6 +220,7 @@ git commit -m "feat: add CarrierCircuit model"
 ## Task 4: Circuit Breaker Service
 
 **Files:**
+
 - Create: `backend/app/services/circuit_breaker.py`
 - Create: `backend/tests/services/test_circuit_breaker.py`
 
@@ -473,6 +477,7 @@ git commit -m "feat: add circuit breaker service"
 ## Task 5: Remove detect_and_get_carrier
 
 **Files:**
+
 - Modify: `backend/app/services/carriers/__init__.py`
 - Modify: `backend/tests/services/carriers/test_registry.py` (if exists)
 
@@ -480,7 +485,7 @@ git commit -m "feat: add circuit breaker service"
 
 Remove `detect_and_get_carrier` function and its export from `backend/app/services/carriers/__init__.py`.
 
-**Step 2: Remove from __all__**
+**Step 2: Remove from **all****
 
 Update `__all__` to remove `"detect_and_get_carrier"`.
 
@@ -502,6 +507,7 @@ git commit -m "refactor: remove detect_and_get_carrier (require explicit carrier
 ## Task 6: Tracking Dispatcher Lambda Handler
 
 **Files:**
+
 - Create: `backend/app/workers/__init__.py`
 - Create: `backend/app/workers/tracking_dispatcher.py`
 - Create: `backend/tests/workers/__init__.py`
@@ -692,7 +698,7 @@ def handler(event: dict, context) -> dict:
         db.close()
 ```
 
-**Step 4: Create test __init__.py**
+**Step 4: Create test **init**.py**
 
 ```python
 # backend/tests/workers/__init__.py
@@ -717,6 +723,7 @@ git commit -m "feat: add tracking dispatcher Lambda handler"
 ## Task 7: Tracking Worker Lambda Handler
 
 **Files:**
+
 - Create: `backend/app/workers/tracking_worker.py`
 - Create: `backend/tests/workers/test_tracking_worker.py`
 
@@ -980,6 +987,7 @@ git commit -m "feat: add tracking worker Lambda handler"
 ## Task 8: Remove EventBridge Routing from main.py
 
 **Files:**
+
 - Modify: `backend/app/main.py`
 
 **Step 1: Remove the poll_tracking routing**
@@ -996,6 +1004,7 @@ handler = Mangum(app, lifespan="off")
 **Step 2: Remove unused imports**
 
 Remove:
+
 ```python
 from app.services.tracking_poller import poll_all_active_tracking
 ```
@@ -1018,6 +1027,7 @@ git commit -m "refactor: remove EventBridge routing from main.py (now in separat
 ## Task 9: Terraform Module - tracking-worker
 
 **Files:**
+
 - Create: `infra/terraform/modules/tracking-worker/main.tf`
 - Create: `infra/terraform/modules/tracking-worker/variables.tf`
 - Create: `infra/terraform/modules/tracking-worker/outputs.tf`
@@ -1500,6 +1510,7 @@ git commit -m "feat: add tracking-worker Terraform module"
 ## Task 10: Wire Up Terraform Module
 
 **Files:**
+
 - Modify: `infra/terraform/main.tf` or environment-specific file
 - Modify: `infra/terraform/envs/staging.tfvars`
 - Modify: `infra/terraform/envs/production.tfvars`
@@ -1530,6 +1541,7 @@ git commit -m "feat: wire up tracking-worker module in staging/production"
 ## Task 11: Update Deploy Workflow
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml`
 - Modify: `.github/workflows/deploy-staging.yml`
 

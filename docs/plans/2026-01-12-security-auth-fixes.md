@@ -26,6 +26,7 @@
 ## Task 1: VULN-001 - Export Endpoints (CRITICAL)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/export.py`
 - Create: `backend/tests/api/v1/test_export_auth.py`
 
@@ -107,11 +108,13 @@ Expected: 2 tests fail (auth tests), 2 pass (with mock auth)
 Modify `backend/app/api/v1/export.py`:
 
 Add import at top:
+
 ```python
 from app.auth import require_viewer
 ```
 
 Modify `export_csv` function signature (line 17-21):
+
 ```python
 @router.get("/csv")
 def export_csv(
@@ -122,6 +125,7 @@ def export_csv(
 ```
 
 Modify `export_json` function signature (line 108-112):
+
 ```python
 @router.get("/json")
 def export_json(
@@ -158,6 +162,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 2: VULN-002 - Admin GET Endpoints (CRITICAL)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/admin.py`
 - Create: `backend/tests/api/v1/test_admin_auth.py`
 
@@ -254,6 +259,7 @@ Expected: 3 auth tests fail, 2 with-auth tests pass
 Modify `backend/app/api/v1/admin.py`:
 
 Find `get_config` function and add `_user=Depends(require_admin)`:
+
 ```python
 @router.get("/config", response_model=ConfigResponse)
 def get_config(
@@ -264,6 +270,7 @@ def get_config(
 ```
 
 Find `get_system_info` function and add `_user=Depends(require_admin)`:
+
 ```python
 @router.get("/system-info", response_model=SystemInfoResponse)
 def get_system_info(
@@ -274,6 +281,7 @@ def get_system_info(
 ```
 
 Find `get_costs` function and add `_user=Depends(require_admin)`:
+
 ```python
 @router.get("/costs", response_model=CostResponse)
 def get_costs(
@@ -315,6 +323,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 3: VULN-003 - Stats Endpoints (HIGH)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/stats.py`
 - Create: `backend/tests/api/v1/test_stats_auth.py`
 
@@ -402,11 +411,13 @@ Expected: 12 auth tests fail, 12 with-auth tests pass
 Modify `backend/app/api/v1/stats.py`:
 
 Add import at top:
+
 ```python
 from app.auth import require_viewer
 ```
 
 Add `_user=Depends(require_viewer)` parameter to ALL endpoint functions:
+
 - `get_overview`
 - `get_metrics`
 - `get_by_category`
@@ -421,6 +432,7 @@ Add `_user=Depends(require_viewer)` parameter to ALL endpoint functions:
 - `get_dashboard`
 
 Example for each:
+
 ```python
 @router.get("/overview")
 def get_overview(
@@ -456,6 +468,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 4: VULN-004 - Books GET Endpoints (HIGH)
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 - Create: `backend/tests/api/v1/test_books_auth.py`
 
@@ -575,6 +588,7 @@ Expected: 5 auth tests fail, 2 with-auth tests pass
 Modify `backend/app/api/v1/books.py`:
 
 Add import (if not present):
+
 ```python
 from app.auth import require_admin, require_editor, require_viewer
 ```
@@ -582,6 +596,7 @@ from app.auth import require_admin, require_editor, require_viewer
 Add `_user=Depends(require_viewer)` to these endpoints:
 
 1. `list_books` (GET /books):
+
 ```python
 @router.get("", response_model=BookListResponse)
 def list_books(
@@ -592,7 +607,8 @@ def list_books(
 ):
 ```
 
-2. `get_book` (GET /books/{book_id}):
+1. `get_book` (GET /books/{book_id}):
+
 ```python
 @router.get("/{book_id}", response_model=BookResponse)
 def get_book(
@@ -602,7 +618,8 @@ def get_book(
 ):
 ```
 
-3. `get_book_analysis` (GET /books/{book_id}/analysis):
+1. `get_book_analysis` (GET /books/{book_id}/analysis):
+
 ```python
 @router.get("/{book_id}/analysis")
 def get_book_analysis(
@@ -612,7 +629,8 @@ def get_book_analysis(
 ):
 ```
 
-4. `get_book_analysis_raw` (GET /books/{book_id}/analysis/raw):
+1. `get_book_analysis_raw` (GET /books/{book_id}/analysis/raw):
+
 ```python
 @router.get("/{book_id}/analysis/raw")
 def get_book_analysis_raw(
@@ -622,7 +640,8 @@ def get_book_analysis_raw(
 ):
 ```
 
-5. `get_scores_breakdown` (GET /books/{book_id}/scores/breakdown):
+1. `get_scores_breakdown` (GET /books/{book_id}/scores/breakdown):
+
 ```python
 @router.get("/{book_id}/scores/breakdown")
 def get_scores_breakdown(

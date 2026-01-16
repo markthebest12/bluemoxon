@@ -6,8 +6,8 @@
 
 ## References
 
-- https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation
-- https://developer.hashicorp.com/terraform/language/style
+- <https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation>
+- <https://developer.hashicorp.com/terraform/language/style>
 
 ## Audit Summary
 
@@ -50,6 +50,7 @@ infra/terraform/modules/
 #### 1. Add `versions.tf` to all 10 modules
 
 Each module needs this file:
+
 ```hcl
 terraform {
   required_version = ">= 1.6.0"
@@ -64,6 +65,7 @@ terraform {
 ```
 
 **Files to create:**
+
 - [ ] `modules/api-gateway/versions.tf`
 - [ ] `modules/cloudfront/versions.tf`
 - [ ] `modules/cognito/versions.tf`
@@ -78,9 +80,11 @@ terraform {
 #### 2. Fix variable ordering (alphabetical)
 
 **`modules/lambda/variables.tf`:**
+
 - Swap `environment` and `environment_variables` (environment_variables should come first alphabetically)
 
 **`modules/db-sync-lambda/variables.tf`:**
+
 - Move `cognito_user_pool_id` to correct alphabetical position (near top, after nothing or before `environment_variables`)
 
 ### Medium Priority (Style Improvements)
@@ -88,6 +92,7 @@ terraform {
 #### 3. Add validation rules
 
 Consider adding to:
+
 - **RDS:** `instance_class` validation against allowed values
 - **Lambda:** `memory_size` validation (128-10240 MB)
 - **API Gateway:** `cors_max_age` validation
@@ -95,6 +100,7 @@ Consider adding to:
 #### 4. Update module READMEs
 
 Document:
+
 - RDS: `deletion_protection` blocks destroy unless manually disabled
 - Lambda: `filename` changes ignored by lifecycle (code via CI/CD)
 - Constraints and dependencies between modules
@@ -110,6 +116,7 @@ Document in `infra/terraform/TERRAFORM.md` or new file.
 ### Decision Needed: Database Handling
 
 **Options:**
+
 1. **Full destroy including RDS** - True test, staging data lost (resync from prod after)
 2. **Preserve RDS** - `terraform state rm` before destroy, re-import after
 3. **Snapshot + restore** - Take snapshot, destroy, restore from snapshot
@@ -178,6 +185,7 @@ terraform apply apply.tfplan
 ## Known Resources NOT in Terraform
 
 From `docs/STAGING_INFRASTRUCTURE_CHANGES.md`:
+
 - ACM certificates (created manually, referenced by ARN in tfvars)
 - Route53 records (managed separately)
 - VPC endpoints (partially imported)
@@ -197,12 +205,14 @@ These need to be documented/imported or recreated manually after destroy.
 ## Session Context
 
 ### Staging Cognito (just fixed today)
+
 - Pool ID: `us-west-2_5pOhFH6LN`
 - Client ID: `7h1b144ggk7j4dl9vr94ipe6k5`
 - User: `mjramos76@gmail.com` (password changed by user)
 - Login: Working as of 2025-12-08
 
 ### Recent Changes
+
 - Added `cognito_user_pool_id` to db-sync-lambda module
 - Added `cognito_only` mode for user mapping
 - Fixed staging login issues

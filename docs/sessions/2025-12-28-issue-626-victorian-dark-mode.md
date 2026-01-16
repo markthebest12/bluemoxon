@@ -1,7 +1,7 @@
 # Session Log: Issue #626 - Victorian Dark Mode Theme
 
 **Date:** 2025-12-28
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/626
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/626>
 **Status:** In Progress
 
 ## Objective

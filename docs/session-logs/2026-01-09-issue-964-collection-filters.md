@@ -23,6 +23,7 @@
 | Multi-task work | `superpowers:dispatching-parallel-agents` |
 
 **Red flags (STOP and invoke skill):**
+
 - "This is simple, I'll just..."
 - "Let me quickly..."
 - "I'll explore first..."
@@ -30,6 +31,7 @@
 ### 2. Bash Command Rules - NEVER Use Complex Syntax
 
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -37,6 +39,7 @@
 - `!` in quoted strings (bash history expansion)
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -61,12 +64,14 @@ Add category and author filters to the collection view (BooksView.vue). Backend 
 ## Background
 
 ### First Attempt (PR #973)
+
 - Created branch from `main` targeting `staging`
 - Branch divergence caused entity validation commits to appear in PR
 - PR showed 17 files when only 1 file changed
 - Closed and recreated from staging
 
 ### Second Attempt (PR #974)
+
 - Created branch `feat/collection-filters-v2` from `origin/staging`
 - Clean PR with only 3 frontend files
 - Received code review feedback with 8 items
@@ -87,12 +92,14 @@ Add category and author filters to the collection view (BooksView.vue). Backend 
 ## Changes Made
 
 ### Commit 1: Initial implementation
+
 - Added `BOOK_CATEGORIES` to constants (DRY fix)
 - Updated BookForm.vue to use shared constant
 - Added Author and Category dropdowns to BooksView.vue
 - Added `author_id` to activeFilterCount
 
 ### Commit 2: Code review fixes
+
 - Replaced author `<select>` with searchable `ComboboxWithAdd`
 - Added loading state while authors fetch
 - Fixed category empty value handling (undefined vs "")

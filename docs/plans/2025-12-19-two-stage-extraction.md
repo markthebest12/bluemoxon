@@ -13,6 +13,7 @@
 ## Task 1: Create Extraction Prompt
 
 **Files:**
+
 - Create: `backend/prompts/extraction/structured-data.md`
 
 **Step 1: Write the extraction prompt file**
@@ -70,6 +71,7 @@ git commit -m "feat: add structured data extraction prompt for two-stage approac
 ## Task 2: Add Extraction Function to Bedrock Service
 
 **Files:**
+
 - Modify: `backend/app/services/bedrock.py`
 - Test: `backend/tests/test_bedrock.py`
 
@@ -277,6 +279,7 @@ git commit -m "feat: add extract_structured_data function for two-stage extracti
 ## Task 3: Integrate Extraction into Worker
 
 **Files:**
+
 - Modify: `backend/app/worker.py`
 - Test: `backend/tests/test_worker.py` (if exists, otherwise test via integration)
 
@@ -371,16 +374,19 @@ git commit -m "feat: integrate two-stage extraction into analysis worker"
 ## Task 4: Simplify Napoleon Prompt (Optional)
 
 **Files:**
+
 - Modify: `backend/prompts/napoleon-framework/v2.md`
 
 **Step 1: Remove STRUCTURED-DATA requirements from prompt**
 
 Since we're now extracting data separately, we can simplify the prompt by removing:
+
 - Section 0 (STRUCTURED-DATA block requirement)
 - The "CRITICAL: Your response will be rejected if..." warning
 - The FINAL REMINDER about format
 
 This is optional - the prompt still works without these, but removing them:
+
 1. Reduces prompt length (saves tokens)
 2. Removes confusing instructions the AI ignores anyway
 

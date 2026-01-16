@@ -8,7 +8,9 @@
 ## CRITICAL INSTRUCTIONS FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **Invoke relevant skills BEFORE any action:**
+
 - `superpowers:brainstorming` - Before any feature/design work
 - `superpowers:test-driven-development` - Before writing any code
 - `superpowers:systematic-debugging` - Before fixing any bugs
@@ -16,7 +18,9 @@
 - `superpowers:requesting-code-review` - After completing implementation
 
 ### 2. NEVER Use Complex Shell Syntax
+
 These trigger permission prompts - NEVER use:
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -24,6 +28,7 @@ These trigger permission prompts - NEVER use:
 - `!` in quoted strings
 
 ### 3. ALWAYS Use Simple Commands
+
 - Simple single-line commands only
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -35,6 +40,7 @@ These trigger permission prompts - NEVER use:
 The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at the top with 39 books across 5 titles (Encyclopedia Britannica, reference works, etc.).
 
 **Problems:**
+
 1. "Various" isn't a real author - misleading to rank it alongside Dickens, Thackeray
 2. Multi-volume sets (Encyclopedia Britannica = 25+ volumes) inflate the count unfairly
 
@@ -45,7 +51,9 @@ The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at th
 ## What Was Done
 
 ### Implementation Complete
+
 1. **Added computed properties** to filter "Various":
+
    ```typescript
    const variousEntry = computed(() => authorData.value.find((d) => d.author === "Various"));
    const filteredAuthorData = computed(() => authorData.value.filter((d) => d.author !== "Various"));
@@ -56,6 +64,7 @@ The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at th
 3. **Updated tooltip callback** in `authorChartOptions` to reference `filteredAuthorData`
 
 4. **Added footnote** to template:
+
    ```vue
    <p v-if="variousEntry" class="text-xs text-victorian-ink-muted mt-2">
      * Excludes {{ variousEntry.count }} books by various/multiple authors
@@ -77,7 +86,9 @@ The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at th
 ## Next Steps
 
 ### Immediate
+
 1. **Stage and commit the changes:**
+
    ```
    git add frontend/src/components/dashboard/StatisticsDashboard.vue
    git commit -m "fix: Exclude Various from Top Authors chart with footnote"
@@ -88,6 +99,7 @@ The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at th
 3. **Push and create PR** (or add to existing PR #821 if appropriate)
 
 ### Also Pending
+
 - PR #821 (staging to main) is open for the publisher aliases refactor
 - Review and merge when ready for production
 

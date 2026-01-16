@@ -18,6 +18,7 @@ Transform BlueMoxon from utilitarian to distinctively elegant by adding Victoria
 ## Color Palette
 
 ### Current Colors (tailwind.config.js)
+
 ```javascript
 victorian: {
   gold: "#c9a227",      // Already defined - needs refinement
@@ -28,6 +29,7 @@ victorian: {
 ```
 
 ### Proposed Refined Palette
+
 ```javascript
 victorian: {
   // Primary - Deep Hunter Green (Peter Harrington header color)
@@ -77,15 +79,18 @@ victorian: {
 ### Font Stack
 
 **Display/Titles**: Cormorant Garamond (Google Fonts - free)
+
 - Elegant serif with Victorian character
 - Use for: Page titles, card titles, headings
 - Weights: 500 (medium), 600 (semibold)
 
 **Body/UI**: Keep system font stack (Inter/system-ui)
+
 - Modern readability for dense UI
 - Use for: Navigation, buttons, body text, data
 
 ### Implementation
+
 ```css
 /* Add to main.css */
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap');
@@ -100,6 +105,7 @@ victorian: {
 ```
 
 ### Tailwind Config Addition
+
 ```javascript
 fontFamily: {
   display: ['Cormorant Garamond', 'Georgia', 'serif'],
@@ -116,6 +122,7 @@ fontFamily: {
 **Current**: `bg-[rgb(30,39,78)]` (navy blue)
 
 **Proposed**: Deep hunter green with refined styling
+
 ```html
 <nav class="bg-victorian-hunter-900 text-white shadow-lg">
   <!-- Logo area gets subtle gold accent line -->
@@ -126,6 +133,7 @@ fontFamily: {
 ```
 
 **Changes**:
+
 - Background: Navy → Hunter green (`bg-victorian-hunter-900`)
 - Add subtle gold border accent below nav
 - Hover states: `hover:text-victorian-gold-light` instead of blue
@@ -135,6 +143,7 @@ fontFamily: {
 **Current**: `bg-white rounded-lg shadow-md`
 
 **Proposed**: Warm paper with refined borders
+
 ```css
 .card {
   @apply bg-victorian-paper-cream
@@ -156,6 +165,7 @@ fontFamily: {
 ```
 
 **Changes**:
+
 - Warm cream background instead of stark white
 - Softer, smaller border radius (rounded-sm vs rounded-lg)
 - Subtle border instead of heavy shadow
@@ -166,6 +176,7 @@ fontFamily: {
 **Current**: Standard card with blue accents
 
 **Proposed**: Victorian catalog entry feel
+
 ```html
 <div class="card group">
   <!-- Thumbnail with subtle gold frame effect on hover -->
@@ -201,6 +212,7 @@ fontFamily: {
 **Current**: Plain white cards with colored text
 
 **Proposed**: Refined stats with period styling
+
 ```html
 <div class="card relative overflow-hidden">
   <!-- Subtle decorative corner -->
@@ -230,6 +242,7 @@ fontFamily: {
 **Current**: `bg-moxon-600 hover:bg-moxon-700`
 
 **Proposed**: Two styles
+
 ```css
 /* Primary - Hunter green */
 .btn-primary {
@@ -260,6 +273,7 @@ fontFamily: {
 **Current**: Standard gray borders
 
 **Proposed**: Warmer, refined inputs
+
 ```css
 .input {
   @apply w-full px-3 py-2
@@ -279,6 +293,7 @@ fontFamily: {
 **Current**: Various colored badges
 
 **Proposed**: Differentiated by bindery prestige
+
 ```css
 /* Zaehnsdorf - Most prestigious */
 .badge-zaehnsdorf {
@@ -306,6 +321,7 @@ fontFamily: {
 ## Section Dividers & Decorative Elements
 
 ### Subtle Flourish Divider
+
 ```html
 <!-- Use sparingly - e.g., between major sections -->
 <div class="flex items-center justify-center my-8">
@@ -316,6 +332,7 @@ fontFamily: {
 ```
 
 ### Section Headers
+
 ```html
 <div class="border-b border-victorian-paper-antique pb-2 mb-6">
   <h2 class="font-display text-2xl text-victorian-ink-black">
@@ -350,23 +367,27 @@ const chartColors = {
 ## Implementation Phases
 
 ### Phase 1: Design Tokens (1 day)
+
 - [ ] Update tailwind.config.js with full Victorian palette
 - [ ] Add Google Font import
 - [ ] Update main.css with base typography styles
 - [ ] Update `.card`, `.btn-*`, `.input` component classes
 
 ### Phase 2: Navigation & Layout (0.5 day)
+
 - [ ] Update NavBar.vue colors
 - [ ] Update page background colors
 - [ ] Add subtle section dividers where appropriate
 
 ### Phase 3: Cards & Components (1 day)
+
 - [ ] Update BookThumbnail.vue styling
 - [ ] Update dashboard stat cards (HomeView.vue)
 - [ ] Update binding badges
 - [ ] Refine form inputs
 
 ### Phase 4: Charts & Polish (0.5 day)
+
 - [ ] Update chart color palette
 - [ ] Review and adjust any missed elements
 - [ ] Test on mobile
@@ -392,6 +413,7 @@ const chartColors = {
 ## Visual Comparison
 
 ### Before (Current)
+
 - Navy blue header
 - Stark white cards
 - Blue accent colors throughout
@@ -399,6 +421,7 @@ const chartColors = {
 - Heavy shadows
 
 ### After (Victorian Touches)
+
 - Deep hunter green header
 - Warm cream/paper backgrounds
 - Gold and burgundy accents

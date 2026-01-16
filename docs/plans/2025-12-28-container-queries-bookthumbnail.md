@@ -13,6 +13,7 @@
 ## Task 1: Create BookThumbnail Test File
 
 **Files:**
+
 - Create: `frontend/src/components/books/__tests__/BookThumbnail.spec.ts`
 
 **Step 1: Write the test file with failing tests**
@@ -132,6 +133,7 @@ git commit -m "test: add BookThumbnail tests for container query migration"
 ## Task 2: Update BookThumbnail Component
 
 **Files:**
+
 - Modify: `frontend/src/components/books/BookThumbnail.vue`
 
 **Step 1: Update the component to use container queries**
@@ -224,11 +226,13 @@ git commit -m "feat(BookThumbnail): replace size prop with container queries (#6
 ## Task 3: Update BooksView.vue
 
 **Files:**
+
 - Modify: `frontend/src/views/BooksView.vue:536-541`
 
 **Step 1: Find and update the BookThumbnail usage**
 
 Find this code (around line 536):
+
 ```vue
           <BookThumbnail
             :book-id="book.id"
@@ -239,6 +243,7 @@ Find this code (around line 536):
 ```
 
 Replace with:
+
 ```vue
           <div class="w-24 shrink-0">
             <BookThumbnail
@@ -273,16 +278,19 @@ git commit -m "refactor(BooksView): wrap BookThumbnail in sized container (#623)
 ## Task 4: Update BookDetailView.vue
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue:469`
 
 **Step 1: Find and update the BookThumbnail usage**
 
 Find this code (around line 469):
+
 ```vue
               <BookThumbnail :book-id="booksStore.currentBook.id" size="lg" />
 ```
 
 Replace with:
+
 ```vue
               <div class="w-48">
                 <BookThumbnail :book-id="booksStore.currentBook.id" />

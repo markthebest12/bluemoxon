@@ -9,6 +9,7 @@
 ## Summary
 
 Both production issues resolved:
+
 1. **#718 FMV Fix**: Deployed via PR #722 → #723. Code now checks `ENVIRONMENT` env var for scraper targeting.
 2. **#719 Opus Fix**: IAM policy updated via AWS CLI to add `aws-marketplace:ViewSubscriptions` and `aws-marketplace:Subscribe` permissions.
 
@@ -19,9 +20,11 @@ Both production issues resolved:
 ## Background
 
 ### Issue #718: FMV Scraper Targeting (FIXED)
+
 Production eval worker was calling staging scraper Lambda because `get_scraper_environment()` didn't check `ENVIRONMENT` env var.
 
 **Fix applied to `backend/app/config.py:155-169`:**
+
 ```python
 def get_scraper_environment() -> str:
     return (
@@ -36,6 +39,7 @@ def get_scraper_environment() -> str:
 **Root Cause:** Lambda execution role missing `aws-marketplace` permissions required for Opus 4.5 model access verification at runtime.
 
 **Fix applied via AWS CLI:**
+
 ```bash
 AWS_PROFILE=bmx-prod aws iam put-role-policy \
   --role-name bluemoxon-prod-analysis-worker-exec-role \
@@ -44,6 +48,7 @@ AWS_PROFILE=bmx-prod aws iam put-role-policy \
 ```
 
 The policy now includes:
+
 ```json
 {
   "Effect": "Allow",
@@ -77,6 +82,7 @@ The policy now includes:
 ## Verification
 
 **Opus Job Test:**
+
 ```
 Job ID: 10c6c99c-e6cf-4ade-8bc6-25cc11890e48
 Book: 553 (The Greville Memoirs)
@@ -110,6 +116,7 @@ Generated at: 2025-12-31T07:17:39 UTC
 ## Remaining Work
 
 ### Eval Runbook Regeneration
+
 Books with eval runbooks generated before the FMV fix may be missing comparables. To regenerate:
 
 ```bash
@@ -117,6 +124,7 @@ bmx-api --prod POST /books/{id}/eval-runbook/generate
 ```
 
 ### Terraform State Sync
+
 The direct IAM fix via AWS CLI means Terraform state is now out of sync. Next `terraform apply` will attempt to update the policy to match the Terraform code (which should be identical, so no change expected).
 
 ---
@@ -126,6 +134,7 @@ The direct IAM fix via AWS CLI means Terraform state is now out of sync. Next `t
 ### 1. ALWAYS Use Superpowers Skills
 
 Before ANY task, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:systematic-debugging` - Before fixing bugs
 - `superpowers:verification-before-completion` - Before claiming work done
@@ -139,6 +148,7 @@ Before ANY task, check if a skill applies:
 ### 2. Bash Command Rules - NEVER USE
 
 These trigger permission prompts and break auto-approve:
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution

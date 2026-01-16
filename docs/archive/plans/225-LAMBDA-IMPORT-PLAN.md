@@ -42,9 +42,11 @@ Production Lambda (`bluemoxon-api`) is currently managed outside Terraform, crea
 Update `backend/app/core/config.py` to read from `BMX_*` environment variables with fallback to current names for backwards compatibility during rollout.
 
 **Files to modify:**
+
 - `backend/app/core/config.py` - Add `BMX_` prefix support
 
 **Acceptance criteria:**
+
 - Code reads `BMX_*` vars first, falls back to old names
 - All tests pass
 - No functional change to current deployments
@@ -54,10 +56,12 @@ Update `backend/app/core/config.py` to read from `BMX_*` environment variables w
 Update staging Terraform to use standardized configuration.
 
 **Files to modify:**
+
 - `infra/terraform/envs/staging.tfvars` - Update memory, timeout
 - `infra/terraform/main.tf` - Update env var names in Lambda module call
 
 **Changes:**
+
 ```hcl
 # staging.tfvars
 lambda_memory_size = 512
@@ -65,6 +69,7 @@ lambda_timeout     = 600
 ```
 
 **Acceptance criteria:**
+
 - `terraform plan` shows only expected changes
 - `terraform apply` succeeds
 - Deep health check passes
@@ -77,15 +82,17 @@ Import production Lambda into Terraform state and migrate to module-created IAM 
 **Step-by-step:**
 
 1. **Update prod.tfvars:**
+
 ```hcl
 enable_lambda = true
 lambda_function_name_override = "bluemoxon-api"
 # Remove: lambda_function_name_external, lambda_invoke_arn_external, external_lambda_role_name
 ```
 
-2. **Update main.tf environment variables** to use `BMX_*` naming
+1. **Update main.tf environment variables** to use `BMX_*` naming
 
-3. **Import Lambda function:**
+2. **Import Lambda function:**
+
 ```bash
 cd infra/terraform
 AWS_PROFILE=bluemoxon terraform import \
@@ -95,14 +102,16 @@ AWS_PROFILE=bluemoxon terraform import \
   bluemoxon-api
 ```
 
-4. **Plan and verify:**
+1. **Plan and verify:**
+
 ```bash
 AWS_PROFILE=bluemoxon terraform plan \
   -var-file=envs/prod.tfvars \
   -var="db_password=$PROD_DB_PASSWORD"
 ```
 
-5. **Apply:**
+1. **Apply:**
+
 ```bash
 AWS_PROFILE=bluemoxon terraform apply \
   -var-file=envs/prod.tfvars \
@@ -110,6 +119,7 @@ AWS_PROFILE=bluemoxon terraform apply \
 ```
 
 **Acceptance criteria:**
+
 - Lambda continues running during apply
 - New IAM role created with all necessary permissions
 - Deep health check passes
@@ -133,6 +143,7 @@ AWS_PROFILE=bluemoxon terraform apply \
 ## Rollback Plan
 
 **Phase 2 rollback (staging):**
+
 ```bash
 # Revert tfvars and apply
 git checkout HEAD~1 -- infra/terraform/envs/staging.tfvars
@@ -140,6 +151,7 @@ terraform apply -var-file=envs/staging.tfvars
 ```
 
 **Phase 3 rollback (production):**
+
 1. Old IAM role still exists until manual deletion
 2. Revert prod.tfvars to `enable_lambda = false`
 3. Apply to remove Lambda from state (doesn't delete Lambda)
@@ -158,6 +170,7 @@ terraform apply -var-file=envs/staging.tfvars
 ## Timeline
 
 This work should be done sequentially with validation between each phase:
+
 1. Phase 1 (Backend) → Merge to staging → Deploy
 2. Phase 2 (Staging TF) → Apply → Validate 24h
 3. Phase 3 (Prod TF) → Apply → Validate 24h

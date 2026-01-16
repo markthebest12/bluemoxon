@@ -11,6 +11,7 @@
 ## Background
 
 Implemented a warm, Victorian "Evening Reading" dark mode with:
+
 - System preference detection (`prefers-color-scheme: dark`)
 - Manual toggle in navbar
 - localStorage persistence

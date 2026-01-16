@@ -21,18 +21,22 @@
 ## Current Work: Cost Tab (Branch: feat/admin-cost-tab)
 
 ### Goal
+
 Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by model with usage descriptions.
 
 ### PR
+
 - **PR #546**: [feat: Add Cost tab to Admin Config Dashboard](https://github.com/markthebest12/bluemoxon/pull/546)
 - **Base:** staging
 - **Status:** ✅ Merged
 
 ### Design Documents
+
 - Design: `docs/plans/2025-12-22-admin-cost-tab-design.md`
 - Implementation Plan: `docs/plans/2025-12-22-admin-cost-tab-implementation.md`
 
 ### Current December Production Costs (discovered via exploration)
+
 | Model | Cost |
 |-------|------|
 | Claude Sonnet 4.5 | $52.17 |
@@ -56,6 +60,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 | 8 | Terraform apply and verify | ✅ Complete |
 
 ### Commits Made (on feat/admin-cost-tab)
+
 ```
 89fcc75 style: format AdminConfigView.vue with Prettier
 af7e668 style: format cost_explorer.py with ruff
@@ -72,19 +77,23 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 ### Files Modified/Created
 
 **Infrastructure (committed):**
+
 - `infra/terraform/modules/lambda/variables.tf` - Added `cost_explorer_access` variable
 - `infra/terraform/modules/lambda/main.tf` - Added IAM policy for ce:GetCostAndUsage
 - `infra/terraform/main.tf` - Enabled `cost_explorer_access = true` for API Lambda
 
 **Backend (committed):**
+
 - `backend/app/services/cost_explorer.py` - NEW: Cost Explorer service with 1-hour caching
 - `backend/app/api/v1/admin.py` - Added /costs endpoint and Pydantic models
 
 **Frontend (committed):**
+
 - `frontend/src/types/admin.ts` - Added BedrockModelCost, DailyCost, CostResponse interfaces
 - `frontend/src/views/AdminConfigView.vue` - Added Cost tab with full UI
 
 ### Key Technical Details
+
 - AWS Cost Explorer API (boto3, region us-east-1)
 - 1-hour cache for cost data
 - Maps AWS service names to our model names + usage descriptions
@@ -117,6 +126,7 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 ## CRITICAL: Bash Command Rules
 
 **NEVER use (these trigger permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -124,6 +134,7 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 - `!` in quoted strings (bash history expansion)
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (pre-approved, no prompts)
@@ -166,6 +177,7 @@ b924166 feat: add Cost Explorer IAM permission to Lambda module
 **Root Cause:** Local `terraform apply` updated S3 state file, but DynamoDB still had old checksum.
 
 **Fix:** Updated DynamoDB digest in BOTH tables:
+
 ```bash
 # Local backend uses this table
 AWS_PROFILE=bmx-staging aws dynamodb update-item \
@@ -185,6 +197,7 @@ AWS_PROFILE=bmx-staging aws dynamodb update-item \
 ```
 
 **Note:** There are 3 DynamoDB tables for terraform locks - ensure you update the right one(s):
+
 - `bluemoxon-terraform-lock-staging` - local backend config
 - `bluemoxon-terraform-locks` - CI workflow config
 - `bluemoxon-staging-terraform-locks` - (unused?)

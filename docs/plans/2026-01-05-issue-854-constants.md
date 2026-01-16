@@ -13,6 +13,7 @@
 ## Task 1: Create Constants File
 
 **Files:**
+
 - Create: `frontend/src/constants/index.ts`
 - Test: `frontend/src/constants/__tests__/index.spec.ts`
 
@@ -148,6 +149,7 @@ git commit -m "feat(frontend): add centralized constants file (#854)"
 ## Task 2: Update BookDetailView.vue
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue:78-83`
 
 **Step 1: Verify existing behavior**
@@ -158,6 +160,7 @@ Expected: PASS (baseline)
 **Step 2: Update import and remove local constant**
 
 Replace lines 78-83:
+
 ```typescript
 // REMOVE:
 const statusOptions = [
@@ -169,6 +172,7 @@ const statusOptions = [
 ```
 
 Add import at top (after line 10):
+
 ```typescript
 import { BOOK_STATUS_OPTIONS } from "@/constants";
 ```
@@ -192,11 +196,13 @@ git commit -m "refactor(frontend): use BOOK_STATUS_OPTIONS in BookDetailView (#8
 ## Task 3: Update BookForm.vue
 
 **Files:**
+
 - Modify: `frontend/src/components/books/BookForm.vue:85-91`
 
 **Step 1: Update import and remove local constant**
 
 Replace lines 85-91:
+
 ```typescript
 // REMOVE:
 const statuses = [
@@ -208,6 +214,7 @@ const statuses = [
 ```
 
 Add import at top (after line 7):
+
 ```typescript
 import { BOOK_STATUS_OPTIONS } from "@/constants";
 ```
@@ -231,16 +238,19 @@ git commit -m "refactor(frontend): use BOOK_STATUS_OPTIONS in BookForm (#854)"
 ## Task 4: Update acquisitions.ts
 
 **Files:**
+
 - Modify: `frontend/src/stores/acquisitions.ts:107,116,125,137`
 
 **Step 1: Update imports and replace magic numbers**
 
 Add import at top:
+
 ```typescript
 import { PAGINATION } from "@/constants";
 ```
 
 Replace magic numbers:
+
 - Line 107: `per_page: 100` → `per_page: PAGINATION.DEFAULT_PER_PAGE`
 - Line 116: `per_page: 100` → `per_page: PAGINATION.DEFAULT_PER_PAGE`
 - Line 125: `per_page: 50` → `per_page: PAGINATION.RECEIVED_PER_PAGE`
@@ -263,16 +273,19 @@ git commit -m "refactor(frontend): use PAGINATION constants in acquisitions stor
 ## Task 5: Update ComboboxWithAdd.vue
 
 **Files:**
+
 - Modify: `frontend/src/components/ComboboxWithAdd.vue:85`
 
 **Step 1: Update import and replace magic number**
 
 Add import at top:
+
 ```typescript
 import { UI_TIMING } from "@/constants";
 ```
 
 Replace line 85:
+
 ```typescript
 // FROM:
   }, 200);
@@ -311,6 +324,7 @@ Expected: All tests PASS
 **Step 2: Squash commits if needed**
 
 If making a single PR, consider squashing:
+
 ```bash
 git rebase -i HEAD~5
 # Squash all into first commit with message:

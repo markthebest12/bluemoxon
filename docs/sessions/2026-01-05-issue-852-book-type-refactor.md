@@ -11,6 +11,7 @@
 ## Investigation Finding
 
 The issue description claimed "the Book interface doesn't include these fields" - but **this was incorrect**. The `Book` interface in `stores/books.ts` already includes ALL the fields:
+
 - `edition: string | null` (line 34)
 - `binding_description: string | null` (line 40)
 - `condition_grade: string | null` (line 41)
@@ -44,5 +45,5 @@ Also fixed a subtle bug: changed `|| null` to `?? null` for numeric fields (`pur
 
 ## PR
 
-- **PR #868**: https://github.com/markthebest12/bluemoxon/pull/868
+- **PR #868**: <https://github.com/markthebest12/bluemoxon/pull/868>
 - **Status**: Ready for review before merging to staging

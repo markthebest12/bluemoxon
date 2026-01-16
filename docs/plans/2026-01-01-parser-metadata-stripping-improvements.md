@@ -17,6 +17,7 @@
 **Problem:** Current implementation truncates everything from "## N. Metadata Block" to end of document. If Claude ever outputs content after metadata (e.g., an Appendix), that content is silently lost.
 
 **Files:**
+
 - Modify: `backend/app/utils/markdown_parser.py:198-222`
 - Test: `backend/tests/test_markdown_parser.py`
 
@@ -113,6 +114,7 @@ git commit -m "fix(parser): preserve content after metadata block section"
 **Problem:** `strip_metadata_block()` in analysis_parser.py has logging, but `strip_structured_data()` in markdown_parser.py silently removes content. Debugging production issues is harder without observability.
 
 **Files:**
+
 - Modify: `backend/app/utils/markdown_parser.py:198-222`
 
 ### Step 1: Add logger import and debug logging
@@ -161,12 +163,14 @@ git commit -m "feat(parser): add debug logging to strip_structured_data"
 ## Task 3: Document Metadata Format Differences
 
 **Problem:** There are THREE different metadata strip functions/formats which is confusing:
+
 1. `strip_structured_data()` handles `---STRUCTURED-DATA---` markers and `## N. Metadata Block` sections
 2. `strip_metadata_block()` handles `<!-- METADATA_START -->` HTML comment markers
 
 These are for DIFFERENT purposes but documentation doesn't explain when to use each.
 
 **Files:**
+
 - Modify: `backend/app/utils/markdown_parser.py` (docstring update)
 - Modify: `backend/app/services/analysis_parser.py` (docstring update)
 

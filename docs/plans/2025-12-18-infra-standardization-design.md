@@ -1,6 +1,7 @@
 # Infrastructure Standardization Design
 
 > **For Claude:**
+>
 > - REQUIRED: Use `superpowers:subagent-driven-development` to execute this plan
 > - Use `superpowers:test-driven-development` for any code changes
 > - Use `superpowers:verification-before-completion` before claiming any phase complete
@@ -48,6 +49,7 @@
 ## Implementation Phases
 
 > **Skills per phase:**
+>
 > - Each task: `superpowers:test-driven-development` (write test, verify fail, implement, verify pass)
 > - After each task: `superpowers:requesting-code-review` via subagent
 > - Before marking complete: `superpowers:verification-before-completion`
@@ -55,22 +57,26 @@
 ### Phase 1: Low-Risk Changes (No Downtime)
 
 **Task 1.1: Update backend code**
+
 - File: `backend/app/core/config.py`
 - Change: Use `BMX_DATABASE_SECRET_ARN` instead of `BMX_DATABASE_SECRET_NAME`
 - The code should check for ARN first, fall back to name for backward compatibility during transition
 
 **Task 1.2: Update Terraform Lambda module**
+
 - File: `infra/terraform/modules/lambda/main.tf`
 - Add `BMX_DATABASE_SECRET_ARN` environment variable
 - Remove `BMX_DATABASE_SECRET_NAME` after code is deployed
 
 **Task 1.3: Fix prod images CDN URL**
+
 - File: `infra/terraform/envs/prod.tfvars` or Lambda module
 - Change `BMX_IMAGES_CDN_URL` to `https://app.bluemoxon.com/book-images`
 
 ### Phase 2: Scraper Rename (Low Risk)
 
 **Task 2.1: Rename production scraper**
+
 - Current: `bluemoxon-production-scraper`
 - Target: `bluemoxon-prod-scraper`
 - Update `scraper_function_name_override` in prod.tfvars
@@ -81,15 +87,18 @@
 ### Phase 3: API Lambda Rename (High Risk - Downtime Acceptable)
 
 **Task 3.1: Rename production API Lambda**
+
 - Current: `bluemoxon-api`
 - Target: `bluemoxon-prod-api`
 - Update `lambda_function_name_override` in prod.tfvars
 
 **Task 3.2: Update API Gateway integration**
+
 - API Gateway must point to new Lambda name
 - This happens automatically if Terraform manages the integration
 
 **Rollback Plan:**
+
 - Keep old Lambda for 24 hours
 - If issues, revert Terraform and re-apply
 
@@ -143,6 +152,7 @@ AWS_PROFILE=bmx-staging aws lambda invoke --function-name bluemoxon-staging-scra
 ## Troubleshooting
 
 > **If any verification fails:** Use `superpowers:systematic-debugging`
+>
 > - Phase 1: Investigate → `superpowers:root-cause-tracing`
 > - Do NOT guess at fixes
 > - Trace data flow from env var → code → error
@@ -152,15 +162,18 @@ AWS_PROFILE=bmx-staging aws lambda invoke --function-name bluemoxon-staging-scra
 ## Files to Modify
 
 ### Backend
+
 - `backend/app/core/config.py` - Database secret ARN handling
 
 ### Terraform
+
 - `infra/terraform/modules/lambda/main.tf` - Environment variables
 - `infra/terraform/modules/lambda/variables.tf` - Variable definitions
 - `infra/terraform/envs/prod.tfvars` - Name overrides, CDN URL
 - `infra/terraform/main.tf` - Module invocations if needed
 
 ### Potentially
+
 - `infra/terraform/modules/scraper-lambda/` - If scraper rename needs changes
 - `.github/workflows/deploy.yml` - If Lambda names are hardcoded
 

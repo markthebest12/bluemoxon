@@ -1,12 +1,14 @@
 # Session Log: API Versioning Strategy (#1003)
 
 **Date:** 2026-01-10
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/1003
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/1003>
 
 ## Objective
+
 Document API versioning strategy for additive changes per code review feedback from #965.
 
 ## Acceptance Criteria
+
 - [x] API compatibility policy documented in docs/
 - [x] OpenAPI spec notes additive change policy
 - [x] Decision on versioning strategy recorded as ADR
@@ -14,12 +16,14 @@ Document API versioning strategy for additive changes per code review feedback f
 ## Progress
 
 ### Phase 1: Brainstorming & Design
+
 - [x] Explore current API structure and documentation
 - [x] Understand existing patterns
 - [x] Design versioning policy
 - [x] Create design document
 
 ### Phase 2: Implementation
+
 - [x] Create API compatibility policy doc (`docs/API_COMPATIBILITY.md`)
 - [x] Update OpenAPI spec (`backend/app/main.py`)
 - [x] Create ADR for versioning strategy (`docs/adr/001-api-compatibility-policy.md`)
@@ -41,4 +45,5 @@ Document API versioning strategy for additive changes per code review feedback f
 - `backend/app/main.py` (modified - OpenAPI description)
 
 ## Notes
+
 PR pending review before merge to staging.

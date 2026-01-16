@@ -198,6 +198,7 @@ bluemoxon-deps-layer/
 ```
 
 **Layer benefits:**
+
 - Reduces API Lambda package from ~80MB to ~5MB
 - Shared across all Lambdas (deploy once)
 - Faster cold starts (cached by AWS)
@@ -531,12 +532,14 @@ erDiagram
 ### Entity Scoring
 
 Reference entities (Authors, Publishers, Binders) support:
+
 - **Tiers**: TIER_1 (+15 pts), TIER_2 (+10 pts), TIER_3 (+5 pts)
 - **Preferred**: +10 pts bonus for preferred entities
 
 ### Tracking Status Values
 
 Books with `status=IN_TRANSIT` can have tracking information:
+
 - `pending` - Label created
 - `in_transit` - Package in transit
 - `out_for_delivery` - Out for delivery
@@ -598,6 +601,7 @@ sequenceDiagram
 The Admin Settings page (accessible via profile dropdown for admin users) provides:
 
 ### User Management
+
 - **Invite Users:** Send email invitations via Cognito with temporary passwords
 - **Role Management:** Assign viewer/editor/admin roles
 - **MFA Control:** Enable/disable MFA for users (pool-level MFA required)
@@ -606,6 +610,7 @@ The Admin Settings page (accessible via profile dropdown for admin users) provid
 - **Delete Users:** Remove users from both Cognito and database
 
 ### API Key Management
+
 - **Create Keys:** Generate API keys for programmatic access
 - **Key Security:** Keys are hashed (SHA-256) before storage; shown only once
 - **Revoke Keys:** Deactivate keys without deleting records
@@ -624,9 +629,10 @@ The Admin Settings page (accessible via profile dropdown for admin users) provid
 ## Viewing Diagrams
 
 These Mermaid diagrams render in:
+
 - **GitHub**: Automatically in markdown preview
 - **VS Code**: With Mermaid extension
-- **Mermaid Live Editor**: https://mermaid.live
+- **Mermaid Live Editor**: <https://mermaid.live>
 
 ---
 

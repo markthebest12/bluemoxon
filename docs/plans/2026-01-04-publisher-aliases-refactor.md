@@ -13,6 +13,7 @@
 ## Task 1: Create PublisherAlias Model
 
 **Files:**
+
 - Create: `backend/app/models/publisher_alias.py`
 - Modify: `backend/app/models/__init__.py`
 
@@ -42,13 +43,15 @@ class PublisherAlias(Base):
 **Step 2: Add relationship to Publisher model**
 
 In `backend/app/models/publisher.py`, add to Publisher class:
+
 ```python
 aliases = relationship("PublisherAlias", back_populates="publisher", cascade="all, delete-orphan")
 ```
 
-**Step 3: Export in __init__.py**
+**Step 3: Export in **init**.py**
 
 In `backend/app/models/__init__.py`, add:
+
 ```python
 from app.models.publisher_alias import PublisherAlias
 ```
@@ -65,6 +68,7 @@ git commit -m "feat(models): add PublisherAlias model for name variant mappings"
 ## Task 2: Create Migration with Seed Data
 
 **Files:**
+
 - Create: `backend/alembic/versions/YYYYMMDD_add_publisher_aliases.py`
 
 **Step 1: Generate migration skeleton**
@@ -191,11 +195,13 @@ git commit -m "feat(migration): add publisher_aliases table with seed data"
 ## Task 3: Write Tests for DB-backed normalize_publisher_name
 
 **Files:**
+
 - Modify: `backend/tests/test_publisher_validation.py`
 
 **Step 1: Update TestNormalizePublisherName to use db fixture**
 
 The tests need to:
+
 1. Accept `db` fixture
 2. Seed aliases in the test db
 3. Call `normalize_publisher_name(db, name)` with db session
@@ -258,6 +264,7 @@ git commit -m "test: update normalize_publisher_name tests for db-backed lookup"
 ## Task 4: Implement DB-backed normalize_publisher_name
 
 **Files:**
+
 - Modify: `backend/app/services/publisher_validation.py`
 
 **Step 1: Update normalize_publisher_name signature and implementation**
@@ -323,6 +330,7 @@ git commit -m "feat: implement db-backed normalize_publisher_name"
 ## Task 5: Remove Dead Code from stats.py
 
 **Files:**
+
 - Modify: `backend/app/api/v1/stats.py`
 
 **Step 1: Delete TIER_1_PUBLISHERS constant**
@@ -390,6 +398,7 @@ After staging validation, create PR to promote changes to production.
 ## Parallel Execution Notes
 
 **Tasks that can run in parallel:**
+
 - Task 1 (model) and Task 2 (migration) can be developed together
 - Task 3 (tests) depends on Task 1
 - Task 4 (implementation) depends on Tasks 1, 2, 3
@@ -397,6 +406,7 @@ After staging validation, create PR to promote changes to production.
 - Task 6 (full suite) depends on all above
 
 **Recommended parallel groups:**
+
 1. Group A: Tasks 1 + 2 (model + migration)
 2. Group B: Task 5 (dead code removal) - independent
 3. Sequential: Tasks 3 → 4 → 6 → 7

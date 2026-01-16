@@ -60,6 +60,7 @@ This document describes how to sync the production database to the staging envir
 The sync Lambda runs entirely within AWS, no local access required.
 
 **Full database sync (requires prod DB credentials):**
+
 ```bash
 aws lambda invoke \
     --function-name bluemoxon-staging-db-sync \
@@ -72,6 +73,7 @@ cat .tmp/sync-response.json | jq
 ```
 
 **Cognito mapping only (no DB sync, no prod credentials needed):**
+
 ```bash
 # Maps staging Cognito user subs to database users by email
 aws lambda invoke \
@@ -87,6 +89,7 @@ cat .tmp/cognito-sync.json | jq
 This is useful after creating new users in staging Cognito to update the `cognito_sub` column in the users table.
 
 **Monitor progress:**
+
 ```bash
 # Watch CloudWatch logs
 aws logs tail /aws/lambda/bluemoxon-staging-db-sync \
@@ -112,6 +115,7 @@ If you have network access to both databases (e.g., from a bastion host):
 ```
 
 This creates:
+
 - IAM role with Secrets Manager access
 - Lambda function in staging VPC
 - Environment variables configured
@@ -142,6 +146,7 @@ After syncing the database, the staging Redis cache must be flushed to prevent s
 **Why this matters:** Dashboard stats are cached for 5 minutes. Without flushing, the staging dashboard would show production metrics for up to 5 minutes after sync.
 
 **Manual flush (if needed):**
+
 ```bash
 # Connect to staging Redis via Lambda
 aws lambda invoke \
@@ -184,6 +189,7 @@ The sync Lambda cannot access prod secrets encrypted with the default KMS key.
 ### Lambda Times Out
 
 The default timeout is 15 minutes. For very large databases:
+
 1. Increase Lambda timeout (max 15 min)
 2. Consider syncing tables in batches
 3. Use pg_dump/pg_restore via EC2 for huge datasets
@@ -191,22 +197,26 @@ The default timeout is 15 minutes. For very large databases:
 ### Connection Errors
 
 **"Connection refused" to production:**
+
 - Check VPC peering status: `aws ec2 describe-vpc-peering-connections`
 - Verify route tables have peering routes
 - Check security group allows 5432 from staging CIDR
 
 **"Connection refused" to staging:**
+
 - Lambda must be in same VPC as RDS
 - Check security group allows Lambda's security group
 
 ### Secrets Manager Errors
 
 **"Access Denied":**
+
 - Lambda role needs `secretsmanager:GetSecretValue` permission
 - For cross-account (prod secret), the secret must have a resource policy allowing staging account
 
 **Cross-Account Secret Access:**
 If Lambda can't access prod secret, add resource policy to prod secret:
+
 ```bash
 aws secretsmanager put-resource-policy \
     --secret-id bluemoxon/db-credentials \

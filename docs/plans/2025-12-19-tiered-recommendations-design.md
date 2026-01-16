@@ -43,6 +43,7 @@ Transform the eval runbook from binary ACQUIRE/PASS to a tiered recommendation s
 ```
 
 **Key Principles:**
+
 - Human always in the loop - recommendations are suggestions, not gates
 - Napoleon Analysis is manually triggered (button click)
 - Napoleon can override eval runbook recommendation
@@ -76,6 +77,7 @@ Measures intrinsic book desirability, independent of price:
 | **Max Total** | **100** | Clean 0-100 scale |
 
 **Penalties (floor at 0):**
+
 - Duplicate title in collection: -30
 - 5+ volumes: -10
 
@@ -127,6 +129,7 @@ Prevent "great deal, wrong book" scenarios:
 These floors apply regardless of price position.
 
 **Example - Tauchnitz Collins at 71% below FMV:**
+
 - Quality: 65 (good binding, Victorian era)
 - Strategic Fit: 10 (wrong publisher for Collins priority)
 - Combined: 43
@@ -150,6 +153,7 @@ For CONDITIONAL recommendations, calculate an offer price that makes the deal wo
 ### Floor-Triggered CONDITIONAL
 
 When CONDITIONAL is due to a floor (not the matrix), use steeper discounts:
+
 - Strategic Fit floor triggered: 40% below FMV minimum
 - Quality floor triggered: 50% below FMV minimum
 
@@ -258,6 +262,7 @@ napoleon_analyzed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 ### Backward Compatibility
 
 Keep existing `recommendation` field:
+
 - Map STRONG_BUY/BUY → "ACQUIRE"
 - Map CONDITIONAL/PASS → "PASS"
 
@@ -306,6 +311,7 @@ Frontend reads `recommendation_tier` if present, falls back to `recommendation`.
 ### Override Display
 
 If Napoleon Analysis exists and differs from eval runbook:
+
 - Show both recommendations
 - Indicate Napoleon as override with explanation
 - Visual indicator (e.g., "Napoleon Analysis updated recommendation")
@@ -313,6 +319,7 @@ If Napoleon Analysis exists and differs from eval runbook:
 ## Archive Cleanup
 
 When a book is archived at any stage, purge all associated data:
+
 - Book record
 - Images (S3 objects + database records)
 - Eval Runbook
@@ -332,6 +339,7 @@ This keeps the system clean and avoids orphaned data/storage costs.
 ## Implementation Phases
 
 ### Phase 1: Scoring Engine
+
 - [ ] Create `calculate_quality_score()` function
 - [ ] Create `calculate_strategic_fit_score()` function
 - [ ] Create `calculate_combined_score()` function
@@ -340,23 +348,27 @@ This keeps the system clean and avoids orphaned data/storage costs.
 - [ ] Unit tests for all scoring functions
 
 ### Phase 2: Data Model
+
 - [ ] Add new columns to EvalRunbook model
 - [ ] Create Alembic migration
 - [ ] Update EvalRunbook schema (Pydantic)
 - [ ] Backward compatibility mapping
 
 ### Phase 3: Offer Price & Reasoning
+
 - [ ] Create `calculate_suggested_offer()` function
 - [ ] Create `generate_reasoning()` with templates
 - [ ] Unit tests
 
 ### Phase 4: Integration
+
 - [ ] Update `generate_eval_runbook()` to use new scoring
 - [ ] Add score update logic (price change detection)
 - [ ] Add Napoleon override support
 - [ ] Integration tests
 
 ### Phase 5: Frontend
+
 - [ ] Update eval runbook modal with new display
 - [ ] Add recommendation badges with styling
 - [ ] Add suggested offer display for CONDITIONAL
@@ -364,6 +376,7 @@ This keeps the system clean and avoids orphaned data/storage costs.
 - [ ] Add Napoleon override indicator
 
 ### Phase 6: Archive Cleanup
+
 - [ ] Implement cascade delete for book archive
 - [ ] S3 image cleanup on archive
 - [ ] Test data purge completeness

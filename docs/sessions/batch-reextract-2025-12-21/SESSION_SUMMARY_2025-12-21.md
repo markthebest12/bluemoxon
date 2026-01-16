@@ -32,6 +32,7 @@ Error: API returned 400
 ```
 
 **What WAS verified:**
+
 - Code change is correct (line 242 in listing.py)
 - Unit tests pass (12/12 including new multi-volume test)
 - Staging deploy succeeded with smoke tests
@@ -39,6 +40,7 @@ Error: API returned 400
 - Book 524 was successfully deleted (404 confirmed)
 
 **Alternative validation approach:**
+
 - Test with a NEW active eBay listing that has multi-volume set
 - Or wait for next natural multi-volume book import to verify volumes extraction
 
@@ -47,6 +49,7 @@ Error: API returned 400
 ## Superpowers Skill in Use
 
 **`superpowers:verification-before-completion`** - Cannot claim work is complete without:
+
 1. Evidence that production deploy succeeded (smoke tests pass)
 2. Evidence that Book 524 is deleted
 3. Evidence that Book 524 is re-created with correct `volumes: 6`
@@ -77,6 +80,7 @@ bmx-api --prod DELETE '/books/524'
 ### 3. Re-Create Book 524 via Runbook
 
 Use the original eBay URL to test full pipeline:
+
 - Scraping
 - Listing extraction (should get `volumes: 6`)
 - Analysis generation
@@ -106,9 +110,9 @@ gh issue close 502 --comment "Phase 2 complete. Volume extraction fix deployed v
 
 | Item | Reference |
 |------|-----------|
-| Issue #502 (reopened) | https://github.com/markthebest12/bluemoxon/issues/502 |
-| PR #508 (staging) | https://github.com/markthebest12/bluemoxon/pull/508 |
-| PR #509 (production) | https://github.com/markthebest12/bluemoxon/pull/509 |
+| Issue #502 (reopened) | <https://github.com/markthebest12/bluemoxon/issues/502> |
+| PR #508 (staging) | <https://github.com/markthebest12/bluemoxon/pull/508> |
+| PR #509 (production) | <https://github.com/markthebest12/bluemoxon/pull/509> |
 | Production deploy run | 20413813541 |
 | Code change | `backend/app/services/listing.py` line 242 |
 | Test added | `backend/tests/test_listing_extraction.py::test_extracts_multi_volume_set` |
@@ -120,11 +124,13 @@ gh issue close 502 --comment "Phase 2 complete. Volume extraction fix deployed v
 ### `backend/app/services/listing.py` (line 242)
 
 **Before:**
+
 ```python
 "volumes": 1,
 ```
 
 **After:**
+
 ```python
 "volumes": "number of volumes in set (default 1 if single volume or not mentioned)",
 ```
@@ -132,6 +138,7 @@ gh issue close 502 --comment "Phase 2 complete. Volume extraction fix deployed v
 ### `backend/tests/test_listing_extraction.py`
 
 Added test:
+
 ```python
 @patch("app.services.listing.invoke_bedrock_extraction")
 def test_extracts_multi_volume_set(self, mock_bedrock):

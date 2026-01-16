@@ -18,6 +18,7 @@ From code review of #965 (dashboard charts implementation), adding `by_condition
 ## Compatibility Rules
 
 ### Breaking Changes (require version bump)
+
 - Removing a field
 - Renaming a field
 - Changing a field's type
@@ -25,6 +26,7 @@ From code review of #965 (dashboard charts implementation), adding `by_condition
 - Removing enum values
 
 ### Non-Breaking Changes (safe for v1)
+
 - Adding new optional fields (with defaults)
 - Adding new enum values
 - Adding new endpoints

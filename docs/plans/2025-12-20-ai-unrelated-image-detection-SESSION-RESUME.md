@@ -28,6 +28,7 @@ Implemented AI-powered detection and removal of unrelated images (seller ads, lo
 ## Remaining Tasks (6-7)
 
 ### Task 6: Manual Validation on Staging
+
 ```bash
 # Check deploy completed
 gh run list --workflow Deploy --limit 1
@@ -43,6 +44,7 @@ bmx-api GET /books/506
 ```
 
 ### Task 7: Create PR and Deploy to Production
+
 ```bash
 gh pr create --base main --head staging --title "feat: AI-powered unrelated image detection (#487)"
 gh pr checks <pr-number> --watch

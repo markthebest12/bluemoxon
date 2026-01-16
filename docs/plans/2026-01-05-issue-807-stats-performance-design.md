@@ -6,6 +6,7 @@
 ## Problem
 
 Several stats endpoints load all books into memory and iterate in Python, causing:
+
 1. Memory usage scales with collection size
 2. Python loops slower than SQL aggregation
 3. Unnecessary - all calculations can be done in SQL
@@ -133,11 +134,13 @@ for author_id, title in sample_titles_rows:
 **Existing tests:** All 4 endpoints have tests verifying response structure/values - serve as regression tests.
 
 **New tests to add:**
+
 1. `test_metrics_victorian_year_end_fallback` - Books with only year_end in Victorian range
 2. `test_by_era_pre_romantic` - Verify pre-1800 books get correct category
 3. `test_by_author_sample_titles_batch` - Verify batch query populates correctly
 
 **TDD approach:**
+
 1. Write failing tests for edge cases first
 2. Refactor endpoint implementations
 3. Verify existing tests still pass
@@ -149,6 +152,7 @@ for author_id, title in sample_titles_rows:
 ## Compatibility
 
 All SQL must work with both:
+
 - PostgreSQL (production)
 - SQLite (tests)
 

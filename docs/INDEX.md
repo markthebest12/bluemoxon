@@ -64,10 +64,12 @@ Active work sessions with artifacts:
 ## Quick Links
 
 **Staging Environment:**
-- Frontend: https://staging.app.bluemoxon.com
-- API: https://staging.api.bluemoxon.com
-- Health: https://staging.api.bluemoxon.com/api/v1/health/deep
+
+- Frontend: <https://staging.app.bluemoxon.com>
+- API: <https://staging.api.bluemoxon.com>
+- Health: <https://staging.api.bluemoxon.com/api/v1/health/deep>
 
 **Production:**
-- Frontend: https://app.bluemoxon.com
-- API: https://api.bluemoxon.com
+
+- Frontend: <https://app.bluemoxon.com>
+- API: <https://api.bluemoxon.com>

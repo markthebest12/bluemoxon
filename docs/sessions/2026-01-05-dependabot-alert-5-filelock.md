@@ -1,7 +1,7 @@
 # Session Log: Dependabot Alert #5 - filelock TOCTOU Vulnerability
 
 **Date:** 2026-01-05
-**Alert:** https://github.com/markthebest12/bluemoxon/security/dependabot/5
+**Alert:** <https://github.com/markthebest12/bluemoxon/security/dependabot/5>
 
 ## Summary
 

@@ -7,6 +7,7 @@
 ## Problem Statement
 
 Current orphan image cleanup has poor UX:
+
 1. **Artificial batch limit of 100** - Forces user to click "Delete Orphans" ~36 times to delete 3,609 orphans
 2. **No confirmation before destructive action** - Delete button runs immediately
 3. **Missing size information** - Only shows object count, not storage used or cost
@@ -14,6 +15,7 @@ Current orphan image cleanup has poor UX:
 ## Solution Overview
 
 Replace the current cleanup UI with a comprehensive orphan management experience:
+
 1. Full scan results with size and cost information
 2. Expandable details showing all orphans grouped by book
 3. Inline confirmation before deletion
@@ -146,6 +148,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 ### Data Structures
 
 **Scan Response:**
+
 ```typescript
 interface OrphanScanResult {
   total_count: number;
@@ -162,6 +165,7 @@ interface OrphanScanResult {
 ```
 
 **Job Progress Response:**
+
 ```typescript
 interface CleanupJobProgress {
   job_id: string;

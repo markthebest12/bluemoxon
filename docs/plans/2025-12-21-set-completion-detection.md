@@ -15,6 +15,7 @@
 ## Task 1: Roman Numeral Conversion Utility
 
 **Files:**
+
 - Create: `backend/app/services/set_detection.py`
 - Create: `backend/tests/services/test_set_detection.py`
 
@@ -155,6 +156,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 2: Volume Number Extraction
 
 **Files:**
+
 - Modify: `backend/app/services/set_detection.py`
 - Modify: `backend/tests/services/test_set_detection.py`
 
@@ -283,6 +285,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 3: Title Normalization
 
 **Files:**
+
 - Modify: `backend/app/services/set_detection.py`
 - Modify: `backend/tests/services/test_set_detection.py`
 
@@ -391,6 +394,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 4: Title Matching
 
 **Files:**
+
 - Modify: `backend/app/services/set_detection.py`
 - Modify: `backend/tests/services/test_set_detection.py`
 
@@ -488,6 +492,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 5: Main Detection Function with Integration Tests
 
 **Files:**
+
 - Modify: `backend/app/services/set_detection.py`
 - Modify: `backend/tests/services/test_set_detection.py`
 
@@ -852,6 +857,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 6: Integrate into eval_generation.py
 
 **Files:**
+
 - Modify: `backend/app/services/eval_generation.py:555`
 
 **Step 1: Read current context around line 555**
@@ -909,6 +915,7 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git co
 ## Task 7: Integrate into scoring.py
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py:628`
 
 **Step 1: Read current context around line 628**
@@ -990,12 +997,14 @@ Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && git pu
 **Step 5: Create PR**
 
 Run: `cd /Users/mark/projects/bluemoxon/.worktrees/feat-set-completion && gh pr create --base staging --title "feat: Set completion detection (#517)" --body "## Summary
+
 - Adds set_detection.py service module
 - Detects when new book completes multi-volume set
 - Awards +25 STRATEGIC_COMPLETES_SET bonus points
 - Integrates into eval_generation.py and scoring.py
 
 ## Test Plan
+
 - [x] Unit tests for Roman numeral conversion
 - [x] Unit tests for volume extraction
 - [x] Unit tests for title normalization
@@ -1023,9 +1032,11 @@ Closes #517"`
 **Total new tests:** 40
 
 **Files created:**
+
 - `backend/app/services/set_detection.py`
 - `backend/tests/services/test_set_detection.py`
 
 **Files modified:**
+
 - `backend/app/services/eval_generation.py`
 - `backend/app/services/scoring.py`

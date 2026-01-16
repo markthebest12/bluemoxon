@@ -1,7 +1,7 @@
 # Session: Issue #599 - Mobile Viewport Bug
 
 **Date:** 2025-12-25
-**Issue:** https://github.com/markthebest12/bluemoxon/issues/599
+**Issue:** <https://github.com/markthebest12/bluemoxon/issues/599>
 **Status:** ✅ RESOLVED - Deployed to production
 
 ---
@@ -9,14 +9,18 @@
 ## CRITICAL: Workflow Requirements
 
 ### Superpowers Skills - MANDATORY
+
 **Use superpowers skills at ALL stages:**
+
 - `superpowers:systematic-debugging` - For any bug investigation
 - `superpowers:verification-before-completion` - Before claiming anything works
 - `superpowers:test-driven-development` - For validation
 - Invoke skills with `Skill` tool, don't just announce them
 
 ### Bash Command Rules - STRICT
+
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -24,6 +28,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -69,12 +74,13 @@
 ## Resolution
 
 **All steps completed:**
+
 - PR #600 merged to staging
 - PR #601 promoted staging to production
 - Production version: 2025.12.26-4f7565b
 - Issue #599 closed
 
-**Manual validation recommended:** Test on actual mobile device at https://app.bluemoxon.com to confirm fix works as expected.
+**Manual validation recommended:** Test on actual mobile device at <https://app.bluemoxon.com> to confirm fix works as expected.
 
 ---
 
@@ -89,5 +95,6 @@
 ## Code Review Notes
 
 Two issues caught and fixed:
+
 1. **Sticky nav under notch:** `top-0` would position nav under iOS notch. Fixed with `top: env(safe-area-inset-top, 0px)`
 2. **Redundant body padding:** Body had `padding-top` for safe area but nav handles it. Removed to prevent gap.

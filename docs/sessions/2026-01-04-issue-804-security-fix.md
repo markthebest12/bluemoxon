@@ -15,25 +15,30 @@ The `/fix-publisher-tiers` endpoint in `backend/app/api/v1/stats.py` (lines 519-
 ## Session Progress
 
 ### Step 1: Context Exploration
+
 - Reviewed stats.py - no endpoints have authentication (all read-only GETs, which is intentional)
 - TIER_1_PUBLISHERS is duplicated in stats.py:15 and publisher_validation.py:102
 - The vulnerable endpoint doesn't belong in a read-only stats file
 
 ### Step 2: Decision
+
 - User selected **Option A: Delete the endpoint**
 
 ### Step 3: TDD Implementation
+
 1. **RED:** Added test `test_fix_publisher_tiers_endpoint_removed` expecting 404
 2. **Verified RED:** Test failed with 200 (endpoint existed)
 3. **GREEN:** Deleted endpoint from stats.py (lines 519-530)
 4. **Verified GREEN:** Test passes, all 18 stats tests pass
 
 ### Step 4: Validation
+
 - `poetry run ruff check .` - All checks passed
 - `poetry run ruff format --check .` - 169 files already formatted
 - `poetry run pytest tests/test_stats.py` - 18 passed
 
 ### Changes Made
+
 - `backend/app/api/v1/stats.py` - Removed `/fix-publisher-tiers` endpoint
 - `backend/tests/test_stats.py` - Added security regression test
 

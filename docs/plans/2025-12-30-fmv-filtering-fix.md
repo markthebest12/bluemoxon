@@ -5,6 +5,7 @@
 **Goal:** Fix Claude's relevance filtering so it actually returns comparable listings instead of filtering all of them out
 
 **Architecture:** Modify `_filter_listings_with_claude()` in `fmv_lookup.py` to:
+
 1. Remove strict era-based rejection that rejects valid comparables
 2. Add fallback when all listings rated "low" - return top matches by binding/condition
 3. Focus filtering on binding type and condition (per book-collection methodology)
@@ -18,6 +19,7 @@
 ## Task 1: Write Failing Test for Low Relevance Fallback
 
 **Files:**
+
 - Modify: `backend/tests/test_fmv_lookup.py`
 
 **Step 1: Write the failing test**
@@ -87,6 +89,7 @@ Expected: FAIL - currently returns empty list when all are "low"
 ## Task 2: Implement Low Relevance Fallback
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py:259-352` (`_filter_listings_with_claude` function)
 
 **Step 1: Modify the function to add fallback logic**
@@ -94,6 +97,7 @@ Expected: FAIL - currently returns empty list when all are "low"
 Find the `_filter_listings_with_claude` function (lines 259-352) and replace the filtering logic at the end:
 
 Current code (approximately lines 339-352):
+
 ```python
         # Extract JSON from response
         json_match = re.search(r"\[[\s\S]*\]", result_text)
@@ -112,6 +116,7 @@ Current code (approximately lines 339-352):
 ```
 
 Replace with:
+
 ```python
         # Extract JSON from response
         json_match = re.search(r"\[[\s\S]*\]", result_text)
@@ -175,6 +180,7 @@ git commit -m "feat(fmv): add fallback when all listings rated low relevance (#7
 ## Task 3: Write Failing Test for Relaxed Era Filtering
 
 **Files:**
+
 - Modify: `backend/tests/test_fmv_lookup.py`
 
 **Step 1: Write the failing test**
@@ -235,6 +241,7 @@ Expected: FAIL - current prompt contains "within ~50 years"
 ## Task 4: Relax Era Filtering in Claude Prompt
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py:259-352` (`_filter_listings_with_claude` function)
 
 **Step 1: Modify the prompt to focus on binding/condition**
@@ -242,6 +249,7 @@ Expected: FAIL - current prompt contains "within ~50 years"
 Find the era_guidance section in the prompt (around lines 293-301):
 
 Current code:
+
 ```python
     # Build era guidance if we have a publication year
     pub_year = book_metadata.get("publication_year")
@@ -254,6 +262,7 @@ to be rated HIGH. Modern reprints (post-1950) of antique books should be rated L
 ```
 
 Replace with:
+
 ```python
     # Build filtering guidance focusing on binding and condition
     pub_year = book_metadata.get("publication_year")
@@ -284,11 +293,13 @@ Replace with:
 Find the prompt template (around line 302-315) and update the era_guidance reference:
 
 Current:
+
 ```python
 {era_guidance}
 ```
 
 Replace with:
+
 ```python
 {filter_guidance}
 ```
@@ -319,6 +330,7 @@ git commit -m "feat(fmv): relax era filtering, focus on binding type (#709)"
 ## Task 5: Update FMV Calculation to Handle Fallback Relevance
 
 **Files:**
+
 - Modify: `backend/app/services/fmv_lookup.py` (`_calculate_weighted_fmv` function)
 - Modify: `backend/tests/test_fmv_lookup.py`
 
@@ -357,6 +369,7 @@ Expected: FAIL - current code doesn't recognize "fallback" relevance
 Find the function (around line 355) and update the relevance filtering:
 
 Current code (approximately lines 373-395):
+
 ```python
     # Separate by relevance
     high = [item for item in listings if item.get("relevance") == "high" and item.get("price")]
@@ -364,6 +377,7 @@ Current code (approximately lines 373-395):
 ```
 
 Add after medium line:
+
 ```python
     fallback = [item for item in listings if item.get("relevance") == "fallback" and item.get("price")]
 ```
@@ -371,6 +385,7 @@ Add after medium line:
 Then update the decision logic (around lines 377-395):
 
 Current:
+
 ```python
     # Determine which set to use
     if len(high) >= 2:
@@ -395,6 +410,7 @@ Current:
 ```
 
 Replace with:
+
 ```python
     # Determine which set to use
     if len(high) >= 2:
@@ -447,6 +463,7 @@ git commit -m "feat(fmv): handle fallback relevance in FMV calculation (#709)"
 ## Task 6: Run Full Linting and Tests
 
 **Files:**
+
 - None (verification only)
 
 **Step 1: Run linter**
@@ -479,6 +496,7 @@ git commit -m "style: format fmv_lookup code"
 ## Task 7: Create Branch and Push to Staging
 
 **Files:**
+
 - None (git operations only)
 
 **Step 1: Check current branch**
@@ -498,17 +516,21 @@ Run: `git push -u origin fix/fmv-filtering-709-phase2`
 **Step 4: Create PR**
 
 Run: `gh pr create --base staging --title "fix(fmv): relax Claude filtering to return comparables (#709)" --body "## Summary
+
 - Add fallback when all listings rated 'low' relevance - returns top 5 instead of empty
 - Relax era-based filtering - focus on binding type match per book-collection methodology
 - Handle 'fallback' relevance in FMV calculation
 
 ## Root Cause
+
 Claude's relevance filtering was too strict:
+
 1. 'within ~50 years' era requirement rejected valid comparables
 2. No fallback when all items rated 'low' - returned empty array
 3. Binding type matching wasn't emphasized
 
 ## Test Plan
+
 - [x] Unit tests for fallback behavior
 - [x] Unit tests for relaxed prompt
 - [x] All FMV tests pass
@@ -528,6 +550,7 @@ Expected: All checks pass
 ## Task 8: Validate in Staging
 
 **Files:**
+
 - None (API testing only)
 
 **Step 1: Wait for staging deploy**

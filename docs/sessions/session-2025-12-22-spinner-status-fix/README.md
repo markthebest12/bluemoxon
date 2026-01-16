@@ -9,6 +9,7 @@
 ## Session Summary
 
 ### Issue #554: Spinner/Status Refresh Fix
+
 - **PR:** #555, #560 (merged to production)
 - **Solution:** Created `useJobPolling` composable that replaced scattered polling logic
 - **Files changed:**
@@ -20,11 +21,13 @@
   - `frontend/src/stores/books.ts` (removed 320 lines of polling code)
 
 ### Issue #556: Duplicate Title Bug for Eval Books
+
 - **PR:** #557 (merged to production)
 - **Problem:** Books in evaluation status were incorrectly penalized for duplicate titles
 - **Solution:** Added `status.in_(['IN_TRANSIT', 'ON_HAND'])` filter to duplicate detection
 
 ### Issue #561: Analysis Timestamp Feature
+
 - **PR:** #563 (frontend - merged to production)
 - **PR:** #565 (backend - IN PROGRESS, CI running)
 - **Feature:** Display analysis generation timestamp at bottom of viewer
@@ -35,6 +38,7 @@
 ## CRITICAL REMINDERS FOR CONTINUATION
 
 ### 1. Use Superpowers Skills at ALL Stages
+
 - **Before debugging:** Use `superpowers:systematic-debugging` - NO fixes without root cause investigation
 - **Before coding:** Use `superpowers:brainstorming` to refine approach
 - **For implementation:** Use `superpowers:writing-plans` then `superpowers:executing-plans`
@@ -43,7 +47,9 @@
 - **For TDD:** Use `superpowers:test-driven-development` - write failing test first
 
 ### 2. Bash Command Formatting (CLAUDE.md)
+
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -51,6 +57,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -60,12 +67,14 @@
 ## Current Work In Progress
 
 ### PR #565: Backend timestamp fix
+
 - **Branch:** `fix/analysis-timestamp-backend`
-- **Status:** CI running (https://github.com/markthebest12/bluemoxon/pull/565)
+- **Status:** CI running (<https://github.com/markthebest12/bluemoxon/pull/565>)
 - **Change:** Returns `generated_at` from `book.analysis.updated_at` in GET `/books/{id}/analysis`
 - **Why:** Uses existing `updated_at` timestamp - works for ALL analyses without regeneration
 
 **Next steps after CI passes:**
+
 1. Merge PR #565 to staging
 2. Test timestamp appears for existing analyses
 3. Promote staging to production
@@ -87,6 +96,7 @@
 ## Production Deployment
 
 **PR #564:** Promoted staging to production
+
 - Merged: 2025-12-22 ~21:44 UTC
 - Deploy run: 20444787419
 - Smoke tests: ✅ All passing
@@ -96,6 +106,7 @@
 ## Related Files
 
 ### Frontend
+
 - `frontend/src/composables/useJobPolling.ts` - Job polling composable
 - `frontend/src/views/AcquisitionsView.vue` - Acquisitions page
 - `frontend/src/views/BookDetailView.vue` - Book detail page
@@ -103,6 +114,7 @@
 - `frontend/src/stores/books.ts` - Books store (simplified)
 
 ### Backend
+
 - `backend/app/api/v1/books.py` - Analysis endpoints (timestamp added)
 - `backend/app/models/analysis.py` - BookAnalysis model (has TimestampMixin)
 - `backend/app/models/base.py` - TimestampMixin (created_at, updated_at)
@@ -112,6 +124,7 @@
 ## Architecture: useJobPolling Composable
 
 ### Interface
+
 ```typescript
 const {
   isActive,      // boolean - is a job running?
@@ -123,10 +136,12 @@ const {
 ```
 
 ### Poll Intervals
+
 - Analysis: 5000ms (5 seconds)
 - Eval Runbook: 3000ms (3 seconds)
 
 ### Key Design Decisions
+
 | Decision | Choice | Why |
 |----------|--------|-----|
 | Source of truth | Composable state only | Eliminates dual-source bugs |

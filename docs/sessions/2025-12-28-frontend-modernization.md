@@ -6,6 +6,7 @@
 ## CRITICAL: Session Rules
 
 ### ALWAYS Use Superpowers Skills
+
 - **MANDATORY:** Use superpowers skills at ALL stages (brainstorming, planning, implementation, review)
 - Before ANY task, check if a skill applies and USE IT
 - Follow skill instructions EXACTLY as written
@@ -14,6 +15,7 @@
 ### Bash Command Formatting (NEVER violate)
 
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -21,6 +23,7 @@
 - `!` in quoted strings (bash history expansion corrupts values)
 
 **ALWAYS use:**
+
 - Simple single-line commands only
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -119,6 +122,7 @@ User chose #624 (animations) as first priority because UI feels static/unpolishe
 ### Section 4: Loading States ⏳ NOT YET PRESENTED
 
 Still need to design:
+
 - Skeleton screens with `animate-pulse`
 - AI analysis generation progress indicators
 - Spinner animations for async operations
@@ -126,6 +130,7 @@ Still need to design:
 ### Section 5: Component Application ⏳ NOT YET PRESENTED
 
 Still need to define:
+
 - Which components get which animation classes
 - Vue `<Transition>` wrapper patterns
 - Testing approach

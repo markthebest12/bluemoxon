@@ -8,6 +8,7 @@
 ## CRITICAL REMINDERS FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 - **brainstorming** - Before any creative/design work
 - **test-driven-development** - Before implementing any feature
 - **verification-before-completion** - Before claiming work is done
@@ -15,6 +16,7 @@
 - **systematic-debugging** - For any bugs/failures
 
 ### 2. NEVER Use These (Permission Prompts)
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -22,6 +24,7 @@
 - `!` in quoted strings
 
 ### 3. ALWAYS Use
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -35,12 +38,14 @@ Maintenance tab in production admin getting "Request failed with status code 500
 ### Root Cause
 
 **Lambda naming mismatch:**
+
 - API code uses: `f"bluemoxon-{settings.environment}-cleanup"`
 - `settings.environment` = `"production"` (from `BMX_ENVIRONMENT`)
 - So API tries to invoke: `bluemoxon-production-cleanup`
 - But Terraform created: `bluemoxon-prod-cleanup` (using `environment = "prod"`)
 
 **Error from logs:**
+
 ```
 botocore.exceptions.ClientError: An error occurred (AccessDeniedException) when calling the Invoke operation:
 User: arn:aws:sts::266672885920:assumed-role/bluemoxon-lambda-role/bluemoxon-prod-api
@@ -59,6 +64,7 @@ Rename Lambda to `bluemoxon-production-cleanup` to match the standard naming con
 ### 1. Added `cleanup_function_name_override` variable
 
 **File:** `infra/terraform/variables.tf`
+
 ```hcl
 variable "cleanup_function_name_override" {
   type        = string
@@ -70,6 +76,7 @@ variable "cleanup_function_name_override" {
 ### 2. Updated cleanup_lambda module to use override
 
 **File:** `infra/terraform/main.tf` (line 581)
+
 ```hcl
 function_name = coalesce(var.cleanup_function_name_override, "${local.name_prefix}-cleanup")
 ```
@@ -77,6 +84,7 @@ function_name = coalesce(var.cleanup_function_name_override, "${local.name_prefi
 ### 3. Added override to prod.tfvars
 
 **File:** `infra/terraform/envs/prod.tfvars`
+
 ```hcl
 cleanup_function_name_override = "bluemoxon-production-cleanup"
 ```
@@ -110,12 +118,14 @@ Before CI/CD deploy, applied these changes directly to AWS:
 **Status:** SUCCESS
 
 The deploy workflow:
+
 1. ✅ CI checks passed
 2. ✅ Build artifacts created
 3. ✅ Deploy to production completed
 4. ✅ Smoke tests passed
 
 **Verification:**
+
 ```
 bmx-api --prod POST /admin/cleanup '{"action":"stale"}'
 {"stale_archived":0,"sources_checked":0,"sources_expired":0,...}

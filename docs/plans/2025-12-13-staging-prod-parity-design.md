@@ -7,6 +7,7 @@
 ## Problem Statement
 
 Production and staging have diverged:
+
 - **Code:** 68 commits in staging not yet in production
 - **Infrastructure:** Production resources managed manually; staging managed by Terraform
 - **Config:** `prod.tfvars` has `enable_lambda=false`, `enable_cloudfront=false`, etc.
@@ -17,6 +18,7 @@ Current state violates infrastructure-as-code principles and creates deployment 
 ## Scope
 
 ### In Scope
+
 1. All 68 code commits promoted from staging → main
 2. Production Lambda, CloudFront, RDS, VPC resources imported into Terraform
 3. Worker Lambda created in production (SQS + Lambda)
@@ -24,6 +26,7 @@ Current state violates infrastructure-as-code principles and creates deployment 
 5. Fix staging bug: `ANALYSIS_QUEUE_NAME` env var not set
 
 ### Out of Scope
+
 - Data migration (prod books stay in prod)
 - Prod → staging data sync (separate task)
 
@@ -61,12 +64,14 @@ AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_passw
 ```
 
 **Changes applied:**
+
 - Lambda gets `ANALYSIS_QUEUE_NAME` env var
 - Scraper gets S3 IAM policy
 - Scraper timeout adjusted
 - X-Ray tracing enabled
 
 **Validation:**
+
 - Test async analysis in staging UI
 - `terraform plan` shows no changes
 
@@ -81,6 +86,7 @@ gh pr merge --squash
 ```
 
 **Key features being promoted:**
+
 - eBay listing scraper + import
 - Async analysis jobs (SQS + Worker Lambda)
 - Wayback Archive integration
@@ -158,6 +164,7 @@ After Phase 3 resources are imported and stable:
    - EventSource mapping (SQS → Lambda)
 
 3. Update `infra/config/production.json`:
+
 ```json
 "lambda": {
   "function_name": "bluemoxon-api",
@@ -166,11 +173,12 @@ After Phase 3 resources are imported and stable:
 }
 ```
 
-4. Deploy to update workflow config
+1. Deploy to update workflow config
 
 ### Phase 5: Validate and Clean Up
 
 **Validation:**
+
 ```bash
 # Both envs should show no drift
 AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars -detailed-exitcode
@@ -178,6 +186,7 @@ AWS_PROFILE=prod terraform plan -var-file=envs/prod.tfvars -detailed-exitcode
 ```
 
 **Clean up:**
+
 - Archive `docs/STAGING_INFRASTRUCTURE_CHANGES.md` (manual hacks now in Terraform)
 - Update `docs/INFRASTRUCTURE.md` with new parity state
 - Test async analysis in production

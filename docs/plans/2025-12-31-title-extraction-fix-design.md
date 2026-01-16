@@ -21,11 +21,13 @@ This causes FMV lookup to fail (no comparables found for "10 Vol Set").
 **File:** `backend/app/services/listing.py:235`
 
 **Before:**
+
 ```python
 "title": "book title only, no author/publisher/binder in title",
 ```
 
 **After:**
+
 ```python
 "title": "book title only (for collected works/sets without a specific title, use 'Works of [Author]' or 'Collected Works')",
 ```

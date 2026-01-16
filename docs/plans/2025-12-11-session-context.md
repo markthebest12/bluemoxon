@@ -18,6 +18,7 @@
 Design doc: `docs/plans/2025-12-11-score-transparency-design.md`
 
 **Key decisions:**
+
 - API returns score breakdown on demand (`POST /books/{id}/scores/calculate`)
 - Tooltips show full factor breakdown (including zero-point factors in gray)
 - Inline subtle warning for duplicates: "⚠️ Duplicate detected"
@@ -28,12 +29,14 @@ Design doc: `docs/plans/2025-12-11-score-transparency-design.md`
 ## Current State
 
 ### Staging Environment
-- **API:** https://staging.api.bluemoxon.com/api/v1
-- **App:** https://staging.app.bluemoxon.com
+
+- **API:** <https://staging.api.bluemoxon.com/api/v1>
+- **App:** <https://staging.app.bluemoxon.com>
 - **Branch:** `staging` in bluemoxon repo
 - **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/acquisitions-dashboard`
 
 ### Recent Commits on Staging
+
 ```
 7714267 docs: Add score transparency design for tooltips and warnings
 88982f1 ci: Trigger smoke tests after migration applied
@@ -43,6 +46,7 @@ Design doc: `docs/plans/2025-12-11-score-transparency-design.md`
 ```
 
 ### Book 494 (Felix Holt) Test Case
+
 - Now has valuations: `value_mid: 1050, purchase_price: 701.25`
 - Current scores: Investment=35, Strategic=55, Collection=15, Overall=105 (CONDITIONAL)
 - Duplicate book 498 was deleted (was manual test entry)
@@ -52,12 +56,14 @@ Design doc: `docs/plans/2025-12-11-score-transparency-design.md`
 ## Next Steps (Not Yet Started)
 
 ### Implement Score Transparency
+
 1. **Backend:** Modify `scoring.py` to return breakdown details
 2. **Backend:** Update calculate endpoint to include `details` object
 3. **Frontend:** Add tooltip components to score rows
 4. **Frontend:** Add conditional warning line
 
 ### Other Pending
+
 - Seed author priority scores (script doesn't exist yet)
 - Run `POST /books/scores/calculate-all` to backfill all books
 - Push staging changes to main when ready

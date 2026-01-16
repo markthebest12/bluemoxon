@@ -15,6 +15,7 @@
 ### Task 1.1: Create EvalRunbook Model
 
 **Files:**
+
 - Create: `backend/app/models/eval_runbook.py`
 - Modify: `backend/app/models/__init__.py`
 
@@ -104,7 +105,7 @@ class EvalPriceHistory(Base):
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 ```
 
-**Step 2: Update models __init__.py**
+**Step 2: Update models **init**.py**
 
 Add to `backend/app/models/__init__.py`:
 
@@ -153,6 +154,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(model): add EvalRunbook and 
 ### Task 1.2: Create Database Migration
 
 **Files:**
+
 - Create: `backend/alembic/versions/m5678901qrst_add_eval_runbook.py`
 
 **Step 1: Create migration file**
@@ -251,6 +253,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(migration): add eval_runbook
 ### Task 2.1: Create Pydantic Schemas
 
 **Files:**
+
 - Create: `backend/app/schemas/eval_runbook.py`
 - Modify: `backend/app/schemas/__init__.py`
 
@@ -359,7 +362,7 @@ class EvalPriceHistoryResponse(BaseModel):
         from_attributes = True
 ```
 
-**Step 2: Update schemas __init__.py**
+**Step 2: Update schemas **init**.py**
 
 Add to `backend/app/schemas/__init__.py`:
 
@@ -392,6 +395,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(schemas): add EvalRunbook Py
 ### Task 2.2: Create API Endpoints
 
 **Files:**
+
 - Create: `backend/app/api/v1/eval_runbook.py`
 - Modify: `backend/app/api/v1/__init__.py`
 
@@ -565,7 +569,7 @@ def get_price_history(
     return history
 ```
 
-**Step 2: Register router in __init__.py**
+**Step 2: Register router in **init**.py**
 
 Add to `backend/app/api/v1/__init__.py`:
 
@@ -596,6 +600,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(api): add eval runbook endpo
 ### Task 2.3: Add has_eval_runbook to Book Response
 
 **Files:**
+
 - Modify: `backend/app/schemas/book.py`
 
 **Step 1: Add field to BookResponse**
@@ -633,6 +638,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(api): add has_eval_runbook f
 ### Task 3.1: Create Eval Runbook Store
 
 **Files:**
+
 - Create: `frontend/src/stores/evalRunbook.ts`
 
 **Step 1: Create store file**
@@ -799,6 +805,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(store): add evalRunbook Pini
 ### Task 4.1: Create EvalRunbookModal Component
 
 **Files:**
+
 - Create: `frontend/src/components/books/EvalRunbookModal.vue`
 
 **Step 1: Create modal component**
@@ -1348,6 +1355,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(ui): add EvalRunbookModal co
 ### Task 5.1: Add Eval Runbook Button to BookDetailView
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue`
 
 **Step 1: Import modal and store**
@@ -1430,6 +1438,7 @@ git -C .worktrees/feat-eval-runbook commit -m "feat(ui): add Eval Runbook button
 ### Task 6.1: Add API Tests
 
 **Files:**
+
 - Create: `backend/tests/test_eval_runbook.py`
 
 **Step 1: Write test file**
@@ -1586,6 +1595,7 @@ git -C .worktrees/feat-eval-runbook commit -m "test: add eval runbook API tests"
 ### Task 7.1: Create Eval Generation Service Stub
 
 **Files:**
+
 - Create: `backend/app/services/eval_generation.py`
 
 **Step 1: Create service stub**

@@ -135,6 +135,7 @@ archive_attempts: Mapped[int] = mapped_column(Integer, default=0)
 ```
 
 **Migration**:
+
 ```python
 def upgrade():
     op.add_column('books', sa.Column('archive_attempts', sa.Integer(),
@@ -169,6 +170,7 @@ resource "aws_lambda_function" "cleanup" {
 ```
 
 **IAM Permissions**:
+
 - Secrets Manager: Read database credentials
 - S3: ListBucket, DeleteObject on images bucket
 - CloudWatch: CreateLogGroup, CreateLogStream, PutLogEvents

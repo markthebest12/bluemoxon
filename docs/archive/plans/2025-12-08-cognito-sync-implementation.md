@@ -24,6 +24,7 @@ Add opt-in Cognito user mapping to the existing `db_sync` Lambda. After DB sync,
 **File:** `infra/terraform/modules/db-sync-lambda/variables.tf`
 
 Add variable:
+
 ```hcl
 variable "cognito_user_pool_id" {
   description = "Staging Cognito user pool ID for user mapping after DB sync"
@@ -39,6 +40,7 @@ variable "cognito_user_pool_id" {
 **File:** `infra/terraform/modules/db-sync-lambda/main.tf`
 
 Add to Lambda environment variables block:
+
 ```hcl
 COGNITO_USER_POOL_ID = var.cognito_user_pool_id
 ```
@@ -50,6 +52,7 @@ COGNITO_USER_POOL_ID = var.cognito_user_pool_id
 **File:** `infra/terraform/modules/db-sync-lambda/main.tf`
 
 Add statement to Lambda IAM policy:
+
 ```hcl
 statement {
   effect    = "Allow"
@@ -69,6 +72,7 @@ Note: Only add if `cognito_user_pool_id` is not empty (use dynamic block or cond
 **File:** `infra/terraform/main.tf`
 
 Update db_sync_lambda module call:
+
 ```hcl
 module "db_sync_lambda" {
   # ... existing ...
@@ -83,6 +87,7 @@ module "db_sync_lambda" {
 **File:** `backend/lambdas/db_sync/handler.py`
 
 Add function:
+
 ```python
 def sync_cognito_users(staging_conn, user_pool_id: str) -> dict:
     """Update users.cognito_sub to match staging Cognito subs by email."""
@@ -160,6 +165,7 @@ def sync_cognito_users(staging_conn, user_pool_id: str) -> dict:
 **File:** `backend/lambdas/db_sync/handler.py`
 
 Update `handler()` function to:
+
 1. Check for `sync_cognito` in event payload
 2. Get `COGNITO_USER_POOL_ID` from environment
 3. Call `sync_cognito_users()` after DB sync
@@ -205,7 +211,7 @@ cat .tmp/sync-response.json | jq '.body | fromjson | .results.cognito_mapping'
 
 ### Task 10: Test login
 
-Try logging in at https://staging.app.bluemoxon.com with mjramos76@gmail.com
+Try logging in at <https://staging.app.bluemoxon.com> with <mjramos76@gmail.com>
 
 **Verification:** Login succeeds
 

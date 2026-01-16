@@ -7,6 +7,7 @@
 ## Problem
 
 ~30 lines of identical currency conversion logic duplicated across 4 components:
+
 - `BookForm.vue`
 - `AcquireModal.vue`
 - `AddToWatchlistModal.vue`

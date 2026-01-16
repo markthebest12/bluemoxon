@@ -20,6 +20,7 @@ Import books from eBay listings with one click. Paste a URL, extract structured 
 ### `POST /listings/extract`
 
 **Request:**
+
 ```json
 {
   "url": "https://www.ebay.com/itm/317495720025",
@@ -29,6 +30,7 @@ Import books from eBay listings with one click. Paste a URL, extract structured 
 ```
 
 **Response:**
+
 ```json
 {
   "source": "ebay",
@@ -63,6 +65,7 @@ Import books from eBay listings with one click. Paste a URL, extract structured 
 ## URL Normalization
 
 Handle all eBay URL variants:
+
 - `m.ebay.com` → `www.ebay.com`
 - `ebay.com` → `www.ebay.com`
 - Strip tracking params: `?hash=...`, `&mkcid=...`, `&_trkparms=...`
@@ -88,6 +91,7 @@ Separate Lambda function: `bluemoxon-{env}-scraper`
 **Invocation:** Main API Lambda calls via `boto3.client('lambda').invoke()`
 
 **Payload:**
+
 ```json
 {
   "url": "https://www.ebay.com/itm/317495720025",
@@ -96,6 +100,7 @@ Separate Lambda function: `bluemoxon-{env}-scraper`
 ```
 
 **Response:**
+
 ```json
 {
   "html": "<html>...",
@@ -107,6 +112,7 @@ Separate Lambda function: `bluemoxon-{env}-scraper`
 ```
 
 **Lambda Configuration:**
+
 - Runtime: Python 3.12
 - Memory: 1024 MB (Playwright needs RAM)
 - Timeout: 60 seconds
@@ -153,6 +159,7 @@ Cache all authors/publishers/binders for 5 minutes to avoid repeated DB queries.
 ### Duplicate Detection
 
 Query existing books for potential duplicates:
+
 - Same author (by ID or fuzzy name match >= 0.80)
 - Title similarity >= 0.80 (reuse `is_duplicate_title()` from scoring service)
 - Return top 3 matches with similarity scores
@@ -220,6 +227,7 @@ If automated fetching fails:
 ### Component: `ImportListingModal.vue`
 
 **State 1: URL Input**
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
@@ -235,6 +243,7 @@ If automated fetching fails:
 ```
 
 **State 2: Loading**
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
@@ -250,6 +259,7 @@ If automated fetching fails:
 Progress steps: Fetching listing → Extracting details → Checking duplicates
 
 **State 3: Rate Limited**
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
@@ -262,6 +272,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 ```
 
 **State 4: Error with Options**
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
@@ -279,6 +290,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 ```
 
 **State 5: Preview**
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Import from eBay                                  [X]  │
@@ -299,6 +311,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 ```
 
 **Key UI Elements:**
+
 - Author/Publisher/Binder: Searchable dropdown with matched record pre-selected, "Create new" option
 - Missing fields: Yellow border highlight
 - Images: Thumbnails, clickable to preview full size
@@ -325,12 +338,14 @@ On "Add to Watchlist": backend uploads base64 to S3
 ```
 
 ### Why Server-Side Download?
+
 - eBay images have CORS restrictions
 - Browser can't fetch cross-origin
 - Playwright runs server-side, bypasses CORS
 - Images captured at scrape time = preserved even if listing removed
 
 ### Image Processing
+
 - Convert WebP → JPEG (eBay serves WebP)
 - Skip images < 10KB (thumbnails/icons)
 - Resize if > 2MB (max 2000px dimension)
@@ -338,6 +353,7 @@ On "Add to Watchlist": backend uploads base64 to S3
 - First image set as primary
 
 ### Fallback
+
 - If image fetch fails: placeholder "Images unavailable"
 - User can upload manually after book created
 - Not a blocker for adding to watchlist
@@ -349,22 +365,26 @@ On "Add to Watchlist": backend uploads base64 to S3
 Separate Lambda: `bluemoxon-{env}-cleanup`
 
 **Functions:**
+
 - `cleanup_stale_evaluations()` - Archive items in EVALUATING > 30 days
 - `check_expired_sources()` - Ping source_urls, mark expired
 - `cleanup_orphaned_images()` - Delete S3 images not linked to books
 
 **Invocation:**
+
 - Now: API endpoint `POST /admin/cleanup` → invokes Lambda
 - Later: EventBridge scheduled rule (weekly)
 - Manual: AWS Console/CLI
 
 **Lambda Configuration:**
+
 - Timeout: 300 seconds (5 min)
 - Memory: 512 MB
 
 ### Stale Evaluations
 
 Items in EVALUATING status > 30 days:
+
 - Dashboard banner: "5 items have been evaluating for 30+ days"
 - Bulk action: "Archive stale items" → status=REMOVED
 - Individual "Remove" button per card
@@ -487,6 +507,7 @@ CREATE INDEX books_evaluating_created_idx ON books(created_at) WHERE status = 'E
 ### IAM Permissions
 
 Main API Lambda needs:
+
 ```json
 {
   "Effect": "Allow",

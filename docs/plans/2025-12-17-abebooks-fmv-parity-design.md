@@ -19,11 +19,13 @@ Bring AbeBooks FMV lookup to parity with eBay's implementation.
 ### Scope
 
 **In scope:**
+
 - Fix prompt to say "active listings" for AbeBooks
 - Add context-aware query support (volumes, binding, binder, edition)
 - Verify direct HTTP still works
 
 **Out of scope:**
+
 - Price weighting between sources (treat equally)
 - Scraper Lambda integration (test first, add later if needed)
 - AbeBooks-specific search syntax tuning
@@ -33,6 +35,7 @@ Bring AbeBooks FMV lookup to parity with eBay's implementation.
 **Change 1: Update `_extract_comparables_with_claude()` prompt**
 
 Conditional prompt text based on source:
+
 - eBay: "sold book listings"
 - AbeBooks: "book listings currently for sale"
 
@@ -56,10 +59,12 @@ Pass new parameters to `lookup_abebooks_comparables()`.
 ## Testing
 
 **Unit Tests:**
+
 1. `test_abebooks_uses_context_aware_query()` - Verify volumes/binding in query
 2. `test_extract_comparables_prompt_varies_by_source()` - Verify prompt wording
 
 **Manual Validation:**
+
 1. Trigger runbook for multi-volume book
 2. Check CloudWatch logs for AbeBooks URL (should include "7 volumes")
 3. Check Claude extraction response (should find listings)

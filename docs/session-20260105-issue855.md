@@ -28,6 +28,7 @@
 ### 2. Bash Command Restrictions (STRICTLY ENFORCED)
 
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -35,21 +36,26 @@
 - `!` in quoted strings (bash history expansion corrupts values)
 
 **ALWAYS use:**
+
 - Simple single-line commands only
 - Separate sequential Bash tool calls instead of chaining with `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
 - Command description field instead of inline comments
 
 **Example - CORRECT:**
+
 ```bash
 npm run lint
 ```
+
 Then separate call:
+
 ```bash
 npm run type-check
 ```
 
 **Example - WRONG:**
+
 ```bash
 # Run all checks
 npm run lint && npm run type-check && npm run test:run
@@ -64,6 +70,7 @@ Use Task tool with multiple parallel invocations for independent tasks.
 ## Current Status
 
 ### What's Done
+
 - [x] Toast notification system implemented (useToast composable)
 - [x] ToastContainer.vue component with animations
 - [x] errorHandler.ts utility
@@ -75,6 +82,7 @@ Use Task tool with multiple parallel invocations for independent tasks.
 - [x] v1.1 milestone tag created
 
 ### Test Results (Validated on Staging via Playwright)
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Error toast | PASS | Shows "Book not found" for 404s |
@@ -93,6 +101,7 @@ User requested these improvements before production:
 4. **Dark mode colors** - Toast doesn't adapt to dark mode theme
 
 **File to modify:**
+
 - `frontend/src/components/ToastContainer.vue` - Update styling
 
 ---
@@ -100,6 +109,7 @@ User requested these improvements before production:
 ## Implementation Details
 
 ### Files Created
+
 - `frontend/src/composables/useToast.ts` - Singleton toast state management
 - `frontend/src/composables/__tests__/useToast.spec.ts` - 17 tests
 - `frontend/src/components/ToastContainer.vue` - Toast UI component
@@ -108,6 +118,7 @@ User requested these improvements before production:
 - `frontend/src/utils/__tests__/errorHandler.spec.ts` - 9 tests
 
 ### Files Modified
+
 - `frontend/src/stores/references.ts` - 3 catch blocks
 - `frontend/src/views/BookDetailView.vue` - 2 catches + 2 success toasts
 - `frontend/src/components/books/ImageCarousel.vue` - 1 catch
@@ -115,6 +126,7 @@ User requested these improvements before production:
 - `frontend/src/App.vue` - Added ToastContainer mount
 
 ### Key Features Implemented
+
 - Timer memory management with Map tracking
 - Hover-to-pause functionality (pauseTimer/resumeTimer)
 - Incrementing counter for unique IDs (no collision)
@@ -134,17 +146,21 @@ User requested these improvements before production:
    - Add dark mode color support
 
 2. **Run tests** after changes:
+
    ```bash
    npm run test:run
    ```
 
 3. **Commit and push** (separate commands):
+
    ```bash
    git add -A
    ```
+
    ```bash
    git commit -m "style(toast): Improve toast UI visibility and dark mode support"
    ```
+
    ```bash
    git push
    ```
@@ -158,25 +174,31 @@ User requested these improvements before production:
 ## Session Timeline
 
 ### 2026-01-05 23:06
+
 - Session started, fetched issue #855
 
 ### 2026-01-05 23:15
+
 - Brainstorming complete using superpowers:brainstorming
 - Design: Composable + Toast, top-right, 5s auto-dismiss
 
 ### 2026-01-05 23:32
+
 - TDD implementation complete
 - PR #875 created to staging
 
 ### 2026-01-06 08:00
+
 - Code review received (10 items)
 - All fixes applied using superpowers:receiving-code-review
 
 ### 2026-01-06 08:50
+
 - v1.1 milestone tag created
 - Deployed to staging successfully
 
 ### 2026-01-06 09:00
+
 - UI validation testing with Playwright
 - All functionality working
 - Identified UI improvements needed

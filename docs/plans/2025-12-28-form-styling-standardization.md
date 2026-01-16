@@ -49,6 +49,7 @@ Elements using inline utilities → Blue focus (incorrect for Victorian design)
 ## Task 1: Audit All Modal Components
 
 **Files:**
+
 - Read: `frontend/src/components/AddTrackingModal.vue`
 - Read: `frontend/src/components/EditWatchlistModal.vue`
 - Read: `frontend/src/components/AcquireModal.vue`
@@ -62,6 +63,7 @@ Create a checklist of all `<input>`, `<select>`, `<textarea>`, `<button>` elemen
 **Step 2: Record findings**
 
 For each file, note:
+
 - Total form elements
 - Elements using `.input`/`.select`/`.btn-*` (Pattern A)
 - Elements using inline utilities (Pattern B)
@@ -75,12 +77,14 @@ Add specific tasks for each file that needs Pattern B → Pattern A conversion.
 ## Task 2: Update ComboboxWithAdd.vue
 
 **Files:**
+
 - Modify: `frontend/src/components/ComboboxWithAdd.vue`
 - Test: `npm run --prefix frontend type-check`
 
 **Step 1: Update input element**
 
 Replace:
+
 ```vue
 <input
   v-model="searchText"
@@ -93,6 +97,7 @@ Replace:
 ```
 
 With:
+
 ```vue
 <input
   v-model="searchText"
@@ -107,6 +112,7 @@ With:
 **Step 2: Update dropdown option buttons**
 
 Replace:
+
 ```vue
 <button
   v-for="option in filteredOptions"
@@ -119,6 +125,7 @@ Replace:
 ```
 
 With:
+
 ```vue
 <button
   v-for="option in filteredOptions"
@@ -133,6 +140,7 @@ With:
 **Step 3: Update "Add new" button**
 
 Replace:
+
 ```vue
 <button
   v-if="showAddNew"
@@ -144,6 +152,7 @@ Replace:
 ```
 
 With:
+
 ```vue
 <button
   v-if="showAddNew"
@@ -174,12 +183,14 @@ git commit -m "fix: Standardize ComboboxWithAdd to use .input component class"
 ## Task 3: Update AddToWatchlistModal.vue
 
 **Files:**
+
 - Modify: `frontend/src/components/AddToWatchlistModal.vue`
 - Test: `npm run --prefix frontend type-check`
 
 **Step 1: Update Title input (line 212-217)**
 
 Replace inline utilities with `.input`:
+
 ```vue
 <input
   v-model="form.title"
@@ -192,6 +203,7 @@ Replace inline utilities with `.input`:
 **Step 2: Update Publication Date input (line 254-259)**
 
 Replace inline utilities with `.input`:
+
 ```vue
 <input
   v-model="form.publication_date"
@@ -204,6 +216,7 @@ Replace inline utilities with `.input`:
 **Step 3: Update Volumes input (line 267-272)**
 
 Replace inline utilities with `.input`:
+
 ```vue
 <input
   v-model.number="form.volumes"
@@ -216,6 +229,7 @@ Replace inline utilities with `.input`:
 **Step 4: Update Currency select (line 277-284)**
 
 Replace inline utilities with `.select`:
+
 ```vue
 <select
   v-model="selectedCurrency"
@@ -226,6 +240,7 @@ Replace inline utilities with `.select`:
 **Step 5: Update Price input (line 287-294)**
 
 Replace inline utilities with `.input`:
+
 ```vue
 <input
   v-model.number="form.purchase_price"
@@ -240,6 +255,7 @@ Replace inline utilities with `.input`:
 **Step 6: Update Source URL input (line 310-315)**
 
 Replace inline utilities with `.input`:
+
 ```vue
 <input
   v-model="form.source_url"
@@ -252,6 +268,7 @@ Replace inline utilities with `.input`:
 **Step 7: Update Open URL button (line 316-323)**
 
 Replace inline utilities with `.btn-secondary`:
+
 ```vue
 <button
   type="button"
@@ -265,6 +282,7 @@ Replace inline utilities with `.btn-secondary`:
 **Step 8: Update Cancel button (line 337-344)**
 
 Replace inline utilities with `.btn-secondary`:
+
 ```vue
 <button
   type="button"
@@ -279,6 +297,7 @@ Replace inline utilities with `.btn-secondary`:
 **Step 9: Update Submit button (line 345-351)**
 
 Replace inline utilities with `.btn-primary`:
+
 ```vue
 <button
   type="submit"
@@ -309,6 +328,7 @@ git commit -m "fix: Standardize AddToWatchlistModal to use component classes"
 ## Task 4: Audit and Update Remaining Modals
 
 **Files:**
+
 - Modify: `frontend/src/components/AddTrackingModal.vue` (if needed)
 - Modify: `frontend/src/components/EditWatchlistModal.vue` (if needed)
 - Modify: `frontend/src/components/AcquireModal.vue` (if needed)
@@ -322,6 +342,7 @@ Check each file for inline utility patterns on form elements.
 **Step 2: Apply same pattern**
 
 For each form element using inline utilities:
+
 - `<input>` → `class="input"`
 - `<select>` → `class="select"`
 - `<textarea>` → `class="input"` (same styling)
@@ -345,6 +366,7 @@ git commit -m "fix: Standardize remaining modals to use component classes"
 ## Task 5: Visual Validation
 
 **Files:**
+
 - Test: Browser inspection
 
 **Step 1: Build and run dev server**
@@ -356,6 +378,7 @@ npm run --prefix frontend dev
 **Step 2: Test each updated component**
 
 For each updated component:
+
 1. Open the modal/form
 2. Tab through form fields
 3. Verify focus ring is Victorian gold (not blue)
@@ -364,6 +387,7 @@ For each updated component:
 **Step 3: Compare with production**
 
 Open production site and compare:
+
 - Focus ring colors
 - Button styling
 - Input/select borders
@@ -377,6 +401,7 @@ If any elements still show blue focus rings or non-Victorian styling, note them 
 ## Task 6: Create PR and Deploy
 
 **Files:**
+
 - None (git operations only)
 
 **Step 1: Push changes**
@@ -400,6 +425,7 @@ gh pr checks 617 --watch
 **Step 4: Request review**
 
 PR #617 now includes:
+
 1. @tailwindcss/forms plugin (Issue #5 fix)
 2. Form element standardization (this plan)
 
@@ -418,6 +444,7 @@ PR #617 now includes:
 ## Rollback Plan
 
 If form standardization causes issues:
+
 1. Revert form standardization commits
 2. Keep @tailwindcss/forms plugin (PR #617 core fix)
 3. Address inline utilities in separate PR

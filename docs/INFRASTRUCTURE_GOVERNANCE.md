@@ -3,6 +3,7 @@
 ## Problem Statement
 
 Production and staging environments have drifted due to:
+
 1. Production pre-dating Terraform adoption
 2. `enable_*=false` flags creating escape hatches
 3. Documentation not generated from Terraform outputs
@@ -61,6 +62,7 @@ sed -i '' "s/Client ID: .*/Client ID: ${STAGING_COGNITO_CLIENT}/" ../CLAUDE.md
 ```
 
 Add to CI:
+
 ```yaml
 # .github/workflows/ci.yml
 - name: Validate documentation matches Terraform
@@ -119,12 +121,14 @@ jobs:
 ## Governance Rules
 
 ### Rule 1: No enable_* Divergence
+
 ```
 FORBIDDEN: staging.tfvars and prod.tfvars having different enable_* values
 EXCEPTION: Only during active migration with documented timeline
 ```
 
 ### Rule 2: No Manual AWS Changes
+
 ```
 FORBIDDEN: Creating/modifying resources via Console or CLI without Terraform
 EXCEPTION: Emergency break-glass with mandatory follow-up:
@@ -134,6 +138,7 @@ EXCEPTION: Emergency break-glass with mandatory follow-up:
 ```
 
 ### Rule 3: Documentation as Code
+
 ```
 REQUIRED: Values in CLAUDE.md must be generated from terraform output
 VALIDATION: CI blocks merge if documentation contains hardcoded infrastructure values

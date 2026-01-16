@@ -190,9 +190,11 @@ Add to `index.html` `<head>`:
 ## Testing
 
 ### Unit Tests (Vitest)
+
 - `useTheme.spec.ts` - preference storage, system detection, toggle
 
 ### E2E Tests (Playwright)
+
 - Toggle switches theme visually
 - Preference persists across reload
 - System preference respected
@@ -201,6 +203,7 @@ Add to `index.html` `<head>`:
 ## Implementation Scope
 
 **In scope (this PR):**
+
 - `main.css` - Semantic tokens + dark overrides + component updates
 - `useTheme.ts` - New composable
 - `ThemeToggle.vue` - New component
@@ -209,5 +212,6 @@ Add to `index.html` `<head>`:
 - Tests
 
 **Out of scope:**
+
 - Individual view components (inherit from updated classes)
 - Third-party components (Amplify auth UI)

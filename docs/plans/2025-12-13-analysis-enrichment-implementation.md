@@ -10,6 +10,7 @@
 Improve book scoring by implementing binder tier bonuses and analysis enrichments.
 
 ### Exemplar Book (Production): Book 489
+
 - **Title:** A Short History of the English People
 - **Publisher:** Macmillan and Co. (TIER_1) ✅
 - **Binder:** Zaehnsdorf (TIER_1) - but tier bonus not applied ❌
@@ -18,16 +19,18 @@ Improve book scoring by implementing binder tier bonuses and analysis enrichment
 - **Expected after ALL phases:** overall_score ~215
 
 ### Underdog Book (Staging): Book 502
+
 - **Title:** History of The English People
 - **Publisher:** Chapman & Hall (TIER_1) ✅
 - **Binder:** Zaehnsdorf (TIER_1) - but tier bonus not applied ❌
 - **Current scores:** investment_grade=0, strategic_fit=115, collection_impact=30, overall_score=145
 - **Expected after Phase 1-2:** strategic_fit ~170 (+40 +15 DOUBLE), overall_score ~200
 
-**Production exemplar:** https://app.bluemoxon.com/books/489
-**Staging test book:** https://staging.app.bluemoxon.com/books/502
+**Production exemplar:** <https://app.bluemoxon.com/books/489>
+**Staging test book:** <https://staging.app.bluemoxon.com/books/502>
 
 6-phase enrichment:
+
 1. Binder tier scoring
 2. Scoring enhancements
 3. Prompt improvements
@@ -40,17 +43,20 @@ Improve book scoring by implementing binder tier bonuses and analysis enrichment
 ### Phase 1: Binder Tier Migration - 95% COMPLETE
 
 **What exists:**
+
 - ✅ `binders.tier` column added (VARCHAR(20))
 - ✅ Migration SQL in `health.py` populates TIER_1/TIER_2 values
 - ✅ `BinderResponse` schema includes `tier: str | None`
 - ✅ Migration ran successfully on staging
 
 **What's missing:**
+
 - ❌ `binders.py:list_binders()` doesn't return `tier` field (line 18-27)
 - ❌ `binders.py:get_binder()` doesn't return `tier` field (line 37-53)
 - ❌ Need to verify data populated correctly
 
 **Evidence:**
+
 ```bash
 # Migration ran successfully
 curl -X POST https://staging.api.bluemoxon.com/api/v1/health/migrate
@@ -64,16 +70,19 @@ bmx-api GET /binders
 ### Phase 2: Scoring Enhancement - 100% CODE COMPLETE
 
 **What exists:**
+
 - ✅ `scoring.py:calculate_strategic_fit()` has `binder_tier` parameter
 - ✅ TIER_1 (+40) and TIER_2 (+20) scoring implemented
 - ✅ DOUBLE TIER 1 bonus (+15) implemented
 - ✅ `books.py` passes `binder_tier=book.binder.tier` to scoring
 
 **What's needed:**
+
 - ⏳ Scores need recalculation after Phase 1 API fix
 - ⏳ Validate scoring works with test cases
 
 **Evidence:**
+
 ```python
 # backend/app/services/scoring.py lines 45-51
 if binder_tier == "TIER_1":
@@ -99,6 +108,7 @@ These phases require design decisions and new implementation.
 **Priority:** HIGH - Blocks all subsequent work
 
 **Current code (line 18-27):**
+
 ```python
 @router.get("")
 def list_binders(db: Session = Depends(get_db)):
@@ -117,6 +127,7 @@ def list_binders(db: Session = Depends(get_db)):
 ```
 
 **Change to:**
+
 ```python
 @router.get("")
 def list_binders(db: Session = Depends(get_db)):
@@ -136,6 +147,7 @@ def list_binders(db: Session = Depends(get_db)):
 ```
 
 **Also fix `get_binder()` (line 37-53):**
+
 ```python
 return {
     "id": binder.id,
@@ -149,6 +161,7 @@ return {
 ```
 
 **Test:**
+
 ```bash
 bmx-api GET /binders | jq '.[0]'
 # Should include: "tier": "TIER_1" or "TIER_2" or null
@@ -171,6 +184,7 @@ bmx-api GET /binders | jq '.[] | select(.tier == "TIER_2") | .name'
 ```
 
 **If data missing, run migration:**
+
 ```bash
 curl -X POST https://staging.api.bluemoxon.com/api/v1/health/migrate
 ```
@@ -182,11 +196,13 @@ curl -X POST https://staging.api.bluemoxon.com/api/v1/health/migrate
 After Phase 1 complete, trigger score recalculation:
 
 **Option A: Via API (if endpoint exists)**
+
 ```bash
 bmx-api POST /books/recalculate-scores
 ```
 
 **Option B: Update any book to trigger recalc**
+
 ```bash
 # Touch a book to trigger score recalculation
 bmx-api PATCH /books/21 '{"notes": "Score recalc trigger"}'
@@ -202,9 +218,11 @@ Add to `health.py` a recalculate-all endpoint.
 **Test Case 1: Book 21 (Sangorski + Macmillan TIER_1)**
 
 Before fix:
+
 - `strategic_fit: 85`
 
 Expected after fix (manual calculation):
+
 - Base: 30
 - Publisher TIER_1: +35 → 65
 - Binder TIER_1: +40 → 105
@@ -216,13 +234,16 @@ Expected after fix (manual calculation):
 **Test Case 2: Book 396 (Zaehnsdorf, no TIER_1 publisher)**
 
 Before fix:
+
 - `strategic_fit: 60`
 
 Expected after fix:
+
 - Binder TIER_1: +40 bonus
 - Should increase to ~100
 
 **Test Case 3: Book 404 (Chapman & Hall TIER_1, no authenticated binder)**
+
 - Should remain unchanged (no binder tier bonus)
 
 ---
@@ -230,11 +251,13 @@ Expected after fix:
 ### Phase 3: Prompt Enhancement (NOT STARTED)
 
 **Design needed:** What specific prompt improvements?
+
 - Reference design doc Section 3 for requirements
 - Add binder context to analysis prompts
 - Include tier information in enrichment
 
 **Files to modify:**
+
 - `backend/app/services/analysis.py` - prompt templates
 - `backend/app/services/prompts/` - if prompt directory exists
 
@@ -245,6 +268,7 @@ Expected after fix:
 **ROOT CAUSE IDENTIFIED (2025-12-13):** Parser regex doesn't match actual LLM output format.
 
 **Current parser regex (markdown_parser.py:163-165):**
+
 ```python
 low_match = re.search(r"Low\s*\|?\s*\$?([\d,]+)", text)
 mid_match = re.search(r"Mid\s*\|?\s*\$?([\d,]+)", text)
@@ -254,16 +278,19 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 **Expects:** `Low | $450` or `Mid | $550`
 
 **Actual LLM output:**
+
 - `"Current Fair Market Value: $700-900"`
 - `"Fair Market Value | $550-$650 (with provenance premium)"`
 - `"Insurance valuation: $800-1,000"`
 
 **Fix options:**
+
 1. **Prompt engineering (Phase 3):** Force LLM to output structured table format
 2. **Parser improvement:** Add regex patterns for range formats like `\$?([\d,]+)\s*[-–]\s*\$?([\d,]+)`
 3. **Structured output:** Use Claude's JSON mode for analysis generation
 
 **Files to modify:**
+
 - `backend/app/utils/markdown_parser.py` - improve `_parse_market_analysis()` regex
 
 ---
@@ -275,6 +302,7 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 **Code Gap:** Analysis parsing extracts `condition_grade` into `parsed.condition_assessment["condition_grade"]` (markdown_parser.py:127), but the API endpoints (`put_book_analysis`, `upload_analysis_for_book`) **never copy this to `book.condition_grade`**.
 
 **Fields missing from analysis → book extraction:**
+
 | Field | Parser Output | Book Field | Impact |
 |-------|---------------|------------|--------|
 | `condition_grade` | `parsed.condition_assessment["condition_grade"]` | `book.condition_grade` | -15 strategic_fit |
@@ -283,7 +311,9 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 | `notes` | Not extracted | `book.notes` | Display only |
 
 **Files to modify:**
+
 - `backend/app/api/v1/books.py` - add extraction code after line 1028 (put_book_analysis) and line 1214 (upload_analysis_for_book):
+
   ```python
   # Extract condition_grade from analysis
   if parsed.condition_assessment and "condition_grade" in parsed.condition_assessment:
@@ -295,6 +325,7 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 ### Phase 6: Bulk Re-analysis (NOT STARTED)
 
 **Design needed:** Strategy for re-analyzing existing books
+
 - Queue system for batch processing
 - Rate limiting for API costs
 - Progress tracking
@@ -303,19 +334,22 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 
 ## Validation Checklist
 
-### Phase 1 Complete When:
+### Phase 1 Complete When
+
 - [ ] `GET /binders` returns `tier` field for all binders
 - [ ] TIER_1 binders: Zaehnsdorf, Rivière, Sangorski, etc.
 - [ ] TIER_2 binders: Bayntun, Morrell, etc.
 
-### Phase 2 Complete When:
+### Phase 2 Complete When
+
 - [ ] Book 502 (staging underdog) strategic_fit increases from 115 to ~170
 - [ ] Book 502 overall_score increases from 145 to ~200
 - [ ] Book 21 (Coridons Song - Sangorski+Macmillan) gets DOUBLE TIER 1 bonus
 - [ ] Book 396 (Ariadne - Zaehnsdorf only) strategic_fit increases from 60 to ~100
 - [ ] Books without premium binders unchanged
 
-### Full Feature Complete When:
+### Full Feature Complete When
+
 - [ ] Book 489 (prod exemplar) reaches ~215 overall_score after all phases
 - [ ] Book 502 (staging underdog) reaches ~200+ overall_score after Phase 1-2
 - [ ] All phases validated

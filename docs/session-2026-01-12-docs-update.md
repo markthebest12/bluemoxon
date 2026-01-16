@@ -6,12 +6,14 @@
 ## Summary
 
 This session covered two main tasks:
+
 1. Fixing the README dashboard screenshot (charts weren't rendering due to cold start)
 2. Comprehensive documentation update to reflect recent features
 
 ## Completed Work
 
 ### 1. Dashboard Screenshot Fix
+
 - **Problem:** Previous screenshot captured during cold start showed empty chart containers
 - **Root cause:** Playwright's `fullPage: true` triggers viewport resize, causing Chart.js to redraw mid-animation
 - **Solution:** Set tall viewport (1600x1850) and use viewport screenshot (NOT fullPage)
@@ -32,12 +34,14 @@ This session covered two main tasks:
 ### 3. Remaining Work
 
 **Website update NOT completed** - needs Redis/caching added to `site/index.html`:
+
 - Update Infrastructure Overview Mermaid diagram to include Redis
 - Add caching to tech stack section
 
 ## Code Review Feedback (PR #1081)
 
 Earlier in session, reviewed security auth PR with critical findings:
+
 1. **CRITICAL:** Missing test for `/stats/value-by-category` endpoint
 2. **HIGH:** `_user=None` hack in `dashboard_stats.py` is fragile
 3. **HIGH:** No role escalation tests (viewer accessing admin endpoints)
@@ -53,11 +57,13 @@ Earlier in session, reviewed security auth PR with critical findings:
 ## Critical Reminders
 
 ### ALWAYS Use Superpowers Skills
+
 Invoke relevant skills BEFORE any response or action. Even 1% chance = invoke.
 
 ### Bash Command Rules
 
 **NEVER use (triggers permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -65,11 +71,13 @@ Invoke relevant skills BEFORE any response or action. Even 1% chance = invoke.
 - `!` in quoted strings (bash history expansion)
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (pre-approved, no prompts)
 
 ### Playwright Screenshot Tips
+
 - Canvas-based charts (Chart.js) don't render with `fullPage: true`
 - Set viewport to desired dimensions, then take viewport screenshot
 - Wait for charts to render before capture (10+ seconds for cold start)

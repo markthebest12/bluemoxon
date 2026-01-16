@@ -112,10 +112,12 @@ CREATE TABLE admin_config (
 Two states:
 
 **Input state:**
+
 - Large textarea for pasting order text
 - Cancel and Extract buttons
 
 **Results state:**
+
 - List of extracted fields with confidence indicators (✓ or ⚠️)
 - Tracking number shown with copy button (not applied to form)
 - Back and "Apply to Form" buttons
@@ -146,6 +148,7 @@ Two states:
 ## New Files
 
 ### Backend
+
 - `app/api/v1/orders.py` - Extract endpoint
 - `app/api/v1/admin.py` - Config endpoints
 - `app/services/order_extractor.py` - Regex + LLM logic
@@ -153,6 +156,7 @@ Two states:
 - `tests/test_order_extractor.py` - Unit tests
 
 ### Frontend
+
 - `src/components/PasteOrderModal.vue`
 - `src/views/AdminConfigView.vue`
 

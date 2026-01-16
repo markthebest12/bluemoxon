@@ -22,6 +22,7 @@ Comprehensive review and restructuring of BlueMoxon documentation to improve dis
 ## Scope
 
 Full stack review:
+
 - Backend (API endpoints, services, models, integrations)
 - Infrastructure (Terraform modules, resources, CI/CD pipelines)
 - Frontend (components, views, state management)
@@ -47,6 +48,7 @@ docs/
 ```
 
 **Principles:**
+
 - Every doc reachable within 2 clicks from INDEX.md
 - No orphan documents
 - CLAUDE.md becomes cheat sheet with links, not comprehensive manual
@@ -54,22 +56,26 @@ docs/
 ## Review Phases
 
 ### Phase 1: Documentation Inventory
+
 - Catalog every doc: location, purpose, last modified, audience
 - Map cross-references
 - Flag duplicates, orphans, conflicts, stale content
 - Output: `session-2025-12-21-documentation-review/inventory.md`
 
 ### Phase 2: Code Feature Audit
+
 - Systematic walk through each codebase area
 - Note features, identify missing docs, capture diagram needs
 - Output: `session-2025-12-21-documentation-review/feature-audit.md`
 
 ### Phase 3: Gap Analysis & Consolidation Plan
+
 - Cross-reference inventory vs. feature audit
 - Identify: new docs needed, diagrams needed, consolidations, deletions
 - Output: `session-2025-12-21-documentation-review/gap-analysis.md`
 
 ### Phase 4: Execution
+
 - Create new docs and diagrams
 - Consolidate redundancies
 - Build INDEX.md and hub documents
@@ -88,6 +94,7 @@ docs/
 ## Operational Content Standards
 
 Each procedure includes:
+
 - **Purpose**: Why you'd run this
 - **Prerequisites**: What you need (AWS profile, permissions)
 - **Command example**: Copy-pasteable with expected output
@@ -97,6 +104,7 @@ Each procedure includes:
 ## API Documentation Standards
 
 Each endpoint includes:
+
 - Method + path
 - Purpose (one line)
 - Request/response examples (curl + JSON)
@@ -106,20 +114,24 @@ Each endpoint includes:
 ## Cleanup Rules
 
 ### CLAUDE.md
+
 - Keep: Quick command references, permission patterns, critical workflow rules
 - Move out: Detailed procedures, architecture details, troubleshooting guides
 - Target: Under 20KB (currently 36KB)
 
 ### Redundancy
+
 - Pick canonical location based on audience
 - Other locations get one-line summary + link
 
 ### Orphans
+
 - Code referenced but doesn't exist → GitHub issue
 - Code exists but undocumented → Document or flag for removal
 - Docs referencing removed features → Archive or delete
 
 ### Plans Directory
+
 - Keep: Recent/relevant plans (last 30 days)
 - Archive: Completed plans older than 30 days
 - Delete: Abandoned/superseded plans
@@ -127,6 +139,7 @@ Each endpoint includes:
 ## GitHub Issues
 
 Create issues for discovered:
+
 - Unfinished implementations (stubs, TODOs)
 - Missing features that docs reference
 - Infrastructure gaps or inconsistencies

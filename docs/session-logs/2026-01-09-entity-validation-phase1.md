@@ -7,6 +7,7 @@
 **Branch:** staging (current: feat-898-exchange-rates worktree)
 
 **Child Issues:**
+
 - #967: Phase 2 - Entity endpoints validation
 - #968: Phase 3 - Book endpoints (DEFERRED)
 - #969: Phase 4 - Rollout config
@@ -21,12 +22,14 @@
 Entity validation is now live in production. The feature prevents duplicate entity creation with fuzzy matching at the API level.
 
 ### What's Live
+
 - POST /publishers, /binders, /authors return 409 when similar entity exists
 - Fuzzy thresholds: 80% publisher/binder, 75% author (configurable via env vars)
 - `?force=true` parameter bypasses validation
 - Caching with 5-min TTL, DB queries run outside lock
 
 ### UI Validation Test Cases
+
 Try creating these in the UI (Settings > Publishers/Authors/Binders > Add New):
 
 | Entity Type | Try Creating | Should Match |
@@ -57,6 +60,7 @@ Try creating these in the UI (Settings > Publishers/Authors/Binders > Add New):
 | P3 | Test cache smell | Investigated - no duplicate calls found (already clean) |
 
 ### Commits
+
 | SHA | Message |
 |-----|---------|
 | 6c14f0c | fix(#970): address code review feedback for entity validation |
@@ -67,12 +71,14 @@ Try creating these in the UI (Settings > Publishers/Authors/Binders > Add New):
 ## Deferred Work
 
 ### #971: Add unique constraint to Author.name column
+
 - Publisher and Binder models have `unique=True` on name (race condition protected)
 - Author model is missing this constraint
 - Requires: check for existing duplicates, migration, deploy
 - Created as separate issue to not block this PR
 
 ### #968: Phase 3 - Book endpoints
+
 - Book creation uses get_or_create pattern
 - Needs refactor to integrate entity validation
 - Lower priority - entity endpoints cover main use case
@@ -133,6 +139,7 @@ bmx-api POST /publishers '{"name":"test"}'
 ## Key Files Modified
 
 ### Backend
+
 - `backend/app/api/v1/publishers.py` - 409 validation, explicit model_dump
 - `backend/app/api/v1/authors.py` - 409 validation, explicit model_dump
 - `backend/app/api/v1/binders.py` - 409 validation, explicit model_dump
@@ -141,6 +148,7 @@ bmx-api POST /publishers '{"name":"test"}'
 - `backend/app/config.py` - Threshold env vars
 
 ### Infrastructure
+
 - `infra/terraform/variables.tf` - entity_validation_mode, threshold vars
 - `infra/terraform/modules/lambda/main.tf` - Pass vars to Lambda
 - `infra/terraform/envs/prod.tfvars` - enforce mode, thresholds
@@ -152,8 +160,8 @@ bmx-api POST /publishers '{"name":"test"}'
 
 - Design doc: `docs/plans/2026-01-09-entity-proliferation-prevention-design.md`
 - Implementation plan: `docs/plans/2026-01-09-entity-validation-phases-2-4.md`
-- Parent Issue: https://github.com/markthebest12/bluemoxon/issues/955
-- Phase 2 Issue: https://github.com/markthebest12/bluemoxon/issues/967
-- Phase 4 Issue: https://github.com/markthebest12/bluemoxon/issues/969
-- Author constraint: https://github.com/markthebest12/bluemoxon/issues/971
-- PR (merged): https://github.com/markthebest12/bluemoxon/pull/970
+- Parent Issue: <https://github.com/markthebest12/bluemoxon/issues/955>
+- Phase 2 Issue: <https://github.com/markthebest12/bluemoxon/issues/967>
+- Phase 4 Issue: <https://github.com/markthebest12/bluemoxon/issues/969>
+- Author constraint: <https://github.com/markthebest12/bluemoxon/issues/971>
+- PR (merged): <https://github.com/markthebest12/bluemoxon/pull/970>

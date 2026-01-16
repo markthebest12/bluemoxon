@@ -47,6 +47,7 @@ def validate_entity_for_book(
 ```
 
 **Logic:**
+
 1. Normalize the name (type-specific normalization)
 2. Check for exact match in DB → return entity ID
 3. Check for 80%+ fuzzy match → return 409 error with suggestions
@@ -59,6 +60,7 @@ def validate_entity_for_book(
 ### 1. `books.py:update_book_analysis()`
 
 Before:
+
 ```python
 if parsed.binder_identification:
     binder = get_or_create_binder(db, parsed.binder_identification)
@@ -67,6 +69,7 @@ if parsed.binder_identification:
 ```
 
 After:
+
 ```python
 if parsed.binder_identification and parsed.binder_identification.get("name"):
     binder_name = parsed.binder_identification["name"]
@@ -105,6 +108,7 @@ if parsed.binder_identification and parsed.binder_identification.get("name"):
 ## Error Response Format
 
 **409 Conflict (similar exists):**
+
 ```json
 {
   "error": "similar_entity_exists",
@@ -116,6 +120,7 @@ if parsed.binder_identification and parsed.binder_identification.get("name"):
 ```
 
 **400 Bad Request (unknown):**
+
 ```json
 {
   "error": "unknown_entity",
@@ -127,6 +132,7 @@ if parsed.binder_identification and parsed.binder_identification.get("name"):
 ```
 
 **Worker job error message:**
+
 ```
 Entity validation failed: binder 'Bayntun (of Bath)' matches existing
 'Bayntun' (88%). Use existing ID or create new via POST /binders?force=true
@@ -150,12 +156,14 @@ Entity validation failed: binder 'Bayntun (of Bath)' matches existing
 ## Testing Strategy
 
 **Unit tests:**
+
 - Exact match → returns entity ID
 - 80%+ fuzzy match → returns 409 error
 - No match → returns 400 error
 - Empty/None name → returns None
 
 **Integration tests:**
+
 - Analysis with known entity → associates correctly
 - Analysis with similar entity (88%) → 409 with suggestions
 - Analysis with unknown entity → 400 with resolution

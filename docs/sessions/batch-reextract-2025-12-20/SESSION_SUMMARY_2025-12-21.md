@@ -1,4 +1,5 @@
 # Session Summary: Provenance Detection Fix
+
 **Date:** 2025-12-21
 **Status:** PR #500 CREATED - Awaiting CI and Merge to Production
 
@@ -7,13 +8,16 @@
 ## CRITICAL REMINDERS FOR CONTINUATION
 
 ### 1. Use Superpowers Skills at ALL Stages
+
 - **Before debugging:** Use `superpowers:systematic-debugging` - NO fixes without root cause investigation
 - **Before coding:** Use `superpowers:brainstorming` to refine approach
 - **For parallel work:** Use `superpowers:dispatching-parallel-agents` for independent tasks
 - **Before completing:** Use `superpowers:verification-before-completion` - evidence before assertions
 
 ### 2. Bash Command Formatting (CLAUDE.md)
+
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -21,6 +25,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
@@ -30,7 +35,9 @@
 ## Background
 
 ### Original Issue
+
 User reported book 351 (Fielding Select Works) has visible provenance in images:
+
 - Ex Libris bookplate for "CAROL KANNER" on front pastedown
 - Ownership signature "Gertrude Conant" on front free endpaper
 
@@ -41,12 +48,15 @@ But the AI analysis stated: "No bookplates, ownership signatures, or institution
 ## Root Cause Analysis (COMPLETED)
 
 ### Phase 1 - Prompt Gap (Previously Fixed)
+
 The Napoleon prompt (`backend/prompts/napoleon-framework/v2.md`) Section 2 was updated with explicit provenance instructions. This fix is deployed to staging.
 
 ### Phase 2 - Image Database "Issue" (FALSE ALARM)
+
 Previous session noted images weren't linked in database. **This was incorrect.**
 
 **Clarification:**
+
 - The API response for `/books/{id}` does NOT include an `.images` array
 - It includes `image_count` and `primary_image_url` instead
 - The `/books/{id}/images` endpoint returns full image data
@@ -57,6 +67,7 @@ Previous session noted images weren't linked in database. **This was incorrect.*
 **The image selection algorithm skips the provenance image.**
 
 In `backend/app/services/bedrock.py`, the `fetch_book_images_for_bedrock()` function:
+
 - Default `max_images=10`
 - Selection: first 67% + last 33% of images by display_order
 - With 25 images: selects display_order [1-7] + [23-25]
@@ -90,11 +101,13 @@ Book 351 (25 images):
 ## The Fix
 
 ### Approved Solution
+
 Increase `max_images` from 10 to 20 in `fetch_book_images_for_bedrock()`.
 
 **File:** `backend/app/services/bedrock.py`
 
 **Before:**
+
 ```python
 def fetch_book_images_for_bedrock(
     images: list[BookImage],
@@ -103,6 +116,7 @@ def fetch_book_images_for_bedrock(
 ```
 
 **After:**
+
 ```python
 def fetch_book_images_for_bedrock(
     images: list[BookImage],
@@ -132,12 +146,14 @@ Since eval removes advertisements first, increasing max_images won't waste token
 ## Next Steps
 
 ### 1. Implement Fix (IN PROGRESS)
+
 ```python
 # In backend/app/services/bedrock.py
 # Change max_images default from 10 to 20
 ```
 
 ### 2. Test in Staging
+
 ```bash
 # Re-run analysis for book 351
 bmx-api DELETE '/books/351/analysis'
@@ -148,6 +164,7 @@ bmx-api GET '/books/351' | jq '{has_provenance, provenance, provenance_tier}'
 ```
 
 ### 3. Deploy to Production
+
 ```bash
 # After staging validation passes:
 gh pr create --base main --head staging --title "chore: Promote staging to production"
@@ -161,6 +178,7 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 ## Architecture Note: Two Analysis Pipelines
 
 ### Pipeline 1: Eval Runbook (`eval_generation.py`)
+
 - Purpose: Quality assessment, image filtering
 - Images: Sends ALL images
 - AI Task: Identify unrelated/advertisement images
@@ -168,18 +186,22 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 - Runs: When book is first evaluated or re-evaluated
 
 ### Pipeline 2: Napoleon Analysis (`bedrock.py`)
+
 - Purpose: Professional valuation report
 - Images: Limited by `max_images` (currently 10, changing to 20)
 - Selection: First 67% + Last 33% by display_order
 - Runs: After eval, on cleaned image set
 
 ### Prompt Loading
+
 Both pipelines load prompts from **S3**, not Lambda package:
+
 ```python
 PROMPTS_BUCKET = os.environ.get("PROMPTS_BUCKET", settings.images_bucket)
 ```
 
 **Prompt locations:**
+
 - Staging: `s3://bluemoxon-images-staging/prompts/`
 - Production: `s3://bluemoxon-images/prompts/`
 
@@ -231,6 +253,7 @@ bmx-api GET '/books/351/analysis' | jq '{extraction_status}'
 **Goal:** Bundle 3 fixes into a single production release to minimize deployment overhead.
 
 ### Fix 1: Provenance Image Selection (COMMITTED)
+
 - **Issue:** Image 8 with provenance markers skipped by selection algorithm
 - **Fix:** Increase `max_images` from 10 to 20 in `fetch_book_images_for_bedrock()`
 - **File:** `backend/app/services/bedrock.py`
@@ -238,6 +261,7 @@ bmx-api GET '/books/351/analysis' | jq '{extraction_status}'
 - **Status:** ✅ Committed, deploying to staging
 
 ### Fix 2: Bug #498 - Ask Price Not Stored (COMPLETED)
+
 - **Issue:** Eval books no longer store ask price even though it's present in the eBay import form
 - **Impact:** Eval runbook lacks full context about book's scoring
 - **Root Cause:** Frontend used `||` operator which treats `0` as falsy, converting `$0` prices to `undefined`
@@ -247,6 +271,7 @@ bmx-api GET '/books/351/analysis' | jq '{extraction_status}'
 - **Test:** `backend/tests/test_ebay_import_purchase_price.py`
 
 ### Fix 3: Bug #497 - Mobile eBay URLs Broken (COMPLETED)
+
 - **Issue:** Mobile/shortened eBay URLs stored incorrectly
 - **Example:**
   - Stored: `https://www.ebay.com/itm/946e590b` (broken - short ID)
@@ -265,14 +290,17 @@ bmx-api GET '/books/351/analysis' | jq '{extraction_status}'
 Using `superpowers:dispatching-parallel-agents` to work on bugs 498 and 497 simultaneously while staging deploy completes.
 
 **Agent 1 (aa64a28):** Bug 498 - Ask price storage
+
 - Using `superpowers:systematic-debugging` for root cause
 - Using `superpowers:test-driven-development` for fix
 
 **Agent 2 (a46a0dc):** Bug 497 - Mobile URL resolution
+
 - Using `superpowers:systematic-debugging` for root cause
 - Using `superpowers:test-driven-development` for fix
 
 **Coordination:**
+
 - All fixes committed to `staging` branch
 - NO individual PRs to main
 - Single bundled release after all 3 fixes validated in staging
@@ -282,12 +310,14 @@ Using `superpowers:dispatching-parallel-agents` to work on bugs 498 and 497 simu
 ## Release Workflow
 
 ### Step 1: Complete All Fixes in Staging
+
 ```bash
 # Verify all 3 commits are on staging
 git log --oneline staging -5
 ```
 
 ### Step 2: Test All Fixes in Staging
+
 ```bash
 # Test provenance fix
 bmx-api DELETE '/books/351/analysis'
@@ -302,6 +332,7 @@ bmx-api GET '/books/351' | jq '{has_provenance, provenance}'
 ```
 
 ### Step 3: Bundle Release to Production
+
 ```bash
 # Create single PR for all 3 fixes
 gh pr create --base main --head staging --title "chore: Promote staging to production - bundled fixes (#497, #498, provenance)"
@@ -335,6 +366,7 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 **Status:** ✅ FIXED - Lint error resolved in commit `e533745`
 
 **Original Error (CI run 20411912747):**
+
 ```
 tests/test_ebay_import_purchase_price.py:7:8: F401 `pytest` imported but unused
 ```
@@ -348,32 +380,39 @@ tests/test_ebay_import_purchase_price.py:7:8: F401 `pytest` imported but unused
 ## Next Steps (In Order)
 
 ### Step 1: Fix Lint Error ✅ DONE
+
 Commit `e533745` pushed to staging.
 
 ### Step 2: Wait for CI to Pass
+
 ```bash
 gh run list --branch staging --limit 1
 gh run watch <run-id> --exit-status
 ```
 
 ### Step 3: Verify Staging Deploy
+
 ```bash
 bmx-api GET /health/deep
 ```
+
 Expected version should include latest commit hash.
 
 ### Step 4: Create Bundled Production PR
+
 ```bash
 gh pr create --base main --head staging --title "chore: Promote staging to production - bundled fixes (#497, #498, provenance)"
 ```
 
 ### Step 5: Watch Production Deploy
+
 ```bash
 gh pr merge --squash --auto
 gh run watch <deploy-run-id> --exit-status
 ```
 
 ### Step 6: Upload Prompt to Production S3
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://bluemoxon-images/prompts/napoleon-framework/v2.md
 ```
@@ -391,6 +430,7 @@ eb3c378 fix: resolve shortened eBay URLs to full item URLs during import
 ```
 
 **Summary:**
+
 - **Provenance Fix:** Increased max_images from 10 to 20 to capture more images including provenance markers
 - **Bug #498:** Fixed ask price not stored (frontend `||` vs `??` operator)
 - **Bug #497:** Fixed mobile eBay URLs by adding HTTP redirect resolution for alphanumeric short IDs
@@ -401,6 +441,7 @@ eb3c378 fix: resolve shortened eBay URLs to full item URLs during import
 ## Verification Checklist (Use superpowers:verification-before-completion)
 
 Before claiming production release complete:
+
 - [ ] Lint errors fixed and pushed
 - [ ] Staging CI passes (all green)
 - [ ] Staging API healthy with new version
@@ -414,6 +455,7 @@ Before claiming production release complete:
 ## TDD Requirements
 
 **CRITICAL:** All fixes MUST follow TDD:
+
 1. Write failing test FIRST
 2. Implement minimal fix to pass test
 3. Refactor if needed
@@ -426,7 +468,9 @@ Agents are instructed to use `superpowers:test-driven-development` skill.
 ## Session Log (2025-12-21)
 
 ### 15:30 UTC - Fixed Ruff Formatting Issue
+
 **Problem:** CI run 20411966116 failed with:
+
 ```
 Would reformat: app/services/listing.py
 1 file would be reformatted, 100 files already formatted
@@ -437,13 +481,15 @@ Would reformat: app/services/listing.py
 **Pushed to staging:** Yes
 
 ### 15:38 UTC - Staging CI Passed
+
 - CI run 20412066823 completed successfully
 - All smoke tests passed
 - Staging deployed with version `2025.12.21-7e457db`
 - Verified via `bmx-api GET /health/deep`
 
 ### 15:46 UTC - Production PR Created
-- **PR #500:** https://github.com/markthebest12/bluemoxon/pull/500
+
+- **PR #500:** <https://github.com/markthebest12/bluemoxon/pull/500>
 - **Title:** `chore: Promote staging to production - bundled fixes (#497, #498, provenance)`
 - **CI Status:** Running (run 20412166180)
 
@@ -465,33 +511,40 @@ eb3c378 fix: resolve shortened eBay URLs to full item URLs during import
 ## Next Steps (Updated 15:46 UTC)
 
 ### Step 1: Wait for PR #500 CI to Pass
+
 ```bash
 gh pr checks 500 --watch
 ```
 
 ### Step 2: Merge PR #500 to Production
+
 ```bash
 gh pr merge 500 --squash
 ```
 
 ### Step 3: Watch Production Deploy
+
 ```bash
 gh run list --workflow Deploy --limit 1
 gh run watch <run-id> --exit-status
 ```
 
 ### Step 4: Verify Production Health
+
 ```bash
 bmx-api --prod GET /health/deep
 ```
+
 Expected version should be `2025.12.21-<new-sha>`
 
 ### Step 5: Upload Napoleon Prompt to Production S3
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://bluemoxon-images/prompts/napoleon-framework/v2.md
 ```
 
 ### Step 6: Verify Prompt Upload
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 ls s3://bluemoxon-images/prompts/napoleon-framework/
 ```
@@ -501,6 +554,7 @@ AWS_PROFILE=bmx-prod aws s3 ls s3://bluemoxon-images/prompts/napoleon-framework/
 ## Verification Checklist (Updated)
 
 Before claiming production release complete:
+
 - [x] Lint errors fixed and pushed (`e533745`)
 - [x] Ruff formatting fixed and pushed (`7e457db`)
 - [x] Staging CI passes (run 20412066823)
@@ -517,23 +571,29 @@ Before claiming production release complete:
 ## Issue #499: Analysis Status Refresh Bug (NEXT TASK)
 
 ### Problem
+
 On the acquisition tab:
+
 - Eval runbook shows "analyzing..." but remains stuck unless browser refresh
 - Generate analysis goes "queuing → analyzing → queuing" and stays stuck
 - Same issue on book view for Napoleon analysis generation
 
 ### User Recommendation
+
 Redesign the code with a streamlined and robust approach using:
+
 - `superpowers:brainstorming` skill for design
 - Strict TDD throughout
 - Handle all permutations in acquisition flow and book view
 
 ### Files Likely Involved
+
 - `frontend/src/components/` - Acquisition tab components
 - `frontend/src/views/` - Book view components
 - Polling/WebSocket logic for status updates
 
 ### Approach
+
 1. Use `superpowers:brainstorming` to design robust polling/status solution
 2. Use `superpowers:systematic-debugging` to identify current failure points
 3. Use `superpowers:test-driven-development` for implementation
@@ -544,12 +604,14 @@ Redesign the code with a streamlined and robust approach using:
 ## Session Log (Continued)
 
 ### 15:48 UTC - PR #500 Merged to Production
+
 - **PR #500 merged** with admin override (branch protection)
 - **Commit:** `f2f8aad`
 - **Deploy run:** 20412197135 (in progress)
 - **Files changed:** 9 files, +531/-10 lines
 
 ### Next: Parallel Work on #499
+
 While production deploy runs, starting investigation of issue #499 (analysis status refresh bug).
 
 ---
@@ -557,6 +619,7 @@ While production deploy runs, starting investigation of issue #499 (analysis sta
 ## Commands for Continuation
 
 ### Complete Bundled Release
+
 ```bash
 # Check production deploy status
 gh run list --workflow Deploy --branch main --limit 1
@@ -569,6 +632,7 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 ```
 
 ### Start Issue #499
+
 ```bash
 # Read issue details
 gh issue view 499
@@ -586,6 +650,7 @@ gh issue view 499
 **Key Insight:** `analysis_job_status` is NOT stored on the Book model - it's **computed** at query time!
 
 **Backend implementation (`backend/app/api/v1/books.py`):**
+
 ```python
 def _get_active_analysis_job_status(book_id: int, db: Session) -> str | None:
     """Returns 'pending' or 'running' if there's an active job, None otherwise."""
@@ -605,18 +670,21 @@ When job completes (status="completed"), this query returns `None` → API retur
 ### Two Polling Mechanisms (Potential Root Cause)
 
 **1. Store-based polling (`frontend/src/stores/books.ts`):**
+
 - Uses `activeAnalysisJobs` Map to track in-memory job state
 - `startJobPoller()` polls `/books/{id}/analysis/status` every 5 seconds
 - When job completes, calls `clearJob()` to remove from Map
 - Functions: `hasActiveJob()`, `getActiveJob()`, `clearJob()`
 
 **2. View-based polling (`frontend/src/views/BookDetailView.vue`):**
+
 - Uses `booksStore.currentBook?.analysis_job_status` from full book API response
 - Has its own `setInterval` via `startAnalysisPolling()`
 - Watches `currentBook.analysis_job_status` to start/stop polling
 - Polls by calling `booksStore.fetchBook(book.id)` to refresh full book
 
 **3. AcquisitionsView hybrid (`frontend/src/views/AcquisitionsView.vue`):**
+
 - Uses `syncBackendJobPolling()` to sync with backend jobs from other sessions
 - Checks BOTH `book.analysis_job_status` (API) AND in-memory Map
 - Has 2-second interval checking for job completions
@@ -640,16 +708,19 @@ When job completes (status="completed"), this query returns `None` → API retur
 ### Recommended Fix Approach
 
 **Option A: Consolidate to Store-Only Polling**
+
 - Remove view-level polling from BookDetailView
 - All views use store's `hasActiveJob()` and reactive Maps
 - Store polls job status endpoint, updates Map, triggers Vue reactivity
 
 **Option B: Event-Based (WebSocket/SSE)**
+
 - Replace polling with server-sent events
 - More complex but eliminates all timing issues
 - Would require backend changes
 
 **Option C: Fix Sync Logic**
+
 - Keep both mechanisms but fix the sync gaps
 - Ensure `syncBackendJobPolling()` is called consistently
 - Add proper cleanup when job completes
@@ -671,6 +742,7 @@ When job completes (status="completed"), this query returns `None` → API retur
 ### 2. Bash Command Formatting (CLAUDE.md)
 
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -678,11 +750,13 @@ When job completes (status="completed"), this query returns `None` → API retur
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
 
 ### 3. Use `bmx-api` for API Calls
+
 ```bash
 bmx-api GET /books/123                    # Staging (default)
 bmx-api --prod GET /books/123             # Production
@@ -700,6 +774,7 @@ bmx-api --prod GET /health/deep           # Production health check
 - **Napoleon prompt:** ✅ Uploaded to prod S3
 
 ### Verification Commands Used
+
 ```bash
 bmx-api --prod GET /health/deep
 # Response: {"status":"healthy","version":"2025.12.21-f2f8aad",...}
@@ -715,21 +790,25 @@ AWS_PROFILE=bmx-prod aws s3 cp /Users/mark/projects/bluemoxon/backend/prompts/na
 Using `superpowers:dispatching-parallel-agents` skill:
 
 **Agent 1: Frontend Store Investigation**
+
 - Scope: `frontend/src/stores/books.ts`
 - Goal: Trace polling logic, identify where job completion detection fails
 - Output: Root cause analysis for store-level polling
 
 **Agent 2: View-Level Polling Investigation**
+
 - Scope: `frontend/src/views/BookDetailView.vue`, `AcquisitionsView.vue`
 - Goal: Trace view-level polling, identify sync gaps
 - Output: Root cause analysis for view-level status display
 
 **Agent 3: Backend Status Endpoint Investigation**
+
 - Scope: `backend/app/api/v1/books.py` - status endpoints
 - Goal: Verify job status queries return correct values
 - Output: Confirmation backend is correct OR identify backend bug
 
 **Integration:**
+
 - After agents complete, consolidate findings
 - Design unified fix based on all three perspectives
 - Use TDD to implement fix
@@ -758,6 +837,7 @@ catch (e) {
 ```
 
 **What happens:**
+
 1. User starts analysis → job added to `activeAnalysisJobs` Map
 2. Polling starts every 5 seconds
 3. Network error or API failure occurs during a poll
@@ -769,6 +849,7 @@ catch (e) {
 ### Secondary Issue: Dual Status Sources
 
 **Two independent sources checked by templates:**
+
 1. `isAnalysisRunning()` - checks in-memory Map
 2. `book.analysis_job_status` - from API response
 
@@ -786,6 +867,7 @@ If Map is cleared but API data isn't refreshed, UI still shows status.
 ### THE FIX
 
 **Primary fix (`books.ts` line 318):**
+
 ```typescript
 catch (e) {
   console.error(`Failed to poll job status for book ${bookId}:`, e);
@@ -824,6 +906,7 @@ catch (e) {
 ## Commands for Next Session
 
 ### Implement Fix with TDD
+
 ```bash
 # Read the skill first
 # Use superpowers:test-driven-development
@@ -837,6 +920,7 @@ npm run test
 ```
 
 ### Verify Fix
+
 ```bash
 # Start local dev
 cd frontend
@@ -853,26 +937,31 @@ npm run dev
 ### TDD Process Followed
 
 **RED Phase:**
+
 - Created `frontend/src/stores/books.test.ts` with 5 test cases
 - 3 error-handling tests FAILED as expected (proving the bug)
 - 2 success-path tests PASSED (normal completion works)
 
 **GREEN Phase:**
+
 - Added `clearJob(bookId)` to catch block in `startJobPoller()` (line 321)
 - Added `clearEvalRunbookJob(bookId)` to catch block in `startEvalRunbookJobPoller()` (line 425)
 - All 5 tests now PASS
 
 **VERIFY Phase:**
+
 - Frontend linting passes
 - TypeScript type-check passes
 
 ### Commit
+
 ```
 bcf68bb fix(frontend): Clear job from Map when polling fails (#499)
 ```
 
 ### PR Created
-- **PR #501:** https://github.com/markthebest12/bluemoxon/pull/501
+
+- **PR #501:** <https://github.com/markthebest12/bluemoxon/pull/501>
 - **Base:** staging
 - **Status:** CI running
 
@@ -899,16 +988,19 @@ bcf68bb fix(frontend): Clear job from Map when polling fails (#499)
 ## Next Steps
 
 ### 1. Wait for PR #501 CI to Pass
+
 ```bash
 gh pr checks 501 --watch
 ```
 
 ### 2. Merge PR #501 to Staging
+
 ```bash
 gh pr merge 501 --squash
 ```
 
 ### 3. Deploy to Staging and Test
+
 ```bash
 # Wait for staging deploy
 gh run list --workflow=deploy-staging.yml --limit 1
@@ -920,6 +1012,7 @@ gh run list --workflow=deploy-staging.yml --limit 1
 ```
 
 ### 4. Promote to Production
+
 ```bash
 # Create PR from staging to main
 gh pr create --base main --head staging --title "chore: Promote staging to production - Issue #499 fix"
@@ -952,17 +1045,20 @@ gh pr merge <pr-number> --squash
 ## Session Status Summary (2025-12-21)
 
 ### Completed Today
+
 1. ✅ Bundled release deployed to production (PR #500)
 2. ✅ Napoleon prompt uploaded to prod S3
 3. ✅ Issue #499 root cause identified via parallel agents
 4. ✅ Issue #499 fix implemented with TDD (PR #501)
 
 ### Pending
+
 1. ⏳ PR #501 CI and merge to staging
 2. ⏳ Staging validation
 3. ⏳ Production promotion
 
 ### Key Commits Today
+
 | Commit | Description |
 |--------|-------------|
 | `f2f8aad` | Bundled release to production (provenance, #497, #498) |
@@ -973,14 +1069,17 @@ gh pr merge <pr-number> --squash
 ## CONTINUATION SESSION SUMMARY (Chat Compacting ~08:15 UTC)
 
 ### Current State
+
 - **PR #501** created for Issue #499 fix
 - **CI Status:** Running (run 20412379664) - most checks pass, Backend Tests and SAST pending
 - **Branch:** `fix/499-job-polling-stuck-state` targeting `staging`
 
 ### Issue #499 Fix Complete (Implementation Done)
+
 **Root Cause:** `books.ts` catch blocks called `stopJobPoller()` but NOT `clearJob()`, leaving jobs stuck in Map forever.
 
 **Fix Applied:**
+
 - Line 321: Added `clearJob(bookId)` in `startJobPoller()` catch block
 - Line 425: Added `clearEvalRunbookJob(bookId)` in `startEvalRunbookJobPoller()` catch block
 
@@ -1020,6 +1119,7 @@ gh pr merge <pr-number> --squash
 ### 2. Bash Command Formatting (CLAUDE.md) - AVOID PERMISSION PROMPTS
 
 **NEVER use these:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -1027,11 +1127,13 @@ gh pr merge <pr-number> --squash
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
 
 ### 3. bmx-api Examples
+
 ```bash
 bmx-api GET /books/123                    # Staging (default)
 bmx-api --prod GET /books/123             # Production
@@ -1073,6 +1175,7 @@ These issues have been worked on and need TDD validation in production before cl
 ### TDD Validation Requirements Before Closing Issues
 
 **Issue #496 (Provenance):**
+
 ```bash
 # Test: Re-analyze book 351 and verify provenance detected
 bmx-api --prod DELETE '/books/351/analysis'
@@ -1083,6 +1186,7 @@ bmx-api --prod GET '/books/351' | jq '{has_provenance, provenance_tier}'
 ```
 
 **Issue #497 (Mobile URLs):**
+
 ```bash
 # Test: Import a book with mobile/short eBay URL
 # 1. Get a mobile URL from eBay app
@@ -1093,6 +1197,7 @@ bmx-api --prod GET '/books/<new-book-id>' | jq '.source_url'
 ```
 
 **Issue #498 (Ask Price):**
+
 ```bash
 # Test: Import a book with $0 or specific ask price
 # 1. Find an eBay listing with a price
@@ -1103,6 +1208,7 @@ bmx-api --prod GET '/books/<new-book-id>' | jq '.purchase_price'
 ```
 
 **Issue #499 (Stuck Status):**
+
 ```bash
 # Test: Browser testing with DevTools Network throttling
 # 1. Start analysis for a book
@@ -1120,16 +1226,19 @@ bmx-api --prod GET '/books/<new-book-id>' | jq '.purchase_price'
 ## Session Log (Continued 2025-12-21 16:24 UTC)
 
 ### 16:22 UTC - PR #501 CI Passed (Second Run)
+
 - Branch was behind staging, merged to update
 - Pushed updated branch
 - CI run 20412585171 passed (all checks green)
 
 ### 16:24 UTC - PR #501 Merged to Staging
+
 - Merged with `--admin` flag (branch protection)
 - Commit: `3dc67eb`
 - Staging deploy run 20412607830 in progress
 
 ### Current Status
+
 - **Deploy Run:** 20412607830 (staging) - IN PROGRESS
 - Waiting for smoke tests to complete
 - Next: Create PR to promote staging to production
@@ -1202,19 +1311,23 @@ gh run watch <run-id> --exit-status
 ## CRITICAL REMINDERS (Repeated for Visibility)
 
 ### 1. Superpowers Skills - MANDATORY at ALL Stages
+
 - `superpowers:systematic-debugging` - before ANY fix attempt
 - `superpowers:test-driven-development` - write failing test FIRST
 - `superpowers:verification-before-completion` - evidence before assertions
 - `superpowers:dispatching-parallel-agents` - for independent investigations
 
 ### 2. Bash Command Formatting (CLAUDE.md)
+
 **AVOID these (trigger permission prompts):**
+
 - `&&` or `||` chaining → use separate Bash calls
 - `$(...)` command substitution
 - `\` line continuations
 - `#` comments before commands
 
 ### 3. Use bmx-api for API Calls
+
 ```bash
 bmx-api GET /books/123          # Staging
 bmx-api --prod GET /books/123   # Production
@@ -1225,12 +1338,14 @@ bmx-api --prod GET /books/123   # Production
 ## Session Log (Continued 2025-12-21 ~17:00 UTC)
 
 ### 16:45 UTC - PR #503 Created and Merged
+
 - Created PR #503 to promote staging (Issue #499 fix) to production
 - CI checks passed
 - Merged with `--admin` flag
 - Production deploy run 20412718868 in progress
 
 ### Current Status
+
 - **Issue #499:** PR #503 merged, production deploy in progress
 - **Next:** Issue #502 investigation using parallel agents
 
@@ -1267,6 +1382,7 @@ A comparison between Claude CLI-based evaluation and BMX evaluation yielded diff
 ### Root Cause Hypothesis
 
 BMX evaluation has THREE significant errors:
+
 1. **Binder misidentified** — Assumed Rivière (Tier 1) when actually Lauriat (NOT Tier 1)
 2. **Volume count wrong** — Reported 1 volume when there are 6
 3. **FMV inflated** — Because binder was assumed to be Tier 1
@@ -1274,18 +1390,21 @@ BMX evaluation has THREE significant errors:
 ### Investigation Plan (Using `superpowers:dispatching-parallel-agents`)
 
 **Agent 1: Binder Detection Investigation**
+
 - Scope: `backend/prompts/` - eval runbook and Napoleon prompts
 - Goal: Find why binder was misidentified as Rivière
 - Check: Is binder signature visible in images? Is prompt inferring without evidence?
 - File: `backend/prompts/eval-runbook/v1.md`, `backend/prompts/napoleon-framework/v2.md`
 
 **Agent 2: Volume Count Investigation**
+
 - Scope: Book 524 data and images
 - Goal: Find why volume count shows 1 instead of 6
 - Check: Database record, image analysis, eBay listing data
 - Commands: `bmx-api GET /books/524`, `bmx-api GET /books/524/images`
 
 **Agent 3: FMV Calculation Investigation**
+
 - Scope: FMV/scoring logic in eval runbook
 - Goal: Understand how binder tier affects FMV calculation
 - Check: If binder tier is corrected, does FMV become accurate?
@@ -1361,6 +1480,7 @@ bmx-api --prod GET /books/524/eval-runbook
 ## Commands for Next Steps
 
 ### Complete Issue #499 Production Deploy
+
 ```bash
 # Check production deploy status
 gh run list --workflow Deploy --limit 1
@@ -1370,6 +1490,7 @@ bmx-api --prod GET /health/deep
 ```
 
 ### Start Issue #502 Investigation
+
 ```bash
 # Use superpowers:dispatching-parallel-agents skill
 
@@ -1434,6 +1555,7 @@ if "name" not in result:
 ```
 
 **Problem:**
+
 - Pattern `rf"bound by\s+{re.escape(binder)}"` matches ANY mention of a binder name
 - Text like "Rivière-style work" or "similar to Rivière binding" triggers identification
 - Sets `confidence = "MEDIUM"` even without actual signature evidence
@@ -1441,11 +1563,13 @@ if "name" not in result:
 
 **Fix Required:**
 Modify fallback patterns to ONLY match explicit signature statements like:
+
 - "signed by Rivière"
 - "Rivière signature on turn-in"
 - "stamped Sangorski & Sutcliffe"
 
 NOT style mentions like:
+
 - "Rivière-style binding"
 - "bound by" (could mean style, not attribution)
 
@@ -1477,6 +1601,7 @@ def extract_listing_data(html: str) -> dict:
 ```
 
 **Data Flow:**
+
 1. eBay listing HTML contains "6 volumes" in description
 2. Bedrock extraction prompt doesn't ask for volume count
 3. Claude returns no `volumes` field (not asked)
@@ -1486,6 +1611,7 @@ def extract_listing_data(html: str) -> dict:
 
 **Fix Required:**
 Update extraction prompt to explicitly ask for volume count:
+
 ```python
 "volumes": "number of volumes (e.g., 1, 2, 6). Look for '6 volumes', 'complete set', etc."
 ```
@@ -1500,6 +1626,7 @@ Update extraction prompt to explicitly ask for volume count:
 FMV is NOT directly calculated from binder tier. It's a **cascade effect**.
 
 **How FMV Works:**
+
 1. Eval runbook identifies binder (Rivière - WRONG)
 2. Napoleon analysis uses binder name to search for market comparables
 3. Search for "Rivière binding" finds $2,000-$5,000 comps
@@ -1515,6 +1642,7 @@ FMV is NOT directly calculated from binder tier. It's a **cascade effect**.
 | **Total Score Impact** | - | - | **+40 points** |
 
 From `backend/app/services/tiered_scoring.py`:
+
 ```python
 QUALITY_TIER_1_BINDER = 30         # 30 points for Tier 1 binder
 QUALITY_DOUBLE_TIER_1_BONUS = 10   # Extra 10 if both publisher and binder are Tier 1
@@ -1522,6 +1650,7 @@ QUALITY_DOUBLE_TIER_1_BONUS = 10   # Extra 10 if both publisher and binder are T
 
 **Fix Dependency:**
 Fixing the binder detection bug will automatically fix:
+
 1. FMV (different comparables searched)
 2. Scoring (no Tier 1 binder points)
 3. Discount calculation (accurate FMV → accurate discount)
@@ -1533,12 +1662,14 @@ Fixing the binder detection bug will automatically fix:
 ### Priority Order (TDD Approach)
 
 **Fix 1: Binder Detection Fallback (CRITICAL)**
+
 - **File:** `backend/app/utils/markdown_parser.py` lines 277-313
 - **Change:** Only match explicit signature/stamp statements
 - **Test:** Create test case where AI says "unknown" but text mentions "Rivière-style"
 - **Expected:** Binder stays "unknown", NOT overridden to "Rivière"
 
 **Fix 2: Volume Count Extraction**
+
 - **File:** `backend/app/services/listing.py` lines 232-248
 - **Change:** Add volume extraction instruction to prompt
 - **Test:** Mock eBay HTML with "6 volumes" in description
@@ -1564,16 +1695,19 @@ bmx-api --prod GET /books/524 | jq '{binder, volumes, value_mid}'
 ## Session Log (Continued 2025-12-21 ~17:30 UTC)
 
 ### 17:15 UTC - Issue #499 Production Deploy Verified
+
 - Deploy run 20412718868 completed successfully
 - Production health verified: all checks healthy, 149 books
 - Issue #499 fix now live in production
 
 ### 17:30 UTC - Issue #502 Parallel Agent Investigation Complete
+
 - Agent 1: Found binder detection bug in `markdown_parser.py`
 - Agent 2: Found volume extraction bug in `listing.py`
 - Agent 3: Confirmed FMV is cascade effect from wrong binder
 
 ### Current Status
+
 - **Issue #499:** ✅ Production deployed, needs manual browser test to close
 - **Issue #502:** Root causes identified, ready for TDD implementation
 
@@ -1582,6 +1716,7 @@ bmx-api --prod GET /books/524 | jq '{binder, volumes, value_mid}'
 ## Commands for Issue #502 Implementation
 
 ### Step 1: Write Failing Tests (TDD - RED Phase)
+
 ```bash
 # Create test file for binder detection
 # Test: AI returns "unknown", markdown mentions "Rivière-style", result should be "unknown"
@@ -1591,12 +1726,14 @@ bmx-api --prod GET /books/524 | jq '{binder, volumes, value_mid}'
 ```
 
 ### Step 2: Implement Fixes (TDD - GREEN Phase)
+
 ```bash
 # Fix markdown_parser.py binder fallback patterns
 # Fix listing.py extraction prompt to ask for volumes
 ```
 
 ### Step 3: Verify Fixes (TDD - REFACTOR Phase)
+
 ```bash
 # Run all tests
 poetry run pytest backend/tests/ -v
@@ -1607,6 +1744,7 @@ poetry run ruff format backend/
 ```
 
 ### Step 4: Deploy and Validate
+
 ```bash
 # After staging validation:
 gh pr create --base staging --title "fix: Improve binder detection and volume extraction (#502)"
@@ -1677,6 +1815,7 @@ Initial test run: 4 FAILED (proving the bug exists)
 **File:** `backend/app/utils/markdown_parser.py` lines 296-323
 
 **Before (BUGGY):**
+
 ```python
 patterns = [
     rf"bound by\s+{re.escape(binder)}",        # ❌ Style description
@@ -1687,6 +1826,7 @@ patterns = [
 ```
 
 **After (FIXED):**
+
 ```python
 # Patterns requiring explicit physical evidence (signature/stamp)
 patterns = [
@@ -1704,12 +1844,14 @@ patterns = [
 ```
 
 **Key Changes:**
+
 1. Removed "bound by X" pattern (style description, not evidence)
 2. Removed "X binding" pattern (style description, not evidence)
 3. Added patterns requiring physical evidence (signature/stamp location)
 4. Changed confidence from MEDIUM to HIGH when physical evidence found
 
 **VERIFY Phase:**
+
 - All 50 markdown parser tests pass
 - 478 backend tests pass (5 pre-existing AWS failures)
 - Ruff lint passes
@@ -1721,7 +1863,7 @@ patterns = [
 cfeebae fix: require signature/stamp evidence for binder identification (#502)
 ```
 
-- **PR #504:** https://github.com/markthebest12/bluemoxon/pull/504
+- **PR #504:** <https://github.com/markthebest12/bluemoxon/pull/504>
 - **Base:** staging
 - **CI Status:** ✅ All checks passed
 - **Merged:** ✅ To staging (commit `b186845`)
@@ -1732,26 +1874,31 @@ cfeebae fix: require signature/stamp evidence for binder identification (#502)
 ## CONSOLIDATED ROOT CAUSE SUMMARY (All Issues)
 
 ### Issue #496: Napoleon Prompt Missing Provenance Instructions
+
 - **Root Cause:** Section 2 of Napoleon prompt lacked explicit instructions to look for bookplates and signatures
 - **Fix:** Added detailed provenance markers checklist to `backend/prompts/napoleon-framework/v2.md`
 - **Status:** ✅ Deployed to production in PR #500
 
 ### Issue #497: Mobile eBay URLs Broken
+
 - **Root Cause:** `EBAY_ITEM_PATTERN` regex only matched numeric IDs (`\d+`), not alphanumeric short IDs from mobile app
 - **Fix:** Added `EBAY_SHORT_ID_PATTERN` and HTTP redirect resolution in `backend/app/services/listing.py`
 - **Status:** ✅ Deployed to production in PR #500
 
 ### Issue #498: Ask Price Not Stored
+
 - **Root Cause:** Frontend used `||` operator which treats `0` as falsy, converting `$0` prices to `undefined`
 - **Fix:** Changed `||` to `??` (nullish coalescing) in `ImportListingModal.vue` and `AddToWatchlistModal.vue`
 - **Status:** ✅ Deployed to production in PR #500
 
 ### Issue #499: Analysis Status Stuck "Analyzing..."
+
 - **Root Cause:** `books.ts` catch blocks called `stopJobPoller()` but NOT `clearJob()`, leaving jobs stuck in Map forever
 - **Fix:** Added `clearJob(bookId)` and `clearEvalRunbookJob(bookId)` to error handlers
 - **Status:** ✅ Deployed to production in PR #503
 
 ### Issue #502: Binder Misidentification (e.g., Book 524)
+
 - **Root Cause (Binder):** `markdown_parser.py` fallback patterns matched ANY text mention of binder names, overriding AI's correct "UNKNOWN" identification
 - **Root Cause (Volumes):** Extraction prompt in `listing.py` doesn't ask for volume count, defaults to 1
 - **Root Cause (FMV):** Cascade effect - wrong binder → wrong comparables → inflated FMV
@@ -1838,25 +1985,30 @@ Each issue needs TDD validation before closing. See "TDD Validation Requirements
 ## Session Log (Continued 2025-12-21 16:50 UTC)
 
 ### 16:45 UTC - Issue #502 TDD Implementation Started
+
 - Read `markdown_parser.py` to understand buggy code
 - Identified specific patterns that were too aggressive
 
 ### 16:48 UTC - TDD RED Phase
+
 - Added 6 new tests to `test_markdown_parser.py`
 - Initial run: 4 tests FAILED (proving the bug)
 - 2 tests for correct behavior PASSED (existing functionality works)
 
 ### 16:50 UTC - TDD GREEN Phase
+
 - Implemented fix: Updated patterns to require explicit signature/stamp evidence
 - Changed confidence from MEDIUM to HIGH for physical evidence
 - Fixed one integration test that documented buggy behavior
 
 ### 16:52 UTC - Verification Complete
+
 - All 50 markdown parser tests pass
 - 478 backend tests pass
 - Ruff lint and format pass
 
 ### 16:52 UTC - PR #504 Created and Merged
+
 - Created PR targeting staging
 - CI passed all checks
 - Merged to staging
@@ -1912,12 +2064,14 @@ Each issue needs TDD validation before closing. See "TDD Validation Requirements
 ### 2. Bash Command Formatting (CLAUDE.md)
 
 **AVOID these (trigger permission prompts):**
+
 - `&&` or `||` chaining → use separate Bash calls
 - `$(...)` command substitution
 - `\` line continuations
 - `#` comments before commands
 
 ### 3. Use bmx-api for API Calls
+
 ```bash
 bmx-api GET /books/123          # Staging
 bmx-api --prod GET /books/123   # Production
@@ -1940,17 +2094,19 @@ bmx-api --prod GET /books/123   # Production
 ### Root Cause Details Added to GitHub Issues
 
 Each issue now has a detailed root cause comment explaining:
+
 - The specific problem
 - The technical root cause
 - The fix implemented
 - Links to related documentation
 
 **GitHub Issue Comments Added:**
-- https://github.com/markthebest12/bluemoxon/issues/502#issuecomment-3679107090
-- https://github.com/markthebest12/bluemoxon/pull/496#issuecomment-3679107106
-- https://github.com/markthebest12/bluemoxon/issues/497#issuecomment-3679107122
-- https://github.com/markthebest12/bluemoxon/issues/498#issuecomment-3679107581
-- https://github.com/markthebest12/bluemoxon/issues/499#issuecomment-3679107685
+
+- <https://github.com/markthebest12/bluemoxon/issues/502#issuecomment-3679107090>
+- <https://github.com/markthebest12/bluemoxon/pull/496#issuecomment-3679107106>
+- <https://github.com/markthebest12/bluemoxon/issues/497#issuecomment-3679107122>
+- <https://github.com/markthebest12/bluemoxon/issues/498#issuecomment-3679107581>
+- <https://github.com/markthebest12/bluemoxon/issues/499#issuecomment-3679107685>
 
 ### Production Health Verified
 

@@ -98,7 +98,8 @@ These books have `has_analysis: true` but were updated before the cutoff and nee
 
 ## Processing Strategy
 
-### For Degraded Books (26 books):
+### For Degraded Books (26 books)
+
 ```bash
 # Use re-extract endpoint
 for book_id in 59 21 401 56 22 395 60 512 399 389 62 57 390 2 393 24 4 391 67 509 47 63 64 66 374 25; do
@@ -106,7 +107,8 @@ for book_id in 59 21 401 56 22 395 60 512 399 389 62 57 390 2 393 24 4 391 67 50
 done
 ```
 
-### For Stale Books (40 books):
+### For Stale Books (40 books)
+
 ```bash
 # Use full analysis regeneration endpoint
 for book_id in 343 396 489 350 336 372 383 378 68 351 384 400 385 352 403 392 405 339 27 402 397 367 382 398 347 346 335 380 3 387 379 394 345 41 381 51 348 388 356 337; do

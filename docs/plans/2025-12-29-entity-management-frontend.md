@@ -14,6 +14,7 @@
 ## Task 1: Update Entity Types
 
 **Files:**
+
 - Modify: `frontend/src/types/admin.ts`
 
 **Step 1: Update EntityTier interface and add new types**
@@ -78,6 +79,7 @@ git commit -m "feat(types): add entity management types with preferred and book_
 ## Task 2: Create EntityManagementTable Component
 
 **Files:**
+
 - Create: `frontend/src/components/admin/EntityManagementTable.vue`
 
 **Step 1: Create the component**
@@ -281,6 +283,7 @@ git commit -m "feat(ui): add EntityManagementTable component with inline editing
 ## Task 3: Create EntityFormModal Component
 
 **Files:**
+
 - Create: `frontend/src/components/admin/EntityFormModal.vue`
 
 **Step 1: Create the modal component**
@@ -531,6 +534,7 @@ git commit -m "feat(ui): add EntityFormModal component for create/edit"
 ## Task 4: Create ReassignDeleteModal Component
 
 **Files:**
+
 - Create: `frontend/src/components/admin/ReassignDeleteModal.vue`
 
 **Step 1: Create the modal component**
@@ -707,6 +711,7 @@ git commit -m "feat(ui): add ReassignDeleteModal component for delete with reass
 ## Task 5: Update AdminConfigView - Part 1 (Script Setup)
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Update imports and add new state**
@@ -835,6 +840,7 @@ git commit -m "feat(admin): add entity management state and loading functions"
 ## Task 6: Update AdminConfigView - Part 2 (CRUD Handlers)
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Add CRUD handler functions**
@@ -982,6 +988,7 @@ git commit -m "feat(admin): add CRUD and modal handlers for entity management"
 ## Task 7: Update AdminConfigView - Part 3 (Template)
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Update tab navigation in template**
@@ -1173,11 +1180,13 @@ git commit -m "feat(admin): update template with entity management UI"
 ## Task 8: Remove Dead Code
 
 **Files:**
+
 - Modify: `frontend/src/views/AdminConfigView.vue`
 
 **Step 1: Remove unused grouped entity functions**
 
 Find and remove these functions (they're no longer needed):
+
 - `groupedAuthors`
 - `groupedPublishers`
 - `groupedBinders`
@@ -1277,6 +1286,7 @@ gh pr create --base staging --title "feat: Add entity management UI for Authors,
 ## Summary
 
 This plan adds the Entity Management UI with:
+
 - **EntityManagementTable**: Inline editing for tier/preferred, search, CRUD buttons
 - **EntityFormModal**: Create/edit with type-specific fields
 - **ReassignDeleteModal**: Delete with optional book reassignment

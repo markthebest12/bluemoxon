@@ -56,6 +56,7 @@ After PR #1098 (tooltip clipping fixes), additional tooltip enhancements were re
    - Refactored `query_bindings()` to use helper with additional filter
 
 2. **app/models/binder.py** - Added columns:
+
    ```python
    founded_year: Mapped[int | None] = mapped_column(Integer)
    closed_year: Mapped[int | None] = mapped_column(Integer)
@@ -144,6 +145,7 @@ After PR #1099 was merged to staging, testing revealed binder tooltips were NOT 
 ### Root Cause (Systematic Debugging)
 
 **Data Flow Traced:**
+
 1. `/stats/bindings` endpoint → Returns all fields ✓
 2. `/stats/dashboard` endpoint → Missing fields ✗
 3. Traced to `DashboardResponse` schema using `list[BinderData]`
@@ -155,12 +157,14 @@ After PR #1099 was merged to staging, testing revealed binder tooltips were NOT 
 
 1. **RED:** Wrote failing test `test_dashboard_bindings_include_enhanced_fields`
 2. **GREEN:** Added missing fields to `BinderData` schema:
+
    ```python
    founded_year: int | None = None
    closed_year: int | None = None
    sample_titles: list[str] = Field(default_factory=list)
    has_more: bool = False
    ```
+
 3. **VERIFY:** All 73 stats tests pass
 
 ### Lesson Learned
@@ -179,6 +183,7 @@ After PR #1099 was merged to staging, testing revealed binder tooltips were NOT 
 ## Files Modified
 
 ### Initial Implementation
+
 ```
 frontend/src/components/BaseTooltip.vue
 frontend/src/components/dashboard/StatisticsDashboard.vue
@@ -193,6 +198,7 @@ backend/tests/test_stats.py
 ```
 
 ### Code Review Round 2 Fixes
+
 ```
 frontend/src/components/dashboard/chartHelpers.ts  # Memory leak, hit detection
 frontend/src/components/dashboard/StatisticsDashboard.vue  # Tooltip differentiation
@@ -208,6 +214,7 @@ backend/app/api/v1/stats.py  # Type annotation
 ### 1. ALWAYS Use Superpowers Skills
 
 Invoke relevant skills BEFORE any response or action:
+
 - `superpowers:brainstorming` - Before any creative/feature work
 - `superpowers:systematic-debugging` - For ANY bug/test failure
 - `superpowers:test-driven-development` - Before writing implementation code
@@ -239,6 +246,7 @@ simple-single-line-command --flag value
 For sequential operations, use **separate Bash tool calls** instead of `&&`.
 
 For API calls, use `bmx-api`:
+
 ```bash
 bmx-api GET /books
 bmx-api --prod GET /books/123

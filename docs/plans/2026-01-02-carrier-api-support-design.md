@@ -7,6 +7,7 @@
 ## Summary
 
 Add API integration for multiple shipping carriers to enable:
+
 - Real-time tracking status display in UI
 - Estimated delivery date population
 - Proactive notifications (email, SMS, in-app)
@@ -137,11 +138,13 @@ def poll_all_active_tracking(db: Session) -> dict:
 ## Notification System
 
 **Channels:**
+
 - In-app: Always (stored in notifications table)
 - Email: Via AWS SES (user preference)
 - SMS: Via AWS SNS (user preference + phone required)
 
 **Triggers:**
+
 | Event | Message |
 |-------|---------|
 | Status change | "Your book '{title}' is now: {status}" |

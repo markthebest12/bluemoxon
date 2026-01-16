@@ -10,6 +10,7 @@ Parallelize the sequential API calls in `frontend/src/stores/auth.ts` checkAuth(
 ## Current State
 
 In `checkAuth()` lines 82-118:
+
 1. `api.get("/users/me")` - fetches role, names, mfa_exempt (~400-800ms)
 2. `fetchMFAPreference()` - checks if TOTP enabled (~400-800ms, only if !mfa_exempt)
 

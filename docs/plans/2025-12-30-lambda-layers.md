@@ -13,6 +13,7 @@
 ## Task 1: Create Lambda Layer Terraform Module
 
 **Files:**
+
 - Create: `infra/terraform/modules/lambda-layer/main.tf`
 - Create: `infra/terraform/modules/lambda-layer/variables.tf`
 - Create: `infra/terraform/modules/lambda-layer/outputs.tf`
@@ -121,6 +122,7 @@ git commit -m "feat: add lambda-layer Terraform module"
 ## Task 2: Update Lambda Module to Support Layers
 
 **Files:**
+
 - Modify: `infra/terraform/modules/lambda/variables.tf`
 - Modify: `infra/terraform/modules/lambda/main.tf`
 
@@ -168,6 +170,7 @@ git commit -m "feat: add layers support to lambda module"
 ## Task 3: Wire Up Layer in Main Terraform Config
 
 **Files:**
+
 - Modify: `infra/terraform/main.tf`
 
 **Step 1: Add layer module**
@@ -215,6 +218,7 @@ git commit -m "feat: wire lambda layer to API and cleanup functions"
 ## Task 4: Update Deploy Workflow - Build Layer Separately
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml`
 
 **Step 1: Add build-layer job**
@@ -364,6 +368,7 @@ git commit -m "feat: implement Lambda Layers in deploy workflow"
 ## Task 5: Update Cleanup Lambda Module for Layers
 
 **Files:**
+
 - Modify: `infra/terraform/modules/cleanup-lambda/variables.tf`
 - Modify: `infra/terraform/modules/cleanup-lambda/main.tf`
 
@@ -393,6 +398,7 @@ git commit -m "feat: add layers support to cleanup-lambda module"
 ## Task 6: Add invoke-cleanup Policy to Terraform
 
 **Files:**
+
 - Modify: `infra/terraform/modules/lambda/variables.tf`
 - Modify: `infra/terraform/main.tf`
 

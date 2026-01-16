@@ -11,11 +11,13 @@
 Systematic review of bluemoxon.com marketing website to ensure it represents all the best features of the app. Recent updates include Victorian theming, print features, and author tier scoring.
 
 **Reference docs:**
+
 - `docs/FEATURES.md` - Feature catalog
 - `docs/API_REFERENCE.md` - API documentation
 - `docs/INDEX.md` - Documentation index
 
 **Example books to showcase:**
+
 - Book 373 - For downloadable PDF analysis example
 - Book 488 - Stunning illustrative views to preserve
 
@@ -24,43 +26,54 @@ Systematic review of bluemoxon.com marketing website to ensure it represents all
 ## Completed Work
 
 ### 1. Content Audit ✅
+
 **File:** `docs/session-2025-12-22-website-review/content-audit.md`
 
 Comprehensive comparison of FEATURES.md against website content. Key findings:
+
 - Missing: Author tier system (TIER_1/2/3 scoring), Publisher/Binder tier details
 - Missing: Victorian era focus, keyboard navigation, real-time updates
 - Underrepresented: Strategic Fit 7-criteria checklist, Napoleon Framework details
 - 3 Mermaid diagrams in FEATURES.md not on website
 
 ### 2. Book 373 PDF Export ✅
+
 **Files:**
+
 - `site/downloads/book-373-analysis.html` - Print-to-PDF HTML with Victorian styling
 - `site/downloads/book-373-napoleon-memoirs-analysis.md` - Raw markdown analysis
 
 Napoleon Memoirs 1820 Sangorski & Sutcliffe binding analysis, formatted for browser print-to-PDF.
 
 ### 3. Book 488 Illustrative Screenshots ✅
+
 **Files (PII redacted):**
+
 - `site/screenshots/book-488-detail-victorian.png` - Full page with Victorian theming
 - `site/screenshots/book-488-lightbox-cover.png` - Dante's Inferno decorative cover
 - `site/screenshots/book-488-dante-portrait.png` - Doré's Dante Alighieri portrait
 - `site/screenshots/book-488-dore-illustration.png` - Interior Doré illustration spread
 
 ### 4. Architecture Diagrams ✅
+
 **Files:**
+
 - `site/images/architecture-ai-analysis.svg` - Napoleon Framework AI pipeline
 - `site/images/architecture-scoring.svg` - Investment Grade + Strategic Fit scoring
 - `site/images/architecture-tiers.svg` - Author/Publisher/Binder tier system
 - `site/images/architecture-ebay-import.svg` - eBay listing import flow
 
 ### 5. Screenshot Refresh ✅
+
 **Files:**
+
 - `site/screenshots/dashboard-victorian.png` - Dashboard with Victorian theming, stats cards, analytics charts
 - `site/screenshots/collection-victorian.png` - Collection (119 books) with bindery badges (Zaehnsdorf, Sangorski & Sutcliffe, Rivière & Son)
 - `site/screenshots/score-breakdown-summary.png` - Eval Runbook with Quality/Strategic Fit scores
 - `site/screenshots/strategic-fit-scoring.png` - Strategic Fit checklist table with tier contributions
 
 **Technical notes:**
+
 1. Playwright MCP screenshots work when avoiding `browser_evaluate()` JavaScript injection
 2. Wait 8+ seconds after navigation for Lambda cold start to complete before screenshotting
 3. Close browser between screenshots to avoid MCP state issues
@@ -132,13 +145,15 @@ site/
 ## Reference URLs
 
 **Production:**
-- Website: https://www.bluemoxon.com
-- App: https://app.bluemoxon.com
-- API: https://api.bluemoxon.com
+
+- Website: <https://www.bluemoxon.com>
+- App: <https://app.bluemoxon.com>
+- API: <https://api.bluemoxon.com>
 
 **Example books:**
-- Book 373 (for PDF): https://app.bluemoxon.com/books/373
-- Book 488 (illustrative): https://app.bluemoxon.com/books/488
+
+- Book 373 (for PDF): <https://app.bluemoxon.com/books/373>
+- Book 488 (illustrative): <https://app.bluemoxon.com/books/488>
 
 ---
 

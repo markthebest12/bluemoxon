@@ -9,6 +9,7 @@
 ## Problem Summary
 
 The BlueMoxon database had accumulated 34+ duplicate "Unidentified" binder variants, each slightly different:
+
 - "Unidentified (no signature visible)"
 - "Unidentified (Publisher's Trade Binding)"
 - "UNIDENTIFIED (no signature or stamp visible)"
@@ -16,6 +17,7 @@ The BlueMoxon database had accumulated 34+ duplicate "Unidentified" binder varia
 - etc.
 
 These variants were being created because:
+
 1. AI (Napoleon prompt) generates descriptive "Unidentified" names with parenthetical explanations
 2. The extraction prompt's structured data included these descriptive names
 3. Existing filtering only matched EXACT strings ("unidentified", "unknown", "none")
@@ -25,6 +27,7 @@ These variants were being created because:
 ## Root Cause Analysis
 
 **Flow:**
+
 ```
 AI generates "Unidentified (no signature visible)"
     → Extraction prompt extracts to binder_identified field
@@ -34,6 +37,7 @@ AI generates "Unidentified (no signature visible)"
 ```
 
 **Key files:**
+
 - `backend/app/services/reference.py` - `normalize_binder_name()`, `get_or_create_binder()`
 - `backend/app/utils/markdown_parser.py` - `_parse_binder_identification()`, structured data merge
 - S3 prompts: `prompts/napoleon-framework/v3.md`, `prompts/extraction/structured-data.md`
@@ -80,6 +84,7 @@ AI generates "Unidentified (no signature visible)"
 **If there is even a 1% chance a skill might apply, INVOKE IT FIRST.**
 
 Relevant skills for this type of work:
+
 - `superpowers:systematic-debugging` - Before proposing fixes
 - `superpowers:verification-before-completion` - Before claiming work is done
 - `superpowers:requesting-code-review` - After completing significant changes

@@ -23,6 +23,7 @@
 When evaluating a new book for acquisition, determine if it would complete an incomplete set in the collection.
 
 **Inputs:**
+
 - New book being evaluated (author, title, volumes field)
 - Existing collection (database query)
 

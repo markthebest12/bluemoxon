@@ -15,6 +15,7 @@
 Change the default analysis model from `sonnet` to `opus` for both sync and async endpoints.
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py:1577`
 - Modify: `backend/app/api/v1/books.py:1956`
 - Modify: `backend/app/schemas/analysis_job.py:12`
@@ -51,6 +52,7 @@ Expected: FAIL with `AssertionError: assert 'sonnet' == 'opus'`
 **Step 3: Write minimal implementation**
 
 In `backend/app/api/v1/books.py`, change line 1577:
+
 ```python
 # Before
 model: Literal["sonnet", "opus"] = "sonnet"
@@ -60,6 +62,7 @@ model: Literal["sonnet", "opus"] = "opus"
 ```
 
 In `backend/app/api/v1/books.py`, change line 1956:
+
 ```python
 # Before
 model: Literal["sonnet", "opus"] = "sonnet"
@@ -69,6 +72,7 @@ model: Literal["sonnet", "opus"] = "opus"
 ```
 
 In `backend/app/schemas/analysis_job.py`, change line 12:
+
 ```python
 # Before
 model: str = "sonnet"
@@ -101,6 +105,7 @@ git commit -m "feat(analysis): change default model from sonnet to opus"
 Add logic to auto-fail stale jobs before checking for active jobs in the async generation endpoint.
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py:1982-1995`
 - Test: `backend/tests/test_books.py`
 
@@ -280,6 +285,7 @@ git commit -m "feat(analysis): auto-fail stale jobs on re-trigger"
 Enhance error messages when Bedrock fails due to input being too large.
 
 **Files:**
+
 - Modify: `backend/app/worker.py:318-327`
 - Test: `backend/tests/test_worker.py`
 
@@ -397,6 +403,7 @@ git commit -m "feat(analysis): enhance error messages with image count and resiz
 Replace HTML `title` attribute with custom CSS tooltip for instant display and mobile support.
 
 **Files:**
+
 - Modify: `frontend/src/components/AnalysisIssuesWarning.vue`
 - Create: `frontend/src/components/BaseTooltip.vue`
 - Test: `frontend/src/components/__tests__/AnalysisIssuesWarning.spec.ts`
@@ -565,6 +572,7 @@ git commit -m "fix(frontend): replace HTML title with CSS tooltip for instant di
 Add troubleshooting section to OPERATIONS.md with confirmed thresholds.
 
 **Files:**
+
 - Modify: `docs/OPERATIONS.md`
 
 **Step 1: Add section to OPERATIONS.md**
@@ -609,20 +617,23 @@ When analysis jobs fail with "Input is too long" errors, the total base64 payloa
    AWS_PROFILE=bmx-prod aws s3 cp .tmp/book{BOOK_ID}/ s3://bluemoxon-images/books/ --recursive --exclude "*" --include "{BOOK_ID}_*.jpeg"
    ```
 
-3. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
+1. Re-trigger analysis: `bmx-api --prod POST "/books/{BOOK_ID}/analysis/generate-async" '{"model": "opus"}'`
 
-4. Verify success: `bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'`
+2. Verify success: `bmx-api --prod GET "/books/{BOOK_ID}" | jq '{id, analysis_issues}'`
 
 ### Stale Analysis Jobs
 
 Jobs that show as "running" for more than 15 minutes are automatically marked as failed:
+
 - On `GET /analysis/status` call
 - On `POST /analysis/generate-async` re-trigger (allows immediate retry)
 
 To check for stale jobs:
+
 ```bash
 bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
 ```
+
 ```
 
 **Step 2: Verify markdown is valid**

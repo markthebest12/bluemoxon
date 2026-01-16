@@ -3,6 +3,7 @@
 ## Overview
 
 Create `staging.app.bluemoxon.com` as an isolated replica of production in a separate AWS account, with:
+
 - Independent infrastructure (can be modified without affecting prod)
 - **Separate Cognito pools per environment** (isolated user management)
 - Automatic cognito_sub migration when users move between pools
@@ -33,6 +34,7 @@ Example: v2025.12.05.42
 ```
 
 Or semantic versioning if preferred:
+
 ```
 v{major}.{minor}.{patch}
 Example: v1.2.3
@@ -41,6 +43,7 @@ Example: v1.2.3
 ### Implementation
 
 #### VERSION file (source of truth)
+
 ```bash
 # /VERSION
 1.0.0
@@ -138,7 +141,8 @@ aws organizations list-accounts \
 ```
 
 **Alternative: Standalone account**
-- Go to https://aws.amazon.com and create new account
+
+- Go to <https://aws.amazon.com> and create new account
 - Use email alias: `mark+staging@yourdomain.com`
 
 ### Step 3: Initial Staging Account Setup
@@ -184,6 +188,7 @@ aws iam create-open-id-connect-provider \
 ### Step 5: GitHub Secrets for Staging
 
 Add to repository secrets:
+
 - `AWS_STAGING_ACCOUNT_ID` - Staging account ID
 - `AWS_STAGING_ROLE_ARN` - Role ARN for staging deploys
 
@@ -214,6 +219,7 @@ Each environment has its own Cognito user pool for complete isolation:
 | **Staging** | `us-west-2_5pOhFH6LN` | `48ik81mrpc6anouk234sq31fbt` | `bluemoxon-staging.auth.us-west-2.amazoncognito.com` |
 
 **Why separate pools?**
+
 - Isolated user management per environment
 - No risk of accidental cross-environment access
 - Independent MFA/password policies
@@ -267,6 +273,7 @@ sequenceDiagram
 ```
 
 **Terraform Import Commands (Staging Cognito):**
+
 ```bash
 cd infra/terraform
 terraform init -backend-config="bucket=bluemoxon-terraform-state-staging" \
@@ -306,6 +313,7 @@ terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ```
 
 **Key Networking Rules:**
+
 1. NAT Gateway must be in a **public subnet** (one with IGW route)
 2. Lambda must be in **private subnets only** (not the NAT Gateway's subnet)
 3. Private route table routes `0.0.0.0/0` → NAT Gateway
@@ -318,11 +326,13 @@ terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 ### Option A: GitHub Actions + CDK (Current Pattern Extended)
 
 **Pros:**
+
 - Minimal change from current setup
 - CDK already written
 - Fast to implement
 
 **Cons:**
+
 - CDK state in CloudFormation (harder to inspect)
 - Less portable
 - Drift detection is weak
@@ -361,6 +371,7 @@ jobs:
 ### Option B: GitHub Actions + Terraform (Recommended Path)
 
 **Pros:**
+
 - State is inspectable (S3 + DynamoDB)
 - Plan before apply (safe changes)
 - Portable across clouds
@@ -368,11 +379,13 @@ jobs:
 - Industry standard
 
 **Cons:**
+
 - Need to rewrite infrastructure
 - Learning curve if new to Terraform
 - Two tools during migration (CDK for prod, TF for staging)
 
 **Directory Structure:**
+
 ```
 infra/
 ├── cdk/                    # Existing CDK (keep for prod initially)
@@ -398,6 +411,7 @@ infra/
 ```
 
 **Terraform Workflow:**
+
 ```yaml
 # .github/workflows/deploy-staging-terraform.yml
 name: Deploy Staging (Terraform)
@@ -446,11 +460,13 @@ jobs:
 ### Option C: Terraform + Atlantis
 
 **Pros:**
+
 - PR-based workflow with plan comments
 - Locking prevents concurrent applies
 - Audit trail
 
 **Cons:**
+
 - Need to run Atlantis server
 - Additional complexity
 - Overkill for single developer
@@ -688,18 +704,21 @@ echo "URL: https://staging.app.bluemoxon.com"
 ## 6. Implementation Phases
 
 ### Phase 1: Foundation (This PR)
+
 - [ ] Add VERSION file and version system to backend/frontend
 - [ ] Create staging branch
 - [ ] Document AWS account creation steps
 - [ ] Create branch protection rules
 
 ### Phase 2: AWS Staging Account
+
 - [ ] Create AWS account "bluemoxon-staging"
 - [ ] Set up IAM OIDC provider
 - [ ] Create GitHub Actions deploy role
 - [ ] Add GitHub secrets
 
 ### Phase 3: Terraform Infrastructure
+
 - [x] Create `infra/terraform/` structure
 - [x] Write VPC module (no NAT, VPC endpoints)
 - [x] Write RDS module (PostgreSQL with CloudWatch logs)
@@ -711,23 +730,27 @@ echo "URL: https://staging.app.bluemoxon.com"
 - [ ] Set up Terraform state backend (S3 + DynamoDB) - pending staging account bootstrap
 
 ### Phase 4: CI/CD
+
 - [x] Create `deploy-staging.yml` workflow
 - [x] Add Terraform plan on PR (via terraform.yml)
 - [ ] Add Terraform apply on merge to staging (pending infra deployment)
 - [x] Update smoke tests for staging
 
 ### Phase 5: Data Migration
+
 - [x] Run initial database sync
 - [x] Run S3 image sync
 - [x] Verify staging works end-to-end
 
 ### Phase 6: Documentation
+
 - [x] Update CLAUDE.md with staging workflow (see issue #83)
 - [x] Document sync procedures
 - [x] Create staging environment guide
 - [x] Document manual infrastructure fixes (see `STAGING_INFRASTRUCTURE_CHANGES.md`)
 
 ### Future: Production Migration
+
 - [ ] Port Terraform modules to prod
 - [ ] Test with `terraform plan` (no changes expected)
 - [ ] Migrate prod to Terraform
@@ -756,6 +779,7 @@ echo "URL: https://staging.app.bluemoxon.com"
 ```
 
 **Workflow:**
+
 1. Create feature branch from `staging`
 2. PR to `staging` → CI runs → merge → auto-deploy staging
 3. Test in staging

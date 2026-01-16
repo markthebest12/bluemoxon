@@ -9,6 +9,7 @@ This prevents PR #291's feature (auto-sync deploy config from Terraform outputs)
 ## Root Cause
 
 Cross-account S3 access requires BOTH:
+
 1. **Resource-based policy** (S3 bucket policy) - ✅ DONE (PR #291, applied by prod admin)
 2. **Identity-based policy** (IAM role policy) - ❌ PENDING (this fix)
 
@@ -17,17 +18,20 @@ The staging AWS profile (`github-actions-deploy` user) lacks IAM admin permissio
 ## Current State
 
 ### Staging Account Resources
+
 - **Account ID**: 652617421195
 - **OIDC Provider**: `arn:aws:iam::652617421195:oidc-provider/token.actions.githubusercontent.com` (exists, not in Terraform)
 - **OIDC Role**: `arn:aws:iam::652617421195:role/github-actions-deploy` (exists, not in Terraform)
 - **Terraform Module**: `enable_github_oidc = false` in `staging.tfvars`
 
 ### Production Account Resources
+
 - **Account ID**: 266672885920
 - **State Bucket**: `s3://bluemoxon-terraform-state` (has bucket policy allowing staging role)
 - **Lock Table**: `bluemoxon-terraform-locks` (DynamoDB)
 
 ### Access Test (Currently Fails)
+
 ```bash
 AWS_PROFILE=staging aws s3 ls s3://bluemoxon-terraform-state/
 # Error: AccessDenied - User is not authorized to perform: s3:ListBucket
@@ -42,6 +46,7 @@ AWS_PROFILE=staging aws s3 ls s3://bluemoxon-terraform-state/
 **Steps**:
 
 1. Create policy document:
+
 ```bash
 cat > /tmp/terraform-state-policy.json <<'EOF'
 {
@@ -74,7 +79,8 @@ cat > /tmp/terraform-state-policy.json <<'EOF'
 EOF
 ```
 
-2. Apply to role:
+1. Apply to role:
+
 ```bash
 AWS_PROFILE=staging aws iam put-role-policy \
   --role-name github-actions-deploy \
@@ -82,7 +88,8 @@ AWS_PROFILE=staging aws iam put-role-policy \
   --policy-document file:///tmp/terraform-state-policy.json
 ```
 
-3. Validate:
+1. Validate:
+
 ```bash
 # Test S3 access
 AWS_PROFILE=staging aws s3 ls s3://bluemoxon-terraform-state/bluemoxon/staging/
@@ -94,7 +101,8 @@ AWS_PROFILE=staging aws dynamodb scan \
   --region us-west-2
 ```
 
-4. Test in GitHub Actions:
+1. Test in GitHub Actions:
+
 ```bash
 # Manually trigger deploy workflow on staging branch
 gh workflow run deploy.yml --ref staging
@@ -109,6 +117,7 @@ gh workflow run deploy.yml --ref staging
 1. Apply manual policy from Option 1 first
 
 2. Import existing resources:
+
 ```bash
 cd infra/terraform
 
@@ -125,7 +134,8 @@ terraform import 'module.github_oidc[0].aws_iam_role_policy.deploy' \
   'github-actions-deploy:github-actions-deploy-policy'
 ```
 
-3. Enable module in staging.tfvars:
+1. Enable module in staging.tfvars:
+
 ```bash
 # Change this line:
 enable_github_oidc = false
@@ -134,14 +144,16 @@ enable_github_oidc = false
 enable_github_oidc = true
 ```
 
-4. Run Terraform plan to verify:
+1. Run Terraform plan to verify:
+
 ```bash
 AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars -var="db_password=$STAGING_DB_PASSWORD"
 ```
 
 Expected: No changes (imports match existing resources)
 
-5. Apply if plan looks good:
+1. Apply if plan looks good:
+
 ```bash
 AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_password=$STAGING_DB_PASSWORD"
 ```
@@ -151,10 +163,12 @@ AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars -var="db_passw
 This PR includes the following Terraform updates (ready for Option 2):
 
 ### 1. github-oidc Module Updates
+
 - **File**: `infra/terraform/modules/github-oidc/main.tf`
 - **Change**: Added conditional Terraform state access policy statements
 
 ### 2. New Variables
+
 - **File**: `infra/terraform/modules/github-oidc/variables.tf`
   - `terraform_state_bucket_arn` - S3 bucket ARN for cross-account access
   - `terraform_state_dynamodb_table_arn` - DynamoDB table ARN for lock access
@@ -163,11 +177,13 @@ This PR includes the following Terraform updates (ready for Option 2):
   - Same variables added to root module
 
 ### 3. Staging Configuration
+
 - **File**: `infra/terraform/envs/staging.tfvars`
   - Added Terraform state ARNs pointing to prod account resources
   - Will be used when `enable_github_oidc = true`
 
 ### 4. Documentation
+
 - **File**: `docs/STAGING_INFRASTRUCTURE_CHANGES.md`
   - Added section 9 documenting this manual change requirement
 
@@ -176,6 +192,7 @@ This PR includes the following Terraform updates (ready for Option 2):
 After applying either option:
 
 ### Test 1: AWS CLI Access
+
 ```bash
 # Should succeed
 AWS_PROFILE=staging aws s3 ls s3://bluemoxon-terraform-state/bluemoxon/staging/
@@ -192,6 +209,7 @@ AWS_PROFILE=staging aws dynamodb describe-table \
 ```
 
 ### Test 2: Terraform Output Reading
+
 ```bash
 cd infra/terraform
 
@@ -204,6 +222,7 @@ terraform output api_url
 ```
 
 ### Test 3: GitHub Actions Workflow
+
 1. Re-apply PR #291 changes to `deploy.yml`
 2. Push to staging branch
 3. Workflow should successfully read Terraform outputs
@@ -213,6 +232,7 @@ terraform output api_url
 If issues occur:
 
 ### Option 1 Rollback
+
 ```bash
 # Remove the inline policy
 AWS_PROFILE=staging aws iam delete-role-policy \
@@ -221,6 +241,7 @@ AWS_PROFILE=staging aws iam delete-role-policy \
 ```
 
 ### Option 2 Rollback
+
 ```bash
 # Disable module
 # Set enable_github_oidc = false in staging.tfvars

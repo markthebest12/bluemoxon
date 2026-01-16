@@ -9,6 +9,7 @@
 The current book count in the filter/sort bar is displayed as a plain number in muted gray text at the far right, making it hard to notice and visually unengaging.
 
 **Current implementation** (BooksView.vue:326-328):
+
 ```vue
 <div class="ml-auto text-xs sm:text-sm text-[var(--color-text-muted)]">
   {{ booksStore.total }}

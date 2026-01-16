@@ -205,6 +205,7 @@ When a deployment causes issues:
 ### 3. Execute Rollback
 
 For Lambda:
+
 ```bash
 # Get previous version number
 aws lambda list-versions-by-function \
@@ -224,6 +225,7 @@ aws lambda update-alias \
 ```
 
 For Frontend:
+
 ```bash
 # Redeploy from previous git commit
 git checkout HEAD~1 -- frontend/

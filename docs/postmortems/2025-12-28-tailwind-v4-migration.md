@@ -13,6 +13,7 @@
 The Tailwind CSS v4 migration encountered multiple silent failures that required 6 separate PRs to address. The root causes were Tailwind v4's architectural changes that produce no build warnings when utilities fail to generate CSS.
 
 **Key Takeaways:**
+
 1. Tailwind v4 uses `:where()` wrappers giving some utilities zero CSS specificity
 2. Custom theme values require explicit `@theme` definitions (no defaults)
 3. Silent CSS generation failures make automated testing unreliable
@@ -121,6 +122,7 @@ For non-flex containers:
 ### Scope of Fix
 
 **PR #615 modified 19 files:**
+
 - AcquireModal, AddToWatchlistModal, AddTrackingModal
 - EditWatchlistModal, ImportListingModal, PasteOrderModal
 - ScoreCard, BookForm, EvalRunbookModal
@@ -143,6 +145,7 @@ For non-flex containers:
 ### Root Cause
 
 CSS cascade layers in Tailwind v4:
+
 1. Base layer includes: `img, video { height: auto; }`
 2. Utility layer has: `.h-14 { height: calc(var(--spacing)*14); }`
 3. Despite utilities having higher cascade priority, base rule was winning on images
@@ -188,6 +191,7 @@ Generates: `.!h-14{height:calc(var(--spacing)*14)!important}`
 ### Detection Strategy
 
 For future silent failures, add to CI:
+
 - CSS output size comparison (catch missing utilities)
 - Visual regression testing with pixel-level comparison
 - Computed style assertions for critical UI elements
@@ -260,7 +264,7 @@ Convert ALL `@utility` blocks to `@layer components` with explicit CSS propertie
 | #612 | fix: Navbar logo height | Merged | Correct |
 | #613 | fix: Tailwind v4 deprecated classes | Merged | **WRONG** (rounded-xs→rounded-sm) |
 | #614 | fix: Add --radius-xs to @theme | Merged | Correct (reverted #613) |
-| #615 | fix: Replace space-* with gap-* | Merged | Partial fix |
+| #615 | fix: Replace space-*with gap-* | Merged | Partial fix |
 | #616 | fix: Convert @utility to @layer components | Merged | TRUE root cause fix |
 
 ---

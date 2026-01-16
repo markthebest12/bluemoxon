@@ -10,9 +10,11 @@
 ## CRITICAL RULES - READ FIRST
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **IF A SKILL APPLIES TO YOUR TASK, YOU MUST USE IT. This is not negotiable.**
 
 Before ANY action, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:writing-plans` - Before multi-step implementation
 - `superpowers:executing-plans` - When implementing a plan
@@ -23,6 +25,7 @@ Before ANY action, check if a skill applies:
 - `superpowers:finishing-a-development-branch` - When implementation complete
 
 ### 2. NEVER Use These Bash Patterns (Trigger Permission Prompts)
+
 ```bash
 # BAD - NEVER DO:
 # This is a comment before command    # Comments with #
@@ -35,6 +38,7 @@ cd dir || exit 1                      # || chaining
 ```
 
 ### 3. ALWAYS Use These Patterns Instead
+
 ```bash
 # GOOD - Simple single-line commands:
 aws lambda get-function --function-name foo
@@ -79,11 +83,13 @@ The cleanup Lambda bug fix is complete with all safety improvements implemented:
 The cleanup Lambda's orphan detection had TWO critical bugs that caused it to delete ~6,900 valid S3 objects.
 
 **Impact:**
+
 - ~6,900 S3 objects deleted across all prefixes
 - Frontend showing broken images for all books
 - Staging environment data loss (recoverable via S3 versioning)
 
 ### Root Cause #1: Key Format Mismatch
+
 ```python
 # S3 stores: "books/515/image_00.webp" (WITH prefix)
 # DB stores: "515/image_00.webp" (WITHOUT prefix)
@@ -93,6 +99,7 @@ orphaned_keys = s3_keys - db_keys  # ALL S3 keys appear orphaned!
 ```
 
 ### Root Cause #2: No Prefix Filter on S3 Listing
+
 ```python
 # OLD CODE - lists ENTIRE bucket:
 for page in paginator.paginate(Bucket=bucket):  # No Prefix!
@@ -146,6 +153,7 @@ def cleanup_orphaned_images(
 ### Tests: `backend/tests/test_cleanup.py` (33 tests passing)
 
 Key new tests:
+
 - `test_key_format_s3_prefix_stripped_for_db_comparison` - Explicit regression test for key mismatch
 - `test_max_deletions_guard_stops_at_limit` - Verifies deletion guard works
 - `test_max_deletions_guard_allows_override` - Verifies force_delete override
@@ -157,17 +165,20 @@ Key new tests:
 ## Next Steps
 
 ### Immediate
+
 1. **Wait for CI on PR #686** - `gh pr checks 686`
 2. **Wait for S3 restore to complete** - Check: `AWS_PROFILE=bmx-staging aws s3api list-object-versions --bucket bluemoxon-images-staging --query 'DeleteMarkers[?IsLatest==\`true\`] | length(@)'`
 
 ### After CI Passes
+
 3. **Merge PR #686 to staging**
-4. **Wait for staging deploy**
-5. **Test cleanup Lambda dry-run** - Should find ~0 orphans
+2. **Wait for staging deploy**
+3. **Test cleanup Lambda dry-run** - Should find ~0 orphans
 
 ### After Staging Verified
+
 6. **Promote to production** via staging->main PR
-7. **Close incident** and update postmortem
+2. **Close incident** and update postmortem
 
 ---
 
@@ -204,6 +215,7 @@ poetry run pytest tests/test_cleanup.py -v
 ## Lambda Layers Status (COMPLETE)
 
 The Lambda Layers feature that started this session is complete:
+
 - PRs #684, #685 merged to staging
 - Package size: 50MB -> 456KB (99% reduction)
 - Layer ARN: `arn:aws:lambda:us-west-2:652617421195:layer:bluemoxon-staging-deps:2`

@@ -6,7 +6,7 @@
 
 ## Problem Statement
 
-User gets "Invalid email or password" when attempting to login at https://staging.app.bluemoxon.com with mjramos76@gmail.com.
+User gets "Invalid email or password" when attempting to login at <https://staging.app.bluemoxon.com> with <mjramos76@gmail.com>.
 
 ## Root Cause Analysis
 
@@ -21,10 +21,12 @@ The frontend was built with **production Cognito IDs** instead of staging:
 | Domain | `bluemoxon.auth...` | `bluemoxon-staging.auth...` |
 
 **Cause:** Two competing deploy workflows:
+
 - `deploy.yml` - Reads from `infra/config/staging.json` (correct pattern)
 - `deploy-staging.yml` - Had hardcoded production Cognito IDs (wrong)
 
 **Fix Applied:**
+
 - Deleted `deploy-staging.yml` (redundant)
 - Updated `infra/config/staging.json` with correct client ID
 
@@ -62,7 +64,7 @@ Result: JWT contains "xyz-789-staging" but DB expects "abc-123-prod" ✗
 |---------------|--------|
 | `infra/config/staging.json` | Fixed `app_client_id` to `7h1b144ggk7j4dl9vr94ipe6k5` |
 | `.github/workflows/deploy-staging.yml` | Deleted (was redundant with hardcoded wrong values) |
-| AWS Cognito | Set password for mjramos76@gmail.com, status now CONFIRMED |
+| AWS Cognito | Set password for <mjramos76@gmail.com>, status now CONFIRMED |
 
 ## Current State
 
@@ -77,8 +79,9 @@ Login flow: ❓ May still fail due to Cognito/DB UUID mismatch
 ### Staging Cognito Users
 
 Only 2 users exist in staging Cognito:
-- mjramos76@gmail.com (CONFIRMED)
-- kevin.a.klein@disney.com (FORCE_CHANGE_PASSWORD)
+
+- <mjramos76@gmail.com> (CONFIRMED)
+- <kevin.a.klein@disney.com> (FORCE_CHANGE_PASSWORD)
 
 ## Architecture Decision Required
 
@@ -87,11 +90,13 @@ Only 2 users exist in staging Cognito:
 Frontend and API both use **production Cognito pool**.
 
 **Pros:**
+
 - No UUID mismatch - users authenticate against same pool as prod
 - Simpler - no Cognito sync needed
 - Users have same credentials as prod
 
 **Cons:**
+
 - Staging isn't fully isolated
 - Can't test Cognito configuration changes
 - Production Cognito callbacks need staging URLs
@@ -101,10 +106,12 @@ Frontend and API both use **production Cognito pool**.
 Staging has own Cognito pool, sync users from prod Cognito.
 
 **Pros:**
+
 - True isolation
 - Can test Cognito changes safely
 
 **Cons:**
+
 - Complex - need to sync Cognito users AND update DB cognito_id mappings
 - DB sync Lambda needs enhancement
 - Users may have different passwords in staging
@@ -114,10 +121,12 @@ Staging has own Cognito pool, sync users from prod Cognito.
 Use API key authentication only, disable Cognito for staging.
 
 **Pros:**
+
 - Simple for testing
 - No auth complexity
 
 **Cons:**
+
 - Can't test auth flows
 - Not representative of production
 
@@ -126,6 +135,7 @@ Use API key authentication only, disable Cognito for staging.
 **Option A (Shared Cognito)** is simplest and was the original design (the deleted `deploy-staging.yml` had comments saying "Shared Cognito (uses prod Cognito pool)").
 
 To implement:
+
 1. Update `infra/config/staging.json` to use prod Cognito IDs
 2. Update `infra/terraform/envs/staging.tfvars` to disable Cognito module OR
 3. Keep staging Cognito for API-side validation but frontend uses prod
@@ -165,6 +175,7 @@ CLAUDE.md                           # Needs staging auth documentation
 ## Implementation Progress (2025-12-08)
 
 ### Completed
+
 1. [x] Added `cognito_user_pool_id` variable to db-sync-lambda Terraform module
 2. [x] Added `COGNITO_USER_POOL_ID` env var to Lambda
 3. [x] Added IAM permission for `cognito-idp:ListUsers`
@@ -175,6 +186,7 @@ CLAUDE.md                           # Needs staging auth documentation
 8. [x] Deployed Lambda code (needs final redeploy after cognito_only fix)
 
 ### Pending
+
 - [ ] Test `cognito_only` mode (redeploy Lambda first)
 - [ ] Test end-to-end login after Cognito mapping
 - [ ] Update DATABASE_SYNC.md with new flags
@@ -183,12 +195,14 @@ CLAUDE.md                           # Needs staging auth documentation
 ### Key Code Changes
 
 **Files modified:**
+
 - `infra/terraform/modules/db-sync-lambda/variables.tf` - Added cognito_user_pool_id
 - `infra/terraform/modules/db-sync-lambda/main.tf` - Added Cognito IAM policy
 - `infra/terraform/main.tf` - Pass Cognito pool ID to module
 - `backend/lambdas/db_sync/handler.py` - Added sync_cognito_users() and cognito_only mode
 
 **New Lambda invocation modes:**
+
 ```bash
 # Full DB sync (existing behavior, requires prod credentials)
 aws lambda invoke --function-name bluemoxon-staging-db-sync \
@@ -204,6 +218,7 @@ aws lambda invoke --function-name bluemoxon-staging-db-sync \
 ```
 
 ### Known Issues
+
 - Full DB sync fails due to cross-account secret access (pre-existing, documented in DATABASE_SYNC.md)
 - Lambda needs PROD_DB_* env vars for full sync, not PROD_SECRET_ARN
 
@@ -228,6 +243,7 @@ Login Status: ✅ WORKING
 ### User Management for Staging
 
 To add/reset a staging user:
+
 ```bash
 # Create user
 AWS_PROFILE=staging aws cognito-idp admin-create-user \

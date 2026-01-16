@@ -15,26 +15,32 @@ After merging PR #1097 (dashboard tooltips and click-to-filter), user testing re
 ## Fixes Applied
 
 ### 1. BaseTooltip Rewrite (Teleport)
+
 **File:** `frontend/src/components/BaseTooltip.vue`
 
 Rewrote component to use Vue's `<Teleport to="body">` with fixed positioning:
+
 - Tooltip renders outside parent overflow containers
 - Position calculated from trigger element's `getBoundingClientRect()`
 - Updates on scroll/resize while visible
 - Style only computed when visible to avoid conflicts with v-show
 
 ### 2. Status Filter Sync
+
 **File:** `frontend/src/views/BooksView.vue`
 
 Added missing line to `syncFiltersFromUrl()`:
+
 ```typescript
 booksStore.filters.status = (route.query.status as string) || undefined;
 ```
 
 ### 3. Premium FilterParam
+
 **File:** `frontend/src/constants/index.ts`
 
 Updated PREMIUM constant:
+
 ```typescript
 filterParam: "binding_authenticated=true&status=ON_HAND",
 ```
@@ -44,11 +50,13 @@ filterParam: "binding_authenticated=true&status=ON_HAND",
 **File:** `frontend/src/components/__tests__/AnalysisIssuesWarning.spec.ts`
 
 The "shows tooltip on hover" test is failing because:
+
 - Test triggers `mouseenter` on the BaseTooltip wrapper
 - `isVisible` ref should become `true`, removing `display: none`
 - But tooltip remains hidden after event
 
 **Attempts made:**
+
 1. Stubbing Teleport - didn't help
 2. Using `attachTo` for real DOM - didn't help
 3. Native `dispatchEvent` - didn't help
@@ -57,6 +65,7 @@ The "shows tooltip on hover" test is failing because:
 **Root cause hypothesis:** JSDOM doesn't properly handle mouseenter events with Vue's event binding. The event is fired but the Vue component's `show()` handler isn't being invoked.
 
 **Next steps to try:**
+
 1. Mock the `isVisible` ref directly via component instance
 2. Use `wrapper.vm` to access component internals
 3. Test BaseTooltip in isolation first
@@ -82,6 +91,7 @@ The "shows tooltip on hover" test is failing because:
 ### 1. ALWAYS Use Superpowers Skills
 
 Invoke relevant skills BEFORE any response or action:
+
 - `superpowers:brainstorming` - Before any creative/feature work
 - `superpowers:systematic-debugging` - For ANY bug/test failure
 - `superpowers:test-driven-development` - Before writing implementation code
@@ -112,6 +122,7 @@ simple-single-line-command --flag value
 For sequential operations, use **separate Bash tool calls** instead of `&&`.
 
 For API calls, use `bmx-api`:
+
 ```bash
 bmx-api GET /books
 bmx-api --prod GET /books/123
@@ -120,6 +131,7 @@ bmx-api --prod GET /books/123
 ### 4. Test Fix Strategy
 
 For the failing BaseTooltip test, try:
+
 ```typescript
 // Access component instance directly
 const vm = wrapper.findComponent(BaseTooltip).vm;

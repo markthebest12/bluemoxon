@@ -17,6 +17,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 ## UI States
 
 ### State A: No analysis exists (editor/admin)
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
@@ -28,6 +29,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 ```
 
 ### State B: Analysis job running
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
@@ -36,6 +38,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 ```
 
 ### State C: Analysis exists (editor/admin)
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
@@ -47,6 +50,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 ```
 
 ### State D: Analysis exists (viewer)
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
@@ -59,6 +63,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 ### Use Async Job Pattern (not sync)
 
 The AcquisitionsView uses `booksStore.generateAnalysisAsync()` which:
+
 1. POSTs to `/books/{id}/analysis/generate-async`
 2. Returns immediately with job info
 3. Starts polling via `startJobPoller(bookId)`
@@ -70,12 +75,14 @@ This pattern works. The AnalysisViewer's sync approach does not.
 ### Implementation in BookDetailView
 
 **Imports:**
+
 ```typescript
 import { storeToRefs } from "pinia";
 const { activeAnalysisJobs } = storeToRefs(booksStore);
 ```
 
 **State:**
+
 ```typescript
 const startingAnalysis = ref(false);
 const selectedModel = ref<"sonnet" | "opus">("sonnet");
@@ -87,6 +94,7 @@ const modelOptions = [
 ```
 
 **Functions:**
+
 ```typescript
 function isAnalysisRunning(): boolean {
   if (!booksStore.currentBook) return false;

@@ -3,6 +3,7 @@
 ## Why This Matters
 
 Claude sessions start fresh with no memory of previous work. Without proper context:
+
 - Claude may skip established patterns
 - Work may not align with existing design docs
 - Validation steps get missed
@@ -124,22 +125,26 @@ Fix and validate the price display bug in acquisitions view.
 ## Key Principles
 
 ### 1. Always Reference Documentation
+
 - Design docs explain WHY decisions were made
 - Implementation docs have exact code snippets
 - GitHub issues track progress and blockers
 
 ### 2. State Current Position
+
 - Which phase/task are we on?
 - What was last completed?
 - What branch are we working in?
 
 ### 3. Define "Done" Explicitly
+
 - What files should be changed?
 - What tests should pass?
 - How do we validate it works?
 - Who needs to approve/test?
 
 ### 4. Remind About Process
+
 - TDD: Write tests first
 - Commit incrementally
 - Update GitHub issues

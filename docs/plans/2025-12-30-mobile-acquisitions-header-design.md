@@ -7,6 +7,7 @@
 ## Problem
 
 The Acquisitions page header looks cluttered on mobile devices:
+
 - Title and subtitle compete for space with two action buttons
 - "Import from eBay" and "+ Add Manually" buttons take significant horizontal space
 - No responsive breakpoints - same layout on all screen sizes
@@ -20,23 +21,27 @@ The Acquisitions page header looks cluttered on mobile devices:
 ## Layout Specifications
 
 ### Mobile (< 640px)
+
 ```
 ┌─────────────────────────────────┐
 │ Acquisitions                    │
 │ [🔗] [+]                        │
 └─────────────────────────────────┘
 ```
+
 - Header stacks vertically (flex-col)
 - Title only, no subtitle
 - Icon-only buttons below title
 
 ### Desktop (≥ 640px)
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │ Acquisitions ❧                   [🔗 Import] [+ Add] │
 │ Track books from watchlist through delivery          │
 └──────────────────────────────────────────────────────┘
 ```
+
 - Side-by-side layout (flex-row, justify-between)
 - Full subtitle visible
 - Full button text with icons
@@ -47,11 +52,13 @@ The Acquisitions page header looks cluttered on mobile devices:
 ### File: `frontend/src/views/AcquisitionsView.vue`
 
 **Header container (line ~345):**
+
 ```html
 <div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between">
 ```
 
 **Title with ornament:**
+
 ```html
 <div class="flex items-center gap-2">
   <h1 class="text-2xl font-bold text-gray-900">Acquisitions</h1>
@@ -60,16 +67,19 @@ The Acquisitions page header looks cluttered on mobile devices:
 ```
 
 **Subtitle:**
+
 ```html
 <p class="hidden sm:block text-gray-600">Track books from watchlist through delivery</p>
 ```
 
 **Buttons container:**
+
 ```html
 <div class="flex gap-2 mt-3 sm:mt-0">
 ```
 
 **Import button:**
+
 ```html
 <button data-testid="import-from-ebay" @click="openImportModal"
         class="btn-primary text-sm flex items-center gap-2">
@@ -79,6 +89,7 @@ The Acquisitions page header looks cluttered on mobile devices:
 ```
 
 **Add button:**
+
 ```html
 <button data-testid="add-to-watchlist" @click="openWatchlistModal"
         class="btn-secondary text-sm flex items-center gap-2">

@@ -78,5 +78,5 @@ This decision is deferred until we actually need v2, following YAGNI principles.
 
 - Issue: #1003
 - Triggering PR: #965 (dashboard charts)
-- Google API Design Guide: https://cloud.google.com/apis/design/compatibility
-- Stripe API Versioning: https://stripe.com/docs/api/versioning
+- Google API Design Guide: <https://cloud.google.com/apis/design/compatibility>
+- Stripe API Versioning: <https://stripe.com/docs/api/versioning>

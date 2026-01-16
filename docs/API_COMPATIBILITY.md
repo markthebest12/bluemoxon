@@ -39,6 +39,7 @@ When modifying API schemas:
 ## Client Contract
 
 Clients consuming our API should:
+
 - Ignore unknown fields in responses
 - NOT use `additionalProperties: false` in schema validation
 - Expect response schemas to grow over time

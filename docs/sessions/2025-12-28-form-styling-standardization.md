@@ -10,6 +10,7 @@
 ## Background
 
 ### The Problem
+
 Tailwind CSS v4 migration introduced conflicting styling patterns:
 
 | Pattern | Focus Ring | Used By |
@@ -20,6 +21,7 @@ Tailwind CSS v4 migration introduced conflicting styling patterns:
 The `@tailwindcss/forms` plugin was needed to fix Issue #5 (preflight form reset), but exposed widespread inconsistency.
 
 ### CSS Cascade Resolution
+
 ```
 1. @layer base (Tailwind preflight) - resets to transparent
 2. @layer base (@tailwindcss/forms) - adds sensible defaults with blue focus
@@ -32,6 +34,7 @@ The `@tailwindcss/forms` plugin was needed to fix Issue #5 (preflight form reset
 ## What Was Done
 
 ### Phase 1: Form Plugin & Modal Standardization (PR #617)
+
 - Added `@tailwindcss/forms` plugin
 - Standardized 6 modal components to use `.input`, `.select`, `.btn-*` classes:
   - ComboboxWithAdd.vue
@@ -42,13 +45,16 @@ The `@tailwindcss/forms` plugin was needed to fix Issue #5 (preflight form reset
   - ImportListingModal.vue
 
 ### Phase 2: Analysis Viewer Fix (PR #618)
+
 - Fixed Regenerate button: `bg-blue-600` → `btn-primary`
 - Fixed model dropdown: Added `.select` class with proper width
 
 ### Phase 3: Comprehensive Blue-to-Victorian Sweep (PR #619)
+
 Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes).
 
 **Files Modified (14 total):**
+
 - PasteOrderModal.vue - buttons, badges, inputs
 - EvalRunbookModal.vue - spinners, progress bars, inputs, buttons
 - AcquisitionsView.vue - 25+ occurrences (buttons, links, status indicators)
@@ -64,6 +70,7 @@ Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes)
 - main.css - added component classes
 
 ### Phase 4: Final Polish (direct to staging)
+
 - Score badge colors: `bg-red-500` → `bg-victorian-burgundy`, `bg-green-500` → `bg-victorian-hunter-600`
 - "Mark Received" button: `bg-green-600` → `bg-victorian-hunter-600`
 - Model dropdown: increased width (`w-32 pr-8`) for arrow visibility
@@ -88,7 +95,7 @@ Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes)
 
 ## Next Steps
 
-1. **Validate on staging** - https://staging.app.bluemoxon.com
+1. **Validate on staging** - <https://staging.app.bluemoxon.com>
    - Check all modals for Victorian gold focus rings
    - Check score badges for Victorian burgundy/hunter colors
    - Check "Mark Received" button is Victorian hunter green
@@ -105,6 +112,7 @@ Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes)
 **MANDATORY:** Check and use Superpowers skills at ALL stages of work.
 
 ### Required Workflow Chains
+
 | Task Type | Skill Chain |
 |-----------|-------------|
 | New feature | brainstorming → using-git-worktrees → writing-plans → subagent-driven-development |
@@ -115,6 +123,7 @@ Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes)
 | Executing plans | executing-plans (with TodoWrite for all checklist items) |
 
 ### Skills Used This Session
+
 - `superpowers:executing-plans` - Task-by-task plan execution
 - `superpowers:finishing-a-development-branch` - Merge workflow
 - `superpowers:writing-plans` - Comprehensive sweep plan
@@ -125,7 +134,8 @@ Eliminated ALL blue Tailwind classes from codebase (except LoginView info boxes)
 
 ## CRITICAL: Bash Command Formatting
 
-### NEVER use (triggers permission prompts):
+### NEVER use (triggers permission prompts)
+
 ```bash
 # Comment lines before commands
 command \
@@ -136,7 +146,8 @@ cmd1 && cmd2
 echo "password with ! character"
 ```
 
-### ALWAYS use:
+### ALWAYS use
+
 ```bash
 # Simple single-line commands only
 command --with-flags value
@@ -153,6 +164,7 @@ bmx-api --prod GET /books/123
 ```
 
 ### Why This Matters
+
 Complex shell syntax causes permission prompts that cannot be auto-approved. Each prompt requires manual intervention, creating significant toil. Simple commands are auto-approved.
 
 ---

@@ -13,6 +13,7 @@
 ## Task 1: Add `validate_entity_for_book()` function
 
 **Files:**
+
 - Modify: `backend/app/services/entity_validation.py:75` (end of file)
 - Test: `backend/tests/services/test_entity_validation_service.py`
 
@@ -304,6 +305,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 2: Update `update_book_analysis()` endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py:1428-1442`
 - Test: `backend/tests/api/v1/test_books.py`
 
@@ -401,6 +403,7 @@ Expected: FAIL (tests fail because validation not implemented yet)
 Modify `backend/app/api/v1/books.py` lines 1428-1442:
 
 Replace:
+
 ```python
     # Extract binder identification and associate with book
     binder_updated = False
@@ -420,6 +423,7 @@ Replace:
 ```
 
 With:
+
 ```python
     # Validate and associate binder
     binder_updated = False
@@ -451,6 +455,7 @@ With:
 ```
 
 Also add import at top of file:
+
 ```python
 from app.services.entity_validation import validate_entity_for_book
 from app.schemas.entity_validation import EntityValidationError
@@ -478,6 +483,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 3: Update `worker.py` for async analysis jobs
 
 **Files:**
+
 - Modify: `backend/app/worker.py:343-350`
 - Test: `backend/tests/test_worker.py`
 
@@ -541,6 +547,7 @@ Expected: FAIL (validation not implemented in worker yet)
 Modify `backend/app/worker.py` lines 343-350:
 
 Replace:
+
 ```python
         # Extract binder identification and associate with book
         if parsed.binder_identification:
@@ -553,6 +560,7 @@ Replace:
 ```
 
 With:
+
 ```python
         # Validate and associate binder
         if parsed.binder_identification and parsed.binder_identification.get("name"):
@@ -586,6 +594,7 @@ With:
 ```
 
 Also add imports at top of file:
+
 ```python
 from app.services.entity_validation import validate_entity_for_book
 from app.schemas.entity_validation import EntityValidationError
@@ -613,6 +622,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ## Task 4: Run full test suite and verify
 
 **Files:**
+
 - All modified files
 
 ### Step 1: Run backend linting

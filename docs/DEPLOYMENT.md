@@ -224,6 +224,7 @@ curl -s https://api.bluemoxon.com/api/v1/health/info | jq
 ### Smoke Tests
 
 The deploy workflows automatically run smoke tests:
+
 1. API health endpoint returns 200
 2. Books API returns paginated response
 3. Frontend loads with expected content

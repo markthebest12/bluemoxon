@@ -117,6 +117,7 @@ infra/terraform/
 - Staging/prod parity breaks
 
 **The Rule:**
+
 1. **NEVER** create/modify AWS resources manually (console or CLI)
 2. **ALWAYS** add infrastructure changes to `infra/terraform/`
 3. **DOCUMENT** any temporary manual fixes immediately and create a ticket to terraformize
@@ -133,10 +134,12 @@ If you MUST make a manual change:
 ### Terraform Style Requirements
 
 **STRICTLY follow HashiCorp's official guidelines:**
+
 - [Style Guide](https://developer.hashicorp.com/terraform/language/style)
 - [Module Pattern](https://developer.hashicorp.com/terraform/tutorials/modules/pattern-module-creation)
 
 #### File Organization (REQUIRED)
+
 ```
 modules/<module-name>/
 ├── main.tf          # Resources and data sources
@@ -147,6 +150,7 @@ modules/<module-name>/
 ```
 
 #### Variable Definitions (REQUIRED for ALL variables)
+
 ```hcl
 variable "example_name" {
   type        = string
@@ -161,11 +165,13 @@ variable "example_name" {
 ```
 
 #### Naming Conventions
+
 - **Resources**: Underscore-separated: `aws_lambda_function`, NOT `aws-lambda-function`
 - **Variables**: Underscore-separated: `db_instance_class`, NOT `dbInstanceClass`
 - **Do NOT include resource type in name**: `name = "api"`, NOT `name = "lambda-api"`
 
 #### Resource Organization Order
+
 1. `count` or `for_each` meta-arguments
 2. Resource-specific non-block parameters
 3. Resource-specific block parameters
@@ -173,6 +179,7 @@ variable "example_name" {
 5. `depends_on` (if required)
 
 #### Module Design Principles
+
 1. **Single Purpose**: Each module does ONE thing well
 2. **80% Use Case**: Design for common cases, avoid edge case complexity
 3. **Expose Common Args**: Only expose frequently-modified arguments
@@ -200,6 +207,7 @@ curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
 ```
 
 **When to use destroy/apply testing:**
+
 - Adding new Terraform modules
 - Changing VPC networking (endpoints, NAT gateway)
 - Major IAM policy changes
@@ -241,6 +249,7 @@ curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
 3. For Cognito/auth changes, verify against `cognito_user_pool_id_external` in prod.tfvars
 
 **External resource references:** Production tfvars includes `*_external` variables pointing to resources managed outside Terraform:
+
 - `cognito_user_pool_id_external` - Production Cognito pool
 - `cognito_client_id_external` - Production app client
 - `database_secret_arn` - Aurora credentials in Secrets Manager
@@ -655,36 +664,36 @@ aws cognito-idp admin-create-user \
 
 | Service | URL |
 |---------|-----|
-| Collection App | https://app.bluemoxon.com |
-| Landing/Docs Site | https://www.bluemoxon.com |
-| API | https://api.bluemoxon.com |
-| API Health Check | https://api.bluemoxon.com/api/v1/health/deep |
-| Books API | https://api.bluemoxon.com/api/v1/books |
-| Cognito Login | https://bluemoxon.auth.us-west-2.amazoncognito.com |
+| Collection App | <https://app.bluemoxon.com> |
+| Landing/Docs Site | <https://www.bluemoxon.com> |
+| API | <https://api.bluemoxon.com> |
+| API Health Check | <https://api.bluemoxon.com/api/v1/health/deep> |
+| Books API | <https://api.bluemoxon.com/api/v1/books> |
+| Cognito Login | <https://bluemoxon.auth.us-west-2.amazoncognito.com> |
 
 ### Staging
 
 | Service | URL |
 |---------|-----|
-| Collection App | https://staging.app.bluemoxon.com |
-| API | https://staging.api.bluemoxon.com |
-| API Health Check | https://staging.api.bluemoxon.com/api/v1/health/deep |
-| Cognito Login | https://bluemoxon-staging.auth.us-west-2.amazoncognito.com |
+| Collection App | <https://staging.app.bluemoxon.com> |
+| API | <https://staging.api.bluemoxon.com> |
+| API Health Check | <https://staging.api.bluemoxon.com/api/v1/health/deep> |
+| Cognito Login | <https://bluemoxon-staging.auth.us-west-2.amazoncognito.com> |
 
 ### Raw Endpoints (Debug)
 
 | Service | URL |
 |---------|-----|
-| CloudFront App (raw) | https://d2yd5bvqaomg54.cloudfront.net |
-| CloudFront Landing (raw) | https://dui69hltsg2ds.cloudfront.net |
-| API Gateway Prod (raw) | https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com |
+| CloudFront App (raw) | <https://d2yd5bvqaomg54.cloudfront.net> |
+| CloudFront Landing (raw) | <https://dui69hltsg2ds.cloudfront.net> |
+| API Gateway Prod (raw) | <https://h7q9ga51xa.execute-api.us-west-2.amazonaws.com> |
 
 ## Monitoring & Observability
 
 ### CloudWatch Dashboard
 
 **Dashboard Name:** `BlueMoxon-API`
-**URL:** https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API
+**URL:** <https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API>
 
 The dashboard displays:
 
@@ -709,6 +718,7 @@ The dashboard displays:
 | `BlueMoxon-Lambda-Errors` | Errors >= 1 | 5 min | - |
 
 To add SNS notifications to alarms:
+
 ```bash
 aws cloudwatch put-metric-alarm \
   --alarm-name "BlueMoxon-API-5xxErrors" \
@@ -737,6 +747,7 @@ Logs include: request time, client IP, URI path, HTTP status, bytes sent, referr
 | `GET /api/v1/health/info` | Service metadata | Debugging |
 
 The `/deep` endpoint validates:
+
 - Database connectivity and query execution
 - S3 bucket accessibility
 - Cognito user pool (if IAM permissions allow)

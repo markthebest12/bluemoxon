@@ -11,6 +11,7 @@
 The BlueMoxon Lambda deployment packages are approaching the AWS Lambda size limit (~66MB for direct upload, 250MB unzipped). The current monolithic approach bundles all Python dependencies with every deploy, even when only application code changes.
 
 **Current pain points:**
+
 1. Cleanup Lambda creation failed with `RequestEntityTooLargeException` (72MB > 66MB)
 2. Every deploy rebuilds the full 50MB package even for 1-line code changes
 3. No code sharing between Lambda functions (API, cleanup, db-sync, eval-runbook-worker)
@@ -100,11 +101,13 @@ The `python/` prefix is required - Lambda adds `/opt/python` to `PYTHONPATH`.
 ## CI/CD Workflow Changes
 
 ### Current Flow
+
 ```
 build-backend → upload backend.zip → update Lambda code
 ```
 
 ### New Flow
+
 ```
 build-layer ────────────┐
   (if poetry.lock       │
@@ -222,6 +225,7 @@ deploy-backend:
 ## Function Package Contents
 
 **Before (50MB):**
+
 ```
 lambda-package.zip
 ├── app/                    (~100KB)
@@ -235,6 +239,7 @@ lambda-package.zip
 ```
 
 **After (<1MB):**
+
 ```
 backend.zip
 ├── app/                    (~100KB)
@@ -253,6 +258,7 @@ backend.zip
 ## Environment Handling
 
 **Single shared layer per environment:**
+
 - `bluemoxon-staging-deps` - staging layer
 - `bluemoxon-prod-deps` - production layer
 
@@ -269,6 +275,7 @@ Lambda Layer versions are immutable. Rollback options:
 3. **Full rollback:** Both code and layer version
 
 Layer versions are retained indefinitely. Old versions can be deleted via:
+
 ```bash
 aws lambda delete-layer-version --layer-name bluemoxon-staging-deps --version-number N
 ```
@@ -278,23 +285,27 @@ aws lambda delete-layer-version --layer-name bluemoxon-staging-deps --version-nu
 ## Migration Plan
 
 ### Phase 1: Create Layer Infrastructure
+
 1. Create `modules/lambda-layer/` Terraform module
 2. Add `layers` variable to `modules/lambda/`
 3. Wire up in `main.tf`
 4. Apply Terraform (creates layer resource, doesn't affect running Lambdas)
 
 ### Phase 2: Bootstrap Layer
+
 1. Build layer locally (or in CI)
 2. Upload to S3
 3. Publish initial layer version
 4. Update existing Lambdas to use layer (manual first time)
 
 ### Phase 3: Update CI/CD
+
 1. Add `build-layer` job to deploy workflow
 2. Modify `build-backend` to exclude dependencies
 3. Add layer publish and attach steps to `deploy-backend`
 
 ### Phase 4: Verify and Cleanup
+
 1. Test all Lambda functions work with layer
 2. Verify deploys work end-to-end
 3. Delete manual IAM policy (replaced by Terraform)

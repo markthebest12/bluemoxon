@@ -7,6 +7,7 @@ PostgreSQL database hosted on Aurora Serverless v2 with full-text search capabil
 ## Tables
 
 ### publishers
+
 Tier 1 publishers are pre-seeded (Moxon, Murray, Smith Elder, Macmillan, Chapman & Hall).
 
 | Column | Type | Description |
@@ -29,6 +30,7 @@ Tier 1 publishers are pre-seeded (Moxon, Murray, Smith Elder, Macmillan, Chapman
 | first_acquired_date | DATE | When first book by author was acquired |
 
 ### binders
+
 Authenticated binding houses (Zaehnsdorf, Rivière, Sangorski, Bayntun).
 
 | Column | Type | Description |
@@ -39,6 +41,7 @@ Authenticated binding houses (Zaehnsdorf, Rivière, Sangorski, Bayntun).
 | authentication_markers | TEXT | How to identify authentic bindings |
 
 ### books
+
 Main entity - represents a single book or set.
 
 | Column | Type | Description |
@@ -76,6 +79,7 @@ Main entity - represents a single book or set.
 | updated_at | TIMESTAMP | Last update |
 
 ### book_analyses
+
 Detailed analysis documents linked to books.
 
 | Column | Type | Description |
@@ -95,6 +99,7 @@ Detailed analysis documents linked to books.
 | updated_at | TIMESTAMP | Last update |
 
 ### book_images
+
 Image metadata (actual images stored in S3).
 
 | Column | Type | Description |
@@ -109,6 +114,7 @@ Image metadata (actual images stored in S3).
 | caption | TEXT | Image caption |
 
 ### users
+
 User accounts (auth handled by Cognito).
 
 | Column | Type | Description |
@@ -122,6 +128,7 @@ User accounts (auth handled by Cognito).
 | created_at | TIMESTAMP | Record creation |
 
 ### api_keys
+
 API keys for programmatic access (admin-created).
 
 | Column | Type | Description |

@@ -33,12 +33,14 @@
 | Cross-region inference profiles | 357 | **NO** | No |
 
 **Retry Logic Details (UNDOCUMENTED):**
+
 ```python
 delay = base_delay * (2**attempt) + random.uniform(0, 1)  # Jitter
 max_retries = 3, base_delay = 5.0 seconds
 ```
 
 **Documentation Needs:**
+
 - [ ] Sequence diagram for retry/backoff flow
 - [ ] Flow diagram for two-stage extraction
 - [ ] Update BEDROCK.md with error handling section
@@ -60,11 +62,13 @@ max_retries = 3, base_delay = 5.0 seconds
 | Author priority scoring | 320-380 | **NO** |
 
 **Score Components (UNDOCUMENTED):**
+
 - Investment Grade: Publisher tier + binder tier + era + condition
 - Strategic Fit: Author presence + publisher match + set completion
 - Collection Impact: Gap filling + author depth + rarity
 
 **Documentation Needs:**
+
 - [ ] Scoring formula reference (decision tree or table)
 - [ ] Tier definitions (TIER_1, TIER_2 publishers/binders)
 
@@ -87,6 +91,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | Suggested offer calculation | 318-351 | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Move tiered-recommendations-design.md content to main docs
 - [ ] Decision matrix table for operations reference
 - [ ] Floor rule explanations
@@ -109,11 +114,13 @@ max_retries = 3, base_delay = 5.0 seconds
 | Era-aware filtering | 294-300, 504-512 | **NO** |
 
 **Integration Points (UNDOCUMENTED):**
+
 - Uses `scraper` Lambda for eBay (bot detection avoidance)
 - Uses direct HTTP for AbeBooks
 - Relevance scoring: HIGH/MEDIUM/LOW
 
 **Documentation Needs:**
+
 - [ ] FMV lookup flow diagram
 - [ ] Scraper Lambda integration documentation
 - [ ] Confidence level explanations
@@ -136,6 +143,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | Full eval runbook generation | 382-748 | **NO** |
 
 **Scoring Criteria (6 total, 120 max points):**
+
 1. Tier 1 Publisher (20 pts)
 2. Victorian Era (30 pts)
 3. Complete Set (20 pts)
@@ -144,6 +152,7 @@ max_retries = 3, base_delay = 5.0 seconds
 6. Price vs FMV (20 pts)
 
 **Documentation Needs:**
+
 - [ ] Eval runbook scoring breakdown table
 - [ ] Claude Vision analysis prompts documentation
 - [ ] Condition grade mapping
@@ -162,6 +171,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | `check_archive_availability()` | 76-98 | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Add to FEATURES.md or create archive section
 
 ---
@@ -181,6 +191,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | HTML content extraction | 251-333 | **NO** |
 
 **Documentation Needs:**
+
 - [ ] eBay URL formats supported
 - [ ] Reference matching thresholds
 
@@ -199,6 +210,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | UPS API integration | 144-196 | **NO** |
 
 **Supported Carriers:**
+
 - UPS (full API integration)
 - USPS, FedEx, DHL, Royal Mail, Parcelforce (URL generation only)
 
@@ -206,6 +218,7 @@ max_retries = 3, base_delay = 5.0 seconds
 > `# TODO: Add support for USPS, FedEx, etc.`
 
 **Documentation Needs:**
+
 - [ ] Tracking feature documentation in FEATURES.md
 - [ ] GitHub issue for additional carrier support
 
@@ -223,6 +236,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | Eval runbook job queue | 93-118 | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Async job architecture diagram
 
 ---
@@ -246,6 +260,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | `/health/cleanup-orphans` | POST | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Add all health endpoints to API_REFERENCE.md
 - [ ] Create operations runbook for migrations
 
@@ -264,6 +279,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | `/listings/extract/{item_id}/status` | GET | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Add listings endpoints to API_REFERENCE.md with examples
 - [ ] Document async extraction flow
 
@@ -283,6 +299,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | `/eval-runbooks/refresh` | POST | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Add eval runbook endpoints to API_REFERENCE.md
 
 ---
@@ -302,6 +319,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | Thumbnail generation | **NO** |
 
 **Documentation Needs:**
+
 - [ ] Complete filter parameter documentation
 - [ ] Scoring recalculation triggers
 
@@ -345,12 +363,14 @@ max_retries = 3, base_delay = 5.0 seconds
 **Purpose:** Async analysis generation bypassing API Gateway's 29s timeout
 
 **Resources Created:**
+
 - SQS queue + DLQ with redrive policy
 - Lambda function (600s timeout)
 - IAM role with Bedrock, Secrets Manager, S3 access
 - Event source mapping (batch_size=1)
 
 **Documentation Needs:**
+
 - [ ] README.md with usage example
 - [ ] Document worker handler entry point
 
@@ -361,12 +381,14 @@ max_retries = 3, base_delay = 5.0 seconds
 **Purpose:** Async eval runbook generation with FMV lookup
 
 **Resources Created:**
+
 - SQS queue + DLQ with redrive policy
 - Lambda function (600s timeout)
 - IAM role with Bedrock, Secrets Manager, S3, Lambda invoke access
 - Event source mapping (batch_size=1)
 
 **Documentation Needs:**
+
 - [ ] README.md with usage example
 - [ ] Document differences from analysis-worker (Lambda invoke permission for scraper)
 
@@ -377,12 +399,14 @@ max_retries = 3, base_delay = 5.0 seconds
 **Purpose:** Container-based Playwright scraping for eBay
 
 **Resources Created:**
+
 - ECR repository (immutable tags, scan on push)
 - Lambda function (container image, 120s timeout)
 - Optional provisioned concurrency
 - EventBridge warmup rule (keeps container warm)
 
 **Documentation Needs:**
+
 - [ ] README.md explaining container deployment process
 - [ ] ECR lifecycle policy documentation
 - [ ] Warmup scheduling explanation
@@ -394,12 +418,14 @@ max_retries = 3, base_delay = 5.0 seconds
 **Purpose:** Marketing site with S3 + CloudFront using OAC
 
 **Resources Created:**
+
 - S3 bucket (versioned, encrypted)
 - CloudFront OAC (modern approach, not OAI)
 - CloudFront distribution with SPA error handling
 - S3 bucket policy for CloudFront
 
 **Documentation Needs:**
+
 - [ ] README.md with deployment instructions
 
 ---
@@ -409,11 +435,13 @@ max_retries = 3, base_delay = 5.0 seconds
 **Purpose:** Route53 hosted zone and DNS records
 
 **Resources Created:**
+
 - Route53 hosted zone
 - A/AAAA records for: bluemoxon.com, www, app, staging.app
 - Alias records for API Gateway (api, staging.api)
 
 **Documentation Needs:**
+
 - [ ] README.md explaining record structure
 - [ ] Document staging vs. prod DNS differences
 
@@ -445,6 +473,7 @@ max_retries = 3, base_delay = 5.0 seconds
 ### Infrastructure Documentation Notes
 
 **Existing INFRASTRUCTURE.md is comprehensive for:**
+
 - VPC networking (subnets, route tables, security groups)
 - Database (Aurora Serverless v2)
 - Authentication (Cognito)
@@ -453,6 +482,7 @@ max_retries = 3, base_delay = 5.0 seconds
 - Monitoring (CloudWatch dashboard, alarms)
 
 **Needs additions:**
+
 1. **Async Worker Architecture** - The analysis-worker and eval-runbook-worker modules create SQS-triggered Lambdas that bypass API Gateway's 29-second timeout. This architectural pattern is not documented.
 
 2. **Scraper Lambda** - Container-based Lambda for Playwright browser automation is not documented. Uses ECR repository with lifecycle policy.
@@ -542,12 +572,14 @@ max_retries = 3, base_delay = 5.0 seconds
 | `/callback` | OAuth callback | No | **NO** |
 
 **Auth Features (UNDOCUMENTED):**
+
 - `requiresAuth` meta guard
 - `requiresAdmin` meta guard
 - MFA setup redirect flow
 - Auth initialization on first navigation
 
 **Documentation Needs:**
+
 - [ ] Route documentation in FEATURES.md
 - [ ] Auth flow diagram (login → MFA → dashboard)
 
@@ -556,6 +588,7 @@ max_retries = 3, base_delay = 5.0 seconds
 ### Pinia Stores
 
 **Pattern (UNDOCUMENTED):**
+
 ```typescript
 // Async job tracking with reactive Map
 activeAnalysisJobs: new Map<number, ReturnType<typeof setInterval>>()
@@ -571,6 +604,7 @@ activeEvalRunbookJobs: new Map<number, ReturnType<typeof setInterval>>()
 | `usersStore` | User management | **NO** |
 
 **Documentation Needs:**
+
 - [ ] State management patterns documentation
 - [ ] Job polling architecture diagram
 
@@ -593,6 +627,7 @@ activeEvalRunbookJobs: new Map<number, ReturnType<typeof setInterval>>()
 | Suggested offer display | **NO** |
 
 **Tier Badge Config (UNDOCUMENTED):**
+
 ```typescript
 const configs: Record<string, { bg: string; text: string; icon: string }> = {
   STRONG_BUY: { bg: "bg-green-500", text: "text-white", icon: "✓✓" },
@@ -619,6 +654,7 @@ const configs: Record<string, { bg: string; text: string; icon: string }> = {
 | Split-pane editor | **NO** |
 
 **Napoleon v2 Stripping (UNDOCUMENTED):**
+
 ```typescript
 function stripStructuredData(markdown: string): string {
   result = result.replace(/---STRUCTURED-DATA---[\s\S]*?---END-STRUCTURED-DATA---\s*/gi, "");
@@ -627,6 +663,7 @@ function stripStructuredData(markdown: string): string {
 ```
 
 **Documentation Needs:**
+
 - [ ] Napoleon v2 format documentation
 - [ ] Print stylesheet documentation
 
@@ -646,6 +683,7 @@ function stripStructuredData(markdown: string): string {
 | Paste order integration | **NO** |
 
 **Currency Conversion (UNDOCUMENTED):**
+
 ```typescript
 const priceInUsd = computed(() => {
   switch (selectedCurrency.value) {
@@ -674,6 +712,7 @@ const priceInUsd = computed(() => {
 | Victorian color scheme | **NO** |
 
 **Victorian Chart Colors (UNDOCUMENTED):**
+
 ```typescript
 const chartColors = {
   primary: "rgb(26, 58, 47)",    // victorian-hunter-800
@@ -683,6 +722,7 @@ const chartColors = {
 ```
 
 **Documentation Needs:**
+
 - [ ] Victorian design system documentation
 - [ ] Chart.js integration patterns
 
@@ -705,6 +745,7 @@ const chartColors = {
 | Dynamic filtering | **NO** |
 
 **Report Types (UNDOCUMENTED):**
+
 - Insurance: For insurance purposes (replacement values)
 - Primary: Core collection items
 - Extended: Full collection with variants
@@ -728,6 +769,7 @@ const chartColors = {
 | Column counts and metrics | **NO** |
 
 **Job Syncing Pattern (UNDOCUMENTED):**
+
 ```typescript
 function syncBackendJobPolling() {
   for (const book of evaluating.value) {
@@ -784,6 +826,7 @@ function syncBackendJobPolling() {
 | `dev.sh` | ? | Local dev startup | **NO** |
 
 **`validate-and-push.sh` Features (UNDOCUMENTED):**
+
 - Backend lint (ruff check + format)
 - Frontend lint + type-check
 - Branch protection (blocks push to main)
@@ -803,6 +846,7 @@ function syncBackendJobPolling() {
 | `update_titles.py` | ? | Batch update book titles | **NO** |
 
 **`sync-prod-to-staging.sh` Features (UNDOCUMENTED):**
+
 - S3 cross-account sync (download/upload pattern)
 - Database dump and restore
 - Secrets Manager credential lookup
@@ -810,6 +854,7 @@ function syncBackendJobPolling() {
 - Confirmation prompts
 
 **`import_assets.py` Features (UNDOCUMENTED):**
+
 - Word-based fuzzy matching for book titles
 - EXIF transpose for image orientation
 - Thumbnail generation on import
@@ -851,12 +896,14 @@ function syncBackendJobPolling() {
 **Key Patterns (UNDOCUMENTED):**
 
 **Banner Detection:**
+
 ```python
 BANNER_ASPECT_RATIO_THRESHOLD = 2.0  # width/height > 2.0 = likely banner
 BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
 ```
 
 **Lambda Launch Args (for container):**
+
 ```python
 args=[
     "--single-process",
@@ -868,6 +915,7 @@ args=[
 ```
 
 **Rate Limiting Patterns:**
+
 - "access denied"
 - "blocked by ebay"
 - "complete the captcha"
@@ -902,6 +950,7 @@ args=[
 | Market analysis requirements | **NO** |
 
 **STRUCTURED-DATA Format (UNDOCUMENTED):**
+
 ```
 ---STRUCTURED-DATA---
 CONDITION_GRADE: [Fine|VG+|VG|VG-|Good+|Good|Fair|Poor]
@@ -924,6 +973,7 @@ PUBLICATION_YEAR: [year or UNKNOWN]
 | Tier 2 (Quality) | Morrell, Root & Son, Bayntun, Tout, Stikeman | Signed, quality work |
 
 **Metadata Block (UNDOCUMENTED):**
+
 ```html
 <!-- METADATA_START -->
 {

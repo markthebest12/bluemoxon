@@ -81,6 +81,7 @@ UPDATE binders SET tier = 'TIER_2' WHERE name IN (
 ```
 
 ### Files Modified
+
 - `backend/alembic/versions/xxx_add_binder_tier.py` - Migration
 - `backend/app/models/binder.py` - Add tier field
 - `backend/app/schemas/binder.py` - Add tier to schema
@@ -158,6 +159,7 @@ def calculate_strategic_fit(
 | **Strategic Fit** | **160** | (vs current 70) |
 
 ### Files Modified
+
 - `backend/app/services/scoring.py` - Add binder_tier, DOUBLE TIER 1, volume penalty
 - `backend/app/api/v1/books.py` - Pass binder_tier to scoring functions
 - `backend/tests/test_scoring.py` - Add binder tier and DOUBLE TIER 1 tests
@@ -226,6 +228,7 @@ document the institution's history and significance.
 ```
 
 ### Files Modified
+
 - `infrastructure/prompts/napoleon-framework/v2.md` - New prompt version
 - `backend/app/services/bedrock.py` - Update PROMPT_KEY to v2
 
@@ -314,6 +317,7 @@ def _extract_notes(markdown: str) -> str | None:
 ```
 
 ### Files Modified
+
 - `backend/app/utils/markdown_parser.py` - Multi-format extraction
 - `backend/tests/test_markdown_parser.py` - Parser tests for new formats
 
@@ -400,6 +404,7 @@ book.overall_score = scores["overall_score"]
 ```
 
 ### Files Modified
+
 - `backend/app/worker.py` - Field extraction + score recalculation
 
 ---
@@ -409,12 +414,14 @@ book.overall_score = scores["overall_score"]
 **Approach:** Generate script via prompt when ready (not baked into app)
 
 **Process:**
+
 1. Get list of all book IDs: `bmx-api GET /books?limit=100`
 2. For each book, trigger async analysis: `POST /books/{id}/analysis/generate-async`
 3. Monitor job completion via status endpoint
 4. Verify quality on sample before full batch
 
 **Script Pattern:**
+
 ```bash
 # Generated when ready - not a permanent feature
 for book_id in $(bmx-api GET /books | jq -r '.[].id'); do
@@ -482,7 +489,7 @@ Phase 6: Bulk Re-analysis (manual, after deployment)
 
 ## Reference
 
-- **Exemplar Book:** https://app.bluemoxon.com/books/489
-- **Automated Book:** https://staging.app.bluemoxon.com/books/501
+- **Exemplar Book:** <https://app.bluemoxon.com/books/489>
+- **Automated Book:** <https://staging.app.bluemoxon.com/books/501>
 - **Manual Workflow:** `/Users/mark/Downloads/example_quality_acquistion_flow.md`
 - **Napoleon Framework:** `documentation/book_analysis/README.md` (book-collection repo)

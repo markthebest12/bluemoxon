@@ -47,28 +47,35 @@ REQUIRED patterns:
 ## Current Bug: thumb_ Directories Not Grouped
 
 ### Problem
+
 Production shows 2472 total orphans but only 48 are grouped in `orphans_by_book`. Missing 2424 files.
 
 ### Root Cause (CONFIRMED)
+
 Three S3 key formats exist, but code only handled two:
+
 1. **Nested (scraper):** `books/{book_id}/image.webp` - ✓ WORKED
 2. **Flat (uploads):** `books/{book_id}_{uuid}.ext` - ✓ WORKED (PR #1062)
 3. **Nested thumb:** `books/thumb_{book_id}/image.webp` - ✗ SKIPPED
 
 For `books/thumb_500/image.webp`:
+
 - `parts[1]` = `"thumb_500"`
 - `int("thumb_500")` → ValueError
 - `int("thumb_500".split("_")[0])` → `int("thumb")` → ValueError
 - **SKIP** → 2424 orphan thumbnails not grouped
 
 ### Evidence
+
 ```bash
 AWS_PROFILE=bmx-prod aws s3 ls s3://bluemoxon-images/books/ --recursive | grep "/thumb_" | wc -l
 # Output: 2424  # Exactly the missing count!
 ```
 
 ### Fix (PR #1066)
+
 Strip `thumb_` prefix before parsing book ID:
+
 ```python
 folder_part = parts[1]
 

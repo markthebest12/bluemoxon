@@ -9,6 +9,7 @@ Extract structured book data from eBay listing URLs using Bedrock Claude. Enable
 ### `POST /books/parse-listing`
 
 **Request** (either `url` OR `listing_text`):
+
 ```json
 {
   "url": "https://www.ebay.com/itm/317495720025",
@@ -17,6 +18,7 @@ Extract structured book data from eBay listing URLs using Bedrock Claude. Enable
 ```
 
 **Response**:
+
 ```json
 {
   "source": "ebay",
@@ -74,6 +76,7 @@ Listing:
 ### Reference Matching
 
 For author/publisher/binder, fuzzy match against existing records:
+
 - Load all records from DB
 - Normalize strings (lowercase, remove punctuation)
 - Token-based similarity (Jaccard)
@@ -85,6 +88,7 @@ For author/publisher/binder, fuzzy match against existing records:
 **Approach**: Frontend fetches images (browser not blocked by eBay CORS).
 
 **Flow**:
+
 1. Backend extracts `image_urls` from listing
 2. Frontend displays image previews
 3. On "Add to Watchlist", frontend fetches image blobs
@@ -96,11 +100,13 @@ For author/publisher/binder, fuzzy match against existing records:
 ### Fallback Options (if frontend fetch fails)
 
 **Option A: Playwright in Lambda**
+
 - Add `playwright` to Lambda layer (~50MB)
 - Cold start penalty but reliable
 - Use for image fetch only
 
 **Option B: Dedicated Image Service**
+
 - Separate container with Playwright
 - Invoke via Lambda or direct HTTP
 - Better isolation, more infrastructure
@@ -111,6 +117,7 @@ For author/publisher/binder, fuzzy match against existing records:
 **Future**: Etsy (same Bedrock extraction, different URL parsing)
 
 Structure code for easy extension:
+
 ```python
 def parse_listing_url(url: str) -> tuple[str, str]:
     """Return (platform, item_id) from URL."""

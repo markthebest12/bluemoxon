@@ -55,12 +55,14 @@
 ## Task 1: Push FMV Fix and Create PR to Staging
 
 **Files:**
+
 - Branch: `fix/fmv-scraper-environment` (commit `6177fcb`)
 - Modified: `backend/app/config.py:155-169`
 
 **Step 1: Push the branch**
 
 Run from `/Users/mark/projects/bluemoxon`:
+
 ```bash
 git push -u origin fix/fmv-scraper-environment
 ```
@@ -84,6 +86,7 @@ return os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT") or o
 ```
 
 ## Test Plan
+
 - [ ] CI passes
 - [ ] Staging deploy succeeds
 - [ ] Validate FMV lookup works in staging (no change expected - staging already works)
@@ -93,6 +96,7 @@ return os.getenv("BMX_SCRAPER_ENVIRONMENT") or os.getenv("BMX_ENVIRONMENT") or o
 Fixes #718
 EOF
 )"
+
 ```
 
 **Step 3: Wait for CI to pass**
@@ -100,6 +104,7 @@ EOF
 ```bash
 gh pr checks --watch
 ```
+
 Expected: All checks pass (this is a minimal code change)
 
 **Step 4: Merge to staging**
@@ -122,6 +127,7 @@ Note PR number for next task.
 gh run list --workflow deploy-staging.yml --limit 1
 gh run watch <run-id> --exit-status
 ```
+
 Expected: Deploy completes successfully
 
 **Step 2: Verify staging API is healthy**
@@ -129,6 +135,7 @@ Expected: Deploy completes successfully
 ```bash
 bmx-api GET /health/deep
 ```
+
 Expected: `{"status": "healthy", ...}`
 
 **Step 3: Verify the fix is deployed (check environment resolution)**
@@ -163,6 +170,7 @@ gh pr merge --squash
 gh run list --workflow Deploy --limit 1
 gh run watch <run-id> --exit-status
 ```
+
 Expected: Deploy completes, smoke tests pass
 
 ---
@@ -174,6 +182,7 @@ Expected: Deploy completes, smoke tests pass
 ```bash
 bmx-api --prod POST /books/553/eval-runbook/generate
 ```
+
 Expected: 200 OK with new eval runbook
 
 **Step 2: Check eval runbook for comparables**
@@ -181,16 +190,19 @@ Expected: 200 OK with new eval runbook
 ```bash
 bmx-api --prod GET /books/553/eval-runbook
 ```
+
 Expected: `ebay_comparables` and/or `abebooks_comparables` arrays contain listings (not empty)
 
 **Step 3: If comparables still empty**
 
 Check CloudWatch logs for scraper invocation:
+
 ```bash
 AWS_PROFILE=bmx-prod aws logs filter-log-events --log-group-name /aws/lambda/bluemoxon-prod-eval-runbook-worker --start-time $(date -v-10M +%s000) --limit 20
 ```
 
 Look for:
+
 - No more `AccessDeniedException` for staging scraper Lambda
 - Successful scraper invocation to `bluemoxon-prod-scraper`
 
@@ -213,6 +225,7 @@ Look for:
 Look for: `anthropic.claude-opus-4-5-20251101-v1:0` or cross-region inference variant
 
 Status should show either:
+
 - "Access required" - needs to be enabled
 - "Access granted" - should work, investigate further
 - "Subscription required" - AWS Marketplace action needed
@@ -220,6 +233,7 @@ Status should show either:
 **Step 3: Enable access**
 
 If not enabled:
+
 1. Click "Manage model access"
 2. Find Claude Opus 4.5 in the list
 3. Check the checkbox
@@ -233,9 +247,11 @@ bmx-api --prod POST /books/553/analysis/generate-async '{"model": "opus"}'
 ```
 
 Wait 3-5 minutes, then:
+
 ```bash
 bmx-api --prod GET /books/553/analysis/status
 ```
+
 Expected: `status: "completed"` (not "failed")
 
 ---
@@ -247,6 +263,7 @@ Expected: `status: "completed"` (not "failed")
 **Step 1: Identify affected books**
 
 Books with:
+
 - `has_eval_runbook: true`
 - `fmv_notes: "No comparable listings found"` or empty comparables
 
@@ -257,6 +274,7 @@ bmx-api --prod GET '/books?limit=100&has_eval_runbook=true'
 **Step 2: Regenerate runbooks for affected books**
 
 For each affected book ID:
+
 ```bash
 bmx-api --prod POST /books/{id}/eval-runbook/generate
 ```
@@ -266,6 +284,7 @@ bmx-api --prod POST /books/{id}/eval-runbook/generate
 ```bash
 bmx-api --prod GET /books/{id}/eval-runbook
 ```
+
 Check that `ebay_comparables` or `abebooks_comparables` contain listings.
 
 ---
@@ -284,6 +303,7 @@ Check that `ebay_comparables` or `abebooks_comparables` contain listings.
 ## Rollback Plan
 
 **If FMV fix causes issues:**
+
 ```bash
 git revert <commit-sha>
 gh pr create --base staging --title "revert: FMV scraper fix"

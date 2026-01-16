@@ -18,6 +18,7 @@
 ### Task 1.1: Add Archive Fields to Book Model
 
 **Files:**
+
 - Modify: `backend/app/models/book.py`
 
 **Step 1: Add new fields after `scoring_snapshot` (around line 91)**
@@ -45,6 +46,7 @@ git commit -m "feat(models): Add archive tracking fields to Book"
 ### Task 1.2: Create Alembic Migration
 
 **Files:**
+
 - Create: `backend/alembic/versions/xxxx_add_archive_fields.py`
 
 **Step 1: Generate migration**
@@ -94,6 +96,7 @@ git commit -m "feat(db): Add migration for archive tracking fields"
 ### Task 1.3: Update Book Schemas
 
 **Files:**
+
 - Modify: `backend/app/schemas/book.py`
 
 **Step 1: Add fields to BookBase (after `estimated_delivery`, around line 43)**
@@ -130,6 +133,7 @@ git commit -m "feat(schemas): Add archive tracking fields to book schemas"
 ### Task 2.1: Write Failing Test for Archive Service
 
 **Files:**
+
 - Create: `backend/tests/test_archive.py`
 
 **Step 1: Write the test file**
@@ -220,6 +224,7 @@ git commit -m "test: Add failing tests for archive service"
 ### Task 2.2: Implement Archive Service
 
 **Files:**
+
 - Create: `backend/app/services/archive.py`
 
 **Step 1: Write the service**
@@ -344,6 +349,7 @@ git commit -m "feat(services): Add Wayback archive service"
 ### Task 3.1: Write Failing Test for Archive Endpoint
 
 **Files:**
+
 - Add to: `backend/tests/test_archive.py`
 
 **Step 1: Add endpoint tests to test file**
@@ -452,6 +458,7 @@ git commit -m "test: Add failing tests for archive endpoint"
 ### Task 3.2: Implement Archive Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 
 **Step 1: Add import at top of file**
@@ -522,6 +529,7 @@ git commit -m "feat(api): Add POST /books/{id}/archive-source endpoint"
 ### Task 3.3: Trigger Archive on Acquire
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 
 **Step 1: Add test for acquire triggering archive**
@@ -626,6 +634,7 @@ git commit -m "feat(api): Trigger archive status on acquire"
 ### Task 4.1: Update TypeScript Types
 
 **Files:**
+
 - Modify: `frontend/src/types/book.ts`
 
 **Step 1: Add archive fields to Book interface**
@@ -650,6 +659,7 @@ git commit -m "feat(types): Add archive tracking fields to Book type"
 ### Task 4.2: Add Archive API Method to Store
 
 **Files:**
+
 - Modify: `frontend/src/stores/books.ts`
 
 **Step 1: Add archiveSource action**
@@ -680,6 +690,7 @@ git commit -m "feat(store): Add archiveSource action"
 ### Task 4.3: Create Archive Status Badge Component
 
 **Files:**
+
 - Create: `frontend/src/components/ArchiveStatusBadge.vue`
 
 **Step 1: Write the component**
@@ -772,6 +783,7 @@ git commit -m "feat(components): Add ArchiveStatusBadge component"
 ### Task 4.4: Add Badge to Acquisitions Dashboard Cards
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 
 **Step 1: Import the component**
@@ -824,6 +836,7 @@ git commit -m "feat(ui): Add archive status badge to acquisitions dashboard"
 ### Task 4.5: Add Archive Section to Book Detail
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue`
 
 **Step 1: Import component**

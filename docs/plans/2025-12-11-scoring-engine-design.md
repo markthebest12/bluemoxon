@@ -3,6 +3,7 @@
 **Goal:** Add automated scoring to help prioritize book acquisitions and analyze the collection.
 
 **Key Decisions:**
+
 - Three component scores + overall composite score
 - Auto-calculate on create, on-demand refresh for existing
 - Author priorities stored in database (editable)
@@ -81,6 +82,7 @@ overall_score = investment_grade + strategic_fit + collection_impact
 ```
 
 **Decision thresholds:**
+
 - 160+: STRONG BUY (green)
 - 120-159: BUY (yellow)
 - 80-119: CONDITIONAL (orange)

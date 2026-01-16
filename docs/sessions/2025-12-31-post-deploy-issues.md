@@ -9,6 +9,7 @@
 ## SUMMARY FOR NEXT SESSION
 
 ### Background
+
 PR #727 deployed issues #715 (model version tracking) and #717 (volume extraction) to production. Post-deploy verification revealed three issues:
 
 1. **Model ID not showing in UI** - Frontend wasn't displaying the `model_id` field
@@ -16,6 +17,7 @@ PR #727 deployed issues #715 (model version tracking) and #717 (volume extractio
 3. **FMV Pricing empty** - Bad title caused no comparables (separate issue, not fixed here)
 
 ### What Was Fixed (PR #730 → #731)
+
 | Issue | Fix |
 |-------|-----|
 | Model ID display | Added to `AnalysisViewer.vue` footer with `formatModelId()` function |
@@ -24,11 +26,13 @@ PR #727 deployed issues #715 (model version tracking) and #717 (volume extractio
 | Test coverage | Behavioral mock test for collected works title extraction |
 
 ### Production State
+
 - **API health:** healthy
 - **Frontend:** Working, displays "· Claude Sonnet 4.5" for new analyses
 - **Older analyses:** Show timestamp only (model_id is null, handled gracefully)
 
 ### Outstanding Issue: FMV Still Empty (#729 partial)
+
 Even with corrected title "Works of Charles Dickens", FMV lookup returns no comparables. This is a **SEPARATE issue** - search query may need different terms for eBay/AbeBooks to find matches.
 
 ---
@@ -49,14 +53,16 @@ Even with corrected title "Works of Charles Dickens", FMV lookup returns no comp
 | Creating PRs | `superpowers:requesting-code-review` |
 | Receiving feedback | `superpowers:receiving-code-review` (verify, no performative agreement) |
 
-### 2. BASH COMMAND RULES - NEVER USE (triggers permission prompts):
+### 2. BASH COMMAND RULES - NEVER USE (triggers permission prompts)
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command substitution
 - `||` or `&&` chaining
 - `!` in quoted strings (bash history expansion)
 
-### 3. BASH COMMAND RULES - ALWAYS USE:
+### 3. BASH COMMAND RULES - ALWAYS USE
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `git -C /path/to/repo` instead of `cd path && git`

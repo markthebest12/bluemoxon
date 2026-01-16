@@ -51,11 +51,13 @@ export const PUBLISHER_TIER_OPTIONS = [
 **File:** `frontend/src/components/book-detail/BookMetadataSection.vue`
 
 **New imports:**
+
 ```typescript
 import { CONDITION_GRADE_OPTIONS, PUBLISHER_TIER_OPTIONS } from "@/constants";
 ```
 
 **New helper functions:**
+
 ```typescript
 function getConditionDisplay(grade: string | null) {
   if (!grade) return null;
@@ -73,6 +75,7 @@ function getTierLabel(tier: string | null): string {
 **Template changes:**
 
 1. **Condition display** - Replace raw value with label + description:
+
 ```html
 <dt class="text-sm text-gray-500">Condition</dt>
 <dd>
@@ -84,12 +87,14 @@ function getTierLabel(tier: string | null): string {
 </dd>
 ```
 
-2. **Publisher tier** - Use helper function:
+1. **Publisher tier** - Use helper function:
+
 ```html
 ({{ getTierLabel(book.publisher.tier) }})
 ```
 
-3. **Status dropdown** - Add minimum width and increase padding:
+1. **Status dropdown** - Add minimum width and increase padding:
+
 ```html
 'min-w-[120px] px-3 py-1.5 rounded-sm text-sm font-medium...'
 ```
@@ -99,6 +104,7 @@ function getTierLabel(tier: string | null): string {
 **File:** `frontend/src/components/book-detail/__tests__/BookMetadataSection.spec.ts`
 
 Add tests for:
+
 - Condition shows human-readable label instead of DB value
 - Condition shows description underneath label
 - Condition shows dash when null

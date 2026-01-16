@@ -10,6 +10,7 @@
 ## Problem
 
 The eval runbook produces binary recommendations (ACQUIRE/PASS at 80-point threshold) without:
+
 - Nuanced recommendation tiers (STRONG BUY vs CONDITIONAL)
 - Suggested offer prices for borderline items
 - Reasoning explaining the recommendation
@@ -56,12 +57,14 @@ Enhanced Response: tier, offer, reasoning
 | **Score < 70** | CONDITIONAL | PASS | PASS |
 
 **Tier definitions:**
+
 - **STRONG BUY** - Act immediately, excellent value
 - **BUY** - Solid acquisition at fair price
 - **CONDITIONAL** - Worth acquiring only at reduced price (offer required)
 - **PASS** - Does not meet collection criteria or significantly overpriced
 
 **FMV position calculation:**
+
 ```python
 fmv_midpoint = (fmv_low + fmv_high) / 2
 if asking_price < fmv_midpoint * 0.8:
@@ -91,12 +94,14 @@ else:
 ```
 
 **Example (Lockhart/Leighton set):**
+
 - FMV range: £900-£1,200
 - Score: 85 → score_factor = 0.50
 - Target offer: £900 + (£300 × 0.50) = **£1,050**
 - Asking: £950 → Already below target, upgrade to **BUY**
 
 **Safeguards:**
+
 - Never suggest offer below `fmv_low`
 - Never suggest offer above asking price
 - If `fmv_confidence` is "low" or FMV data missing, skip offer and note "Insufficient market data for offer recommendation"
@@ -108,6 +113,7 @@ else:
 **Generate a 1-2 sentence reasoning statement explaining the recommendation.**
 
 Template structure:
+
 ```
 [Price position statement]. [Key value factors]. [Action guidance if CONDITIONAL].
 ```
@@ -144,6 +150,7 @@ class EvalRunbookResponse(BaseModel):
 ```
 
 **Backward compatibility:**
+
 - Keep existing `recommendation` field (map STRONG_BUY/BUY → "ACQUIRE", CONDITIONAL/PASS → "PASS")
 - New fields are additive, no breaking changes
 - Frontend can adopt new fields incrementally
@@ -155,6 +162,7 @@ class EvalRunbookResponse(BaseModel):
 **Prerequisite #384 (FMV Accuracy Design) is now implemented:**
 
 The `fmv_lookup.py` service now provides:
+
 - `_build_context_aware_query()` - context-aware search queries
 - `_filter_listings_with_claude()` - relevance filtering (high/medium/low)
 - `_calculate_weighted_fmv()` - weighted FMV with confidence levels

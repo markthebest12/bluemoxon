@@ -15,6 +15,7 @@
 ## Prerequisites Check
 
 Before starting:
+
 - [ ] redis-cli installed (`brew install redis`)
 - [ ] AWS profiles configured (`bmx-staging`)
 - [ ] VPC access to staging ElastiCache (same as DB access)
@@ -24,6 +25,7 @@ Before starting:
 ## Task 1: Add Redis Configuration to Script
 
 **Files:**
+
 - Modify: `scripts/sync-prod-to-staging.sh:43-69` (Configuration section)
 
 **Step 1: Add Redis configuration variables**
@@ -68,6 +70,7 @@ git commit -m "feat(sync): Add Redis cache configuration and --skip-cache flag (
 ## Task 2: Add Redis Endpoint Fetch Function
 
 **Files:**
+
 - Modify: `scripts/sync-prod-to-staging.sh` (Helper Functions section)
 
 **Step 1: Add function to fetch Redis endpoint from Terraform**
@@ -107,6 +110,7 @@ git commit -m "feat(sync): Add Redis endpoint fetch from Terraform (#1053)"
 ## Task 3: Add Cache Flush Function
 
 **Files:**
+
 - Modify: `scripts/sync-prod-to-staging.sh` (Helper Functions section)
 
 **Step 1: Add function to flush Redis cache**
@@ -165,6 +169,7 @@ git commit -m "feat(sync): Add Redis cache flush function (#1053)"
 ## Task 4: Integrate Cache Flush into Sync Flow
 
 **Files:**
+
 - Modify: `scripts/sync-prod-to-staging.sh` (Main Script section)
 
 **Step 1: Call fetch_redis_endpoint in pre-flight**
@@ -209,6 +214,7 @@ git commit -m "feat(sync): Integrate Redis cache flush into sync flow (#1053)"
 ## Task 5: Update Prerequisites Documentation
 
 **Files:**
+
 - Modify: `scripts/sync-prod-to-staging.sh` (Header comments)
 
 **Step 1: Add redis-cli to prerequisites**
@@ -249,6 +255,7 @@ brew install redis
 ```
 
 **Expected output includes:**
+
 - "Fetching staging Redis endpoint..."
 - "Endpoint: rediss://..."
 - "[DRY RUN] Would flush Redis cache at ..."
@@ -260,6 +267,7 @@ brew install redis
 ```
 
 **Expected output includes:**
+
 - "Skipping cache flush (--skip-cache)"
 
 ---

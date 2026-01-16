@@ -14,6 +14,7 @@
 ## Task 1: Add Reassignment Schemas
 
 **Files:**
+
 - Modify: `backend/app/schemas/reference.py`
 
 **Step 1: Add schemas to reference.py**
@@ -54,6 +55,7 @@ git commit -m "feat(schemas): add ReassignRequest and ReassignResponse for entit
 ## Task 2: Author Reassignment - Failing Test
 
 **Files:**
+
 - Test: `backend/tests/api/v1/test_authors.py`
 
 **Step 1: Write the failing tests**
@@ -162,11 +164,13 @@ git commit -m "test(authors): add failing tests for author reassignment endpoint
 ## Task 3: Author Reassignment - Implementation
 
 **Files:**
+
 - Modify: `backend/app/api/v1/authors.py`
 
 **Step 1: Update imports**
 
 Change import line to:
+
 ```python
 from app.models import Author, Book
 from app.schemas.reference import AuthorCreate, AuthorResponse, AuthorUpdate, ReassignRequest, ReassignResponse
@@ -227,6 +231,7 @@ git commit -m "feat(api): add author reassignment endpoint"
 ## Task 4: Publisher Reassignment - Failing Test
 
 **Files:**
+
 - Test: `backend/tests/api/v1/test_publishers.py`
 
 **Step 1: Write the failing tests**
@@ -334,6 +339,7 @@ git commit -m "test(publishers): add failing tests for publisher reassignment en
 ## Task 5: Publisher Reassignment - Implementation
 
 **Files:**
+
 - Modify: `backend/app/api/v1/publishers.py`
 
 **Step 1: Update imports**
@@ -398,6 +404,7 @@ git commit -m "feat(api): add publisher reassignment endpoint"
 ## Task 6: Binder Reassignment - Failing Test
 
 **Files:**
+
 - Test: `backend/tests/api/v1/test_binders.py`
 
 **Step 1: Write the failing tests**
@@ -505,6 +512,7 @@ git commit -m "test(binders): add failing tests for binder reassignment endpoint
 ## Task 7: Binder Reassignment - Implementation
 
 **Files:**
+
 - Modify: `backend/app/api/v1/binders.py`
 
 **Step 1: Update imports**
@@ -600,6 +608,7 @@ Run: `gh pr create --base staging --title "feat: Add entity reassignment endpoin
 ## Summary
 
 3 reassignment endpoints with full TDD:
+
 - `POST /api/v1/authors/{id}/reassign`
 - `POST /api/v1/publishers/{id}/reassign`
 - `POST /api/v1/binders/{id}/reassign`

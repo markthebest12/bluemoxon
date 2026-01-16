@@ -13,6 +13,7 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 **Root cause:** All authors have `priority_score: 0` - no author priorities configured.
 
 **Reference docs:**
+
 - `~/projects/book-collection/documentation/Victorian_Book_Acquisition_Guide.md`
 - `~/projects/book-collection/documentation/January_2026_Acquisition_Targets.md`
 
@@ -68,7 +69,9 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## Issues Encountered
 
 ### 1. Duplicate Score Calculation Functions
+
 **Problem:** Two separate functions calculating book scores:
+
 - `_calculate_and_persist_scores()` in `books.py` - used everywhere (8 call sites)
 - `calculate_and_persist_book_scores()` in `scoring.py` - updated but not called
 
@@ -77,21 +80,25 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 **Resolution:** Fixed `books.py` line 60 to use `author_tier_to_score(book.author.tier)`.
 
 ### 2. Git Branch Sync Issues
+
 **Problem:** Main branch diverged from origin/main during implementation.
 
 **Resolution:** Used `git stash`, `git reset --hard origin/main`, reapplied changes.
 
 ### 3. Staging Branch Worktree Conflict
+
 **Problem:** `staging` branch locked by worktree at `.worktrees/author-tier-scoring`.
 
 **Resolution:** Created temporary branch `staging-merge-fix` from `origin/staging`, merged main, pushed.
 
 ### 4. Branch Protection Policies
+
 **Problem:** PR merge blocked by "base branch policy prohibits merge".
 
 **Resolution:** Used `gh pr merge --admin` flag for staging PR.
 
 ### 5. Merge Conflicts (staging to main)
+
 **Problem:** Conflict in `docs/session-2025-12-21-author-tier-scoring/README.md`.
 
 **Resolution:** Manually resolved, keeping staging version with complete implementation details.
@@ -113,16 +120,19 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## Design Decisions (via brainstorming skill)
 
 ### Author Tier System (NEW)
+
 - 3-tier system matching publisher/binder pattern
 - TIER_1: +15 points (Darwin, Lyell)
 - TIER_2: +10 points (Dickens, Collins)
 - TIER_3: +5 points (Ruskin)
 
 ### Publisher Updates
+
 - Chatto and Windus to TIER_2 (Collins secondary)
 - George Allen to TIER_2 (Ruskin secondary)
 
 ### Binder Updates
+
 - Bayntun to TIER_1 (upgrade from TIER_2)
 - Leighton, Son and Hodge to TIER_1 (from null)
 - Hayday to TIER_1 (create new)
@@ -132,6 +142,7 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## All Changes Summary
 
 **Authors to update (5):**
+
 | Author | ID | Tier |
 |--------|-----|------|
 | Charles Darwin | 34 | TIER_1 |
@@ -141,12 +152,14 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 | John Ruskin | 260 | TIER_3 |
 
 **Publishers to update (2):**
+
 | Publisher | ID | Tier |
 |-----------|-----|------|
 | Chatto and Windus | 193 | TIER_2 |
 | George Allen | 197 | TIER_2 |
 
 **Binders to update (3):**
+
 | Binder | ID | Tier |
 |--------|-----|------|
 | Bayntun | 4 | TIER_1 |
@@ -158,28 +171,34 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## Next Steps (for resuming session)
 
 1. Merge PR #536 to deploy to production
+
    ```
    gh pr merge 536 --squash --delete-branch --admin
    ```
 
 2. Watch production deploy
+
    ```
    gh run list --workflow Deploy --limit 1
    gh run watch <run-id> --exit-status
    ```
 
 3. Trigger score recalculation for book 521
+
    ```
    bmx-api --prod PATCH /books/521 '{"notes": "Trigger rescore"}'
    ```
 
 4. Verify book 521 shows Darwin as Tier 1
+
    ```
    bmx-api --prod GET /books/521
    ```
+
    Expected: `strategic_fit: 65` (was 50)
 
 5. Clean up worktree (superpowers:finishing-a-development-branch)
+
    ```
    git worktree remove .worktrees/author-tier-scoring
    ```
@@ -189,11 +208,13 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## CRITICAL: Superpowers Skills (MANDATORY)
 
 **Always use skills before any task:**
+
 - Check if a skill applies
 - Use the Skill tool to invoke it
 - Follow the skill exactly
 
 **Workflow chains:**
+
 - New feature: brainstorming, using-git-worktrees, writing-plans, subagent-driven-development
 - Completing work: verification-before-completion, finishing-a-development-branch
 
@@ -202,6 +223,7 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 ## CRITICAL: Bash Command Rules
 
 **NEVER use these - they trigger permission prompts:**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -209,6 +231,7 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 - `!` in quoted strings (history expansion)
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls

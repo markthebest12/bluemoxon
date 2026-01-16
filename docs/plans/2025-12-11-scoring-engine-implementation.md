@@ -13,6 +13,7 @@
 ## Task 1: Add priority_score Field to Authors Model
 
 **Files:**
+
 - Modify: `backend/app/models/author.py`
 - Test: `backend/tests/test_scoring.py` (new)
 
@@ -87,6 +88,7 @@ git commit -m "feat: add priority_score field to Author model"
 ## Task 2: Add Score Fields to Book Model
 
 **Files:**
+
 - Modify: `backend/app/models/book.py`
 - Modify: `backend/tests/test_scoring.py`
 
@@ -182,6 +184,7 @@ git commit -m "feat: add score fields to Book model"
 ## Task 3: Create Scoring Service with Investment Grade Calculator
 
 **Files:**
+
 - Create: `backend/app/services/scoring.py`
 - Modify: `backend/tests/test_scoring.py`
 
@@ -347,6 +350,7 @@ git commit -m "feat: add investment grade calculator to scoring service"
 ## Task 4: Add Strategic Fit Calculator
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py`
 - Modify: `backend/tests/test_scoring.py`
 
@@ -531,6 +535,7 @@ git commit -m "feat: add strategic fit calculator to scoring service"
 ## Task 5: Add Collection Impact Calculator with Duplicate Detection
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py`
 - Modify: `backend/tests/test_scoring.py`
 
@@ -756,6 +761,7 @@ git commit -m "feat: add collection impact calculator with duplicate detection"
 ## Task 6: Add Full Score Calculation Function
 
 **Files:**
+
 - Modify: `backend/app/services/scoring.py`
 - Modify: `backend/tests/test_scoring.py`
 
@@ -886,6 +892,7 @@ git commit -m "feat: add calculate_all_scores function"
 ## Task 7: Add Score Calculation API Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 - Create: `backend/tests/test_scores_api.py`
 
@@ -1073,6 +1080,7 @@ git commit -m "feat: add POST /books/{id}/scores/calculate endpoint"
 ## Task 8: Auto-Calculate Scores on Book Creation
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 - Modify: `backend/tests/test_scores_api.py`
 
@@ -1207,6 +1215,7 @@ git commit -m "feat: auto-calculate scores on book creation"
 ## Task 9: Add Scores to Book Response Schema
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py` (or schemas file if separate)
 - Verify existing tests pass
 
@@ -1244,6 +1253,7 @@ git commit -m "feat: include scores in book response schema"
 ## Task 10: Add Frontend Score Display Types
 
 **Files:**
+
 - Modify: `frontend/src/stores/acquisitions.ts`
 - Modify: `frontend/src/stores/books.ts`
 
@@ -1295,6 +1305,7 @@ git commit -m "feat: add score types and calculateScores action to frontend"
 ## Task 11: Add Score Display Component
 
 **Files:**
+
 - Create: `frontend/src/components/ScoreCard.vue`
 
 ### Step 1: Create ScoreCard component
@@ -1424,6 +1435,7 @@ git commit -m "feat: add ScoreCard component for score display"
 ## Task 12: Integrate ScoreCard into AcquisitionsView
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 
 ### Step 1: Import and use ScoreCard
@@ -1503,6 +1515,7 @@ git commit -m "feat: integrate ScoreCard into AcquisitionsView"
 ## Task 13: Add Batch Calculate Scores Endpoint
 
 **Files:**
+
 - Modify: `backend/app/api/v1/books.py`
 - Modify: `backend/tests/test_scores_api.py`
 
@@ -1635,6 +1648,7 @@ git commit -m "migration: add scoring fields to books and authors"
 ## Task 15: Set Initial Author Priority Scores
 
 **Files:**
+
 - Create: `backend/scripts/seed_author_priorities.py`
 
 ### Step 1: Create seed script
@@ -1738,6 +1752,7 @@ git push origin staging
 ## Summary
 
 16 tasks implementing:
+
 1. Author `priority_score` field
 2. Book score fields (4 new columns)
 3. Investment grade calculator

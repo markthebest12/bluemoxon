@@ -21,6 +21,7 @@ Expand the existing `/admin/config` page from a simple currency rates editor int
 ## Navigation
 
 **Profile dropdown menu update:**
+
 ```
 Profile
 Config          <- NEW (editors + admins)
@@ -41,6 +42,7 @@ Sign Out
 ### Settings Tab (Existing)
 
 Keep current currency rates editor unchanged:
+
 - GBP to USD rate
 - EUR to USD rate
 - Save button
@@ -73,6 +75,7 @@ Bedrock Models
 ```
 
 **Error handling:**
+
 - Alert banner at top if any component unhealthy
 - Inline status badges (green checkmark / red X) with error on hover
 - Cold start indicator when detected
@@ -278,10 +281,12 @@ Unchanged - continues to handle currency rates for Settings tab.
 ## Files to Modify
 
 **Backend:**
+
 - `backend/app/api/v1/admin.py` - Add `/system-info` endpoint
 - `backend/app/services/tiered_scoring.py` - Export constants dict (or read directly)
 
 **Frontend:**
+
 - `frontend/src/views/AdminConfigView.vue` - Expand to tabbed interface
 - `frontend/src/components/layout/NavBar.vue` - Add Config menu item
 - `frontend/src/router/index.ts` - Add `requiresEditor` guard logic

@@ -14,11 +14,13 @@ Implemented real-time exchange rate fetching from frankfurter.app for GBP/EUR cu
 ## What Was Built
 
 ### Core Feature
+
 - Fetch live exchange rates from `https://api.frankfurter.app/latest?from={currency}&to=USD`
 - Auto-trigger on currency selection change (GBP/EUR)
 - 15-minute cache TTL to avoid excessive API calls
 
 ### Resilience Features (Code Review Fixes Applied)
+
 1. **Race condition protection** - Request ID tracking + AbortController aborts stale requests
 2. **Single global watcher** - Setup guard prevents N components = N fetches
 3. **Lifecycle cleanup** - Abort on component unmount (with `getCurrentInstance()` guard)
@@ -28,11 +30,13 @@ Implemented real-time exchange rate fetching from frankfurter.app for GBP/EUR cu
 7. **Circuit breaker** - Skip live fetch for 1 min after 3 consecutive failures
 
 ### Fallback Chain
+
 1. Live API (frankfurter.app)
 2. DB-cached rates (from `/admin/config`)
 3. Hardcoded defaults (GBP: 1.35, EUR: 1.17)
 
 ### User Feedback
+
 - Warning toast: "Using cached exchange rate" (DB fallback)
 - Warning toast: "Using estimated exchange rate" (hardcoded fallback)
 
@@ -50,14 +54,14 @@ Implemented real-time exchange rate fetching from frankfurter.app for GBP/EUR cu
 
 ## PR
 
-- PR #953: https://github.com/markthebest12/bluemoxon/pull/953
+- PR #953: <https://github.com/markthebest12/bluemoxon/pull/953>
 - Merged to `staging` on 2026-01-08
 
 ---
 
 ## Next Steps
 
-1. **Test on staging** - https://staging.app.bluemoxon.com
+1. **Test on staging** - <https://staging.app.bluemoxon.com>
    - Select GBP, verify rate updates
    - Disable network, verify fallback toast appears
    - Verify cache prevents refetch within 15 minutes
@@ -77,6 +81,7 @@ Implemented real-time exchange rate fetching from frankfurter.app for GBP/EUR cu
 ### 1. ALWAYS Use Superpowers Skills
 
 **MANDATORY at all stages:**
+
 - `superpowers:brainstorming` - Before ANY creative/implementation work
 - `superpowers:writing-plans` - Before multi-step tasks
 - `superpowers:executing-plans` - When implementing plans

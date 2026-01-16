@@ -1,7 +1,7 @@
 # Session: Container Queries for Responsive Components (#623)
 
 **Date:** 2025-12-28
-**Issue:** https://github.com/bluemoxon/bluemoxon/issues/623
+**Issue:** <https://github.com/bluemoxon/bluemoxon/issues/623>
 **Branch:** `feat/623-container-queries`
 **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/feat-623-container-queries`
 **PR:** #632
@@ -11,7 +11,9 @@
 ## CRITICAL SESSION RULES
 
 ### Superpowers Skills - MANDATORY
+
 **Use superpowers skills at ALL stages.** Check for relevant skills before ANY task:
+
 - `superpowers:brainstorming` - before design/coding
 - `superpowers:using-git-worktrees` - for isolated workspaces
 - `superpowers:writing-plans` - for implementation plans
@@ -21,7 +23,9 @@
 - `superpowers:requesting-code-review` - after significant code
 
 ### Bash Command Rules - CRITICAL
+
 **NEVER use (trigger permission prompts):**
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` command substitution
@@ -29,6 +33,7 @@
 - `!` in quoted strings
 
 **ALWAYS use:**
+
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls
@@ -40,17 +45,21 @@
 Issue #623 proposed adding Tailwind v4 container queries to make components responsive to container width rather than viewport width.
 
 ### Original Plan
+
 - Add `@container` wrapper with container query breakpoints
 - Components adapt layout based on parent container size
 - Target components: BookThumbnail, AnalysisViewer, StatisticsDashboard
 
 ### What Was Discovered
+
 After implementation and code review of PR #632:
+
 1. **Container queries were overkill** - BookThumbnail just needs to fill its container with proper aspect ratio
 2. **Dead code** - `@container` and `@sm:max-w-24` classes never triggered (containers were < 320px)
 3. **Simpler solution exists** - Parent controls width, `aspect-[4/5]` maintains ratio
 
 ### Decision
+
 **Scrap container queries approach.** The simpler aspect-ratio solution achieves the goal without unnecessary complexity.
 
 ---
@@ -58,6 +67,7 @@ After implementation and code review of PR #632:
 ## Current State (as of compaction)
 
 ### Completed
+
 - [x] Brainstorming session - identified BookThumbnail as target
 - [x] Created design doc: `docs/plans/2025-12-28-container-queries-bookthumbnail-design.md`
 - [x] Created implementation plan: `.worktrees/feat-623-container-queries/docs/plans/2025-12-28-container-queries-bookthumbnail.md`
@@ -68,6 +78,7 @@ After implementation and code review of PR #632:
 - [x] Created issues #630, #631 for deferred work (now to be closed)
 
 ### Completed (Cleanup Phase)
+
 - [x] **Fixed BookThumbnail** - removed dead `@container` and `@sm:max-w-24` classes
 - [x] Updated tests - removed container query assertions
 - [x] All 95 tests pass
@@ -78,6 +89,7 @@ After implementation and code review of PR #632:
 - [x] Closed #623 - simpler aspect-ratio approach is better
 
 ### Next Steps
+
 1. Review PR #632 (ready for staging)
 2. Merge to staging after approval
 3. Validate in staging environment
@@ -88,6 +100,7 @@ After implementation and code review of PR #632:
 ## Files Modified
 
 ### In Worktree (`feat-623-container-queries`)
+
 - `frontend/src/components/books/BookThumbnail.vue` - Simplified (removed container query classes)
 - `frontend/src/components/books/__tests__/BookThumbnail.spec.ts` - Tests for new structure
 - `frontend/src/views/BooksView.vue` - Wraps thumbnail in `w-24` container
@@ -96,6 +109,7 @@ After implementation and code review of PR #632:
 ---
 
 ## Related Issues
+
 - #623 - Parent issue (to be closed as "simpler approach")
 - #630 - AnalysisViewer container queries (to be closed - not needed)
 - #631 - StatisticsDashboard container queries (to be closed - not needed)

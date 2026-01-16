@@ -15,6 +15,7 @@
 ## Task 1: Add Pillow Dependency
 
 **Files:**
+
 - Modify: `scraper/requirements.txt`
 
 **Step 1: Add Pillow to requirements**
@@ -41,11 +42,13 @@ git commit -m "chore: add Pillow dependency for banner detection"
 ## Task 2: Add Banner Detection Constants
 
 **Files:**
+
 - Modify: `scraper/handler.py:20-27`
 
 **Step 1: Add imports and constants after existing constants**
 
 Find this section (lines 20-27):
+
 ```python
 # Max images per listing (eBay's limit is 24)
 MAX_IMAGES = 24
@@ -58,6 +61,7 @@ MAX_LISTINGS = 20
 ```
 
 Add after it:
+
 ```python
 # Banner detection thresholds
 # Images in the last N positions with wide aspect ratio are likely seller banners
@@ -68,6 +72,7 @@ BANNER_POSITION_WINDOW = 3  # Check last N images in carousel
 **Step 2: Add PIL imports at top of file**
 
 Find (lines 3-11):
+
 ```python
 import json
 import logging
@@ -81,6 +86,7 @@ from playwright.sync_api import sync_playwright
 ```
 
 Add after stdlib imports, before boto3:
+
 ```python
 import io
 
@@ -99,6 +105,7 @@ git commit -m "feat: add banner detection constants and PIL import"
 ## Task 3: Implement Banner Detection Function
 
 **Files:**
+
 - Modify: `scraper/handler.py` (add function after `extract_item_id`)
 
 **Step 1: Add the detection function after `extract_item_id` function (after line 38)**
@@ -153,11 +160,13 @@ git commit -m "feat: add is_likely_banner detection function"
 ## Task 4: Integrate Banner Detection into Image Loop
 
 **Files:**
+
 - Modify: `scraper/handler.py:322-347` (image processing loop)
 
 **Step 1: Find the image processing loop**
 
 Current code (lines 329-332):
+
 ```python
                             # Skip small images (likely icons/thumbnails)
                             if len(body) < MIN_IMAGE_SIZE:
@@ -168,6 +177,7 @@ Current code (lines 329-332):
 **Step 2: Add banner detection after the size check**
 
 Replace lines 329-332 with:
+
 ```python
                             # Skip small images (likely icons/thumbnails)
                             if len(body) < MIN_IMAGE_SIZE:
@@ -192,6 +202,7 @@ git commit -m "feat: integrate banner detection into image upload loop"
 ## Task 5: Add Unit Tests
 
 **Files:**
+
 - Create: `scraper/test_handler.py`
 
 **Step 1: Create test file with banner detection tests**
@@ -304,6 +315,7 @@ docker build -t bluemoxon-scraper-test .
 After merging to staging, the scraper Lambda will be rebuilt.
 
 Test with a known problematic listing:
+
 ```bash
 # Invoke scraper for book 515's source URL
 bmx-api GET /books/515  # Get source_url
@@ -347,6 +359,7 @@ gh run watch <RUN_ID> --exit-status
 **Step 4: Test on staging, then promote to production**
 
 After validating on staging:
+
 ```bash
 gh pr create --base main --head staging --title "fix: filter seller banners from eBay image imports (#487)"
 # Wait for CI, merge, watch production deploy

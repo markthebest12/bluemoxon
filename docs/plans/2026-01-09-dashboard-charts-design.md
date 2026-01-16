@@ -53,6 +53,7 @@ def get_by_condition(db: Session = Depends(get_db)):
 ### Update `/stats/dashboard`
 
 Add to batch response:
+
 - `by_condition`: from `get_by_condition(db)`
 - `by_category`: from `get_by_category(db)` (already exists)
 
@@ -133,6 +134,7 @@ const categoryChartData = computed(() => ({
 ### Grid Placement
 
 Insert after "Top Tier 1 Publishers", before "Est. Value Growth":
+
 - Books by Condition Grade (left column)
 - Books by Category (right column)
 
@@ -173,6 +175,7 @@ def test_dashboard_includes_condition_and_category(client, db_session):
 ## Out of Scope
 
 Per issue #965, these are lower priority and not included:
+
 - First Editions Count
 - Provenance Breakdown
 - Acquisition Spend

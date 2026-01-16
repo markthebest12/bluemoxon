@@ -13,6 +13,7 @@
 ## Task 1: Create Composable File Structure
 
 **Files:**
+
 - Create: `frontend/src/composables/useJobPolling.ts`
 - Create: `frontend/src/composables/__tests__/useJobPolling.test.ts`
 
@@ -43,6 +44,7 @@ git commit -m "chore: add composables directory structure (#554)"
 ## Task 2: Write Failing Tests for Basic Polling State
 
 **Files:**
+
 - Test: `frontend/src/composables/__tests__/useJobPolling.test.ts`
 
 **Step 1: Write the failing test for initial state**
@@ -137,6 +139,7 @@ git commit -m "feat: add useJobPolling composable with initial state (#554)"
 ## Task 3: Write Failing Tests for start() and stop()
 
 **Files:**
+
 - Modify: `frontend/src/composables/__tests__/useJobPolling.test.ts`
 - Modify: `frontend/src/composables/useJobPolling.ts`
 
@@ -344,6 +347,7 @@ git commit -m "feat: add start/stop methods to useJobPolling (#554)"
 ## Task 4: Write Failing Tests for Completion Detection
 
 **Files:**
+
 - Modify: `frontend/src/composables/__tests__/useJobPolling.test.ts`
 - Modify: `frontend/src/composables/useJobPolling.ts`
 
@@ -569,6 +573,7 @@ git commit -m "feat: add completion detection to useJobPolling (#554)"
 ## Task 5: Integrate into AcquisitionsView
 
 **Files:**
+
 - Modify: `frontend/src/views/AcquisitionsView.vue`
 
 **Step 1: Import and set up composable instances**
@@ -606,6 +611,7 @@ function getOrCreateEvalRunbookPoller(bookId: number) {
 **Step 2: Replace isAnalysisRunning function**
 
 Replace:
+
 ```typescript
 function isAnalysisRunning(bookId: number) {
   const job = activeAnalysisJobs.value.get(bookId);
@@ -614,6 +620,7 @@ function isAnalysisRunning(bookId: number) {
 ```
 
 With:
+
 ```typescript
 function isAnalysisRunning(bookId: number) {
   const poller = analysisPollers.value.get(bookId)
@@ -624,6 +631,7 @@ function isAnalysisRunning(bookId: number) {
 **Step 3: Replace isEvalRunbookRunning function**
 
 Replace:
+
 ```typescript
 function isEvalRunbookRunning(bookId: number) {
   const job = activeEvalRunbookJobs.value.get(bookId);
@@ -632,6 +640,7 @@ function isEvalRunbookRunning(bookId: number) {
 ```
 
 With:
+
 ```typescript
 function isEvalRunbookRunning(bookId: number) {
   const poller = evalRunbookPollers.value.get(bookId)
@@ -642,6 +651,7 @@ function isEvalRunbookRunning(bookId: number) {
 **Step 4: Update getJobStatus and getEvalRunbookJobStatus**
 
 Replace:
+
 ```typescript
 function getJobStatus(bookId: number) {
   return activeAnalysisJobs.value.get(bookId);
@@ -653,6 +663,7 @@ function getEvalRunbookJobStatus(bookId: number) {
 ```
 
 With:
+
 ```typescript
 function getJobStatus(bookId: number) {
   const poller = analysisPollers.value.get(bookId)
@@ -668,6 +679,7 @@ function getEvalRunbookJobStatus(bookId: number) {
 **Step 5: Update handleGenerateAnalysis**
 
 Replace:
+
 ```typescript
 async function handleGenerateAnalysis(bookId: number) {
   if (isAnalysisRunning(bookId) || startingAnalysis.value === bookId) return;
@@ -684,6 +696,7 @@ async function handleGenerateAnalysis(bookId: number) {
 ```
 
 With:
+
 ```typescript
 async function handleGenerateAnalysis(bookId: number) {
   if (isAnalysisRunning(bookId) || startingAnalysis.value === bookId) return;
@@ -706,6 +719,7 @@ async function handleGenerateAnalysis(bookId: number) {
 **Step 6: Update handleGenerateEvalRunbook**
 
 Replace:
+
 ```typescript
 async function handleGenerateEvalRunbook(bookId: number) {
   if (isEvalRunbookRunning(bookId) || startingEvalRunbook.value === bookId) return;
@@ -722,6 +736,7 @@ async function handleGenerateEvalRunbook(bookId: number) {
 ```
 
 With:
+
 ```typescript
 async function handleGenerateEvalRunbook(bookId: number) {
   if (isEvalRunbookRunning(bookId) || startingEvalRunbook.value === bookId) return;
@@ -742,6 +757,7 @@ async function handleGenerateEvalRunbook(bookId: number) {
 **Step 7: Update syncBackendJobPolling**
 
 Replace:
+
 ```typescript
 function syncBackendJobPolling() {
   for (const book of evaluating.value) {
@@ -763,6 +779,7 @@ function syncBackendJobPolling() {
 ```
 
 With:
+
 ```typescript
 function syncBackendJobPolling() {
   for (const book of evaluating.value) {
@@ -790,6 +807,7 @@ function syncBackendJobPolling() {
 **Step 8: Remove old polling code**
 
 Remove:
+
 ```typescript
 const { activeAnalysisJobs, activeEvalRunbookJobs } = storeToRefs(booksStore);
 
@@ -818,6 +836,7 @@ git commit -m "refactor: use useJobPolling composable in AcquisitionsView (#554)
 ## Task 6: Integrate into BookDetailView
 
 **Files:**
+
 - Modify: `frontend/src/views/BookDetailView.vue`
 
 **Step 1: Import composable and replace local polling**
@@ -833,6 +852,7 @@ const analysisPoller = useJobPolling('analysis')
 **Step 2: Remove old polling state and functions**
 
 Remove:
+
 ```typescript
 let analysisPollingInterval: ReturnType<typeof setInterval> | null = null;
 const ANALYSIS_POLL_INTERVAL = 5000;
@@ -847,6 +867,7 @@ function stopAnalysisPolling() { ... }
 **Step 3: Replace isAnalysisRunning function**
 
 Replace:
+
 ```typescript
 function isAnalysisRunning(): boolean {
   if (!booksStore.currentBook) return false;
@@ -855,6 +876,7 @@ function isAnalysisRunning(): boolean {
 ```
 
 With:
+
 ```typescript
 function isAnalysisRunning(): boolean {
   return analysisPoller.isActive.value
@@ -864,6 +886,7 @@ function isAnalysisRunning(): boolean {
 **Step 4: Replace getJobStatus function**
 
 Replace:
+
 ```typescript
 function getJobStatus() {
   if (!booksStore.currentBook) return null;
@@ -872,6 +895,7 @@ function getJobStatus() {
 ```
 
 With:
+
 ```typescript
 function getJobStatus() {
   return analysisPoller.status.value ? { status: analysisPoller.status.value } : null
@@ -881,6 +905,7 @@ function getJobStatus() {
 **Step 5: Update handleGenerateAnalysis**
 
 Replace:
+
 ```typescript
 async function handleGenerateAnalysis() {
   const book = booksStore.currentBook;
@@ -898,6 +923,7 @@ async function handleGenerateAnalysis() {
 ```
 
 With:
+
 ```typescript
 async function handleGenerateAnalysis() {
   const book = booksStore.currentBook;
@@ -921,6 +947,7 @@ async function handleGenerateAnalysis() {
 **Step 6: Add watch for backend job status on mount**
 
 Add after onMounted:
+
 ```typescript
 // Start polling if book already has a running job
 watch(
@@ -955,11 +982,13 @@ git commit -m "refactor: use useJobPolling composable in BookDetailView (#554)"
 ## Task 7: Clean Up books.ts Store
 
 **Files:**
+
 - Modify: `frontend/src/stores/books.ts`
 
 **Step 1: Remove polling-related state**
 
 Remove these declarations (lines 106-112):
+
 ```typescript
 // Analysis job tracking (book_id -> job)
 const activeAnalysisJobs = ref<Map<number, AnalysisJob>>(new Map());
@@ -973,6 +1002,7 @@ const evalRunbookJobPollers = ref<Map<number, ReturnType<typeof setInterval>>>(n
 **Step 2: Remove analysis job polling functions**
 
 Remove these functions (lines 260-363):
+
 - `generateAnalysisAsync`
 - `fetchAnalysisJobStatus`
 - `startJobPoller`
@@ -984,6 +1014,7 @@ Remove these functions (lines 260-363):
 **Step 3: Remove eval runbook job polling functions**
 
 Remove these functions (lines 365-467):
+
 - `generateEvalRunbookAsync`
 - `fetchEvalRunbookJobStatus`
 - `startEvalRunbookJobPoller`
@@ -995,6 +1026,7 @@ Remove these functions (lines 365-467):
 **Step 4: Update return statement**
 
 Remove from return object:
+
 ```typescript
 activeAnalysisJobs,
 activeEvalRunbookJobs,

@@ -204,10 +204,12 @@ Phase 4: Cleanup (optional)
 ## Rollback Plan
 
 If deploy fails after Terraform changes but before workflow changes:
+
 - The `--exclude lambda/*` bandaid is still in place
 - Safe to iterate on workflow changes
 
 If deploy fails after workflow changes:
+
 - Revert workflow to use `s3_frontend_bucket`
 - Add `--exclude lambda/*` back temporarily
 - Investigate and fix
@@ -228,16 +230,19 @@ If deploy fails after workflow changes:
 For maximum speed, tasks can be parallelized:
 
 **Agent 1: Terraform**
+
 - Tasks 1-4
 - Apply to staging
 - Verify bucket created
 
 **Agent 2: Workflow (after Agent 1 completes staging)**
+
 - Tasks 5-8
 - Push to staging
 - Monitor deploy
 
 **Agent 3: Production (after staging verified)**
+
 - Apply Terraform to prod
 - Create staging→main PR
 

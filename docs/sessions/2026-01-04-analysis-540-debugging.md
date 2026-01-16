@@ -11,6 +11,7 @@
 ### 1. ALWAYS Use Superpowers Skills
 
 Before ANY task, check if a skill applies:
+
 - `superpowers:brainstorming` - Before creative/feature work
 - `superpowers:systematic-debugging` - Before fixing bugs
 - `superpowers:verification-before-completion` - Before claiming work done
@@ -22,6 +23,7 @@ Before ANY task, check if a skill applies:
 ### 2. Bash Command Rules - NEVER USE
 
 These trigger permission prompts and break auto-approve:
+
 - `#` comment lines before commands
 - `\` backslash line continuations
 - `$(...)` or `$((...))` command/arithmetic substitution
@@ -36,16 +38,20 @@ These trigger permission prompts and break auto-approve:
 - Use command description field instead of inline comments
 
 **Example - WRONG:**
+
 ```bash
 # Check status and update
 bmx-api GET /books/540 && bmx-api PUT /books/540 '{"volumes": 1}'
 ```
 
 **Example - CORRECT:**
+
 ```bash
 bmx-api GET /books/540
 ```
+
 Then separate call:
+
 ```bash
 bmx-api PUT /books/540 '{"volumes": 1}'
 ```
@@ -95,6 +101,7 @@ Two bugs were identified during investigation:
 ### #540 Specific Issue
 
 Unlike other books that eventually complete, #540 consistently fails. Possible causes:
+
 - Problematic image(s) causing Bedrock to choke
 - Content/title triggering edge case
 - Unknown issue specific to this book
@@ -106,9 +113,11 @@ Unlike other books that eventually complete, #540 consistently fails. Possible c
 ### Immediate: Manual Analysis Generation for #540
 
 1. **Fetch the current BMX analysis prompt template**
+
    ```bash
    bmx-api --prod GET /config/analysis-prompt
    ```
+
    Or read from: `~/projects/bluemoxon/backend/app/services/analysis_prompts.py`
 
 2. **Generate analysis manually using Claude**
@@ -117,11 +126,13 @@ Unlike other books that eventually complete, #540 consistently fails. Possible c
    - Ensure output matches expected markdown format
 
 3. **Upload analysis directly to BMX**
+
    ```bash
    bmx-api --prod --text-file analysis.md PUT /books/540/analysis
    ```
 
 4. **Verify valuation was parsed**
+
    ```bash
    bmx-api --prod GET /books/540/analysis
    ```
@@ -143,6 +154,7 @@ Unlike other books that eventually complete, #540 consistently fails. Possible c
 User received offer ($747.54) on Sotheran-bound 5v set while already owning prize binding 6v set (#590).
 
 **Conclusion:** User's purchased set (#590) is the better deal:
+
 - Full calf vs half calf
 - 6 volumes vs 5 volumes
 - $588 vs $748

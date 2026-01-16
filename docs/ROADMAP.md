@@ -141,6 +141,7 @@ CloudFront → API Gateway → Lambda → Aurora Serverless v2
 ### Recommended Rollback Strategy (Budget-Conscious)
 
 #### 1. Lambda Versioning (~$0 additional)
+
 ```bash
 # Enable in CDK or manually:
 aws lambda publish-version --function-name bluemoxon-api
@@ -159,11 +160,13 @@ aws lambda update-alias \
 ```
 
 **Implementation:**
+
 - Publish version after each deployment
 - Keep last 3 versions (auto-cleanup older)
 - Update alias instead of function directly
 
 #### 2. S3 Frontend Versioning (~$0.50-1/month)
+
 ```bash
 # Enable versioning on bucket
 aws s3api put-bucket-versioning \
@@ -175,11 +178,13 @@ aws s3api list-object-versions --bucket bluemoxon-frontend --prefix index.html
 ```
 
 **Implementation:**
+
 - Enable versioning on `bluemoxon-frontend` bucket
 - Set lifecycle rule to delete versions older than 30 days
 - Document rollback procedure
 
 #### 3. Database Rollback (Current - Free)
+
 - Aurora Serverless v2 includes automated backups (7-day retention)
 - Point-in-time recovery available
 - For major changes: manual snapshot before deployment
@@ -192,7 +197,9 @@ aws rds create-db-cluster-snapshot \
 ```
 
 #### 4. Infrastructure (Terraform) Rollback ($0)
+
 Terraform state enables rollback:
+
 - Git revert to previous Terraform code
 - Run `terraform apply` with previous version
 - State file tracks all resources for recovery
@@ -219,13 +226,14 @@ Terraform state enables rollback:
 | **RDS Aurora Pause** | Schedule staging pause during off-hours (#477) | Planned |
 | **Bedrock VPC Endpoint** | Eliminate NAT Gateway dependency (#476) | Planned |
 
-**Dashboard URL:** https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API
+**Dashboard URL:** <https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=BlueMoxon-API>
 
 ---
 
 ## Frontend Performance
 
 ### Current State
+
 - Vue 3 SPA served via CloudFront
 - Route-based code splitting configured
 - Thumbnail generation (300x300 JPEG) on upload
@@ -244,6 +252,7 @@ Terraform state enables rollback:
 | **Bundle Analysis** | Use `rollup-plugin-visualizer` to identify bloat | Low | $0 | DONE |
 
 #### 1. Route-based Code Splitting
+
 ```typescript
 // router/index.ts - change from:
 import BookDetailView from '@/views/BookDetailView.vue'
@@ -253,11 +262,13 @@ const BookDetailView = () => import('@/views/BookDetailView.vue')
 ```
 
 #### 2. Image Thumbnails at Upload
+
 - Generate 200x200 thumbnail when image uploaded
 - Store as separate S3 key: `books/{id}/thumb_{filename}`
 - Use thumbnail in list views, full image in detail
 
 #### 3. CloudFront Cache Headers
+
 ```bash
 # Set cache headers on S3 objects during deploy
 aws s3 sync dist/ s3://bluemoxon-frontend/ \
@@ -281,6 +292,7 @@ aws s3 cp dist/index.html s3://bluemoxon-frontend/ \
 ## CI/CD Improvements
 
 ### Current State
+
 - GitHub Actions CI with SAST, dependency scanning, secret detection
 - Deploy workflow pushes to Lambda + S3
 - ~4 minute total pipeline time
@@ -298,9 +310,11 @@ aws s3 cp dist/index.html s3://bluemoxon-frontend/ \
 | **Skip CI on Docs** | Runs on all commits | Skip for .md files | Low | DONE |
 
 #### 1. Parallel Job Optimization
+
 Already implemented - lint, test, typecheck run in parallel.
 
 #### 2. Aggressive Caching
+
 ```yaml
 # Already using Poetry cache, add npm cache optimization
 - name: Cache npm
@@ -312,6 +326,7 @@ Already implemented - lint, test, typecheck run in parallel.
 ```
 
 #### 3. Path-based Conditional Deploys
+
 ```yaml
 # Only deploy backend if backend files changed
 deploy-backend:
@@ -321,6 +336,7 @@ deploy-backend:
 ```
 
 #### 4. Skip CI for Documentation
+
 ```yaml
 # In ci.yml
 on:
@@ -343,6 +359,7 @@ on:
 | **Automated Dependency Updates** | Dependabot already configured | Done | $0 | DONE |
 
 #### Release Tagging
+
 ```yaml
 # Add to deploy.yml after successful deploy
 - name: Create Release Tag
@@ -428,6 +445,7 @@ on:
 ### Staying Under $50/month
 
 To stay within budget:
+
 - Keep Aurora Serverless v2 at minimum ACU (0.5)
 - Avoid provisioned concurrency
 - Use aggressive S3 lifecycle rules (delete old versions after 30 days)

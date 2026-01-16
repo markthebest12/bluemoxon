@@ -39,6 +39,7 @@ frontend/src/
 ## Component: ToastContainer
 
 **Visual design:**
+
 ```
 ┌─────────────────────────────────┐
 │ ✕  Failed to load images        │  ← Error toast (red)
@@ -49,10 +50,12 @@ frontend/src/
 ```
 
 **Styling:** Uses existing CSS variables:
+
 - Error: `--color-status-error-bg`, `--color-status-error-border`, `--color-status-error-accent`
 - Success: `--color-status-success-bg`, `--color-status-success-border`, `--color-status-success-accent`
 
 **Behavior:**
+
 - Max 3 toasts visible (oldest dismissed if exceeded)
 - 5 second auto-dismiss
 - Click dismiss button or toast to close early
@@ -61,6 +64,7 @@ frontend/src/
 - Stack from top, new toasts push down
 
 **Accessibility:**
+
 - `role="alert"` and `aria-live="polite"`
 - Dismiss button has `aria-label="Dismiss notification"`
 
@@ -91,6 +95,7 @@ function handleSuccess(message: string): void
 ```
 
 **Usage:**
+
 ```typescript
 try {
   await api.delete(`/books/${id}/images/${imageId}`)
@@ -113,12 +118,14 @@ try {
 | `components/books/ImageCarousel.vue` | 55 | Add `handleApiError(e, "Loading carousel")` |
 
 **Not changing (intentional):**
+
 - `stores/auth.ts:137` - Intentional during logout
 - `AdminView.vue` catches - Already delegate to store
 - Date parsing catches - Cosmetic fallbacks
 - URL validation catches - Boolean returns correct
 
 **Success toasts to add:**
+
 - `BookDetailView.vue` - after image delete
 - `BookDetailView.vue` - after image upload
 
@@ -131,6 +138,7 @@ try {
 | `utils/errorHandler.spec.ts` | Integration with toast |
 
 **Key test cases:**
+
 - `showError()` / `showSuccess()` add toast with correct type
 - Auto-dismiss after 5 seconds (fake timers)
 - Max 3 toasts enforced

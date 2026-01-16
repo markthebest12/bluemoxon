@@ -3,14 +3,17 @@
 ## CRITICAL RULES FOR CONTINUATION
 
 ### 1. ALWAYS Use Superpowers Skills
+
 **IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.**
 
 Key skills used this session:
+
 - `superpowers:test-driven-development` - For implementing discount recalculation
 - `superpowers:verification-before-completion` - Evidence before claims, always
 - `superpowers:systematic-debugging` - Root cause investigation before fixes
 
-### 2. Bash Command Formatting - NEVER USE:
+### 2. Bash Command Formatting - NEVER USE
+
 ```
 # comment lines before commands     <- TRIGGERS PERMISSION PROMPT
 \ backslash line continuations      <- TRIGGERS PERMISSION PROMPT
@@ -19,7 +22,8 @@ $(...) command substitution         <- TRIGGERS PERMISSION PROMPT
 ! in quoted strings                 <- CORRUPTS VALUES (bash history expansion)
 ```
 
-### 3. Bash Command Formatting - ALWAYS USE:
+### 3. Bash Command Formatting - ALWAYS USE
+
 ```bash
 # Simple single-line commands
 poetry run ruff check backend/
@@ -40,11 +44,13 @@ bmx-api --prod POST /health/recalculate-discounts
 ## Completed Work
 
 ### Issue #796: Discount Recalculation Fix
+
 **PR #797** - Merged to staging, then promoted to main via **PR #798**
 
 **Problem:** `discount_pct` calculated once at acquisition, never recalculated when FMV updated. Example: Book 533 showed 6.67% discount when it should show -68% (overpaid).
 
 **Solution Implemented:**
+
 1. **Helper function** `recalculate_discount_pct(book)` in `app/services/scoring.py`
    - Formula: `(value_mid - purchase_price) / value_mid * 100`
 
@@ -58,15 +64,18 @@ bmx-api --prod POST /health/recalculate-discounts
    - `app/eval_worker.py` (eval runbook Lambda)
 
 **Verification:**
+
 ```
 Before: Book 533 discount_pct = 6.67%
 After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 ```
 
 ### Binder Proliferation Fix
+
 **PR #799** - Created, CI pending
 
 **Problem:** AI returns slight variations of binder names causing duplicates:
+
 - "Francis Bedford" vs "Bedford"
 - "James Hayday" vs "Hayday"
 - "Birdsall of Northampton & London" vs "Birdsall"
@@ -89,13 +98,16 @@ After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 ## Pending Work
 
 ### PR #799 - Binder Proliferation Fix
+
 **Status:** CI running after test fix (Bayntun moved from TIER_2 to TIER_1)
 
 **Test fix made:** Updated `tests/test_reference_service.py`:
+
 - `test_tier_2_bayntun` → `test_tier_1_bayntun`
 - `test_creates_tier_2_binder` now uses Morrell instead of Bayntun
 
 **Next Steps:**
+
 1. Wait for CI to pass on PR #799
 2. Merge to staging: `gh pr merge 799 --squash --delete-branch`
 3. Deploy to staging (automatic)
@@ -106,6 +118,7 @@ After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 8. Run: `bmx-api --prod POST /health/merge-binders`
 
 ### Background Agent Status
+
 - Agent `afec113` is watching PR #799 CI
 - Check with: `gh pr checks 799`
 
@@ -113,7 +126,8 @@ After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 
 ## Files Modified This Session
 
-### Issue #796 (Merged):
+### Issue #796 (Merged)
+
 - `app/services/scoring.py` - Added `recalculate_discount_pct()` function
 - `app/api/v1/health.py` - Added `/health/recalculate-discounts` endpoint
 - `app/api/v1/books.py` - Added recalculation hooks (5 locations)
@@ -121,7 +135,8 @@ After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 - `app/eval_worker.py` - Added recalculation hook
 - `tests/test_discount_recalculation.py` - Created with 9 tests
 
-### Binder Fix (PR #799):
+### Binder Fix (PR #799)
+
 - `app/services/reference.py` - Expanded TIER_1_BINDERS and TIER_2_BINDERS mappings
 - `app/api/v1/health.py` - Added `/health/merge-binders` endpoint
 

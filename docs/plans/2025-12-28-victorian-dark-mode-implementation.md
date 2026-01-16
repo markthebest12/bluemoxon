@@ -13,6 +13,7 @@
 ## Task 1: Add Semantic Color Tokens to CSS
 
 **Files:**
+
 - Modify: `frontend/src/assets/main.css:10-72` (inside @theme block)
 
 **Step 1: Add semantic tokens after existing color definitions**
@@ -56,6 +57,7 @@ git commit -m "feat(theme): add semantic color tokens to @theme"
 ## Task 2: Add Dark Mode CSS Overrides
 
 **Files:**
+
 - Modify: `frontend/src/assets/main.css` (add after @theme block, before @layer base)
 
 **Step 1: Add dark mode override block**
@@ -103,11 +105,13 @@ git commit -m "feat(theme): add dark mode CSS variable overrides"
 ## Task 3: Update Body Background to Use Semantic Token
 
 **Files:**
+
 - Modify: `frontend/src/assets/main.css:554-555` (@layer base html,body)
 
 **Step 1: Change body background from hardcoded to semantic**
 
 Find in `@layer base`:
+
 ```css
   html,
   body {
@@ -117,6 +121,7 @@ Find in `@layer base`:
 ```
 
 Change to:
+
 ```css
   html,
   body {
@@ -146,11 +151,13 @@ git commit -m "feat(theme): use semantic token for body background"
 ## Task 4: Update Component Classes to Use Semantic Tokens
 
 **Files:**
+
 - Modify: `frontend/src/assets/main.css` (multiple component classes in @layer components)
 
 **Step 1: Update .card class**
 
 Find:
+
 ```css
   .card {
     /* Cards - Warm paper feel */
@@ -160,6 +167,7 @@ Find:
 ```
 
 Change to:
+
 ```css
   .card {
     /* Cards - Warm paper feel */
@@ -171,6 +179,7 @@ Change to:
 **Step 2: Update .card-static class**
 
 Find:
+
 ```css
   .card-static {
     /* Card without hover effect */
@@ -180,6 +189,7 @@ Find:
 ```
 
 Change to:
+
 ```css
   .card-static {
     /* Card without hover effect */
@@ -191,6 +201,7 @@ Change to:
 **Step 3: Update .input class**
 
 Find:
+
 ```css
   .input {
     /* Form inputs */
@@ -204,6 +215,7 @@ Find:
 ```
 
 Change to:
+
 ```css
   .input {
     /* Form inputs */
@@ -219,6 +231,7 @@ Change to:
 **Step 4: Update .select class**
 
 Find:
+
 ```css
   .select {
     /* Select dropdowns */
@@ -232,6 +245,7 @@ Find:
 ```
 
 Change to:
+
 ```css
   .select {
     /* Select dropdowns */
@@ -247,6 +261,7 @@ Change to:
 **Step 5: Update .btn-secondary class**
 
 Find:
+
 ```css
   .btn-secondary {
     /* Secondary button - Subtle */
@@ -255,6 +270,7 @@ Find:
 ```
 
 Change to:
+
 ```css
   .btn-secondary {
     /* Secondary button - Subtle */
@@ -280,6 +296,7 @@ git commit -m "feat(theme): update component classes to use semantic tokens"
 ## Task 5: Create useTheme Composable
 
 **Files:**
+
 - Create: `frontend/src/composables/useTheme.ts`
 
 **Step 1: Create the composable file**
@@ -374,6 +391,7 @@ git commit -m "feat(theme): add useTheme composable for dark mode state"
 ## Task 6: Create ThemeToggle Component
 
 **Files:**
+
 - Create: `frontend/src/components/ui/ThemeToggle.vue`
 
 **Step 1: Create the component**
@@ -447,6 +465,7 @@ git commit -m "feat(theme): add ThemeToggle component with sun/moon icons"
 ## Task 7: Add ThemeToggle to NavBar
 
 **Files:**
+
 - Modify: `frontend/src/components/layout/NavBar.vue`
 
 **Step 1: Add import**
@@ -460,6 +479,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 **Step 2: Add toggle to desktop nav (before user menu)**
 
 Find (around line 85):
+
 ```vue
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
         <div class="flex items-center gap-4">
@@ -467,6 +487,7 @@ Find (around line 85):
 ```
 
 Change to:
+
 ```vue
         <!-- Right side: User Menu (desktop) + Hamburger (mobile) -->
         <div class="flex items-center gap-4">
@@ -480,6 +501,7 @@ Change to:
 **Step 3: Add toggle to mobile nav (before hamburger)**
 
 Find (around line 159):
+
 ```vue
           <!-- Hamburger Menu Button - Mobile -->
           <button
@@ -487,6 +509,7 @@ Find (around line 159):
 ```
 
 Add before the hamburger button:
+
 ```vue
           <!-- Theme Toggle - Mobile -->
           <div class="md:hidden">
@@ -515,6 +538,7 @@ git commit -m "feat(theme): add ThemeToggle to NavBar (desktop and mobile)"
 ## Task 8: Add Flash Prevention Script to index.html
 
 **Files:**
+
 - Modify: `frontend/index.html`
 
 **Step 1: Add inline script in head**
@@ -549,11 +573,13 @@ git commit -m "feat(theme): add flash prevention script to index.html"
 ## Task 9: Fix NavBar Dropdown for Dark Mode
 
 **Files:**
+
 - Modify: `frontend/src/components/layout/NavBar.vue`
 
 **Step 1: Update dropdown menu background**
 
 Find (around line 112-114):
+
 ```vue
                   <div
                     v-if="showDropdown"
@@ -561,6 +587,7 @@ Find (around line 112-114):
 ```
 
 Change to:
+
 ```vue
                   <div
                     v-if="showDropdown"
@@ -578,6 +605,7 @@ style="color: var(--color-text-primary)"
 ```
 
 Apply this to:
+
 - Profile link
 - Config link
 - Admin Settings link
@@ -601,6 +629,7 @@ git commit -m "feat(theme): fix NavBar dropdown colors for dark mode"
 ## Task 10: Add Unit Tests for useTheme
 
 **Files:**
+
 - Create: `frontend/src/composables/__tests__/useTheme.spec.ts`
 
 **Step 1: Create test file**

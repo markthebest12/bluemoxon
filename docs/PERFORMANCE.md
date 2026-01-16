@@ -25,22 +25,26 @@ Measured via Playwright against production (bluemoxon.com):
 ## Recent Optimizations (January 2026)
 
 ### App Shell Architecture (#876)
+
 - Skeleton loading shows immediately while data loads
 - Improved perceived performance on initial page load
 - CSS-only skeletons (no JavaScript blocking)
 
 ### Dashboard API Batching (#877, #878)
+
 - Consolidated 6 dashboard API calls into single `/dashboard/batch` endpoint
 - Reduced network round trips from 6 to 1
 - ~40% faster dashboard load time
 
 ### Vue 3 Composables (#879)
+
 - `useDashboardCache` - Client-side caching with 5-minute TTL
 - `useCurrencyConversion` - Memoized currency calculations
 - `useToast` - Centralized notification management
 - Reduced redundant API calls and computations
 
 ### BookDetailView Refactor (#807)
+
 - Split monolithic component into focused sub-components
 - Improved code splitting and lazy loading
 - Better memory management for image galleries
@@ -65,6 +69,7 @@ dist/assets/
 ```
 
 Configuration in `vite.config.ts`:
+
 ```typescript
 manualChunks: (id) => {
   if (id.includes('node_modules/vue') ||
@@ -85,6 +90,7 @@ manualChunks: (id) => {
 - **S3 + CloudFront**: Images served via CDN with caching
 
 Thumbnail generation:
+
 ```python
 # backend/app/api/v1/images.py
 THUMBNAIL_SIZE = (300, 300)
@@ -94,18 +100,21 @@ THUMBNAIL_QUALITY = 85
 ### 3. Caching Strategy
 
 **CloudFront Cache Headers:**
+
 - Static assets (JS/CSS): 1 year cache (hashed filenames)
 - HTML: No cache (always fresh)
 - Images: 1 day cache
 - API responses: No cache
 
 **Browser Caching:**
+
 - Service worker not implemented (future consideration)
 - Local storage for auth tokens only
 
 ### 4. Bundle Size Budget
 
 Current totals (gzipped):
+
 - **Total JS**: ~285 KB
 - **Total CSS**: ~4.5 KB
 - **Per-page overhead**: ~81 KB (initial load)
@@ -130,30 +139,35 @@ npm run test:e2e -- e2e/performance.spec.ts --headed
 ### Manual Testing
 
 **Chrome DevTools:**
+
 1. Open DevTools → Network tab
 2. Enable "Disable cache"
 3. Throttle to "Fast 3G" for realistic mobile testing
 4. Reload and observe waterfall
 
 **Lighthouse:**
+
 1. Open DevTools → Lighthouse tab
 2. Select "Performance" category
 3. Choose "Mobile" or "Desktop"
 4. Click "Analyze page load"
 
 **WebPageTest:**
-- URL: https://www.webpagetest.org/
+
+- URL: <https://www.webpagetest.org/>
 - Test from multiple locations
 - Compare filmstrip views
 
 ## Performance Monitoring
 
 ### Current Setup
+
 - No APM tool configured
 - Manual testing via Playwright
 - Bundle analyzer: `npm run bundle:analyze`
 
 ### Recommended Future Additions
+
 1. **Real User Monitoring (RUM)**
    - Consider: Vercel Analytics, Plausible, or custom
 2. **Synthetic Monitoring**
@@ -164,6 +178,7 @@ npm run test:e2e -- e2e/performance.spec.ts --headed
 ## Optimization Opportunities
 
 ### Implemented ✅
+
 - [x] Code splitting (Vue vendor, AWS auth)
 - [x] Image thumbnails (300x300)
 - [x] Lazy loading routes
@@ -172,6 +187,7 @@ npm run test:e2e -- e2e/performance.spec.ts --headed
 - [x] ES2020 target (smaller bundles)
 
 ### Future Considerations
+
 - [ ] Service worker for offline support
 - [ ] Preload critical resources
 - [ ] HTTP/2 server push
@@ -182,16 +198,19 @@ npm run test:e2e -- e2e/performance.spec.ts --headed
 ## Troubleshooting
 
 ### Slow Initial Load
+
 1. Check network tab for blocking resources
 2. Verify CloudFront is serving cached assets
 3. Check Lambda cold start times (API)
 
 ### Large Bundle Size
+
 1. Run `npm run bundle:analyze`
 2. Check `stats.html` for largest modules
 3. Consider lazy loading large dependencies
 
 ### Slow API Responses
+
 1. Check Lambda logs in CloudWatch
 2. Verify database query performance
 3. Consider adding API response caching

@@ -11,7 +11,7 @@
 ### Issue #5: CSS Cascade Layers Breaking Form Elements - FIX PENDING REVIEW
 
 **Branch:** `fix/tailwind-v4-forms-plugin`
-**PR #617:** https://github.com/markthebest12/bluemoxon/pull/617
+**PR #617:** <https://github.com/markthebest12/bluemoxon/pull/617>
 **Status:** CI passing, AWAITING USER REVIEW before merge
 
 ### Solution Implemented
@@ -26,6 +26,7 @@ Added `@tailwindcss/forms` plugin to provide properly styled form elements:
 ```
 
 **Changes in PR #617:**
+
 - Installed `@tailwindcss/forms` as devDependency
 - Added `@plugin "@tailwindcss/forms";` to main.css (v4 syntax)
 
@@ -34,7 +35,9 @@ Added `@tailwindcss/forms` plugin to provide properly styled form elements:
 The `@tailwindcss/forms` plugin styles `input`, `select`, `textarea` elements but does NOT directly style `<button>` elements. If buttons are still broken after this PR:
 
 **Potential additional fixes needed:**
+
 1. Override button preflight in `@layer base`:
+
    ```css
    @layer base {
      button {
@@ -43,6 +46,7 @@ The `@tailwindcss/forms` plugin styles `input`, `select`, `textarea` elements bu
      }
    }
    ```
+
 2. Ensure all buttons use `.btn-*` component classes instead of utility classes directly
 
 ---
@@ -99,7 +103,7 @@ Despite `@layer utilities` being declared AFTER `@layer base`, utility classes w
 | #612 | fix: Navbar logo height | Merged | Added !h-14 |
 | #613 | fix: Deprecated classes | Merged | **Wrong** - doubled radius |
 | #614 | fix: Add --radius-xs to @theme | Merged | Correct radius fix |
-| #615 | fix: Replace space-* with gap-* | Merged | Partial fix |
+| #615 | fix: Replace space-*with gap-* | Merged | Partial fix |
 | #616 | fix: Convert @utility to @layer components | Merged to staging | Partial fix |
 | #617 | fix: Add @tailwindcss/forms plugin | **PENDING REVIEW** | Issue #5 fix |
 
@@ -131,6 +135,7 @@ Despite `@layer utilities` being declared AFTER `@layer base`, utility classes w
 | Any task | Check skill list FIRST, use if ANY skill applies |
 
 **Rationalizations that mean FAILURE:**
+
 - "This is simple, don't need skills" - WRONG
 - "I can skip verification" - WRONG
 - "I'll just fix this directly" - WRONG

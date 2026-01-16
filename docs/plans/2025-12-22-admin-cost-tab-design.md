@@ -15,6 +15,7 @@
 ### New Endpoint: `GET /admin/costs`
 
 **Response Model:**
+
 ```python
 class BedrockModelCost(BaseModel):
     model_name: str        # "Sonnet 4.5", "Opus 4.5", "Haiku 3"
@@ -73,21 +74,25 @@ Fourth tab after "Tiered Entities".
 ### Components
 
 **1. Bedrock Usage Costs Table**
+
 - Model name, usage description, MTD cost
 - Total row at bottom
 - Period shown in header (e.g., "December 2025")
 
 **2. Daily Trend**
+
 - Last 14 days of Bedrock spend
 - Simple horizontal bar chart using CSS (no library)
 - Date, bar, cost value
 
 **3. Other AWS Costs (collapsed)**
+
 - Expandable section showing non-Bedrock costs
 - Simple key-value list
 - Total AWS cost
 
 **4. Cache indicator**
+
 - "Last updated: {time} UTC (cached 1hr)"
 
 ### TypeScript Types
@@ -157,12 +162,15 @@ Cost Explorer doesn't support resource-level permissions.
 ## Files to Modify
 
 ### Backend
+
 - `backend/app/api/v1/admin.py` - Add `/costs` endpoint and models
 - `backend/app/services/cost_explorer.py` - New service for AWS Cost Explorer
 
 ### Frontend
+
 - `frontend/src/types/admin.ts` - Add cost types
 - `frontend/src/views/AdminConfigView.vue` - Add Cost tab
 
 ### Infrastructure
+
 - `infra/terraform/modules/lambda/main.tf` - Add ce:GetCostAndUsage permission

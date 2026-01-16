@@ -16,6 +16,7 @@ The script uses incorrect AWS profile names:
 | `STAGING_PROFILE` | `"staging"` | `bmx-staging` |
 
 **Fix Required:**
+
 ```bash
 PROD_PROFILE="bmx-prod"
 STAGING_PROFILE="bmx-staging"
@@ -55,20 +56,24 @@ STAGING_PROFILE="bmx-staging"
 ## Alternative Sync Methods
 
 ### Option A: Script-based (local)
+
 ```bash
 ./scripts/sync-prod-to-staging.sh
 ```
+
 - Requires network access to both RDS instances
 - Downloads/uploads S3 via local machine
 - More control over process
 
 ### Option B: Lambda-based (recommended for DB)
+
 ```bash
 AWS_PROFILE=bmx-staging aws lambda invoke \
   --function-name bluemoxon-staging-db-sync \
   --payload '{}' \
   .tmp/sync-response.json
 ```
+
 - Already deployed: `bluemoxon-staging-db-sync`
 - Runs in VPC with database access
 - 300s timeout
@@ -100,10 +105,12 @@ Database:
 ## Sync Results (2025-12-22)
 
 ### S3 Images
+
 - 4,709 objects synced successfully
 - Prod: 1.7 GB → Staging: synced
 
 ### Database
+
 | Status | Tables |
 |--------|--------|
 | Synced (12) | alembic_version, analysis_jobs, api_keys, authors, binders, book_analyses, book_images, books, eval_price_history, eval_runbook_jobs, publishers, users |
@@ -126,6 +133,7 @@ Database:
 Staging (6575f61) is ahead of prod (a9fd309) with dependency updates and fixes. This is normal - staging gets changes first before promotion to prod.
 
 ### Post-Sync Verification
+
 - Staging health: HEALTHY
 - Books count: 153 (matches prod)
 

@@ -10,6 +10,7 @@
 ## CRITICAL REMINDERS FOR NEXT SESSION
 
 ### 1. ALWAYS Use Superpowers Skills (MANDATORY)
+
 ```
 INVOKE BEFORE ANY ACTION:
 - superpowers:systematic-debugging - BEFORE any fix attempts
@@ -23,6 +24,7 @@ IF A SKILL APPLIES, YOU MUST USE IT. NO EXCEPTIONS.
 ```
 
 ### 2. NEVER Use These (Permission Prompts)
+
 ```
 FORBIDDEN - These trigger permission prompts:
 - # comment lines before commands
@@ -33,6 +35,7 @@ FORBIDDEN - These trigger permission prompts:
 ```
 
 ### 3. ALWAYS Use
+
 ```
 REQUIRED:
 - Simple single-line commands
@@ -47,13 +50,16 @@ REQUIRED:
 ## Problem Summary
 
 ### Issue #708: Cost MTD Shows $0
+
 The cost data "Total AWS Cost (MTD)" showed $0.00 while daily trend showed ~$48 in costs.
 
 **Root Cause:** Backend used UTC time to calculate current month. At 6:20 PM PST on Dec 31, UTC time is Jan 1, 2026. So:
+
 - `period_start` = "2026-01-01" (January - no data)
 - MTD query returned $0
 
 ### Issue #736: Acquisition Date Shows Next Day
+
 When acquiring a book at night in PST, the purchase_date defaulted to the next day.
 
 **Root Cause:** Same issue - `new Date().toISOString().split("T")[0]` converts to UTC before extracting date.
@@ -63,22 +69,27 @@ When acquiring a book at night in PST, the purchase_date defaulted to the next d
 ## Changes Made
 
 ### Backend (cost_explorer.py)
+
 - Added `timezone` parameter to `get_costs()` and `_fetch_costs_from_aws()`
 - Uses `ZoneInfo` to convert UTC to user's timezone for period calculation
 - Falls back to UTC if invalid timezone provided
 
 ### Backend (admin.py)
+
 - Added `timezone` query parameter to `/admin/costs` endpoint
 - Added `Query` import from FastAPI
 
 ### Frontend (AdminConfigView.vue)
+
 - Pass browser timezone via `Intl.DateTimeFormat().resolvedOptions().timeZone`
 
 ### Frontend (AcquireModal.vue) - IN PROGRESS
+
 - Changed from `toISOString().split("T")[0]` to `toLocaleDateString("en-CA")`
 - Uses local timezone for date default
 
 ### Tests Added
+
 - `test_accepts_timezone_parameter` - verifies param passes through
 - `test_defaults_to_utc_when_no_timezone_provided` - verifies backward compatibility
 - `test_uses_provided_timezone_for_period_calculation` - integration test
@@ -117,6 +128,7 @@ User provided thorough code review. Fixes applied:
 ## Next Steps
 
 1. **Watch staging deploy complete**
+
    ```bash
    gh run watch 20634541973 --exit-status
    ```
@@ -127,6 +139,7 @@ User provided thorough code review. Fixes applied:
    - Test at night (PST) when UTC would be next day
 
 3. **If staging verified, promote to production:**
+
    ```bash
    gh pr create --base main --head staging --title "chore: Promote staging to production (timezone fixes #708, #736)"
    ```

@@ -7,6 +7,7 @@
 ## Problem
 
 `BookDetailView.vue` is 1132 lines with 15+ ref declarations handling:
+
 - Image management (4 modals, upload, reorder, delete)
 - Analysis job polling and generation
 - Provenance editing
@@ -37,6 +38,7 @@ Parent `BookDetailView.vue` becomes ~250 line orchestrator.
 ### Component Interfaces
 
 #### ImageGallerySection.vue
+
 ```typescript
 // Props
 bookId: number
@@ -53,6 +55,7 @@ isEditor: boolean
 ```
 
 #### AnalysisSection.vue
+
 ```typescript
 // Props
 book: Book  // needs: id, has_analysis, analysis_job_status, has_eval_runbook, analysis_issues
@@ -65,6 +68,7 @@ isEditor: boolean
 ```
 
 #### ProvenanceSection.vue
+
 ```typescript
 // Props
 bookId: number
@@ -79,6 +83,7 @@ isEditor: boolean
 ```
 
 #### BookMetadataSection.vue
+
 ```typescript
 // Props
 book: Book  // all publication/binding fields
@@ -92,6 +97,7 @@ isEditor: boolean
 ```
 
 #### BookSidebarSection.vue
+
 ```typescript
 // Props
 book: Book  // valuation, acquisition, source fields
@@ -101,6 +107,7 @@ imageCount: number
 ```
 
 #### BookActionsBar.vue
+
 ```typescript
 // Props
 book: Book  // needs: id, title
@@ -115,6 +122,7 @@ isEditor: boolean
 ### Parent Orchestration
 
 **BookDetailView.vue** owns:
+
 - Route handling, back link computation
 - `images` array (fetched on mount)
 - `carouselVisible`, `carouselInitialIndex` (shared modal)
@@ -122,6 +130,7 @@ isEditor: boolean
 - Loading state display
 
 **Template structure:**
+
 ```vue
 <template>
   <div v-if="loading">Loading...</div>
@@ -158,6 +167,7 @@ isEditor: boolean
 ## Testing Strategy
 
 **Test file structure:**
+
 ```
 frontend/src/components/book-detail/__tests__/
 ├── ImageGallerySection.spec.ts
@@ -182,24 +192,29 @@ frontend/src/components/book-detail/__tests__/
 ## Implementation Order
 
 ### Phase 1: Setup & Simplest Component
+
 1. Create `frontend/src/components/book-detail/` directory
 2. `BookSidebarSection.vue` - read-only, no events, simplest
 
 ### Phase 2: Actions & Metadata
+
 3. `BookActionsBar.vue` - simple events, no internal state
-4. `BookMetadataSection.vue` - one event, one internal state
+2. `BookMetadataSection.vue` - one event, one internal state
 
 ### Phase 3: Interactive Sections
+
 5. `ProvenanceSection.vue` - edit mode, save flow
-6. `ImageGallerySection.vue` - multiple modals, complex
+2. `ImageGallerySection.vue` - multiple modals, complex
 
 ### Phase 4: Analysis
+
 7. `AnalysisSection.vue` - polling, store integration, multiple states
 
 ### Phase 5: Integration
+
 8. Refactor `BookDetailView.vue` to use all components
-9. Manual verification of all functionality
-10. Full test suite pass
+2. Manual verification of all functionality
+3. Full test suite pass
 
 ## Success Criteria
 
@@ -210,6 +225,7 @@ frontend/src/components/book-detail/__tests__/
 - [ ] CI passes (lint, type-check, tests)
 
 ## Files to Create
+
 - `frontend/src/components/book-detail/ImageGallerySection.vue`
 - `frontend/src/components/book-detail/AnalysisSection.vue`
 - `frontend/src/components/book-detail/ProvenanceSection.vue`
@@ -219,4 +235,5 @@ frontend/src/components/book-detail/__tests__/
 - `frontend/src/components/book-detail/__tests__/` (6 test files)
 
 ## Files to Modify
+
 - `frontend/src/views/BookDetailView.vue` (major refactor)

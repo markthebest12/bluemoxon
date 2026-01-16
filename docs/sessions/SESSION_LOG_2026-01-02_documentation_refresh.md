@@ -57,7 +57,9 @@ bmx-api --prod PATCH /books/123/tracking '{"tracking_number":"..."}'
 ## Session Summary
 
 ### Objective
+
 Comprehensive documentation sweep covering past 10 days of development (Dec 23 - Jan 2):
+
 1. Update API_REFERENCE.md with new endpoints
 2. Update ARCHITECTURE.md with new components
 3. Update FEATURES.md with new capabilities
@@ -69,7 +71,9 @@ Comprehensive documentation sweep covering past 10 days of development (Dec 23 -
 ### Completed Work
 
 #### API_REFERENCE.md
+
 Added documentation for:
+
 - `PATCH /books/{id}/tracking` - Add shipment tracking with carrier auto-detection
 - `POST /books/{id}/tracking/refresh` - Refresh tracking status from carrier
 - `POST /books/{id}/analysis/generate-async` - Async analysis generation via SQS
@@ -80,7 +84,9 @@ Added documentation for:
 - `preferred` field documentation for all reference entities (+10 scoring bonus)
 
 #### ARCHITECTURE.md
+
 Added:
+
 - Lambda Architecture section with diagram (API, Eval Worker, Cleanup, DB Sync)
 - Lambda Layers documentation (shared dependencies, cold start optimization)
 - SQS Job Processing section with flow diagram
@@ -94,7 +100,9 @@ Added:
   - `model_version` field on analyses
 
 #### FEATURES.md
+
 Added new sections:
+
 - **Shipment Tracking** - Carrier auto-detection, tracking URL generation, status refresh
 - **Victorian Dark Mode** - Theme system, color palette, component theming
 - **Animation System** - Micro-interactions, reduced motion support
@@ -103,13 +111,17 @@ Added new sections:
 - Updated Web Application section with container queries, Tailwind v4
 
 #### ADMIN_DASHBOARD.md
+
 Added:
+
 - Reference Data tab documentation (entity CRUD, reassignment workflow)
 - Maintenance tab documentation (orphan detection, cleanup operations, garbage review)
 - Updated tabs overview table
 
 #### site/index.html
+
 Updated:
+
 - Stats: 122 → 150+ books, 500+ → 600+ images
 - API endpoint count: 50+ → 60+
 - Health check JSON with current version (2026.01.02-9033e57)
@@ -123,6 +135,7 @@ Updated:
   - dark-mode-acquisitions.png
 
 #### Screenshots Captured (via Playwright MCP)
+
 All saved to `site/screenshots/`:
 
 | Screenshot | Description |
@@ -143,13 +156,16 @@ All saved to `site/screenshots/`:
 ## Next Steps
 
 ### Immediate (Resume Action)
+
 1. **Commit all changes** on branch `docs/documentation-refresh-2026-01`
+
    ```bash
    git add .
    git commit -m "docs: Comprehensive documentation refresh for Dec 2025 - Jan 2026 features"
    ```
 
 2. **Create PR to staging**
+
    ```bash
    gh pr create --base staging --title "docs: Documentation refresh" --body "..."
    ```
@@ -172,6 +188,7 @@ site/screenshots/*.png      # 10 screenshots captured/updated
 ## Recent Commits (Context)
 
 Key features shipped that are now documented:
+
 - **Tailwind v4 Migration** (Dec 27)
 - **Victorian Dark Mode** (Dec 28-29)
 - **Animation System** (Dec 28)

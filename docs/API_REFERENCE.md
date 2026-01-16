@@ -7,13 +7,17 @@ Base URL: `/api/v1`
 All endpoints (except health checks) require authentication. Two methods are supported:
 
 ### JWT Authentication (Web App)
+
 Include the Cognito JWT token in the Authorization header:
+
 ```
 Authorization: Bearer <jwt_token>
 ```
 
 ### API Key Authentication (CLI/Automation)
+
 Include the API key in the X-API-Key header:
+
 ```
 X-API-Key: <api_key>
 ```
@@ -44,11 +48,13 @@ X-API-Key: <api_key>
 ## Books API
 
 ### List Books
+
 ```
 GET /books
 ```
 
 Query Parameters:
+
 - `page` (int, default: 1) - Page number
 - `per_page` (int, default: 20, max: 100) - Items per page
 - `q` (string) - **Search query** for title, author, notes, binding description
@@ -71,11 +77,13 @@ Query Parameters:
 - `sort_order` (string, default: "asc") - asc or desc
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books?inventory_type=PRIMARY&binding_authenticated=true&per_page=10"
 ```
 
 Response:
+
 ```json
 {
   "items": [
@@ -105,16 +113,19 @@ Response:
 ---
 
 ### Get Single Book
+
 ```
 GET /books/{book_id}
 ```
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books/407"
 ```
 
 Response:
+
 ```json
 {
   "id": 407,
@@ -147,11 +158,13 @@ Response:
 ---
 
 ### Create Book
+
 ```
 POST /books
 ```
 
 Request Body:
+
 ```json
 {
   "title": "Pride and Prejudice",
@@ -172,6 +185,7 @@ Request Body:
 ```
 
 Example:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/books" \
   -H "Content-Type: application/json" \
@@ -181,11 +195,13 @@ curl -X POST "http://localhost:8000/api/v1/books" \
 ---
 
 ### Update Book
+
 ```
 PUT /books/{book_id}
 ```
 
 Example:
+
 ```bash
 curl -X PUT "http://localhost:8000/api/v1/books/407" \
   -H "Content-Type: application/json" \
@@ -195,6 +211,7 @@ curl -X PUT "http://localhost:8000/api/v1/books/407" \
 ---
 
 ### Delete Book
+
 ```
 DELETE /books/{book_id}
 ```
@@ -202,6 +219,7 @@ DELETE /books/{book_id}
 Deletes a book and CASCADE deletes all associated images and analysis.
 
 Example:
+
 ```bash
 curl -X DELETE "http://localhost:8000/api/v1/books/407"
 ```
@@ -211,6 +229,7 @@ Response: 204 No Content
 ---
 
 ### Update Book Status
+
 ```
 PATCH /books/{book_id}/status?status={status}
 ```
@@ -218,11 +237,13 @@ PATCH /books/{book_id}/status?status={status}
 Valid statuses: IN_TRANSIT, ON_HAND, SOLD, REMOVED
 
 Example:
+
 ```bash
 curl -X PATCH "http://localhost:8000/api/v1/books/407/status?status=ON_HAND"
 ```
 
 Response:
+
 ```json
 {"message": "Status updated", "status": "ON_HAND"}
 ```
@@ -230,6 +251,7 @@ Response:
 ---
 
 ### Add Shipment Tracking
+
 ```
 PATCH /books/{book_id}/tracking
 ```
@@ -239,6 +261,7 @@ PATCH /books/{book_id}/tracking
 Add or update shipment tracking information for an IN_TRANSIT book. Auto-detects carrier from tracking number format and generates tracking URL.
 
 Request Body:
+
 ```json
 {
   "tracking_number": "9400111899223033005436",
@@ -248,11 +271,13 @@ Request Body:
 ```
 
 Fields:
+
 - `tracking_number` (optional) - Carrier tracking number
 - `tracking_carrier` (optional) - Carrier name: `usps`, `ups`, `fedex`, `dhl`, `royal_mail`, `parcelforce`
 - `tracking_url` (optional) - Direct tracking URL (for unsupported carriers)
 
 **Carrier Auto-Detection:**
+
 | Pattern | Carrier |
 |---------|---------|
 | 20-22 digits starting with 9 | USPS |
@@ -262,6 +287,7 @@ Fields:
 | 13 chars ending in GB | Royal Mail |
 
 Example:
+
 ```bash
 curl -X PATCH "https://api.bluemoxon.com/api/v1/books/407/tracking" \
   -H "X-API-Key: $BMX_API_KEY" \
@@ -272,12 +298,14 @@ curl -X PATCH "https://api.bluemoxon.com/api/v1/books/407/tracking" \
 Response: Returns full BookResponse with updated tracking fields.
 
 Error Responses:
+
 - 400 Bad Request - Book not IN_TRANSIT or missing tracking data
 - 404 Not Found - Book not found
 
 ---
 
 ### Refresh Tracking Status
+
 ```
 POST /books/{book_id}/tracking/refresh
 ```
@@ -287,12 +315,14 @@ POST /books/{book_id}/tracking/refresh
 Fetches latest tracking status from carrier API and updates estimated delivery date.
 
 Example:
+
 ```bash
 curl -X POST "https://api.bluemoxon.com/api/v1/books/407/tracking/refresh" \
   -H "X-API-Key: $BMX_API_KEY"
 ```
 
 Response:
+
 ```json
 {
   "tracking_status": "in_transit",
@@ -303,6 +333,7 @@ Response:
 ```
 
 Tracking Status Values:
+
 - `pending` - Label created, not yet received by carrier
 - `in_transit` - Package in transit
 - `out_for_delivery` - Out for delivery today
@@ -311,12 +342,14 @@ Tracking Status Values:
 - `unknown` - Status not available
 
 Error Responses:
+
 - 400 Bad Request - Book not IN_TRANSIT or no tracking number set
 - 404 Not Found - Book not found
 
 ---
 
 ### Update Inventory Type
+
 ```
 PATCH /books/{book_id}/inventory-type?inventory_type={type}
 ```
@@ -324,6 +357,7 @@ PATCH /books/{book_id}/inventory-type?inventory_type={type}
 Valid types: PRIMARY, EXTENDED, FLAGGED
 
 Example:
+
 ```bash
 curl -X PATCH "http://localhost:8000/api/v1/books/407/inventory-type?inventory_type=FLAGGED"
 ```
@@ -331,16 +365,19 @@ curl -X PATCH "http://localhost:8000/api/v1/books/407/inventory-type?inventory_t
 ---
 
 ### Bulk Status Update
+
 ```
 POST /books/bulk/status?status={status}
 ```
 
 Request Body: Array of book IDs
+
 ```json
 [1, 2, 3, 4, 5]
 ```
 
 Example:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/books/bulk/status?status=ON_HAND" \
   -H "Content-Type: application/json" \
@@ -350,16 +387,19 @@ curl -X POST "http://localhost:8000/api/v1/books/bulk/status?status=ON_HAND" \
 ---
 
 ### Check Duplicate Titles
+
 ```
 GET /books/duplicates/check?title={title}
 ```
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books/duplicates/check?title=Vanity%20Fair"
 ```
 
 Response:
+
 ```json
 {
   "query": "Vanity Fair",
@@ -386,6 +426,7 @@ Analyses can be viewed by all authenticated users but only created/edited by use
 **editor** or **admin** role.
 
 ### Get Book Analysis (Parsed)
+
 ```
 GET /books/{book_id}/analysis
 ```
@@ -393,11 +434,13 @@ GET /books/{book_id}/analysis
 Returns a structured JSON object with parsed analysis fields.
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books/407/analysis"
 ```
 
 Response:
+
 ```json
 {
   "id": 123,
@@ -418,6 +461,7 @@ Returns 404 if no analysis exists for the book.
 ---
 
 ### Get Raw Analysis Markdown
+
 ```
 GET /books/{book_id}/analysis/raw
 ```
@@ -425,6 +469,7 @@ GET /books/{book_id}/analysis/raw
 Returns the raw markdown content of the analysis file as plain text.
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books/407/analysis/raw"
 ```
@@ -436,6 +481,7 @@ Returns 404 if no analysis exists for the book.
 ---
 
 ### Create or Update Analysis
+
 ```
 PUT /books/{book_id}/analysis
 ```
@@ -446,12 +492,14 @@ Creates a new analysis or updates an existing one. The request body should be
 raw markdown text (not JSON).
 
 Headers:
+
 - `Content-Type: text/plain`
 - `Authorization: Bearer <token>`
 
 Request Body: Raw markdown string
 
 Example:
+
 ```bash
 curl -X PUT "http://localhost:8000/api/v1/books/407/analysis" \
   -H "Content-Type: text/plain" \
@@ -468,6 +516,7 @@ Published in 1848...'
 ```
 
 Response:
+
 ```json
 {
   "message": "Analysis updated successfully"
@@ -475,6 +524,7 @@ Response:
 ```
 
 Error Responses:
+
 - 401 Unauthorized - Not authenticated
 - 403 Forbidden - User does not have editor or admin role
 - 404 Not Found - Book not found
@@ -490,6 +540,7 @@ The analysis can be edited directly in the BlueMoxon web interface:
 5. Click **Save** to persist changes (or press ⌘S)
 
 Features:
+
 - **Split-pane editor**: Left side for markdown, right side for live preview
 - **Toggle preview**: Click the eye icon to hide/show preview pane
 - **Full GFM support**: Tables, code blocks, lists, and all GitHub Flavored Markdown
@@ -500,6 +551,7 @@ For books without an analysis, editors will see a **Create Analysis** button.
 ---
 
 ### Delete Analysis
+
 ```
 DELETE /books/{book_id}/analysis
 ```
@@ -509,12 +561,14 @@ DELETE /books/{book_id}/analysis
 Permanently deletes the analysis for a book.
 
 Example:
+
 ```bash
 curl -X DELETE "http://localhost:8000/api/v1/books/407/analysis" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 Response:
+
 ```json
 {
   "message": "Analysis deleted"
@@ -522,6 +576,7 @@ Response:
 ```
 
 Error Responses:
+
 - 401 Unauthorized - Not authenticated
 - 403 Forbidden - User does not have editor or admin role
 - 404 Not Found - Book not found or no analysis to delete
@@ -533,6 +588,7 @@ In the Analysis Viewer panel, editors/admins will see a trash icon button next t
 ---
 
 ### Re-extract Structured Data (Single Book)
+
 ```
 POST /books/{book_id}/re-extract
 ```
@@ -544,12 +600,14 @@ Useful for fixing 'degraded' extractions that occurred due to AI service throttl
 **Requires:** Editor role
 
 Example:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/books/407/re-extract" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 Response (success):
+
 ```json
 {
   "message": "Extraction successful",
@@ -560,6 +618,7 @@ Response (success):
 ```
 
 Error Responses:
+
 - 401 Unauthorized - Not authenticated
 - 403 Forbidden - User does not have editor role
 - 404 Not Found - Book not found or no analysis exists
@@ -568,6 +627,7 @@ Error Responses:
 ---
 
 ### Re-extract All Degraded (Bulk)
+
 ```
 POST /books/re-extract-degraded
 ```
@@ -577,12 +637,14 @@ Re-runs Stage 2 extraction for ALL books with `extraction_status = 'degraded'`. 
 **Requires:** Admin role
 
 Example:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/books/re-extract-degraded" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 Response:
+
 ```json
 {
   "message": "Re-extracted 15/20 degraded analyses",
@@ -601,6 +663,7 @@ Response:
 ---
 
 ### Generate Analysis (Async)
+
 ```
 POST /books/{book_id}/analysis/generate-async
 ```
@@ -610,6 +673,7 @@ POST /books/{book_id}/analysis/generate-async
 Starts asynchronous analysis generation via SQS queue. Returns immediately with a job ID for polling. This is the preferred method for generating analyses as it doesn't block the API.
 
 Request Body:
+
 ```json
 {
   "model": "sonnet",
@@ -618,10 +682,12 @@ Request Body:
 ```
 
 Fields:
+
 - `model` (optional, default: "sonnet") - AI model: `sonnet` or `opus`
 - `force` (optional, default: false) - Replace existing analysis if present
 
 Example:
+
 ```bash
 curl -X POST "https://api.bluemoxon.com/api/v1/books/407/analysis/generate-async" \
   -H "X-API-Key: $BMX_API_KEY" \
@@ -630,6 +696,7 @@ curl -X POST "https://api.bluemoxon.com/api/v1/books/407/analysis/generate-async
 ```
 
 Response (202 Accepted):
+
 ```json
 {
   "id": 123,
@@ -641,12 +708,14 @@ Response (202 Accepted):
 ```
 
 Job Statuses:
+
 - `pending` - Job queued, waiting for worker
 - `running` - Worker processing analysis
 - `completed` - Analysis generated successfully
 - `failed` - Generation failed (see error message)
 
 Error Responses:
+
 - 400 Bad Request - Analysis exists and force=false
 - 404 Not Found - Book not found
 - 409 Conflict - Active job already exists for this book
@@ -654,6 +723,7 @@ Error Responses:
 ---
 
 ### Get Analysis Job Status
+
 ```
 GET /books/{book_id}/analysis/status
 ```
@@ -661,12 +731,14 @@ GET /books/{book_id}/analysis/status
 Returns the status of the latest analysis job for a book.
 
 Example:
+
 ```bash
 curl "https://api.bluemoxon.com/api/v1/books/407/analysis/status" \
   -H "X-API-Key: $BMX_API_KEY"
 ```
 
 Response:
+
 ```json
 {
   "id": 123,
@@ -686,16 +758,19 @@ Response:
 ## Images API
 
 ### List Book Images
+
 ```
 GET /books/{book_id}/images
 ```
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/books/407/images"
 ```
 
 Response:
+
 ```json
 [
   {
@@ -714,6 +789,7 @@ Response:
 ---
 
 ### Get Primary Image
+
 ```
 GET /books/{book_id}/images/primary
 ```
@@ -723,6 +799,7 @@ Returns the primary image or first image by display order.
 ---
 
 ### Get Image File
+
 ```
 GET /books/{book_id}/images/{image_id}/file
 ```
@@ -735,6 +812,7 @@ In development: Returns the actual image file (binary).
 ---
 
 ### Get Thumbnail
+
 ```
 GET /books/{book_id}/images/{image_id}/thumbnail
 ```
@@ -744,17 +822,20 @@ Returns thumbnail version of image.
 ---
 
 ### Upload Image
+
 ```
 POST /books/{book_id}/images
 ```
 
 Form data:
+
 - `file` (required) - Image file
 - `image_type` (string, default: "detail") - cover, spine, interior, detail
 - `is_primary` (bool, default: false)
 - `caption` (string)
 
 Example:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/books/407/images" \
   -F "file=@cover.jpg" \
@@ -765,11 +846,13 @@ curl -X POST "http://localhost:8000/api/v1/books/407/images" \
 ---
 
 ### Update Image Metadata
+
 ```
 PUT /books/{book_id}/images/{image_id}
 ```
 
 Query Parameters:
+
 - `image_type`
 - `is_primary`
 - `caption`
@@ -778,6 +861,7 @@ Query Parameters:
 ---
 
 ### Reorder Images
+
 ```
 PUT /books/{book_id}/images/reorder
 ```
@@ -787,11 +871,13 @@ PUT /books/{book_id}/images/reorder
 Reorders images by providing an ordered list of image IDs. The first image in the list automatically becomes the primary image.
 
 Request Body: Array of image IDs in desired order
+
 ```json
 [5, 3, 1, 4, 2]
 ```
 
 Example:
+
 ```bash
 curl -X PUT "http://localhost:8000/api/v1/books/407/images/reorder" \
   -H "Content-Type: application/json" \
@@ -800,6 +886,7 @@ curl -X PUT "http://localhost:8000/api/v1/books/407/images/reorder" \
 ```
 
 Response:
+
 ```json
 {
   "message": "Images reordered successfully",
@@ -808,6 +895,7 @@ Response:
 ```
 
 Error Responses:
+
 - 400 Bad Request - Some image IDs do not belong to this book
 - 401 Unauthorized - Not authenticated
 - 403 Forbidden - User does not have editor role
@@ -816,6 +904,7 @@ Error Responses:
 ---
 
 ### Delete Image
+
 ```
 DELETE /books/{book_id}/images/{image_id}
 ```
@@ -825,6 +914,7 @@ Deletes image file and database record.
 ---
 
 ### Regenerate Thumbnails
+
 ```
 POST /books/{book_id}/images/regenerate-thumbnails
 ```
@@ -832,17 +922,20 @@ POST /books/{book_id}/images/regenerate-thumbnails
 **Authentication Required:** Editor or Admin role
 
 Regenerates thumbnails for all images of a book. Useful when:
+
 - Images were uploaded without thumbnails (e.g., via direct S3 upload)
 - Thumbnails are corrupted or missing
 - Thumbnail quality needs to be updated
 
 Example:
+
 ```bash
 curl -X POST "https://api.bluemoxon.com/api/v1/books/56/images/regenerate-thumbnails" \
   -H "X-API-Key: $BMX_API_KEY"
 ```
 
 Response:
+
 ```json
 {
   "message": "Regenerated 14 thumbnails",
@@ -853,6 +946,7 @@ Response:
 ```
 
 **Error Response (partial failure):**
+
 ```json
 {
   "message": "Regenerated 1 thumbnails",
@@ -873,11 +967,13 @@ Response:
 **Symptom: Images return `Content-Type: text/html` instead of `image/jpeg`**
 
 This means the S3 objects contain HTML error pages, not actual images. Common causes:
+
 1. eBay hotlink protection served error pages during download
 2. Source images expired or were deleted
 3. Upload script saved HTTP error responses as files
 
 **Diagnosis:**
+
 ```bash
 # Check image content-type via CloudFront
 curl -sI "https://app.bluemoxon.com/book-images/books/{s3_key}" | grep content-type
@@ -887,6 +983,7 @@ curl -sI "https://app.bluemoxon.com/book-images/books/{s3_key}" | grep content-t
 ```
 
 **Fix:**
+
 1. Delete corrupted images from the book
 2. Re-fetch from source using Playwright (bypasses hotlink protection)
 3. Upload valid images
@@ -909,22 +1006,26 @@ See `book-collection/documentation/Screenshot_Processing_Protocol.md` for the fu
 ## Search API
 
 ### Full-Text Search
+
 ```
 GET /search?q={query}
 ```
 
 Query Parameters:
+
 - `q` (required) - Search query
 - `scope` (string, default: "all") - all, books, analyses
 - `page` (int, default: 1)
 - `per_page` (int, default: 20)
 
 Example:
+
 ```bash
 curl "http://localhost:8000/api/v1/search?q=Thackeray&scope=all"
 ```
 
 Response:
+
 ```json
 {
   "query": "Thackeray",
@@ -942,11 +1043,13 @@ Response:
 ## Statistics API
 
 ### Collection Overview
+
 ```
 GET /stats/overview
 ```
 
 Response:
+
 ```json
 {
   "primary": {
@@ -967,11 +1070,13 @@ Response:
 ---
 
 ### Collection Metrics
+
 ```
 GET /stats/metrics
 ```
 
 Response:
+
 ```json
 {
   "victorian_percentage": 85.2,
@@ -988,11 +1093,13 @@ Response:
 ---
 
 ### By Category
+
 ```
 GET /stats/by-category
 ```
 
 Response:
+
 ```json
 [
   {"category": "Fiction", "count": 28, "value": 15200},
@@ -1003,11 +1110,13 @@ Response:
 ---
 
 ### By Publisher
+
 ```
 GET /stats/by-publisher
 ```
 
 Response:
+
 ```json
 [
   {"publisher": "Chapman & Hall", "tier": "TIER_1", "count": 6, "value": 3200, "volumes": 12}
@@ -1017,6 +1126,7 @@ Response:
 ---
 
 ### By Author
+
 ```
 GET /stats/by-author
 ```
@@ -1024,11 +1134,13 @@ GET /stats/by-author
 ---
 
 ### Authenticated Bindings
+
 ```
 GET /stats/bindings
 ```
 
 Response:
+
 ```json
 [
   {"binder": "Zaehnsdorf", "full_name": "Zaehnsdorf Ltd", "count": 10, "value": 5800},
@@ -1039,11 +1151,13 @@ Response:
 ---
 
 ### By Era
+
 ```
 GET /stats/by-era
 ```
 
 Response:
+
 ```json
 [
   {"era": "Victorian (1837-1901)", "count": 58, "value": 31500},
@@ -1054,11 +1168,13 @@ Response:
 ---
 
 ### Pending Deliveries
+
 ```
 GET /stats/pending-deliveries
 ```
 
 Response:
+
 ```json
 {
   "count": 5,
@@ -1075,6 +1191,7 @@ Response:
 Health check endpoints for monitoring, Kubernetes probes, and CI/CD validation.
 
 ### Liveness Probe
+
 ```
 GET /health/live
 ```
@@ -1082,6 +1199,7 @@ GET /health/live
 Simple check that the service is running. Use for Kubernetes liveness probes.
 
 Response:
+
 ```json
 {"status": "ok"}
 ```
@@ -1089,6 +1207,7 @@ Response:
 ---
 
 ### Readiness Probe
+
 ```
 GET /health/ready
 ```
@@ -1096,6 +1215,7 @@ GET /health/ready
 Checks if the service is ready to accept traffic. Validates database connectivity.
 
 Response:
+
 ```json
 {
   "status": "ready",
@@ -1114,22 +1234,26 @@ Possible status values: `ready`, `not_ready`
 ---
 
 ### Deep Health Check
+
 ```
 GET /health/deep
 ```
 
 Comprehensive health check that validates all system dependencies:
+
 - **Database**: PostgreSQL connectivity and query execution
 - **S3**: Images bucket accessibility
 - **Cognito**: User pool availability (if configured)
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
+
 - CI/CD deployment validation
 - Monitoring dashboards
 - Troubleshooting connectivity issues
 
 Response:
+
 ```json
 {
   "status": "healthy",
@@ -1165,6 +1289,7 @@ Response:
 ```
 
 Possible status values:
+
 - `healthy`: All checks passed
 - `degraded`: Some non-critical checks failed
 - `unhealthy`: Critical checks failed
@@ -1172,6 +1297,7 @@ Possible status values:
 ---
 
 ### Service Info
+
 ```
 GET /health/info
 ```
@@ -1179,6 +1305,7 @@ GET /health/info
 Returns service metadata, version, and configuration summary.
 
 Response:
+
 ```json
 {
   "service": "bluemoxon-api",
@@ -1204,6 +1331,7 @@ Note: `docs` and `redoc` are only available when `debug=true`.
 ---
 
 ### Root Health Check
+
 ```
 GET /health
 ```
@@ -1211,6 +1339,7 @@ GET /health
 Simple liveness check at the root level (outside `/api/v1`).
 
 Response:
+
 ```json
 {"status": "healthy", "version": "0.1.0"}
 ```
@@ -1220,6 +1349,7 @@ Response:
 ## Export API
 
 ### Export to CSV
+
 ```
 GET /export/csv?inventory_type={type}
 ```
@@ -1227,6 +1357,7 @@ GET /export/csv?inventory_type={type}
 Returns downloadable CSV file.
 
 Example:
+
 ```bash
 curl -o collection.csv "http://localhost:8000/api/v1/export/csv?inventory_type=PRIMARY"
 ```
@@ -1234,6 +1365,7 @@ curl -o collection.csv "http://localhost:8000/api/v1/export/csv?inventory_type=P
 ---
 
 ### Export to JSON
+
 ```
 GET /export/json?inventory_type={type}
 ```
@@ -1249,6 +1381,7 @@ Reference entities (Authors, Publishers, Binders) support CRUD operations and en
 ### Common Entity Fields
 
 All reference entities include:
+
 - `id` (int) - Unique identifier
 - `name` (string) - Entity name
 - `tier` (string, optional) - Quality tier: `TIER_1`, `TIER_2`, `TIER_3`
@@ -1267,6 +1400,7 @@ All reference entities include:
 | `/authors/{id}/reassign` | POST | Reassign books to another author |
 
 **Author-specific fields:**
+
 - `birth_year` (int, optional)
 - `death_year` (int, optional)
 - `era` (string, optional) - e.g., "Victorian", "Romantic"
@@ -1285,6 +1419,7 @@ All reference entities include:
 | `/publishers/{id}/reassign` | POST | Reassign books to another publisher |
 
 **Publisher-specific fields:**
+
 - `founded_year` (int, optional)
 - `description` (string, optional)
 
@@ -1300,12 +1435,14 @@ All reference entities include:
 | `/binders/{id}/reassign` | POST | Reassign books to another binder |
 
 **Binder-specific fields:**
+
 - `full_name` (string, optional) - e.g., "Rivière & Son"
 - `authentication_markers` (string, optional) - Identifying characteristics
 
 ---
 
 ### Reassign Entity Books
+
 ```
 POST /{entity_type}/{id}/reassign
 ```
@@ -1317,6 +1454,7 @@ Reassigns all books from one entity to another, then deletes the source entity. 
 Entity types: `authors`, `publishers`, `binders`
 
 Request Body:
+
 ```json
 {
   "target_id": 42
@@ -1324,6 +1462,7 @@ Request Body:
 ```
 
 Example:
+
 ```bash
 curl -X POST "https://api.bluemoxon.com/api/v1/authors/15/reassign" \
   -H "X-API-Key: $BMX_API_KEY" \
@@ -1332,6 +1471,7 @@ curl -X POST "https://api.bluemoxon.com/api/v1/authors/15/reassign" \
 ```
 
 Response:
+
 ```json
 {
   "reassigned_count": 5,
@@ -1341,6 +1481,7 @@ Response:
 ```
 
 Error Responses:
+
 - 400 Bad Request - Cannot reassign to same entity / Target not found
 - 404 Not Found - Source entity not found
 
@@ -1349,6 +1490,7 @@ Error Responses:
 ## User Management API
 
 ### Get Current User
+
 ```
 GET /users/me
 ```
@@ -1356,6 +1498,7 @@ GET /users/me
 Returns the currently authenticated user's information including profile data.
 
 Response:
+
 ```json
 {
   "cognito_sub": "abc123-...",
@@ -1370,6 +1513,7 @@ Response:
 ---
 
 ### Update User Profile
+
 ```
 PUT /users/me
 ```
@@ -1377,6 +1521,7 @@ PUT /users/me
 Update your own profile (first name, last name). Any authenticated user can update their own profile.
 
 Request Body:
+
 ```json
 {
   "first_name": "John",
@@ -1385,6 +1530,7 @@ Request Body:
 ```
 
 Response:
+
 ```json
 {
   "id": 5,
@@ -1404,11 +1550,13 @@ All endpoints in this section require **admin** role.
 ---
 
 ### List All Users
+
 ```
 GET /users
 ```
 
 Response:
+
 ```json
 [
   {
@@ -1435,12 +1583,14 @@ Response:
 ```
 
 **MFA Status Fields (included in user list):**
+
 - `mfa_configured` - Whether user has completed MFA setup
 - `mfa_enabled` - Whether MFA is currently active
 
 ---
 
 ### Invite User
+
 ```
 POST /users/invite
 ```
@@ -1448,6 +1598,7 @@ POST /users/invite
 Sends an email invitation with a temporary password via AWS Cognito. The invitation email is branded with BlueMoxon styling and includes a "Sign In" button.
 
 Request Body:
+
 ```json
 {
   "email": "newuser@example.com",
@@ -1457,11 +1608,13 @@ Request Body:
 ```
 
 Fields:
+
 - `email` (required) - User's email address
 - `role` (optional, default: "viewer") - Valid roles: `viewer`, `editor`, `admin`
 - `mfa_exempt` (optional, default: false) - If true, user won't be required to set up two-factor authentication
 
 Response:
+
 ```json
 {
   "message": "Invitation sent to newuser@example.com",
@@ -1475,6 +1628,7 @@ Response:
 ---
 
 ### Update User Role
+
 ```
 PUT /users/{user_id}/role?role={role}
 ```
@@ -1482,6 +1636,7 @@ PUT /users/{user_id}/role?role={role}
 Valid roles: `viewer`, `editor`, `admin`
 
 Response:
+
 ```json
 {"message": "User 5 role updated to editor"}
 ```
@@ -1489,6 +1644,7 @@ Response:
 ---
 
 ### Delete User
+
 ```
 DELETE /users/{user_id}
 ```
@@ -1496,6 +1652,7 @@ DELETE /users/{user_id}
 Cannot delete yourself. Also deletes associated API keys.
 
 Response:
+
 ```json
 {"message": "User 5 deleted"}
 ```
@@ -1503,11 +1660,13 @@ Response:
 ---
 
 ### Get User MFA Status
+
 ```
 GET /users/{user_id}/mfa
 ```
 
 Response:
+
 ```json
 {
   "user_id": 5,
@@ -1519,6 +1678,7 @@ Response:
 ```
 
 MFA Status Fields:
+
 - `mfa_configured` - Whether user has ever set up MFA (TOTP registered in Cognito)
 - `mfa_enabled` - Whether MFA is currently active for this user
 - `mfa_methods` - List of active MFA methods (e.g., `SOFTWARE_TOKEN_MFA`)
@@ -1534,6 +1694,7 @@ MFA Status Fields:
 ---
 
 ### Enable User MFA
+
 ```
 POST /users/{user_id}/mfa/enable
 ```
@@ -1541,10 +1702,12 @@ POST /users/{user_id}/mfa/enable
 Re-enables MFA for a user who has previously configured it (i.e., `mfa_configured=true`). This is only applicable when a user's MFA was previously disabled by an admin.
 
 **Requirements:**
+
 - User must have already completed MFA setup (`mfa_configured=true`)
 - This endpoint does NOT work for users who never set up MFA
 
 Response:
+
 ```json
 {"message": "MFA enabled for user@example.com"}
 ```
@@ -1552,6 +1715,7 @@ Response:
 ---
 
 ### Disable User MFA
+
 ```
 POST /users/{user_id}/mfa/disable
 ```
@@ -1561,6 +1725,7 @@ Disables MFA for a user without removing their TOTP configuration. The user's MF
 **Note:** This does NOT delete the user's TOTP configuration. Use "Enable MFA" to re-enable it.
 
 Response:
+
 ```json
 {"message": "MFA disabled for user@example.com"}
 ```
@@ -1568,6 +1733,7 @@ Response:
 ---
 
 ### Impersonate User
+
 ```
 POST /users/{user_id}/impersonate
 ```
@@ -1575,6 +1741,7 @@ POST /users/{user_id}/impersonate
 Generates temporary credentials for testing as another user. Resets user's password.
 
 Response:
+
 ```json
 {
   "message": "Temporary credentials generated for user@example.com",
@@ -1587,6 +1754,7 @@ Response:
 ---
 
 ### Reset User Password
+
 ```
 POST /users/{user_id}/reset-password
 ```
@@ -1594,6 +1762,7 @@ POST /users/{user_id}/reset-password
 Reset another user's password. Cannot reset your own password this way.
 
 Request Body:
+
 ```json
 {
   "new_password": "NewSecurePass123"
@@ -1601,6 +1770,7 @@ Request Body:
 ```
 
 Response:
+
 ```json
 {
   "message": "Password reset successfully for user@example.com"
@@ -1608,11 +1778,13 @@ Response:
 ```
 
 Error Responses:
+
 - 400 Bad Request - Cannot reset your own password / Password doesn't meet requirements
 - 404 Not Found - User not found
 - 500 Internal Server Error - Cognito error
 
 **Password Requirements:**
+
 - Minimum 8 characters
 - At least one uppercase letter
 - At least one lowercase letter
@@ -1627,6 +1799,7 @@ Endpoints for the Admin Config Dashboard. Requires **Editor** or **Admin** role.
 ---
 
 ### Get Dashboard Batch (New in 1.2)
+
 ```
 GET /admin/dashboard/batch
 ```
@@ -1634,6 +1807,7 @@ GET /admin/dashboard/batch
 Fetches all dashboard data in a single request, replacing 6 individual API calls. Returns data for all dashboard tabs.
 
 Response:
+
 ```json
 {
   "system_info": { /* same as /admin/system-info */ },
@@ -1650,6 +1824,7 @@ Response:
 ---
 
 ### Get System Info
+
 ```
 GET /admin/system-info
 ```
@@ -1657,6 +1832,7 @@ GET /admin/system-info
 Returns comprehensive system information including version, health checks, infrastructure config, scoring settings, and tiered entities.
 
 Response:
+
 ```json
 {
   "is_cold_start": false,
@@ -1751,6 +1927,7 @@ Response:
 ---
 
 ### Get AWS Costs
+
 ```
 GET /admin/costs
 ```
@@ -1758,6 +1935,7 @@ GET /admin/costs
 Returns AWS Bedrock usage costs for the current month with daily trend data. **Cached for 1 hour** to minimize Cost Explorer API calls.
 
 Response:
+
 ```json
 {
   "period_start": "2025-12-01",
@@ -1787,6 +1965,7 @@ Response:
 ```
 
 **Notes:**
+
 - Cost Explorer API requires `us-east-1` region regardless of resource location
 - Data is MTD (month-to-date) costs
 - `error` field contains message if Cost Explorer API fails
@@ -1794,6 +1973,7 @@ Response:
 ---
 
 ### Get Config
+
 ```
 GET /admin/config
 ```
@@ -1801,6 +1981,7 @@ GET /admin/config
 Returns currency exchange rates for acquisition cost conversion.
 
 Response:
+
 ```json
 {
   "gbp_to_usd_rate": 1.28,
@@ -1811,6 +1992,7 @@ Response:
 ---
 
 ### Update Config (Admin Only)
+
 ```
 PUT /admin/config
 ```
@@ -1818,6 +2000,7 @@ PUT /admin/config
 Update currency exchange rates. Requires **Admin** role.
 
 Request Body:
+
 ```json
 {
   "gbp_to_usd_rate": 1.27,
@@ -1832,11 +2015,13 @@ Response: Same as GET /admin/config
 ## API Keys (Admin Only)
 
 ### List API Keys
+
 ```
 GET /users/api-keys
 ```
 
 Response:
+
 ```json
 [
   {
@@ -1854,16 +2039,19 @@ Response:
 ---
 
 ### Create API Key
+
 ```
 POST /users/api-keys
 ```
 
 Request Body:
+
 ```json
 {"name": "Data Import Script"}
 ```
 
 Response (**key only shown once!**):
+
 ```json
 {
   "id": 2,
@@ -1877,11 +2065,13 @@ Response (**key only shown once!**):
 ---
 
 ### Revoke API Key
+
 ```
 DELETE /users/api-keys/{key_id}
 ```
 
 Response:
+
 ```json
 {"message": "API key 2 revoked"}
 ```
@@ -1901,6 +2091,7 @@ Response:
 ### Protected Endpoints
 
 Most write operations require **editor** or **admin** role:
+
 - `POST /books` - Create book
 - `PUT /books/{id}` - Update book
 - `DELETE /books/{id}` - Delete book
@@ -1910,6 +2101,7 @@ Most write operations require **editor** or **admin** role:
 - `DELETE /books/{id}/analysis` - Delete analysis
 
 Admin-only operations:
+
 - All `/users/*` endpoints
 - All `/users/api-keys/*` endpoints
 
@@ -1979,6 +2171,7 @@ sequenceDiagram
 ```
 
 **Invitation Email Features:**
+
 - BlueMoxon branded header with blue gradient
 - Credentials displayed in clear monospace boxes
 - "Sign In to BlueMoxon" button linking to app.bluemoxon.com
