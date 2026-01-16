@@ -143,7 +143,7 @@ Implement volume extraction fix (separate issue) before batch re-analyzing for v
 ---
 ---
 
-# Session 2: Volume Extraction Fix
+## Session 2: Volume Extraction Fix
 
 ## Timeline
 

@@ -511,7 +511,7 @@ max_retries = 3, base_delay = 5.0 seconds
 | Architecture | Lambda + VPC + RDS | Infrastructure overview |
 | Sequence | SQS worker job flow | Show API → SQS → Worker → DLQ |
 | Component | Async job architecture | Analysis + eval-runbook workers |
-| Flow | Scraper Lambda container build | CI/CD deployment
+| Flow | Scraper Lambda container build | CI/CD deployment |
 
 ---
 
