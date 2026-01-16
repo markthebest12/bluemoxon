@@ -209,10 +209,7 @@ resource "aws_lambda_function" "dispatcher" {
   depends_on = [aws_cloudwatch_log_group.dispatcher]
 
   lifecycle {
-    ignore_changes = [
-      s3_key,
-      layers,
-    ]
+    ignore_changes = [s3_key]
   }
 }
 
@@ -253,10 +250,7 @@ resource "aws_lambda_function" "worker" {
   depends_on = [aws_cloudwatch_log_group.worker]
 
   lifecycle {
-    ignore_changes = [
-      s3_key,
-      layers,
-    ]
+    ignore_changes = [s3_key]
   }
 }
 

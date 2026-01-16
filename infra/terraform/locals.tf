@@ -25,6 +25,10 @@ locals {
   # Prod override: bluemoxon-prod-api
   lambda_function_name = coalesce(var.lambda_function_name_override, "${var.app_name}-${var.environment}-api")
 
+  # Lambda S3 deployment key - CI/CD uploads to this path
+  # All Lambda modules reference the same backend.zip
+  lambda_s3_key = "lambda/backend.zip"
+
   # API Gateway name - use override if provided
   api_gateway_name = coalesce(var.api_gateway_name_override, "${var.app_name}-${var.environment}-api")
 

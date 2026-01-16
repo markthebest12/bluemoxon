@@ -482,7 +482,7 @@ module "analysis_worker" {
   environment = var.environment
 
   s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = "lambda/backend.zip"
+  s3_key    = local.lambda_s3_key
   runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
@@ -549,7 +549,7 @@ module "eval_runbook_worker" {
   environment = var.environment
 
   s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = "lambda/backend.zip"
+  s3_key    = local.lambda_s3_key
   runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
@@ -621,7 +621,7 @@ module "tracking_worker" {
   environment = var.environment
 
   s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = "lambda/backend.zip"
+  s3_key    = local.lambda_s3_key
   runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
@@ -679,7 +679,7 @@ module "cleanup_lambda" {
   environment   = var.environment
 
   s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = "lambda/backend.zip"
+  s3_key    = local.lambda_s3_key
   runtime   = var.lambda_runtime
   layers    = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
 

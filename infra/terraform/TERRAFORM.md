@@ -176,6 +176,8 @@ module "api" {
 
 **Note:** Lambda packages are deployed from S3. The CI/CD pipeline uploads packages to `s3://{artifacts_bucket}/lambda/backend.zip` and updates Lambda code via AWS CLI. Terraform's lifecycle ignores `s3_key` changes so it doesn't interfere with CI/CD deployments.
 
+**Bootstrap (New Environment):** For greenfield deployments (new AWS account, DR recovery), the S3 object must exist before `terraform apply`. Run CI/CD to upload the initial package, or manually upload a placeholder zip to `s3://{artifacts_bucket}/lambda/backend.zip`.
+
 **Key Variables:**
 
 | Variable | Type | Default | Description |
