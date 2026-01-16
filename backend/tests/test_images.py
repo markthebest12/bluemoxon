@@ -286,3 +286,103 @@ class TestThumbnailGeneration:
         assert data["duplicate"] is True
         assert data["thumbnail_status"] == "skipped"
         assert data.get("thumbnail_error") is None
+
+
+class TestImageProcessingTrigger:
+    """Tests for auto-triggering image processing on primary change."""
+
+    def test_upload_as_primary_queues_processing(self, client, db):
+        """Uploading an image as primary should queue processing."""
+        from unittest.mock import patch
+
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
+            b"\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18"
+            b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        with patch("app.api.v1.images.queue_image_processing") as mock_queue:
+            response = client.post(
+                f"/api/v1/books/{book_id}/images",
+                files={"file": ("test.png", io.BytesIO(png_data), "image/png")},
+                params={"is_primary": True},
+            )
+            assert response.status_code == 201
+            mock_queue.assert_called_once()
+
+    def test_upload_not_primary_skips_processing(self, client, db):
+        """Uploading a non-primary image should not queue processing."""
+        from unittest.mock import patch
+
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
+            b"\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18"
+            b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        with patch("app.api.v1.images.queue_image_processing") as mock_queue:
+            client.post(
+                f"/api/v1/books/{book_id}/images",
+                files={"file": ("test1.png", io.BytesIO(png_data), "image/png")},
+                params={"is_primary": True},
+            )
+            mock_queue.reset_mock()
+
+            response = client.post(
+                f"/api/v1/books/{book_id}/images",
+                files={"file": ("test2.png", io.BytesIO(png_data), "image/png")},
+            )
+            assert response.status_code == 201
+            mock_queue.assert_not_called()
+
+    def test_reorder_to_primary_queues_processing(self, client, db):
+        """Reordering an image to primary position should queue processing."""
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create two distinct images to avoid duplicate detection
+        img1 = Image.new("RGB", (10, 10), color="red")
+        buffer1 = io.BytesIO()
+        img1.save(buffer1, format="JPEG")
+        img1_bytes = buffer1.getvalue()
+
+        img2 = Image.new("RGB", (10, 10), color="blue")
+        buffer2 = io.BytesIO()
+        img2.save(buffer2, format="JPEG")
+        img2_bytes = buffer2.getvalue()
+
+        with patch("app.api.v1.images.queue_image_processing"):
+            client.post(
+                f"/api/v1/books/{book_id}/images",
+                files={"file": ("test1.jpg", io.BytesIO(img1_bytes), "image/jpeg")},
+                params={"is_primary": True},
+            )
+            client.post(
+                f"/api/v1/books/{book_id}/images",
+                files={"file": ("test2.jpg", io.BytesIO(img2_bytes), "image/jpeg")},
+            )
+
+        response = client.get(f"/api/v1/books/{book_id}/images")
+        images = response.json()
+        image_ids = [img["id"] for img in images]
+
+        with patch("app.api.v1.images.queue_image_processing") as mock_queue:
+            new_order = [image_ids[1], image_ids[0]]
+            response = client.put(
+                f"/api/v1/books/{book_id}/images/reorder",
+                json=new_order,
+            )
+            assert response.status_code == 200
+            mock_queue.assert_called_once()

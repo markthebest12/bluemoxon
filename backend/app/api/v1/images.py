@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
+from app.services.image_processing import queue_image_processing
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -262,6 +263,13 @@ def reorder_images(
             detail="Some image IDs do not belong to this book",
         )
 
+    # Capture old primary before reordering
+    old_primary_id = None
+    for img in existing_images:
+        if img.is_primary:
+            old_primary_id = img.id
+            break
+
     # Update display_order based on position in the array
     # Also update is_primary: first image becomes primary, others become non-primary
     for order, image_id in enumerate(image_ids):
@@ -273,6 +281,14 @@ def reorder_images(
         )
 
     db.commit()
+
+    # Trigger image processing if primary changed
+    new_primary_id = image_ids[0] if image_ids else None
+    if new_primary_id and new_primary_id != old_primary_id:
+        try:
+            queue_image_processing(db, book_id, new_primary_id)
+        except Exception as e:
+            logger.warning(f"Failed to queue image processing: {e}")
 
     return {"message": "Images reordered successfully", "order": image_ids}
 
@@ -462,6 +478,13 @@ async def upload_image(
     db.add(image)
     db.commit()
     db.refresh(image)
+
+    # Trigger image processing if this is the primary image
+    if image.is_primary:
+        try:
+            queue_image_processing(db, book_id, image.id)
+        except Exception as e:
+            logger.warning(f"Failed to queue image processing: {e}")
 
     return ImageUploadResponse(
         id=image.id,
