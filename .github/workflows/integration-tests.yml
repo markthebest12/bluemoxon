@@ -1,0 +1,103 @@
+# Integration Tests - Runs weekly against staging environment
+# Tests S3 cleanup Lambda and other integration tests that require real AWS resources
+#
+# Schedule: Weekly on Sundays at 06:00 UTC
+# Manual trigger: workflow_dispatch
+
+name: Integration Tests
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # Weekly on Sundays at 06:00 UTC
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+  PYTHON_VERSION: "3.12"
+
+# Required for AWS OIDC authentication and issue creation
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  integration-tests:
+    name: Integration Tests (Staging)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v5
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        working-directory: backend
+        run: poetry install --no-interaction --no-root
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::565393050267:role/bluemoxon-staging-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run integration tests
+        id: tests
+        working-directory: backend
+        run: RUN_INTEGRATION_TESTS=1 poetry run pytest tests/integration/ -v --tb=short
+
+  # Create issue on failure
+  create-failure-issue:
+    name: Create Failure Issue
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: failure()
+
+    steps:
+      - name: Create GitHub issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const date = new Date().toISOString().split('T')[0];
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Integration Tests Failed - ${date}`,
+              labels: ['integration-test-failure'],
+              body: `## Integration Tests Failed
+
+**Date:** ${date}
+**Workflow Run:** [View Logs](${runUrl})
+
+### Details
+The scheduled integration tests against the staging environment have failed.
+
+### Next Steps
+1. Review the [workflow logs](${runUrl}) to identify the failure
+2. Check staging environment health: https://staging.api.bluemoxon.com/api/v1/health/deep
+3. Fix the issue and verify tests pass manually
+
+### Related
+- Tests located in: \`backend/tests/integration/\`
+- Run locally with: \`RUN_INTEGRATION_TESTS=1 poetry run pytest backend/tests/integration/ -v\`
+`
+            });
