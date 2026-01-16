@@ -49,6 +49,9 @@ PROMPT_CACHE_TTL = 300  # 5 minutes
 PROMPTS_BUCKET = os.environ.get("PROMPTS_BUCKET", settings.images_bucket)
 PROMPT_KEY = "prompts/napoleon-framework/v3.md"
 
+# Processed image note for AI prompts
+PROCESSED_IMAGE_NOTE = """Note: This image has had its background digitally removed and replaced with a solid color. Disregard any edge artifacts, halos, or unnatural boundaries - focus your analysis on the book itself."""
+
 # Fallback prompt if S3 unavailable
 FALLBACK_PROMPT = """You are an expert antiquarian book appraiser generating a Napoleon framework analysis.
 
@@ -344,6 +347,7 @@ def build_bedrock_messages(
     book_data: dict,
     images: list[dict],
     source_content: str | None,
+    primary_image_processed: bool = False,
 ) -> list[dict]:
     """Build messages array for Bedrock Claude API.
 
@@ -351,6 +355,7 @@ def build_bedrock_messages(
         book_data: Dict with book metadata
         images: List of Bedrock-formatted image blocks
         source_content: Optional HTML content from source URL
+        primary_image_processed: Whether primary image had background removed
 
     Returns:
         Messages array for Bedrock invoke_model
@@ -394,6 +399,9 @@ def build_bedrock_messages(
     # Add image instructions if images provided
     if images:
         text_parts.append(f"\n## Images\n{len(images)} images are attached below.")
+
+        if primary_image_processed:
+            text_parts.append(f"\n{PROCESSED_IMAGE_NOTE}")
 
     user_text = "\n".join(text_parts)
 
