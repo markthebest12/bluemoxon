@@ -319,6 +319,32 @@ class TestEnvironmentDetection:
             assert settings.is_production is False
 
 
+def test_get_lambda_environment_generic(monkeypatch):
+    """Test get_lambda_environment() with different service names."""
+    from app.config import get_lambda_environment
+
+    # Clear all env vars first
+    monkeypatch.delenv("BMX_SCRAPER_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("BMX_CLEANUP_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("BMX_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+    # Should default to staging for any service
+    assert get_lambda_environment("scraper") == "staging"
+    assert get_lambda_environment("cleanup") == "staging"
+    assert get_lambda_environment("analysis") == "staging"
+
+    # Service-specific env var takes precedence
+    monkeypatch.setenv("BMX_SCRAPER_ENVIRONMENT", "prod")
+    assert get_lambda_environment("scraper") == "prod"
+    assert get_lambda_environment("cleanup") == "staging"  # Different service
+
+    # BMX_ENVIRONMENT is fallback for all services without specific override
+    monkeypatch.setenv("BMX_ENVIRONMENT", "production")
+    assert get_lambda_environment("scraper") == "prod"  # Specific override wins
+    assert get_lambda_environment("cleanup") == "production"  # Falls back to BMX_ENVIRONMENT
+
+
 def test_get_cleanup_environment_priority(monkeypatch):
     """Test get_cleanup_environment() checks BMX_CLEANUP_ENVIRONMENT first."""
     from app.config import get_cleanup_environment
@@ -342,3 +368,19 @@ def test_get_cleanup_environment_priority(monkeypatch):
     # BMX_CLEANUP_ENVIRONMENT should override all
     monkeypatch.setenv("BMX_CLEANUP_ENVIRONMENT", "prod")
     assert get_cleanup_environment() == "prod"
+
+
+def test_cleanup_lambda_function_name_construction(monkeypatch):
+    """Test that cleanup Lambda function name is constructed correctly."""
+    from app.config import get_cleanup_environment
+
+    # Simulate production environment where BMX_ENVIRONMENT=production
+    # but we want Lambda named bluemoxon-prod-cleanup
+    monkeypatch.setenv("BMX_ENVIRONMENT", "production")
+    monkeypatch.setenv("BMX_CLEANUP_ENVIRONMENT", "prod")
+
+    env = get_cleanup_environment()
+    function_name = f"bluemoxon-{env}-cleanup"
+
+    assert function_name == "bluemoxon-prod-cleanup"
+    assert function_name != "bluemoxon-production-cleanup"
