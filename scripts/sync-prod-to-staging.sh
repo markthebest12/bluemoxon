@@ -23,15 +23,10 @@
 #
 # Prerequisites:
 #   - AWS CLI configured with bmx-prod and bmx-staging profiles
-#   - psql and pg_dump installed (brew install libpq)
 #   - curl and jq for API version checks
-#   - Network access to both RDS instances
-#     NOTE: Prod (Aurora) and Staging (RDS) are in different accounts/VPCs.
-#     For database sync to work, you need one of:
-#     - VPC peering between accounts
-#     - A bastion host with access to both databases
-#     - AWS DMS for cross-account replication
-#     The S3 sync works via local download/upload and doesn't require peering.
+#
+# Database sync uses Lambda (runs inside VPC with access to both databases).
+# S3 sync uses local download/upload (works across accounts).
 #
 # Post-sync behavior:
 #   - Dashboard stats may show stale data for up to 5 minutes (Redis cache TTL)
@@ -50,10 +45,6 @@ STAGING_PROFILE="bmx-staging"
 # S3 Buckets
 PROD_IMAGES_BUCKET="bluemoxon-images"
 STAGING_IMAGES_BUCKET="bluemoxon-images-staging"
-
-# Database
-PROD_DB_SECRET="bluemoxon/db-credentials"
-STAGING_DB_SECRET="bluemoxon-staging/database"
 
 # Flags
 SYNC_IMAGES=true
@@ -203,21 +194,6 @@ confirm() {
     [[ $REPLY =~ ^[Yy]$ ]]
 }
 
-get_secret() {
-    local secret_name="$1"
-    local profile_arg=""
-
-    if [ -n "${2:-}" ]; then
-        profile_arg="--profile $2"
-    fi
-
-    aws secretsmanager get-secret-value \
-        $profile_arg \
-        --secret-id "$secret_name" \
-        --query 'SecretString' \
-        --output text
-}
-
 # -----------------------------------------------------------------------------
 # Parse Arguments
 # -----------------------------------------------------------------------------
@@ -338,116 +314,55 @@ if [ "$SYNC_IMAGES" = true ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Database Sync
+# Database Sync (via Lambda)
 # -----------------------------------------------------------------------------
 
 if [ "$SYNC_DB" = true ]; then
-    log_info "Syncing database..."
-
-    # Check for psql and pg_dump (try common homebrew paths)
-    PSQL_CMD="psql"
-    PG_DUMP_CMD="pg_dump"
-
-    if ! command -v psql &> /dev/null; then
-        if [ -x "/opt/homebrew/opt/libpq/bin/psql" ]; then
-            PSQL_CMD="/opt/homebrew/opt/libpq/bin/psql"
-            PG_DUMP_CMD="/opt/homebrew/opt/libpq/bin/pg_dump"
-        else
-            log_error "psql and pg_dump are required. Install with: brew install libpq"
-            log_error "Then add to PATH: export PATH=\"/opt/homebrew/opt/libpq/bin:\$PATH\""
-            exit 1
-        fi
-    fi
-
-    # Get database credentials from Secrets Manager
-    log_info "Fetching database credentials..."
-
-    PROD_CREDS=$(get_secret "$PROD_DB_SECRET" "$PROD_PROFILE")
-    STAGING_CREDS=$(get_secret "$STAGING_DB_SECRET" "$STAGING_PROFILE")
-
-    # Parse credentials (handle both 'database' and 'dbname' keys)
-    PROD_HOST=$(echo "$PROD_CREDS" | jq -r '.host')
-    PROD_PORT=$(echo "$PROD_CREDS" | jq -r '.port // 5432')
-    PROD_USER=$(echo "$PROD_CREDS" | jq -r '.username')
-    PROD_PASS=$(echo "$PROD_CREDS" | jq -r '.password')
-    PROD_DB=$(echo "$PROD_CREDS" | jq -r '.database // .dbname // "bluemoxon"')
-
-    STAGING_HOST=$(echo "$STAGING_CREDS" | jq -r '.host')
-    STAGING_PORT=$(echo "$STAGING_CREDS" | jq -r '.port // 5432')
-    STAGING_USER=$(echo "$STAGING_CREDS" | jq -r '.username')
-    STAGING_PASS=$(echo "$STAGING_CREDS" | jq -r '.password')
-    STAGING_DB=$(echo "$STAGING_CREDS" | jq -r '.database // .dbname // "bluemoxon"')
-
-    log_info "Source database:"
-    log_info "  Host: $PROD_HOST"
-    log_info "  Database: $PROD_DB"
-    log_info "  User: $PROD_USER"
-    echo
-    log_info "Target database:"
-    log_info "  Host: $STAGING_HOST"
-    log_info "  Database: $STAGING_DB"
-    log_info "  User: $STAGING_USER"
-    echo
-
+    log_info "Syncing database via Lambda..."
     log_warn "WARNING: This will REPLACE ALL DATA in the staging database!"
 
     if ! confirm "Are you sure you want to continue?"; then
         log_info "Skipping database sync."
     else
         if [ "$DRY_RUN" = true ]; then
-            log_info "[DRY RUN] Would:"
-            log_info "  1. Dump production database to temp file"
-            log_info "  2. Drop and recreate staging database"
-            log_info "  3. Restore dump to staging"
+            log_info "[DRY RUN] Would invoke Lambda: bluemoxon-staging-db-sync"
         else
-            DUMP_FILE=$(mktemp).sql
-            trap "rm -f $DUMP_FILE" EXIT
+            RESPONSE_FILE=".tmp/sync-response-$$.json"
+            mkdir -p .tmp
 
-            log_info "Dumping production database..."
-            PGPASSWORD="$PROD_PASS" "$PG_DUMP_CMD" \
-                -h "$PROD_HOST" \
-                -p "$PROD_PORT" \
-                -U "$PROD_USER" \
-                -d "$PROD_DB" \
-                --no-owner \
-                --no-acl \
-                -F p \
-                > "$DUMP_FILE"
+            log_info "Invoking Lambda function..."
+            aws lambda invoke \
+                --function-name bluemoxon-staging-db-sync \
+                --profile "$STAGING_PROFILE" \
+                --payload '{}' \
+                "$RESPONSE_FILE" \
+                --cli-read-timeout 300 \
+                > /dev/null
 
-            DUMP_SIZE=$(du -h "$DUMP_FILE" | cut -f1)
-            log_info "Dump complete: $DUMP_SIZE"
+            # Parse response
+            BODY=$(cat "$RESPONSE_FILE" | jq -r '.body // .' 2>/dev/null)
 
-            log_info "Restoring to staging database..."
+            if echo "$BODY" | jq -e '.error' > /dev/null 2>&1; then
+                log_warn "Sync completed with some failures"
+            else
+                log_success "Database sync complete!"
+            fi
 
-            # Drop existing tables and restore
-            PGPASSWORD="$STAGING_PASS" "$PSQL_CMD" \
-                -h "$STAGING_HOST" \
-                -p "$STAGING_PORT" \
-                -U "$STAGING_USER" \
-                -d "$STAGING_DB" \
-                -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" \
-                2>/dev/null || true
+            # Show results
+            TABLES_SYNCED=$(echo "$BODY" | jq -r '.results.tables_synced // [] | length' 2>/dev/null || echo "?")
+            TOTAL_ROWS=$(echo "$BODY" | jq -r '.results.total_rows // "?"' 2>/dev/null)
+            TABLES_FAILED=$(echo "$BODY" | jq -r '.results.tables_failed // [] | length' 2>/dev/null || echo "0")
 
-            PGPASSWORD="$STAGING_PASS" "$PSQL_CMD" \
-                -h "$STAGING_HOST" \
-                -p "$STAGING_PORT" \
-                -U "$STAGING_USER" \
-                -d "$STAGING_DB" \
-                -f "$DUMP_FILE" \
-                --quiet \
-                2>/dev/null
+            log_info "Results:"
+            log_info "  Tables synced: $TABLES_SYNCED"
+            log_info "  Total rows: $TOTAL_ROWS"
 
-            log_success "Database sync complete!"
+            if [ "$TABLES_FAILED" != "0" ]; then
+                log_warn "  Tables failed: $TABLES_FAILED"
+                echo "$BODY" | jq -r '.results.tables_failed[] | "    - \(.table): \(.error | split("\n")[0])"' 2>/dev/null || true
+            fi
 
-            # Show table counts
-            log_info "Staging database table counts:"
-            PGPASSWORD="$STAGING_PASS" "$PSQL_CMD" \
-                -h "$STAGING_HOST" \
-                -p "$STAGING_PORT" \
-                -U "$STAGING_USER" \
-                -d "$STAGING_DB" \
-                -c "SELECT schemaname, relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 10;" \
-                2>/dev/null || true
+            rm -f "$RESPONSE_FILE"
         fi
     fi
 fi

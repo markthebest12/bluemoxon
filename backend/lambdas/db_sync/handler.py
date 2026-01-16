@@ -99,16 +99,32 @@ def adapt_row_for_insert(row: tuple, columns: list[str], jsonb_cols: set[str]) -
     Args:
         row: Tuple of values from SELECT
         columns: List of column names in same order as row
-        jsonb_cols: Set of column names that are JSONB type
+        jsonb_cols: Set of column names that are JSONB type in staging
 
     Returns:
         Tuple with JSONB values wrapped in Json()
+
+    Handles schema divergence where prod may have different types:
+    - numeric -> jsonb: wrap number in Json()
+    - text[] -> jsonb: convert list to Json()
+    - text -> jsonb: parse JSON string or wrap raw value
     """
     adapted = []
     for col, value in zip(columns, row, strict=True):
         if col in jsonb_cols and value is not None:
-            # Wrap all JSONB values: dicts, lists (even empty), strings, etc.
-            adapted.append(Json(value))
+            # Handle different source types that need conversion to JSONB
+            if isinstance(value, str):
+                # Could be a JSON string from prod - try to parse, else wrap raw
+                try:
+                    import json as json_module
+
+                    parsed = json_module.loads(value)
+                    adapted.append(Json(parsed))
+                except (json_module.JSONDecodeError, TypeError):
+                    adapted.append(Json(value))
+            else:
+                # Numbers, lists, dicts, etc. - wrap directly
+                adapted.append(Json(value))
         else:
             adapted.append(value)
     return tuple(adapted)
@@ -119,6 +135,8 @@ def copy_table_data(prod_conn, staging_conn, table: str, columns: list[str]) -> 
     # Get JSONB columns from STAGING schema (target) to handle schema divergence
     # If prod has TEXT[] but staging has JSONB, we need staging's column types
     jsonb_cols = get_jsonb_columns(staging_conn, table)
+    if jsonb_cols:
+        logger.info(f"Table {table} has JSONB columns in staging: {jsonb_cols}")
 
     # Get data from production
     with prod_conn.cursor() as prod_cur:
