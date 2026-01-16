@@ -2084,10 +2084,10 @@ bmx-api --prod GET /books/123   # Production
 ### ✅ ALL ISSUES COMPLETED AND CLOSED
 
 | Issue | Title | Fix Summary | PR | Prod Version | Closed |
-|-------|-------|-------------|----|--------------| -------|
+|-------|-------|-------------|----|--------------| ------|
 | #496 | Napoleon prompt provenance | Added explicit provenance instructions | #500 | 2025.12.21-f2f8aad | ✅ |
 | #497 | Mobile eBay URLs broken | Added short ID regex + redirect resolution | #500 | 2025.12.21-f2f8aad | ✅ |
-| #498 | Ask price not stored | Changed `||` to `??` (nullish coalescing) | #500 | 2025.12.21-f2f8aad | ✅ |
+| #498 | Ask price not stored | Changed `\|\|` to `??` (nullish coalescing) | #500 | 2025.12.21-f2f8aad | ✅ |
 | #499 | Analysis status stuck | Added `clearJob()` to polling error handlers | #503 | 2025.12.21-f2ad550 | ✅ |
 | #502 | Binder misidentification | Require signature/stamp evidence for ID | #504→#505 | 2025.12.21-1f4f103 | ✅ |
 

@@ -18,8 +18,8 @@ Add API integration for multiple shipping carriers to enable:
 |----------|---------|------------------|-------|
 | 1 | UPS | `1Z[A-Z0-9]{16}` | Existing - move to plugin |
 | 2 | DHL | `\d{10}` | Clean public JSON API |
-| 3 | USPS | `(94|93|92)\d{18,20}` or `\d{20,22}` | US domestic |
-| 4 | FedEx | `\d{12}`, `\d{15}`, `\d{20}` | International |
+| 3 | USPS | `(94\|93\|92)\d{18,20}` or `\d{20,22}` | US domestic |
+| 4 | FedEx | `\d{12}, \d{15}, \d{20}` | International |
 | 5 | Royal Mail | `[A-Z]{2}\d{9}[A-Z]{2}` | UK domestic |
 | 6 | Pitney Bowes | `UPAA\d+` | eBay Global Shipping |
 
