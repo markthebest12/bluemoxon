@@ -63,7 +63,7 @@ jobs:
         working-directory: backend
         run: RUN_INTEGRATION_TESTS=1 poetry run pytest tests/integration/ -v --tb=short
 
-  # Create issue on failure
+  # Create issue on failure (with deduplication)
   create-failure-issue:
     name: Create Failure Issue
     runs-on: ubuntu-latest
@@ -71,8 +71,31 @@ jobs:
     if: failure()
 
     steps:
+      - name: Check for existing open issue
+        id: check-issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'integration-test-failure',
+              state: 'open'
+            });
+
+            const hasOpenIssue = issues.data.length > 0;
+            console.log(`Found ${issues.data.length} open issue(s) with integration-test-failure label`);
+
+            if (hasOpenIssue) {
+              console.log(`Existing issue: ${issues.data[0].html_url}`);
+            }
+
+            return hasOpenIssue;
+          result-encoding: string
+
       - name: Create GitHub issue
-        uses: actions/github-script@v8
+        if: steps.check-issue.outputs.result == 'false'
+        uses: actions/github-script@v7
         with:
           script: |
             const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
@@ -95,9 +118,40 @@ The scheduled integration tests against the staging environment have failed.
 1. Review the [workflow logs](${runUrl}) to identify the failure
 2. Check staging environment health: https://staging.api.bluemoxon.com/api/v1/health/deep
 3. Fix the issue and verify tests pass manually
+4. Close this issue when resolved
 
 ### Related
 - Tests located in: \`backend/tests/integration/\`
 - Run locally with: \`RUN_INTEGRATION_TESTS=1 poetry run pytest backend/tests/integration/ -v\`
 `
             });
+
+      - name: Add comment to existing issue
+        if: steps.check-issue.outputs.result == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const date = new Date().toISOString().split('T')[0];
+
+            // Find the existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'integration-test-failure',
+              state: 'open'
+            });
+
+            if (issues.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `### Test failure continues - ${date}
+
+Integration tests failed again. [View workflow run](${runUrl})
+
+This issue remains open from a previous failure.`
+              });
+              console.log(`Added comment to existing issue #${issues.data[0].number}`);
+            }
