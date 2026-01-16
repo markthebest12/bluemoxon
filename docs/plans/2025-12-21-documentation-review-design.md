@@ -34,7 +34,7 @@ Full stack review:
 
 Three-tier hybrid structure:
 
-```
+```text
 docs/
 ├── INDEX.md                    # Master index - "start here"
 ├── OPERATIONS.md               # Hub: runbooks, troubleshooting, monitoring

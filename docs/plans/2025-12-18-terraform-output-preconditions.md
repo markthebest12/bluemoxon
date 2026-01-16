@@ -218,7 +218,7 @@ Run: `AWS_PROFILE=bmx-prod terraform plan -var-file=envs/prod.tfvars -var="db_pa
 
 Expected output containing:
 
-```
+```text
 Error: Resource precondition failed
 cognito_user_pool_id_external must be set when enable_cognito is false
 ```

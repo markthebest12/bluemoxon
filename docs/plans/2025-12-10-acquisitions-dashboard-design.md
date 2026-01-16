@@ -20,7 +20,7 @@ Replace the manual, file-based acquisition workflow with an in-app acquisitions 
 
 ### New Status Flow
 
-```
+```text
 EVALUATING → IN_TRANSIT → ON_HAND → SOLD/REMOVED
                 ↓
             (CANCELED)
@@ -54,7 +54,7 @@ EVALUATING → IN_TRANSIT → ON_HAND → SOLD/REMOVED
 
 ### Acquisition Promotion
 
-```
+```text
 PATCH /books/{id}/acquire
 ```
 
@@ -74,7 +74,7 @@ PATCH /books/{id}/acquire
 
 ### Order Detail Extraction
 
-```
+```text
 POST /books/parse-order-details
 ```
 
@@ -98,7 +98,7 @@ POST /books/parse-order-details
 
 ### Listing Extraction
 
-```
+```text
 POST /books/parse-listing
 ```
 
@@ -114,7 +114,7 @@ POST /books/parse-listing
 
 ### Analysis Generation
 
-```
+```text
 POST /books/{id}/generate-analysis
 ```
 
@@ -132,7 +132,7 @@ POST /books/{id}/generate-analysis
 
 Three-column Kanban-style board:
 
-```
+```text
 ┌─────────────────┬─────────────────┬─────────────────┐
 │   EVALUATING    │   IN TRANSIT    │    RECEIVED     │
 │   (Watchlist)   │   (Acquired)    │   (Last 30d)    │
@@ -170,7 +170,7 @@ Three-column Kanban-style board:
 
 ### Step 1: Paste URL
 
-```
+```text
 ┌────────────────────────────────────────┐
 │ Add to Watchlist                       │
 ├────────────────────────────────────────┤
@@ -185,7 +185,7 @@ Three-column Kanban-style board:
 
 ### Step 2: Review & Enrich
 
-```
+```text
 ┌────────────────────────────────────────┐
 │ Confirm Details                        │
 ├────────────────────────────────────────┤
@@ -211,7 +211,7 @@ Bedrock extracts listing details and suggests author/publisher/binder matches.
 
 ### Manual Entry
 
-```
+```text
 ┌────────────────────────────────────────┐
 │ Acquire: The Queen of the Air          │
 ├────────────────────────────────────────┤
@@ -235,7 +235,7 @@ On confirm: Calls `PATCH /books/{id}/acquire`, generates full Napoleon if not al
 
 ## UI: Scoring Summary View
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ Scoring Summary: The Queen of the Air              │
 │ Acquired Dec 10, 2025                              │

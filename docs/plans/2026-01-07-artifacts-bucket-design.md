@@ -22,7 +22,7 @@ Create a dedicated `bluemoxon-artifacts-{env}` S3 bucket for Lambda artifacts, e
 
 ### Architecture
 
-```
+```text
 BEFORE (coupled):
 ┌─────────────────────────────────────────────┐
 │  bluemoxon-frontend-{env}                   │
@@ -178,7 +178,7 @@ Remove `--exclude "lambda/*"` from the frontend sync command (no longer needed).
 
 ## Rollout Plan
 
-```
+```text
 Phase 1: Terraform (staging)
 ├── Tasks 1-4
 ├── terraform apply -var-file=envs/staging.tfvars

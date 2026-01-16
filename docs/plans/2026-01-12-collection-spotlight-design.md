@@ -29,7 +29,7 @@ Replace the redundant "Browse Collection" and "Premium Bindings" action cards on
 
 ### Layout
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  COLLECTION SPOTLIGHT                                           │
 ├─────────────────────┬─────────────────────┬─────────────────────┤
@@ -112,7 +112,7 @@ Separate fetch in the spotlight component rather than adding to dashboard endpoi
 
 ### API Calls
 
-```
+```text
 GET /books?inventory_type=PRIMARY&page=1
 GET /books?inventory_type=PRIMARY&page=2
 ... (up to 9 pages for 170 books)

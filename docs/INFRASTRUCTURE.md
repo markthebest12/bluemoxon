@@ -69,7 +69,7 @@ flowchart TB
 
 All infrastructure is managed via Terraform in `infra/terraform/`:
 
-```
+```text
 infra/terraform/
 ├── main.tf              # Root module, module composition
 ├── variables.tf         # Input variables
@@ -140,7 +140,7 @@ If you MUST make a manual change:
 
 #### File Organization (REQUIRED)
 
-```
+```text
 modules/<module-name>/
 ├── main.tf          # Resources and data sources
 ├── variables.tf     # Input variables (ALPHABETICAL order)

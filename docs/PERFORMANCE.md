@@ -57,7 +57,7 @@ Measured via Playwright against production (bluemoxon.com):
 
 Vite automatically splits the bundle into chunks for better caching:
 
-```
+```text
 dist/assets/
 ├── vue-vendor-*.js      # Vue, Vue Router, Pinia (103 KB)
 ├── aws-auth-*.js        # AWS Amplify auth (127 KB)

@@ -50,7 +50,7 @@ Force explicit decisions by rejecting ambiguous entity references at the API lev
 
 **Example - Similar entity exists:**
 
-```
+```text
 POST /books
 {
   "title": "Some Book",
@@ -71,7 +71,7 @@ Response: 409 Conflict
 
 **Example - Unknown entity:**
 
-```
+```text
 POST /books
 {
   "title": "Some Book",
@@ -97,7 +97,7 @@ Response: 400 Bad Request
 
 **Example - Similar entity exists:**
 
-```
+```text
 POST /publishers
 {
   "name": "Macmillan",
@@ -118,7 +118,7 @@ Response: 409 Conflict
 
 **Force creation:**
 
-```
+```text
 POST /publishers?force=true
 {
   "name": "Macmillan",
@@ -233,7 +233,7 @@ Extend existing publisher cache pattern to all entity types:
 
 **Log format:**
 
-```
+```text
 WARN: Entity validation would reject: publisher 'Bayntun (of Bath)'
       matches 'Bayntun' at 88% (book_count: 5)
 ```
@@ -268,7 +268,7 @@ WARN: Entity validation would reject: publisher 'Bayntun (of Bath)'
 
 **Environment variables:**
 
-```
+```text
 ENTITY_MATCH_THRESHOLD_PUBLISHER=0.80
 ENTITY_MATCH_THRESHOLD_BINDER=0.80
 ENTITY_MATCH_THRESHOLD_AUTHOR=0.75  # lower due to name variations

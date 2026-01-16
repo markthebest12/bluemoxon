@@ -118,7 +118,7 @@ Used `superpowers:systematic-debugging` skill:
 
 **Workflow structure:**
 
-```
+```text
 ci → changes → configure → generate-version
          ↓
    build-layer, build-backend, build-frontend, build-scraper (conditional)

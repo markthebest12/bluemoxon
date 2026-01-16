@@ -22,7 +22,7 @@ The `@tailwindcss/forms` plugin was needed to fix Issue #5 (preflight form reset
 
 ### CSS Cascade Resolution
 
-```
+```text
 1. @layer base (Tailwind preflight) - resets to transparent
 2. @layer base (@tailwindcss/forms) - adds sensible defaults with blue focus
 3. @layer components (.input, .select) - Victorian styling with gold focus

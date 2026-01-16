@@ -172,26 +172,26 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 
 1. Merge PR #536 to deploy to production
 
-   ```
+   ```text
    gh pr merge 536 --squash --delete-branch --admin
    ```
 
 2. Watch production deploy
 
-   ```
+   ```text
    gh run list --workflow Deploy --limit 1
    gh run watch <run-id> --exit-status
    ```
 
 3. Trigger score recalculation for book 521
 
-   ```
+   ```text
    bmx-api --prod PATCH /books/521 '{"notes": "Trigger rescore"}'
    ```
 
 4. Verify book 521 shows Darwin as Tier 1
 
-   ```
+   ```text
    bmx-api --prod GET /books/521
    ```
 
@@ -199,7 +199,7 @@ User noticed book 521 (Darwin's "Power of Movement in Plants") shows "Charles Da
 
 5. Clean up worktree (superpowers:finishing-a-development-branch)
 
-   ```
+   ```text
    git worktree remove .worktrees/author-tier-scoring
    ```
 

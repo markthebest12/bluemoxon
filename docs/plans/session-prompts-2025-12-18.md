@@ -24,7 +24,7 @@ Use these prompts when starting new Claude sessions to provide context for infra
 
 ## Priority Structure
 
-```
+```text
 #229 EPIC: Staging/Prod Parity
 ├── #389 Sub-epic: Prod Imports (5 phases)
 ├── #293 Cross-account S3 (Tier 1 - foundation)
@@ -43,7 +43,7 @@ Use these prompts when starting new Claude sessions to provide context for infra
 
 ### #293 - Cross-Account S3 Access for GitHub Actions
 
-```
+```text
 I'm working on infrastructure issue #293 - Add cross-account Terraform state S3 access to GitHub Actions OIDC role.
 
 **Context:**
@@ -73,7 +73,7 @@ Use the superpowers:brainstorming skill to evaluate options, then superpowers:wr
 
 ### #295 - Lambda Concurrency Limit Increase
 
-```
+```text
 I'm working on infrastructure issue #295 - Request AWS Lambda concurrency limit increase for provisioned concurrency.
 
 **Context:**
@@ -94,7 +94,7 @@ This is a support request task - use superpowers:verification-before-completion 
 
 ### #389 - Import Production Resources (Sub-Epic)
 
-```
+```text
 I'm working on infrastructure issue #389 - Import production resources into Terraform state.
 
 **Context:**
@@ -121,7 +121,7 @@ AWS_PROFILE=bmx-prod terraform import 'module.X.aws_Y.this' <resource-id>
 
 Use superpowers:brainstorming to plan each phase, superpowers:writing-plans for detailed import steps, superpowers:verification-before-completion after each import to confirm terraform plan shows no changes.
 
-```
+```text
 
 ---
 
@@ -159,7 +159,7 @@ Replace static config read in deploy.yml with:
 
 Use superpowers:brainstorming to validate approach, superpowers:writing-plans for implementation, superpowers:test-driven-development to add validation tests.
 
-```
+```text
 
 ---
 
@@ -198,7 +198,7 @@ I'm working on infrastructure issue #235 - Add pre-deploy Terraform drift check 
 
 Use superpowers:brainstorming to decide warn vs block behavior, superpowers:writing-plans for implementation.
 
-```
+```text
 
 ---
 
@@ -228,7 +228,7 @@ I'm working on infrastructure issue #228 - Auto-generate CLAUDE.md from Terrafor
 
 Use superpowers:brainstorming to identify which values to templatize, superpowers:writing-plans for implementation.
 
-```
+```text
 
 ---
 
@@ -263,7 +263,7 @@ I'm working on infrastructure issue #232 - Standardize Lambda environment variab
 
 Use superpowers:brainstorming to plan migration strategy, superpowers:systematic-debugging if issues arise during testing.
 
-```
+```text
 
 ---
 
@@ -297,7 +297,7 @@ I'm working on infrastructure issue #234 - Standardize Lambda function naming co
 
 Use superpowers:brainstorming to evaluate migration approach, superpowers:writing-plans for rollout strategy.
 
-```
+```text
 
 ---
 
@@ -332,7 +332,7 @@ I'm working on infrastructure issue #233 - Add custom domain for staging images 
 
 Use superpowers:brainstorming to decide domain pattern, superpowers:writing-plans for implementation.
 
-```
+```text
 
 ---
 
@@ -370,7 +370,7 @@ I'm working on CI/CD issue #310 - Add versioning and smoke tests for all Lambda 
 
 Use superpowers:writing-plans for implementation, superpowers:test-driven-development for smoke test design.
 
-```
+```text
 
 ---
 
@@ -399,7 +399,7 @@ I'm working on CI/CD issue #299 - Add smoke test for eBay URL extract endpoint.
 
 Use superpowers:writing-plans for test design, superpowers:systematic-debugging if test reveals issues.
 
-```
+```text
 
 ---
 
@@ -440,7 +440,7 @@ I'm working on feature issue #388 - Tiered recommendations with offer prices and
 
 Use superpowers:brainstorming to validate design, superpowers:writing-plans for implementation phases, superpowers:test-driven-development for scoring logic.
 
-```
+```text
 
 ---
 
@@ -473,7 +473,7 @@ I'm working on feature issue #276 - Analysis prompt enhancement for binder conte
 
 Use superpowers:brainstorming to design prompt enhancement, superpowers:writing-plans for implementation.
 
-```
+```text
 
 ---
 
@@ -495,7 +495,7 @@ I'm working on bug #354 - New addition to evaluations uses an old analysis.
 
 Use superpowers:systematic-debugging to trace the issue, superpowers:root-cause-tracing to find where stale data originates.
 
-```
+```text
 
 ---
 
@@ -515,7 +515,7 @@ I'm working on bug #343 - Napoleon analysis takes exactly 5 minutes to generate.
 
 Use superpowers:systematic-debugging to identify timeout source, superpowers:root-cause-tracing to find the limiting factor.
 
-```
+```text
 
 ---
 

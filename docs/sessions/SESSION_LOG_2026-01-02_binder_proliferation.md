@@ -28,7 +28,7 @@ These variants were being created because:
 
 **Flow:**
 
-```
+```text
 AI generates "Unidentified (no signature visible)"
     → Extraction prompt extracts to binder_identified field
     → Markdown parser merges to binder_identification["name"]
@@ -145,6 +145,6 @@ bmx-api DELETE /endpoint                 # Delete
 
 ## Commit
 
-```
+```text
 40fe866 fix: Prevent proliferation of Unidentified binder variants
 ```

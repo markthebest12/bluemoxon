@@ -32,7 +32,7 @@ Both accounts invoke Amazon Bedrock (Claude models) from Lambda functions. Howev
 
 **Cost Explorer shows $0 for production Bedrock:**
 
-```
+```text
 Account 266672885920 (prod): $0.00 Bedrock costs
 Account 652617421195 (staging): $63.63 Bedrock costs
 ```

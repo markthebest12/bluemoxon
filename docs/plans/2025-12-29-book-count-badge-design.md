@@ -22,7 +22,7 @@ Replace with a styled "Gold Flourish" badge that matches the Victorian aesthetic
 
 ### Visual Design
 
-```
+```text
 Desktop:  ✦ 42 books ✦
 Mobile:   42 (pill only)
 ```

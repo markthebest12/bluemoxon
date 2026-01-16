@@ -173,7 +173,7 @@ User raised 10 issues, 4 implemented, 4 withdrawn (YAGNI):
 
 ## Test Coverage
 
-```
+```text
 tests/test_images.py::TestThumbnailGeneration::test_upload_image_returns_thumbnail_status_field PASSED
 tests/test_images.py::TestThumbnailGeneration::test_upload_image_thumbnail_status_generated_on_success PASSED
 tests/test_images.py::TestThumbnailGeneration::test_upload_image_thumbnail_status_failed_with_error PASSED

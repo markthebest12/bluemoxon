@@ -4,7 +4,7 @@ This document outlines the scaling path for the Eval Runbook generation system, 
 
 ## Current Architecture (Phase 1 - Single User)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    API Gateway                          │
 └─────────────────────┬───────────────────────────────────┘
@@ -44,7 +44,7 @@ This document outlines the scaling path for the Eval Runbook generation system, 
 
 When scaling to multiple users, migrate to AWS Step Functions for orchestration:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    API Gateway                          │
 └─────────────────────┬───────────────────────────────────┘
@@ -271,7 +271,7 @@ Step Functions adds minimal cost but provides significant operational benefits.
 
 ### Current (Phase 1)
 
-```
+```text
 POST /books/import-ebay
 Request: { "url": "https://ebay.com/..." }
 Response: { "book": {...}, "eval_runbook": {...} }
@@ -280,7 +280,7 @@ Time: 30-60 seconds (blocking)
 
 ### Future (Phase 2)
 
-```
+```text
 POST /books/import-ebay
 Request: { "url": "https://ebay.com/..." }
 Response: { "execution_id": "abc-123", "status": "RUNNING" }
@@ -304,7 +304,7 @@ Response: {
 
 ### WebSocket Alternative (Real-time)
 
-```
+```text
 WS /ws/import/{execution_id}
 Messages:
   { "step": "fetch_listing", "status": "completed" }

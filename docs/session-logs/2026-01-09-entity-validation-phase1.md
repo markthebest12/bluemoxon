@@ -105,7 +105,7 @@ Try creating these in the UI (Settings > Publishers/Authors/Binders > Add New):
 
 ### 2. NEVER Use These (Trigger Permission Prompts)
 
-```
+```text
 FORBIDDEN - causes permission dialog toil:
 
 # comment before command        <- NEVER
@@ -119,7 +119,7 @@ cmd1 || cmd2                    <- NEVER
 
 ### 3. ALWAYS Use These Instead
 
-```
+```text
 CORRECT - no permission prompts:
 
 command1 --arg value            <- Simple single-line commands

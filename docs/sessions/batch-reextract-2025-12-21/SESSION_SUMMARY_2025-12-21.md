@@ -26,7 +26,7 @@
 
 **Book 524 cannot be fully recreated** because the original eBay short URL (`https://www.ebay.com/itm/4480a173`) has expired:
 
-```
+```text
 Error: API returned 400
 {"detail":"Failed to resolve short URL: The read operation timed out"}
 ```

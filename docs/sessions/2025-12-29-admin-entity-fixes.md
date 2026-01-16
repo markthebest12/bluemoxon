@@ -33,7 +33,7 @@ All 6 issues implemented. Code review feedback addressed by removing VueUse and 
 
 ### New Composables Created
 
-```
+```text
 frontend/src/composables/useDebounce.ts   # Replaces refDebounced from @vueuse/core
 frontend/src/composables/useFocusTrap.ts  # Wraps focus-trap directly, better error handling
 ```
@@ -65,7 +65,7 @@ frontend/src/composables/useFocusTrap.ts  # Wraps focus-trap directly, better er
 
 ### 2. NEVER Use These (Permission Prompts)
 
-```
+```text
 ❌ # comment lines before commands
 ❌ \ backslash line continuations
 ❌ $(...) command substitution
@@ -75,7 +75,7 @@ frontend/src/composables/useFocusTrap.ts  # Wraps focus-trap directly, better er
 
 ### 3. ALWAYS Use These
 
-```
+```text
 ✅ Simple single-line commands
 ✅ Separate sequential Bash tool calls instead of &&
 ✅ bmx-api for all BlueMoxon API calls
@@ -88,7 +88,7 @@ frontend/src/composables/useFocusTrap.ts  # Wraps focus-trap directly, better er
 
 ### Original Issues (PR #678)
 
-```
+```text
 e514849 fix(admin): Add debounce/lock and per-row loading indicator (#663, #666)
 3351af7 fix(admin): Add form validation for entity-specific fields (#664)
 64176a3 perf(admin): Add debounce to entity search filter (#667)
@@ -100,7 +100,7 @@ a8bb369 fix(admin): Improve reassignment target validation (#665)
 
 ### Code Review Fixes (on staging)
 
-```
+```text
 e8a8af4 refactor: Replace VueUse with native composables
 ```
 
@@ -108,7 +108,7 @@ e8a8af4 refactor: Replace VueUse with native composables
 
 ## Key Files Reference
 
-```
+```text
 frontend/src/views/AdminConfigView.vue                    # Main admin view
 frontend/src/components/admin/EntityManagementTable.vue   # Table component
 frontend/src/components/admin/EntityFormModal.vue         # Create/Edit modal
@@ -192,7 +192,7 @@ All 6 issues complete. PR #678 created with CI passing.
 
 **Commits on staging since PR #678:**
 
-```
+```text
 e8a8af4 refactor: Replace VueUse with native composables
 ```
 

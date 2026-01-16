@@ -11,7 +11,7 @@
 
 ### 1. ALWAYS Use Superpowers Skills (MANDATORY)
 
-```
+```text
 INVOKE BEFORE ANY ACTION:
 - superpowers:systematic-debugging - BEFORE any fix attempts
 - superpowers:test-driven-development - BEFORE writing implementation code
@@ -25,7 +25,7 @@ IF A SKILL APPLIES, YOU MUST USE IT. NO EXCEPTIONS.
 
 ### 2. NEVER Use These (Permission Prompts)
 
-```
+```text
 FORBIDDEN - These trigger permission prompts:
 - # comment lines before commands
 - \ backslash line continuations
@@ -36,7 +36,7 @@ FORBIDDEN - These trigger permission prompts:
 
 ### 3. ALWAYS Use
 
-```
+```text
 REQUIRED:
 - Simple single-line commands
 - Separate sequential Bash tool calls instead of &&

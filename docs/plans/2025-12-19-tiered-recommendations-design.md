@@ -11,7 +11,7 @@ Transform the eval runbook from binary ACQUIRE/PASS to a tiered recommendation s
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                      EVAL RUNBOOK (Auto)                        │
 │  Runs on import, gives initial recommendation                   │
@@ -95,7 +95,7 @@ Measures collection-specific alignment:
 
 ### Combined Score
 
-```
+```text
 Combined Score = (Quality × 0.6) + (Strategic Fit × 0.4)
 ```
 
@@ -199,7 +199,7 @@ REASONING_TEMPLATES = {
 | **Napoleon Analysis (re)run** | Always updates scoring (overrides everything) |
 | **Price change** | Triggers automatic rescore using whichever analysis is current |
 
-```
+```text
 Price Change Detected
         │
         ▼
@@ -281,7 +281,7 @@ Frontend reads `recommendation_tier` if present, falls back to `recommendation`.
 
 ### Modal Layout
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ EVAL RUNBOOK: [Book Title]                  │
 ├─────────────────────────────────────────────┤

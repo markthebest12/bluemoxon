@@ -115,7 +115,7 @@ Used `superpowers:brainstorming` to evaluate options:
 
 ### Dry-Run Results
 
-```
+```text
 Production:  status=healthy schema_validated=true books=208
 Staging:     status=healthy schema_validated=true books=163
 S3 objects to sync: ~5157 (after exclusions)

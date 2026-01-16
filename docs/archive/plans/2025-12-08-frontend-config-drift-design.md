@@ -129,7 +129,7 @@ Config files (`infra/config/*.json`) become **fallback/bootstrap** instead of so
 
 ## Flow Diagram
 
-```
+```text
 Push to main/staging
     │
     ▼

@@ -28,7 +28,7 @@ Combine quality score with FMV position to determine recommendation tier, calcul
 
 ### Data Flow
 
-```
+```text
 Quality Score (0-120) + FMV Data (low/high/confidence)
     |
     v
@@ -114,7 +114,7 @@ else:
 
 Template structure:
 
-```
+```text
 [Price position statement]. [Key value factors]. [Action guidance if CONDITIONAL].
 ```
 

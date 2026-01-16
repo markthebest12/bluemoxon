@@ -8,7 +8,7 @@ BlueMoxon uses **GitHub Actions** for CI/CD and **Terraform** for infrastructure
 
 All deployments go through GitHub Actions:
 
-```
+```text
 Feature Branch → PR to staging → Merge → Deploy to Staging
                                             ↓
                               PR staging→main → Merge → Deploy to Production

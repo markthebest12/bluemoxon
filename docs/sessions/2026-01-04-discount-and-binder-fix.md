@@ -14,7 +14,7 @@ Key skills used this session:
 
 ### 2. Bash Command Formatting - NEVER USE
 
-```
+```text
 # comment lines before commands     <- TRIGGERS PERMISSION PROMPT
 \ backslash line continuations      <- TRIGGERS PERMISSION PROMPT
 $(...) command substitution         <- TRIGGERS PERMISSION PROMPT
@@ -65,7 +65,7 @@ bmx-api --prod POST /health/recalculate-discounts
 
 **Verification:**
 
-```
+```text
 Before: Book 533 discount_pct = 6.67%
 After:  Book 533 discount_pct = -67.99% (correctly shows overpaid)
 ```

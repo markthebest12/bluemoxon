@@ -89,7 +89,7 @@ The "Top Authors" chart in `StatisticsDashboard.vue` was showing "Various" at th
 
 1. **Stage and commit the changes:**
 
-   ```
+   ```text
    git add frontend/src/components/dashboard/StatisticsDashboard.vue
    git commit -m "fix: Exclude Various from Top Authors chart with footnote"
    ```

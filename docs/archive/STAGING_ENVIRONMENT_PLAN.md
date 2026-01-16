@@ -28,14 +28,14 @@ Create `staging.app.bluemoxon.com` as an isolated replica of production in a sep
 
 ### Version Format
 
-```
+```text
 v{YYYY.MM.DD}.{build-number}
 Example: v2025.12.05.42
 ```
 
 Or semantic versioning if preferred:
 
-```
+```text
 v{major}.{minor}.{patch}
 Example: v1.2.3
 ```
@@ -291,7 +291,7 @@ terraform import 'module.cognito.aws_cognito_user_pool_domain.this[0]' bluemoxon
 > Cognito PrivateLink is incompatible with Managed Login domains - causes "PrivateLink access disabled" errors.
 > Lambda must use NAT Gateway for outbound internet access to reach Cognito APIs.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Staging VPC (Default VPC)                │
 ├─────────────────────────────────────────────────────────────┤
@@ -386,7 +386,7 @@ jobs:
 
 **Directory Structure:**
 
-```
+```text
 infra/
 ├── cdk/                    # Existing CDK (keep for prod initially)
 │   └── ...
@@ -760,7 +760,7 @@ echo "URL: https://staging.app.bluemoxon.com"
 
 ## Git Workflow
 
-```
+```text
                     ┌─────────────┐
                     │   feature/* │
                     └──────┬──────┘

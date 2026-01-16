@@ -77,7 +77,7 @@ Based on discount percentage: `discount = (value_mid - purchase_price) / value_m
 
 ### Overall Score
 
-```
+```text
 overall_score = investment_grade + strategic_fit + collection_impact
 ```
 
@@ -94,7 +94,7 @@ overall_score = investment_grade + strategic_fit + collection_impact
 
 ### New Endpoints
 
-```
+```text
 POST /books/{id}/scores/calculate
   - Recalculates all scores for a single book
   - Returns: { investment_grade, strategic_fit, collection_impact, overall_score }
@@ -108,7 +108,7 @@ POST /books/scores/calculate-all
 
 ### Modified Endpoints
 
-```
+```text
 POST /books
   - Auto-calculates scores after book creation
   - Returns book with scores populated
@@ -127,7 +127,7 @@ GET /books/{id}
 
 ### EVALUATING Cards (full breakdown)
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │ Felix Holt, the Radical                 │
 │ George Eliot • 3 vols • $701            │

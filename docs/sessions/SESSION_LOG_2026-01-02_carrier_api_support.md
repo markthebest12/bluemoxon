@@ -73,7 +73,7 @@ Tested all 3 carrier types in staging. **APIs are being called but returning err
 
 **Lambda log evidence:**
 
-```
+```text
 USPS API HTTP error: 302
 UPS API timeout: The read operation timed out
 GET https://www.royalmail.com/track-your-item/api/tracking/LO403920817GB "HTTP/1.1 403 Forbidden"

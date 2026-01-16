@@ -4,7 +4,7 @@
 
 BlueMoxon is a serverless book collection management application deployed on AWS with a dual-environment (staging + production) architecture managed by Terraform.
 
-```
+```text
                     ┌─────────────────────────────────────────────┐
                     │          Route 53 (bluemoxon.com)           │
                     └───────────────────┬─────────────────────────┘
@@ -185,7 +185,7 @@ flowchart TB
 
 Shared dependencies are packaged in a Lambda Layer to reduce deployment size and cold start time:
 
-```
+```text
 bluemoxon-deps-layer/
 ├── python/
 │   └── lib/
@@ -359,7 +359,7 @@ flowchart TB
 
 BookDetailView was refactored (#807) into focused sub-components:
 
-```
+```text
 BookDetailView/
 ├── BookDetailView.vue      # Container + routing
 ├── BookHeader.vue          # Title, status, metadata

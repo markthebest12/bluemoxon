@@ -19,7 +19,7 @@ Implemented a warm, Victorian "Evening Reading" dark mode with:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ CSS Layer                                                   │
 │ ┌─────────────────┐  ┌─────────────────────────────────────┐│
@@ -74,7 +74,7 @@ Implemented a warm, Victorian "Evening Reading" dark mode with:
 
 ## Files Modified
 
-```
+```text
 frontend/
 ├── index.html                          # FOUC prevention script
 ├── src/
@@ -164,7 +164,7 @@ bmx-api POST /books '{"title":"..."}'
 
 ## Test Results
 
-```
+```text
 Test Files: 12 passed
 Tests: 107 passed (6 useTheme tests)
 ```

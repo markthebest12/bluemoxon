@@ -14,7 +14,7 @@ Key skills for this issue:
 
 ### 2. Bash Command Formatting - NEVER USE
 
-```
+```text
 # comment lines before commands     <- TRIGGERS PERMISSION PROMPT
 \ backslash line continuations      <- TRIGGERS PERMISSION PROMPT
 $(...) command substitution         <- TRIGGERS PERMISSION PROMPT
@@ -53,7 +53,7 @@ bmx-api --prod POST /health/recalculate-discounts
 
 ### Lambda Logs Evidence
 
-```
+```text
 Log Group: /aws/lambda/bluemoxon-prod-scraper
 
 First attempt (19:33:43):
@@ -155,7 +155,7 @@ AWS_PROFILE=bmx-prod aws lambda update-function-configuration \
 
 **Result:** SUCCESS
 
-```
+```text
 Content loaded using selector: .x-item-title ✅
 Got HTML: 965784 chars ✅
 Uploaded 9 images to S3 ✅

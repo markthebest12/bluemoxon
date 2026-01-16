@@ -118,7 +118,7 @@ This document tracks planned features, improvements, and technical debt for the 
 
 ### Current Architecture
 
-```
+```text
 CloudFront → S3 (Frontend)
 CloudFront → API Gateway → Lambda → Aurora Serverless v2
                                   → AWS Bedrock (Claude 4.5)

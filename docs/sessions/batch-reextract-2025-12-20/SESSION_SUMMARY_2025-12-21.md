@@ -74,7 +74,7 @@ In `backend/app/services/bedrock.py`, the `fetch_book_images_for_bedrock()` func
 - **Image 8 (with Ex Libris bookplate) has display_order=8**
 - **Image 8 falls in the gap and is NOT sent to the AI**
 
-```
+```text
 Book 351 (25 images):
   Selected: [1, 2, 3, 4, 5, 6, 7] + [23, 24, 25] = 10 images
   Skipped:  [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
@@ -367,7 +367,7 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 
 **Original Error (CI run 20411912747):**
 
-```
+```text
 tests/test_ebay_import_purchase_price.py:7:8: F401 `pytest` imported but unused
 ```
 
@@ -421,7 +421,7 @@ AWS_PROFILE=bmx-prod aws s3 cp backend/prompts/napoleon-framework/v2.md s3://blu
 
 ## All Commits in Bundled Release
 
-```
+```text
 e533745 fix: remove unused pytest import from ask_price test
 9ff9aa1 fix: store ask_price during eBay import for eval context
 eb3c378 fix: resolve shortened eBay URLs to full item URLs during import
@@ -471,7 +471,7 @@ Agents are instructed to use `superpowers:test-driven-development` skill.
 
 **Problem:** CI run 20411966116 failed with:
 
-```
+```text
 Would reformat: app/services/listing.py
 1 file would be reformatted, 100 files already formatted
 ```
@@ -497,7 +497,7 @@ Would reformat: app/services/listing.py
 
 ## All Commits in Bundled Release (Updated)
 
-```
+```text
 7e457db style: format listing.py for ruff compliance
 e533745 fix: remove unused pytest import from ask_price test
 9ff9aa1 fix: store ask_price during eBay import for eval context
@@ -955,7 +955,7 @@ npm run dev
 
 ### Commit
 
-```
+```text
 bcf68bb fix(frontend): Clear job from Map when polling fails (#499)
 ```
 
@@ -1859,7 +1859,7 @@ patterns = [
 
 ### Commit and PR
 
-```
+```text
 cfeebae fix: require signature/stamp evidence for binder identification (#502)
 ```
 
@@ -2110,7 +2110,7 @@ Each issue now has a detailed root cause comment explaining:
 
 ### Production Health Verified
 
-```
+```text
 Production Version: 2025.12.21-1f4f103
 Status: healthy
 Database: 149 books

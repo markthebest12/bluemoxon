@@ -39,7 +39,7 @@ Consistent with the aspect-ratio banner filtering design:
 
 Add to existing Claude Vision prompt:
 
-```
+```text
 For each image, determine if it shows the listed book or is unrelated content:
 - Unrelated: seller logos, store banners, different books, promotional material
 - Related: the actual book being sold (cover, spine, pages, condition details)

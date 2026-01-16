@@ -121,7 +121,7 @@ addopts = "-v --tb=short"
 
 **Sample Test Structure:**
 
-```
+```text
 backend/tests/
 ├── conftest.py          # Fixtures (test DB, client)
 ├── test_books.py        # Book API tests

@@ -54,7 +54,7 @@ All code review fixes are complete and verified locally. CI is not triggering on
 
 ### Local Verification (ALL PASSED)
 
-```
+```text
 npm run --prefix frontend type-check  # PASS
 npm run --prefix frontend lint -- --max-warnings 0  # PASS
 npm run --prefix frontend test  # PASS (84/84)
@@ -79,7 +79,7 @@ npm run --prefix frontend build  # PASS
 
 ## Commits Ready to Merge
 
-```
+```text
 e3ccd36 chore: Trigger CI
 ffac1c2 style: Format code with Prettier
 b2d1a55 fix: Remove unused props assignments to fix lint warnings

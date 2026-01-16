@@ -22,7 +22,7 @@ The Acquisitions page header looks cluttered on mobile devices:
 
 ### Mobile (< 640px)
 
-```
+```text
 ┌─────────────────────────────────┐
 │ Acquisitions                    │
 │ [🔗] [+]                        │
@@ -35,7 +35,7 @@ The Acquisitions page header looks cluttered on mobile devices:
 
 ### Desktop (≥ 640px)
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │ Acquisitions ❧                   [🔗 Import] [+ Add] │
 │ Track books from watchlist through delivery          │

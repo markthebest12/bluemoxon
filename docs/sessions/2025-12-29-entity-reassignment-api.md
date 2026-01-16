@@ -169,7 +169,7 @@ gh run watch <run-id> --repo markthebest12/bluemoxon --exit-status
 
 ## All Commits
 
-```
+```text
 e2ee508 feat(types): add entity management types with id, preferred, book_count
 6754ca4 feat(ui): add EntityManagementTable component with inline editing
 c546686 feat(ui): add EntityFormModal component for create/edit

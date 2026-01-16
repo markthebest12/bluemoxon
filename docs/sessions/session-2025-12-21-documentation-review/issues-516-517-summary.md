@@ -105,13 +105,13 @@ When implementing these features, use the appropriate skill chains:
 
 ### For New Feature Implementation
 
-```
+```text
 brainstorming → using-git-worktrees → writing-plans → subagent-driven-development
 ```
 
 ### For Writing Tests
 
-```
+```text
 test-driven-development → condition-based-waiting → testing-anti-patterns
 ```
 

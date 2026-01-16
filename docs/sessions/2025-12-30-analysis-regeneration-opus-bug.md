@@ -19,7 +19,7 @@ User regenerated analysis for book 553 (Greville Memoirs) but UI still showed ol
 
 **The Opus regeneration job FAILED with AccessDeniedException:**
 
-```
+```text
 AccessDeniedException: Model access is denied due to IAM user or service role is
 not authorized to perform the required AWS Marketplace actions
 (aws-marketplace:ViewSubscriptions, aws-marketplace:Subscribe) to enable access

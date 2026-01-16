@@ -12,7 +12,7 @@ PR #773 (tracking worker redesign) was merged to main, triggering a deploy. The 
 
 ## Error
 
-```
+```text
 [ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'defusedxml'
 ```
 

@@ -14,7 +14,7 @@
 
 ## Parallelization Strategy
 
-```
+```text
 Task 1 (Backend Core)  ──┐
 Task 2 (API Endpoints) ──┼──► Task 4 (Integration)
 Task 3 (Frontend UI)   ──┘

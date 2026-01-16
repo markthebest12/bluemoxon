@@ -40,7 +40,7 @@ Split the Lambda deployment into two parts:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                         S3 Bucket                                │
 │  s3://bluemoxon-frontend-{env}/lambda/                          │
@@ -82,7 +82,7 @@ Split the Lambda deployment into two parts:
 
 Lambda Layers require a specific directory structure. For Python:
 
-```
+```text
 layer.zip
 └── python/
     ├── boto3/
@@ -102,13 +102,13 @@ The `python/` prefix is required - Lambda adds `/opt/python` to `PYTHONPATH`.
 
 ### Current Flow
 
-```
+```text
 build-backend → upload backend.zip → update Lambda code
 ```
 
 ### New Flow
 
-```
+```text
 build-layer ────────────┐
   (if poetry.lock       │
    changed)             ├──→ deploy-backend
@@ -226,7 +226,7 @@ deploy-backend:
 
 **Before (50MB):**
 
-```
+```text
 lambda-package.zip
 ├── app/                    (~100KB)
 ├── boto3/                  (~5MB)
@@ -240,7 +240,7 @@ lambda-package.zip
 
 **After (<1MB):**
 
-```
+```text
 backend.zip
 ├── app/                    (~100KB)
 ├── lambdas/                (~10KB)

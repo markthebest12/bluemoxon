@@ -36,13 +36,13 @@
 
 Replace:
 
-```
+```text
 focus:ring-2 focus:ring-blue-500 focus:border-blue-500
 ```
 
 With:
 
-```
+```text
 focus:ring-2 focus:ring-victorian-gold-muted focus:border-victorian-gold-muted
 ```
 
@@ -50,13 +50,13 @@ focus:ring-2 focus:ring-victorian-gold-muted focus:border-victorian-gold-muted
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white rounded-lg hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary
 ```
 
@@ -64,13 +64,13 @@ btn-primary
 
 Replace:
 
-```
+```text
 text-blue-600 bg-blue-50
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 bg-victorian-paper-cream
 ```
 
@@ -78,13 +78,13 @@ text-victorian-hunter-600 bg-victorian-paper-cream
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -92,13 +92,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white rounded-lg hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary
 ```
 
@@ -128,13 +128,13 @@ git commit -m "fix: Convert PasteOrderModal from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 border-b-2 border-blue-600
 ```
 
 With:
 
-```
+```text
 border-b-2 border-victorian-hunter-600
 ```
 
@@ -142,13 +142,13 @@ border-b-2 border-victorian-hunter-600
 
 Replace:
 
-```
+```text
 bg-blue-50 border border-blue-200
 ```
 
 With:
 
-```
+```text
 bg-victorian-paper-cream border border-victorian-paper-antique
 ```
 
@@ -156,13 +156,13 @@ bg-victorian-paper-cream border border-victorian-paper-antique
 
 Replace:
 
-```
+```text
 border-2 border-blue-600 border-t-transparent
 ```
 
 With:
 
-```
+```text
 border-2 border-victorian-hunter-600 border-t-transparent
 ```
 
@@ -170,14 +170,14 @@ border-2 border-victorian-hunter-600 border-t-transparent
 
 Replace:
 
-```
+```text
 text-blue-800
 text-blue-600
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-800
 text-victorian-hunter-600
 ```
@@ -186,13 +186,13 @@ text-victorian-hunter-600
 
 Replace:
 
-```
+```text
 bg-blue-500
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-500
 ```
 
@@ -200,13 +200,13 @@ bg-victorian-hunter-500
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-700
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -214,13 +214,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 focus:ring-2 focus:ring-blue-500
 ```
 
 With:
 
-```
+```text
 input
 ```
 
@@ -230,13 +230,13 @@ input
 
 Replace:
 
-```
+```text
 focus:ring-2 focus:ring-blue-500
 ```
 
 With:
 
-```
+```text
 input
 ```
 
@@ -244,13 +244,13 @@ input
 
 Replace:
 
-```
+```text
 focus:ring-2 focus:ring-blue-500
 ```
 
 With:
 
-```
+```text
 input
 ```
 
@@ -258,13 +258,13 @@ input
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white rounded-lg hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary rounded-lg
 ```
 
@@ -289,13 +289,13 @@ git commit -m "fix: Convert EvalRunbookModal from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary text-sm font-medium
 ```
 
@@ -303,13 +303,13 @@ btn-primary text-sm font-medium
 
 Replace:
 
-```
+```text
 border-b-2 border-blue-600
 ```
 
 With:
 
-```
+```text
 border-b-2 border-victorian-hunter-600
 ```
 
@@ -317,13 +317,13 @@ border-b-2 border-victorian-hunter-600
 
 Replace:
 
-```
+```text
 hover:border-blue-300
 ```
 
 With:
 
-```
+```text
 hover:border-victorian-gold-muted
 ```
 
@@ -331,13 +331,13 @@ hover:border-victorian-gold-muted
 
 Replace:
 
-```
+```text
 hover:text-blue-600
 ```
 
 With:
 
-```
+```text
 hover:text-victorian-hunter-600
 ```
 
@@ -345,13 +345,13 @@ hover:text-victorian-hunter-600
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -359,13 +359,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white text-xs rounded-sm hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-600 text-white text-xs rounded-sm hover:bg-victorian-hunter-700
 ```
 
@@ -373,13 +373,13 @@ bg-victorian-hunter-600 text-white text-xs rounded-sm hover:bg-victorian-hunter-
 
 Replace:
 
-```
+```text
 text-blue-600
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600
 ```
 
@@ -387,13 +387,13 @@ text-victorian-hunter-600
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -401,13 +401,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -415,13 +415,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 bg-blue-400
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-400
 ```
 
@@ -429,13 +429,13 @@ bg-victorian-hunter-400
 
 Replace:
 
-```
+```text
 hover:text-blue-600 hover:bg-blue-50
 ```
 
 With:
 
-```
+```text
 hover:text-victorian-hunter-600 hover:bg-victorian-paper-cream
 ```
 
@@ -443,13 +443,13 @@ hover:text-victorian-hunter-600 hover:bg-victorian-paper-cream
 
 Replace:
 
-```
+```text
 border border-blue-600 text-blue-600 hover:bg-blue-50
 ```
 
 With:
 
-```
+```text
 border border-victorian-hunter-600 text-victorian-hunter-600 hover:bg-victorian-paper-cream
 ```
 
@@ -474,13 +474,13 @@ git commit -m "fix: Convert AcquisitionsView from blue to Victorian styling"
 
 Replace all instances of:
 
-```
+```text
 border-blue-500 text-blue-600
 ```
 
 With:
 
-```
+```text
 border-victorian-hunter-500 text-victorian-hunter-600
 ```
 
@@ -488,13 +488,13 @@ border-victorian-hunter-500 text-victorian-hunter-600
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white rounded-sm hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary
 ```
 
@@ -502,13 +502,13 @@ btn-primary
 
 Replace:
 
-```
+```text
 bg-blue-500
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-500
 ```
 
@@ -533,13 +533,13 @@ git commit -m "fix: Convert AdminConfigView from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 return "bg-blue-100 text-blue-800";
 ```
 
 With:
 
-```
+```text
 return "bg-victorian-hunter-100 text-victorian-hunter-800";
 ```
 
@@ -547,13 +547,13 @@ return "bg-victorian-hunter-100 text-victorian-hunter-800";
 
 Replace:
 
-```
+```text
 bg-blue-100 text-blue-800
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-100 text-victorian-hunter-800
 ```
 
@@ -561,13 +561,13 @@ bg-victorian-hunter-100 text-victorian-hunter-800
 
 Replace:
 
-```
+```text
 bg-blue-50 border-blue-200
 ```
 
 With:
 
-```
+```text
 bg-victorian-paper-cream border-victorian-paper-antique
 ```
 
@@ -575,13 +575,13 @@ bg-victorian-paper-cream border-victorian-paper-antique
 
 Replace:
 
-```
+```text
 bg-blue-600 text-white rounded-lg hover:bg-blue-700
 ```
 
 With:
 
-```
+```text
 btn-primary rounded-lg
 ```
 
@@ -589,13 +589,13 @@ btn-primary rounded-lg
 
 Replace:
 
-```
+```text
 text-blue-600
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600
 ```
 
@@ -620,13 +620,13 @@ git commit -m "fix: Convert BookDetailView from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 border-4 border-blue-600 border-t-transparent
 ```
 
 With:
 
-```
+```text
 border-4 border-victorian-hunter-600 border-t-transparent
 ```
 
@@ -634,13 +634,13 @@ border-4 border-victorian-hunter-600 border-t-transparent
 
 Replace:
 
-```
+```text
 border-4 border-blue-600 border-t-transparent
 ```
 
 With:
 
-```
+```text
 border-4 border-victorian-hunter-600 border-t-transparent
 ```
 
@@ -648,13 +648,13 @@ border-4 border-victorian-hunter-600 border-t-transparent
 
 Replace:
 
-```
+```text
 border-2 border-blue-600 border-t-transparent
 ```
 
 With:
 
-```
+```text
 border-2 border-victorian-hunter-600 border-t-transparent
 ```
 
@@ -662,13 +662,13 @@ border-2 border-victorian-hunter-600 border-t-transparent
 
 Replace:
 
-```
+```text
 text-blue-600 font-medium
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 font-medium
 ```
 
@@ -693,13 +693,13 @@ git commit -m "fix: Convert ImportListingModal from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 bg-blue-500
 ```
 
 With:
 
-```
+```text
 bg-victorian-hunter-500
 ```
 
@@ -707,13 +707,13 @@ bg-victorian-hunter-500
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 
@@ -721,13 +721,13 @@ text-victorian-hunter-600 hover:text-victorian-hunter-700
 
 Replace:
 
-```
+```text
 text-blue-600
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600
 ```
 
@@ -752,13 +752,13 @@ git commit -m "fix: Convert ScoreCard from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 focus:ring-2 focus:ring-blue-500 focus:border-blue-500
 ```
 
 With:
 
-```
+```text
 focus:ring-2 focus:ring-victorian-gold-muted focus:border-victorian-gold-muted
 ```
 
@@ -766,13 +766,13 @@ focus:ring-2 focus:ring-victorian-gold-muted focus:border-victorian-gold-muted
 
 Replace:
 
-```
+```text
 text-blue-600
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600
 ```
 
@@ -780,13 +780,13 @@ text-victorian-hunter-600
 
 Replace:
 
-```
+```text
 'bg-blue-100 text-blue-800': match.status === 'IN_TRANSIT'
 ```
 
 With:
 
-```
+```text
 'bg-victorian-hunter-100 text-victorian-hunter-800': match.status === 'IN_TRANSIT'
 ```
 
@@ -811,13 +811,13 @@ git commit -m "fix: Convert BookForm from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 'bg-blue-100 text-blue-800': user.role === 'editor'
 ```
 
 With:
 
-```
+```text
 'bg-victorian-hunter-100 text-victorian-hunter-800': user.role === 'editor'
 ```
 
@@ -825,13 +825,13 @@ With:
 
 Replace:
 
-```
+```text
 border border-blue-300 text-blue-700 hover:bg-blue-50
 ```
 
 With:
 
-```
+```text
 border border-victorian-hunter-300 text-victorian-hunter-700 hover:bg-victorian-paper-cream
 ```
 
@@ -856,13 +856,13 @@ git commit -m "fix: Convert AdminView from blue to Victorian styling"
 
 Replace:
 
-```
+```text
 text-blue-600 hover:text-blue-800
 ```
 
 With:
 
-```
+```text
 text-victorian-hunter-600 hover:text-victorian-hunter-700
 ```
 

@@ -40,7 +40,7 @@ Comprehensive validation integrated into the staging deploy workflow:
 
 ### Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Prod Account (266672885920)                   │
 │                                                                  │
@@ -93,7 +93,7 @@ module "cross_account_secrets" {
 
 ### Module Files
 
-```
+```text
 infra/terraform/modules/cross-account-secrets/
 ├── main.tf           # KMS key resource with cross-account policy
 ├── variables.tf      # key_alias, secret_arns, consumer_account_ids, consumer_role_arns
@@ -433,7 +433,7 @@ test.describe('Staging Validation', () => {
 
 ## New Files Summary
 
-```
+```text
 infra/terraform/modules/cross-account-secrets/
 ├── main.tf
 ├── variables.tf

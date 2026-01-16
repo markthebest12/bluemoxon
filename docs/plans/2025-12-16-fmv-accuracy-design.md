@@ -25,7 +25,7 @@ Pass full book metadata to FMV lookup, build context-aware search queries, and u
 
 ### Data Flow
 
-```
+```text
 Book metadata (title, author, volumes, binding_type, edition, binder, condition)
     |
     v
@@ -70,7 +70,7 @@ Constructs eBay search string from book metadata.
 
 **Input metadata:**
 
-```
+```text
 title: "Memoirs of the Life of Sir Walter Scott"
 author: "John Gibson Lockhart"
 volumes: 7
@@ -81,7 +81,7 @@ binder: "J. Leighton"
 
 **Generated query:**
 
-```
+```text
 memoirs life walter scott lockhart 7 volumes calf binding first edition
 ```
 
@@ -95,7 +95,7 @@ If first search returns <3 listings with price data, try simplified query (title
 
 After JavaScript extracts ~20 raw listings, send to Claude with this structure:
 
-```
+```text
 Target book:
 - Title: {title}
 - Author: {author}

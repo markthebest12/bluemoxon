@@ -205,7 +205,7 @@ Large implementation plans with code snippets:
 
 Documents that reference each other (for consolidation planning):
 
-```
+```text
 CLAUDE.md
 ├── References: INFRASTRUCTURE.md, CI_CD.md, DEPLOYMENT.md
 ├── Duplicates content from: All of the above

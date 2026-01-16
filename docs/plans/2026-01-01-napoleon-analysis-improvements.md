@@ -634,7 +634,7 @@ To check for stale jobs:
 bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
 ```
 
-```
+```text
 
 **Step 2: Verify markdown is valid**
 

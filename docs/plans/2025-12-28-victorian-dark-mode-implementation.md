@@ -47,7 +47,7 @@ Expected: Build succeeds without CSS errors
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/src/assets/main.css
 git commit -m "feat(theme): add semantic color tokens to @theme"
 ```
@@ -95,7 +95,7 @@ Expected: Build succeeds
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/src/assets/main.css
 git commit -m "feat(theme): add dark mode CSS variable overrides"
 ```
@@ -141,7 +141,7 @@ Open browser devtools, add `dark` class to `<html>`, verify background changes t
 
 **Step 4: Commit**
 
-```
+```text
 git add frontend/src/assets/main.css
 git commit -m "feat(theme): use semantic token for body background"
 ```
@@ -286,7 +286,7 @@ Expected: Both pass
 
 **Step 7: Commit**
 
-```
+```text
 git add frontend/src/assets/main.css
 git commit -m "feat(theme): update component classes to use semantic tokens"
 ```
@@ -381,7 +381,7 @@ Expected: No errors
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/src/composables/useTheme.ts
 git commit -m "feat(theme): add useTheme composable for dark mode state"
 ```
@@ -455,7 +455,7 @@ Expected: Both pass
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/src/components/ui/ThemeToggle.vue
 git commit -m "feat(theme): add ThemeToggle component with sun/moon icons"
 ```
@@ -528,7 +528,7 @@ Expected: Both pass
 
 **Step 5: Commit**
 
-```
+```text
 git add frontend/src/components/layout/NavBar.vue
 git commit -m "feat(theme): add ThemeToggle to NavBar (desktop and mobile)"
 ```
@@ -563,7 +563,7 @@ Expected: Build succeeds
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/index.html
 git commit -m "feat(theme): add flash prevention script to index.html"
 ```
@@ -619,7 +619,7 @@ Expected: Both pass
 
 **Step 4: Commit**
 
-```
+```text
 git add frontend/src/components/layout/NavBar.vue
 git commit -m "feat(theme): fix NavBar dropdown colors for dark mode"
 ```
@@ -728,7 +728,7 @@ Expected: All tests pass
 
 **Step 3: Commit**
 
-```
+```text
 git add frontend/src/composables/__tests__/useTheme.spec.ts
 git commit -m "test(theme): add unit tests for useTheme composable"
 ```
@@ -758,13 +758,13 @@ Expected: All pass
 
 **Step 3: Push branch**
 
-```
+```text
 git push -u origin feat/626-victorian-dark-mode
 ```
 
 **Step 4: Create PR to staging**
 
-```
+```text
 gh pr create --base staging --title "feat: Add Victorian dark mode theme (#626)" --body "## Summary
 - Add semantic color tokens for theme-aware styling
 - Add dark mode CSS overrides (Victorian 'Evening Reading' palette)

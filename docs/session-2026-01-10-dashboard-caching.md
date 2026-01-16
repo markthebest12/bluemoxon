@@ -73,7 +73,7 @@ From code review of #965, all stats endpoints hit the database on every request 
 
 **Error encountered:**
 
-```
+```text
 Error: updating Security Group: You have specified two resources that belong to different networks.
 ```
 
@@ -104,7 +104,7 @@ vpc_id = local.lambda_vpc_id
 
 1. **Commit and push the VPC fix:**
 
-   ```
+   ```text
    cd /Users/mark/projects/bluemoxon
    git add infra/terraform/main.tf
    git commit -m "fix(terraform): Use lambda_vpc_id for ElastiCache module (#1002)"
@@ -115,7 +115,7 @@ vpc_id = local.lambda_vpc_id
 
 3. **Apply Terraform after merge:**
 
-   ```
+   ```text
    cd /Users/mark/projects/bluemoxon/infra/terraform
    AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.hcl -reconfigure -input=false
    TF_VAR_db_password=not-used-db-disabled AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars -target=module.elasticache -target=module.lambda -auto-approve
@@ -123,7 +123,7 @@ vpc_id = local.lambda_vpc_id
 
 4. **Verify caching works:**
 
-   ```
+   ```text
    AWS_PROFILE=bmx-prod aws lambda get-function-configuration --function-name bluemoxon-prod-api --query "Environment.Variables.BMX_REDIS_URL"
    bmx-api --prod GET /stats/dashboard
    ```

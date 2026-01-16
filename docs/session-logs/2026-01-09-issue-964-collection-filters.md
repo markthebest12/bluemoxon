@@ -123,7 +123,7 @@ Add category and author filters to the collection view (BooksView.vue). Backend 
 
 ## Files Modified
 
-```
+```text
 frontend/src/constants/index.ts          # BOOK_CATEGORIES constant
 frontend/src/components/books/BookForm.vue  # Use shared constant, fix empty value
 frontend/src/views/BooksView.vue         # Author/Category filters with ComboboxWithAdd

@@ -4,7 +4,7 @@ This document describes how to sync the production database to the staging envir
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         AWS Account: Production                          │
 │  ┌─────────────────────┐         ┌──────────────────────────────────┐   │

@@ -714,7 +714,7 @@ Fixes critical unauthenticated data exposure vulnerabilities identified in secur
 
 Since all 4 vulnerabilities modify different files, they can be fixed in parallel:
 
-```
+```text
 Worktree 1: fix/vuln-001-export-auth (Task 1)
 Worktree 2: fix/vuln-002-admin-auth (Task 2)
 Worktree 3: fix/vuln-003-stats-auth (Task 3)

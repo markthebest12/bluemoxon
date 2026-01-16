@@ -73,7 +73,7 @@ gh run watch <deploy-run-id> --exit-status
 
 ## Resume Instructions
 
-```
+```text
 Continue implementing AI-powered unrelated image detection for issue #487.
 
 Current state:

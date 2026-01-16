@@ -13,7 +13,7 @@ Claude sessions start fresh with no memory of previous work. Without proper cont
 
 Use this template when starting work on a tracked task:
 
-```
+```text
 ## Task
 [One sentence: what you want done]
 
@@ -42,7 +42,7 @@ Use this template when starting work on a tracked task:
 
 ### Starting a New Phase
 
-```
+```text
 ## Task
 Implement Phase 1 (Binder Tier Migration) of the analysis enrichment design.
 
@@ -70,7 +70,7 @@ Implement Phase 1 (Binder Tier Migration) of the analysis enrichment design.
 
 ### Continuing Mid-Phase
 
-```
+```text
 ## Task
 Continue Phase 2 (Scoring Enhancement) - left off at Task 2.3.
 
@@ -96,7 +96,7 @@ Continue Phase 2 (Scoring Enhancement) - left off at Task 2.3.
 
 ### Bug Fix with Validation
 
-```
+```text
 ## Task
 Fix and validate the price display bug in acquisitions view.
 
@@ -163,7 +163,7 @@ Fix and validate the price display bug in acquisitions view.
 
 ### Deploy to Staging
 
-```
+```text
 ## Task
 Deploy [feature/fix] to staging for validation.
 
@@ -195,7 +195,7 @@ Deploy [feature/fix] to staging for validation.
 
 ### Promote Staging to Production
 
-```
+```text
 ## Task
 Promote validated changes from staging to production.
 
@@ -229,7 +229,7 @@ Promote validated changes from staging to production.
 
 ### Hotfix to Production
 
-```
+```text
 ## Task
 Emergency fix for production issue.
 
@@ -261,7 +261,7 @@ Emergency fix for production issue.
 
 ### Database Migration Deployment
 
-```
+```text
 ## Task
 Deploy database migration to [staging/production].
 
@@ -300,7 +300,7 @@ Infrastructure issues (#224-235) can run in parallel with feature work. Use thes
 
 ### Check Infrastructure Status
 
-```
+```text
 ## Task
 Review current infrastructure issue status before starting session.
 
@@ -319,7 +319,7 @@ Run: `gh issue list --label infra --state open`
 
 ### Interleave Infrastructure Task
 
-```
+```text
 ## Task
 Complete infrastructure issue #[number] between feature phases.
 
@@ -344,7 +344,7 @@ After completing, return to [feature], Phase [X], Task [Y]
 
 ### Terraform Import Session
 
-```
+```text
 ## Task
 Import existing AWS resource into Terraform (#224/#225/#226).
 
@@ -378,7 +378,7 @@ Import existing AWS resource into Terraform (#224/#225/#226).
 
 ### End-of-Session Infrastructure Check
 
-```
+```text
 ## Task
 Quick infrastructure hygiene before ending session.
 
@@ -399,7 +399,7 @@ Quick infrastructure hygiene before ending session.
 
 When ending a session, ask Claude to generate a handoff summary:
 
-```
+```text
 Generate a handoff summary for the next Claude session, including:
 1. What was completed this session
 2. Current phase/task position

@@ -951,7 +951,7 @@ args=[
 
 **STRUCTURED-DATA Format (UNDOCUMENTED):**
 
-```
+```text
 ---STRUCTURED-DATA---
 CONDITION_GRADE: [Fine|VG+|VG|VG-|Good+|Good|Fair|Poor]
 BINDER_IDENTIFIED: [Binder Name|UNKNOWN]

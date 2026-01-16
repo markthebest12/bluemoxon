@@ -37,7 +37,7 @@ Design doc: `docs/plans/2025-12-11-score-transparency-design.md`
 
 ### Recent Commits on Staging
 
-```
+```text
 7714267 docs: Add score transparency design for tooltips and warnings
 88982f1 ci: Trigger smoke tests after migration applied
 75fabf8 style: Fix ruff formatting in health.py

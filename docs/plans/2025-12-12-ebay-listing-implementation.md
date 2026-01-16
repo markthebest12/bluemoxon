@@ -411,7 +411,7 @@ def extract_listing_data(html: str) -> dict:
 
 **Files to create:**
 
-```
+```text
 scraper/
 ├── handler.py
 ├── requirements.txt
@@ -515,7 +515,7 @@ CMD ["handler.handler"]
 
 **requirements.txt:**
 
-```
+```text
 playwright==1.40.0
 ```
 

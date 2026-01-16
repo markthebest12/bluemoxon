@@ -20,7 +20,7 @@ The BlueMoxon API provides comprehensive management of a Victorian book collecti
 
 ### List Books
 
-```
+```text
 GET /books
 ```
 
@@ -58,7 +58,7 @@ List books with filtering and pagination.
 
 ### Get Book
 
-```
+```text
 GET /books/{book_id}
 ```
 
@@ -68,7 +68,7 @@ Get a single book by ID with full details.
 
 ### Create Book
 
-```
+```text
 POST /books
 ```
 
@@ -80,7 +80,7 @@ Create a new book. Selecting a `binder_id` automatically sets `binding_authentic
 
 ### Update Book
 
-```
+```text
 PUT /books/{book_id}
 ```
 
@@ -92,7 +92,7 @@ Update an existing book. Changing `binder_id` automatically updates `binding_aut
 
 ### Delete Book
 
-```
+```text
 DELETE /books/{book_id}
 ```
 
@@ -102,7 +102,7 @@ Delete a book from the collection.
 
 ### Update Book Status
 
-```
+```text
 PATCH /books/{book_id}/status?status={status}
 ```
 
@@ -121,7 +121,7 @@ Update delivery/inventory status.
 
 ### Update Inventory Type
 
-```
+```text
 PATCH /books/{book_id}/inventory-type?inventory_type={type}
 ```
 
@@ -141,7 +141,7 @@ Move book between inventory types.
 
 ### Bulk Update Status
 
-```
+```text
 POST /books/bulk/status?status={status}
 ```
 
@@ -164,7 +164,7 @@ Update status for multiple books at once.
 
 ### Check Duplicate Title
 
-```
+```text
 GET /books/duplicates/check?title={title}
 ```
 
@@ -194,7 +194,7 @@ Check if a title already exists (duplicate detection for acquisitions).
 
 ### Full-Text Search
 
-```
+```text
 GET /search
 ```
 
@@ -215,7 +215,7 @@ Search across books and analyses.
 
 ### List Authors
 
-```
+```text
 GET /authors
 ```
 
@@ -229,7 +229,7 @@ List all authors, optionally filtered by search.
 
 ### Get Author
 
-```
+```text
 GET /authors/{author_id}
 ```
 
@@ -237,7 +237,7 @@ Get author details with their books.
 
 ### Create Author
 
-```
+```text
 POST /authors
 ```
 
@@ -255,13 +255,13 @@ POST /authors
 
 ### Update Author
 
-```
+```text
 PUT /authors/{author_id}
 ```
 
 ### Delete Author
 
-```
+```text
 DELETE /authors/{author_id}
 ```
 
@@ -273,7 +273,7 @@ Will fail if author has associated books.
 
 ### List Publishers
 
-```
+```text
 GET /publishers
 ```
 
@@ -281,7 +281,7 @@ List all publishers, sorted by tier then name.
 
 ### Get Publisher
 
-```
+```text
 GET /publishers/{publisher_id}
 ```
 
@@ -289,7 +289,7 @@ Get publisher details with their books.
 
 ### Create Publisher
 
-```
+```text
 POST /publishers
 ```
 
@@ -308,13 +308,13 @@ POST /publishers
 
 ### Update Publisher
 
-```
+```text
 PUT /publishers/{publisher_id}
 ```
 
 ### Delete Publisher
 
-```
+```text
 DELETE /publishers/{publisher_id}
 ```
 
@@ -326,7 +326,7 @@ Will fail if publisher has associated books.
 
 ### List Binders
 
-```
+```text
 GET /binders
 ```
 
@@ -334,7 +334,7 @@ List all premium binding houses.
 
 ### Get Binder
 
-```
+```text
 GET /binders/{binder_id}
 ```
 
@@ -342,7 +342,7 @@ Get binder details with their books.
 
 ### Create Binder
 
-```
+```text
 POST /binders
 ```
 
@@ -358,13 +358,13 @@ POST /binders
 
 ### Update Binder
 
-```
+```text
 PUT /binders/{binder_id}
 ```
 
 ### Delete Binder
 
-```
+```text
 DELETE /binders/{binder_id}
 ```
 
@@ -376,7 +376,7 @@ Will fail if binder has associated books.
 
 ### Collection Overview
 
-```
+```text
 GET /stats/overview
 ```
 
@@ -407,7 +407,7 @@ Get high-level collection statistics.
 
 ### Collection Metrics
 
-```
+```text
 GET /stats/metrics
 ```
 
@@ -430,7 +430,7 @@ Get detailed collection metrics including Victorian %, ROI, and discount average
 
 ### By Category
 
-```
+```text
 GET /stats/by-category
 ```
 
@@ -438,7 +438,7 @@ Get counts and values by category.
 
 ### By Publisher
 
-```
+```text
 GET /stats/by-publisher
 ```
 
@@ -446,7 +446,7 @@ Get counts and values by publisher with tier info.
 
 ### By Author
 
-```
+```text
 GET /stats/by-author
 ```
 
@@ -454,7 +454,7 @@ Get counts and values by author.
 
 ### By Era
 
-```
+```text
 GET /stats/by-era
 ```
 
@@ -472,7 +472,7 @@ Get counts by historical era.
 
 ### Authenticated Bindings
 
-```
+```text
 GET /stats/bindings
 ```
 
@@ -489,7 +489,7 @@ Get counts by premium binder.
 
 ### Pending Deliveries
 
-```
+```text
 GET /stats/pending-deliveries
 ```
 
@@ -518,7 +518,7 @@ Get list of books currently in transit.
 
 ### Export to CSV
 
-```
+```text
 GET /export/csv?inventory_type={type}
 ```
 
@@ -534,7 +534,7 @@ Export books to CSV format matching PRIMARY_COLLECTION.csv structure.
 
 ### Export to JSON
 
-```
+```text
 GET /export/json?inventory_type={type}
 ```
 
@@ -670,7 +670,7 @@ Export books to JSON format with all details.
 
 ### Generate Analysis
 
-```
+```text
 POST /books/{book_id}/analysis/generate?model={model}
 ```
 
@@ -712,7 +712,7 @@ Generate a Napoleon framework analysis for a book using Claude AI via AWS Bedroc
 
 ### Get Config
 
-```
+```text
 GET /admin/config
 ```
 
@@ -729,7 +729,7 @@ Get current admin configuration values.
 
 ### Update Config
 
-```
+```text
 PUT /admin/config
 ```
 
@@ -759,7 +759,7 @@ Update admin configuration values.
 
 ### Extract Order Details
 
-```
+```text
 POST /orders/extract
 ```
 
@@ -807,7 +807,7 @@ Extract order details from pasted email/text using regex patterns.
 
 ### Liveness Probe
 
-```
+```text
 GET /health/live
 ```
 
@@ -821,7 +821,7 @@ Simple check that the service is running.
 
 ### Readiness Probe
 
-```
+```text
 GET /health/ready
 ```
 
@@ -840,7 +840,7 @@ Checks if the service is ready to accept traffic.
 
 ### Deep Health Check
 
-```
+```text
 GET /health/deep
 ```
 
@@ -866,7 +866,7 @@ Comprehensive health check validating all dependencies.
 
 ### Service Info
 
-```
+```text
 GET /health/info
 ```
 
@@ -874,7 +874,7 @@ Returns service metadata and version information.
 
 ### Run Migrations
 
-```
+```text
 POST /health/migrate
 ```
 

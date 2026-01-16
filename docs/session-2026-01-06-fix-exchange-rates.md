@@ -11,7 +11,7 @@
 
 ### 1. ALWAYS Use Superpowers Skills
 
-```
+```text
 IF task involves implementation → use superpowers:brainstorming FIRST
 IF task involves code changes → use superpowers:test-driven-development
 IF task involves debugging → use superpowers:systematic-debugging

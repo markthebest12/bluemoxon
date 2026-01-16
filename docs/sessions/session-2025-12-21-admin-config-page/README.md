@@ -61,7 +61,7 @@ Add a Cost tab to the Admin Config Dashboard showing Bedrock usage costs by mode
 
 ### Commits Made (on feat/admin-cost-tab)
 
-```
+```text
 89fcc75 style: format AdminConfigView.vue with Prettier
 af7e668 style: format cost_explorer.py with ruff
 05c5629 feat: add Cost tab to admin dashboard frontend

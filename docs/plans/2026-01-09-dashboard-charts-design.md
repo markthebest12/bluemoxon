@@ -10,7 +10,7 @@ Add two doughnut charts to the dashboard: "Books by Condition Grade" and "Books 
 
 ## Architecture
 
-```
+```text
 Backend                          Frontend
 ────────────────────────────────────────────────────
 /stats/by-condition (NEW)   →   ConditionData[]

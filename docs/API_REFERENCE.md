@@ -10,7 +10,7 @@ All endpoints (except health checks) require authentication. Two methods are sup
 
 Include the Cognito JWT token in the Authorization header:
 
-```
+```text
 Authorization: Bearer <jwt_token>
 ```
 
@@ -18,7 +18,7 @@ Authorization: Bearer <jwt_token>
 
 Include the API key in the X-API-Key header:
 
-```
+```text
 X-API-Key: <api_key>
 ```
 
@@ -49,7 +49,7 @@ X-API-Key: <api_key>
 
 ### List Books
 
-```
+```text
 GET /books
 ```
 
@@ -114,7 +114,7 @@ Response:
 
 ### Get Single Book
 
-```
+```text
 GET /books/{book_id}
 ```
 
@@ -159,7 +159,7 @@ Response:
 
 ### Create Book
 
-```
+```text
 POST /books
 ```
 
@@ -196,7 +196,7 @@ curl -X POST "http://localhost:8000/api/v1/books" \
 
 ### Update Book
 
-```
+```text
 PUT /books/{book_id}
 ```
 
@@ -212,7 +212,7 @@ curl -X PUT "http://localhost:8000/api/v1/books/407" \
 
 ### Delete Book
 
-```
+```text
 DELETE /books/{book_id}
 ```
 
@@ -230,7 +230,7 @@ Response: 204 No Content
 
 ### Update Book Status
 
-```
+```text
 PATCH /books/{book_id}/status?status={status}
 ```
 
@@ -252,7 +252,7 @@ Response:
 
 ### Add Shipment Tracking
 
-```
+```text
 PATCH /books/{book_id}/tracking
 ```
 
@@ -306,7 +306,7 @@ Error Responses:
 
 ### Refresh Tracking Status
 
-```
+```text
 POST /books/{book_id}/tracking/refresh
 ```
 
@@ -350,7 +350,7 @@ Error Responses:
 
 ### Update Inventory Type
 
-```
+```text
 PATCH /books/{book_id}/inventory-type?inventory_type={type}
 ```
 
@@ -366,7 +366,7 @@ curl -X PATCH "http://localhost:8000/api/v1/books/407/inventory-type?inventory_t
 
 ### Bulk Status Update
 
-```
+```text
 POST /books/bulk/status?status={status}
 ```
 
@@ -388,7 +388,7 @@ curl -X POST "http://localhost:8000/api/v1/books/bulk/status?status=ON_HAND" \
 
 ### Check Duplicate Titles
 
-```
+```text
 GET /books/duplicates/check?title={title}
 ```
 
@@ -427,7 +427,7 @@ Analyses can be viewed by all authenticated users but only created/edited by use
 
 ### Get Book Analysis (Parsed)
 
-```
+```text
 GET /books/{book_id}/analysis
 ```
 
@@ -462,7 +462,7 @@ Returns 404 if no analysis exists for the book.
 
 ### Get Raw Analysis Markdown
 
-```
+```text
 GET /books/{book_id}/analysis/raw
 ```
 
@@ -482,7 +482,7 @@ Returns 404 if no analysis exists for the book.
 
 ### Create or Update Analysis
 
-```
+```text
 PUT /books/{book_id}/analysis
 ```
 
@@ -552,7 +552,7 @@ For books without an analysis, editors will see a **Create Analysis** button.
 
 ### Delete Analysis
 
-```
+```text
 DELETE /books/{book_id}/analysis
 ```
 
@@ -589,7 +589,7 @@ In the Analysis Viewer panel, editors/admins will see a trash icon button next t
 
 ### Re-extract Structured Data (Single Book)
 
-```
+```text
 POST /books/{book_id}/re-extract
 ```
 
@@ -628,7 +628,7 @@ Error Responses:
 
 ### Re-extract All Degraded (Bulk)
 
-```
+```text
 POST /books/re-extract-degraded
 ```
 
@@ -664,7 +664,7 @@ Response:
 
 ### Generate Analysis (Async)
 
-```
+```text
 POST /books/{book_id}/analysis/generate-async
 ```
 
@@ -724,7 +724,7 @@ Error Responses:
 
 ### Get Analysis Job Status
 
-```
+```text
 GET /books/{book_id}/analysis/status
 ```
 
@@ -759,7 +759,7 @@ Response:
 
 ### List Book Images
 
-```
+```text
 GET /books/{book_id}/images
 ```
 
@@ -790,7 +790,7 @@ Response:
 
 ### Get Primary Image
 
-```
+```text
 GET /books/{book_id}/images/primary
 ```
 
@@ -800,7 +800,7 @@ Returns the primary image or first image by display order.
 
 ### Get Image File
 
-```
+```text
 GET /books/{book_id}/images/{image_id}/file
 ```
 
@@ -813,7 +813,7 @@ In development: Returns the actual image file (binary).
 
 ### Get Thumbnail
 
-```
+```text
 GET /books/{book_id}/images/{image_id}/thumbnail
 ```
 
@@ -823,7 +823,7 @@ Returns thumbnail version of image.
 
 ### Upload Image
 
-```
+```text
 POST /books/{book_id}/images
 ```
 
@@ -847,7 +847,7 @@ curl -X POST "http://localhost:8000/api/v1/books/407/images" \
 
 ### Update Image Metadata
 
-```
+```text
 PUT /books/{book_id}/images/{image_id}
 ```
 
@@ -862,7 +862,7 @@ Query Parameters:
 
 ### Reorder Images
 
-```
+```text
 PUT /books/{book_id}/images/reorder
 ```
 
@@ -905,7 +905,7 @@ Error Responses:
 
 ### Delete Image
 
-```
+```text
 DELETE /books/{book_id}/images/{image_id}
 ```
 
@@ -915,7 +915,7 @@ Deletes image file and database record.
 
 ### Regenerate Thumbnails
 
-```
+```text
 POST /books/{book_id}/images/regenerate-thumbnails
 ```
 
@@ -1007,7 +1007,7 @@ See `book-collection/documentation/Screenshot_Processing_Protocol.md` for the fu
 
 ### Full-Text Search
 
-```
+```text
 GET /search?q={query}
 ```
 
@@ -1044,7 +1044,7 @@ Response:
 
 ### Collection Overview
 
-```
+```text
 GET /stats/overview
 ```
 
@@ -1071,7 +1071,7 @@ Response:
 
 ### Collection Metrics
 
-```
+```text
 GET /stats/metrics
 ```
 
@@ -1094,7 +1094,7 @@ Response:
 
 ### By Category
 
-```
+```text
 GET /stats/by-category
 ```
 
@@ -1111,7 +1111,7 @@ Response:
 
 ### By Publisher
 
-```
+```text
 GET /stats/by-publisher
 ```
 
@@ -1127,7 +1127,7 @@ Response:
 
 ### By Author
 
-```
+```text
 GET /stats/by-author
 ```
 
@@ -1135,7 +1135,7 @@ GET /stats/by-author
 
 ### Authenticated Bindings
 
-```
+```text
 GET /stats/bindings
 ```
 
@@ -1152,7 +1152,7 @@ Response:
 
 ### By Era
 
-```
+```text
 GET /stats/by-era
 ```
 
@@ -1169,7 +1169,7 @@ Response:
 
 ### Pending Deliveries
 
-```
+```text
 GET /stats/pending-deliveries
 ```
 
@@ -1192,7 +1192,7 @@ Health check endpoints for monitoring, Kubernetes probes, and CI/CD validation.
 
 ### Liveness Probe
 
-```
+```text
 GET /health/live
 ```
 
@@ -1208,7 +1208,7 @@ Response:
 
 ### Readiness Probe
 
-```
+```text
 GET /health/ready
 ```
 
@@ -1235,7 +1235,7 @@ Possible status values: `ready`, `not_ready`
 
 ### Deep Health Check
 
-```
+```text
 GET /health/deep
 ```
 
@@ -1298,7 +1298,7 @@ Possible status values:
 
 ### Service Info
 
-```
+```text
 GET /health/info
 ```
 
@@ -1332,7 +1332,7 @@ Note: `docs` and `redoc` are only available when `debug=true`.
 
 ### Root Health Check
 
-```
+```text
 GET /health
 ```
 
@@ -1350,7 +1350,7 @@ Response:
 
 ### Export to CSV
 
-```
+```text
 GET /export/csv?inventory_type={type}
 ```
 
@@ -1366,7 +1366,7 @@ curl -o collection.csv "http://localhost:8000/api/v1/export/csv?inventory_type=P
 
 ### Export to JSON
 
-```
+```text
 GET /export/json?inventory_type={type}
 ```
 
@@ -1443,7 +1443,7 @@ All reference entities include:
 
 ### Reassign Entity Books
 
-```
+```text
 POST /{entity_type}/{id}/reassign
 ```
 
@@ -1491,7 +1491,7 @@ Error Responses:
 
 ### Get Current User
 
-```
+```text
 GET /users/me
 ```
 
@@ -1514,7 +1514,7 @@ Response:
 
 ### Update User Profile
 
-```
+```text
 PUT /users/me
 ```
 
@@ -1551,7 +1551,7 @@ All endpoints in this section require **admin** role.
 
 ### List All Users
 
-```
+```text
 GET /users
 ```
 
@@ -1591,7 +1591,7 @@ Response:
 
 ### Invite User
 
-```
+```text
 POST /users/invite
 ```
 
@@ -1629,7 +1629,7 @@ Response:
 
 ### Update User Role
 
-```
+```text
 PUT /users/{user_id}/role?role={role}
 ```
 
@@ -1645,7 +1645,7 @@ Response:
 
 ### Delete User
 
-```
+```text
 DELETE /users/{user_id}
 ```
 
@@ -1661,7 +1661,7 @@ Response:
 
 ### Get User MFA Status
 
-```
+```text
 GET /users/{user_id}/mfa
 ```
 
@@ -1695,7 +1695,7 @@ MFA Status Fields:
 
 ### Enable User MFA
 
-```
+```text
 POST /users/{user_id}/mfa/enable
 ```
 
@@ -1716,7 +1716,7 @@ Response:
 
 ### Disable User MFA
 
-```
+```text
 POST /users/{user_id}/mfa/disable
 ```
 
@@ -1734,7 +1734,7 @@ Response:
 
 ### Impersonate User
 
-```
+```text
 POST /users/{user_id}/impersonate
 ```
 
@@ -1755,7 +1755,7 @@ Response:
 
 ### Reset User Password
 
-```
+```text
 POST /users/{user_id}/reset-password
 ```
 
@@ -1800,7 +1800,7 @@ Endpoints for the Admin Config Dashboard. Requires **Editor** or **Admin** role.
 
 ### Get Dashboard Batch (New in 1.2)
 
-```
+```text
 GET /admin/dashboard/batch
 ```
 
@@ -1825,7 +1825,7 @@ Response:
 
 ### Get System Info
 
-```
+```text
 GET /admin/system-info
 ```
 
@@ -1928,7 +1928,7 @@ Response:
 
 ### Get AWS Costs
 
-```
+```text
 GET /admin/costs
 ```
 
@@ -1974,7 +1974,7 @@ Response:
 
 ### Get Config
 
-```
+```text
 GET /admin/config
 ```
 
@@ -1993,7 +1993,7 @@ Response:
 
 ### Update Config (Admin Only)
 
-```
+```text
 PUT /admin/config
 ```
 
@@ -2016,7 +2016,7 @@ Response: Same as GET /admin/config
 
 ### List API Keys
 
-```
+```text
 GET /users/api-keys
 ```
 
@@ -2040,7 +2040,7 @@ Response:
 
 ### Create API Key
 
-```
+```text
 POST /users/api-keys
 ```
 
@@ -2066,7 +2066,7 @@ Response (**key only shown once!**):
 
 ### Revoke API Key
 
-```
+```text
 DELETE /users/api-keys/{key_id}
 ```
 
@@ -2132,7 +2132,7 @@ curl -H "X-API-Key: your-api-key-here" \
 
 ## Database Relationships
 
-```
+```text
 Book
 ├── Author (many-to-one)
 ├── Publisher (many-to-one)

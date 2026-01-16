@@ -309,7 +309,7 @@ def detect_set_completion(...) -> bool:
 
 Use Superpowers skill chain to implement:
 
-```
+```text
 using-git-worktrees → writing-plans → subagent-driven-development
 ```
 

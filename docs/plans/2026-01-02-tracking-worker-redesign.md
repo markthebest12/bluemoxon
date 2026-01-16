@@ -18,7 +18,7 @@ The carrier API tracking implementation has architectural issues:
 
 ### Architecture
 
-```
+```text
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌────────────┐
 │ EventBridge │────▶│ Dispatcher  │────▶│ SQS Queue   │────▶│ Worker     │
 │ (hourly)    │     │ Lambda      │     │ + DLQ       │     │ Lambda     │

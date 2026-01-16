@@ -78,6 +78,6 @@ Assess after seeing violations.
 
 ## Workflow
 
-```
+```text
 feat/eslint-stricter-rules → PR to staging → validate → PR to main
 ```

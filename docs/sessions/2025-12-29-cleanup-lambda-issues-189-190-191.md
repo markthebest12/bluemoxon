@@ -206,7 +206,7 @@ gh pr create --base main --head staging --title "chore: Promote staging to produ
 
 ## Current Todo List
 
-```
+```text
 1. [completed] Fix P0-P5 in handler.py
 2. [completed] Update handler tests to sync pattern
 3. [completed] PR #682 merged to staging

@@ -25,7 +25,7 @@ Add API integration for multiple shipping carriers to enable:
 
 ## Architecture
 
-```
+```text
 backend/app/services/
 ├── tracking.py              # Existing - detect_carrier(), generate_url()
 ├── tracking_poller.py       # NEW - hourly job orchestrator

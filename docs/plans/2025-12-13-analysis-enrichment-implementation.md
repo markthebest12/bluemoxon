@@ -361,7 +361,7 @@ high_match = re.search(r"High\s*\|?\s*\$?([\d,]+)", text)
 
 ### Starting This Work
 
-```
+```text
 ## Task
 Continue Analysis Enrichment implementation (#237), Phase 1 Task 1.1
 

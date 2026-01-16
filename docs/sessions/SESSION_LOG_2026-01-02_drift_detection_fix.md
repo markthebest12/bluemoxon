@@ -10,7 +10,7 @@
 
 The drift detection workflow was failing with:
 
-```
+```text
 Error: User: arn:aws:sts::266672885920:assumed-role/github-actions-deploy/GitHubActions
 is not authorized to perform: s3:ListBucket on resource:
 "arn:aws:s3:::bluemoxon-terraform-state-prod"
@@ -32,7 +32,7 @@ is not authorized to perform: s3:ListBucket on resource:
 
 ### Source of Truth
 
-```
+```text
 infra/terraform/backends/prod.hcl     # Production backend config
 infra/terraform/backends/staging.hcl  # Staging backend config
 ```

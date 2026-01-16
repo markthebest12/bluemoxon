@@ -329,7 +329,7 @@ When changing domains, update Cognito app client:
 
 Update Lambda environment variable:
 
-```
+```text
 CORS_ORIGINS=https://app.bluemoxon.com,http://localhost:5173
 ```
 

@@ -23,7 +23,7 @@ Split into focused child components using **props-down, events-up** pattern.
 
 ### Component Structure
 
-```
+```text
 frontend/src/components/book-detail/
 ├── ImageGallerySection.vue    (~180 lines)
 ├── AnalysisSection.vue        (~200 lines)
@@ -168,7 +168,7 @@ isEditor: boolean
 
 **Test file structure:**
 
-```
+```text
 frontend/src/components/book-detail/__tests__/
 ├── ImageGallerySection.spec.ts
 ├── AnalysisSection.spec.ts

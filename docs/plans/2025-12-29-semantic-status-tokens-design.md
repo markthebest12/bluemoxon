@@ -10,7 +10,7 @@ Create semantic status color tokens to replace Tailwind class hijacking in dark 
 
 ## Token Structure
 
-```
+```text
 --color-status-{type}-{variant}
 
 Types: success, warning, error, info

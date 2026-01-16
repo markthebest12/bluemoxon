@@ -22,7 +22,7 @@ Expand the existing `/admin/config` page from a simple currency rates editor int
 
 **Profile dropdown menu update:**
 
-```
+```text
 Profile
 Config          <- NEW (editors + admins)
 Admin Settings  (admins only)
@@ -49,7 +49,7 @@ Keep current currency rates editor unchanged:
 
 ### System Status Tab
 
-```
+```text
 [Alert banner if any health check fails]
 
 Version & Deployment
@@ -85,7 +85,7 @@ Bedrock Models
 Full breakdown of all constants from `tiered_scoring.py`, organized into groups.
 Key tunables marked with star (★).
 
-```
+```text
 Quality Score Points                        ★ = Key Tunable
 ├── ★ Publisher Tier 1:           25 pts
 ├── ★ Publisher Tier 2:           10 pts
@@ -135,7 +135,7 @@ Offer Discounts (by combined score)
 Three tables in responsive grid (3-column on wide screens, stacked on mobile).
 Each table groups entities by tier, showing only Tier 1-3 (excludes null/untiered).
 
-```
+```text
 ┌─────────────────────┬─────────────────────┬─────────────────────┐
 │      AUTHORS        │     PUBLISHERS      │      BINDERS        │
 ├─────────────────────┼─────────────────────┼─────────────────────┤

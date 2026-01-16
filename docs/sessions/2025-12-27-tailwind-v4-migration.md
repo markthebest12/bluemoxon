@@ -217,7 +217,7 @@ The preflight form element reset in `@layer base` was overriding `@layer utiliti
 
 ## Worktree Location
 
-```
+```text
 /Users/mark/projects/bluemoxon/.worktrees/tailwind-v4/
 ```
 

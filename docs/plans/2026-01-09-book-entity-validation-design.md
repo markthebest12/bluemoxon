@@ -133,7 +133,7 @@ if parsed.binder_identification and parsed.binder_identification.get("name"):
 
 **Worker job error message:**
 
-```
+```text
 Entity validation failed: binder 'Bayntun (of Bath)' matches existing
 'Bayntun' (88%). Use existing ID or create new via POST /binders?force=true
 ```

@@ -24,7 +24,7 @@ Maintenance system for cleaning up stale acquisitions data, expired source URLs,
 
 **Location**: `backend/lambdas/cleanup/`
 
-```
+```text
 backend/lambdas/cleanup/
 ├── handler.py
 ├── requirements.txt

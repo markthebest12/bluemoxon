@@ -88,7 +88,7 @@ None - all tasks completed!
 
 ## Current Website Structure
 
-```
+```text
 site/
 ├── index.html           # Main landing page
 ├── features.html        # Feature catalog page

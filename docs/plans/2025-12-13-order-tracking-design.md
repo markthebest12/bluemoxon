@@ -56,7 +56,7 @@ If no pattern matches, prompt user to select carrier manually.
 
 **Endpoint:**
 
-```
+```text
 PATCH /api/v1/books/{book_id}/tracking
 ```
 
@@ -87,7 +87,7 @@ PATCH /api/v1/books/{book_id}/tracking
 
 ### AddTrackingModal.vue
 
-```
+```text
 ┌─────────────────────────────────────┐
 │  Add Tracking                    ✕  │
 ├─────────────────────────────────────┤
@@ -123,13 +123,13 @@ PATCH /api/v1/books/{book_id}/tracking
 
 **Before tracking:**
 
-```
+```text
 [Add Tracking]  [Mark Received]
 ```
 
 **After tracking:**
 
-```
+```text
 UPS: 1Z99...6784 →  [Mark Received]
 ```
 

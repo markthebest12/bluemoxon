@@ -34,7 +34,7 @@ PR #773 (tracking worker redesign) introduced a USPS carrier plugin that imports
 
 ### Error
 
-```
+```text
 [ERROR] Runtime.ImportModuleError: Unable to import module 'app.main': No module named 'defusedxml'
 ```
 

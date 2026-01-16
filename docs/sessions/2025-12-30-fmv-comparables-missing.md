@@ -25,7 +25,7 @@ But nearly all other books show FMV range WITHOUT comparables:
 
 **CloudWatch logs revealed the smoking gun:**
 
-```
+```text
 [ERROR] Error invoking scraper Lambda for listing extraction:
 AccessDeniedException... User is not authorized to perform: lambda:InvokeFunction
 on resource: arn:aws:lambda:us-west-2:...:function:bluemoxon-staging-scraper

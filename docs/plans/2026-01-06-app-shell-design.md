@@ -24,7 +24,7 @@ Render a static nav bar and loading skeleton in `index.html` that users see imme
 
 **Before:**
 
-```
+```text
 0s        1s        2s        3s        ...       9s
 |---------|---------|---------|---------|---------|
 [       BLANK PAGE                      ][Content]
@@ -32,7 +32,7 @@ Render a static nav bar and loading skeleton in `index.html` that users see imme
 
 **After:**
 
-```
+```text
 0s        1s        2s        3s        ...       9s
 |---------|---------|---------|---------|---------|
 [Nav+Skeleton immediately][  Same skeleton  ][Content]

@@ -122,14 +122,14 @@ jobs:
 
 ### Rule 1: No enable_* Divergence
 
-```
+```text
 FORBIDDEN: staging.tfvars and prod.tfvars having different enable_* values
 EXCEPTION: Only during active migration with documented timeline
 ```
 
 ### Rule 2: No Manual AWS Changes
 
-```
+```text
 FORBIDDEN: Creating/modifying resources via Console or CLI without Terraform
 EXCEPTION: Emergency break-glass with mandatory follow-up:
   1. Document in docs/MANUAL_CHANGES.md within 1 hour
@@ -139,7 +139,7 @@ EXCEPTION: Emergency break-glass with mandatory follow-up:
 
 ### Rule 3: Documentation as Code
 
-```
+```text
 REQUIRED: Values in CLAUDE.md must be generated from terraform output
 VALIDATION: CI blocks merge if documentation contains hardcoded infrastructure values
 ```

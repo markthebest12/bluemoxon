@@ -97,7 +97,7 @@ Fixes #718
 EOF
 )"
 
-```
+```text
 
 **Step 3: Wait for CI to pass**
 

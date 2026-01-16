@@ -174,7 +174,7 @@ All saved to `site/screenshots/`:
 
 ## Files Modified
 
-```
+```text
 docs/API_REFERENCE.md       # +150 lines (tracking, async analysis, reassignment)
 docs/ARCHITECTURE.md        # +120 lines (Lambda layers, SQS, updated data model)
 docs/FEATURES.md            # +130 lines (dark mode, tracking, entity mgmt)

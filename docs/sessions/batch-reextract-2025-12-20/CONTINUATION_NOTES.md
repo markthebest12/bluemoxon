@@ -59,7 +59,7 @@ The Napoleon prompt (`backend/prompts/napoleon-framework/v2.md`) Section 2 (Cond
 
 Original:
 
-```
+```text
 - **Endpapers:** original/replaced, marbling condition, hinges
 ```
 

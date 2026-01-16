@@ -16,7 +16,7 @@ Add secondary origin and cache behavior to the frontend CloudFront distribution.
 
 ## Architecture
 
-```
+```text
 Request: /book-images/books/123.jpg
          │
          ▼

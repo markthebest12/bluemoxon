@@ -46,7 +46,7 @@ Maintenance tab in production admin getting "Request failed with status code 500
 
 **Error from logs:**
 
-```
+```text
 botocore.exceptions.ClientError: An error occurred (AccessDeniedException) when calling the Invoke operation:
 User: arn:aws:sts::266672885920:assumed-role/bluemoxon-lambda-role/bluemoxon-prod-api
 is not authorized to perform: lambda:InvokeFunction
@@ -126,7 +126,7 @@ The deploy workflow:
 
 **Verification:**
 
-```
+```text
 bmx-api --prod POST /admin/cleanup '{"action":"stale"}'
 {"stale_archived":0,"sources_checked":0,"sources_expired":0,...}
 ```

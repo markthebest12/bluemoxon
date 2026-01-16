@@ -30,7 +30,7 @@ Expected: OK
 
 **Step 3: Commit**
 
-```
+```text
 git add backend/app/models/author.py
 git commit -m "feat(models): add tier field to Author model"
 ```
@@ -54,7 +54,7 @@ Expected: Shows new migration file
 
 **Step 3: Commit**
 
-```
+```text
 git add backend/alembic/versions/
 git commit -m "feat(db): add migration for author tier column"
 ```
@@ -92,7 +92,7 @@ Expected: OK
 
 **Step 5: Commit**
 
-```
+```text
 git add backend/app/schemas/reference.py
 git commit -m "feat(schemas): add tier field to Author schemas"
 ```
@@ -139,7 +139,7 @@ Expected: No errors
 
 **Step 5: Commit**
 
-```
+```text
 git add backend/app/api/v1/authors.py
 git commit -m "feat(api): include tier in author API responses"
 ```
@@ -206,7 +206,7 @@ Expected: No errors
 
 **Step 4: Commit**
 
-```
+```text
 git add backend/app/services/scoring.py
 git commit -m "feat(scoring): add author tier to scoring calculation"
 ```
@@ -263,7 +263,7 @@ Expected: All tests pass
 
 **Step 3: Commit**
 
-```
+```text
 git add backend/app/services/scoring.py
 git commit -m "feat(scoring): update breakdown to show author tier label"
 ```
@@ -312,7 +312,7 @@ Expected: All tests pass
 
 **Step 3: Commit**
 
-```
+```text
 git add backend/tests/services/test_author_tier.py
 git commit -m "test: add tests for author tier scoring"
 ```
@@ -393,7 +393,7 @@ def downgrade() -> None:
 
 **Step 3: Commit**
 
-```
+```text
 git add backend/alembic/versions/
 git commit -m "feat(db): add data migration for author/publisher/binder tiers"
 ```

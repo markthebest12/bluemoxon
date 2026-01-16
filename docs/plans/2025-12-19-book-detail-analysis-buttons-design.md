@@ -18,7 +18,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 
 ### State A: No analysis exists (editor/admin)
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
 │ Generate a Napoleon-style acquisition       │
@@ -30,7 +30,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 
 ### State B: Analysis job running
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
 │ ⏳ Queued... (or "Analyzing...")            │
@@ -39,7 +39,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 
 ### State C: Analysis exists (editor/admin)
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
 │ View the full Napoleon-style acquisition    │
@@ -51,7 +51,7 @@ Add generate/regenerate analysis buttons to the BookDetailView's "Detailed Analy
 
 ### State D: Analysis exists (viewer)
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ 📊 Detailed Analysis                        │
 │ [View Analysis]                             │

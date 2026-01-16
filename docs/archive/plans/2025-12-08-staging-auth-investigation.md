@@ -46,7 +46,7 @@ Staging has a **separate Cognito user pool** from production, but the **database
 
 This creates a UUID mismatch:
 
-```
+```text
 Production:
   - Cognito user: sub="abc-123-prod"
   - Database user: cognito_id="abc-123-prod" ✓ matches
@@ -68,7 +68,7 @@ Result: JWT contains "xyz-789-staging" but DB expects "abc-123-prod" ✗
 
 ## Current State
 
-```
+```text
 Staging Cognito Pool: us-west-2_5pOhFH6LN
 Staging Cognito Client: 7h1b144ggk7j4dl9vr94ipe6k5
 Frontend bundle: ✅ Now has correct IDs
@@ -158,7 +158,7 @@ To implement:
 
 ## Key Files
 
-```
+```text
 infra/config/staging.json           # Frontend config source of truth
 infra/config/production.json        # Prod config for reference
 infra/terraform/envs/staging.tfvars # Terraform variables
@@ -232,7 +232,7 @@ aws lambda invoke --function-name bluemoxon-staging-db-sync \
 
 ### Final Working Configuration
 
-```
+```text
 Staging Cognito Pool: us-west-2_5pOhFH6LN
 Staging Cognito Client: 7h1b144ggk7j4dl9vr94ipe6k5
 Staging User: mjramos76@gmail.com (CONFIRMED)

@@ -403,7 +403,7 @@ If smoke tests fail:
 **Partial Deploy Handling:**
 If some Lambdas succeeded but others failed, smoke tests detect this and fail with:
 
-```
+```text
 CRITICAL: Partial deploy detected - some jobs FAILED while others succeeded!
 ```
 
@@ -432,7 +432,7 @@ Updates flow: Dependabot PR → staging → test → promote to main
 
 ## Files
 
-```
+```text
 .github/
 ├── workflows/
 │   ├── ci.yml              # CI checks with path filtering

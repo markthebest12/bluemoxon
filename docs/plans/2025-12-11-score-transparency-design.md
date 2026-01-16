@@ -80,7 +80,7 @@ Returns expanded response with `details` object:
 
 ### Score Card with Tooltips
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │ Felix Holt, the Radical                 │
 │ George Eliot • 3 vols • $701            │
@@ -102,14 +102,14 @@ Returns expanded response with `details` object:
 
 **Investment Grade:**
 
-```
+```text
 33% discount ($701 / $1,050 FMV)
 → 35 points (30-39% tier)
 ```
 
 **Strategic Fit:**
 
-```
+```text
 +35  Tier 1 Publisher (Blackwood)
 +20  Victorian Era (1866)
  +0  Condition (not set)
@@ -121,7 +121,7 @@ Returns expanded response with `details` object:
 
 **Collection Impact:**
 
-```
+```text
 +15  Fills author gap (1 existing)
 -40  Duplicate: "Felix Holt" (ID: 498)
 ───

@@ -22,7 +22,7 @@ Dedicated garbage detection step before eval runbook generation with inverted pr
 
 ## Architecture & Flow
 
-```
+```text
 Scrape/Extract → [NEW: Garbage Detection] → Eval Runbook → Analysis
 ```
 
@@ -43,7 +43,7 @@ New function `detect_garbage_images()` runs before `generate_eval_runbook()`.
 
 Inverted logic - ask "is this THE book?" instead of "is this garbage?"
 
-```
+```text
 You are examining images from an online book listing.
 
 The listing is for: "{title}" by {author}

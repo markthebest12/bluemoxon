@@ -184,7 +184,7 @@ After PR #1099 was merged to staging, testing revealed binder tooltips were NOT 
 
 ### Initial Implementation
 
-```
+```text
 frontend/src/components/BaseTooltip.vue
 frontend/src/components/dashboard/StatisticsDashboard.vue
 frontend/src/components/dashboard/chartHelpers.ts
@@ -199,7 +199,7 @@ backend/tests/test_stats.py
 
 ### Code Review Round 2 Fixes
 
-```
+```text
 frontend/src/components/dashboard/chartHelpers.ts  # Memory leak, hit detection
 frontend/src/components/dashboard/StatisticsDashboard.vue  # Tooltip differentiation
 frontend/src/constants/index.ts  # Removed ERA_DEFINITIONS dead code

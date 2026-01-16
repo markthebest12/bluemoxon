@@ -30,7 +30,7 @@ Add structured, searchable boolean/tier fields for provenance and first edition 
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         ANALYSIS FLOW                                    │
 ├─────────────────────────────────────────────────────────────────────────┤

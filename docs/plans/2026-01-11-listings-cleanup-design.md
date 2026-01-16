@@ -28,7 +28,7 @@ Age-based cleanup: Delete all `listings/*` objects older than 30 days.
 
 ### Scan Endpoint (Dry Run)
 
-```
+```text
 GET /api/v1/admin/cleanup/listings/scan?age_days=30
 ```
 
@@ -52,7 +52,7 @@ GET /api/v1/admin/cleanup/listings/scan?age_days=30
 
 ### Delete Endpoint
 
-```
+```text
 POST /api/v1/admin/cleanup/listings/delete
 Body: {"age_days": 30}
 ```
@@ -108,7 +108,7 @@ def cleanup_stale_listings(
 
 Extend `OrphanCleanupPanel.vue` with a second card for listings cleanup:
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ Stale Listings Cleanup                          │
 │                                                 │

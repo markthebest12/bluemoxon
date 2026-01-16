@@ -90,7 +90,7 @@ AWS_PROFILE=bmx-staging aws lambda invoke \
 
 After fixing AWS profiles, dry run succeeded:
 
-```
+```text
 S3 Images:
   Production:  1.7 GB, 4709 objects
   Staging:     1.6 GB (needs sync)

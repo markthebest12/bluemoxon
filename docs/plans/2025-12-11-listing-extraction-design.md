@@ -56,7 +56,7 @@ Extract structured book data from eBay listing URLs using Bedrock Claude. Enable
 
 ### Bedrock Prompt
 
-```
+```text
 Extract book listing details as JSON:
 - title: Book title only (no author/publisher)
 - author: Author name

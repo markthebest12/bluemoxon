@@ -16,7 +16,7 @@ When `selectedCurrency` changes to GBP or EUR, fetch live rate from frankfurter.
 
 ### Fallback Chain
 
-```
+```text
 Live API (frankfurter.app)
     ↓ (if fails after retries)
 DB Cache (/admin/config)

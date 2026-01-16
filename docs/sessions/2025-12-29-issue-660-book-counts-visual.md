@@ -34,7 +34,7 @@ The current book counts in the book view are displayed as small numeric numbers 
 
 **Selected:** Gold flourish style badge
 
-```
+```text
 Desktop:  ✦ 42 books ✦
 Mobile:   42 (pill only)
 ```

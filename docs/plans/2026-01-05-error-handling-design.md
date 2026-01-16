@@ -19,7 +19,7 @@ Create a toast notification system for user-facing error feedback, replacing sil
 
 ## Architecture
 
-```
+```text
 frontend/src/
 ├── composables/
 │   └── useToast.ts          # Composable for triggering toasts
@@ -40,7 +40,7 @@ frontend/src/
 
 **Visual design:**
 
-```
+```text
 ┌─────────────────────────────────┐
 │ ✕  Failed to load images        │  ← Error toast (red)
 └─────────────────────────────────┘

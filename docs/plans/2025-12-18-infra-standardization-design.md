@@ -133,7 +133,7 @@ AWS_PROFILE=bmx-staging aws lambda invoke --function-name bluemoxon-staging-scra
 
 > **Workflow:** Use `superpowers:finishing-a-development-branch` after all phases complete.
 
-```
+```text
 1. Create feature branch from staging
    → Use superpowers:using-git-worktrees for isolation
 

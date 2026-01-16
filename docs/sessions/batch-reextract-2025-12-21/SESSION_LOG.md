@@ -260,14 +260,14 @@ This end-to-end validation tests the complete pipeline, not just analysis.
 
 ### 17:55 UTC - Local Tests Passed
 
-```
+```text
 poetry run pytest backend/tests/test_listing_extraction.py -v
 # Result: 12 passed (including new test_extracts_multi_volume_set)
 ```
 
 ### 17:56 UTC - Lint Checks Passed
 
-```
+```text
 poetry run ruff check .          # All checks passed!
 poetry run ruff format --check . # 101 files already formatted
 npm run --prefix frontend lint   # Passed
@@ -276,7 +276,7 @@ npm run --prefix frontend type-check  # Passed
 
 ### 17:58 UTC - Feature Branch Created
 
-```
+```text
 git checkout staging
 git pull origin staging
 git checkout -b fix/volume-extraction-prompt
@@ -284,7 +284,7 @@ git checkout -b fix/volume-extraction-prompt
 
 ### 17:59 UTC - Changes Committed
 
-```
+```text
 git add backend/app/services/listing.py backend/tests/test_listing_extraction.py
 git commit -m "fix: Add volume extraction instruction to listing prompt ..."
 # Commit: ff180cd
@@ -306,7 +306,7 @@ All 12 checks passed:
 
 ### 18:02 UTC - PR Merged to Staging
 
-```
+```text
 gh pr merge 508 --squash --delete-branch --admin
 # Merged commit: 4443d08
 ```

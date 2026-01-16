@@ -122,7 +122,7 @@ Separate Lambda function: `bluemoxon-{env}-scraper`
 
 Use Claude Haiku for fast, cheap structured extraction:
 
-```
+```text
 Extract book listing details as JSON. Return ONLY valid JSON, no explanation.
 
 {
@@ -168,7 +168,7 @@ Query existing books for potential duplicates:
 
 ### Fallback Chain
 
-```
+```text
 Attempt 1: Playwright Lambda (headless Chrome)
     ↓ fails
 Attempt 2: User clicks "Retry" → Playwright, fresh session, 2s delay
@@ -206,7 +206,7 @@ Max total wait: 30 seconds, then surface manual paste option.
 
 If automated fetching fails:
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Having trouble fetching this listing.          │
 │                                                 │
@@ -228,7 +228,7 @@ If automated fetching fails:
 
 **State 1: URL Input**
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
 ├─────────────────────────────────────────────────┤
@@ -244,7 +244,7 @@ If automated fetching fails:
 
 **State 2: Loading**
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
 ├─────────────────────────────────────────────────┤
@@ -260,7 +260,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 
 **State 3: Rate Limited**
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
 ├─────────────────────────────────────────────────┤
@@ -273,7 +273,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 
 **State 4: Error with Options**
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Import from eBay                          [X]  │
 ├─────────────────────────────────────────────────┤
@@ -291,7 +291,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 
 **State 5: Preview**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  Import from eBay                                  [X]  │
 ├─────────────────────────────────────────────────────────┤
@@ -321,7 +321,7 @@ Progress steps: Fetching listing → Extracting details → Checking duplicates
 
 ### Flow
 
-```
+```text
 Playwright Lambda scrapes eBay
     ↓
 Extracts image URLs from listing HTML
@@ -407,7 +407,7 @@ Items in EVALUATING status > 30 days:
 
 Collapsible section at bottom of Acquisitions Dashboard:
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Cleanup Tools                             [▼]  │
 ├─────────────────────────────────────────────────┤

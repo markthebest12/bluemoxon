@@ -20,7 +20,7 @@ Add path-based filtering to the deploy workflow (`deploy.yml`) so only changed c
 
 ## Architecture
 
-```
+```text
 push/workflow_dispatch
     │
     ▼

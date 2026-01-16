@@ -38,7 +38,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 
 ### Scan Results (After "Scan Only" or initial state)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  ORPHAN SCAN RESULTS                                        │
 │                                                             │
@@ -52,7 +52,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 
 ### Expanded Details
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  ▲ Hide Details                                             │
 │                                                             │
@@ -66,7 +66,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 
 ### Delete Confirmation (Inline Expansion)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  ⚠️  CONFIRM DELETION                                       │
 │                                                             │
@@ -81,7 +81,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 
 ### Progress During Deletion
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  DELETING ORPHANS                                           │
 │                                                             │
@@ -97,7 +97,7 @@ Replace the current cleanup UI with a comprehensive orphan management experience
 
 ### Completion State
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  ✓ CLEANUP COMPLETE                                         │
 │                                                             │

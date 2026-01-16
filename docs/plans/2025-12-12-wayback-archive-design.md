@@ -45,7 +45,7 @@ archive_status        VARCHAR(20)   -- NULL, 'pending', 'success', 'failed'
 
 ### Modified Endpoint
 
-```
+```text
 PATCH /books/{id}/acquire
 ```
 
@@ -55,7 +55,7 @@ PATCH /books/{id}/acquire
 
 ### New Endpoint
 
-```
+```text
 POST /books/{id}/archive-source
 ```
 
@@ -70,7 +70,7 @@ POST /books/{id}/archive-source
 
 **Archive flow:**
 
-```
+```text
 1. Acquire triggered (or manual button)
 2. Set archive_status = 'pending'
 3. POST https://web.archive.org/save/{source_url}
@@ -87,7 +87,7 @@ POST /books/{id}/archive-source
 
 **Archived URL format:**
 
-```
+```text
 https://web.archive.org/web/20251212153000/https://www.ebay.com/itm/123
 ```
 
@@ -99,7 +99,7 @@ https://web.archive.org/web/20251212153000/https://www.ebay.com/itm/123
 
 ### Acquisitions Dashboard Cards
 
-```
+```text
 ┌─────────────────────────────────────┐
 │ Felix Holt, the Radical             │
 │ George Eliot • 3 vols • $701        │

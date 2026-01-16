@@ -21,7 +21,7 @@ The Eval Runbook is a lightweight evaluation report that provides strategic fit 
 
 Two side-by-side buttons on the book detail page:
 
-```
+```text
 ┌─────────────────────┐  ┌─────────────────────┐
 │  📋 Eval Runbook    │  │  📖 Napoleon Analysis│
 │      60 pts ⚠️      │  │      Not Generated   │
@@ -36,7 +36,7 @@ Two side-by-side buttons on the book detail page:
 
 ### Summary Header
 
-```
+```text
 ╔═══════════════════════════════════════════════════════════════╗
 ║  EVAL RUNBOOK                                          [X]   ║
 ╠═══════════════════════════════════════════════════════════════╣
@@ -77,7 +77,7 @@ Two side-by-side buttons on the book detail page:
 
 When clicking [✏️ Edit] on the asking price:
 
-```
+```text
 ╔═══════════════════════════════════════════════════════════════╗
 ║  Update Asking Price                                   [X]   ║
 ╠═══════════════════════════════════════════════════════════════╣
@@ -113,7 +113,7 @@ When clicking [✏️ Edit] on the asking price:
 
 ### Accordion Sections
 
-```
+```text
 ║  ▼ Item Identification                                        ║
 ║  ┌───────────────────────────────────────────────────────────┐║
 ║  │ Title        │ Poems                                      │║
@@ -141,7 +141,7 @@ Each accordion header shows a preview value. Sections expand to show full detail
 
 ### Strategic Scoring (Expanded)
 
-```
+```text
 ║  ▼ Strategic Scoring                                   60 pts ║
 ║  ┌───────────────────────────────────────────────────────────┐║
 ║  │ Criterion              │ Points │ Notes                   │║
@@ -163,7 +163,7 @@ Each accordion header shows a preview value. Sections expand to show full detail
 
 ### FMV Pricing (Expanded)
 
-```
+```text
 ║  ▼ FMV Pricing                                     $180-$220  ║
 ║  ┌───────────────────────────────────────────────────────────┐║
 ║  │                                                           │║
@@ -196,7 +196,7 @@ Each accordion header shows a preview value. Sections expand to show full detail
 
 ### Critical Issues & Recommendation (Expanded)
 
-```
+```text
 ║  ▼ Critical Issues & Recommendation            ⚠️ 4 issues    ║
 ║  ┌───────────────────────────────────────────────────────────┐║
 ║  │ • Author Outside Collection Focus - Longfellow is        │║
@@ -209,7 +209,7 @@ Each accordion header shows a preview value. Sections expand to show full detail
 
 ### Analysis Findings (Fixed at Bottom)
 
-```
+```text
 ║  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ║
 ║                                                               ║
 ║  📝 Analysis Findings                                         ║

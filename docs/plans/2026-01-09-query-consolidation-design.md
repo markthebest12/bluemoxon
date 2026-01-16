@@ -65,7 +65,7 @@ WHERE inventory_type = 'PRIMARY'
 
 ### New Module
 
-```
+```text
 backend/app/services/
 └── dashboard_stats.py    # Consolidated query functions
 ```

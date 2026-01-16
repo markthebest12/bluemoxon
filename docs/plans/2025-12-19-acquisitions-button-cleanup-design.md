@@ -16,7 +16,7 @@ The Analysis and Eval Runbook buttons on Acquisitions view cards have two issues
 
 Change from centered/spread to left-aligned compact rows:
 
-```
+```text
 ┌───────────────────────────────────────┐
 │ 📄 View Analysis 🔄                   │
 │ 📋 Eval Runbook  🔄                   │

@@ -22,7 +22,7 @@
 
 ### NEVER Use These (Permission Prompt Triggers)
 
-```
+```text
 FORBIDDEN - will cause permission prompts:
 - # comment lines before commands
 - \ backslash line continuations
@@ -33,7 +33,7 @@ FORBIDDEN - will cause permission prompts:
 
 ### ALWAYS Use
 
-```
+```text
 REQUIRED patterns:
 - Simple single-line commands only
 - Separate sequential Bash tool calls instead of &&

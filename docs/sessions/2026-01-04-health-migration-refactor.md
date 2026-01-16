@@ -55,7 +55,7 @@ Replace embedded SQL with `alembic.command.upgrade()` call to use Alembic progra
 **1. Lambda Package Missing Alembic Files**
 The deploy workflow only copies:
 
-```
+```text
 cp -r /app/app /output/
 cp -r /app/lambdas /output/
 ```
@@ -64,7 +64,7 @@ It does NOT copy `alembic.ini` or `alembic/` directory.
 
 The refactored code would crash with:
 
-```
+```text
 FileNotFoundError: [Errno 2] No such file or directory: '/var/task/alembic.ini'
 ```
 

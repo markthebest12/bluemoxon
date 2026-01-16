@@ -49,14 +49,14 @@ The Acquisitions page header looked cluttered on mobile devices:
 
 ### Mobile Layout (< 640px)
 
-```
+```text
 Acquisitions
 [🔗 Import] [+ Add]
 ```
 
 ### Desktop Layout (≥ 640px)
 
-```
+```text
 Acquisitions ❧                   [🔗 Import from eBay] [+ Add Manually]
 Track books from watchlist through delivery
 ```

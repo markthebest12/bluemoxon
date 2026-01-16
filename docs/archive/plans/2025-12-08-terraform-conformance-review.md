@@ -29,7 +29,7 @@
 
 ## Modules (10 total)
 
-```
+```text
 infra/terraform/modules/
 ├── api-gateway/
 ├── cloudfront/

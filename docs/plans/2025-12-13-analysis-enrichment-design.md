@@ -434,7 +434,7 @@ done
 
 ## Implementation Order & Dependencies
 
-```
+```text
 Phase 1: Binder Tier Migration
     ↓
 Phase 2: Scoring Enhancement (depends on Phase 1)

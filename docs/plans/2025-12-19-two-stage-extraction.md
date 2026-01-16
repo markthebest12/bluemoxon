@@ -51,7 +51,7 @@ Extract the following fields from the book analysis below. Output ONLY valid JSO
 
 ## Analysis to Extract From
 
-```
+```text
 
 **Step 2: Deploy to S3 (staging)**
 
