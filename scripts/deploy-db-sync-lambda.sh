@@ -12,7 +12,7 @@
 #   --update    Update existing Lambda code (subsequent deploys)
 #
 # Prerequisites:
-#   - AWS CLI configured with 'staging' profile
+#   - AWS CLI configured with 'bmx-staging' profile
 #   - Docker (for building Lambda package with correct binaries)
 # =============================================================================
 
@@ -25,7 +25,7 @@ BUILD_DIR=".tmp/lambda-build"
 RUNTIME="python3.12"
 TIMEOUT=900  # 15 minutes
 MEMORY=512
-AWS_PROFILE="staging"
+AWS_PROFILE="bmx-staging"
 
 # VPC Configuration (staging VPC)
 VPC_SUBNETS="subnet-0c5f84e98ba25334d,subnet-0ceb0276fa36428f2,subnet-09eeb023cb49a83d5,subnet-0bfb299044084bad3"
