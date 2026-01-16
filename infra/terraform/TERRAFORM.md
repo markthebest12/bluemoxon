@@ -152,14 +152,16 @@ Creates a Lambda function with optional provisioned concurrency.
 module "api" {
   source = "./modules/lambda"
 
-  environment      = var.environment
-  function_name    = "${local.name_prefix}-api"
-  handler          = "app.main.handler"
-  runtime          = var.lambda_runtime
-  memory_size      = var.lambda_memory_size
-  timeout          = var.lambda_timeout
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
+  environment   = var.environment
+  function_name = "${local.name_prefix}-api"
+  handler       = "app.main.handler"
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size
+  timeout       = var.lambda_timeout
+
+  # S3 source for Lambda package (CI/CD uploads to this location)
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = local.lambda_s3_key  # Defined in locals.tf as "lambda/backend.zip"
 
   # Provisioned concurrency: 0 = scale to zero, >0 = keep warm
   provisioned_concurrency = var.lambda_provisioned_concurrency
@@ -171,6 +173,10 @@ module "api" {
   tags = local.common_tags
 }
 ```
+
+**Note:** Lambda packages are deployed from S3. The CI/CD pipeline uploads packages to `s3://{artifacts_bucket}/lambda/backend.zip` and updates Lambda code via AWS CLI. Terraform's lifecycle ignores `s3_key` changes so it doesn't interfere with CI/CD deployments.
+
+**Bootstrap (New Environment):** For greenfield deployments (new AWS account, DR recovery), the S3 object must exist before `terraform apply`. Run CI/CD to upload the initial package, or manually upload a placeholder zip to `s3://{artifacts_bucket}/lambda/backend.zip`.
 
 **Key Variables:**
 
