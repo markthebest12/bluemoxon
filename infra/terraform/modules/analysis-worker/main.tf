@@ -46,8 +46,8 @@ resource "aws_lambda_function" "worker" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
-  filename         = var.package_path
-  source_code_hash = var.source_code_hash
+  s3_bucket = var.s3_bucket
+  s3_key    = var.s3_key
 
   reserved_concurrent_executions = var.reserved_concurrency
 
@@ -79,8 +79,8 @@ resource "aws_lambda_function" "worker" {
   # Code deployment is handled by CI/CD
   lifecycle {
     ignore_changes = [
-      filename,
-      source_code_hash,
+      s3_key,
+      layers,
     ]
   }
 }

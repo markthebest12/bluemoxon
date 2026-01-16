@@ -297,12 +297,12 @@ module "lambda" {
   count  = var.enable_lambda ? 1 : 0
   source = "./modules/lambda"
 
-  function_name    = local.lambda_function_name
-  iam_role_name    = var.lambda_iam_role_name_override
-  environment      = var.environment
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
-  layers           = [module.lambda_layer[0].layer_version_arn]
+  function_name = local.lambda_function_name
+  iam_role_name = var.lambda_iam_role_name_override
+  environment   = var.environment
+  s3_bucket     = module.artifacts_bucket.bucket_id
+  s3_key        = "lambda/backend.zip"
+  layers        = [module.lambda_layer[0].layer_version_arn]
 
   runtime     = var.lambda_runtime
   memory_size = var.lambda_memory_size
@@ -481,9 +481,9 @@ module "analysis_worker" {
   name_prefix = local.name_prefix
   environment = var.environment
 
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
-  runtime          = var.lambda_runtime
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = "lambda/backend.zip"
+  runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
   timeout              = 600
@@ -548,9 +548,9 @@ module "eval_runbook_worker" {
   name_prefix = local.name_prefix
   environment = var.environment
 
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
-  runtime          = var.lambda_runtime
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = "lambda/backend.zip"
+  runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
   timeout              = 600
@@ -620,9 +620,9 @@ module "tracking_worker" {
   name_prefix = local.name_prefix
   environment = var.environment
 
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
-  runtime          = var.lambda_runtime
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = "lambda/backend.zip"
+  runtime   = var.lambda_runtime
 
   # Match API Lambda timeout + buffer for SQS visibility
   timeout_dispatcher     = 60
@@ -678,10 +678,10 @@ module "cleanup_lambda" {
   function_name = coalesce(var.cleanup_function_name_override, "${local.name_prefix}-cleanup")
   environment   = var.environment
 
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
-  runtime          = var.lambda_runtime
-  layers           = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = "lambda/backend.zip"
+  runtime   = var.lambda_runtime
+  layers    = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
 
   memory_size = 256
   timeout     = 300

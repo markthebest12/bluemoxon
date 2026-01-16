@@ -152,14 +152,16 @@ Creates a Lambda function with optional provisioned concurrency.
 module "api" {
   source = "./modules/lambda"
 
-  environment      = var.environment
-  function_name    = "${local.name_prefix}-api"
-  handler          = "app.main.handler"
-  runtime          = var.lambda_runtime
-  memory_size      = var.lambda_memory_size
-  timeout          = var.lambda_timeout
-  package_path     = var.lambda_package_path
-  source_code_hash = var.lambda_source_code_hash
+  environment   = var.environment
+  function_name = "${local.name_prefix}-api"
+  handler       = "app.main.handler"
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size
+  timeout       = var.lambda_timeout
+
+  # S3 source for Lambda package (CI/CD uploads to this location)
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = "lambda/backend.zip"
 
   # Provisioned concurrency: 0 = scale to zero, >0 = keep warm
   provisioned_concurrency = var.lambda_provisioned_concurrency
@@ -171,6 +173,8 @@ module "api" {
   tags = local.common_tags
 }
 ```
+
+**Note:** Lambda packages are deployed from S3. The CI/CD pipeline uploads packages to `s3://{artifacts_bucket}/lambda/backend.zip` and updates Lambda code via AWS CLI. Terraform's lifecycle ignores `s3_key` changes so it doesn't interfere with CI/CD deployments.
 
 **Key Variables:**
 

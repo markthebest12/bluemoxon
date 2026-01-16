@@ -68,9 +68,14 @@ variable "memory_size" {
   default     = 512
 }
 
-variable "package_path" {
+variable "s3_bucket" {
+  description = "S3 bucket containing the Lambda deployment package"
   type        = string
-  description = "Path to the Lambda deployment package"
+}
+
+variable "s3_key" {
+  description = "S3 key (path) to the Lambda deployment package"
+  type        = string
 }
 
 variable "provisioned_concurrency" {
@@ -113,11 +118,6 @@ variable "security_group_name" {
   type        = string
   description = "Override security group name (default: {function_name}-sg). Use for importing existing Lambda with different SG naming."
   default     = null
-}
-
-variable "source_code_hash" {
-  type        = string
-  description = "Base64-encoded SHA256 hash of the package file"
 }
 
 variable "subnet_ids" {

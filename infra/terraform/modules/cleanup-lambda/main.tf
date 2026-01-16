@@ -118,9 +118,9 @@ resource "aws_lambda_function" "this" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
-  filename         = var.package_path
-  source_code_hash = var.source_code_hash
-  layers           = var.layers
+  s3_bucket = var.s3_bucket
+  s3_key    = var.s3_key
+  layers    = var.layers
 
   environment {
     variables = merge(
@@ -150,8 +150,7 @@ resource "aws_lambda_function" "this" {
   # Code deployment handled by CI/CD
   lifecycle {
     ignore_changes = [
-      filename,
-      source_code_hash,
+      s3_key,
       layers,
     ]
   }
