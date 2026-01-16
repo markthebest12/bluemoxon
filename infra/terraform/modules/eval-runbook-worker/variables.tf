@@ -60,10 +60,14 @@ variable "name_prefix" {
   type        = string
 }
 
-variable "package_path" {
-  description = "Path to Lambda deployment package"
+variable "s3_bucket" {
+  description = "S3 bucket containing the Lambda deployment package"
   type        = string
-  default     = "placeholder.zip"
+}
+
+variable "s3_key" {
+  description = "S3 key (path) to the Lambda deployment package"
+  type        = string
 }
 
 variable "reserved_concurrency" {
@@ -94,12 +98,6 @@ variable "security_group_ids" {
   description = "Security group IDs for Lambda VPC configuration"
   type        = list(string)
   default     = []
-}
-
-variable "source_code_hash" {
-  description = "Hash of Lambda deployment package"
-  type        = string
-  default     = ""
 }
 
 variable "subnet_ids" {

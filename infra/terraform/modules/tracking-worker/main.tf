@@ -186,8 +186,8 @@ resource "aws_lambda_function" "dispatcher" {
   memory_size   = var.memory_size_dispatcher
   timeout       = var.timeout_dispatcher
 
-  filename         = var.package_path
-  source_code_hash = var.source_code_hash
+  s3_bucket = var.s3_bucket
+  s3_key    = var.s3_key
 
   environment {
     variables = merge(
@@ -209,7 +209,7 @@ resource "aws_lambda_function" "dispatcher" {
   depends_on = [aws_cloudwatch_log_group.dispatcher]
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash]
+    ignore_changes = [s3_key]
   }
 }
 
@@ -225,8 +225,8 @@ resource "aws_lambda_function" "worker" {
   memory_size   = var.memory_size_worker
   timeout       = var.timeout_worker
 
-  filename         = var.package_path
-  source_code_hash = var.source_code_hash
+  s3_bucket = var.s3_bucket
+  s3_key    = var.s3_key
 
   reserved_concurrent_executions = var.reserved_concurrency
 
@@ -250,7 +250,7 @@ resource "aws_lambda_function" "worker" {
   depends_on = [aws_cloudwatch_log_group.worker]
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash]
+    ignore_changes = [s3_key]
   }
 }
 

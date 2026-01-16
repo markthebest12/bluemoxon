@@ -36,15 +36,14 @@ variable "timeout" {
   default     = 300
 }
 
-variable "package_path" {
-  description = "Path to the Lambda deployment package"
+variable "s3_bucket" {
+  description = "S3 bucket containing the Lambda deployment package"
   type        = string
 }
 
-variable "source_code_hash" {
-  description = "Source code hash for the Lambda package"
+variable "s3_key" {
+  description = "S3 key (path) to the Lambda deployment package"
   type        = string
-  default     = null
 }
 
 variable "environment_variables" {
