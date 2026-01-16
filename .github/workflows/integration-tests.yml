@@ -27,10 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -42,7 +42,7 @@ jobs:
 
       - name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: backend/.venv
           key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
@@ -53,7 +53,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::565393050267:role/bluemoxon-staging-github-actions
           aws-region: ${{ env.AWS_REGION }}
@@ -82,14 +82,11 @@ jobs:
               labels: 'integration-test-failure',
               state: 'open'
             });
-
             const hasOpenIssue = issues.data.length > 0;
             console.log(`Found ${issues.data.length} open issue(s) with integration-test-failure label`);
-
             if (hasOpenIssue) {
               console.log(`Existing issue: ${issues.data[0].html_url}`);
             }
-
             return hasOpenIssue;
           result-encoding: string
 
@@ -100,30 +97,31 @@ jobs:
           script: |
             const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const date = new Date().toISOString().split('T')[0];
-
+            const body = [
+              '## Integration Tests Failed',
+              '',
+              `**Date:** ${date}`,
+              `**Workflow Run:** [View Logs](${runUrl})`,
+              '',
+              '### Details',
+              'The scheduled integration tests against the staging environment have failed.',
+              '',
+              '### Next Steps',
+              `1. Review the [workflow logs](${runUrl}) to identify the failure`,
+              '2. Check staging environment health: https://staging.api.bluemoxon.com/api/v1/health/deep',
+              '3. Fix the issue and verify tests pass manually',
+              '4. Close this issue when resolved',
+              '',
+              '### Related',
+              '- Tests located in: `backend/tests/integration/`',
+              '- Run locally with: `RUN_INTEGRATION_TESTS=1 poetry run pytest backend/tests/integration/ -v`'
+            ].join('\n');
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Integration Tests Failed - ${date}`,
               labels: ['integration-test-failure'],
-              body: `## Integration Tests Failed
-
-**Date:** ${date}
-**Workflow Run:** [View Logs](${runUrl})
-
-### Details
-The scheduled integration tests against the staging environment have failed.
-
-### Next Steps
-1. Review the [workflow logs](${runUrl}) to identify the failure
-2. Check staging environment health: https://staging.api.bluemoxon.com/api/v1/health/deep
-3. Fix the issue and verify tests pass manually
-4. Close this issue when resolved
-
-### Related
-- Tests located in: \`backend/tests/integration/\`
-- Run locally with: \`RUN_INTEGRATION_TESTS=1 poetry run pytest backend/tests/integration/ -v\`
-`
+              body: body
             });
 
       - name: Add comment to existing issue
@@ -133,25 +131,25 @@ The scheduled integration tests against the staging environment have failed.
           script: |
             const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const date = new Date().toISOString().split('T')[0];
-
-            // Find the existing open issue
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: 'integration-test-failure',
               state: 'open'
             });
-
             if (issues.data.length > 0) {
+              const body = [
+                `### Test failure continues - ${date}`,
+                '',
+                `Integration tests failed again. [View workflow run](${runUrl})`,
+                '',
+                'This issue remains open from a previous failure.'
+              ].join('\n');
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issues.data[0].number,
-                body: `### Test failure continues - ${date}
-
-Integration tests failed again. [View workflow run](${runUrl})
-
-This issue remains open from a previous failure.`
+                body: body
               });
               console.log(`Added comment to existing issue #${issues.data[0].number}`);
             }
