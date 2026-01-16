@@ -1,9 +1,6 @@
 """Tests for processed image note in AI prompts."""
 
-import pytest
-from unittest.mock import MagicMock
-
-from app.services.bedrock import build_bedrock_messages, PROCESSED_IMAGE_NOTE
+from app.services.bedrock import PROCESSED_IMAGE_NOTE, build_bedrock_messages
 
 
 class TestPromptLengthBaseline:
