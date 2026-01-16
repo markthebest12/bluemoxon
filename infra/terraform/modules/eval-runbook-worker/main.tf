@@ -79,10 +79,7 @@ resource "aws_lambda_function" "worker" {
 
   # Code deployment is handled by CI/CD
   lifecycle {
-    ignore_changes = [
-      s3_key,
-      layers,
-    ]
+    ignore_changes = [s3_key]
   }
 }
 

@@ -301,7 +301,7 @@ module "lambda" {
   iam_role_name = var.lambda_iam_role_name_override
   environment   = var.environment
   s3_bucket     = module.artifacts_bucket.bucket_id
-  s3_key        = "lambda/backend.zip"
+  s3_key        = local.lambda_s3_key
   layers        = [module.lambda_layer[0].layer_version_arn]
 
   runtime     = var.lambda_runtime

@@ -161,7 +161,7 @@ module "api" {
 
   # S3 source for Lambda package (CI/CD uploads to this location)
   s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = "lambda/backend.zip"
+  s3_key    = local.lambda_s3_key  # Defined in locals.tf as "lambda/backend.zip"
 
   # Provisioned concurrency: 0 = scale to zero, >0 = keep warm
   provisioned_concurrency = var.lambda_provisioned_concurrency
