@@ -260,12 +260,59 @@ Admin Config page now shows "SQS Queues - 112ms" in Health Checks section with c
 
 ---
 
-## Next Steps
+## Part 7: Phased Implementation Status
 
-1. [ ] Complete second eBay import test (187668108527)
-2. [ ] Verify CloudWatch metrics for image processing
-3. [ ] Deploy image processor Lambda code (container-based Lambda with rembg)
-4. [ ] Test end-to-end image processing flow
+This feature is being implemented in phases:
+
+### Phase 1: Infrastructure (COMPLETE)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| SQS queue | ✅ | `bluemoxon-staging-image-processing` |
+| Dead letter queue | ✅ | For failed jobs |
+| Lambda resource | ✅ | Created in Terraform (placeholder code) |
+| IAM permissions | ✅ | SQS, S3, Secrets Manager |
+| Health checks | ✅ | All queues reporting healthy |
+| Admin UI | ✅ | SQS status visible in config page |
+
+### Phase 2: Lambda Code Deployment (NOT STARTED)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Handler code | ❌ | `backend/lambdas/image_processor/handler.py` exists but not deployed |
+| rembg dependency | ❌ | Requires container-based Lambda or Layer |
+| Deployment script | ❌ | Need to build and deploy container image |
+
+**Blocker:** rembg has native dependencies (onnxruntime) that require either:
+- Container-based Lambda (ECR image)
+- Lambda Layer with pre-compiled binaries
+
+### Phase 3: API Integration (PARTIALLY COMPLETE)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `queue_image_processing()` service | ✅ | Exists in `image_processing.py` |
+| Called on image upload | ⚠️ | Only for **primary image** (`is_primary=True`) |
+| Called during eBay import | ❓ | Needs verification - may be failing silently |
+| ImageProcessingJob model | ✅ | Database model exists |
+
+**Current behavior:** When images are uploaded, only the primary (first) image is queued for processing. The call is wrapped in try/except so failures are silent.
+
+**Observed:** SQS queue shows 0 messages after eBay import, suggesting either:
+1. `queue_image_processing()` isn't being called during import flow
+2. Or it's failing silently (exception caught and logged)
+
+### Next Steps
+
+1. [ ] Deploy image processor Lambda (Phase 2)
+   - Build container image with rembg
+   - Push to ECR
+   - Update Lambda to use container
+2. [ ] Verify API is queueing jobs (Phase 3)
+   - Check CloudWatch logs for queueing attempts
+   - Trace eBay import flow to image upload
+3. [ ] Test end-to-end processing
+4. [ ] Consider processing ALL images, not just primary
 
 ---
 
