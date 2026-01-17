@@ -622,6 +622,14 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-image-processor-${{ hashFiles('backend/lambdas/image_processor/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-image-processor-
+
       - name: Install test dependencies
         run: |
           cd backend/lambdas/image_processor
