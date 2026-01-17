@@ -474,10 +474,7 @@ def get_system_info(
                     latency_ms=sqs_health.get("latency_ms"),
                     reason=sqs_health.get("reason"),
                     error=sqs_health.get("error"),
-                    queues={
-                        k: SqsQueueHealth(**v)
-                        for k, v in sqs_health.get("queues", {}).items()
-                    }
+                    queues={k: SqsQueueHealth(**v) for k, v in sqs_health.get("queues", {}).items()}
                     if sqs_health.get("queues")
                     else None,
                 ),
