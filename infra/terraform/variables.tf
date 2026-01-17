@@ -61,11 +61,18 @@ variable "db_name" {
   default     = "bluemoxon"
 }
 
-# DEPRECATED: db_password is no longer used - random_password.database generates it automatically
-# Kept for backward compatibility but will be removed in future version
+variable "use_existing_database_credentials" {
+  type        = bool
+  description = "If true, reads password from existing Secrets Manager secret. Set to true for existing environments (staging/prod), false for new environments."
+  default     = false
+}
+
+# DEPRECATED: db_password is no longer used
+# For existing environments: set use_existing_database_credentials = true (reads from Secrets Manager)
+# For new environments: random_password generates automatically
 variable "db_password" {
   type        = string
-  description = "DEPRECATED: Password is now auto-generated. This variable is ignored."
+  description = "DEPRECATED: Use use_existing_database_credentials instead. This variable is ignored."
   sensitive   = true
   default     = null
 }
