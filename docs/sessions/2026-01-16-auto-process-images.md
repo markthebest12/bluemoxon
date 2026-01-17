@@ -12,106 +12,124 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ---
 
-## Current Status (Post-Compaction 4)
+## Current Status (Post-Compaction 5)
 
 | Phase | Status | Details |
 |-------|--------|---------|
 | **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
-| **Phase 2: Lambda Deployment** | 🔶 CODE DONE | Implementation complete, bootstrap image pending |
+| **Phase 2: Lambda Deployment** | 🔶 NEARLY DONE | Bootstrap image deployed, one fix remaining |
 | **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
 
 ### Phase 2 Implementation Progress
-
-All code tasks complete on `feat/auto-process-images` branch:
 
 | Task | Status | Commit |
 |------|--------|--------|
 | 1. ECR repository (Terraform) | ✅ Done | `1d6a348` |
 | 2. Supporting files (Dockerfile, requirements.txt, download_models.py) | ✅ Done | `0a91d34` |
 | 3. Smoke test handler | ✅ Done | `164ac27` |
-| 4. Push bootstrap image | ⏳ Pending | Manual step |
+| 4. Push bootstrap image | ✅ Done | `839aba9` (v2 deployed) |
 | 5. Lambda module for container | ✅ Done | `25c10fb` |
 | 6. Unit tests (30 passing) | ✅ Done | `b39628f` |
 | 7. CI/CD workflow | ✅ Done | `078aca5` |
-| 8. Test end-to-end in staging | ⏳ Pending | After bootstrap |
+| 8. Test end-to-end in staging | 🔶 IN PROGRESS | Missing constants.py in container |
 | 9. Deploy to production | ⏳ Pending | After staging |
-
-**Key files created/modified:**
-- `infra/terraform/ecr.tf` - ECR repository
-- `infra/terraform/modules/image-processor/main.tf` - Container-based Lambda
-- `infra/terraform/outputs.tf` - Added image processor outputs
-- `backend/lambdas/image_processor/Dockerfile` - ARM64 container build
-- `backend/lambdas/image_processor/requirements.txt` - rembg + dependencies
-- `backend/lambdas/image_processor/download_models.py` - Pre-download models
-- `backend/lambdas/image_processor/handler.py` - Added smoke test support
-- `backend/lambdas/image_processor/tests/` - 30 unit tests
-- `.github/workflows/deploy.yml` - CI/CD for image processor
-
-### API Key Fix - COMPLETED
-
-| Item | Status |
-|------|--------|
-| Staging Lambda API key | ✅ Updated |
-| Prod Lambda API key | ✅ Updated |
-| Local ~/.bmx/ keys | ✅ Updated |
-| GitHub secrets | ✅ Updated |
-| CI workflow | ✅ Passing (run 21087968669) |
-
-**Keys stored in Secrets Manager:**
-- `bluemoxon-staging/api-key`
-- `bluemoxon-prod/api-key`
-
-### Phase 2 Design - COMPLETED
-
-**Design document:** `docs/plans/2026-01-17-image-processor-container.md`
-
-**Key decisions:**
-- ARM64 container on Graviton2 (20% cost savings)
-- Models baked into container (instant cold starts)
-- Copy `backend/app/models/` for single source of truth
-- CI updates Lambda directly, Terraform ignores `image_uri`
 
 ---
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-### Task 4: Push Bootstrap Image - IN PROGRESS
+### Task 8: Fix Missing constants.py - IN PROGRESS
 
-**Status:** ECR repository created, but Docker build failed due to rembg version issue.
+**Status:** Smoke test passes, but real job processing fails.
 
-**Issue:** `rembg[cpu]==2.0.50` is not available for ARM64. Available versions: 2.0.55-2.0.72
+**Issue:** Lambda fails with `No module named 'app.constants'` when processing actual SQS messages.
 
-**Fix needed:** Update `backend/lambdas/image_processor/requirements.txt` to use `rembg[cpu]>=2.0.55` or pin to latest stable version.
+**Root cause:** Dockerfile copies `backend/app/models/` but `analysis_job.py` imports from `app.constants`.
 
-**ECR URL:** `652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor`
+**Fix already staged (not committed):**
 
-**Steps to complete Task 4:**
-1. Fix requirements.txt rembg version
-2. Rebuild: `docker build --platform linux/arm64 -f backend/lambdas/image_processor/Dockerfile -t 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest /Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
-3. Push: `docker push 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest`
-4. Apply full Terraform: `AWS_PROFILE=bmx-staging terraform -chdir=/Users/mark/projects/bluemoxon/.worktrees/auto-process-images/infra/terraform apply -var-file=envs/staging.tfvars`
+```dockerfile
+# In backend/lambdas/image_processor/Dockerfile, line 7-9:
+COPY backend/app/__init__.py /opt/python/app/
+COPY backend/app/constants.py /opt/python/app/   # ADD THIS LINE
+COPY backend/app/models/ /opt/python/app/models/
+```
 
-**Also fixed during this session:**
-- Removed duplicate `image_processor_ecr_url` output (was in both ecr.tf and outputs.tf)
-- Updated main.tf to use `ecr_repository_url` instead of `s3_bucket`/`s3_key`
-- Fixed `image_processor_function_name` output to use `[0]` index for count-based module
+**Steps to complete:**
+1. Commit the Dockerfile fix
+2. Rebuild: `docker build --platform linux/arm64 --provenance=false -f backend/lambdas/image_processor/Dockerfile -t 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3 /Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
+3. Push: `docker push 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3`
+4. Update Lambda: `AWS_PROFILE=bmx-staging aws lambda update-function-code --function-name bluemoxon-staging-image-processor --image-uri 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3`
+5. Test with SQS message: `AWS_PROFILE=bmx-staging aws sqs send-message --queue-url https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-image-processing --message-body '{"job_id": "test-456", "book_id": 634, "image_id": 5512}'`
+6. Check logs for success
 
-### After Bootstrap: Create PR to Staging
+### After E2E Test Passes
 
-Once bootstrap is complete, create PR and validate in staging before promoting to production
+1. Update Terraform module default tag to v3
+2. Create PR to staging
+3. Validate in staging environment
+4. Promote to production
 
 ---
 
-## Related Issues & PRs
+## Issues Fixed This Session
 
-| Reference | Description |
-|-----------|-------------|
-| #1136 | Main feature issue (auto-process images) |
-| #1140 | Checklist for adding new async workers |
-| #1144 | Retry mechanism for `queue_failed` jobs |
-| #1146 | API documentation for undocumented endpoints |
-| #1147 | Lambda S3 key config errors |
-| #1148 | Session log updates (pending) |
+### 1. ONNX Runtime Crash on Lambda ARM64 (FIXED)
+
+**Problem:** ONNX Runtime crashes at module import on Lambda Graviton2 due to cpuinfo parsing failure.
+
+**Error:**
+```
+Error in cpuinfo: failed to parse the list of possible processors
+onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has been registered
+```
+
+**Root cause:** The rembg import at module load triggers ONNX Runtime initialization, which fails because `/sys/devices/system/cpu/possible` doesn't exist in Lambda containers.
+
+**Solution (commit `839aba9`):**
+- Lazy-load rembg imports (defer to first actual use)
+- Added `_ensure_rembg_loaded()` function in handler.py
+- Smoke tests now pass because rembg isn't imported until actual processing
+
+**Files changed:**
+- `backend/lambdas/image_processor/handler.py` - Lazy loading
+- `backend/lambdas/image_processor/requirements.txt` - `rembg[cpu]>=2.0.55`
+- `infra/terraform/modules/image-processor/variables.tf` - Added `image_tag` variable
+- `infra/terraform/modules/image-processor/main.tf` - Use `image_tag` variable
+
+### 2. rembg Version Incompatibility (FIXED)
+
+**Problem:** `rembg[cpu]==2.0.50` not available for ARM64.
+
+**Solution:** Changed to `rembg[cpu]>=2.0.55` (versions 2.0.55-2.0.72 available for ARM64).
+
+### 3. Docker Manifest Format (FIXED)
+
+**Problem:** Docker Desktop creates multi-arch manifests with attestations that Lambda rejects.
+
+**Solution:** Use `--provenance=false` flag when building:
+```bash
+docker build --platform linux/arm64 --provenance=false -f Dockerfile -t IMAGE:TAG .
+```
+
+### 4. ECR IMMUTABLE Tags (FIXED)
+
+**Problem:** ECR has IMMUTABLE tag policy, can't reuse `:latest`.
+
+**Solution:**
+- Added `image_tag` variable to Terraform module (default: "v2")
+- Use versioned tags (v1, v2, v3, etc.) for each build
+
+---
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `backend/lambdas/image_processor/handler.py` | Lambda handler with lazy rembg loading |
+| `backend/lambdas/image_processor/Dockerfile` | ARM64 container build (NEEDS constants.py) |
+| `infra/terraform/modules/image-processor/main.tf` | Container-based Lambda module |
+| `infra/terraform/modules/image-processor/variables.tf` | Module variables including image_tag |
 
 ---
 
@@ -158,16 +176,6 @@ Once bootstrap is complete, create PR and validate in staging before promoting t
 
 ---
 
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `docs/plans/2026-01-17-image-processor-container.md` | Phase 2 design document |
-| `backend/lambdas/image_processor/handler.py` | Lambda handler (exists) |
-| `infra/terraform/modules/image-processor/main.tf` | Terraform module (needs refactor) |
-
----
-
 ## Lessons Learned
 
 1. Never use `-var="db_password=..."` with terraform - use `use_existing_database_credentials`
@@ -181,4 +189,33 @@ Once bootstrap is complete, create PR and validate in staging before promoting t
 9. Use `terraform init -backend-config=backends/prod.hcl -reconfigure` when switching environments
 10. For container Lambda: use `ignore_changes = [image_uri]` and let CI update directly
 11. Add deployment tracking via Lambda tags when bypassing Terraform for updates
-12. **ARM64 package availability differs** - rembg 2.0.50 not available for ARM64; check PyPI for ARM-compatible versions before pinning
+12. **ARM64 package availability differs** - rembg 2.0.50 not available for ARM64; check PyPI for ARM-compatible versions
+13. **ONNX Runtime cpuinfo crash** - Lazy-load rembg to defer ONNX init past smoke test
+14. **Docker provenance** - Use `--provenance=false` for Lambda-compatible images
+15. **ECR IMMUTABLE tags** - Use versioned tags (v1, v2, etc.), not :latest
+16. **Model imports cascade** - When copying models/, also copy any files they import (constants.py)
+
+---
+
+## Related Issues & PRs
+
+| Reference | Description |
+|-----------|-------------|
+| #1136 | Main feature issue (auto-process images) |
+| #1140 | Checklist for adding new async workers |
+| #1144 | Retry mechanism for `queue_failed` jobs |
+| #1146 | API documentation for undocumented endpoints |
+| #1147 | Lambda S3 key config errors |
+| #1148 | Session log updates (pending) |
+
+---
+
+## ECR & Lambda Details
+
+**ECR URL:** `652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor`
+
+**Current deployed tag:** `v2`
+
+**Lambda function:** `bluemoxon-staging-image-processor`
+
+**SQS Queue:** `bluemoxon-staging-image-processing`

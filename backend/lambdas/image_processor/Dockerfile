@@ -3,8 +3,9 @@ FROM public.ecr.aws/lambda/python:3.12-arm64
 # Accept VERSION as build argument (default to dev for local builds)
 ARG VERSION=0.0.0-dev
 
-# Copy backend models (single source of truth)
+# Copy backend models (single source of truth) and dependencies
 COPY backend/app/__init__.py /opt/python/app/
+COPY backend/app/constants.py /opt/python/app/
 COPY backend/app/models/ /opt/python/app/models/
 
 # Make models readable by Lambda's sandbox user
