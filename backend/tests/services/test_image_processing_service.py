@@ -223,9 +223,7 @@ class TestGetImageProcessingQueueUrl:
             mock_settings.return_value.image_processing_queue_name = "test-queue"
             mock_settings.return_value.aws_region = "us-east-1"
             with patch("app.services.image_processing.get_sqs_client") as mock_client:
-                mock_client.return_value.get_queue_url.return_value = {
-                    "QueueUrl": expected_url
-                }
+                mock_client.return_value.get_queue_url.return_value = {"QueueUrl": expected_url}
                 url = get_image_processing_queue_url()
                 assert url == expected_url
                 mock_client.return_value.get_queue_url.assert_called_once_with(
@@ -251,9 +249,7 @@ class TestGetImageProcessingQueueUrl:
             mock_settings.return_value.image_processing_queue_name = "test-queue"
             mock_settings.return_value.aws_region = "us-east-1"
             with patch("app.services.image_processing.get_sqs_client") as mock_client:
-                mock_client.return_value.get_queue_url.return_value = {
-                    "QueueUrl": expected_url
-                }
+                mock_client.return_value.get_queue_url.return_value = {"QueueUrl": expected_url}
                 # First call
                 url1 = get_image_processing_queue_url()
                 # Second call
