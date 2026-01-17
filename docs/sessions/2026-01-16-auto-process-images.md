@@ -70,10 +70,13 @@ The `db_password` variable is passed to the RDS module, and even with `-target` 
 - Staging database authentication broken
 - Health check shows `password authentication failed for user "bluemoxon"`
 
-### Fix Required
+### Fixes Applied
 
-1. **Immediate:** Reset RDS password to match Secrets Manager value
-2. **Prevention:** Add `password` to RDS module's `lifecycle { ignore_changes }` block
+1. **Immediate:** Reset RDS password via AWS CLI - **DONE**
+2. **Prevention:** Added `password` to RDS module's `lifecycle { ignore_changes }` - **DONE**
+3. **Permanent fix:** Replaced `db_password` variable with `random_password` resource - **DONE**
+
+The `random_password` resource generates the password once and never changes it (`ignore_changes = all`). This eliminates the entire class of "accidentally passed wrong password" bugs.
 
 ---
 
@@ -134,11 +137,57 @@ Created checklist for adding new async worker flows:
 
 ## Next Steps
 
-1. [ ] Fix RDS password (reset to Secrets Manager value)
-2. [ ] Add `password` to RDS module `ignore_changes`
-3. [ ] Add SQS health check permissions to all worker modules
-4. [ ] Deploy image processor Lambda code (needs container-based Lambda or Layer with rembg)
-5. [ ] Test end-to-end image processing flow
+1. [x] Fix RDS password (reset to Secrets Manager value)
+2. [x] Add `password` to RDS module `ignore_changes`
+3. [x] Add SQS health check permissions to all worker modules
+4. [x] Replace `db_password` variable with `random_password` resource
+5. [ ] Merge PR #1141 and run `terraform apply`
+6. [ ] Import existing password into terraform state (for existing databases)
+7. [ ] Deploy image processor Lambda code (needs container-based Lambda or Layer with rembg)
+8. [ ] Test end-to-end image processing flow
+
+---
+
+## Part 4: Permanent Fix - Auto-Generated Database Password
+
+### Problem
+
+The `db_password` variable was required for every terraform operation, creating risk of:
+- Passing wrong value accidentally
+- Forgetting to pass it and getting errors
+- `-target` flag not preventing password changes
+
+### Solution
+
+Replaced variable with `random_password` resource:
+
+```hcl
+resource "random_password" "database" {
+  count   = var.enable_database ? 1 : 0
+  length  = 32
+  special = true
+  override_special = "!#$%*()-_=+[]{}:?"
+
+  lifecycle {
+    ignore_changes = all  # Never regenerate
+  }
+}
+```
+
+### Migration for Existing Databases
+
+For staging (already has password in Secrets Manager):
+
+```bash
+# Get current password from Secrets Manager
+AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value \
+  --secret-id bluemoxon-staging/database \
+  --query SecretString --output text | jq -r .password
+
+# Import into terraform state
+AWS_PROFILE=bmx-staging terraform import \
+  'random_password.database[0]' '<password-from-above>'
+```
 
 ---
 
@@ -148,3 +197,4 @@ Created checklist for adding new async worker flows:
 2. **Use `terraform plan` first** - Always review what will change before applying
 3. **Add sensitive resources to `ignore_changes`** - Protect critical infrastructure from accidental modifications
 4. **Health check permissions are separate** - Just because Lambda can send to a queue doesn't mean it can inspect the queue
+5. **Use `random_password` for database credentials** - Eliminates the entire class of "wrong password" accidents
