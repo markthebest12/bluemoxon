@@ -1,4 +1,5 @@
 """Pre-download rembg models during Docker build."""
+
 import sys
 
 try:
