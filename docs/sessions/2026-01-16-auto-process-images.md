@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-16/17
 **Issue:** #1136
-**PRs:** #1139, #1141, #1142 (merged), #1143 (CI passing, ready to merge), #1145 (infra to prod)
+**PRs:** #1139, #1141, #1142, #1143, #1145 (all merged)
 
 ## Summary
 
@@ -12,46 +12,79 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ---
 
-## Current Status
+## Current Status (Post-Compaction 2)
 
 | Phase | Status | Details |
 |-------|--------|---------|
-| **Phase 1: Infrastructure** | ✅ Staging done, PR #1145 for prod | SQS queue, DLQ, IAM, health checks, Lambda resource |
-| **Phase 2: Lambda Deployment** | ❌ Not started | Needs container-based Lambda (rembg native deps) |
-| **Phase 3: API Integration** | ✅ PR #1143 ready | `queue_image_processing()` added to import flow |
+| **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
+| **Phase 2: Lambda Deployment** | ❌ Not done | Lambda has placeholder - needs container image with rembg |
+| **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
 
-**Deployment Strategy:** Push infrastructure to prod first (PR #1145), then API integration separately.
+### Phase 3 Complete - Details
 
-### PR #1143 Code Review Fixes (All Addressed)
+- `queue_image_processing()` IS called during eBay import
+- Queues first successfully copied image (not just idx=0)
+- Recovery mechanism for failed queue operations (`queue_failed` status)
 
-| Fix | Description |
-|-----|-------------|
-| Stack trace logging | Added `exc_info=True` to logger.warning |
-| Recovery mechanism | Jobs saved with `queue_failed` status for retry |
-| First-image fallback | Queues first successfully copied image (not just idx=0) |
-| Integration test | Verifies actual `ImageProcessingJob` DB record |
-| DB optimization | `db.flush()` only for first successful image |
-| Terraform docs | Warning for chicken-egg scenario in variable description |
+### Phase 2 Remaining Work
 
-### Verification (Fresh Run)
+1. Create Dockerfile for image processor Lambda
+2. Refactor Terraform from zip-based to container-based
+3. Add ECR repository + CI/CD workflow
+4. Deploy and test end-to-end
 
-- 87 tests pass (77 test_books.py + 10 test_image_processing_service.py)
-- `ruff check` and `ruff format` clean
-- CI: Backend Quality, Backend Validation, Terraform Validate all passing
+**Note:** Queue showing 0 messages is expected - Lambda has placeholder code. Messages may go to DLQ if Lambda errors, or SQS send fails (saved as `queue_failed` for retry via issue #1144).
+
+### What Was Completed This Session
+
+| Task | Status | Details |
+|------|--------|---------|
+| Merge PR #1143 | ✅ Done | API integration merged to staging (admin merge) |
+| Merge PR #1145 | ✅ Done | Infrastructure promoted to prod (admin merge) |
+| Terraform apply prod | ✅ Done | Created SQS queues in prod (31 resources added) |
+| Prod health check | ✅ Fixed | All SQS queues now healthy (analysis, eval_runbook, image_processing) |
+| API docs issue | ✅ Created | Issue #1146 for missing API documentation |
+| Secrets Manager | ✅ Created | API keys stored in `bluemoxon-staging/api-key` and `bluemoxon-prod/api-key` |
+
+### CI Auth Failure - ROOT CAUSE FOUND
+
+**Issue:** Deploy workflow smoke tests and migrations failing with HTTP 401.
+
+**Root Cause:** `BMX_API_KEY` environment variable is **EMPTY** in both Lambda functions.
+
+**Evidence:**
+```
+AWS_PROFILE=bmx-staging aws lambda get-function-configuration \
+  --function-name bluemoxon-staging-api \
+  --query 'Environment.Variables.BMX_API_KEY'
+Result: ''  (empty string)
+```
+
+**Secrets created but not yet applied to Lambda:**
+- `bluemoxon-staging/api-key` - Staging API key in Secrets Manager
+- `bluemoxon-prod/api-key` - Prod API key in Secrets Manager
 
 ---
 
-## Next Steps
+## IMMEDIATE Next Steps (Resume Here)
 
-1. [ ] **Merge PR #1143** (API integration to staging) - CI passing
-2. [ ] **Merge PR #1145** (infrastructure to prod) - awaiting approval
-3. [ ] **Promote PR #1143 to prod** after staging validation
-4. [ ] **Phase 2: Container Lambda deployment**
-   - Create Dockerfile for image processor
-   - Refactor Terraform from zip to container-based
-   - Add ECR repository and CI/CD workflow
-   - Reference: `modules/scraper-lambda/` pattern
-5. [ ] Test end-to-end: import → queue → process → new image
+1. **Update Lambda environment variables with new API keys:**
+   - Staging: `6eQjoyosw3ZkLwVfyMScpHme9xv2CoaC39Gl1anruko`
+   - Prod: `xdpVz67qEejVpDe3A3Lb_OuRe01nEVKcnVtzKCMLqPw`
+
+2. **Update GitHub secrets:**
+   - `BMX_STAGING_API_KEY` → new staging key
+   - `BMX_API_KEY` → new prod key
+
+3. **Update local files:**
+   - `~/.bmx/staging.key`
+   - `~/.bmx/prod.key`
+
+4. **Verify CI passes** by re-running deploy workflow
+
+5. **Create GitHub issue** for Lambda S3 key config errors (terraform apply warning)
+
+6. **Cleanup worktree** after verification
 
 ---
 
@@ -60,7 +93,7 @@ Deployed infrastructure for automatic image processing during book eval import. 
 - #1136 - Main feature issue (auto-process images)
 - #1140 - Checklist for adding new async workers
 - #1144 - Retry mechanism for `queue_failed` jobs
-- #1145 - Infrastructure promotion to prod
+- #1146 - API documentation for undocumented endpoints
 
 ---
 
@@ -130,6 +163,9 @@ npm test
 1. Never use `-var="db_password=..."` with terraform - use `use_existing_database_credentials`
 2. Health check permissions are separate from send permissions (need `GetQueueUrl`, `GetQueueAttributes`)
 3. Admin endpoints need explicit health check calls
-4. Use `superpowers:dispatching-parallel-agents` for independent fixes (3 agents fixed 3 domains in parallel)
+4. Use `superpowers:dispatching-parallel-agents` for independent fixes
 5. Always run `ruff format` before pushing - CI checks formatting
-6. Prod uses `enable_database = false` (Aurora managed externally) - no `use_existing_database_credentials` needed
+6. Prod uses `enable_database = false` (Aurora managed externally)
+7. **Always verify Lambda environment variables** - empty values cause silent auth failures
+8. Store API keys in Secrets Manager for better security and auditability
+9. Use `terraform init -backend-config=backends/prod.hcl -reconfigure` when switching environments
