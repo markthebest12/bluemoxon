@@ -110,7 +110,8 @@ resource "aws_db_instance" "this" {
 
   lifecycle {
     ignore_changes = [
-      final_snapshot_identifier
+      final_snapshot_identifier,
+      password # Prevent accidental password changes via terraform - manage via AWS console/CLI
     ]
   }
 }

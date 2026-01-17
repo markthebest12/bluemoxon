@@ -272,8 +272,12 @@ resource "aws_iam_role_policy" "api_sqs_send" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["sqs:SendMessage"]
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:GetQueueUrl",
+          "sqs:GetQueueAttributes"
+        ]
         Resource = aws_sqs_queue.jobs.arn
       }
     ]
