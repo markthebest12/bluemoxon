@@ -56,6 +56,38 @@ resource "aws_iam_role_policy_attachment" "worker_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# X-Ray tracing
+resource "aws_iam_role_policy_attachment" "worker_xray" {
+  role       = aws_iam_role.worker_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+# ECR pull access (required for container-based Lambda)
+resource "aws_iam_role_policy" "worker_ecr" {
+  name = "${var.name_prefix}-image-processor-ecr"
+  role = aws_iam_role.worker_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+        Resource = "arn:aws:ecr:*:*:repository/${var.name_prefix}-image-processor"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # SQS policy
 resource "aws_iam_role_policy" "worker_sqs" {
   name = "${var.name_prefix}-image-processor-sqs"
@@ -114,17 +146,28 @@ resource "aws_iam_role_policy" "worker_secrets" {
   })
 }
 
-# Lambda function
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/aws/lambda/${var.name_prefix}-image-processor"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Environment = var.environment
+    Service     = "image-processing"
+  }
+}
+
+# Lambda function (container-based)
 resource "aws_lambda_function" "worker" {
   function_name = "${var.name_prefix}-image-processor"
   role          = aws_iam_role.worker_exec.arn
-  handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
+  package_type  = "Image"
+
+  image_uri = var.image_uri != "" ? var.image_uri : "${var.ecr_repository_url}:latest"
+
   timeout       = var.timeout
   memory_size   = var.memory_size
-
-  s3_bucket = var.s3_bucket
-  s3_key    = var.s3_key
+  architectures = ["arm64"]
 
   reserved_concurrent_executions = var.reserved_concurrency
 
@@ -145,9 +188,19 @@ resource "aws_lambda_function" "worker" {
     }
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   tags = {
     Environment = var.environment
     Service     = "image-processing"
+  }
+
+  depends_on = [aws_cloudwatch_log_group.worker]
+
+  lifecycle {
+    ignore_changes = [image_uri]
   }
 }
 

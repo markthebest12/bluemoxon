@@ -8,13 +8,14 @@ variable "environment" {
   type        = string
 }
 
-variable "s3_bucket" {
-  description = "S3 bucket containing Lambda deployment package"
+variable "image_uri" {
+  description = "ECR image URI for Lambda container"
   type        = string
+  default     = ""
 }
 
-variable "s3_key" {
-  description = "S3 key for Lambda deployment package"
+variable "ecr_repository_url" {
+  description = "ECR repository URL (used as fallback if image_uri is empty)"
   type        = string
 }
 
@@ -79,4 +80,10 @@ variable "api_lambda_role_name" {
   description = "IAM role name of the API Lambda (for SQS send permissions)"
   type        = string
   default     = null
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 30
 }
