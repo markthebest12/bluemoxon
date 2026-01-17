@@ -34,6 +34,20 @@ Deployed infrastructure for automatic image processing during book eval import. 
 | 8. Test end-to-end in staging | ✅ Done | `5829d22` (v6-models deployed) |
 | 9. Deploy to production | ⏳ Pending | After staging PR |
 
+### E2E Test Evidence
+
+**Book 33, Image 2673** was successfully processed:
+
+| Metric | Value |
+|--------|-------|
+| Model used | isnet-general-use (u2net failed validation) |
+| Subject brightness | 59 (dark → black background) |
+| New image ID | 5515 |
+| S3 path | `books/33/processed_94a7d321-0cdd-4ff4-a6e5-dab3dea234e7.png` |
+| Processing time | 155 seconds |
+| Memory used | 6199 MB |
+| Memory allocated | 10240 MB |
+
 ---
 
 ## IMMEDIATE Next Steps (Resume Here)
@@ -153,6 +167,8 @@ onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has bee
 | Timeout | 300 seconds | Processing takes 60-150 seconds |
 | `U2NET_HOME` | `/opt/u2net` | Pre-downloaded models location |
 | `NUMBA_CACHE_DIR` | `/tmp` | Writable cache for JIT |
+
+**⚠️ Memory Warning:** The Terraform default is 3072 MB, but E2E testing showed u2net needs ~6.2 GB. For production, you may want to increase the default or override via tfvars. Staging was manually set to 10240 MB for testing.
 
 ---
 
