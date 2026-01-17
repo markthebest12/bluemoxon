@@ -8,7 +8,9 @@ import io
 import json
 import logging
 import os
+import time
 import uuid
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 import boto3
@@ -61,6 +63,8 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 _s3_client = None
 _db_engine = None
 _db_secret_cache = None  # Cache secrets to avoid repeated Secrets Manager calls
+_db_secret_cache_time = 0  # Timestamp when secret was cached
+SECRET_CACHE_TTL = 1800  # 30 minutes in seconds - refresh if credentials rotate
 _rembg_sessions = {}
 _models_loaded = False
 BookImage = None
@@ -100,15 +104,20 @@ def get_s3_client():
 def get_secret(secret_arn: str) -> dict:
     """Retrieve database credentials from Secrets Manager.
 
-    Caches the result to avoid repeated Secrets Manager calls on warm invocations.
+    Caches the result with TTL to avoid repeated Secrets Manager calls on warm
+    invocations while ensuring rotated credentials are picked up.
     """
-    global _db_secret_cache
-    if _db_secret_cache is not None:
+    global _db_secret_cache, _db_secret_cache_time
+    current_time = time.time()
+
+    # Return cached secret if still valid
+    if _db_secret_cache is not None and (current_time - _db_secret_cache_time) < SECRET_CACHE_TTL:
         return _db_secret_cache
 
     client = boto3.client("secretsmanager", region_name=AWS_REGION)
     response = client.get_secret_value(SecretId=secret_arn)
     _db_secret_cache = json.loads(response["SecretString"])
+    _db_secret_cache_time = current_time
     return _db_secret_cache
 
 
@@ -134,6 +143,22 @@ def get_db_session() -> Session:
     engine = get_db_engine()
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return session_factory()
+
+
+@contextmanager
+def db_session_scope():
+    """Context manager for database sessions.
+
+    Ensures session is properly closed even if an exception occurs.
+    Usage:
+        with db_session_scope() as db:
+            # use db
+    """
+    session = get_db_session()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def get_processing_config(attempt: int) -> dict:
@@ -434,153 +459,152 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
     """
     _ensure_models_loaded()
 
-    db = None
-    try:
-        db = get_db_session()
+    with db_session_scope() as db:
+        try:
+            job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
+            if not job:
+                logger.error(f"Job {job_id} not found")
+                return False
 
-        job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
-        if not job:
-            logger.error(f"Job {job_id} not found")
-            return False
-
-        job.status = "processing"
-        db.commit()
-
-        source_image = db.query(BookImage).filter(BookImage.id == image_id).first()
-        if not source_image:
-            job.status = "failed"
-            job.failure_reason = "Source image not found"
-            job.completed_at = datetime.now(UTC)
-            db.commit()
-            return False
-
-        s3_key = source_image.s3_key
-        if not s3_key.startswith("books/"):
-            s3_key = f"books/{s3_key}"
-
-        logger.info(f"Downloading image from s3://{IMAGES_BUCKET}/{s3_key}")
-        image_bytes = download_from_s3(IMAGES_BUCKET, s3_key)
-        original_image = Image.open(io.BytesIO(image_bytes))
-        original_width, original_height = original_image.size
-
-        # Validate image size to prevent OOM on very large images
-        size_validation = validate_image_size(original_width, original_height)
-        if not size_validation["passed"]:
-            job.status = "failed"
-            job.failure_reason = size_validation["reason"]
-            job.completed_at = datetime.now(UTC)
-            db.commit()
-            logger.warning(f"Job {job_id}: {size_validation['reason']}")
-            return False
-
-        processed_image = None
-        model_used = None
-
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            job.attempt_count = attempt
+            job.status = "processing"
             db.commit()
 
-            config = get_processing_config(attempt)
-            logger.info(f"Attempt {attempt}: using model {config['model_name']}")
+            source_image = db.query(BookImage).filter(BookImage.id == image_id).first()
+            if not source_image:
+                job.status = "failed"
+                job.failure_reason = "Source image not found"
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                return False
 
-            try:
-                result = remove_background(image_bytes, config)
-                if result is None:
-                    logger.warning(f"Attempt {attempt}: background removal returned None")
+            s3_key = source_image.s3_key
+            if not s3_key.startswith("books/"):
+                s3_key = f"books/{s3_key}"
+
+            logger.info(f"Downloading image from s3://{IMAGES_BUCKET}/{s3_key}")
+            image_bytes = download_from_s3(IMAGES_BUCKET, s3_key)
+            original_image = Image.open(io.BytesIO(image_bytes))
+            original_width, original_height = original_image.size
+
+            # Validate image size to prevent OOM on very large images
+            size_validation = validate_image_size(original_width, original_height)
+            if not size_validation["passed"]:
+                job.status = "failed"
+                job.failure_reason = size_validation["reason"]
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                logger.warning(f"Job {job_id}: {size_validation['reason']}")
+                return False
+
+            processed_image = None
+            model_used = None
+
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                job.attempt_count = attempt
+                db.commit()
+
+                config = get_processing_config(attempt)
+                logger.info(f"Attempt {attempt}: using model {config['model_name']}")
+
+                try:
+                    result = remove_background(image_bytes, config)
+                    if result is None:
+                        logger.warning(f"Attempt {attempt}: background removal returned None")
+                        continue
+
+                    validation = validate_image_quality(
+                        original_width,
+                        original_height,
+                        result["subject_width"],
+                        result["subject_height"],
+                    )
+                    if not validation["passed"]:
+                        logger.warning(
+                            f"Attempt {attempt} failed validation: {validation['reason']}"
+                        )
+                        continue
+
+                    processed_image = result["image"]
+                    model_used = config["model_name"]
+                    logger.info(f"Attempt {attempt} succeeded with model {model_used}")
+                    break
+                except Exception as e:
+                    logger.exception(f"Attempt {attempt} failed with exception: {e}")
                     continue
 
-                validation = validate_image_quality(
-                    original_width,
-                    original_height,
-                    result["subject_width"],
-                    result["subject_height"],
-                )
-                if not validation["passed"]:
-                    logger.warning(f"Attempt {attempt} failed validation: {validation['reason']}")
-                    continue
+            if processed_image is None:
+                job.status = "failed"
+                job.failure_reason = "All processing attempts failed quality validation"
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
+                return False
 
-                processed_image = result["image"]
-                model_used = config["model_name"]
-                logger.info(f"Attempt {attempt} succeeded with model {model_used}")
-                break
-            except Exception as e:
-                logger.exception(f"Attempt {attempt} failed with exception: {e}")
-                continue
+            brightness = calculate_brightness(processed_image)
+            bg_color = select_background_color(brightness)
+            logger.info(f"Subject brightness: {brightness}, selected background: {bg_color}")
 
-        if processed_image is None:
-            job.status = "failed"
-            job.failure_reason = "All processing attempts failed quality validation"
+            final_image = add_background(processed_image, bg_color)
+
+            # S3 key for database (without 'books/' prefix - API adds S3_IMAGES_PREFIX)
+            # Format matches other images: {book_id}_{identifier}.{ext}
+            db_s3_key = f"{book_id}_processed_{uuid.uuid4()}.png"
+            # Full S3 key for upload (with 'books/' prefix)
+            full_s3_key = f"books/{db_s3_key}"
+
+            output_buffer = io.BytesIO()
+            final_image.save(output_buffer, format="PNG", optimize=True)
+            output_bytes = output_buffer.getvalue()
+
+            logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
+            upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
+
+            # CloudFront URL uses full S3 path (CloudFront origin maps to bucket root)
+            cdn_url = None
+            if IMAGES_CDN_DOMAIN:
+                cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{full_s3_key}"
+
+            # Get existing images (excluding source) to renumber them
+            existing_images = (
+                db.query(BookImage)
+                .filter(BookImage.book_id == book_id, BookImage.id != image_id)
+                .order_by(BookImage.display_order)
+                .all()
+            )
+
+            # New processed image becomes primary at position 0
+            new_image = BookImage(
+                book_id=book_id,
+                s3_key=db_s3_key,
+                cloudfront_url=cdn_url,
+                display_order=0,
+                is_primary=True,
+                is_background_processed=True,
+            )
+            db.add(new_image)
+
+            # Shift existing images to positions 1, 2, 3, ... and clear is_primary
+            for i, img in enumerate(existing_images):
+                img.display_order = i + 1
+                img.is_primary = False
+
+            # Source image (original) goes to the end
+            source_image.display_order = len(existing_images) + 1
+            source_image.is_primary = False
+
+            db.flush()
+
+            job.status = "completed"
+            job.model_used = model_used
+            job.processed_image_id = new_image.id
             job.completed_at = datetime.now(UTC)
+
             db.commit()
-            logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
-            return False
+            logger.info(f"Job {job_id} completed successfully, new image id: {new_image.id}")
+            return True
 
-        brightness = calculate_brightness(processed_image)
-        bg_color = select_background_color(brightness)
-        logger.info(f"Subject brightness: {brightness}, selected background: {bg_color}")
-
-        final_image = add_background(processed_image, bg_color)
-
-        # S3 key for database (without 'books/' prefix - API adds S3_IMAGES_PREFIX)
-        # Format matches other images: {book_id}_{identifier}.{ext}
-        db_s3_key = f"{book_id}_processed_{uuid.uuid4()}.png"
-        # Full S3 key for upload (with 'books/' prefix)
-        full_s3_key = f"books/{db_s3_key}"
-
-        output_buffer = io.BytesIO()
-        final_image.save(output_buffer, format="PNG", optimize=True)
-        output_bytes = output_buffer.getvalue()
-
-        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
-        upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
-
-        # CloudFront URL uses full S3 path (CloudFront origin maps to bucket root)
-        cdn_url = None
-        if IMAGES_CDN_DOMAIN:
-            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{full_s3_key}"
-
-        # Get existing images (excluding source) to renumber them
-        existing_images = (
-            db.query(BookImage)
-            .filter(BookImage.book_id == book_id, BookImage.id != image_id)
-            .order_by(BookImage.display_order)
-            .all()
-        )
-
-        # New processed image becomes primary at position 0
-        new_image = BookImage(
-            book_id=book_id,
-            s3_key=db_s3_key,
-            cloudfront_url=cdn_url,
-            display_order=0,
-            is_primary=True,
-            is_background_processed=True,
-        )
-        db.add(new_image)
-
-        # Shift existing images to positions 1, 2, 3, ... and clear is_primary
-        for i, img in enumerate(existing_images):
-            img.display_order = i + 1
-            img.is_primary = False
-
-        # Source image (original) goes to the end
-        source_image.display_order = len(existing_images) + 1
-        source_image.is_primary = False
-
-        db.flush()
-
-        job.status = "completed"
-        job.model_used = model_used
-        job.processed_image_id = new_image.id
-        job.completed_at = datetime.now(UTC)
-
-        db.commit()
-        logger.info(f"Job {job_id} completed successfully, new image id: {new_image.id}")
-        return True
-
-    except Exception as e:
-        logger.exception(f"Unexpected error in process_image: {e}")
-        if db:
+        except Exception as e:
+            logger.exception(f"Unexpected error in process_image: {e}")
             try:
                 db.rollback()
                 job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
@@ -591,7 +615,4 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
                     db.commit()
             except Exception as inner_e:
                 logger.error(f"Failed to update job status: {inner_e}")
-        return False
-    finally:
-        if db:
-            db.close()
+            return False
