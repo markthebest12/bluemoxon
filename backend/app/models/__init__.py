@@ -13,6 +13,7 @@ from app.models.cleanup_job import CleanupJob
 from app.models.eval_runbook import EvalPriceHistory, EvalRunbook
 from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
+from app.models.image_processing_job import ImageProcessingJob
 from app.models.notification import Notification
 from app.models.publisher import Publisher
 from app.models.publisher_alias import PublisherAlias
@@ -36,5 +37,6 @@ __all__ = [
     "EvalPriceHistory",
     "EvalRunbook",
     "EvalRunbookJob",
+    "ImageProcessingJob",
     "User",
 ]

@@ -97,4 +97,18 @@ locals {
   lambda_security_group_id = var.enable_lambda ? (
     coalesce(var.external_lambda_security_group_id, try(module.lambda[0].security_group_id, null))
   ) : var.external_lambda_security_group_id
+
+  # Image processor enabled - defaults to enable_lambda if not explicitly set
+  # Handles background image processing (resize, optimize, extract colors)
+  image_processor_enabled = coalesce(var.enable_image_processor, var.enable_lambda)
+
+  # Database password source:
+  # - Existing environments (use_existing_database_credentials=true): Read from Secrets Manager
+  # - New environments: Use random_password
+  # This prevents accidental password changes - existing envs NEVER write to the secret
+  db_password = var.enable_database ? (
+    var.use_existing_database_credentials
+    ? jsondecode(data.aws_secretsmanager_secret_version.existing_database[0].secret_string).password
+    : random_password.database[0].result
+  ) : null
 }

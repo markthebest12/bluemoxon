@@ -210,6 +210,29 @@ module "vpc_networking" {
 # Database (RDS PostgreSQL)
 # =============================================================================
 
+# For EXISTING environments: Read password from Secrets Manager (source of truth)
+# This prevents any accidental password changes - we read, never write
+data "aws_secretsmanager_secret_version" "existing_database" {
+  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
+  secret_id = "${local.name_prefix}/database"
+}
+
+# For NEW environments only: Generate a random password
+resource "random_password" "database" {
+  count   = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
+  length  = 32
+  special = true
+  # Exclude problematic characters that can cause issues in connection strings
+  override_special = "!#$%*()-_=+[]{}:?"
+
+  lifecycle {
+    ignore_changes = all # Never regenerate after initial creation
+  }
+}
+
+# Database secret - always managed by Terraform when database is enabled
+# For existing environments: reads password from Secrets Manager, writes same value (no-op)
+# For new environments: uses random_password
 module "database_secret" {
   count  = var.enable_database ? 1 : 0
   source = "./modules/secrets"
@@ -219,7 +242,7 @@ module "database_secret" {
 
   secret_value = {
     username = var.db_username
-    password = var.db_password
+    password = local.db_password
     host     = module.database[0].address
     port     = tostring(module.database[0].port)
     database = var.db_name
@@ -238,7 +261,7 @@ module "database" {
   database_name = var.db_name
 
   master_username = var.db_username
-  master_password = var.db_password
+  master_password = local.db_password
 
   instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage
@@ -371,8 +394,9 @@ module "lambda" {
       # Cleanup function naming - separate from BMX_ENVIRONMENT to handle prod naming mismatch
       BMX_CLEANUP_ENVIRONMENT = coalesce(var.cleanup_environment_override, var.environment)
       # Worker queue names (URLs constructed at runtime)
-      BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
-      BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_ANALYSIS_QUEUE_NAME         = "${local.name_prefix}-analysis-jobs"
+      BMX_EVAL_RUNBOOK_QUEUE_NAME     = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_IMAGE_PROCESSING_QUEUE_NAME = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
       # Entity validation (#967, #969)
       BMX_ENTITY_VALIDATION_MODE           = var.entity_validation_mode
       BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
@@ -722,6 +746,38 @@ module "cleanup_lambda" {
   )
 
   tags = local.common_tags
+}
+
+# =============================================================================
+# Image Processor (background image processing with SQS)
+# =============================================================================
+# Handles async image processing tasks:
+# - Image resizing and optimization
+# - Background color extraction
+# - Thumbnail generation
+
+module "image_processor" {
+  count  = local.image_processor_enabled ? 1 : 0
+  source = "./modules/image-processor"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = local.lambda_s3_key
+
+  images_bucket     = module.images_bucket.bucket_name
+  images_cdn_domain = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+
+  # Database access
+  database_secret_arn = var.enable_database ? module.database_secret[0].arn : var.database_secret_arn
+
+  # VPC configuration for RDS access
+  vpc_subnet_ids         = var.private_subnet_ids
+  vpc_security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # API Lambda role for SQS send permissions
+  api_lambda_role_name = var.enable_lambda ? module.lambda[0].role_name : null
 }
 
 # =============================================================================

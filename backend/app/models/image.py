@@ -23,6 +23,7 @@ class BookImage(Base):
     image_type: Mapped[str | None] = mapped_column(String(50))  # cover, spine, interior, etc.
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_background_processed: Mapped[bool] = mapped_column(default=False)
     caption: Mapped[str | None] = mapped_column(Text)
 
     # Relationships

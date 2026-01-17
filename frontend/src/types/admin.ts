@@ -8,12 +8,31 @@ export interface HealthCheck {
   reason?: string;
 }
 
+export interface SqsQueueHealth {
+  status: string;
+  queue_name: string;
+  messages?: number;
+  error?: string;
+}
+
+export interface SqsHealthCheck {
+  status: string;
+  latency_ms?: number;
+  reason?: string;
+  queues?: {
+    analysis?: SqsQueueHealth;
+    eval_runbook?: SqsQueueHealth;
+    image_processing?: SqsQueueHealth;
+  };
+}
+
 export interface HealthInfo {
   overall: string;
   total_latency_ms: number;
   checks: {
     database: HealthCheck;
     s3: HealthCheck;
+    sqs?: SqsHealthCheck;
     cognito: HealthCheck;
   };
 }
@@ -91,6 +110,7 @@ export interface InfrastructureConfig {
   images_cdn_url?: string;
   analysis_queue?: string;
   eval_runbook_queue?: string;
+  image_processing_queue?: string;
 }
 
 export interface LimitsConfig {
