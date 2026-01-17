@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.v1.health import check_cognito, check_database, check_s3
+from app.api.v1.health import check_cognito, check_database, check_s3, check_sqs
 from app.auth import require_admin
 from app.cold_start import get_cold_start_status
 from app.config import get_cleanup_environment, get_settings
@@ -62,12 +62,32 @@ class HealthCheck(BaseModel):
     reason: str | None = None
 
 
+class SqsQueueHealth(BaseModel):
+    """Health check for a single SQS queue."""
+
+    status: str
+    queue_name: str
+    messages: int | None = None
+    error: str | None = None
+
+
+class SqsHealthCheck(BaseModel):
+    """SQS health check results."""
+
+    status: str
+    latency_ms: float | None = None
+    reason: str | None = None
+    error: str | None = None
+    queues: dict[str, SqsQueueHealth] | None = None
+
+
 class HealthChecks(BaseModel):
     """All health check results."""
 
     database: HealthCheck
     s3: HealthCheck
     cognito: HealthCheck
+    sqs: SqsHealthCheck | None = None
 
 
 class HealthInfo(BaseModel):
@@ -393,9 +413,15 @@ def get_system_info(
     db_health = check_database(db)
     s3_health = check_s3()
     cognito_health = check_cognito()
+    sqs_health = check_sqs()
 
     # Determine overall health
-    statuses = [db_health["status"], s3_health["status"], cognito_health["status"]]
+    statuses = [
+        db_health["status"],
+        s3_health["status"],
+        cognito_health["status"],
+        sqs_health["status"],
+    ]
     if all(s in ("healthy", "skipped") for s in statuses):
         overall = "healthy"
     elif any(s == "unhealthy" for s in statuses):
@@ -443,6 +469,18 @@ def get_system_info(
                 database=HealthCheck(**db_health),
                 s3=HealthCheck(**s3_health),
                 cognito=HealthCheck(**cognito_health),
+                sqs=SqsHealthCheck(
+                    status=sqs_health["status"],
+                    latency_ms=sqs_health.get("latency_ms"),
+                    reason=sqs_health.get("reason"),
+                    error=sqs_health.get("error"),
+                    queues={
+                        k: SqsQueueHealth(**v)
+                        for k, v in sqs_health.get("queues", {}).items()
+                    }
+                    if sqs_health.get("queues")
+                    else None,
+                ),
             ),
         ),
         models={
