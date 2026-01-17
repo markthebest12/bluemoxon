@@ -1,212 +1,135 @@
 # Session: Auto-Process Images Infrastructure
 
 **Date:** 2026-01-16/17
-**Branch:** staging
 **Issue:** #1136
-**PR:** #1139 (merged)
+**PRs:** #1139, #1141, #1142 (merged), #1143 (CI passing, ready to merge), #1145 (infra to prod)
 
 ## Summary
 
-Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds and uploads to S3.
+Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds.
+
+**Feature flow:** eBay import → copy images → queue primary image to SQS → Lambda processes → background removed
 
 ---
 
-## Part 1: Terraform Infrastructure
+## Current Status
 
-### Changes Made
+| Phase | Status | Details |
+|-------|--------|---------|
+| **Phase 1: Infrastructure** | ✅ Staging done, PR #1145 for prod | SQS queue, DLQ, IAM, health checks, Lambda resource |
+| **Phase 2: Lambda Deployment** | ❌ Not started | Needs container-based Lambda (rembg native deps) |
+| **Phase 3: API Integration** | ✅ PR #1143 ready | `queue_image_processing()` added to import flow |
 
-1. **Created image-processor module** (`modules/image-processor/`)
-   - SQS queue: `bluemoxon-staging-image-processing`
-   - Dead letter queue for failed jobs
-   - Lambda function (placeholder - needs deployment package)
-   - IAM roles for SQS, S3, Secrets Manager access
+**Deployment Strategy:** Push infrastructure to prod first (PR #1145), then API integration separately.
 
-2. **Wired up main.tf**
-   - Added `BMX_IMAGE_PROCESSING_QUEUE_NAME` env var to API Lambda
-   - Added `api_lambda_role_name` to image-processor module for IAM permissions
-   - API Lambda can send messages to image processing queue
+### PR #1143 Code Review Fixes (All Addressed)
 
-3. **Added health checks**
-   - `health.py`: Added `check_sqs()` function to verify all SQS queues
-   - `admin.py`: Added `image_processing_queue` to InfrastructureConfig
-   - Frontend: Updated AdminConfigView.vue to show SQS health status
+| Fix | Description |
+|-----|-------------|
+| Stack trace logging | Added `exc_info=True` to logger.warning |
+| Recovery mechanism | Jobs saved with `queue_failed` status for retry |
+| First-image fallback | Queues first successfully copied image (not just idx=0) |
+| Integration test | Verifies actual `ImageProcessingJob` DB record |
+| DB optimization | `db.flush()` only for first successful image |
+| Terraform docs | Warning for chicken-egg scenario in variable description |
 
-### Files Modified
+### Verification (Fresh Run)
 
-| File | Change |
-|------|--------|
-| `infra/terraform/main.tf` | Added queue env var + api_lambda_role_name |
-| `infra/terraform/modules/image-processor/main.tf` | Added api_sqs_send IAM policy |
-| `infra/terraform/modules/image-processor/variables.tf` | Added api_lambda_role_name var |
-| `backend/app/api/v1/health.py` | Added check_sqs() for all SQS queues |
-| `backend/app/api/v1/admin.py` | Added image_processing_queue to InfrastructureConfig |
-| `frontend/src/types/admin.ts` | Added SqsHealthCheck types |
-| `frontend/src/views/AdminConfigView.vue` | Added SQS health display section |
-
----
-
-## Part 2: Critical Issue - Database Password Changed
-
-### What Happened
-
-Ran terraform apply with `-target` flags to deploy only the image processor:
-
-```bash
-terraform apply -var="db_password=not-used" \
-  -target=module.image_processor \
-  -target=module.lambda
-```
-
-**Problem:** Terraform still modified the RDS master password to "not-used" even though the database module wasn't targeted.
-
-### Root Cause
-
-The `-target` flag limits which resources terraform plans to modify, but Terraform still evaluates all resources and may apply changes to dependencies or resources with changed input values.
-
-The `db_password` variable is passed to the RDS module, and even with `-target` excluding the database, Terraform detected the variable value changed and applied it.
-
-### Impact
-
-- Staging database authentication broken
-- Health check shows `password authentication failed for user "bluemoxon"`
-
-### Fixes Applied
-
-1. **Immediate:** Reset RDS password via AWS CLI - **DONE**
-2. **Prevention:** Added `password` to RDS module's `lifecycle { ignore_changes }` - **DONE**
-3. **Permanent fix:** Replaced `db_password` variable with `random_password` resource - **DONE**
-
-The `random_password` resource generates the password once and never changes it (`ignore_changes = all`). This eliminates the entire class of "accidentally passed wrong password" bugs.
-
----
-
-## Part 3: SQS Health Check Permissions
-
-### Issue
-
-Health check returns `NonExistentQueue` error even though queues exist:
-
-```json
-{
-  "sqs": {
-    "status": "unhealthy",
-    "queues": {
-      "image_processing": {
-        "status": "unhealthy",
-        "queue_name": "bluemoxon-staging-image-processing",
-        "error": "AWS.SimpleQueueService.NonExistentQueue"
-      }
-    }
-  }
-}
-```
-
-### Root Cause
-
-The error is misleading - it's actually an IAM permissions issue. The API Lambda has `sqs:SendMessage` permission but NOT `sqs:GetQueueUrl` or `sqs:GetQueueAttributes` needed for health checks.
-
-### Fix Required
-
-Add health check permissions to each worker module's `api_sqs_send` IAM policy:
-
-```hcl
-Action = [
-  "sqs:SendMessage",
-  "sqs:GetQueueUrl",
-  "sqs:GetQueueAttributes"
-]
-```
-
----
-
-## Created Resources
-
-### GitHub Issue #1140
-
-Created checklist for adding new async worker flows:
-
-1. Create Terraform module with SQS queue + Lambda
-2. Add IAM policies for API Lambda to send messages
-3. Add queue name to API Lambda environment variables
-4. Update health.py to check new queue
-5. Update admin.py InfrastructureConfig
-6. Update AdminConfigView.vue to display new queue status
-7. Update frontend types (admin.ts)
+- 87 tests pass (77 test_books.py + 10 test_image_processing_service.py)
+- `ruff check` and `ruff format` clean
+- CI: Backend Quality, Backend Validation, Terraform Validate all passing
 
 ---
 
 ## Next Steps
 
-1. [x] Fix RDS password (reset to Secrets Manager value)
-2. [x] Add `password` to RDS module `ignore_changes`
-3. [x] Add SQS health check permissions to all worker modules
-4. [x] Replace `db_password` variable with `random_password` resource
-5. [ ] Merge PR #1141 and run `terraform apply`
-6. [ ] Import existing password into terraform state (for existing databases)
-7. [ ] Deploy image processor Lambda code (needs container-based Lambda or Layer with rembg)
-8. [ ] Test end-to-end image processing flow
+1. [ ] **Merge PR #1143** (API integration to staging) - CI passing
+2. [ ] **Merge PR #1145** (infrastructure to prod) - awaiting approval
+3. [ ] **Promote PR #1143 to prod** after staging validation
+4. [ ] **Phase 2: Container Lambda deployment**
+   - Create Dockerfile for image processor
+   - Refactor Terraform from zip to container-based
+   - Add ECR repository and CI/CD workflow
+   - Reference: `modules/scraper-lambda/` pattern
+5. [ ] Test end-to-end: import → queue → process → new image
 
 ---
 
-## Part 4: Permanent Fix - Safe Database Password Handling
+## Related Issues
 
-### Problem
+- #1136 - Main feature issue (auto-process images)
+- #1140 - Checklist for adding new async workers
+- #1144 - Retry mechanism for `queue_failed` jobs
+- #1145 - Infrastructure promotion to prod
 
-The initial `random_password` approach had a critical flaw:
+---
 
-| Step | What Happens |
-|------|--------------|
-| 1 | `random_password` is NEW (not in state) |
-| 2 | Terraform generates a new random password |
-| 3 | RDS: `ignore_changes = [password]` → no change |
-| 4 | **Secrets Manager: UPDATES to new password** |
-| 5 | **BREAKAGE**: App reads new password, RDS has old |
+## CRITICAL: Continuation Instructions
 
-### Solution
+### Superpowers Skills - MANDATORY (NO EXCEPTIONS)
 
-Added `use_existing_database_credentials` variable:
+**You MUST invoke Superpowers skills at ALL stages. This is non-negotiable.**
 
-```hcl
-# For EXISTING environments: Read from Secrets Manager (source of truth)
-data "aws_secretsmanager_secret_version" "existing_database" {
-  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
-  secret_id = "${local.name_prefix}/database"
-}
+| Task Type | Required Skill | When to Use |
+|-----------|---------------|-------------|
+| Any bug/issue | `superpowers:systematic-debugging` | Before proposing ANY fix |
+| Writing code | `superpowers:test-driven-development` | Before writing implementation |
+| Before claiming done | `superpowers:verification-before-completion` | Before ANY completion claim |
+| Multiple independent tasks | `superpowers:dispatching-parallel-agents` | When 2+ tasks can parallelize |
+| Planning implementation | `superpowers:writing-plans` | Before multi-step implementation |
+| Receiving feedback | `superpowers:receiving-code-review` | When reviewing PR feedback |
+| Creating PRs | `superpowers:requesting-code-review` | Before creating any PR |
 
-# For NEW environments: Generate random password
-resource "random_password" "database" {
-  count = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
-  ...
-}
+**If you think there's even 1% chance a skill applies, INVOKE IT.**
 
-# Password source depends on environment type
-locals {
-  db_password = var.use_existing_database_credentials
-    ? jsondecode(data.aws_secretsmanager_secret_version.existing_database[0].secret_string).password
-    : random_password.database[0].result
-}
-```
+### Bash Command Formatting - CRITICAL
 
-### Usage
+**NEVER use these (trigger permission prompts):**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
 
-| Environment | Setting | Behavior |
-|-------------|---------|----------|
-| Existing (staging) | `use_existing_database_credentials = true` | Reads from Secrets Manager |
-| New environment | `use_existing_database_credentials = false` | Uses random_password |
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls (no permission prompts)
 
-### Verification
-
+**Example - WRONG:**
 ```bash
-# This should show NO CHANGES to database resources
-AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
+cd /path && npm test  # Run tests
 ```
+
+**Example - CORRECT:**
+```bash
+cd /path
+```
+Then separate Bash tool call:
+```bash
+npm test
+```
+
+---
+
+## Key Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/app/api/v1/books.py` | Added `queue_image_processing()` to import flow |
+| `backend/app/services/image_processing.py` | Added `queue_failed` status recovery |
+| `backend/tests/test_books.py` | Integration test for job creation |
+| `backend/tests/services/test_image_processing_service.py` | Tests for queue_failed handling |
+| `infra/terraform/main.tf` | Chicken-egg warning comment |
+| `infra/terraform/variables.tf` | Extended `use_existing_database_credentials` description |
 
 ---
 
 ## Lessons Learned
 
-1. **Never use `-var="db_password=not-used"` with terraform apply** - Terraform may still apply the value even with `-target` flags
-2. **Use `terraform plan` first** - Always review what will change before applying
-3. **Add sensitive resources to `ignore_changes`** - Protect critical infrastructure from accidental modifications
-4. **Health check permissions are separate** - Just because Lambda can send to a queue doesn't mean it can inspect the queue
-5. **Use `random_password` for database credentials** - Eliminates the entire class of "wrong password" accidents
+1. Never use `-var="db_password=..."` with terraform - use `use_existing_database_credentials`
+2. Health check permissions are separate from send permissions (need `GetQueueUrl`, `GetQueueAttributes`)
+3. Admin endpoints need explicit health check calls
+4. Use `superpowers:dispatching-parallel-agents` for independent fixes (3 agents fixed 3 domains in parallel)
+5. Always run `ruff format` before pushing - CI checks formatting
+6. Prod uses `enable_database = false` (Aurora managed externally) - no `use_existing_database_credentials` needed

@@ -63,7 +63,16 @@ variable "db_name" {
 
 variable "use_existing_database_credentials" {
   type        = bool
-  description = "If true, reads password from existing Secrets Manager secret. Set to true for existing environments (staging/prod), false for new environments."
+  description = <<-EOT
+    If true, reads password from existing Secrets Manager secret at '{app_name}-{environment}/database'.
+
+    IMPORTANT: Only set to true for EXISTING environments where the secret already exists.
+    For NEW environments, set to false - Terraform will generate a random password and create the secret.
+    After the first successful apply, you can set it back to true.
+
+    If you set this to true on a new environment, Terraform will fail with:
+    "Secrets Manager can't find the specified secret" error.
+  EOT
   default     = false
 }
 

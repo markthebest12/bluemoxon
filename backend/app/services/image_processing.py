@@ -119,8 +119,11 @@ def queue_image_processing(db: Session, book_id: int, image_id: int) -> ImagePro
     try:
         send_image_processing_job(str(job.id), book_id, image_id)
         db.commit()  # Only commit after SQS succeeds
-    except Exception:
-        db.rollback()
-        raise
+    except Exception as e:
+        # SQS failed - save job with queue_failed status for retry
+        job.status = "queue_failed"
+        job.failure_reason = str(e)[:1000]
+        db.commit()
+        logger.error(f"Failed to queue image processing job {job.id}: {e}")
 
     return job

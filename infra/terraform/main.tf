@@ -212,6 +212,11 @@ module "vpc_networking" {
 
 # For EXISTING environments: Read password from Secrets Manager (source of truth)
 # This prevents any accidental password changes - we read, never write
+#
+# CHICKEN-EGG WARNING: If use_existing_database_credentials = true but the secret
+# doesn't exist yet, Terraform will fail with "Secrets Manager can't find the
+# specified secret". See the variable description for use_existing_database_credentials
+# for the fix: set it to false for new environments.
 data "aws_secretsmanager_secret_version" "existing_database" {
   count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
   secret_id = "${local.name_prefix}/database"
