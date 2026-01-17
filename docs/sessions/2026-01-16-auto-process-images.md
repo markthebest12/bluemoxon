@@ -287,43 +287,126 @@ This feature is being implemented in phases:
 - Container-based Lambda (ECR image)
 - Lambda Layer with pre-compiled binaries
 
-### Phase 3: API Integration (ROOT CAUSE FOUND)
+### Phase 3: API Integration (COMPLETE - PR #1143)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `queue_image_processing()` service | ✅ | Exists in `image_processing.py` |
-| Called on manual image upload | ⚠️ | Only for **primary image** (`is_primary=True`) |
-| Called during eBay import | ❌ | **NOT CALLED** - root cause identified |
+| Called on manual image upload | ✅ | Only for **primary image** (`is_primary=True`) |
+| Called during eBay import | ✅ | **FIXED in PR #1143** |
 | ImageProcessingJob model | ✅ | Database model exists |
 
 **Root Cause Investigation (2026-01-17):**
 
-CloudWatch logs showed:
+Used `superpowers:systematic-debugging` skill. CloudWatch logs showed:
 ```
 Copied listings/235937594146/image_00.webp -> books/634/image_00.webp
 Copied 5 images for book 634
 ```
 
-But NO logs about queueing image processing. Traced to `books.py:320-365`:
+But NO logs about queueing. Traced to `books.py:320-365` - import flow bypassed upload endpoint.
 
-1. Images copied from listings/ to books/ ✓
-2. Thumbnails generated ✓
-3. BookImage records created ✓
-4. **`queue_image_processing()` NOT called** ❌
+**Fix Applied (PR #1143):**
 
-The import flow in `books.py` directly copies images without going through the upload endpoint (`images.py`), which is where `queue_image_processing()` is wired.
+Used `superpowers:test-driven-development` skill:
+1. Wrote failing test `test_queues_image_processing_for_primary_image`
+2. Added `queue_image_processing()` call to `_copy_listing_images_to_book()`
+3. All 6 tests pass, linting clean
 
-**Fix Required:** Add `queue_image_processing()` call to `books.py` after image copy, around line 365.
+---
+
+## Part 8: Lambda Container Deployment (Investigation Complete)
+
+Investigation using `superpowers:dispatching-parallel-agents` found:
+
+### What Exists
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Handler code | ✅ 508 lines | `backend/lambdas/image_processor/handler.py` |
+| Requirements | ✅ | `backend/lambdas/image_processor/requirements.txt` |
+| Terraform module | ⚠️ Zip-based | `infra/terraform/modules/image-processor/` |
+
+### What's Missing for Container-Based Lambda
+
+Current zip-based deployment won't work (rembg + onnxruntime > 250MB limit).
+
+**Files needed:**
+
+1. `backend/lambdas/image_processor/Dockerfile` - Container image with rembg
+2. `modules/image-processor/main.tf` - ECR repository, container Lambda
+3. `modules/image-processor/variables.tf` - Add `image_tag`, remove s3 vars
+4. `modules/image-processor/outputs.tf` - ECR outputs
+5. `.github/workflows/deploy.yml` - Build/deploy jobs (reference scraper pattern)
+6. Handler updates - version file, warmup handling, fix env var names
+
+**Reference:** Scraper module (`modules/scraper-lambda/`) provides complete container Lambda pattern.
+
+---
+
+## Current Status Summary
+
+| Phase | Status | PR |
+|-------|--------|-----|
+| Phase 1: Infrastructure | ✅ Complete | #1139, #1141, #1142 |
+| Phase 2: Lambda Deployment | ❌ Not started | - |
+| Phase 3: API Integration | ✅ Complete | #1143 (pending review) |
 
 ### Next Steps
 
-1. [ ] Add `queue_image_processing()` to import flow in `books.py`
-2. [ ] Deploy image processor Lambda (Phase 2)
-   - Build container image with rembg
-   - Push to ECR
-   - Update Lambda to use container
-3. [ ] Test end-to-end processing
-4. [ ] Consider processing ALL images, not just primary
+1. [ ] **Review and merge PR #1143** (API fix for queue call)
+2. [ ] **Phase 2: Container Lambda deployment**
+   - [ ] Create Dockerfile for image processor
+   - [ ] Refactor Terraform module from zip to container
+   - [ ] Add ECR repository and lifecycle policy
+   - [ ] Add CI/CD workflow jobs (reference scraper pattern)
+   - [ ] Update handler for version/warmup
+3. [ ] Test end-to-end: import → queue → process → new image
+
+---
+
+## CRITICAL: Continuation Instructions
+
+### Superpowers Skills - MANDATORY
+
+**Use Superpowers skills at ALL stages. No exceptions.**
+
+| Task Type | Required Skill |
+|-----------|---------------|
+| Any bug/issue | `superpowers:systematic-debugging` |
+| Writing code | `superpowers:test-driven-development` |
+| Before claiming done | `superpowers:verification-before-completion` |
+| Multiple independent tasks | `superpowers:dispatching-parallel-agents` |
+| Planning implementation | `superpowers:writing-plans` |
+| Receiving feedback | `superpowers:receiving-code-review` |
+| Creating PRs | `superpowers:requesting-code-review` |
+
+### Bash Command Formatting - CRITICAL
+
+**NEVER use these (trigger permission prompts):**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
+
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls (no permission prompts)
+
+**Example - WRONG:**
+```bash
+cd /path && npm test  # Run tests
+```
+
+**Example - CORRECT:**
+```bash
+# First call
+cd /path
+# Second call (separate Bash tool invocation)
+npm test
+```
 
 ---
 
