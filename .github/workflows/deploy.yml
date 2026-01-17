@@ -677,7 +677,7 @@ jobs:
             --build-arg VERSION=$IMAGE_TAG \
             --provenance=false \
             --sbom=false \
-            --platform linux/arm64 \
+            --platform linux/amd64 \
             -f backend/lambdas/image_processor/Dockerfile \
             -t $IMAGE_URI \
             .
