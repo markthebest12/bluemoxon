@@ -371,8 +371,9 @@ module "lambda" {
       # Cleanup function naming - separate from BMX_ENVIRONMENT to handle prod naming mismatch
       BMX_CLEANUP_ENVIRONMENT = coalesce(var.cleanup_environment_override, var.environment)
       # Worker queue names (URLs constructed at runtime)
-      BMX_ANALYSIS_QUEUE_NAME     = "${local.name_prefix}-analysis-jobs"
-      BMX_EVAL_RUNBOOK_QUEUE_NAME = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_ANALYSIS_QUEUE_NAME         = "${local.name_prefix}-analysis-jobs"
+      BMX_EVAL_RUNBOOK_QUEUE_NAME     = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_IMAGE_PROCESSING_QUEUE_NAME = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
       # Entity validation (#967, #969)
       BMX_ENTITY_VALIDATION_MODE           = var.entity_validation_mode
       BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
@@ -751,6 +752,9 @@ module "image_processor" {
   # VPC configuration for RDS access
   vpc_subnet_ids         = var.private_subnet_ids
   vpc_security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # API Lambda role for SQS send permissions
+  api_lambda_role_name = var.enable_lambda ? module.lambda[0].role_name : null
 }
 
 # =============================================================================

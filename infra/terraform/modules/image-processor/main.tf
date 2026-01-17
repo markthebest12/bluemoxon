@@ -186,3 +186,21 @@ resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
     Service     = "image-processing"
   }
 }
+
+# IAM policy for API Lambda to send messages to image processing queue
+resource "aws_iam_role_policy" "api_sqs_send" {
+  count = var.api_lambda_role_name != null ? 1 : 0
+  name  = "sqs-send-image-processing-jobs"
+  role  = var.api_lambda_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.jobs.arn
+      }
+    ]
+  })
+}
