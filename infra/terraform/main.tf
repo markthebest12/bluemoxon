@@ -210,6 +210,29 @@ module "vpc_networking" {
 # Database (RDS PostgreSQL)
 # =============================================================================
 
+# For EXISTING environments: Read password from Secrets Manager (source of truth)
+# This prevents any accidental password changes - we read, never write
+data "aws_secretsmanager_secret_version" "existing_database" {
+  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
+  secret_id = "${local.name_prefix}/database"
+}
+
+# For NEW environments only: Generate a random password
+resource "random_password" "database" {
+  count   = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
+  length  = 32
+  special = true
+  # Exclude problematic characters that can cause issues in connection strings
+  override_special = "!#$%*()-_=+[]{}:?"
+
+  lifecycle {
+    ignore_changes = all # Never regenerate after initial creation
+  }
+}
+
+# Database secret - always managed by Terraform when database is enabled
+# For existing environments: reads password from Secrets Manager, writes same value (no-op)
+# For new environments: uses random_password
 module "database_secret" {
   count  = var.enable_database ? 1 : 0
   source = "./modules/secrets"
@@ -219,7 +242,7 @@ module "database_secret" {
 
   secret_value = {
     username = var.db_username
-    password = var.db_password
+    password = local.db_password
     host     = module.database[0].address
     port     = tostring(module.database[0].port)
     database = var.db_name
@@ -238,7 +261,7 @@ module "database" {
   database_name = var.db_name
 
   master_username = var.db_username
-  master_password = var.db_password
+  master_password = local.db_password
 
   instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage
