@@ -344,24 +344,89 @@ Current zip-based deployment won't work (rembg + onnxruntime > 250MB limit).
 
 ---
 
+## Part 9: PR #1143 Code Review Fixes
+
+### Feedback Received
+
+| # | Issue | Severity | Resolution |
+|---|-------|----------|------------|
+| 1 | Silent exception swallowing (no stack trace) | HIGH | Added `exc_info=True` to logger.warning |
+| 2 | No recovery path for failed queue operations | MEDIUM-HIGH | Jobs saved with `queue_failed` status for retry |
+| 4 | Terraform chicken-egg risk | MEDIUM | Added documentation/warnings to variable |
+| 5 | Test mocks function, not behavior | MEDIUM | Added integration test verifying DB record |
+| 6 | db.flush() in loop inefficient | LOW-MEDIUM | Moved flush inside first-successful check |
+| Edge | First image fails = nothing queued | MEDIUM | Now queues first successfully copied image |
+
+### Implementation Approach
+
+Used `superpowers:dispatching-parallel-agents` to fix 3 independent domains concurrently:
+
+| Agent | Domain | Files Modified |
+|-------|--------|----------------|
+| Agent 1 | Recovery mechanism | `image_processing.py` |
+| Agent 2 | Integration test | `test_books.py` |
+| Agent 3 | Terraform validation | `main.tf`, `variables.tf` |
+
+### Key Changes
+
+**1. books.py - Import flow improvements:**
+- Tracks first successfully copied image (not just idx=0)
+- Falls back to next image if primary fails
+- Only flushes DB when capturing first successful ID (optimization)
+- Stack trace included in queue failure logs
+
+**2. image_processing.py - Recovery mechanism:**
+```python
+# Before: Job rolled back on SQS failure
+except Exception:
+    db.rollback()
+    raise
+
+# After: Job saved with queue_failed status for retry
+except Exception as e:
+    job.status = "queue_failed"
+    job.failure_reason = str(e)[:1000]
+    db.commit()
+    logger.error(f"Failed to queue job {job.id}: {e}")
+```
+
+**3. test_books.py - New integration test:**
+- `test_image_processing_job_created_integration`
+- Verifies actual `ImageProcessingJob` record in DB
+- Mocks only boto3 (not the service function)
+
+**4. Terraform - Documentation validation:**
+- Clear warning in `use_existing_database_credentials` description
+- Comment block explaining chicken-egg scenario
+- Default `false` ensures new environments work
+
+### Verification
+
+- 77 tests pass in `test_books.py`
+- 10 tests pass in `test_image_processing_service.py`
+- `ruff check` clean
+
+---
+
 ## Current Status Summary
 
 | Phase | Status | PR |
 |-------|--------|-----|
 | Phase 1: Infrastructure | ✅ Complete | #1139, #1141, #1142 |
 | Phase 2: Lambda Deployment | ❌ Not started | - |
-| Phase 3: API Integration | ✅ Complete | #1143 (pending review) |
+| Phase 3: API Integration | ✅ Complete + Review Fixes | #1143 (updated) |
 
 ### Next Steps
 
-1. [ ] **Review and merge PR #1143** (API fix for queue call)
-2. [ ] **Phase 2: Container Lambda deployment**
+1. [ ] **Commit and push PR #1143 updates** (code review fixes)
+2. [ ] **Merge PR #1143** after approval
+3. [ ] **Phase 2: Container Lambda deployment**
    - [ ] Create Dockerfile for image processor
    - [ ] Refactor Terraform module from zip to container
    - [ ] Add ECR repository and lifecycle policy
    - [ ] Add CI/CD workflow jobs (reference scraper pattern)
    - [ ] Update handler for version/warmup
-3. [ ] Test end-to-end: import → queue → process → new image
+4. [ ] Test end-to-end: import → queue → process → new image
 
 ---
 

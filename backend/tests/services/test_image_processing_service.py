@@ -151,6 +151,58 @@ class TestQueueImageProcessing:
             assert result is not None
             assert result.id != existing_job.id
 
+    def test_creates_new_job_if_previous_queue_failed(self, db):
+        """Should create new job if previous job had queue_failed status."""
+        from app.services.image_processing import queue_image_processing
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        image = BookImage(book_id=book.id, s3_key="test.jpg", display_order=0)
+        db.add(image)
+        db.commit()
+
+        existing_job = ImageProcessingJob(
+            book_id=book.id,
+            source_image_id=image.id,
+            status="queue_failed",
+            failure_reason="SQS send failed",
+        )
+        db.add(existing_job)
+        db.commit()
+
+        with patch("app.services.image_processing.send_image_processing_job"):
+            result = queue_image_processing(db, book.id, image.id)
+            assert result is not None
+            assert result.id != existing_job.id
+
+    def test_sqs_failure_saves_job_with_queue_failed_status(self, db):
+        """Should save job with queue_failed status when SQS send fails."""
+        from app.services.image_processing import queue_image_processing
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        image = BookImage(book_id=book.id, s3_key="test.jpg", display_order=0)
+        db.add(image)
+        db.commit()
+
+        with patch(
+            "app.services.image_processing.send_image_processing_job",
+            side_effect=Exception("SQS connection failed"),
+        ):
+            job = queue_image_processing(db, book.id, image.id)
+
+        assert job is not None
+        assert job.status == "queue_failed"
+        assert "SQS connection failed" in job.failure_reason
+
+        persisted_job = db.query(ImageProcessingJob).filter_by(id=job.id).first()
+        assert persisted_job is not None
+        assert persisted_job.status == "queue_failed"
+
 
 class TestGetImageProcessingQueueUrl:
     """Tests for SQS queue URL retrieval."""

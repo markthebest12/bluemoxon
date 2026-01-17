@@ -523,6 +523,68 @@ class TestCopyListingImagesToBook:
         assert primary_image is not None
         assert call_args[0][2] == primary_image.id  # image_id
 
+    @patch("app.services.image_processing.boto3")
+    @patch("app.services.image_processing.get_settings")
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_image_processing_job_created_integration(
+        self, mock_books_settings, mock_books_boto3, mock_svc_settings, mock_svc_boto3, db
+    ):
+        """Integration test: verify ImageProcessingJob is actually created in database.
+
+        This test does NOT mock queue_image_processing - it tests the real function
+        and only mocks the boto3 clients to avoid actual AWS calls.
+        """
+        from app.api.v1.books import _copy_listing_images_to_book
+        from app.models import ImageProcessingJob
+
+        mock_books_settings.images_bucket = "test-bucket"
+
+        mock_svc_settings.return_value.image_processing_queue_name = "test-queue"
+        mock_svc_settings.return_value.aws_region = "us-east-1"
+
+        mock_s3 = MagicMock()
+        mock_books_boto3.client.return_value = mock_s3
+
+        mock_sqs = MagicMock()
+        mock_sqs.send_message.return_value = {"MessageId": "test-message-id"}
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = {"Account": "123456789012"}
+
+        def svc_boto3_client(service, **kwargs):
+            if service == "sqs":
+                return mock_sqs
+            elif service == "sts":
+                return mock_sts
+            return MagicMock()
+
+        mock_svc_boto3.client.side_effect = svc_boto3_client
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        listing_keys = ["listings/item123/image_0.jpg"]
+
+        with patch("app.api.v1.images.generate_thumbnail") as mock_thumb:
+            mock_thumb.return_value = (True, None)
+            _copy_listing_images_to_book(book.id, listing_keys, db)
+
+        primary_image = (
+            db.query(BookImage)
+            .filter(BookImage.book_id == book.id, BookImage.is_primary.is_(True))
+            .first()
+        )
+        assert primary_image is not None
+
+        job = db.query(ImageProcessingJob).filter(ImageProcessingJob.book_id == book.id).first()
+        assert job is not None, "ImageProcessingJob should be created in database"
+        assert job.book_id == book.id
+        assert job.source_image_id == primary_image.id
+        assert job.status == "pending"
+
+        mock_sqs.send_message.assert_called_once()
+
 
 class TestGetAnalysisIssues:
     """Tests for _get_analysis_issues helper function."""

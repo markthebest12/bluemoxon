@@ -304,7 +304,9 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
         return
 
     s3 = boto3.client("s3")
-    primary_image_id = None  # Track primary image for processing queue
+    # Track first successfully copied image for processing queue
+    # Falls back to next image if primary (idx=0) fails to copy
+    first_successful_image_id = None
 
     for idx, source_key in enumerate(listing_s3_keys):
         try:
@@ -356,11 +358,12 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
                 is_primary=(idx == 0),
             )
             db.add(book_image)
-            db.flush()  # Get the ID for primary image tracking
 
-            # Track primary image for background processing
-            if idx == 0:
-                primary_image_id = book_image.id
+            # Track first successfully copied image for background processing
+            # Only flush when needed (optimization: avoid unnecessary DB round-trips)
+            if first_successful_image_id is None:
+                db.flush()  # Get the ID for the first successful image
+                first_successful_image_id = book_image.id
 
             logger.info(f"Copied {source_key} -> {target_key}")
 
@@ -371,13 +374,13 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
     db.commit()
     logger.info(f"Copied {len(listing_s3_keys)} images for book {book_id}")
 
-    # Queue background removal for primary image
-    if primary_image_id:
+    # Queue background removal for first successfully copied image
+    if first_successful_image_id:
         try:
-            queue_image_processing(db, book_id, primary_image_id)
-            logger.info(f"Queued image processing for book {book_id} image {primary_image_id}")
+            queue_image_processing(db, book_id, first_successful_image_id)
+            logger.info(f"Queued image processing for book {book_id} image {first_successful_image_id}")
         except Exception as e:
-            logger.warning(f"Failed to queue image processing: {e}")
+            logger.warning(f"Failed to queue image processing: {e}", exc_info=True)
 
 
 @router.get("", response_model=BookListResponse)
