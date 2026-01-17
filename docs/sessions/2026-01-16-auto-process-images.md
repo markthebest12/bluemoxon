@@ -12,12 +12,12 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ---
 
-## Current Status (Post-Compaction 5)
+## Current Status (Post E2E Testing)
 
 | Phase | Status | Details |
 |-------|--------|---------|
 | **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
-| **Phase 2: Lambda Deployment** | 🔶 NEARLY DONE | Bootstrap image deployed, one fix remaining |
+| **Phase 2: Lambda Deployment** | ✅ DONE | E2E tested in staging, pending PR |
 | **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
 
 ### Phase 2 Implementation Progress
@@ -31,44 +31,24 @@ Deployed infrastructure for automatic image processing during book eval import. 
 | 5. Lambda module for container | ✅ Done | `25c10fb` |
 | 6. Unit tests (30 passing) | ✅ Done | `b39628f` |
 | 7. CI/CD workflow | ✅ Done | `078aca5` |
-| 8. Test end-to-end in staging | 🔶 IN PROGRESS | Missing constants.py in container |
-| 9. Deploy to production | ⏳ Pending | After staging |
+| 8. Test end-to-end in staging | ✅ Done | `5829d22` (v6-models deployed) |
+| 9. Deploy to production | ⏳ Pending | After staging PR |
 
 ---
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-### Task 8: Fix Missing constants.py - IN PROGRESS
+### Create PR for Staging
 
-**Status:** Smoke test passes, but real job processing fails.
+1. Push commits: `git push origin feat/auto-process-images`
+2. Create PR: `gh pr create --base staging --title "feat: Image processor Lambda with E2E fixes"`
+3. Wait for CI to pass
+4. Get user approval and merge
 
-**Issue:** Lambda fails with `No module named 'app.constants'` when processing actual SQS messages.
+### After Staging Merge
 
-**Root cause:** Dockerfile copies `backend/app/models/` but `analysis_job.py` imports from `app.constants`.
-
-**Fix already staged (not committed):**
-
-```dockerfile
-# In backend/lambdas/image_processor/Dockerfile, line 7-9:
-COPY backend/app/__init__.py /opt/python/app/
-COPY backend/app/constants.py /opt/python/app/   # ADD THIS LINE
-COPY backend/app/models/ /opt/python/app/models/
-```
-
-**Steps to complete:**
-1. Commit the Dockerfile fix
-2. Rebuild: `docker build --platform linux/arm64 --provenance=false -f backend/lambdas/image_processor/Dockerfile -t 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3 /Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
-3. Push: `docker push 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3`
-4. Update Lambda: `AWS_PROFILE=bmx-staging aws lambda update-function-code --function-name bluemoxon-staging-image-processor --image-uri 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:v3`
-5. Test with SQS message: `AWS_PROFILE=bmx-staging aws sqs send-message --queue-url https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-image-processing --message-body '{"job_id": "test-456", "book_id": 634, "image_id": 5512}'`
-6. Check logs for success
-
-### After E2E Test Passes
-
-1. Update Terraform module default tag to v3
-2. Create PR to staging
-3. Validate in staging environment
-4. Promote to production
+1. Validate in staging environment
+2. Promote to production via PR staging→main
 
 ---
 
@@ -84,41 +64,71 @@ Error in cpuinfo: failed to parse the list of possible processors
 onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has been registered
 ```
 
-**Root cause:** The rembg import at module load triggers ONNX Runtime initialization, which fails because `/sys/devices/system/cpu/possible` doesn't exist in Lambda containers.
+**Solution:** Switched from ARM64 to x86_64 architecture (commit `5829d22`).
 
-**Solution (commit `839aba9`):**
-- Lazy-load rembg imports (defer to first actual use)
-- Added `_ensure_rembg_loaded()` function in handler.py
-- Smoke tests now pass because rembg isn't imported until actual processing
+### 2. Environment Variable Naming Mismatch (FIXED)
 
-**Files changed:**
-- `backend/lambdas/image_processor/handler.py` - Lazy loading
-- `backend/lambdas/image_processor/requirements.txt` - `rembg[cpu]>=2.0.55`
-- `infra/terraform/modules/image-processor/variables.tf` - Added `image_tag` variable
-- `infra/terraform/modules/image-processor/main.tf` - Use `image_tag` variable
+**Problem:** Lambda failed with `DATABASE_SECRET_ARN environment variable not set`.
 
-### 2. rembg Version Incompatibility (FIXED)
+**Root cause:** Terraform set `DB_SECRET_ARN` but handler expected `DATABASE_SECRET_ARN`.
+
+**Solution:** Fixed Terraform to use consistent naming:
+- `DATABASE_SECRET_ARN` (not `DB_SECRET_ARN`)
+- `IMAGES_BUCKET` (not `BMX_IMAGES_BUCKET`)
+- `IMAGES_CDN_DOMAIN` (not `BMX_IMAGES_CDN_DOMAIN`)
+
+### 3. rembg Model Download at Runtime (FIXED)
+
+**Problem:** Lambda failed with `[Errno 30] Read-only file system: '/home/sbx_user1051'`.
+
+**Root cause:** rembg tries to download models to `~/.u2net/` but Lambda home directory is read-only.
+
+**Solution:**
+- Set `U2NET_HOME=/opt/u2net` in Dockerfile during build
+- Set `U2NET_HOME=/opt/u2net` in Lambda environment variables
+- Models pre-downloaded to `/opt/u2net` during Docker build
+
+### 4. Numba Cache Location (FIXED)
+
+**Problem:** Lambda failed with `cannot cache function '_make_tree': no locator available`.
+
+**Root cause:** pymatting uses Numba JIT with `cache=True` which tries to write to read-only package directory.
+
+**Solution:** Set `NUMBA_CACHE_DIR=/tmp` in Lambda environment variables.
+
+### 5. Out of Memory (FIXED)
+
+**Problem:** Lambda ran out of memory at 1024 MB and 3072 MB.
+
+**Root cause:** rembg with u2net model requires ~6.2 GB memory for processing.
+
+**Solution:** Increased memory to 10240 MB (maximum). Actual usage: ~6199 MB.
+
+### 6. Duplicate books/ in S3 Key (FIXED)
+
+**Problem:** CloudFront URL had `books/books/` path duplication.
+
+**Root cause:** Handler stored `books/33/processed_...` in DB, but API adds `S3_IMAGES_PREFIX` (`books/`) when constructing URLs.
+
+**Solution:** Handler now stores `db_s3_key` (without `books/`) in DB and uses `full_s3_key` (with `books/`) for S3 upload.
+
+### 7. rembg Version Incompatibility (FIXED)
 
 **Problem:** `rembg[cpu]==2.0.50` not available for ARM64.
 
 **Solution:** Changed to `rembg[cpu]>=2.0.55` (versions 2.0.55-2.0.72 available for ARM64).
 
-### 3. Docker Manifest Format (FIXED)
+### 8. Docker Manifest Format (FIXED)
 
 **Problem:** Docker Desktop creates multi-arch manifests with attestations that Lambda rejects.
 
-**Solution:** Use `--provenance=false` flag when building:
-```bash
-docker build --platform linux/arm64 --provenance=false -f Dockerfile -t IMAGE:TAG .
-```
+**Solution:** Use `--provenance=false` flag when building.
 
-### 4. ECR IMMUTABLE Tags (FIXED)
+### 9. ECR IMMUTABLE Tags (FIXED)
 
 **Problem:** ECR has IMMUTABLE tag policy, can't reuse `:latest`.
 
-**Solution:**
-- Added `image_tag` variable to Terraform module (default: "v2")
-- Use versioned tags (v1, v2, v3, etc.) for each build
+**Solution:** Use versioned tags (v1, v2, v3, v5-x86, v6-models, etc.).
 
 ---
 
@@ -127,9 +137,22 @@ docker build --platform linux/arm64 --provenance=false -f Dockerfile -t IMAGE:TA
 | File | Purpose |
 |------|---------|
 | `backend/lambdas/image_processor/handler.py` | Lambda handler with lazy rembg loading |
-| `backend/lambdas/image_processor/Dockerfile` | ARM64 container build (NEEDS constants.py) |
+| `backend/lambdas/image_processor/Dockerfile` | x86_64 container with pre-downloaded models |
 | `infra/terraform/modules/image-processor/main.tf` | Container-based Lambda module |
-| `infra/terraform/modules/image-processor/variables.tf` | Module variables including image_tag |
+| `infra/terraform/modules/image-processor/variables.tf` | Module variables (memory: 3072 default) |
+
+---
+
+## Lambda Configuration Summary
+
+| Setting | Value | Reason |
+|---------|-------|--------|
+| Architecture | x86_64 | ONNX Runtime crashes on ARM64 Lambda |
+| Memory | 10240 MB (staging) | u2net needs ~6.2 GB |
+| Default Memory | 3072 MB (terraform) | Cost/performance balance |
+| Timeout | 300 seconds | Processing takes 60-150 seconds |
+| `U2NET_HOME` | `/opt/u2net` | Pre-downloaded models location |
+| `NUMBA_CACHE_DIR` | `/tmp` | Writable cache for JIT |
 
 ---
 
@@ -190,10 +213,14 @@ docker build --platform linux/arm64 --provenance=false -f Dockerfile -t IMAGE:TA
 10. For container Lambda: use `ignore_changes = [image_uri]` and let CI update directly
 11. Add deployment tracking via Lambda tags when bypassing Terraform for updates
 12. **ARM64 package availability differs** - rembg 2.0.50 not available for ARM64; check PyPI for ARM-compatible versions
-13. **ONNX Runtime cpuinfo crash** - Lazy-load rembg to defer ONNX init past smoke test
+13. **ONNX Runtime cpuinfo crash on ARM64** - Use x86_64 architecture instead
 14. **Docker provenance** - Use `--provenance=false` for Lambda-compatible images
 15. **ECR IMMUTABLE tags** - Use versioned tags (v1, v2, etc.), not :latest
 16. **Model imports cascade** - When copying models/, also copy any files they import (constants.py)
+17. **rembg model location** - Set `U2NET_HOME` to control where models are stored/loaded
+18. **Numba JIT cache** - Set `NUMBA_CACHE_DIR=/tmp` for Lambda's read-only filesystem
+19. **rembg memory requirements** - u2net model needs ~6.2 GB RAM; plan for 10 GB
+20. **S3 key prefixes** - API adds `books/` prefix; don't double-add in handler
 
 ---
 
@@ -214,8 +241,10 @@ docker build --platform linux/arm64 --provenance=false -f Dockerfile -t IMAGE:TA
 
 **ECR URL:** `652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor`
 
-**Current deployed tag:** `v2`
+**Current deployed tag:** `v6-models`
 
 **Lambda function:** `bluemoxon-staging-image-processor`
 
 **SQS Queue:** `bluemoxon-staging-image-processing`
+
+**Memory (staging):** 10240 MB (manually increased for testing; CI will use Terraform default of 3072)
