@@ -287,30 +287,41 @@ This feature is being implemented in phases:
 - Container-based Lambda (ECR image)
 - Lambda Layer with pre-compiled binaries
 
-### Phase 3: API Integration (PARTIALLY COMPLETE)
+### Phase 3: API Integration (ROOT CAUSE FOUND)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `queue_image_processing()` service | ✅ | Exists in `image_processing.py` |
-| Called on image upload | ⚠️ | Only for **primary image** (`is_primary=True`) |
-| Called during eBay import | ❓ | Needs verification - may be failing silently |
+| Called on manual image upload | ⚠️ | Only for **primary image** (`is_primary=True`) |
+| Called during eBay import | ❌ | **NOT CALLED** - root cause identified |
 | ImageProcessingJob model | ✅ | Database model exists |
 
-**Current behavior:** When images are uploaded, only the primary (first) image is queued for processing. The call is wrapped in try/except so failures are silent.
+**Root Cause Investigation (2026-01-17):**
 
-**Observed:** SQS queue shows 0 messages after eBay import, suggesting either:
-1. `queue_image_processing()` isn't being called during import flow
-2. Or it's failing silently (exception caught and logged)
+CloudWatch logs showed:
+```
+Copied listings/235937594146/image_00.webp -> books/634/image_00.webp
+Copied 5 images for book 634
+```
+
+But NO logs about queueing image processing. Traced to `books.py:320-365`:
+
+1. Images copied from listings/ to books/ ✓
+2. Thumbnails generated ✓
+3. BookImage records created ✓
+4. **`queue_image_processing()` NOT called** ❌
+
+The import flow in `books.py` directly copies images without going through the upload endpoint (`images.py`), which is where `queue_image_processing()` is wired.
+
+**Fix Required:** Add `queue_image_processing()` call to `books.py` after image copy, around line 365.
 
 ### Next Steps
 
-1. [ ] Deploy image processor Lambda (Phase 2)
+1. [ ] Add `queue_image_processing()` to import flow in `books.py`
+2. [ ] Deploy image processor Lambda (Phase 2)
    - Build container image with rembg
    - Push to ECR
    - Update Lambda to use container
-2. [ ] Verify API is queueing jobs (Phase 3)
-   - Check CloudWatch logs for queueing attempts
-   - Trace eBay import flow to image upload
 3. [ ] Test end-to-end processing
 4. [ ] Consider processing ALL images, not just primary
 
