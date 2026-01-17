@@ -1,440 +1,75 @@
 # Session: Auto-Process Images Infrastructure
 
 **Date:** 2026-01-16/17
-**Branch:** staging
 **Issue:** #1136
-**PR:** #1139 (merged)
+**PRs:** #1139, #1141, #1142 (merged), #1143 (pending)
 
 ## Summary
 
-Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds and uploads to S3.
+Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds.
 
 ---
 
-## Part 1: Terraform Infrastructure
+## Historical Issues (Resolved)
 
-### Changes Made
-
-1. **Created image-processor module** (`modules/image-processor/`)
-   - SQS queue: `bluemoxon-staging-image-processing`
-   - Dead letter queue for failed jobs
-   - Lambda function (placeholder - needs deployment package)
-   - IAM roles for SQS, S3, Secrets Manager access
-
-2. **Wired up main.tf**
-   - Added `BMX_IMAGE_PROCESSING_QUEUE_NAME` env var to API Lambda
-   - Added `api_lambda_role_name` to image-processor module for IAM permissions
-   - API Lambda can send messages to image processing queue
-
-3. **Added health checks**
-   - `health.py`: Added `check_sqs()` function to verify all SQS queues
-   - `admin.py`: Added `image_processing_queue` to InfrastructureConfig
-   - Frontend: Updated AdminConfigView.vue to show SQS health status
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `infra/terraform/main.tf` | Added queue env var + api_lambda_role_name |
-| `infra/terraform/modules/image-processor/main.tf` | Added api_sqs_send IAM policy |
-| `infra/terraform/modules/image-processor/variables.tf` | Added api_lambda_role_name var |
-| `backend/app/api/v1/health.py` | Added check_sqs() for all SQS queues |
-| `backend/app/api/v1/admin.py` | Added image_processing_queue to InfrastructureConfig |
-| `frontend/src/types/admin.ts` | Added SqsHealthCheck types |
-| `frontend/src/views/AdminConfigView.vue` | Added SQS health display section |
+| Issue | Resolution |
+|-------|------------|
+| Terraform `-target` changed RDS password | Added `use_existing_database_credentials` variable |
+| SQS health check permissions | Added `GetQueueUrl`, `GetQueueAttributes` to IAM |
+| Admin page missing SQS status | Added `check_sqs()` call to system-info endpoint |
+| Import not queueing images | Added `queue_image_processing()` to books.py |
 
 ---
 
-## Part 2: Critical Issue - Database Password Changed
+## Current Status
 
-### What Happened
+| Phase | Status | Details |
+|-------|--------|---------|
+| **Phase 1: Infrastructure** | ✅ Complete | SQS queue, IAM, health checks, Lambda resource |
+| **Phase 2: Lambda Deployment** | ❌ Not started | Needs container-based Lambda (rembg native deps) |
+| **Phase 3: API Integration** | ✅ Complete | PR #1143 with code review fixes |
 
-Ran terraform apply with `-target` flags to deploy only the image processor:
+### PR #1143 Code Review Fixes
 
-```bash
-terraform apply -var="db_password=not-used" \
-  -target=module.image_processor \
-  -target=module.lambda
-```
+| Fix | Description |
+|-----|-------------|
+| Stack trace logging | Added `exc_info=True` |
+| Recovery mechanism | Jobs saved with `queue_failed` status (Issue #1144 for retry) |
+| First-image fallback | Queues first successfully copied image |
+| Integration test | Verifies actual DB record creation |
+| DB optimization | Flush only for first successful image |
+| Terraform docs | Warning for chicken-egg scenario |
 
-**Problem:** Terraform still modified the RDS master password to "not-used" even though the database module wasn't targeted.
+### Verification
 
-### Root Cause
-
-The `-target` flag limits which resources terraform plans to modify, but Terraform still evaluates all resources and may apply changes to dependencies or resources with changed input values.
-
-The `db_password` variable is passed to the RDS module, and even with `-target` excluding the database, Terraform detected the variable value changed and applied it.
-
-### Impact
-
-- Staging database authentication broken
-- Health check shows `password authentication failed for user "bluemoxon"`
-
-### Fixes Applied
-
-1. **Immediate:** Reset RDS password via AWS CLI - **DONE**
-2. **Prevention:** Added `password` to RDS module's `lifecycle { ignore_changes }` - **DONE**
-3. **Permanent fix:** Replaced `db_password` variable with `random_password` resource - **DONE**
-
-The `random_password` resource generates the password once and never changes it (`ignore_changes = all`). This eliminates the entire class of "accidentally passed wrong password" bugs.
-
----
-
-## Part 3: SQS Health Check Permissions
-
-### Issue
-
-Health check returns `NonExistentQueue` error even though queues exist:
-
-```json
-{
-  "sqs": {
-    "status": "unhealthy",
-    "queues": {
-      "image_processing": {
-        "status": "unhealthy",
-        "queue_name": "bluemoxon-staging-image-processing",
-        "error": "AWS.SimpleQueueService.NonExistentQueue"
-      }
-    }
-  }
-}
-```
-
-### Root Cause
-
-The error is misleading - it's actually an IAM permissions issue. The API Lambda has `sqs:SendMessage` permission but NOT `sqs:GetQueueUrl` or `sqs:GetQueueAttributes` needed for health checks.
-
-### Fix Required
-
-Add health check permissions to each worker module's `api_sqs_send` IAM policy:
-
-```hcl
-Action = [
-  "sqs:SendMessage",
-  "sqs:GetQueueUrl",
-  "sqs:GetQueueAttributes"
-]
-```
-
----
-
-## Created Resources
-
-### GitHub Issue #1140
-
-Created checklist for adding new async worker flows:
-
-1. Create Terraform module with SQS queue + Lambda
-2. Add IAM policies for API Lambda to send messages
-3. Add queue name to API Lambda environment variables
-4. Update health.py to check new queue
-5. Update admin.py InfrastructureConfig
-6. Update AdminConfigView.vue to display new queue status
-7. Update frontend types (admin.ts)
+- 87 tests pass (77 test_books.py + 10 test_image_processing_service.py)
+- `ruff check` clean
 
 ---
 
 ## Next Steps
 
-1. [x] Fix RDS password (reset to Secrets Manager value)
-2. [x] Add `password` to RDS module `ignore_changes`
-3. [x] Add SQS health check permissions to all worker modules
-4. [x] Replace `db_password` variable with `random_password` resource
-5. [ ] Merge PR #1141 and run `terraform apply`
-6. [ ] Import existing password into terraform state (for existing databases)
-7. [ ] Deploy image processor Lambda code (needs container-based Lambda or Layer with rembg)
-8. [ ] Test end-to-end image processing flow
+1. [x] Merge PR #1143
+2. [ ] **Phase 2: Container Lambda deployment**
+   - Create Dockerfile for image processor
+   - Refactor Terraform from zip to container-based
+   - Add ECR repository and CI/CD workflow
+   - Reference: `modules/scraper-lambda/` pattern
+3. [ ] Test end-to-end: import → queue → process → new image
 
 ---
 
-## Part 4: Permanent Fix - Safe Database Password Handling
+## Related Issues
 
-### Problem
-
-The initial `random_password` approach had a critical flaw:
-
-| Step | What Happens |
-|------|--------------|
-| 1 | `random_password` is NEW (not in state) |
-| 2 | Terraform generates a new random password |
-| 3 | RDS: `ignore_changes = [password]` → no change |
-| 4 | **Secrets Manager: UPDATES to new password** |
-| 5 | **BREAKAGE**: App reads new password, RDS has old |
-
-### Solution
-
-Added `use_existing_database_credentials` variable:
-
-```hcl
-# For EXISTING environments: Read from Secrets Manager (source of truth)
-data "aws_secretsmanager_secret_version" "existing_database" {
-  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
-  secret_id = "${local.name_prefix}/database"
-}
-
-# For NEW environments: Generate random password
-resource "random_password" "database" {
-  count = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
-  ...
-}
-
-# Password source depends on environment type
-locals {
-  db_password = var.use_existing_database_credentials
-    ? jsondecode(data.aws_secretsmanager_secret_version.existing_database[0].secret_string).password
-    : random_password.database[0].result
-}
-```
-
-### Usage
-
-| Environment | Setting | Behavior |
-|-------------|---------|----------|
-| Existing (staging) | `use_existing_database_credentials = true` | Reads from Secrets Manager |
-| New environment | `use_existing_database_credentials = false` | Uses random_password |
-
-### Verification
-
-```bash
-# This should show NO CHANGES to database resources
-AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
-```
+- #1136 - Main feature issue
+- #1140 - Checklist for adding new async workers
+- #1144 - Retry mechanism for queue_failed jobs
 
 ---
 
-## Part 5: Admin Config SQS Display Fix
-
-### Issue
-
-After terraform apply, the `/admin/system-info` endpoint returned SQS health data in `/health/deep`, but the Admin Config page's System Status tab only showed Database, S3 Images, and Cognito - no SQS.
-
-### Root Cause
-
-The `admin.py` `/admin/system-info` endpoint wasn't calling `check_sqs()` or including SQS in the `HealthChecks` response model.
-
-### Fix (PR #1142)
-
-Added SQS health check to admin.py:
-
-1. Added `check_sqs` to imports from health.py
-2. Created Pydantic models: `SqsQueueHealth`, `SqsHealthCheck`
-3. Added `sqs` field to `HealthChecks` model
-4. Called `check_sqs()` in system-info endpoint
-5. Updated overall health calculation to include SQS status
-
-### Verification
-
-Admin Config page now shows "SQS Queues - 112ms" in Health Checks section with checkmark.
-
----
-
-## Part 6: Deployment and Testing
-
-### Completed
-
-1. **Merged PR #1141** - Database password protection and SQS health permissions
-2. **Ran terraform apply** - All SQS queues now healthy:
-   - bluemoxon-staging-eval-runbook
-   - bluemoxon-staging-image-processing
-   - bluemoxon-staging-tracking-worker
-3. **Merged PR #1142** - SQS display in admin config page
-4. **Verified health endpoint** - All queues showing healthy status
-5. **Tested eBay import** - Successfully imported listing 235937594146 (book ID 634)
-
-### Health Check Results
-
-```json
-{
-  "sqs": {
-    "status": "healthy",
-    "latency_ms": 112.17,
-    "queues": {
-      "eval_runbook": { "status": "healthy", "messages": 0 },
-      "image_processing": { "status": "healthy", "messages": 0 },
-      "tracking_worker": { "status": "healthy", "messages": 0 }
-    }
-  }
-}
-```
-
----
-
-## Part 7: Phased Implementation Status
-
-This feature is being implemented in phases:
-
-### Phase 1: Infrastructure (COMPLETE)
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| SQS queue | ✅ | `bluemoxon-staging-image-processing` |
-| Dead letter queue | ✅ | For failed jobs |
-| Lambda resource | ✅ | Created in Terraform (placeholder code) |
-| IAM permissions | ✅ | SQS, S3, Secrets Manager |
-| Health checks | ✅ | All queues reporting healthy |
-| Admin UI | ✅ | SQS status visible in config page |
-
-### Phase 2: Lambda Code Deployment (NOT STARTED)
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Handler code | ❌ | `backend/lambdas/image_processor/handler.py` exists but not deployed |
-| rembg dependency | ❌ | Requires container-based Lambda or Layer |
-| Deployment script | ❌ | Need to build and deploy container image |
-
-**Blocker:** rembg has native dependencies (onnxruntime) that require either:
-- Container-based Lambda (ECR image)
-- Lambda Layer with pre-compiled binaries
-
-### Phase 3: API Integration (COMPLETE - PR #1143)
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| `queue_image_processing()` service | ✅ | Exists in `image_processing.py` |
-| Called on manual image upload | ✅ | Only for **primary image** (`is_primary=True`) |
-| Called during eBay import | ✅ | **FIXED in PR #1143** |
-| ImageProcessingJob model | ✅ | Database model exists |
-
-**Root Cause Investigation (2026-01-17):**
-
-Used `superpowers:systematic-debugging` skill. CloudWatch logs showed:
-```
-Copied listings/235937594146/image_00.webp -> books/634/image_00.webp
-Copied 5 images for book 634
-```
-
-But NO logs about queueing. Traced to `books.py:320-365` - import flow bypassed upload endpoint.
-
-**Fix Applied (PR #1143):**
-
-Used `superpowers:test-driven-development` skill:
-1. Wrote failing test `test_queues_image_processing_for_primary_image`
-2. Added `queue_image_processing()` call to `_copy_listing_images_to_book()`
-3. All 6 tests pass, linting clean
-
----
-
-## Part 8: Lambda Container Deployment (Investigation Complete)
-
-Investigation using `superpowers:dispatching-parallel-agents` found:
-
-### What Exists
-
-| Component | Status | Location |
-|-----------|--------|----------|
-| Handler code | ✅ 508 lines | `backend/lambdas/image_processor/handler.py` |
-| Requirements | ✅ | `backend/lambdas/image_processor/requirements.txt` |
-| Terraform module | ⚠️ Zip-based | `infra/terraform/modules/image-processor/` |
-
-### What's Missing for Container-Based Lambda
-
-Current zip-based deployment won't work (rembg + onnxruntime > 250MB limit).
-
-**Files needed:**
-
-1. `backend/lambdas/image_processor/Dockerfile` - Container image with rembg
-2. `modules/image-processor/main.tf` - ECR repository, container Lambda
-3. `modules/image-processor/variables.tf` - Add `image_tag`, remove s3 vars
-4. `modules/image-processor/outputs.tf` - ECR outputs
-5. `.github/workflows/deploy.yml` - Build/deploy jobs (reference scraper pattern)
-6. Handler updates - version file, warmup handling, fix env var names
-
-**Reference:** Scraper module (`modules/scraper-lambda/`) provides complete container Lambda pattern.
-
----
-
-## Part 9: PR #1143 Code Review Fixes
-
-### Feedback Received
-
-| # | Issue | Severity | Resolution |
-|---|-------|----------|------------|
-| 1 | Silent exception swallowing (no stack trace) | HIGH | Added `exc_info=True` to logger.warning |
-| 2 | No recovery path for failed queue operations | MEDIUM-HIGH | Jobs saved with `queue_failed` status for retry |
-| 4 | Terraform chicken-egg risk | MEDIUM | Added documentation/warnings to variable |
-| 5 | Test mocks function, not behavior | MEDIUM | Added integration test verifying DB record |
-| 6 | db.flush() in loop inefficient | LOW-MEDIUM | Moved flush inside first-successful check |
-| Edge | First image fails = nothing queued | MEDIUM | Now queues first successfully copied image |
-
-### Implementation Approach
-
-Used `superpowers:dispatching-parallel-agents` to fix 3 independent domains concurrently:
-
-| Agent | Domain | Files Modified |
-|-------|--------|----------------|
-| Agent 1 | Recovery mechanism | `image_processing.py` |
-| Agent 2 | Integration test | `test_books.py` |
-| Agent 3 | Terraform validation | `main.tf`, `variables.tf` |
-
-### Key Changes
-
-**1. books.py - Import flow improvements:**
-- Tracks first successfully copied image (not just idx=0)
-- Falls back to next image if primary fails
-- Only flushes DB when capturing first successful ID (optimization)
-- Stack trace included in queue failure logs
-
-**2. image_processing.py - Recovery mechanism:**
-```python
-# Before: Job rolled back on SQS failure
-except Exception:
-    db.rollback()
-    raise
-
-# After: Job saved with queue_failed status for retry
-except Exception as e:
-    job.status = "queue_failed"
-    job.failure_reason = str(e)[:1000]
-    db.commit()
-    logger.error(f"Failed to queue job {job.id}: {e}")
-```
-
-**3. test_books.py - New integration test:**
-- `test_image_processing_job_created_integration`
-- Verifies actual `ImageProcessingJob` record in DB
-- Mocks only boto3 (not the service function)
-
-**4. Terraform - Documentation validation:**
-- Clear warning in `use_existing_database_credentials` description
-- Comment block explaining chicken-egg scenario
-- Default `false` ensures new environments work
-
-### Verification
-
-- 77 tests pass in `test_books.py`
-- 10 tests pass in `test_image_processing_service.py`
-- `ruff check` clean
-
----
-
-## Current Status Summary
-
-| Phase | Status | PR |
-|-------|--------|-----|
-| Phase 1: Infrastructure | ✅ Complete | #1139, #1141, #1142 |
-| Phase 2: Lambda Deployment | ❌ Not started | - |
-| Phase 3: API Integration | ✅ Complete + Review Fixes | #1143 (updated) |
-
-### Next Steps
-
-1. [ ] **Commit and push PR #1143 updates** (code review fixes)
-2. [ ] **Merge PR #1143** after approval
-3. [ ] **Phase 2: Container Lambda deployment**
-   - [ ] Create Dockerfile for image processor
-   - [ ] Refactor Terraform module from zip to container
-   - [ ] Add ECR repository and lifecycle policy
-   - [ ] Add CI/CD workflow jobs (reference scraper pattern)
-   - [ ] Update handler for version/warmup
-4. [ ] Test end-to-end: import → queue → process → new image
-
----
-
-## CRITICAL: Continuation Instructions
+## Continuation Instructions
 
 ### Superpowers Skills - MANDATORY
-
-**Use Superpowers skills at ALL stages. No exceptions.**
 
 | Task Type | Required Skill |
 |-----------|---------------|
@@ -442,44 +77,19 @@ except Exception as e:
 | Writing code | `superpowers:test-driven-development` |
 | Before claiming done | `superpowers:verification-before-completion` |
 | Multiple independent tasks | `superpowers:dispatching-parallel-agents` |
-| Planning implementation | `superpowers:writing-plans` |
 | Receiving feedback | `superpowers:receiving-code-review` |
-| Creating PRs | `superpowers:requesting-code-review` |
 
-### Bash Command Formatting - CRITICAL
+### Bash Command Formatting
 
-**NEVER use these (trigger permission prompts):**
-- `#` comment lines before commands
-- `\` backslash line continuations
-- `$(...)` command substitution
-- `||` or `&&` chaining
-- `!` in quoted strings
+**NEVER use:** `#` comments, `\` continuations, `$(...)`, `&&`/`||` chaining, `!` in strings
 
-**ALWAYS use:**
-- Simple single-line commands
-- Separate sequential Bash tool calls instead of `&&`
-- `bmx-api` for all BlueMoxon API calls (no permission prompts)
-
-**Example - WRONG:**
-```bash
-cd /path && npm test  # Run tests
-```
-
-**Example - CORRECT:**
-```bash
-# First call
-cd /path
-# Second call (separate Bash tool invocation)
-npm test
-```
+**ALWAYS use:** Simple single-line commands, separate Bash tool calls, `bmx-api` for API calls
 
 ---
 
 ## Lessons Learned
 
-1. **Never use `-var="db_password=not-used"` with terraform apply** - Terraform may still apply the value even with `-target` flags
-2. **Use `terraform plan` first** - Always review what will change before applying
-3. **Add sensitive resources to `ignore_changes`** - Protect critical infrastructure from accidental modifications
-4. **Health check permissions are separate** - Just because Lambda can send to a queue doesn't mean it can inspect the queue
-5. **Use `random_password` for database credentials** - Eliminates the entire class of "wrong password" accidents
-6. **Admin endpoints need explicit health calls** - The system-info endpoint required explicit `check_sqs()` call to include SQS in the response
+1. Never use `-var="db_password=..."` with terraform - use `use_existing_database_credentials`
+2. Health check permissions are separate from send permissions
+3. Admin endpoints need explicit health check calls
+4. Use `superpowers:dispatching-parallel-agents` for independent fixes
