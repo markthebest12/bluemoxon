@@ -403,3 +403,45 @@ class TestProcessImageJobStatusUpdates:
                                         assert result is True
                                         assert mock_processing_job.status == "completed"
                                         assert mock_processing_job.completed_at is not None
+
+
+class TestThumbnailGeneration:
+    """Tests for thumbnail generation."""
+
+    def test_generate_thumbnail_creates_jpeg(self):
+        """Should create a JPEG thumbnail from PNG."""
+        from handler import generate_thumbnail
+
+        # Create a test RGBA image (100x150)
+        test_image = PILImage.new("RGBA", (100, 150), (255, 0, 0, 255))
+
+        thumbnail = generate_thumbnail(test_image)
+
+        assert thumbnail is not None
+        assert thumbnail.mode == "RGB"  # JPEG doesn't support alpha
+        assert thumbnail.size[0] <= 300
+        assert thumbnail.size[1] <= 300
+
+    def test_generate_thumbnail_maintains_aspect_ratio(self):
+        """Should maintain aspect ratio when resizing."""
+        from handler import generate_thumbnail
+
+        # Create a tall image (200x400)
+        test_image = PILImage.new("RGB", (200, 400), (0, 255, 0))
+
+        thumbnail = generate_thumbnail(test_image)
+
+        # Should be 150x300 (scaled to fit 300x300 maintaining ratio)
+        assert thumbnail.size == (150, 300)
+
+    def test_generate_thumbnail_handles_small_images(self):
+        """Should not upscale small images."""
+        from handler import generate_thumbnail
+
+        # Create a small image (50x50)
+        test_image = PILImage.new("RGB", (50, 50), (0, 0, 255))
+
+        thumbnail = generate_thumbnail(test_image)
+
+        # Should stay 50x50, not upscaled
+        assert thumbnail.size == (50, 50)

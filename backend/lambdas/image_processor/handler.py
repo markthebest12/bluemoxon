@@ -50,6 +50,10 @@ MAX_ASPECT_DIFF = 0.2
 # Images larger than this are rejected to prevent OOM
 MAX_IMAGE_DIMENSION = 4096
 
+# Thumbnail settings (matches API endpoint in images.py)
+THUMBNAIL_MAX_SIZE = (300, 300)
+THUMBNAIL_QUALITY = 85
+
 # Attempt number at which to switch from u2net to isnet-general-use model
 U2NET_FALLBACK_ATTEMPT = 3
 
@@ -395,6 +399,33 @@ def add_background(image: Image.Image, color: str) -> Image.Image:
     return background
 
 
+def generate_thumbnail(image: Image.Image) -> Image.Image:
+    """Generate a thumbnail from a PIL Image.
+
+    Args:
+        image: PIL Image (RGB or RGBA)
+
+    Returns:
+        Thumbnail as RGB PIL Image (JPEG-compatible)
+    """
+    # Convert to RGB if necessary (for PNG with transparency)
+    if image.mode in ("RGBA", "P"):
+        # Create white background for transparency
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        if image.mode == "RGBA":
+            background.paste(image, mask=image.split()[3])
+        else:
+            background.paste(image)
+        image = background
+
+    # Create thumbnail maintaining aspect ratio
+    # thumbnail() modifies in place, so copy first
+    thumb = image.copy()
+    thumb.thumbnail(THUMBNAIL_MAX_SIZE, Image.Resampling.LANCZOS)
+
+    return thumb
+
+
 def lambda_handler(event, context):
     """Lambda entry point for SQS-triggered image processing.
 
@@ -558,6 +589,18 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
             logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
             upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
+
+            # Generate and upload thumbnail
+            thumbnail = generate_thumbnail(final_image)
+            thumb_s3_key = f"thumb_{db_s3_key.replace('.png', '.jpg')}"
+            full_thumb_s3_key = f"books/{thumb_s3_key}"
+
+            thumb_buffer = io.BytesIO()
+            thumbnail.save(thumb_buffer, format="JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
+            thumb_bytes = thumb_buffer.getvalue()
+
+            logger.info(f"Uploading thumbnail to s3://{IMAGES_BUCKET}/{full_thumb_s3_key}")
+            upload_to_s3(IMAGES_BUCKET, full_thumb_s3_key, thumb_bytes, "image/jpeg")
 
             # CloudFront URL uses full S3 path (CloudFront origin maps to bucket root)
             cdn_url = None
