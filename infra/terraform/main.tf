@@ -725,6 +725,35 @@ module "cleanup_lambda" {
 }
 
 # =============================================================================
+# Image Processor (background image processing with SQS)
+# =============================================================================
+# Handles async image processing tasks:
+# - Image resizing and optimization
+# - Background color extraction
+# - Thumbnail generation
+
+module "image_processor" {
+  count  = local.image_processor_enabled ? 1 : 0
+  source = "./modules/image-processor"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = local.lambda_s3_key
+
+  images_bucket     = module.images_bucket.bucket_name
+  images_cdn_domain = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+
+  # Database access
+  database_secret_arn = var.enable_database ? module.database_secret[0].arn : var.database_secret_arn
+
+  # VPC configuration for RDS access
+  vpc_subnet_ids         = var.private_subnet_ids
+  vpc_security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+}
+
+# =============================================================================
 # API Gateway
 # =============================================================================
 

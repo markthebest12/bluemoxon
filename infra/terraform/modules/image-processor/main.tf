@@ -49,6 +49,13 @@ resource "aws_iam_role_policy_attachment" "worker_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# VPC access policy (required when Lambda is in VPC)
+resource "aws_iam_role_policy_attachment" "worker_vpc" {
+  count      = length(var.vpc_subnet_ids) > 0 ? 1 : 0
+  role       = aws_iam_role.worker_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 # SQS policy
 resource "aws_iam_role_policy" "worker_sqs" {
   name = "${var.name_prefix}-image-processor-sqs"
@@ -128,6 +135,14 @@ resource "aws_lambda_function" "worker" {
       BMX_IMAGES_CDN_DOMAIN = var.images_cdn_domain
       DB_SECRET_ARN         = var.database_secret_arn
     }, var.environment_variables)
+  }
+
+  dynamic "vpc_config" {
+    for_each = length(var.vpc_subnet_ids) > 0 ? [1] : []
+    content {
+      subnet_ids         = var.vpc_subnet_ids
+      security_group_ids = var.vpc_security_group_ids
+    }
   }
 
   tags = {

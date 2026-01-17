@@ -56,3 +56,15 @@ variable "environment_variables" {
   type        = map(string)
   default     = {}
 }
+
+variable "vpc_subnet_ids" {
+  description = "VPC subnet IDs for Lambda"
+  type        = list(string)
+  default     = []
+}
+
+variable "vpc_security_group_ids" {
+  description = "VPC security group IDs for Lambda"
+  type        = list(string)
+  default     = []
+}
