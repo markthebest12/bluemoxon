@@ -304,7 +304,7 @@ output "redis_url" {
 
 output "image_processor_function_name" {
   description = "Image processor Lambda function name"
-  value       = module.image_processor.function_name
+  value       = local.image_processor_enabled ? module.image_processor[0].function_name : null
 }
 
 output "image_processor_ecr_url" {

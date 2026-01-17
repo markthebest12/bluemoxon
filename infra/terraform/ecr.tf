@@ -31,6 +31,3 @@ resource "aws_ecr_lifecycle_policy" "image_processor" {
   })
 }
 
-output "image_processor_ecr_url" {
-  value = aws_ecr_repository.image_processor.repository_url
-}

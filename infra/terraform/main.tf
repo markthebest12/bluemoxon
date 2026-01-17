@@ -768,8 +768,8 @@ module "image_processor" {
   name_prefix = local.name_prefix
   environment = var.environment
 
-  s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = local.lambda_s3_key
+  # Container image configuration
+  ecr_repository_url = aws_ecr_repository.image_processor.repository_url
 
   images_bucket     = module.images_bucket.bucket_name
   images_cdn_domain = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""

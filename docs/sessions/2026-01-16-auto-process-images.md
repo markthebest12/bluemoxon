@@ -75,28 +75,26 @@ All code tasks complete on `feat/auto-process-images` branch:
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-### Task 4: Push Bootstrap Image
+### Task 4: Push Bootstrap Image - IN PROGRESS
 
-The ECR repository and all code are ready. Next step is to push the bootstrap image so Terraform can create the Lambda.
+**Status:** ECR repository created, but Docker build failed due to rembg version issue.
 
-```bash
-# 1. Apply Terraform to create ECR repository only
-cd infra/terraform
-AWS_PROFILE=bmx-staging terraform apply -target=aws_ecr_repository.image_processor
+**Issue:** `rembg[cpu]==2.0.50` is not available for ARM64. Available versions: 2.0.55-2.0.72
 
-# 2. Get ECR URL and login
-ECR_URL=$(AWS_PROFILE=bmx-staging terraform output -raw image_processor_ecr_url)
-aws ecr get-login-password --region us-west-2 --profile bmx-staging | docker login --username AWS --password-stdin $ECR_URL
+**Fix needed:** Update `backend/lambdas/image_processor/requirements.txt` to use `rembg[cpu]>=2.0.55` or pin to latest stable version.
 
-# 3. Build ARM64 image (from repo root)
-docker build --platform linux/arm64 -f backend/lambdas/image_processor/Dockerfile -t $ECR_URL:latest .
+**ECR URL:** `652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor`
 
-# 4. Push bootstrap image
-docker push $ECR_URL:latest
+**Steps to complete Task 4:**
+1. Fix requirements.txt rembg version
+2. Rebuild: `docker build --platform linux/arm64 -f backend/lambdas/image_processor/Dockerfile -t 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest /Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
+3. Push: `docker push 652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest`
+4. Apply full Terraform: `AWS_PROFILE=bmx-staging terraform -chdir=/Users/mark/projects/bluemoxon/.worktrees/auto-process-images/infra/terraform apply -var-file=envs/staging.tfvars`
 
-# 5. Apply full Terraform
-AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
-```
+**Also fixed during this session:**
+- Removed duplicate `image_processor_ecr_url` output (was in both ecr.tf and outputs.tf)
+- Updated main.tf to use `ecr_repository_url` instead of `s3_bucket`/`s3_key`
+- Fixed `image_processor_function_name` output to use `[0]` index for count-based module
 
 ### After Bootstrap: Create PR to Staging
 
