@@ -165,8 +165,8 @@ resource "aws_lambda_function" "worker" {
 
   image_uri = var.image_uri != "" ? var.image_uri : "${var.ecr_repository_url}:${var.image_tag}"
 
-  timeout       = var.timeout
-  memory_size   = var.memory_size
+  timeout     = var.timeout
+  memory_size = var.memory_size
   # Note: Using x86_64 because ONNX Runtime crashes on ARM64 Lambda due to cpuinfo parsing failure
   # See: https://github.com/microsoft/onnxruntime/issues/10038
   architectures = ["x86_64"]
