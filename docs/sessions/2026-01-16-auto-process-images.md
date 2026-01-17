@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-16/17
 **Issue:** #1136
-**PRs:** #1139, #1141, #1142, #1143, #1145 (all merged)
+**PRs:** #1139, #1141, #1142, #1143, #1145, #1148 (all merged or pending)
 
 ## Summary
 
@@ -12,88 +12,77 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ---
 
-## Current Status (Post-Compaction 2)
+## Current Status (Post-Compaction 3)
 
 | Phase | Status | Details |
 |-------|--------|---------|
 | **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
-| **Phase 2: Lambda Deployment** | ❌ Not done | Lambda has placeholder - needs container image with rembg |
+| **Phase 2: Lambda Deployment** | 🔶 DESIGN DONE | Design complete, ready for implementation |
 | **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
 
-### Phase 3 Complete - Details
+### API Key Fix - COMPLETED
 
-- `queue_image_processing()` IS called during eBay import
-- Queues first successfully copied image (not just idx=0)
-- Recovery mechanism for failed queue operations (`queue_failed` status)
+| Item | Status |
+|------|--------|
+| Staging Lambda API key | ✅ Updated |
+| Prod Lambda API key | ✅ Updated |
+| Local ~/.bmx/ keys | ✅ Updated |
+| GitHub secrets | ✅ Updated |
+| CI workflow | ✅ Passing (run 21087968669) |
 
-### Phase 2 Remaining Work
+**Keys stored in Secrets Manager:**
+- `bluemoxon-staging/api-key`
+- `bluemoxon-prod/api-key`
 
-1. Create Dockerfile for image processor Lambda
-2. Refactor Terraform from zip-based to container-based
-3. Add ECR repository + CI/CD workflow
-4. Deploy and test end-to-end
+### Phase 2 Design - COMPLETED
 
-**Note:** Queue showing 0 messages is expected - Lambda has placeholder code. Messages may go to DLQ if Lambda errors, or SQS send fails (saved as `queue_failed` for retry via issue #1144).
+**Design document:** `docs/plans/2026-01-17-image-processor-container.md`
 
-### What Was Completed This Session
-
-| Task | Status | Details |
-|------|--------|---------|
-| Merge PR #1143 | ✅ Done | API integration merged to staging (admin merge) |
-| Merge PR #1145 | ✅ Done | Infrastructure promoted to prod (admin merge) |
-| Terraform apply prod | ✅ Done | Created SQS queues in prod (31 resources added) |
-| Prod health check | ✅ Fixed | All SQS queues now healthy (analysis, eval_runbook, image_processing) |
-| API docs issue | ✅ Created | Issue #1146 for missing API documentation |
-| Secrets Manager | ✅ Created | API keys stored in `bluemoxon-staging/api-key` and `bluemoxon-prod/api-key` |
-
-### CI Auth Failure - ROOT CAUSE FOUND
-
-**Issue:** Deploy workflow smoke tests and migrations failing with HTTP 401.
-
-**Root Cause:** `BMX_API_KEY` environment variable is **EMPTY** in both Lambda functions.
-
-**Evidence:**
-```
-AWS_PROFILE=bmx-staging aws lambda get-function-configuration \
-  --function-name bluemoxon-staging-api \
-  --query 'Environment.Variables.BMX_API_KEY'
-Result: ''  (empty string)
-```
-
-**Secrets created but not yet applied to Lambda:**
-- `bluemoxon-staging/api-key` - Staging API key in Secrets Manager
-- `bluemoxon-prod/api-key` - Prod API key in Secrets Manager
+**Key decisions:**
+- ARM64 container on Graviton2 (20% cost savings)
+- Models baked into container (instant cold starts)
+- Copy `backend/app/models/` for single source of truth
+- CI updates Lambda directly, Terraform ignores `image_uri`
 
 ---
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-1. **Update Lambda environment variables with new API keys:**
-   - Staging: `6eQjoyosw3ZkLwVfyMScpHme9xv2CoaC39Gl1anruko`
-   - Prod: `xdpVz67qEejVpDe3A3Lb_OuRe01nEVKcnVtzKCMLqPw`
+### Phase 2 Implementation - Use Subagent-Driven Development
 
-2. **Update GitHub secrets:**
-   - `BMX_STAGING_API_KEY` → new staging key
-   - `BMX_API_KEY` → new prod key
+**Required skill:** `superpowers:subagent-driven-development`
 
-3. **Update local files:**
-   - `~/.bmx/staging.key`
-   - `~/.bmx/prod.key`
+**Approach:** Maximum parallelism with worktrees for isolated work
 
-4. **Verify CI passes** by re-running deploy workflow
+**Implementation tasks (from design doc):**
 
-5. **Create GitHub issue** for Lambda S3 key config errors (terraform apply warning)
+1. **Create ECR repository** (Terraform) - independent
+2. **Push bootstrap image** (manual, one-time) - depends on 1
+3. **Update Lambda module** (Terraform) - depends on 1
+4. **Add supporting files** (Dockerfile, requirements.txt, download_models.py) - independent
+5. **Add smoke test handler** (handler.py modification) - independent
+6. **Add unit tests** (tests/) - depends on 5
+7. **Update CI/CD workflow** (deploy.yml) - depends on 1, 4
+8. **Test end-to-end** (staging) - depends on all above
+9. **Deploy to prod** - depends on 8
 
-6. **Cleanup worktree** after verification
+**Parallelization opportunities:**
+- Tasks 1, 4, 5 can run in parallel (independent)
+- Task 6 can start once 5 is done
+- Tasks 2, 3, 7 can run in parallel once 1 is done
 
 ---
 
-## Related Issues
+## Related Issues & PRs
 
-- #1136 - Main feature issue (auto-process images)
-- #1140 - Checklist for adding new async workers
-- #1144 - Retry mechanism for `queue_failed` jobs
-- #1146 - API documentation for undocumented endpoints
+| Reference | Description |
+|-----------|-------------|
+| #1136 | Main feature issue (auto-process images) |
+| #1140 | Checklist for adding new async workers |
+| #1144 | Retry mechanism for `queue_failed` jobs |
+| #1146 | API documentation for undocumented endpoints |
+| #1147 | Lambda S3 key config errors |
+| #1148 | Session log updates (pending) |
 
 ---
 
@@ -105,13 +94,16 @@ Result: ''  (empty string)
 
 | Task Type | Required Skill | When to Use |
 |-----------|---------------|-------------|
+| Starting session | `superpowers:using-superpowers` | First thing |
 | Any bug/issue | `superpowers:systematic-debugging` | Before proposing ANY fix |
 | Writing code | `superpowers:test-driven-development` | Before writing implementation |
 | Before claiming done | `superpowers:verification-before-completion` | Before ANY completion claim |
 | Multiple independent tasks | `superpowers:dispatching-parallel-agents` | When 2+ tasks can parallelize |
 | Planning implementation | `superpowers:writing-plans` | Before multi-step implementation |
+| Executing plans | `superpowers:subagent-driven-development` | For Phase 2 implementation |
 | Receiving feedback | `superpowers:receiving-code-review` | When reviewing PR feedback |
 | Creating PRs | `superpowers:requesting-code-review` | Before creating any PR |
+| Finishing work | `superpowers:finishing-a-development-branch` | When implementation complete |
 
 **If you think there's even 1% chance a skill applies, INVOKE IT.**
 
@@ -129,32 +121,21 @@ Result: ''  (empty string)
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
 
-**Example - WRONG:**
-```bash
-cd /path && npm test  # Run tests
-```
+### PR Review Requirements
 
-**Example - CORRECT:**
-```bash
-cd /path
-```
-Then separate Bash tool call:
-```bash
-npm test
-```
+1. PRs to staging need user review before merge
+2. PRs to prod (staging→main) need user review before merge
+3. Use `superpowers:requesting-code-review` before creating PRs
 
 ---
 
-## Key Files Modified
+## Key Files
 
-| File | Change |
-|------|--------|
-| `backend/app/api/v1/books.py` | Added `queue_image_processing()` to import flow |
-| `backend/app/services/image_processing.py` | Added `queue_failed` status recovery |
-| `backend/tests/test_books.py` | Integration test for job creation |
-| `backend/tests/services/test_image_processing_service.py` | Tests for queue_failed handling |
-| `infra/terraform/main.tf` | Chicken-egg warning comment |
-| `infra/terraform/variables.tf` | Extended `use_existing_database_credentials` description |
+| File | Purpose |
+|------|---------|
+| `docs/plans/2026-01-17-image-processor-container.md` | Phase 2 design document |
+| `backend/lambdas/image_processor/handler.py` | Lambda handler (exists) |
+| `infra/terraform/modules/image-processor/main.tf` | Terraform module (needs refactor) |
 
 ---
 
@@ -169,3 +150,5 @@ npm test
 7. **Always verify Lambda environment variables** - empty values cause silent auth failures
 8. Store API keys in Secrets Manager for better security and auditability
 9. Use `terraform init -backend-config=backends/prod.hcl -reconfigure` when switching environments
+10. For container Lambda: use `ignore_changes = [image_uri]` and let CI update directly
+11. Add deployment tracking via Lambda tags when bypassing Terraform for updates
