@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import warnings
 
 import boto3
 from sqlalchemy.orm import Session
@@ -11,6 +12,14 @@ from app.config import get_settings
 from app.models import ImageProcessingJob
 
 logger = logging.getLogger(__name__)
+
+# Validate queue name at import time
+_settings = get_settings()
+if not _settings.image_processing_queue_name:
+    warnings.warn(
+        "IMAGE_PROCESSING_QUEUE_NAME not configured - image processing disabled",
+        stacklevel=1,
+    )
 
 
 def get_sqs_client():
@@ -105,8 +114,13 @@ def queue_image_processing(db: Session, book_id: int, image_id: int) -> ImagePro
         source_image_id=image_id,
     )
     db.add(job)
-    db.commit()
+    db.flush()  # Get the ID without committing
 
-    send_image_processing_job(str(job.id), book_id, image_id)
+    try:
+        send_image_processing_job(str(job.id), book_id, image_id)
+        db.commit()  # Only commit after SQS succeeds
+    except Exception:
+        db.rollback()
+        raise
 
     return job

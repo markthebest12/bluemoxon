@@ -287,8 +287,8 @@ def reorder_images(
     if new_primary_id and new_primary_id != old_primary_id:
         try:
             queue_image_processing(db, book_id, new_primary_id)
-        except Exception as e:
-            logger.warning(f"Failed to queue image processing: {e}")
+        except Exception:
+            logger.exception("Failed to queue image processing")
 
     return {"message": "Images reordered successfully", "order": image_ids}
 
@@ -483,8 +483,8 @@ async def upload_image(
     if image.is_primary:
         try:
             queue_image_processing(db, book_id, image.id)
-        except Exception as e:
-            logger.warning(f"Failed to queue image processing: {e}")
+        except Exception:
+            logger.exception("Failed to queue image processing")
 
     return ImageUploadResponse(
         id=image.id,
