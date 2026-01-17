@@ -81,7 +81,8 @@ resource "aws_iam_role_policy" "deploy" {
             "lambda:GetAlias",
             "lambda:ListVersionsByFunction",
             "lambda:DeleteFunction",
-            "lambda:InvokeFunction"
+            "lambda:InvokeFunction",
+            "lambda:TagResource"
           ]
           Resource = var.lambda_function_arns
         },
