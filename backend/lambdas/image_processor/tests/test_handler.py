@@ -352,7 +352,8 @@ class TestProcessImageJobStatusUpdates:
             mock_session.query.return_value.filter.return_value.first.return_value = (
                 mock_processing_job
             )
-            mock_session.query.return_value.filter.return_value.all.return_value = []
+            # Mock the with_for_update() chain for book images query
+            mock_session.query.return_value.filter.return_value.with_for_update.return_value.all.return_value = []
             mock_get_session.return_value = mock_session
 
             with patch.object(handler, "ImageProcessingJob", mock_job_model):
@@ -380,6 +381,10 @@ class TestProcessImageJobStatusUpdates:
             mock_session.query.return_value.filter.return_value.first.side_effect = [
                 mock_processing_job,
                 mock_book_image,
+            ]
+            # Mock with_for_update() chain for book images query
+            mock_session.query.return_value.filter.return_value.with_for_update.return_value.all.return_value = [
+                mock_book_image
             ]
             mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
             mock_session.query.return_value.filter.return_value.scalar.return_value = 0
