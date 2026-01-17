@@ -754,12 +754,23 @@ module "cleanup_lambda" {
 }
 
 # =============================================================================
+# Alerts SNS Topic
+# =============================================================================
+# Central SNS topic for CloudWatch alarms and operational alerts.
+# Subscribe via email, Slack webhook, or other endpoints.
+
+resource "aws_sns_topic" "alerts" {
+  name = "${local.name_prefix}-alerts"
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Image Processor (background image processing with SQS)
 # =============================================================================
 # Handles async image processing tasks:
-# - Image resizing and optimization
-# - Background color extraction
-# - Thumbnail generation
+# - Background removal using rembg/u2net
+# - Brightness-based background color selection
+# - CloudFront URL generation
 
 module "image_processor" {
   count  = local.image_processor_enabled ? 1 : 0
@@ -783,6 +794,9 @@ module "image_processor" {
 
   # API Lambda role for SQS send permissions
   api_lambda_role_name = var.enable_lambda ? module.lambda[0].role_name : null
+
+  # Alerting - DLQ alarm notifications
+  alarm_sns_topic_arn = aws_sns_topic.alerts.arn
 }
 
 # =============================================================================

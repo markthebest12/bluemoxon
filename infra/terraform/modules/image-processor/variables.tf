@@ -41,9 +41,9 @@ variable "database_secret_arn" {
 }
 
 variable "memory_size" {
-  description = "Lambda memory size in MB (3072 recommended for rembg/u2net)"
+  description = "Lambda memory size in MB (10240 required for rembg/u2net which needs ~6.2GB)"
   type        = number
-  default     = 3072
+  default     = 10240
 }
 
 variable "timeout" {
