@@ -118,6 +118,7 @@ class InfrastructureConfig(BaseModel):
     images_cdn_url: str | None = None
     analysis_queue: str | None = None
     eval_runbook_queue: str | None = None
+    image_processing_queue: str | None = None
 
 
 class LimitsConfig(BaseModel):
@@ -455,6 +456,7 @@ def get_system_info(
             images_cdn_url=settings.images_cdn_url,
             analysis_queue=settings.analysis_queue_name,
             eval_runbook_queue=settings.eval_runbook_queue_name,
+            image_processing_queue=settings.image_processing_queue_name,
         ),
         limits=LimitsConfig(
             bedrock_read_timeout_sec=540,

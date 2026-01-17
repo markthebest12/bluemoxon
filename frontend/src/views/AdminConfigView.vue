@@ -710,6 +710,20 @@ function getBarWidth(cost: number): string {
                 {{ systemInfo.health.checks.s3.latency_ms }}ms
               </span>
             </div>
+            <div v-if="systemInfo.health.checks.sqs" class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span :class="healthStatusClass(systemInfo.health.checks.sqs.status)">
+                  {{ healthIcon(systemInfo.health.checks.sqs.status) }}
+                </span>
+                <span>SQS Queues</span>
+                <span v-if="systemInfo.health.checks.sqs.reason" class="text-xs text-gray-400">
+                  ({{ systemInfo.health.checks.sqs.reason }})
+                </span>
+              </div>
+              <span class="text-sm text-gray-500">
+                {{ systemInfo.health.checks.sqs.latency_ms || "-" }}ms
+              </span>
+            </div>
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span :class="healthStatusClass(systemInfo.health.checks.cognito.status)">
@@ -780,6 +794,12 @@ function getBarWidth(cost: number): string {
               <dt class="text-gray-500">Eval Runbook Queue</dt>
               <dd class="font-mono text-xs">
                 {{ systemInfo.infrastructure.eval_runbook_queue || "Not configured" }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Image Processing Queue</dt>
+              <dd class="font-mono text-xs">
+                {{ systemInfo.infrastructure.image_processing_queue || "Not configured" }}
               </dd>
             </div>
           </dl>

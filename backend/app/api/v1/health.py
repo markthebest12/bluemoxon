@@ -160,6 +160,78 @@ def check_cognito() -> dict[str, Any]:
         }
 
 
+def check_sqs() -> dict[str, Any]:
+    """Check SQS queue accessibility for all configured queues."""
+    start = time.time()
+
+    queues = {
+        "analysis": settings.analysis_queue_name,
+        "eval_runbook": settings.eval_runbook_queue_name,
+        "image_processing": settings.image_processing_queue_name,
+    }
+
+    # Filter to only configured queues
+    configured_queues = {k: v for k, v in queues.items() if v}
+
+    if not configured_queues:
+        return {
+            "status": "skipped",
+            "reason": "No SQS queues configured",
+        }
+
+    try:
+        sqs = boto3.client("sqs", region_name=settings.aws_region)
+        results = {}
+
+        for queue_type, queue_name in configured_queues.items():
+            try:
+                # Get queue URL from name
+                response = sqs.get_queue_url(QueueName=queue_name)
+                queue_url = response["QueueUrl"]
+
+                # Get queue attributes to verify access
+                attrs = sqs.get_queue_attributes(
+                    QueueUrl=queue_url,
+                    AttributeNames=["ApproximateNumberOfMessages"],
+                )
+                msg_count = int(attrs["Attributes"].get("ApproximateNumberOfMessages", 0))
+
+                results[queue_type] = {
+                    "status": "healthy",
+                    "queue_name": queue_name,
+                    "messages": msg_count,
+                }
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "Unknown")
+                results[queue_type] = {
+                    "status": "unhealthy",
+                    "queue_name": queue_name,
+                    "error": error_code,
+                }
+
+        # Determine overall status
+        statuses = [r["status"] for r in results.values()]
+        if all(s == "healthy" for s in statuses):
+            overall = "healthy"
+        elif any(s == "unhealthy" for s in statuses):
+            overall = "unhealthy"
+        else:
+            overall = "degraded"
+
+        latency_ms = round((time.time() - start) * 1000, 2)
+        return {
+            "status": overall,
+            "queues": results,
+            "latency_ms": latency_ms,
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+
+
 def check_config() -> dict[str, Any]:
     """Validate critical configuration is present."""
     issues = []
@@ -230,6 +302,7 @@ async def readiness(db: Session = Depends(get_db)):
 Comprehensive health check that validates all system dependencies:
 - **Database**: PostgreSQL connectivity and query execution
 - **S3**: Images bucket accessibility
+- **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing)
 - **Cognito**: User pool availability (if configured)
 - **Config**: Critical configuration validation
 
@@ -251,6 +324,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
     checks = {
         "database": check_database(db),
         "s3": check_s3(),
+        "sqs": check_sqs(),
         "cognito": check_cognito(),
         "config": check_config(),
     }
