@@ -181,3 +181,4 @@ Once bootstrap is complete, create PR and validate in staging before promoting t
 9. Use `terraform init -backend-config=backends/prod.hcl -reconfigure` when switching environments
 10. For container Lambda: use `ignore_changes = [image_uri]` and let CI update directly
 11. Add deployment tracking via Lambda tags when bypassing Terraform for updates
+12. **ARM64 package availability differs** - rembg 2.0.50 not available for ARM64; check PyPI for ARM-compatible versions before pinning
