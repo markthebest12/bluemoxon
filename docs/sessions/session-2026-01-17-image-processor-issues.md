@@ -71,6 +71,24 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 
 **Commits:** `a6cd2c8` - feat: Add smart source image selection for image processor
 
+#### Code Review Fixes - ✅ FIXED
+
+**P0 Critical:**
+- Added row-level locking (`SELECT FOR UPDATE`) to prevent race conditions on concurrent book processing
+- Added idempotency check for job status before processing (SQS at-least-once delivery)
+
+**P1 High:**
+- Added null check for `select_best_source_image()` return value
+- Reset DB engine when secret cache expires (handles RDS credential rotation)
+- Optimized brightness calculation to use streaming iteration (O(1) memory instead of O(16M))
+
+**P2 Medium:**
+- Extracted `normalize_s3_key()` helper for consistent S3 prefix handling
+- Fixed filter to exclude source_image instead of trigger image in renumbering
+- Used pathlib for thumbnail filename manipulation
+
+**Commits:** `0a62303` - fix: Address code review issues for image processor
+
 ## Files Modified This Session
 
 - `infra/terraform/modules/github-oidc/main.tf` - Added `lambda:TagResource` permission
