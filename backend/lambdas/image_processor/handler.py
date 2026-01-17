@@ -8,20 +8,62 @@ import io
 import json
 import logging
 import os
+import time
 import uuid
+from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import PurePath
 
 import boto3
 from PIL import Image
-from rembg import new_session, remove
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+
+# Lazy-loaded rembg functions (deferred to avoid ONNX Runtime init at module load)
+_rembg_new_session = None
+_rembg_remove = None
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# =============================================================================
+# Processing Constants
+# =============================================================================
+# These values are intentionally set and should be displayed in admin config.
+# See GitHub issue #1149 for admin display feature.
+
+# Background color selection threshold (0-255)
+# Images with average brightness below this get black background, above get white
 BRIGHTNESS_THRESHOLD = 128
+
+# Maximum processing attempts before marking job as failed
 MAX_ATTEMPTS = 3
+
+# Minimum subject area as ratio of original image area (0.0-1.0)
+# Subject smaller than this ratio fails quality validation
+MIN_AREA_RATIO = 0.5
+
+# Maximum aspect ratio difference tolerance (0.0-1.0)
+# Aspect ratio change greater than this fails quality validation
+MAX_ASPECT_DIFF = 0.2
+
+# Maximum input image dimension (width or height) in pixels
+# Images larger than this are rejected to prevent OOM
+MAX_IMAGE_DIMENSION = 4096
+
+# Thumbnail settings (matches API endpoint in images.py)
+THUMBNAIL_MAX_SIZE = (300, 300)
+THUMBNAIL_QUALITY = 85
+
+# Image type priority for source selection (highest priority first)
+# Lambda will select best source image based on this order
+IMAGE_TYPE_PRIORITY = ["title_page", "binding", "cover", "spine"]
+
+# S3 key prefix for book images (matches API's S3_IMAGES_PREFIX)
+S3_IMAGES_PREFIX = "books/"
+
+# Attempt number at which to switch from u2net to isnet-general-use model
+U2NET_FALLBACK_ATTEMPT = 3
 
 # Environment variables
 DATABASE_SECRET_ARN = os.environ.get("DATABASE_SECRET_ARN", "")
@@ -29,13 +71,26 @@ IMAGES_BUCKET = os.environ.get("IMAGES_BUCKET", "")
 IMAGES_CDN_DOMAIN = os.environ.get("IMAGES_CDN_DOMAIN", "")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-# Lazy-loaded resources
+# Lazy-loaded resources (cached between warm invocations)
 _s3_client = None
 _db_engine = None
+_db_secret_cache = None  # Cache secrets to avoid repeated Secrets Manager calls
+_db_secret_cache_time = 0  # Timestamp when secret was cached
+SECRET_CACHE_TTL = 1800  # 30 minutes in seconds - refresh if credentials rotate
 _rembg_sessions = {}
 _models_loaded = False
 BookImage = None
 ImageProcessingJob = None
+
+
+def _ensure_rembg_loaded():
+    """Lazy-load rembg to defer ONNX Runtime initialization."""
+    global _rembg_new_session, _rembg_remove
+    if _rembg_new_session is None:
+        from rembg import new_session, remove
+
+        _rembg_new_session = new_session
+        _rembg_remove = remove
 
 
 def _ensure_models_loaded():
@@ -59,10 +114,29 @@ def get_s3_client():
 
 
 def get_secret(secret_arn: str) -> dict:
-    """Retrieve database credentials from Secrets Manager."""
+    """Retrieve database credentials from Secrets Manager.
+
+    Caches the result with TTL to avoid repeated Secrets Manager calls on warm
+    invocations while ensuring rotated credentials are picked up.
+    """
+    global _db_secret_cache, _db_secret_cache_time, _db_engine
+    current_time = time.time()
+
+    # Return cached secret if still valid
+    if _db_secret_cache is not None and (current_time - _db_secret_cache_time) < SECRET_CACHE_TTL:
+        return _db_secret_cache
+
+    # Secret expired or not cached - invalidate engine to pick up new credentials
+    if _db_engine is not None:
+        logger.info("Secret cache expired, invalidating DB engine for credential refresh")
+        _db_engine.dispose()
+        _db_engine = None
+
     client = boto3.client("secretsmanager", region_name=AWS_REGION)
     response = client.get_secret_value(SecretId=secret_arn)
-    return json.loads(response["SecretString"])
+    _db_secret_cache = json.loads(response["SecretString"])
+    _db_secret_cache_time = current_time
+    return _db_secret_cache
 
 
 def get_db_engine():
@@ -89,6 +163,22 @@ def get_db_session() -> Session:
     return session_factory()
 
 
+@contextmanager
+def db_session_scope():
+    """Context manager for database sessions.
+
+    Ensures session is properly closed even if an exception occurs.
+    Usage:
+        with db_session_scope() as db:
+            # use db
+    """
+    session = get_db_session()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 def get_processing_config(attempt: int) -> dict:
     """Get rembg processing configuration for attempt number.
 
@@ -98,7 +188,7 @@ def get_processing_config(attempt: int) -> dict:
     Returns:
         Dict with model and alpha_matting settings
     """
-    if attempt <= 2:
+    if attempt < U2NET_FALLBACK_ATTEMPT:
         return {
             "model": "u2net",
             "alpha_matting": True,
@@ -133,14 +223,14 @@ def validate_image_quality(
     subject_area = subject_width * subject_height
     area_ratio = subject_area / original_area
 
-    if area_ratio < 0.5:
+    if area_ratio < MIN_AREA_RATIO:
         return {"passed": False, "reason": "area_too_small"}
 
     original_aspect = original_width / original_height
     subject_aspect = subject_width / subject_height
     aspect_diff = abs(original_aspect - subject_aspect) / original_aspect
 
-    if aspect_diff > 0.2:
+    if aspect_diff > MAX_ASPECT_DIFF:
         return {"passed": False, "reason": "aspect_ratio_mismatch"}
 
     return {"passed": True, "reason": None}
@@ -158,6 +248,23 @@ def select_background_color(brightness: int) -> str:
     return "black" if brightness < BRIGHTNESS_THRESHOLD else "white"
 
 
+def normalize_s3_key(key: str) -> str:
+    """Ensure S3 key has the books/ prefix for bucket operations.
+
+    BookImage.s3_key may be stored with or without prefix for legacy reasons.
+    This normalizes to always include the prefix for S3 operations.
+
+    Args:
+        key: S3 key (with or without prefix)
+
+    Returns:
+        S3 key with books/ prefix
+    """
+    if key.startswith(S3_IMAGES_PREFIX):
+        return key
+    return f"{S3_IMAGES_PREFIX}{key}"
+
+
 def download_from_s3(bucket: str, key: str) -> bytes:
     """Download image from S3.
 
@@ -171,6 +278,24 @@ def download_from_s3(bucket: str, key: str) -> bytes:
     s3 = get_s3_client()
     response = s3.get_object(Bucket=bucket, Key=key)
     return response["Body"].read()
+
+
+def validate_image_size(width: int, height: int) -> dict:
+    """Validate input image dimensions to prevent OOM.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+
+    Returns:
+        Dict with passed (bool) and reason (str if failed)
+    """
+    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+        return {
+            "passed": False,
+            "reason": f"Image too large: {width}x{height} exceeds max {MAX_IMAGE_DIMENSION}px",
+        }
+    return {"passed": True, "reason": None}
 
 
 def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -> None:
@@ -197,8 +322,9 @@ def get_rembg_session(model_name: str):
     Caches sessions to avoid reloading models.
     """
     global _rembg_sessions
+    _ensure_rembg_loaded()
     if model_name not in _rembg_sessions:
-        _rembg_sessions[model_name] = new_session(model_name)
+        _rembg_sessions[model_name] = _rembg_new_session(model_name)
     return _rembg_sessions[model_name]
 
 
@@ -213,8 +339,9 @@ def remove_background(image_bytes: bytes, config: dict) -> dict | None:
         Dict with image (PIL RGBA), subject_width, subject_height, or None on failure
     """
     try:
+        _ensure_rembg_loaded()
         session = get_rembg_session(config["model"])
-        result_bytes = remove(
+        result_bytes = _rembg_remove(
             image_bytes,
             session=session,
             alpha_matting=config.get("alpha_matting", False),
@@ -260,6 +387,9 @@ def calculate_subject_bounds(image: Image.Image) -> tuple[int, int, int, int] | 
 def calculate_brightness(image: Image.Image) -> int:
     """Calculate average brightness of non-transparent pixels.
 
+    Uses streaming iteration to avoid loading all pixels into memory.
+    For a 4096x4096 image, this uses O(1) memory instead of O(16M).
+
     Args:
         image: RGBA PIL Image
 
@@ -268,23 +398,27 @@ def calculate_brightness(image: Image.Image) -> int:
     """
     if image.mode != "RGBA":
         grayscale = image.convert("L")
-        pixels = list(grayscale.getdata())
-        if not pixels:
+        total = 0
+        count = 0
+        for pixel in grayscale.getdata():
+            total += pixel
+            count += 1
+        if count == 0:
             return 128
-        return sum(pixels) // len(pixels)
+        return total // count
 
-    pixels = list(image.getdata())
-    brightness_values = []
-
-    for r, g, b, a in pixels:
+    # Stream pixels without loading entire list into memory
+    total = 0
+    count = 0
+    for r, g, b, a in image.getdata():
         if a > 0:
-            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-            brightness_values.append(luminance)
+            total += int(0.299 * r + 0.587 * g + 0.114 * b)
+            count += 1
 
-    if not brightness_values:
+    if count == 0:
         return 128
 
-    return sum(brightness_values) // len(brightness_values)
+    return total // count
 
 
 def add_background(image: Image.Image, color: str) -> Image.Image:
@@ -303,6 +437,81 @@ def add_background(image: Image.Image, color: str) -> Image.Image:
     return background
 
 
+def generate_thumbnail(image: Image.Image) -> Image.Image:
+    """Generate a thumbnail from a PIL Image.
+
+    Args:
+        image: PIL Image (RGB or RGBA)
+
+    Returns:
+        Thumbnail as RGB PIL Image (JPEG-compatible)
+    """
+    # Convert to RGB if necessary (for PNG with transparency)
+    if image.mode in ("RGBA", "P"):
+        # Create white background for transparency
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        if image.mode == "RGBA":
+            background.paste(image, mask=image.split()[3])
+        else:
+            background.paste(image)
+        image = background
+
+    # Create thumbnail maintaining aspect ratio
+    # thumbnail() modifies in place, so copy first
+    thumb = image.copy()
+    thumb.thumbnail(THUMBNAIL_MAX_SIZE, Image.Resampling.LANCZOS)
+
+    return thumb
+
+
+def select_best_source_image(images: list, primary_image_id: int):
+    """Select the best source image for processing.
+
+    Priority order:
+    1. title_page (if exists and not already processed)
+    2. binding (if exists and not already processed)
+    3. cover (if exists and not already processed)
+    4. spine (if exists and not already processed)
+    5. Primary image (fallback)
+    6. Image matching primary_image_id (final fallback)
+
+    Args:
+        images: List of BookImage objects for the book
+        primary_image_id: ID of the image that triggered processing
+
+    Returns:
+        Best source image to process
+    """
+    # Filter out already processed images
+    unprocessed = [img for img in images if not getattr(img, "is_background_processed", False)]
+
+    if not unprocessed:
+        # All images processed, fall back to the requested one
+        for img in images:
+            if img.id == primary_image_id:
+                return img
+        return images[0] if images else None
+
+    # Check for preferred image types in priority order
+    for image_type in IMAGE_TYPE_PRIORITY:
+        for img in unprocessed:
+            if getattr(img, "image_type", None) == image_type:
+                return img
+
+    # Fall back to primary image
+    for img in unprocessed:
+        if getattr(img, "is_primary", False):
+            return img
+
+    # Final fallback: the image that was passed in
+    for img in unprocessed:
+        if img.id == primary_image_id:
+            return img
+
+    # Last resort: first unprocessed image
+    return unprocessed[0]
+
+
 def lambda_handler(event, context):
     """Lambda entry point for SQS-triggered image processing.
 
@@ -313,6 +522,16 @@ def lambda_handler(event, context):
     Returns:
         Dict with batchItemFailures for partial batch failure reporting
     """
+    # Support smoke tests
+    if event.get("smoke_test"):
+        logger.info("Smoke test invocation")
+        return {
+            "statusCode": 200,
+            "body": "OK",
+            "version": os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"),
+        }
+
+    # Normal SQS processing
     failures = []
 
     for record in event.get("Records", []):
@@ -357,140 +576,189 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
     """
     _ensure_models_loaded()
 
-    db = None
-    try:
-        db = get_db_session()
+    with db_session_scope() as db:
+        try:
+            job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
+            if not job:
+                logger.error(f"Job {job_id} not found")
+                return False
 
-        job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
-        if not job:
-            logger.error(f"Job {job_id} not found")
-            return False
+            # Idempotency: skip if already processed or in progress (SQS at-least-once delivery)
+            if job.status in ("completed", "processing"):
+                logger.info(f"Job {job_id} already {job.status}, skipping (idempotent)")
+                return True
 
-        job.status = "processing"
-        db.commit()
-
-        source_image = db.query(BookImage).filter(BookImage.id == image_id).first()
-        if not source_image:
-            job.status = "failed"
-            job.failure_reason = "Source image not found"
-            job.completed_at = datetime.now(UTC)
-            db.commit()
-            return False
-
-        s3_key = source_image.s3_key
-        if not s3_key.startswith("books/"):
-            s3_key = f"books/{s3_key}"
-
-        logger.info(f"Downloading image from s3://{IMAGES_BUCKET}/{s3_key}")
-        image_bytes = download_from_s3(IMAGES_BUCKET, s3_key)
-        original_image = Image.open(io.BytesIO(image_bytes))
-        original_width, original_height = original_image.size
-
-        processed_image = None
-        model_used = None
-
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            job.attempt_count = attempt
+            job.status = "processing"
             db.commit()
 
-            config = get_processing_config(attempt)
-            logger.info(f"Attempt {attempt}: using model {config['model_name']}")
+            # Get all images for this book to select best source
+            # Use FOR UPDATE to prevent concurrent processing of same book
+            all_images = (
+                db.query(BookImage).filter(BookImage.book_id == book_id).with_for_update().all()
+            )
 
-            try:
-                result = remove_background(image_bytes, config)
-                if result is None:
-                    logger.warning(f"Attempt {attempt}: background removal returned None")
+            if not all_images:
+                job.status = "failed"
+                job.failure_reason = "No images found for book"
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                return False
+
+            # Select best source image based on type priority
+            source_image = select_best_source_image(all_images, image_id)
+            if source_image is None:
+                job.status = "failed"
+                job.failure_reason = "No valid source image found"
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                logger.error(f"Job {job_id}: No valid source image found")
+                return False
+
+            logger.info(
+                f"Selected source image {source_image.id} "
+                f"(type={getattr(source_image, 'image_type', None)}, requested={image_id})"
+            )
+
+            s3_key = normalize_s3_key(source_image.s3_key)
+
+            logger.info(f"Downloading image from s3://{IMAGES_BUCKET}/{s3_key}")
+            image_bytes = download_from_s3(IMAGES_BUCKET, s3_key)
+            original_image = Image.open(io.BytesIO(image_bytes))
+            original_width, original_height = original_image.size
+
+            # Validate image size to prevent OOM on very large images
+            size_validation = validate_image_size(original_width, original_height)
+            if not size_validation["passed"]:
+                job.status = "failed"
+                job.failure_reason = size_validation["reason"]
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                logger.warning(f"Job {job_id}: {size_validation['reason']}")
+                return False
+
+            processed_image = None
+            model_used = None
+
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                job.attempt_count = attempt
+                db.commit()
+
+                config = get_processing_config(attempt)
+                logger.info(f"Attempt {attempt}: using model {config['model_name']}")
+
+                try:
+                    result = remove_background(image_bytes, config)
+                    if result is None:
+                        logger.warning(f"Attempt {attempt}: background removal returned None")
+                        continue
+
+                    validation = validate_image_quality(
+                        original_width,
+                        original_height,
+                        result["subject_width"],
+                        result["subject_height"],
+                    )
+                    if not validation["passed"]:
+                        logger.warning(
+                            f"Attempt {attempt} failed validation: {validation['reason']}"
+                        )
+                        continue
+
+                    processed_image = result["image"]
+                    model_used = config["model_name"]
+                    logger.info(f"Attempt {attempt} succeeded with model {model_used}")
+                    break
+                except Exception as e:
+                    logger.exception(f"Attempt {attempt} failed with exception: {e}")
                     continue
 
-                validation = validate_image_quality(
-                    original_width,
-                    original_height,
-                    result["subject_width"],
-                    result["subject_height"],
-                )
-                if not validation["passed"]:
-                    logger.warning(f"Attempt {attempt} failed validation: {validation['reason']}")
-                    continue
+            if processed_image is None:
+                job.status = "failed"
+                job.failure_reason = "All processing attempts failed quality validation"
+                job.completed_at = datetime.now(UTC)
+                db.commit()
+                logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
+                return False
 
-                processed_image = result["image"]
-                model_used = config["model_name"]
-                logger.info(f"Attempt {attempt} succeeded with model {model_used}")
-                break
-            except Exception as e:
-                logger.exception(f"Attempt {attempt} failed with exception: {e}")
-                continue
+            brightness = calculate_brightness(processed_image)
+            bg_color = select_background_color(brightness)
+            logger.info(f"Subject brightness: {brightness}, selected background: {bg_color}")
 
-        if processed_image is None:
-            job.status = "failed"
-            job.failure_reason = "All processing attempts failed quality validation"
+            final_image = add_background(processed_image, bg_color)
+
+            # S3 key for database (without 'books/' prefix - API adds S3_IMAGES_PREFIX)
+            # Format matches other images: {book_id}_{identifier}.{ext}
+            db_s3_key = f"{book_id}_processed_{uuid.uuid4()}.png"
+            # Full S3 key for upload (with 'books/' prefix)
+            full_s3_key = f"books/{db_s3_key}"
+
+            output_buffer = io.BytesIO()
+            final_image.save(output_buffer, format="PNG", optimize=True)
+            output_bytes = output_buffer.getvalue()
+
+            logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
+            upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
+
+            # Generate and upload thumbnail
+            thumbnail = generate_thumbnail(final_image)
+            # Use proper path manipulation for extension change
+            db_s3_path = PurePath(db_s3_key)
+            thumb_s3_key = f"thumb_{db_s3_path.stem}.jpg"
+            full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
+
+            thumb_buffer = io.BytesIO()
+            thumbnail.save(thumb_buffer, format="JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
+            thumb_bytes = thumb_buffer.getvalue()
+
+            logger.info(f"Uploading thumbnail to s3://{IMAGES_BUCKET}/{full_thumb_s3_key}")
+            upload_to_s3(IMAGES_BUCKET, full_thumb_s3_key, thumb_bytes, "image/jpeg")
+
+            # CloudFront URL uses full S3 path (CloudFront origin maps to bucket root)
+            cdn_url = None
+            if IMAGES_CDN_DOMAIN:
+                cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{full_s3_key}"
+
+            # Get existing images (excluding source image) to renumber them
+            existing_images = (
+                db.query(BookImage)
+                .filter(BookImage.book_id == book_id, BookImage.id != source_image.id)
+                .order_by(BookImage.display_order)
+                .all()
+            )
+
+            # New processed image becomes primary at position 0
+            new_image = BookImage(
+                book_id=book_id,
+                s3_key=db_s3_key,
+                cloudfront_url=cdn_url,
+                display_order=0,
+                is_primary=True,
+                is_background_processed=True,
+            )
+            db.add(new_image)
+
+            # Shift existing images to positions 1, 2, 3, ... and clear is_primary
+            for i, img in enumerate(existing_images):
+                img.display_order = i + 1
+                img.is_primary = False
+
+            # Source image (original) goes to the end
+            source_image.display_order = len(existing_images) + 1
+            source_image.is_primary = False
+
+            db.flush()
+
+            job.status = "completed"
+            job.model_used = model_used
+            job.processed_image_id = new_image.id
             job.completed_at = datetime.now(UTC)
+
             db.commit()
-            logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
-            return False
+            logger.info(f"Job {job_id} completed successfully, new image id: {new_image.id}")
+            return True
 
-        brightness = calculate_brightness(processed_image)
-        bg_color = select_background_color(brightness)
-        logger.info(f"Subject brightness: {brightness}, selected background: {bg_color}")
-
-        final_image = add_background(processed_image, bg_color)
-
-        new_s3_key = f"books/{book_id}/processed_{uuid.uuid4()}.png"
-        output_buffer = io.BytesIO()
-        final_image.save(output_buffer, format="PNG", optimize=True)
-        output_bytes = output_buffer.getvalue()
-
-        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{new_s3_key}")
-        upload_to_s3(IMAGES_BUCKET, new_s3_key, output_bytes, "image/png")
-
-        cdn_url = None
-        if IMAGES_CDN_DOMAIN:
-            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{new_s3_key}"
-
-        max_display_order = (
-            db.query(func.max(BookImage.display_order))
-            .filter(BookImage.book_id == book_id)
-            .scalar()
-            or 0
-        )
-
-        new_image = BookImage(
-            book_id=book_id,
-            s3_key=new_s3_key,
-            cloudfront_url=cdn_url,
-            display_order=0,
-            is_primary=True,
-            is_background_processed=True,
-        )
-        db.add(new_image)
-
-        existing_images = (
-            db.query(BookImage)
-            .filter(BookImage.book_id == book_id, BookImage.id != image_id)
-            .order_by(BookImage.display_order)
-            .all()
-        )
-
-        for i, img in enumerate(existing_images):
-            img.display_order = i + 1
-            img.is_primary = False
-
-        source_image.display_order = max_display_order + 1
-        source_image.is_primary = False
-
-        db.flush()
-
-        job.status = "completed"
-        job.model_used = model_used
-        job.processed_image_id = new_image.id
-        job.completed_at = datetime.now(UTC)
-
-        db.commit()
-        logger.info(f"Job {job_id} completed successfully, new image id: {new_image.id}")
-        return True
-
-    except Exception as e:
-        logger.exception(f"Unexpected error in process_image: {e}")
-        if db:
+        except Exception as e:
+            logger.exception(f"Unexpected error in process_image: {e}")
             try:
                 db.rollback()
                 job = db.query(ImageProcessingJob).filter(ImageProcessingJob.id == job_id).first()
@@ -501,7 +769,4 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
                     db.commit()
             except Exception as inner_e:
                 logger.error(f"Failed to update job status: {inner_e}")
-        return False
-    finally:
-        if db:
-            db.close()
+            return False

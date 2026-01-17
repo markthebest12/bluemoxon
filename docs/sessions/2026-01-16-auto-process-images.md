@@ -1,212 +1,303 @@
 # Session: Auto-Process Images Infrastructure
 
 **Date:** 2026-01-16/17
-**Branch:** staging
 **Issue:** #1136
-**PR:** #1139 (merged)
+**PRs:** #1139, #1141, #1142, #1143, #1145, #1148 (all merged or pending)
 
 ## Summary
 
-Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds and uploads to S3.
+Deployed infrastructure for automatic image processing during book eval import. Images are queued to SQS and processed by a Lambda worker that removes backgrounds.
+
+**Feature flow:** eBay import → copy images → queue primary image to SQS → Lambda processes → background removed
 
 ---
 
-## Part 1: Terraform Infrastructure
+## Current Status (Post E2E Testing)
 
-### Changes Made
+| Phase | Status | Details |
+|-------|--------|---------|
+| **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
+| **Phase 2: Lambda Deployment** | ✅ DONE | E2E tested in staging, pending PR |
+| **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
 
-1. **Created image-processor module** (`modules/image-processor/`)
-   - SQS queue: `bluemoxon-staging-image-processing`
-   - Dead letter queue for failed jobs
-   - Lambda function (placeholder - needs deployment package)
-   - IAM roles for SQS, S3, Secrets Manager access
+### Phase 2 Implementation Progress
 
-2. **Wired up main.tf**
-   - Added `BMX_IMAGE_PROCESSING_QUEUE_NAME` env var to API Lambda
-   - Added `api_lambda_role_name` to image-processor module for IAM permissions
-   - API Lambda can send messages to image processing queue
+| Task | Status | Commit |
+|------|--------|--------|
+| 1. ECR repository (Terraform) | ✅ Done | `1d6a348` |
+| 2. Supporting files (Dockerfile, requirements.txt, download_models.py) | ✅ Done | `0a91d34` |
+| 3. Smoke test handler | ✅ Done | `164ac27` |
+| 4. Push bootstrap image | ✅ Done | `839aba9` (v2 deployed) |
+| 5. Lambda module for container | ✅ Done | `25c10fb` |
+| 6. Unit tests (30 passing) | ✅ Done | `b39628f` |
+| 7. CI/CD workflow | ✅ Done | `078aca5` |
+| 8. Test end-to-end in staging | ✅ Done | `5829d22` (v6-models deployed) |
+| 9. Deploy to production | ⏳ Pending | After staging PR |
 
-3. **Added health checks**
-   - `health.py`: Added `check_sqs()` function to verify all SQS queues
-   - `admin.py`: Added `image_processing_queue` to InfrastructureConfig
-   - Frontend: Updated AdminConfigView.vue to show SQS health status
+### E2E Test Evidence
 
-### Files Modified
+**Book 33, Image 2673** was successfully processed:
 
-| File | Change |
-|------|--------|
-| `infra/terraform/main.tf` | Added queue env var + api_lambda_role_name |
-| `infra/terraform/modules/image-processor/main.tf` | Added api_sqs_send IAM policy |
-| `infra/terraform/modules/image-processor/variables.tf` | Added api_lambda_role_name var |
-| `backend/app/api/v1/health.py` | Added check_sqs() for all SQS queues |
-| `backend/app/api/v1/admin.py` | Added image_processing_queue to InfrastructureConfig |
-| `frontend/src/types/admin.ts` | Added SqsHealthCheck types |
-| `frontend/src/views/AdminConfigView.vue` | Added SQS health display section |
+| Metric | Value |
+|--------|-------|
+| Model used | isnet-general-use (u2net failed validation) |
+| Subject brightness | 59 (dark → black background) |
+| New image ID | 5515 |
+| S3 path | `books/33/processed_94a7d321-0cdd-4ff4-a6e5-dab3dea234e7.png` |
+| Processing time | 155 seconds |
+| Memory used | 6199 MB |
+| Memory allocated | 10240 MB |
 
 ---
 
-## Part 2: Critical Issue - Database Password Changed
+## IMMEDIATE Next Steps (Resume Here)
 
-### What Happened
+### Code Review Fixes In Progress (PR #1148)
 
-Ran terraform apply with `-target` flags to deploy only the image processor:
+| Issue | Status | Description |
+|-------|--------|-------------|
+| CI platform mismatch | ✅ Done | deploy.yml: linux/arm64 → linux/amd64 |
+| Memory default 10GB | ✅ Done | variables.tf: 10240 → 7168 MB |
+| display_order logic | ✅ Done | handler.py: use len(existing_images)+1 |
+| No image size validation | ✅ Done | handler.py: MAX_IMAGE_DIMENSION=4096 |
+| S3 key format | ✅ Done | handler.py: flat format `{book_id}_processed_{uuid}.png` |
+| No secrets caching | ✅ Done | handler.py: added `_db_secret_cache` |
+| Magic numbers | ✅ Done | handler.py: extracted constants, GH #1149 for admin |
+| ECR lifecycle | ✅ Done | ecr.tf: keep 10 most recent tagged images |
 
+### Remaining Steps
+
+1. Run tests and ruff on handler.py
+2. Commit handler.py changes
+3. Push all commits to PR #1148
+4. Wait for CI to pass
+5. After staging merge: `terraform apply` in prod (creates ECR)
+6. Promote staging → main
+
+### Production ECR Blocker
+
+Prod ECR repository doesn't exist yet. After staging merge, run:
 ```bash
-terraform apply -var="db_password=not-used" \
-  -target=module.image_processor \
-  -target=module.lambda
-```
-
-**Problem:** Terraform still modified the RDS master password to "not-used" even though the database module wasn't targeted.
-
-### Root Cause
-
-The `-target` flag limits which resources terraform plans to modify, but Terraform still evaluates all resources and may apply changes to dependencies or resources with changed input values.
-
-The `db_password` variable is passed to the RDS module, and even with `-target` excluding the database, Terraform detected the variable value changed and applied it.
-
-### Impact
-
-- Staging database authentication broken
-- Health check shows `password authentication failed for user "bluemoxon"`
-
-### Fixes Applied
-
-1. **Immediate:** Reset RDS password via AWS CLI - **DONE**
-2. **Prevention:** Added `password` to RDS module's `lifecycle { ignore_changes }` - **DONE**
-3. **Permanent fix:** Replaced `db_password` variable with `random_password` resource - **DONE**
-
-The `random_password` resource generates the password once and never changes it (`ignore_changes = all`). This eliminates the entire class of "accidentally passed wrong password" bugs.
-
----
-
-## Part 3: SQS Health Check Permissions
-
-### Issue
-
-Health check returns `NonExistentQueue` error even though queues exist:
-
-```json
-{
-  "sqs": {
-    "status": "unhealthy",
-    "queues": {
-      "image_processing": {
-        "status": "unhealthy",
-        "queue_name": "bluemoxon-staging-image-processing",
-        "error": "AWS.SimpleQueueService.NonExistentQueue"
-      }
-    }
-  }
-}
-```
-
-### Root Cause
-
-The error is misleading - it's actually an IAM permissions issue. The API Lambda has `sqs:SendMessage` permission but NOT `sqs:GetQueueUrl` or `sqs:GetQueueAttributes` needed for health checks.
-
-### Fix Required
-
-Add health check permissions to each worker module's `api_sqs_send` IAM policy:
-
-```hcl
-Action = [
-  "sqs:SendMessage",
-  "sqs:GetQueueUrl",
-  "sqs:GetQueueAttributes"
-]
+cd infra/terraform
+AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.hcl -reconfigure
+AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars
 ```
 
 ---
 
-## Created Resources
+## Issues Fixed This Session
 
-### GitHub Issue #1140
+### 1. ONNX Runtime Crash on Lambda ARM64 (FIXED)
 
-Created checklist for adding new async worker flows:
+**Problem:** ONNX Runtime crashes at module import on Lambda Graviton2 due to cpuinfo parsing failure.
 
-1. Create Terraform module with SQS queue + Lambda
-2. Add IAM policies for API Lambda to send messages
-3. Add queue name to API Lambda environment variables
-4. Update health.py to check new queue
-5. Update admin.py InfrastructureConfig
-6. Update AdminConfigView.vue to display new queue status
-7. Update frontend types (admin.ts)
+**Error:**
+```
+Error in cpuinfo: failed to parse the list of possible processors
+onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has been registered
+```
+
+**Solution:** Switched from ARM64 to x86_64 architecture (commit `5829d22`).
+
+### 2. Environment Variable Naming Mismatch (FIXED)
+
+**Problem:** Lambda failed with `DATABASE_SECRET_ARN environment variable not set`.
+
+**Root cause:** Terraform set `DB_SECRET_ARN` but handler expected `DATABASE_SECRET_ARN`.
+
+**Solution:** Fixed Terraform to use consistent naming:
+- `DATABASE_SECRET_ARN` (not `DB_SECRET_ARN`)
+- `IMAGES_BUCKET` (not `BMX_IMAGES_BUCKET`)
+- `IMAGES_CDN_DOMAIN` (not `BMX_IMAGES_CDN_DOMAIN`)
+
+### 3. rembg Model Download at Runtime (FIXED)
+
+**Problem:** Lambda failed with `[Errno 30] Read-only file system: '/home/sbx_user1051'`.
+
+**Root cause:** rembg tries to download models to `~/.u2net/` but Lambda home directory is read-only.
+
+**Solution:**
+- Set `U2NET_HOME=/opt/u2net` in Dockerfile during build
+- Set `U2NET_HOME=/opt/u2net` in Lambda environment variables
+- Models pre-downloaded to `/opt/u2net` during Docker build
+
+### 4. Numba Cache Location (FIXED)
+
+**Problem:** Lambda failed with `cannot cache function '_make_tree': no locator available`.
+
+**Root cause:** pymatting uses Numba JIT with `cache=True` which tries to write to read-only package directory.
+
+**Solution:** Set `NUMBA_CACHE_DIR=/tmp` in Lambda environment variables.
+
+### 5. Out of Memory (FIXED)
+
+**Problem:** Lambda ran out of memory at 1024 MB and 3072 MB.
+
+**Root cause:** rembg with u2net model requires ~6.2 GB memory for processing.
+
+**Solution:** Increased memory to 10240 MB (maximum). Actual usage: ~6199 MB.
+
+### 6. Duplicate books/ in S3 Key (FIXED)
+
+**Problem:** CloudFront URL had `books/books/` path duplication.
+
+**Root cause:** Handler stored `books/33/processed_...` in DB, but API adds `S3_IMAGES_PREFIX` (`books/`) when constructing URLs.
+
+**Solution:** Handler now stores `db_s3_key` (without `books/`) in DB and uses `full_s3_key` (with `books/`) for S3 upload.
+
+### 7. rembg Version Incompatibility (FIXED)
+
+**Problem:** `rembg[cpu]==2.0.50` not available for ARM64.
+
+**Solution:** Changed to `rembg[cpu]>=2.0.55` (versions 2.0.55-2.0.72 available for ARM64).
+
+### 8. Docker Manifest Format (FIXED)
+
+**Problem:** Docker Desktop creates multi-arch manifests with attestations that Lambda rejects.
+
+**Solution:** Use `--provenance=false` flag when building.
+
+### 9. ECR IMMUTABLE Tags (FIXED)
+
+**Problem:** ECR has IMMUTABLE tag policy, can't reuse `:latest`.
+
+**Solution:** Use versioned tags (v1, v2, v3, v5-x86, v6-models, etc.).
 
 ---
 
-## Next Steps
+## Key Files
 
-1. [x] Fix RDS password (reset to Secrets Manager value)
-2. [x] Add `password` to RDS module `ignore_changes`
-3. [x] Add SQS health check permissions to all worker modules
-4. [x] Replace `db_password` variable with `random_password` resource
-5. [ ] Merge PR #1141 and run `terraform apply`
-6. [ ] Import existing password into terraform state (for existing databases)
-7. [ ] Deploy image processor Lambda code (needs container-based Lambda or Layer with rembg)
-8. [ ] Test end-to-end image processing flow
+| File | Purpose |
+|------|---------|
+| `backend/lambdas/image_processor/handler.py` | Lambda handler with lazy rembg loading |
+| `backend/lambdas/image_processor/Dockerfile` | x86_64 container with pre-downloaded models |
+| `infra/terraform/modules/image-processor/main.tf` | Container-based Lambda module |
+| `infra/terraform/modules/image-processor/variables.tf` | Module variables (memory: 3072 default) |
 
 ---
 
-## Part 4: Permanent Fix - Safe Database Password Handling
+## Lambda Configuration Summary
 
-### Problem
+| Setting | Value | Reason |
+|---------|-------|--------|
+| Architecture | x86_64 | ONNX Runtime crashes on ARM64 Lambda |
+| Memory | 10240 MB (staging) | u2net needs ~6.2 GB |
+| Default Memory | 7168 MB (terraform) | Actual usage ~6.2GB + headroom |
+| Timeout | 300 seconds | Processing takes 60-150 seconds |
+| `U2NET_HOME` | `/opt/u2net` | Pre-downloaded models location |
+| `NUMBA_CACHE_DIR` | `/tmp` | Writable cache for JIT |
 
-The initial `random_password` approach had a critical flaw:
+**Memory:** Terraform default updated to 7168 MB (actual usage ~6.2GB + headroom). Staging was manually set to 10240 MB during testing.
 
-| Step | What Happens |
-|------|--------------|
-| 1 | `random_password` is NEW (not in state) |
-| 2 | Terraform generates a new random password |
-| 3 | RDS: `ignore_changes = [password]` → no change |
-| 4 | **Secrets Manager: UPDATES to new password** |
-| 5 | **BREAKAGE**: App reads new password, RDS has old |
+---
 
-### Solution
+## CRITICAL: Continuation Instructions
 
-Added `use_existing_database_credentials` variable:
+### Superpowers Skills - MANDATORY (NO EXCEPTIONS)
 
-```hcl
-# For EXISTING environments: Read from Secrets Manager (source of truth)
-data "aws_secretsmanager_secret_version" "existing_database" {
-  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
-  secret_id = "${local.name_prefix}/database"
-}
+**You MUST invoke Superpowers skills at ALL stages. This is non-negotiable.**
 
-# For NEW environments: Generate random password
-resource "random_password" "database" {
-  count = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
-  ...
-}
+| Task Type | Required Skill | When to Use |
+|-----------|---------------|-------------|
+| Starting session | `superpowers:using-superpowers` | First thing |
+| Any bug/issue | `superpowers:systematic-debugging` | Before proposing ANY fix |
+| Writing code | `superpowers:test-driven-development` | Before writing implementation |
+| Before claiming done | `superpowers:verification-before-completion` | Before ANY completion claim |
+| Multiple independent tasks | `superpowers:dispatching-parallel-agents` | When 2+ tasks can parallelize |
+| Planning implementation | `superpowers:writing-plans` | Before multi-step implementation |
+| Executing plans | `superpowers:subagent-driven-development` | For Phase 2 implementation |
+| Receiving feedback | `superpowers:receiving-code-review` | When reviewing PR feedback |
+| Creating PRs | `superpowers:requesting-code-review` | Before creating any PR |
+| Finishing work | `superpowers:finishing-a-development-branch` | When implementation complete |
 
-# Password source depends on environment type
-locals {
-  db_password = var.use_existing_database_credentials
-    ? jsondecode(data.aws_secretsmanager_secret_version.existing_database[0].secret_string).password
-    : random_password.database[0].result
-}
-```
+**If you think there's even 1% chance a skill applies, INVOKE IT.**
 
-### Usage
+### Bash Command Formatting - CRITICAL
 
-| Environment | Setting | Behavior |
-|-------------|---------|----------|
-| Existing (staging) | `use_existing_database_credentials = true` | Reads from Secrets Manager |
-| New environment | `use_existing_database_credentials = false` | Uses random_password |
+**NEVER use these (trigger permission prompts):**
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
 
-### Verification
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls (no permission prompts)
 
-```bash
-# This should show NO CHANGES to database resources
-AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
-```
+### PR Review Requirements
+
+1. PRs to staging need user review before merge
+2. PRs to prod (staging→main) need user review before merge
+3. Use `superpowers:requesting-code-review` before creating PRs
 
 ---
 
 ## Lessons Learned
 
-1. **Never use `-var="db_password=not-used"` with terraform apply** - Terraform may still apply the value even with `-target` flags
-2. **Use `terraform plan` first** - Always review what will change before applying
-3. **Add sensitive resources to `ignore_changes`** - Protect critical infrastructure from accidental modifications
-4. **Health check permissions are separate** - Just because Lambda can send to a queue doesn't mean it can inspect the queue
-5. **Use `random_password` for database credentials** - Eliminates the entire class of "wrong password" accidents
+1. Never use `-var="db_password=..."` with terraform - use `use_existing_database_credentials`
+2. Health check permissions are separate from send permissions (need `GetQueueUrl`, `GetQueueAttributes`)
+3. Admin endpoints need explicit health check calls
+4. Use `superpowers:dispatching-parallel-agents` for independent fixes
+5. Always run `ruff format` before pushing - CI checks formatting
+6. Prod uses `enable_database = false` (Aurora managed externally)
+7. **Always verify Lambda environment variables** - empty values cause silent auth failures
+8. Store API keys in Secrets Manager for better security and auditability
+9. Use `terraform init -backend-config=backends/prod.hcl -reconfigure` when switching environments
+10. For container Lambda: use `ignore_changes = [image_uri]` and let CI update directly
+11. Add deployment tracking via Lambda tags when bypassing Terraform for updates
+12. **ARM64 package availability differs** - rembg 2.0.50 not available for ARM64; check PyPI for ARM-compatible versions
+13. **ONNX Runtime cpuinfo crash on ARM64** - Use x86_64 architecture instead
+14. **Docker provenance** - Use `--provenance=false` for Lambda-compatible images
+15. **ECR IMMUTABLE tags** - Use versioned tags (v1, v2, etc.), not :latest
+16. **Model imports cascade** - When copying models/, also copy any files they import (constants.py)
+17. **rembg model location** - Set `U2NET_HOME` to control where models are stored/loaded
+18. **Numba JIT cache** - Set `NUMBA_CACHE_DIR=/tmp` for Lambda's read-only filesystem
+19. **rembg memory requirements** - u2net model needs ~6.2 GB RAM; plan for 10 GB
+20. **S3 key prefixes** - API adds `books/` prefix; don't double-add in handler
+
+---
+
+## Related Issues & PRs
+
+| Reference | Description |
+|-----------|-------------|
+| #1136 | Main feature issue (auto-process images) |
+| #1140 | Checklist for adding new async workers |
+| #1144 | Retry mechanism for `queue_failed` jobs |
+| #1146 | API documentation for undocumented endpoints |
+| #1147 | Lambda S3 key config errors |
+| #1148 | Image processor Lambda PR (in review) |
+| #1149 | Display image processing constants in admin config |
+
+---
+
+## Files Modified This Session (Uncommitted)
+
+**handler.py changes:**
+- Extracted constants: `MIN_AREA_RATIO`, `MAX_ASPECT_DIFF`, `MAX_IMAGE_DIMENSION`, `U2NET_FALLBACK_ATTEMPT`
+- Added `_db_secret_cache` for secrets caching between warm invocations
+- Added `validate_image_size()` function
+- Fixed S3 key format: `{book_id}_processed_{uuid}.png` (flat, matches other images)
+- Fixed display_order: uses `len(existing_images) + 1` instead of broken `max_display_order + 1`
+- Removed unused `func` import
+
+**Other files (already committed by subagents):**
+- deploy.yml: `--platform linux/amd64` (was arm64)
+- variables.tf: `default = 7168` (was 10240)
+- ecr.tf: Added lifecycle rule to keep 10 most recent tagged images
+
+---
+
+## ECR & Lambda Details
+
+**ECR URL:** `652617421195.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor`
+
+**Current deployed tag:** `v6-models`
+
+**Lambda function:** `bluemoxon-staging-image-processor`
+
+**SQS Queue:** `bluemoxon-staging-image-processing`
+
+**Memory (staging):** 10240 MB (manually increased for testing; CI will use Terraform default of 3072)

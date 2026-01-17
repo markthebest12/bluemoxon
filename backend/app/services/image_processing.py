@@ -21,6 +21,9 @@ if not _settings.image_processing_queue_name:
         stacklevel=1,
     )
 
+# Module-level cache for queue URL (avoids STS call on every invocation)
+_queue_url_cache: str | None = None
+
 
 def get_sqs_client():
     """Get SQS client."""
@@ -32,23 +35,27 @@ def get_sqs_client():
 def get_image_processing_queue_url() -> str:
     """Get the image processing SQS queue URL.
 
-    Constructs URL from queue name environment variable.
+    Uses sqs.get_queue_url() API which is the proper way to get queue URL.
+    Result is cached at module level to avoid repeated API calls.
 
     Raises:
         ValueError: If queue name not configured
     """
+    global _queue_url_cache
+    if _queue_url_cache is not None:
+        return _queue_url_cache
+
     settings = get_settings()
     queue_name = settings.image_processing_queue_name
     if not queue_name:
         raise ValueError("IMAGE_PROCESSING_QUEUE_NAME environment variable not set")
 
-    region = os.environ.get("AWS_REGION", settings.aws_region)
+    # Use get_queue_url API instead of constructing URL manually
+    client = get_sqs_client()
+    response = client.get_queue_url(QueueName=queue_name)
+    _queue_url_cache = response["QueueUrl"]
 
-    # Get account ID from STS
-    sts = boto3.client("sts", region_name=region)
-    account_id = sts.get_caller_identity()["Account"]
-
-    return f"https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}"
+    return _queue_url_cache
 
 
 def send_image_processing_job(job_id: str, book_id: int, image_id: int) -> None:
@@ -119,8 +126,11 @@ def queue_image_processing(db: Session, book_id: int, image_id: int) -> ImagePro
     try:
         send_image_processing_job(str(job.id), book_id, image_id)
         db.commit()  # Only commit after SQS succeeds
-    except Exception:
-        db.rollback()
-        raise
+    except Exception as e:
+        # SQS failed - save job with queue_failed status for retry
+        job.status = "queue_failed"
+        job.failure_reason = str(e)[:1000]
+        db.commit()
+        logger.error(f"Failed to queue image processing job {job.id}: {e}")
 
     return job

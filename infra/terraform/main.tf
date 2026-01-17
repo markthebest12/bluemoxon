@@ -212,6 +212,11 @@ module "vpc_networking" {
 
 # For EXISTING environments: Read password from Secrets Manager (source of truth)
 # This prevents any accidental password changes - we read, never write
+#
+# CHICKEN-EGG WARNING: If use_existing_database_credentials = true but the secret
+# doesn't exist yet, Terraform will fail with "Secrets Manager can't find the
+# specified secret". See the variable description for use_existing_database_credentials
+# for the fix: set it to false for new environments.
 data "aws_secretsmanager_secret_version" "existing_database" {
   count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
   secret_id = "${local.name_prefix}/database"
@@ -749,12 +754,23 @@ module "cleanup_lambda" {
 }
 
 # =============================================================================
+# Alerts SNS Topic
+# =============================================================================
+# Central SNS topic for CloudWatch alarms and operational alerts.
+# Subscribe via email, Slack webhook, or other endpoints.
+
+resource "aws_sns_topic" "alerts" {
+  name = "${local.name_prefix}-alerts"
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Image Processor (background image processing with SQS)
 # =============================================================================
 # Handles async image processing tasks:
-# - Image resizing and optimization
-# - Background color extraction
-# - Thumbnail generation
+# - Background removal using rembg/u2net
+# - Brightness-based background color selection
+# - CloudFront URL generation
 
 module "image_processor" {
   count  = local.image_processor_enabled ? 1 : 0
@@ -763,8 +779,8 @@ module "image_processor" {
   name_prefix = local.name_prefix
   environment = var.environment
 
-  s3_bucket = module.artifacts_bucket.bucket_id
-  s3_key    = local.lambda_s3_key
+  # Container image configuration
+  ecr_repository_url = aws_ecr_repository.image_processor.repository_url
 
   images_bucket     = module.images_bucket.bucket_name
   images_cdn_domain = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
@@ -778,6 +794,9 @@ module "image_processor" {
 
   # API Lambda role for SQS send permissions
   api_lambda_role_name = var.enable_lambda ? module.lambda[0].role_name : null
+
+  # Alerting - DLQ alarm notifications
+  alarm_sns_topic_arn = aws_sns_topic.alerts.arn
 }
 
 # =============================================================================
@@ -858,8 +877,11 @@ module "github_oidc" {
     var.enable_cloudfront ? [module.frontend_cdn[0].distribution_arn] : []
   )
 
-  # ECR permissions for scraper deployment
-  ecr_repository_arns = local.scraper_enabled ? [module.scraper_lambda[0].ecr_repository_arn] : []
+  # ECR permissions for container-based Lambda deployments
+  ecr_repository_arns = concat(
+    local.scraper_enabled ? [module.scraper_lambda[0].ecr_repository_arn] : [],
+    [aws_ecr_repository.image_processor.arn]
+  )
 
   # Terraform state access (cross-account for staging to read prod state)
   terraform_state_bucket_arn         = var.terraform_state_bucket_arn
