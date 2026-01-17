@@ -74,3 +74,9 @@ variable "alarm_sns_topic_arn" {
   type        = string
   default     = ""
 }
+
+variable "api_lambda_role_name" {
+  description = "IAM role name of the API Lambda (for SQS send permissions)"
+  type        = string
+  default     = null
+}
