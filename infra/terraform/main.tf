@@ -210,6 +210,20 @@ module "vpc_networking" {
 # Database (RDS PostgreSQL)
 # =============================================================================
 
+# Generate database password automatically - prevents accidental changes
+# Password is stored in terraform state and Secrets Manager
+resource "random_password" "database" {
+  count   = var.enable_database ? 1 : 0
+  length  = 32
+  special = true
+  # Exclude problematic characters that can cause issues in connection strings
+  override_special = "!#$%*()-_=+[]{}:?"
+
+  lifecycle {
+    ignore_changes = all # Never regenerate after initial creation
+  }
+}
+
 module "database_secret" {
   count  = var.enable_database ? 1 : 0
   source = "./modules/secrets"
@@ -219,7 +233,7 @@ module "database_secret" {
 
   secret_value = {
     username = var.db_username
-    password = var.db_password
+    password = random_password.database[0].result
     host     = module.database[0].address
     port     = tostring(module.database[0].port)
     database = var.db_name
@@ -238,7 +252,7 @@ module "database" {
   database_name = var.db_name
 
   master_username = var.db_username
-  master_password = var.db_password
+  master_password = random_password.database[0].result
 
   instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage

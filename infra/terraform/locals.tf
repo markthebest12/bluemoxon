@@ -101,4 +101,5 @@ locals {
   # Image processor enabled - defaults to enable_lambda if not explicitly set
   # Handles background image processing (resize, optimize, extract colors)
   image_processor_enabled = coalesce(var.enable_image_processor, var.enable_lambda)
+
 }

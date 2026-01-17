@@ -61,10 +61,13 @@ variable "db_name" {
   default     = "bluemoxon"
 }
 
+# DEPRECATED: db_password is no longer used - random_password.database generates it automatically
+# Kept for backward compatibility but will be removed in future version
 variable "db_password" {
   type        = string
-  description = "Database master password"
+  description = "DEPRECATED: Password is now auto-generated. This variable is ignored."
   sensitive   = true
+  default     = null
 }
 
 variable "database_secret_arn" {
