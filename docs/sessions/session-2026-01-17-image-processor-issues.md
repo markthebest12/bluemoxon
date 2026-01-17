@@ -1,6 +1,6 @@
 # Session: Image Processor Issues - 2026-01-17
 
-## Status: IN PROGRESS
+## Status: FIXES IMPLEMENTED - PENDING PR REVIEW
 
 ## Critical Rules for Continuation
 
@@ -40,20 +40,21 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 
 ### Issues Found
 
-#### Issue 1: Missing Thumbnails (CRITICAL)
+#### Issue 1: Missing Thumbnails (CRITICAL) - ✅ FIXED
 
 **Symptom:** Processed images appear "broken" on the website because thumbnails don't exist.
 
 **Root Cause:** The image processor Lambda uploads the processed PNG to S3 but does NOT generate a thumbnail.
 
-**Location:** `backend/lambdas/image_processor/handler.py` - search for "Uploading processed image"
+**Fix Implemented:**
+- Added `THUMBNAIL_MAX_SIZE = (300, 300)` and `THUMBNAIL_QUALITY = 85` constants
+- Added `generate_thumbnail()` function matching API endpoint behavior
+- Added thumbnail upload after processed image upload (JPEG format)
+- Added 3 unit tests for thumbnail generation
 
-**Fix Required:** After uploading the processed image, generate and upload a thumbnail:
-1. Create thumbnail (300x300 max, JPEG quality 85)
-2. Upload to S3 with `thumb_` prefix
-3. Reference: See `generate_thumbnail()` in `backend/app/api/v1/images.py:87`
+**Commits:** `90f6491` - feat: Add thumbnail generation to image processor Lambda
 
-#### Issue 2: Wrong Source Image Selection
+#### Issue 2: Wrong Source Image Selection - ✅ FIXED
 
 **Symptom:** Processor sometimes processes title pages instead of book cover/binding.
 
@@ -61,17 +62,21 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 1. Title page image (if exists)
 2. Binding/spine image (if no title page)
 
-**Current Behavior:** Processes whatever image is marked as primary, which may be uploaded in wrong order.
+**Fix Implemented:**
+- Added `IMAGE_TYPE_PRIORITY = ["title_page", "binding", "cover", "spine"]` constant
+- Added `select_best_source_image()` function with priority-based selection
+- Integrated into `process_image()` to select best source from all book images
+- Added 6 unit tests for source selection
+- Falls back to primary image, then passed image_id, then first unprocessed
 
-**Investigation Needed:**
-- Check how primary image selection works during book import
-- Check if there's image_type classification logic
-- May need to add logic to select best source image for processing
+**Commits:** `a6cd2c8` - feat: Add smart source image selection for image processor
 
 ## Files Modified This Session
 
 - `infra/terraform/modules/github-oidc/main.tf` - Added `lambda:TagResource` permission
 - `infra/terraform/main.tf` - Added image-processor ECR to github_oidc module
+- `backend/lambdas/image_processor/handler.py` - Added thumbnail generation and smart source selection
+- `backend/lambdas/image_processor/tests/test_handler.py` - Added 9 new tests (3 thumbnail, 6 source selection)
 
 ## PRs Created
 
@@ -86,20 +91,25 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 
 ## Next Steps
 
-1. **Fix thumbnail generation** in image processor Lambda
-   - Add thumbnail generation after processed image upload
-   - Test with book 635 or 626
+1. ✅ ~~**Fix thumbnail generation** in image processor Lambda~~
+   - DONE - Added `generate_thumbnail()` function and upload code
 
-2. **Investigate source image selection**
-   - Understand current primary image selection logic
-   - Determine if image_type field is being used
-   - May need to add smart source selection
+2. ✅ ~~**Investigate source image selection**~~
+   - DONE - Added `select_best_source_image()` with type priority
 
-3. **Apply terraform to production** before merging PR #1153
+3. **Create PR for staging** with both fixes
+   - PR pending user review before merge
+
+4. **Apply terraform to production** before merging PR #1153
    - `lambda:TagResource` permission needed
    - ECR permissions for image-processor
 
-4. **Merge PR #1153** to deploy to production
+5. **Merge PR #1153** to deploy to production
+
+6. **Test in staging** after fixes are deployed
+   - Reprocess book 635 and 626
+   - Verify thumbnails appear
+   - Verify correct source images are selected
 
 ## Commands for Testing
 
