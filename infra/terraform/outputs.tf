@@ -297,3 +297,17 @@ output "redis_url" {
   value       = var.enable_elasticache ? module.elasticache[0].redis_endpoint : ""
   sensitive   = true
 }
+
+# =============================================================================
+# Image Processor Outputs
+# =============================================================================
+
+output "image_processor_function_name" {
+  description = "Image processor Lambda function name"
+  value       = module.image_processor.function_name
+}
+
+output "image_processor_ecr_url" {
+  description = "Image processor ECR repository URL"
+  value       = aws_ecr_repository.image_processor.repository_url
+}
