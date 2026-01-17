@@ -486,6 +486,43 @@ class TestCopyListingImagesToBook:
         # Thumbnail upload should not have been called
         mock_s3.upload_file.assert_not_called()
 
+    @patch("app.api.v1.books.queue_image_processing")
+    @patch("app.api.v1.books.boto3")
+    @patch("app.api.v1.books.settings")
+    def test_queues_image_processing_for_primary_image(
+        self, mock_settings, mock_boto3, mock_queue_processing, db
+    ):
+        """Test that queue_image_processing is called for primary image (idx==0)."""
+        from app.api.v1.books import _copy_listing_images_to_book
+
+        mock_settings.images_bucket = "test-bucket"
+        mock_s3 = MagicMock()
+        mock_boto3.client.return_value = mock_s3
+
+        book = Book(title="Test Book")
+        db.add(book)
+        db.commit()
+
+        listing_keys = ["listings/item123/image_0.jpg", "listings/item123/image_1.png"]
+
+        with patch("app.api.v1.images.generate_thumbnail") as mock_thumb:
+            mock_thumb.return_value = (True, None)
+            _copy_listing_images_to_book(book.id, listing_keys, db)
+
+        # Verify queue_image_processing was called once for primary image
+        mock_queue_processing.assert_called_once()
+        call_args = mock_queue_processing.call_args
+        # Should be called with (db, book_id, image_id) where image is primary
+        assert call_args[0][1] == book.id  # book_id
+        # Verify it was called with the primary image (first image, display_order=0)
+        primary_image = (
+            db.query(BookImage)
+            .filter(BookImage.book_id == book.id, BookImage.is_primary.is_(True))
+            .first()
+        )
+        assert primary_image is not None
+        assert call_args[0][2] == primary_image.id  # image_id
+
 
 class TestGetAnalysisIssues:
     """Tests for _get_analysis_issues helper function."""
