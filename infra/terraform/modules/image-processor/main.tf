@@ -167,16 +167,22 @@ resource "aws_lambda_function" "worker" {
 
   timeout       = var.timeout
   memory_size   = var.memory_size
-  architectures = ["arm64"]
+  # Note: Using x86_64 because ONNX Runtime crashes on ARM64 Lambda due to cpuinfo parsing failure
+  # See: https://github.com/microsoft/onnxruntime/issues/10038
+  architectures = ["x86_64"]
 
   reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = merge({
-      ENVIRONMENT           = var.environment
-      BMX_IMAGES_BUCKET     = var.images_bucket
-      BMX_IMAGES_CDN_DOMAIN = var.images_cdn_domain
-      DB_SECRET_ARN         = var.database_secret_arn
+      ENVIRONMENT         = var.environment
+      IMAGES_BUCKET       = var.images_bucket
+      IMAGES_CDN_DOMAIN   = var.images_cdn_domain
+      DATABASE_SECRET_ARN = var.database_secret_arn
+      # Numba cache dir for pymatting JIT compilation (Lambda filesystem is read-only)
+      NUMBA_CACHE_DIR = "/tmp"
+      # rembg model location (pre-downloaded in container image)
+      U2NET_HOME = "/opt/u2net"
     }, var.environment_variables)
   }
 

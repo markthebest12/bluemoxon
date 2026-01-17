@@ -459,17 +459,22 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
         final_image = add_background(processed_image, bg_color)
 
-        new_s3_key = f"books/{book_id}/processed_{uuid.uuid4()}.png"
+        # S3 key for database (without 'books/' prefix - API adds S3_IMAGES_PREFIX)
+        # Other images use format: {book_id}_{uuid}.{ext}
+        db_s3_key = f"{book_id}/processed_{uuid.uuid4()}.png"
+        # Full S3 key for upload (with 'books/' prefix)
+        full_s3_key = f"books/{db_s3_key}"
+
         output_buffer = io.BytesIO()
         final_image.save(output_buffer, format="PNG", optimize=True)
         output_bytes = output_buffer.getvalue()
 
-        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{new_s3_key}")
-        upload_to_s3(IMAGES_BUCKET, new_s3_key, output_bytes, "image/png")
+        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
+        upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
         cdn_url = None
         if IMAGES_CDN_DOMAIN:
-            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{new_s3_key}"
+            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{full_s3_key}"
 
         max_display_order = (
             db.query(func.max(BookImage.display_order))
@@ -480,7 +485,7 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
         new_image = BookImage(
             book_id=book_id,
-            s3_key=new_s3_key,
+            s3_key=db_s3_key,
             cloudfront_url=cdn_url,
             display_order=0,
             is_primary=True,

@@ -1,4 +1,6 @@
-FROM public.ecr.aws/lambda/python:3.12-arm64
+# Note: Using x86_64 because ONNX Runtime crashes on ARM64 Lambda due to cpuinfo parsing failure
+# See: https://github.com/microsoft/onnxruntime/issues/10038
+FROM public.ecr.aws/lambda/python:3.12
 
 # Accept VERSION as build argument (default to dev for local builds)
 ARG VERSION=0.0.0-dev
@@ -20,10 +22,13 @@ ENV PYTHONPATH=/opt/python:$PYTHONPATH
 COPY backend/lambdas/image_processor/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download rembg models
+# Pre-download rembg models to /opt/u2net (readable at runtime)
+# Note: Must set U2NET_HOME at runtime to match this path
+ENV U2NET_HOME=/opt/u2net
 COPY backend/lambdas/image_processor/download_models.py .
 RUN python download_models.py
 RUN rm download_models.py
+RUN chmod -R 755 /opt/u2net
 
 # Copy handler
 COPY backend/lambdas/image_processor/handler.py ${LAMBDA_TASK_ROOT}/
