@@ -52,17 +52,36 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-### Create PR for Staging
+### Code Review Fixes In Progress (PR #1148)
 
-1. Push commits: `git push origin feat/auto-process-images`
-2. Create PR: `gh pr create --base staging --title "feat: Image processor Lambda with E2E fixes"`
-3. Wait for CI to pass
-4. Get user approval and merge
+| Issue | Status | Description |
+|-------|--------|-------------|
+| CI platform mismatch | ✅ Done | deploy.yml: linux/arm64 → linux/amd64 |
+| Memory default 10GB | ✅ Done | variables.tf: 10240 → 7168 MB |
+| display_order logic | ✅ Done | handler.py: use len(existing_images)+1 |
+| No image size validation | ✅ Done | handler.py: MAX_IMAGE_DIMENSION=4096 |
+| S3 key format | ✅ Done | handler.py: flat format `{book_id}_processed_{uuid}.png` |
+| No secrets caching | ✅ Done | handler.py: added `_db_secret_cache` |
+| Magic numbers | ✅ Done | handler.py: extracted constants, GH #1149 for admin |
+| ECR lifecycle | ✅ Done | ecr.tf: keep 10 most recent tagged images |
 
-### After Staging Merge
+### Remaining Steps
 
-1. Validate in staging environment
-2. Promote to production via PR staging→main
+1. Run tests and ruff on handler.py
+2. Commit handler.py changes
+3. Push all commits to PR #1148
+4. Wait for CI to pass
+5. After staging merge: `terraform apply` in prod (creates ECR)
+6. Promote staging → main
+
+### Production ECR Blocker
+
+Prod ECR repository doesn't exist yet. After staging merge, run:
+```bash
+cd infra/terraform
+AWS_PROFILE=bmx-prod terraform init -backend-config=backends/prod.hcl -reconfigure
+AWS_PROFILE=bmx-prod terraform apply -var-file=envs/prod.tfvars
+```
 
 ---
 
@@ -163,12 +182,12 @@ onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has bee
 |---------|-------|--------|
 | Architecture | x86_64 | ONNX Runtime crashes on ARM64 Lambda |
 | Memory | 10240 MB (staging) | u2net needs ~6.2 GB |
-| Default Memory | 3072 MB (terraform) | Cost/performance balance |
+| Default Memory | 7168 MB (terraform) | Actual usage ~6.2GB + headroom |
 | Timeout | 300 seconds | Processing takes 60-150 seconds |
 | `U2NET_HOME` | `/opt/u2net` | Pre-downloaded models location |
 | `NUMBA_CACHE_DIR` | `/tmp` | Writable cache for JIT |
 
-**⚠️ Memory Warning:** The Terraform default is 3072 MB, but E2E testing showed u2net needs ~6.2 GB. For production, you may want to increase the default or override via tfvars. Staging was manually set to 10240 MB for testing.
+**Memory:** Terraform default updated to 7168 MB (actual usage ~6.2GB + headroom). Staging was manually set to 10240 MB during testing.
 
 ---
 
@@ -249,7 +268,25 @@ onnxruntime::OnnxRuntimeException: Attempt to use DefaultLogger but none has bee
 | #1144 | Retry mechanism for `queue_failed` jobs |
 | #1146 | API documentation for undocumented endpoints |
 | #1147 | Lambda S3 key config errors |
-| #1148 | Session log updates (pending) |
+| #1148 | Image processor Lambda PR (in review) |
+| #1149 | Display image processing constants in admin config |
+
+---
+
+## Files Modified This Session (Uncommitted)
+
+**handler.py changes:**
+- Extracted constants: `MIN_AREA_RATIO`, `MAX_ASPECT_DIFF`, `MAX_IMAGE_DIMENSION`, `U2NET_FALLBACK_ATTEMPT`
+- Added `_db_secret_cache` for secrets caching between warm invocations
+- Added `validate_image_size()` function
+- Fixed S3 key format: `{book_id}_processed_{uuid}.png` (flat, matches other images)
+- Fixed display_order: uses `len(existing_images) + 1` instead of broken `max_display_order + 1`
+- Removed unused `func` import
+
+**Other files (already committed by subagents):**
+- deploy.yml: `--platform linux/amd64` (was arm64)
+- variables.tf: `default = 7168` (was 10240)
+- ecr.tf: Added lifecycle rule to keep 10 most recent tagged images
 
 ---
 
