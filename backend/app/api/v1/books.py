@@ -378,7 +378,9 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
     if first_successful_image_id:
         try:
             queue_image_processing(db, book_id, first_successful_image_id)
-            logger.info(f"Queued image processing for book {book_id} image {first_successful_image_id}")
+            logger.info(
+                f"Queued image processing for book {book_id} image {first_successful_image_id}"
+            )
         except Exception as e:
             logger.warning(f"Failed to queue image processing: {e}", exc_info=True)
 
