@@ -19,6 +19,12 @@ variable "ecr_repository_url" {
   type        = string
 }
 
+variable "image_tag" {
+  description = "Image tag to use when building image_uri from ecr_repository_url (default: v2 for bootstrap)"
+  type        = string
+  default     = "v2"
+}
+
 variable "images_bucket" {
   description = "S3 bucket for book images"
   type        = string

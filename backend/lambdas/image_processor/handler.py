@@ -13,9 +13,12 @@ from datetime import UTC, datetime
 
 import boto3
 from PIL import Image
-from rembg import new_session, remove
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session, sessionmaker
+
+# Lazy-loaded rembg functions (deferred to avoid ONNX Runtime init at module load)
+_rembg_new_session = None
+_rembg_remove = None
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -36,6 +39,16 @@ _rembg_sessions = {}
 _models_loaded = False
 BookImage = None
 ImageProcessingJob = None
+
+
+def _ensure_rembg_loaded():
+    """Lazy-load rembg to defer ONNX Runtime initialization."""
+    global _rembg_new_session, _rembg_remove
+    if _rembg_new_session is None:
+        from rembg import new_session, remove
+
+        _rembg_new_session = new_session
+        _rembg_remove = remove
 
 
 def _ensure_models_loaded():
@@ -197,8 +210,9 @@ def get_rembg_session(model_name: str):
     Caches sessions to avoid reloading models.
     """
     global _rembg_sessions
+    _ensure_rembg_loaded()
     if model_name not in _rembg_sessions:
-        _rembg_sessions[model_name] = new_session(model_name)
+        _rembg_sessions[model_name] = _rembg_new_session(model_name)
     return _rembg_sessions[model_name]
 
 
@@ -213,8 +227,9 @@ def remove_background(image_bytes: bytes, config: dict) -> dict | None:
         Dict with image (PIL RGBA), subject_width, subject_height, or None on failure
     """
     try:
+        _ensure_rembg_loaded()
         session = get_rembg_session(config["model"])
-        result_bytes = remove(
+        result_bytes = _rembg_remove(
             image_bytes,
             session=session,
             alpha_matting=config.get("alpha_matting", False),

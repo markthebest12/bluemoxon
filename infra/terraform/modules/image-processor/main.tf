@@ -163,7 +163,7 @@ resource "aws_lambda_function" "worker" {
   role          = aws_iam_role.worker_exec.arn
   package_type  = "Image"
 
-  image_uri = var.image_uri != "" ? var.image_uri : "${var.ecr_repository_url}:latest"
+  image_uri = var.image_uri != "" ? var.image_uri : "${var.ecr_repository_url}:${var.image_tag}"
 
   timeout       = var.timeout
   memory_size   = var.memory_size
