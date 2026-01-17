@@ -339,8 +339,8 @@ class TestProcessImageJobStatusUpdates:
 
                         assert result is False
 
-    def test_missing_image_marks_job_failed(self, mock_environment, mock_processing_job):
-        """Job marked failed when source image not found."""
+    def test_no_images_for_book_marks_job_failed(self, mock_environment, mock_processing_job):
+        """Job marked failed when no images found for book."""
         import handler
 
         mock_job_model = MagicMock()
@@ -348,10 +348,11 @@ class TestProcessImageJobStatusUpdates:
 
         with patch("handler.get_db_session") as mock_get_session:
             mock_session = MagicMock()
-            mock_session.query.return_value.filter.return_value.first.side_effect = [
-                mock_processing_job,
-                None,
-            ]
+            # First query returns the job, second returns empty list for book images
+            mock_session.query.return_value.filter.return_value.first.return_value = (
+                mock_processing_job
+            )
+            mock_session.query.return_value.filter.return_value.all.return_value = []
             mock_get_session.return_value = mock_session
 
             with patch.object(handler, "ImageProcessingJob", mock_job_model):
@@ -361,7 +362,7 @@ class TestProcessImageJobStatusUpdates:
 
                         assert result is False
                         assert mock_processing_job.status == "failed"
-                        assert mock_processing_job.failure_reason == "Source image not found"
+                        assert mock_processing_job.failure_reason == "No images found for book"
 
     def test_job_status_completed_on_success(
         self, mock_environment, mock_processing_job, mock_book_image
@@ -445,3 +446,88 @@ class TestThumbnailGeneration:
 
         # Should stay 50x50, not upscaled
         assert thumbnail.size == (50, 50)
+
+
+class TestSourceImageSelection:
+    """Tests for smart source image selection."""
+
+    def test_selects_title_page_over_others(self):
+        """Should select title_page type if available."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(id=1, image_type="cover", is_primary=True, is_background_processed=False),
+            MagicMock(
+                id=2, image_type="title_page", is_primary=False, is_background_processed=False
+            ),
+            MagicMock(id=3, image_type="interior", is_primary=False, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=1)
+        assert result.id == 2
+
+    def test_selects_binding_when_no_title_page(self):
+        """Should select binding type if no title_page."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(id=1, image_type="interior", is_primary=True, is_background_processed=False),
+            MagicMock(id=2, image_type="binding", is_primary=False, is_background_processed=False),
+            MagicMock(id=3, image_type=None, is_primary=False, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=1)
+        assert result.id == 2
+
+    def test_selects_cover_when_no_binding(self):
+        """Should select cover type if no title_page or binding."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(id=1, image_type="interior", is_primary=True, is_background_processed=False),
+            MagicMock(id=2, image_type="cover", is_primary=False, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=1)
+        assert result.id == 2
+
+    def test_falls_back_to_primary_when_no_preferred_types(self):
+        """Should fall back to primary image if no preferred types."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(id=1, image_type=None, is_primary=True, is_background_processed=False),
+            MagicMock(id=2, image_type="interior", is_primary=False, is_background_processed=False),
+            MagicMock(id=3, image_type=None, is_primary=False, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=1)
+        assert result.id == 1
+
+    def test_falls_back_to_passed_image_id_when_all_null(self):
+        """Should use passed image_id if no types and no primary flag."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(id=1, image_type=None, is_primary=False, is_background_processed=False),
+            MagicMock(id=2, image_type=None, is_primary=False, is_background_processed=False),
+            MagicMock(id=3, image_type=None, is_primary=False, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=2)
+        assert result.id == 2
+
+    def test_skips_already_processed_images(self):
+        """Should not select images that are already background processed."""
+        from handler import select_best_source_image
+
+        images = [
+            MagicMock(
+                id=1, image_type="title_page", is_primary=False, is_background_processed=True
+            ),
+            MagicMock(id=2, image_type="binding", is_primary=False, is_background_processed=False),
+            MagicMock(id=3, image_type=None, is_primary=True, is_background_processed=False),
+        ]
+
+        result = select_best_source_image(images, primary_image_id=3)
+        assert result.id == 2  # Skips processed title_page, picks binding

@@ -54,6 +54,10 @@ MAX_IMAGE_DIMENSION = 4096
 THUMBNAIL_MAX_SIZE = (300, 300)
 THUMBNAIL_QUALITY = 85
 
+# Image type priority for source selection (highest priority first)
+# Lambda will select best source image based on this order
+IMAGE_TYPE_PRIORITY = ["title_page", "binding", "cover", "spine"]
+
 # Attempt number at which to switch from u2net to isnet-general-use model
 U2NET_FALLBACK_ATTEMPT = 3
 
@@ -426,6 +430,54 @@ def generate_thumbnail(image: Image.Image) -> Image.Image:
     return thumb
 
 
+def select_best_source_image(images: list, primary_image_id: int):
+    """Select the best source image for processing.
+
+    Priority order:
+    1. title_page (if exists and not already processed)
+    2. binding (if exists and not already processed)
+    3. cover (if exists and not already processed)
+    4. spine (if exists and not already processed)
+    5. Primary image (fallback)
+    6. Image matching primary_image_id (final fallback)
+
+    Args:
+        images: List of BookImage objects for the book
+        primary_image_id: ID of the image that triggered processing
+
+    Returns:
+        Best source image to process
+    """
+    # Filter out already processed images
+    unprocessed = [img for img in images if not getattr(img, "is_background_processed", False)]
+
+    if not unprocessed:
+        # All images processed, fall back to the requested one
+        for img in images:
+            if img.id == primary_image_id:
+                return img
+        return images[0] if images else None
+
+    # Check for preferred image types in priority order
+    for image_type in IMAGE_TYPE_PRIORITY:
+        for img in unprocessed:
+            if getattr(img, "image_type", None) == image_type:
+                return img
+
+    # Fall back to primary image
+    for img in unprocessed:
+        if getattr(img, "is_primary", False):
+            return img
+
+    # Final fallback: the image that was passed in
+    for img in unprocessed:
+        if img.id == primary_image_id:
+            return img
+
+    # Last resort: first unprocessed image
+    return unprocessed[0]
+
+
 def lambda_handler(event, context):
     """Lambda entry point for SQS-triggered image processing.
 
@@ -500,13 +552,22 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             job.status = "processing"
             db.commit()
 
-            source_image = db.query(BookImage).filter(BookImage.id == image_id).first()
-            if not source_image:
+            # Get all images for this book to select best source
+            all_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
+
+            if not all_images:
                 job.status = "failed"
-                job.failure_reason = "Source image not found"
+                job.failure_reason = "No images found for book"
                 job.completed_at = datetime.now(UTC)
                 db.commit()
                 return False
+
+            # Select best source image based on type priority
+            source_image = select_best_source_image(all_images, image_id)
+            logger.info(
+                f"Selected source image {source_image.id} "
+                f"(type={source_image.image_type}, requested={image_id})"
+            )
 
             s3_key = source_image.s3_key
             if not s3_key.startswith("books/"):
