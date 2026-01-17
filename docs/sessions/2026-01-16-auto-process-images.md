@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-16/17
 **Issue:** #1136
-**PRs:** #1139, #1141, #1142 (merged), #1143 (pending)
+**PRs:** #1139, #1141, #1142 (merged), #1143 (pending CI fix), #1145 (infra to prod)
 
 ## Summary
 
@@ -25,9 +25,11 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 | Phase | Status | Details |
 |-------|--------|---------|
-| **Phase 1: Infrastructure** | ✅ Complete | SQS queue, IAM, health checks, Lambda resource |
-| **Phase 2: Lambda Deployment** | ❌ Not started | Needs container-based Lambda (rembg native deps) |
-| **Phase 3: API Integration** | ✅ Complete | PR #1143 with code review fixes |
+| **Phase 1: Infrastructure** | ✅ Staging complete, PR #1145 for prod | SQS queue, IAM, health checks |
+| **Phase 2: Lambda Deployment** | ❌ Not started | Needs container-based Lambda |
+| **Phase 3: API Integration** | ⏳ PR #1143 pending CI fix | Code review fixes complete |
+
+**Deployment Strategy:** Push infrastructure to prod first (PR #1145), then API integration separately.
 
 ### PR #1143 Code Review Fixes
 
@@ -49,13 +51,10 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ## Next Steps
 
-1. [x] Merge PR #1143
-2. [ ] **Phase 2: Container Lambda deployment**
-   - Create Dockerfile for image processor
-   - Refactor Terraform from zip to container-based
-   - Add ECR repository and CI/CD workflow
-   - Reference: `modules/scraper-lambda/` pattern
-3. [ ] Test end-to-end: import → queue → process → new image
+1. [ ] Merge PR #1145 (infrastructure to prod)
+2. [ ] Fix CI and merge PR #1143 (API integration to staging)
+3. [ ] Promote API integration to prod
+4. [ ] Phase 2: Container Lambda deployment
 
 ---
 
@@ -64,6 +63,7 @@ Deployed infrastructure for automatic image processing during book eval import. 
 - #1136 - Main feature issue
 - #1140 - Checklist for adding new async workers
 - #1144 - Retry mechanism for queue_failed jobs
+- #1145 - Infrastructure promotion to prod
 
 ---
 
