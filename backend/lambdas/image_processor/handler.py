@@ -313,6 +313,16 @@ def lambda_handler(event, context):
     Returns:
         Dict with batchItemFailures for partial batch failure reporting
     """
+    # Support smoke tests
+    if event.get("smoke_test"):
+        logger.info("Smoke test invocation")
+        return {
+            "statusCode": 200,
+            "body": "OK",
+            "version": os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"),
+        }
+
+    # Normal SQS processing
     failures = []
 
     for record in event.get("Records", []):
