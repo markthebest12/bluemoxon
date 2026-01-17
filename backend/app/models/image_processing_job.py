@@ -15,19 +15,15 @@ class ImageProcessingJob(Base):
 
     __tablename__ = "image_processing_jobs"
     __table_args__ = (
-        Index(
-            "ix_image_processing_jobs_pending_unique",
-            "book_id",
-            "source_image_id",
-            unique=True,
-            postgresql_where="status IN ('pending', 'processing')",
-        ),
+        # Query optimization index (works on all databases)
         Index(
             "ix_image_processing_jobs_query",
             "book_id",
             "source_image_id",
             "status",
         ),
+        # Note: Partial unique index for pending/processing is created via migration
+        # (PostgreSQL-only feature, not defined here to avoid SQLite test issues)
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -1,5 +1,11 @@
 """Tests for image processor Lambda worker."""
 
+import sys
+from unittest.mock import MagicMock
+
+# Mock rembg before importing handler (Lambda dependency not in backend env)
+sys.modules["rembg"] = MagicMock()
+
 
 class TestQualityValidation:
     """Tests for image quality validation."""
