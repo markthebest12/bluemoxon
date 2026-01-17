@@ -12,13 +12,40 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ---
 
-## Current Status (Post-Compaction 3)
+## Current Status (Post-Compaction 4)
 
 | Phase | Status | Details |
 |-------|--------|---------|
 | **Phase 1: Infrastructure** | ✅ DONE | SQS queue, IAM, health checks, Lambda resource (staging + prod) |
-| **Phase 2: Lambda Deployment** | 🔶 DESIGN DONE | Design complete, ready for implementation |
+| **Phase 2: Lambda Deployment** | 🔶 CODE DONE | Implementation complete, bootstrap image pending |
 | **Phase 3: API Integration** | ✅ DONE | PR #1143 - `queue_image_processing()` called during import |
+
+### Phase 2 Implementation Progress
+
+All code tasks complete on `feat/auto-process-images` branch:
+
+| Task | Status | Commit |
+|------|--------|--------|
+| 1. ECR repository (Terraform) | ✅ Done | `1d6a348` |
+| 2. Supporting files (Dockerfile, requirements.txt, download_models.py) | ✅ Done | `0a91d34` |
+| 3. Smoke test handler | ✅ Done | `164ac27` |
+| 4. Push bootstrap image | ⏳ Pending | Manual step |
+| 5. Lambda module for container | ✅ Done | `25c10fb` |
+| 6. Unit tests (30 passing) | ✅ Done | `b39628f` |
+| 7. CI/CD workflow | ✅ Done | `078aca5` |
+| 8. Test end-to-end in staging | ⏳ Pending | After bootstrap |
+| 9. Deploy to production | ⏳ Pending | After staging |
+
+**Key files created/modified:**
+- `infra/terraform/ecr.tf` - ECR repository
+- `infra/terraform/modules/image-processor/main.tf` - Container-based Lambda
+- `infra/terraform/outputs.tf` - Added image processor outputs
+- `backend/lambdas/image_processor/Dockerfile` - ARM64 container build
+- `backend/lambdas/image_processor/requirements.txt` - rembg + dependencies
+- `backend/lambdas/image_processor/download_models.py` - Pre-download models
+- `backend/lambdas/image_processor/handler.py` - Added smoke test support
+- `backend/lambdas/image_processor/tests/` - 30 unit tests
+- `.github/workflows/deploy.yml` - CI/CD for image processor
 
 ### API Key Fix - COMPLETED
 
@@ -48,28 +75,32 @@ Deployed infrastructure for automatic image processing during book eval import. 
 
 ## IMMEDIATE Next Steps (Resume Here)
 
-### Phase 2 Implementation - Use Subagent-Driven Development
+### Task 4: Push Bootstrap Image
 
-**Required skill:** `superpowers:subagent-driven-development`
+The ECR repository and all code are ready. Next step is to push the bootstrap image so Terraform can create the Lambda.
 
-**Approach:** Maximum parallelism with worktrees for isolated work
+```bash
+# 1. Apply Terraform to create ECR repository only
+cd infra/terraform
+AWS_PROFILE=bmx-staging terraform apply -target=aws_ecr_repository.image_processor
 
-**Implementation tasks (from design doc):**
+# 2. Get ECR URL and login
+ECR_URL=$(AWS_PROFILE=bmx-staging terraform output -raw image_processor_ecr_url)
+aws ecr get-login-password --region us-west-2 --profile bmx-staging | docker login --username AWS --password-stdin $ECR_URL
 
-1. **Create ECR repository** (Terraform) - independent
-2. **Push bootstrap image** (manual, one-time) - depends on 1
-3. **Update Lambda module** (Terraform) - depends on 1
-4. **Add supporting files** (Dockerfile, requirements.txt, download_models.py) - independent
-5. **Add smoke test handler** (handler.py modification) - independent
-6. **Add unit tests** (tests/) - depends on 5
-7. **Update CI/CD workflow** (deploy.yml) - depends on 1, 4
-8. **Test end-to-end** (staging) - depends on all above
-9. **Deploy to prod** - depends on 8
+# 3. Build ARM64 image (from repo root)
+docker build --platform linux/arm64 -f backend/lambdas/image_processor/Dockerfile -t $ECR_URL:latest .
 
-**Parallelization opportunities:**
-- Tasks 1, 4, 5 can run in parallel (independent)
-- Task 6 can start once 5 is done
-- Tasks 2, 3, 7 can run in parallel once 1 is done
+# 4. Push bootstrap image
+docker push $ECR_URL:latest
+
+# 5. Apply full Terraform
+AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
+```
+
+### After Bootstrap: Create PR to Staging
+
+Once bootstrap is complete, create PR and validate in staging before promoting to production
 
 ---
 
