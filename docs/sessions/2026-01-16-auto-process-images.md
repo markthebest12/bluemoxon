@@ -148,45 +148,57 @@ Created checklist for adding new async worker flows:
 
 ---
 
-## Part 4: Permanent Fix - Auto-Generated Database Password
+## Part 4: Permanent Fix - Safe Database Password Handling
 
 ### Problem
 
-The `db_password` variable was required for every terraform operation, creating risk of:
-- Passing wrong value accidentally
-- Forgetting to pass it and getting errors
-- `-target` flag not preventing password changes
+The initial `random_password` approach had a critical flaw:
+
+| Step | What Happens |
+|------|--------------|
+| 1 | `random_password` is NEW (not in state) |
+| 2 | Terraform generates a new random password |
+| 3 | RDS: `ignore_changes = [password]` → no change |
+| 4 | **Secrets Manager: UPDATES to new password** |
+| 5 | **BREAKAGE**: App reads new password, RDS has old |
 
 ### Solution
 
-Replaced variable with `random_password` resource:
+Added `use_existing_database_credentials` variable:
 
 ```hcl
-resource "random_password" "database" {
-  count   = var.enable_database ? 1 : 0
-  length  = 32
-  special = true
-  override_special = "!#$%*()-_=+[]{}:?"
+# For EXISTING environments: Read from Secrets Manager (source of truth)
+data "aws_secretsmanager_secret_version" "existing_database" {
+  count     = var.enable_database && var.use_existing_database_credentials ? 1 : 0
+  secret_id = "${local.name_prefix}/database"
+}
 
-  lifecycle {
-    ignore_changes = all  # Never regenerate
-  }
+# For NEW environments: Generate random password
+resource "random_password" "database" {
+  count = var.enable_database && !var.use_existing_database_credentials ? 1 : 0
+  ...
+}
+
+# Password source depends on environment type
+locals {
+  db_password = var.use_existing_database_credentials
+    ? jsondecode(data.aws_secretsmanager_secret_version.existing_database[0].secret_string).password
+    : random_password.database[0].result
 }
 ```
 
-### Migration for Existing Databases
+### Usage
 
-For staging (already has password in Secrets Manager):
+| Environment | Setting | Behavior |
+|-------------|---------|----------|
+| Existing (staging) | `use_existing_database_credentials = true` | Reads from Secrets Manager |
+| New environment | `use_existing_database_credentials = false` | Uses random_password |
+
+### Verification
 
 ```bash
-# Get current password from Secrets Manager
-AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value \
-  --secret-id bluemoxon-staging/database \
-  --query SecretString --output text | jq -r .password
-
-# Import into terraform state
-AWS_PROFILE=bmx-staging terraform import \
-  'random_password.database[0]' '<password-from-above>'
+# This should show NO CHANGES to database resources
+AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
 ```
 
 ---
