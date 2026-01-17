@@ -516,6 +516,51 @@ MIGRATION_Z2012345GHIJ_SQL = [
     "ALTER TABLE binders ADD COLUMN IF NOT EXISTS closed_year INTEGER",
 ]
 
+# Migration SQL for c3d4e5f6g7h8_add_is_background_processed_to_book_images
+# Adds flag indicating whether an image has had its background digitally processed
+MIGRATION_C3D4E5F6G7H8_SQL = [
+    "ALTER TABLE book_images ADD COLUMN IF NOT EXISTS is_background_processed BOOLEAN NOT NULL DEFAULT FALSE",
+]
+
+# Migration SQL for d4e5f6g7h8i9_add_image_processing_jobs_table
+# Tracks async image processing jobs for background removal
+MIGRATION_D4E5F6G7H8I9_SQL = [
+    """CREATE TABLE IF NOT EXISTS image_processing_jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        source_image_id INTEGER REFERENCES book_images(id) ON DELETE SET NULL,
+        processed_image_id INTEGER REFERENCES book_images(id) ON DELETE SET NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        model_used VARCHAR(50),
+        failure_reason VARCHAR(500),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        completed_at TIMESTAMP WITH TIME ZONE
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_image_processing_jobs_book_id ON image_processing_jobs(book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_image_processing_jobs_status ON image_processing_jobs(status)",
+]
+
+# Migration SQL for 0fc4653fe40b_add_image_processing_indexes_and_fix_failure_reason
+# Adds indexes and changes failure_reason to TEXT
+# Note: Uses regular CREATE INDEX (not CONCURRENTLY) for health.py compatibility
+MIGRATION_0FC4653FE40B_SQL = [
+    "ALTER TABLE image_processing_jobs ALTER COLUMN failure_reason TYPE TEXT",
+    "CREATE INDEX IF NOT EXISTS ix_image_processing_jobs_query ON image_processing_jobs(book_id, source_image_id, status)",
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'ix_image_processing_jobs_pending_unique'
+        ) THEN
+            CREATE UNIQUE INDEX ix_image_processing_jobs_pending_unique
+                ON image_processing_jobs(book_id, source_image_id)
+                WHERE status IN ('pending', 'processing');
+        END IF;
+    END $$""",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -760,5 +805,20 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "b2c3d4e5f6a7",
         "name": "add_binder_operation_years",
         "sql_statements": MIGRATION_Z2012345GHIJ_SQL,
+    },
+    {
+        "id": "c3d4e5f6g7h8",
+        "name": "add_is_background_processed_to_book_images",
+        "sql_statements": MIGRATION_C3D4E5F6G7H8_SQL,
+    },
+    {
+        "id": "d4e5f6g7h8i9",
+        "name": "add_image_processing_jobs_table",
+        "sql_statements": MIGRATION_D4E5F6G7H8I9_SQL,
+    },
+    {
+        "id": "0fc4653fe40b",
+        "name": "add_image_processing_indexes_and_fix_failure_reason",
+        "sql_statements": MIGRATION_0FC4653FE40B_SQL,
     },
 ]

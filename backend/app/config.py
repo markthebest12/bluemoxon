@@ -176,6 +176,14 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_EVAL_RUNBOOK_QUEUE_NAME", "EVAL_RUNBOOK_QUEUE_NAME"),
     )
 
+    # Image processing worker queue
+    image_processing_queue_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "BMX_IMAGE_PROCESSING_QUEUE_NAME", "IMAGE_PROCESSING_QUEUE_NAME"
+        ),
+    )
+
     # Notifications
     notification_from_email: str | None = Field(
         default=None,

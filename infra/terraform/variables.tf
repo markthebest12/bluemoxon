@@ -735,3 +735,9 @@ variable "enable_elasticache" {
   description = "Enable ElastiCache for dashboard caching"
   default     = false
 }
+
+variable "enable_image_processor" {
+  type        = bool
+  description = "Enable image processor Lambda + SQS for background image processing"
+  default     = null
+}
