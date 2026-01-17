@@ -68,3 +68,9 @@ variable "vpc_security_group_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "alarm_sns_topic_arn" {
+  description = "SNS topic ARN for DLQ alarm notifications"
+  type        = string
+  default     = ""
+}

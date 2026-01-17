@@ -33,6 +33,21 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 _s3_client = None
 _db_engine = None
 _rembg_sessions = {}
+_models_loaded = False
+BookImage = None
+ImageProcessingJob = None
+
+
+def _ensure_models_loaded():
+    """Lazy-load SQLAlchemy models once on cold start."""
+    global _models_loaded, BookImage, ImageProcessingJob
+    if not _models_loaded:
+        from app.models.image import BookImage as _BookImage
+        from app.models.image_processing_job import ImageProcessingJob as _ImageProcessingJob
+
+        BookImage = _BookImage
+        ImageProcessingJob = _ImageProcessingJob
+        _models_loaded = True
 
 
 def get_s3_client():
@@ -340,8 +355,7 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
     Returns:
         True if successful
     """
-    from app.models.image import BookImage
-    from app.models.image_processing_job import ImageProcessingJob
+    _ensure_models_loaded()
 
     db = None
     try:

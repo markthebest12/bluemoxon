@@ -159,3 +159,30 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   function_response_types            = ["ReportBatchItemFailures"]
   maximum_batching_window_in_seconds = 0
 }
+
+# CloudWatch alarm for DLQ messages
+resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
+  count               = var.alarm_sns_topic_arn != "" ? 1 : 0
+  alarm_name          = "${var.name_prefix}-image-processing-dlq-messages"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Image processing jobs failed and moved to DLQ"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    QueueName = aws_sqs_queue.dlq.name
+  }
+
+  alarm_actions = [var.alarm_sns_topic_arn]
+  ok_actions    = [var.alarm_sns_topic_arn]
+
+  tags = {
+    Environment = var.environment
+    Service     = "image-processing"
+  }
+}
