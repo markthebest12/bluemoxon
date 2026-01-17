@@ -83,6 +83,7 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 - PR #1151 - Code review fixes (MERGED to staging)
 - PR #1152 - TagResource permission fix (MERGED to staging)
 - PR #1153 - Staging to main promotion (OPEN, needs review)
+- PR #1154 - Thumbnail generation + smart source selection fixes (OPEN, needs review)
 
 ## Test Books
 
@@ -97,8 +98,8 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 2. ✅ ~~**Investigate source image selection**~~
    - DONE - Added `select_best_source_image()` with type priority
 
-3. **Create PR for staging** with both fixes
-   - PR pending user review before merge
+3. ✅ ~~**Create PR for staging** with both fixes~~
+   - DONE - PR #1154 created, pending user review before merge
 
 4. **Apply terraform to production** before merging PR #1153
    - `lambda:TagResource` permission needed
