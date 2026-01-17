@@ -297,3 +297,26 @@ output "redis_url" {
   value       = var.enable_elasticache ? module.elasticache[0].redis_endpoint : ""
   sensitive   = true
 }
+
+# =============================================================================
+# Image Processor Outputs
+# =============================================================================
+
+output "image_processor_function_name" {
+  description = "Image processor Lambda function name"
+  value       = local.image_processor_enabled ? module.image_processor[0].function_name : null
+}
+
+output "image_processor_ecr_url" {
+  description = "Image processor ECR repository URL"
+  value       = aws_ecr_repository.image_processor.repository_url
+}
+
+# =============================================================================
+# Alerts Outputs
+# =============================================================================
+
+output "alerts_sns_topic_arn" {
+  description = "SNS topic ARN for CloudWatch alarms and operational alerts"
+  value       = aws_sns_topic.alerts.arn
+}

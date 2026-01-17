@@ -56,6 +56,38 @@ resource "aws_iam_role_policy_attachment" "worker_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# X-Ray tracing
+resource "aws_iam_role_policy_attachment" "worker_xray" {
+  role       = aws_iam_role.worker_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+# ECR pull access (required for container-based Lambda)
+resource "aws_iam_role_policy" "worker_ecr" {
+  name = "${var.name_prefix}-image-processor-ecr"
+  role = aws_iam_role.worker_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+        Resource = "arn:aws:ecr:*:*:repository/${var.name_prefix}-image-processor"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # SQS policy
 resource "aws_iam_role_policy" "worker_sqs" {
   name = "${var.name_prefix}-image-processor-sqs"
@@ -114,26 +146,43 @@ resource "aws_iam_role_policy" "worker_secrets" {
   })
 }
 
-# Lambda function
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/aws/lambda/${var.name_prefix}-image-processor"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Environment = var.environment
+    Service     = "image-processing"
+  }
+}
+
+# Lambda function (container-based)
 resource "aws_lambda_function" "worker" {
   function_name = "${var.name_prefix}-image-processor"
   role          = aws_iam_role.worker_exec.arn
-  handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = var.timeout
-  memory_size   = var.memory_size
+  package_type  = "Image"
 
-  s3_bucket = var.s3_bucket
-  s3_key    = var.s3_key
+  image_uri = var.image_uri != "" ? var.image_uri : "${var.ecr_repository_url}:${var.image_tag}"
+
+  timeout     = var.timeout
+  memory_size = var.memory_size
+  # Note: Using x86_64 because ONNX Runtime crashes on ARM64 Lambda due to cpuinfo parsing failure
+  # See: https://github.com/microsoft/onnxruntime/issues/10038
+  architectures = ["x86_64"]
 
   reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = merge({
-      ENVIRONMENT           = var.environment
-      BMX_IMAGES_BUCKET     = var.images_bucket
-      BMX_IMAGES_CDN_DOMAIN = var.images_cdn_domain
-      DB_SECRET_ARN         = var.database_secret_arn
+      ENVIRONMENT         = var.environment
+      IMAGES_BUCKET       = var.images_bucket
+      IMAGES_CDN_DOMAIN   = var.images_cdn_domain
+      DATABASE_SECRET_ARN = var.database_secret_arn
+      # Numba cache dir for pymatting JIT compilation (Lambda filesystem is read-only)
+      NUMBA_CACHE_DIR = "/tmp"
+      # rembg model location (pre-downloaded in container image)
+      U2NET_HOME = "/opt/u2net"
     }, var.environment_variables)
   }
 
@@ -145,9 +194,19 @@ resource "aws_lambda_function" "worker" {
     }
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   tags = {
     Environment = var.environment
     Service     = "image-processing"
+  }
+
+  depends_on = [aws_cloudwatch_log_group.worker]
+
+  lifecycle {
+    ignore_changes = [image_uri]
   }
 }
 

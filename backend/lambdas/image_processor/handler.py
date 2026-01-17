@@ -13,15 +13,43 @@ from datetime import UTC, datetime
 
 import boto3
 from PIL import Image
-from rembg import new_session, remove
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+
+# Lazy-loaded rembg functions (deferred to avoid ONNX Runtime init at module load)
+_rembg_new_session = None
+_rembg_remove = None
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# =============================================================================
+# Processing Constants
+# =============================================================================
+# These values are intentionally set and should be displayed in admin config.
+# See GitHub issue #1149 for admin display feature.
+
+# Background color selection threshold (0-255)
+# Images with average brightness below this get black background, above get white
 BRIGHTNESS_THRESHOLD = 128
+
+# Maximum processing attempts before marking job as failed
 MAX_ATTEMPTS = 3
+
+# Minimum subject area as ratio of original image area (0.0-1.0)
+# Subject smaller than this ratio fails quality validation
+MIN_AREA_RATIO = 0.5
+
+# Maximum aspect ratio difference tolerance (0.0-1.0)
+# Aspect ratio change greater than this fails quality validation
+MAX_ASPECT_DIFF = 0.2
+
+# Maximum input image dimension (width or height) in pixels
+# Images larger than this are rejected to prevent OOM
+MAX_IMAGE_DIMENSION = 4096
+
+# Attempt number at which to switch from u2net to isnet-general-use model
+U2NET_FALLBACK_ATTEMPT = 3
 
 # Environment variables
 DATABASE_SECRET_ARN = os.environ.get("DATABASE_SECRET_ARN", "")
@@ -29,13 +57,24 @@ IMAGES_BUCKET = os.environ.get("IMAGES_BUCKET", "")
 IMAGES_CDN_DOMAIN = os.environ.get("IMAGES_CDN_DOMAIN", "")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-# Lazy-loaded resources
+# Lazy-loaded resources (cached between warm invocations)
 _s3_client = None
 _db_engine = None
+_db_secret_cache = None  # Cache secrets to avoid repeated Secrets Manager calls
 _rembg_sessions = {}
 _models_loaded = False
 BookImage = None
 ImageProcessingJob = None
+
+
+def _ensure_rembg_loaded():
+    """Lazy-load rembg to defer ONNX Runtime initialization."""
+    global _rembg_new_session, _rembg_remove
+    if _rembg_new_session is None:
+        from rembg import new_session, remove
+
+        _rembg_new_session = new_session
+        _rembg_remove = remove
 
 
 def _ensure_models_loaded():
@@ -59,10 +98,18 @@ def get_s3_client():
 
 
 def get_secret(secret_arn: str) -> dict:
-    """Retrieve database credentials from Secrets Manager."""
+    """Retrieve database credentials from Secrets Manager.
+
+    Caches the result to avoid repeated Secrets Manager calls on warm invocations.
+    """
+    global _db_secret_cache
+    if _db_secret_cache is not None:
+        return _db_secret_cache
+
     client = boto3.client("secretsmanager", region_name=AWS_REGION)
     response = client.get_secret_value(SecretId=secret_arn)
-    return json.loads(response["SecretString"])
+    _db_secret_cache = json.loads(response["SecretString"])
+    return _db_secret_cache
 
 
 def get_db_engine():
@@ -98,7 +145,7 @@ def get_processing_config(attempt: int) -> dict:
     Returns:
         Dict with model and alpha_matting settings
     """
-    if attempt <= 2:
+    if attempt < U2NET_FALLBACK_ATTEMPT:
         return {
             "model": "u2net",
             "alpha_matting": True,
@@ -133,14 +180,14 @@ def validate_image_quality(
     subject_area = subject_width * subject_height
     area_ratio = subject_area / original_area
 
-    if area_ratio < 0.5:
+    if area_ratio < MIN_AREA_RATIO:
         return {"passed": False, "reason": "area_too_small"}
 
     original_aspect = original_width / original_height
     subject_aspect = subject_width / subject_height
     aspect_diff = abs(original_aspect - subject_aspect) / original_aspect
 
-    if aspect_diff > 0.2:
+    if aspect_diff > MAX_ASPECT_DIFF:
         return {"passed": False, "reason": "aspect_ratio_mismatch"}
 
     return {"passed": True, "reason": None}
@@ -173,6 +220,24 @@ def download_from_s3(bucket: str, key: str) -> bytes:
     return response["Body"].read()
 
 
+def validate_image_size(width: int, height: int) -> dict:
+    """Validate input image dimensions to prevent OOM.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+
+    Returns:
+        Dict with passed (bool) and reason (str if failed)
+    """
+    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+        return {
+            "passed": False,
+            "reason": f"Image too large: {width}x{height} exceeds max {MAX_IMAGE_DIMENSION}px",
+        }
+    return {"passed": True, "reason": None}
+
+
 def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -> None:
     """Upload image to S3.
 
@@ -197,8 +262,9 @@ def get_rembg_session(model_name: str):
     Caches sessions to avoid reloading models.
     """
     global _rembg_sessions
+    _ensure_rembg_loaded()
     if model_name not in _rembg_sessions:
-        _rembg_sessions[model_name] = new_session(model_name)
+        _rembg_sessions[model_name] = _rembg_new_session(model_name)
     return _rembg_sessions[model_name]
 
 
@@ -213,8 +279,9 @@ def remove_background(image_bytes: bytes, config: dict) -> dict | None:
         Dict with image (PIL RGBA), subject_width, subject_height, or None on failure
     """
     try:
+        _ensure_rembg_loaded()
         session = get_rembg_session(config["model"])
-        result_bytes = remove(
+        result_bytes = _rembg_remove(
             image_bytes,
             session=session,
             alpha_matting=config.get("alpha_matting", False),
@@ -313,6 +380,16 @@ def lambda_handler(event, context):
     Returns:
         Dict with batchItemFailures for partial batch failure reporting
     """
+    # Support smoke tests
+    if event.get("smoke_test"):
+        logger.info("Smoke test invocation")
+        return {
+            "statusCode": 200,
+            "body": "OK",
+            "version": os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"),
+        }
+
+    # Normal SQS processing
     failures = []
 
     for record in event.get("Records", []):
@@ -386,6 +463,16 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
         original_image = Image.open(io.BytesIO(image_bytes))
         original_width, original_height = original_image.size
 
+        # Validate image size to prevent OOM on very large images
+        size_validation = validate_image_size(original_width, original_height)
+        if not size_validation["passed"]:
+            job.status = "failed"
+            job.failure_reason = size_validation["reason"]
+            job.completed_at = datetime.now(UTC)
+            db.commit()
+            logger.warning(f"Job {job_id}: {size_validation['reason']}")
+            return False
+
         processed_image = None
         model_used = None
 
@@ -434,35 +521,25 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
         final_image = add_background(processed_image, bg_color)
 
-        new_s3_key = f"books/{book_id}/processed_{uuid.uuid4()}.png"
+        # S3 key for database (without 'books/' prefix - API adds S3_IMAGES_PREFIX)
+        # Format matches other images: {book_id}_{identifier}.{ext}
+        db_s3_key = f"{book_id}_processed_{uuid.uuid4()}.png"
+        # Full S3 key for upload (with 'books/' prefix)
+        full_s3_key = f"books/{db_s3_key}"
+
         output_buffer = io.BytesIO()
         final_image.save(output_buffer, format="PNG", optimize=True)
         output_bytes = output_buffer.getvalue()
 
-        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{new_s3_key}")
-        upload_to_s3(IMAGES_BUCKET, new_s3_key, output_bytes, "image/png")
+        logger.info(f"Uploading processed image to s3://{IMAGES_BUCKET}/{full_s3_key}")
+        upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
+        # CloudFront URL uses full S3 path (CloudFront origin maps to bucket root)
         cdn_url = None
         if IMAGES_CDN_DOMAIN:
-            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{new_s3_key}"
+            cdn_url = f"https://{IMAGES_CDN_DOMAIN}/{full_s3_key}"
 
-        max_display_order = (
-            db.query(func.max(BookImage.display_order))
-            .filter(BookImage.book_id == book_id)
-            .scalar()
-            or 0
-        )
-
-        new_image = BookImage(
-            book_id=book_id,
-            s3_key=new_s3_key,
-            cloudfront_url=cdn_url,
-            display_order=0,
-            is_primary=True,
-            is_background_processed=True,
-        )
-        db.add(new_image)
-
+        # Get existing images (excluding source) to renumber them
         existing_images = (
             db.query(BookImage)
             .filter(BookImage.book_id == book_id, BookImage.id != image_id)
@@ -470,11 +547,24 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             .all()
         )
 
+        # New processed image becomes primary at position 0
+        new_image = BookImage(
+            book_id=book_id,
+            s3_key=db_s3_key,
+            cloudfront_url=cdn_url,
+            display_order=0,
+            is_primary=True,
+            is_background_processed=True,
+        )
+        db.add(new_image)
+
+        # Shift existing images to positions 1, 2, 3, ... and clear is_primary
         for i, img in enumerate(existing_images):
             img.display_order = i + 1
             img.is_primary = False
 
-        source_image.display_order = max_display_order + 1
+        # Source image (original) goes to the end
+        source_image.display_order = len(existing_images) + 1
         source_image.is_primary = False
 
         db.flush()

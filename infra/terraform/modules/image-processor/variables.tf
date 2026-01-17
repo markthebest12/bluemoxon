@@ -8,14 +8,21 @@ variable "environment" {
   type        = string
 }
 
-variable "s3_bucket" {
-  description = "S3 bucket containing Lambda deployment package"
+variable "image_uri" {
+  description = "ECR image URI for Lambda container"
+  type        = string
+  default     = ""
+}
+
+variable "ecr_repository_url" {
+  description = "ECR repository URL (used as fallback if image_uri is empty)"
   type        = string
 }
 
-variable "s3_key" {
-  description = "S3 key for Lambda deployment package"
+variable "image_tag" {
+  description = "Image tag to use when building image_uri from ecr_repository_url (default: v2 for bootstrap)"
   type        = string
+  default     = "v2"
 }
 
 variable "images_bucket" {
@@ -34,9 +41,9 @@ variable "database_secret_arn" {
 }
 
 variable "memory_size" {
-  description = "Lambda memory size in MB"
+  description = "Lambda memory size in MB (7168 required for rembg/u2net which needs ~6.2GB)"
   type        = number
-  default     = 1024
+  default     = 7168
 }
 
 variable "timeout" {
@@ -79,4 +86,10 @@ variable "api_lambda_role_name" {
   description = "IAM role name of the API Lambda (for SQS send permissions)"
   type        = string
   default     = null
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 30
 }
