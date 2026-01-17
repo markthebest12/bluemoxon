@@ -203,6 +203,72 @@ AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
 
 ---
 
+## Part 5: Admin Config SQS Display Fix
+
+### Issue
+
+After terraform apply, the `/admin/system-info` endpoint returned SQS health data in `/health/deep`, but the Admin Config page's System Status tab only showed Database, S3 Images, and Cognito - no SQS.
+
+### Root Cause
+
+The `admin.py` `/admin/system-info` endpoint wasn't calling `check_sqs()` or including SQS in the `HealthChecks` response model.
+
+### Fix (PR #1142)
+
+Added SQS health check to admin.py:
+
+1. Added `check_sqs` to imports from health.py
+2. Created Pydantic models: `SqsQueueHealth`, `SqsHealthCheck`
+3. Added `sqs` field to `HealthChecks` model
+4. Called `check_sqs()` in system-info endpoint
+5. Updated overall health calculation to include SQS status
+
+### Verification
+
+Admin Config page now shows "SQS Queues - 112ms" in Health Checks section with checkmark.
+
+---
+
+## Part 6: Deployment and Testing
+
+### Completed
+
+1. **Merged PR #1141** - Database password protection and SQS health permissions
+2. **Ran terraform apply** - All SQS queues now healthy:
+   - bluemoxon-staging-eval-runbook
+   - bluemoxon-staging-image-processing
+   - bluemoxon-staging-tracking-worker
+3. **Merged PR #1142** - SQS display in admin config page
+4. **Verified health endpoint** - All queues showing healthy status
+5. **Tested eBay import** - Successfully imported listing 235937594146 (book ID 634)
+
+### Health Check Results
+
+```json
+{
+  "sqs": {
+    "status": "healthy",
+    "latency_ms": 112.17,
+    "queues": {
+      "eval_runbook": { "status": "healthy", "messages": 0 },
+      "image_processing": { "status": "healthy", "messages": 0 },
+      "tracking_worker": { "status": "healthy", "messages": 0 }
+    }
+  }
+}
+```
+
+---
+
+## Next Steps
+
+1. [ ] Complete second eBay import test (187668108527)
+2. [ ] Verify CloudWatch metrics for image processing
+3. [ ] Deploy image processor Lambda code (container-based Lambda with rembg)
+4. [ ] Test end-to-end image processing flow
+
+---
+
 ## Lessons Learned
 
 1. **Never use `-var="db_password=not-used"` with terraform apply** - Terraform may still apply the value even with `-target` flags
@@ -210,3 +276,4 @@ AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
 3. **Add sensitive resources to `ignore_changes`** - Protect critical infrastructure from accidental modifications
 4. **Health check permissions are separate** - Just because Lambda can send to a queue doesn't mean it can inspect the queue
 5. **Use `random_password` for database credentials** - Eliminates the entire class of "wrong password" accidents
+6. **Admin endpoints need explicit health calls** - The system-info endpoint required explicit `check_sqs()` call to include SQS in the response
