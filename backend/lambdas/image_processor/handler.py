@@ -12,6 +12,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import PurePath
 
 import boto3
 from PIL import Image
@@ -273,11 +274,18 @@ def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -
     )
 
 
+# Valid rembg model names - reject unknown models to prevent unbounded cache growth
+VALID_REMBG_MODELS = {"u2net", "isnet-general-use"}
+
+
 def get_rembg_session(model_name: str):
     """Get or create rembg session for model.
 
     Caches sessions to avoid reloading models.
+    Validates model name to prevent unbounded cache growth from typos.
     """
+    if model_name not in VALID_REMBG_MODELS:
+        raise ValueError(f"Invalid model name: {model_name}. Valid: {VALID_REMBG_MODELS}")
     global _rembg_sessions
     _ensure_rembg_loaded()
     if model_name not in _rembg_sessions:
@@ -344,8 +352,8 @@ def calculate_subject_bounds(image: Image.Image) -> tuple[int, int, int, int] | 
 def calculate_brightness(image: Image.Image) -> int:
     """Calculate average brightness of non-transparent pixels.
 
-    Uses streaming iteration to avoid loading all pixels into memory.
-    For a 4096x4096 image, this uses O(1) memory instead of O(16M).
+    Uses streaming iteration to avoid creating a second copy of pixel data.
+    For a 4096x4096 image, this avoids doubling memory from list() copy.
 
     Args:
         image: RGBA PIL Image
@@ -465,7 +473,11 @@ def select_best_source_image(images: list, primary_image_id: int):
         if img.id == primary_image_id:
             return img
 
-    # Last resort: first unprocessed image
+    # Last resort: first unprocessed image (primary_image_id not found)
+    logger.warning(
+        f"primary_image_id {primary_image_id} not found in unprocessed images, "
+        f"falling back to first unprocessed image {unprocessed[0].id}"
+    )
     return unprocessed[0]
 
 
@@ -646,9 +658,9 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
             # Generate and upload thumbnail
-            # Key format: thumb_{s3_key} to match API's get_thumbnail_key()
+            # Key format: thumb_{stem}.jpg - preserves path structure, uses .jpg for JPEG format
             thumbnail = generate_thumbnail(final_image)
-            thumb_s3_key = f"thumb_{db_s3_key}"
+            thumb_s3_key = f"thumb_{PurePath(db_s3_key).with_suffix('.jpg')}"
             full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
 
             thumb_buffer = io.BytesIO()
