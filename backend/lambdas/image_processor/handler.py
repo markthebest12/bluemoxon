@@ -39,14 +39,6 @@ BRIGHTNESS_THRESHOLD = 128
 # Maximum processing attempts before marking job as failed
 MAX_ATTEMPTS = 3
 
-# Minimum subject area as ratio of original image area (0.0-1.0)
-# Subject smaller than this ratio fails quality validation
-MIN_AREA_RATIO = 0.5
-
-# Maximum aspect ratio difference tolerance (0.0-1.0)
-# Aspect ratio change greater than this fails quality validation
-MAX_ASPECT_DIFF = 0.2
-
 # Maximum input image dimension (width or height) in pixels
 # Images larger than this are rejected to prevent OOM
 MAX_IMAGE_DIMENSION = 4096
@@ -202,38 +194,6 @@ def get_processing_config(attempt: int) -> dict:
         }
 
 
-def validate_image_quality(
-    original_width: int,
-    original_height: int,
-    subject_width: int,
-    subject_height: int,
-) -> dict:
-    """Validate processed image quality.
-
-    Args:
-        original_width: Original image width
-        original_height: Original image height
-        subject_width: Extracted subject width
-        subject_height: Extracted subject height
-
-    Returns:
-        Dict with passed (bool) and reason (str if failed)
-    """
-    original_area = original_width * original_height
-    subject_area = subject_width * subject_height
-    area_ratio = subject_area / original_area
-
-    if area_ratio < MIN_AREA_RATIO:
-        return {"passed": False, "reason": "area_too_small"}
-
-    original_aspect = original_width / original_height
-    subject_aspect = subject_width / subject_height
-    aspect_diff = abs(original_aspect - subject_aspect) / original_aspect
-
-    if aspect_diff > MAX_ASPECT_DIFF:
-        return {"passed": False, "reason": "aspect_ratio_mismatch"}
-
-    return {"passed": True, "reason": None}
 
 
 def select_background_color(brightness: int) -> str:
@@ -652,18 +612,7 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
                         logger.warning(f"Attempt {attempt}: background removal returned None")
                         continue
 
-                    validation = validate_image_quality(
-                        original_width,
-                        original_height,
-                        result["subject_width"],
-                        result["subject_height"],
-                    )
-                    if not validation["passed"]:
-                        logger.warning(
-                            f"Attempt {attempt} failed validation: {validation['reason']}"
-                        )
-                        continue
-
+                    # Use the result directly - no validation (matches original script behavior)
                     processed_image = result["image"]
                     model_used = config["model_name"]
                     logger.info(f"Attempt {attempt} succeeded with model {model_used}")
@@ -674,10 +623,10 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
             if processed_image is None:
                 job.status = "failed"
-                job.failure_reason = "All processing attempts failed quality validation"
+                job.failure_reason = "All background removal attempts failed"
                 job.completed_at = datetime.now(UTC)
                 db.commit()
-                logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
+                logger.warning(f"Job {job_id}: all rembg attempts failed")
                 return False
 
             brightness = calculate_brightness(processed_image)

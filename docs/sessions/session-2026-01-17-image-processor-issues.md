@@ -1,8 +1,34 @@
 # Session: Image Processor Issues - 2026-01-17
 
-## Status: COMPLETE - PRODUCTION DEPLOYMENT SUCCESSFUL
+## Status: BUG FIX IN PROGRESS
 
-The image processor Lambda is now fully deployed and operational in production.
+The image processor Lambda was deployed but had a validation bug causing images to be rejected.
+
+### Bug Found: Validation Thresholds Rejecting Valid Images
+
+**Symptom:** Book 635 (created via eBay import) had no processed image despite Lambda running.
+
+**Root Cause:** Lambda added validation thresholds that didn't exist in the original working script:
+- `MIN_AREA_RATIO = 0.5` - Rejected if subject area <50% of original
+- `MAX_ASPECT_DIFF = 0.2` - Rejected if aspect ratio changed >20%
+
+Book 635 failed with:
+- Attempts 1,2: `area_too_small`
+- Attempt 3: `aspect_ratio_mismatch`
+
+**Original Script Behavior:** `scripts/process-book-images.sh` had NO validation - it just ran rembg and used whatever result was returned. This processed 100+ books flawlessly.
+
+**Fix:** Removed validation thresholds from `handler.py`. The Lambda now matches the original script behavior - use whatever rembg returns without quality gates.
+
+### Files Changed
+- `backend/lambdas/image_processor/handler.py` - Removed `validate_image_quality()` and thresholds
+- `backend/lambdas/image_processor/tests/test_handler.py` - Removed validation tests
+
+---
+
+## Previous Status: PRODUCTION DEPLOYMENT SUCCESSFUL
+
+The image processor Lambda was deployed and operational in production.
 
 ### Production Verification
 - **Lambda:** `bluemoxon-prod-image-processor` - Active, 7168MB memory, 300s timeout
