@@ -658,9 +658,10 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
             # Generate and upload thumbnail
-            # Key format: thumb_{stem}.jpg - preserves path structure, uses .jpg for JPEG format
+            # Key format: thumb_{s3_key} - preserves full key including extension
+            # Note: Thumbnail is JPEG format but keeps original extension for API URL compatibility
             thumbnail = generate_thumbnail(final_image)
-            thumb_s3_key = f"thumb_{PurePath(db_s3_key).with_suffix('.jpg')}"
+            thumb_s3_key = f"thumb_{db_s3_key}"
             full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
 
             thumb_buffer = io.BytesIO()

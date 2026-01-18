@@ -129,12 +129,15 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> tuple[bool, st
 def get_thumbnail_key(s3_key: str) -> str:
     """Get the S3 key for a thumbnail from the original image key.
 
-    Example: 'book_123_abc.png' -> 'thumb_book_123_abc.jpg'
-    Example: '639/image_01.webp' -> 'thumb_639/image_01.jpg'
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
 
-    Note: Preserves the full path structure, changes extension to .jpg (JPEG format).
+    Note: Preserves the full path structure and original extension.
+    The thumbnail file is always JPEG format (content-type: image/jpeg),
+    but we keep the original extension for backwards compatibility with
+    existing thumbnails that were created with various extensions.
     """
-    return f"thumb_{Path(s3_key).with_suffix('.jpg')}"
+    return f"thumb_{s3_key}"
 
 
 def get_api_base_url() -> str:

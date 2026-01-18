@@ -9,7 +9,8 @@ class TestGetThumbnailKey:
     """Tests for get_thumbnail_key function.
 
     This function generates S3 keys for thumbnails from original image keys.
-    It preserves the full path structure but changes extension to .jpg (JPEG format).
+    It preserves the full path structure and original extension for backwards
+    compatibility with existing thumbnails.
     """
 
     def test_simple_filename(self):
@@ -17,20 +18,20 @@ class TestGetThumbnailKey:
         assert get_thumbnail_key("638_abc.jpg") == "thumb_638_abc.jpg"
 
     def test_preserves_directory_path(self):
-        """Directory paths must be preserved, extension changed to .jpg."""
-        assert get_thumbnail_key("639/image_01.webp") == "thumb_639/image_01.jpg"
+        """Directory paths must be preserved."""
+        assert get_thumbnail_key("639/image_01.webp") == "thumb_639/image_01.webp"
 
-    def test_png_becomes_jpg(self):
-        """PNG extension becomes .jpg for processed images."""
-        assert get_thumbnail_key("638_processed_xxx.png") == "thumb_638_processed_xxx.jpg"
+    def test_preserves_png_extension(self):
+        """PNG extension preserved for backwards compatibility."""
+        assert get_thumbnail_key("638_processed_xxx.png") == "thumb_638_processed_xxx.png"
 
-    def test_webp_becomes_jpg(self):
-        """WebP extension becomes .jpg for imported images."""
-        assert get_thumbnail_key("639/image_05.webp") == "thumb_639/image_05.jpg"
+    def test_preserves_webp_extension(self):
+        """WebP extension preserved for backwards compatibility."""
+        assert get_thumbnail_key("639/image_05.webp") == "thumb_639/image_05.webp"
 
     def test_nested_directory_path(self):
-        """Nested directories must be preserved, extension changed to .jpg."""
-        assert get_thumbnail_key("books/639/cover.png") == "thumb_books/639/cover.jpg"
+        """Nested directories must be preserved."""
+        assert get_thumbnail_key("books/639/cover.jpg") == "thumb_books/639/cover.jpg"
 
 
 class TestListImages:
