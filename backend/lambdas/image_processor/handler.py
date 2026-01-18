@@ -194,8 +194,6 @@ def get_processing_config(attempt: int) -> dict:
         }
 
 
-
-
 def select_background_color(brightness: int) -> str:
     """Select background color based on image brightness.
 
