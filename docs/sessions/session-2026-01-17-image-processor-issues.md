@@ -102,6 +102,21 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 - Thumbnail in S3: 6084 bytes
 - Thumbnail via CDN: HTTP 200
 
+### Production Validation (Book 634) - PASSED
+Full end-to-end test via acquisition flow on 2026-01-18:
+- Created test book via `bmx-api --prod POST /books`
+- Uploaded binding image (5716) and title_page image (5717)
+- Triggered processing via image reorder
+- Lambda logs confirmed:
+  - `Selected source image 5717 (type=title_page, requested=5716)` - Smart selection ✓
+  - `Attempt 1 succeeded with model u2net-alpha` - Background removal ✓
+  - `Subject brightness: 183, selected background: white` - Brightness detection ✓
+  - `Uploading thumbnail to s3://...thumb_634_processed_...jpg` - Thumbnail ✓
+  - `Job completed successfully, new image id: 5718` - Success ✓
+- Processed image accessible via CDN: HTTP 200, 1.6MB PNG
+- Thumbnail accessible via CDN: HTTP 200, 8.8KB JPEG
+- Test book cleaned up after validation
+
 ## Commands for Testing
 
 ```bash
