@@ -91,30 +91,7 @@ The image processor Lambda was deployed and operational in production.
 - **SQS Queue:** `bluemoxon-prod-image-processing` - Connected and ready
 - **GitHub Actions:** Run #21101453048 completed successfully
 
-## Critical Rules for Future Sessions
-
-### 1. ALWAYS Use Superpowers Skills
-
-**Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke the skill.
-
-Key skills for this work:
-- `superpowers:systematic-debugging` - For any bug investigation
-- `superpowers:verification-before-completion` - Before claiming anything works
-- `superpowers:test-driven-development` - Before implementing fixes
-
-### 2. Bash Command Rules
-
-**NEVER use these** (trigger permission prompts):
-- `#` comment lines before commands
-- `\` backslash line continuations
-- `$(...)` command substitution
-- `||` or `&&` chaining
-- `!` in quoted strings
-
-**ALWAYS use:**
-- Simple single-line commands
-- Separate sequential Bash tool calls instead of `&&`
-- `bmx-api` for all BlueMoxon API calls (no permission prompts)
+---
 
 ## Deployment History
 
@@ -140,7 +117,7 @@ The image processor Lambda function was never created in production via terrafor
 The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was deployed to staging. It uses rembg/u2net to remove backgrounds from book images and replace with white/black backgrounds based on subject brightness.
 
 ### What Works
-- Lambda deploys and runs successfully in STAGING
+- Lambda deploys and runs successfully in STAGING and PRODUCTION
 - SQS queue triggers Lambda correctly
 - Background removal with rembg/u2net works
 - Processed images upload to S3
@@ -154,6 +131,10 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 #### Issue 2: Wrong Source Image Selection - FIXED
 - Added `select_best_source_image()` with type priority: title_page > binding > cover > spine
 
+#### Issue 3: Validation Thresholds Rejecting Valid Images - FIXED (PR #1156)
+- Removed `MIN_AREA_RATIO` and `MAX_ASPECT_DIFF` validation that didn't exist in original script
+- Lambda now uses rembg result directly without quality gates
+
 #### Code Review Fixes - FIXED
 - P0: Row-level locking, idempotency check
 - P1: Null check, credential rotation handling, memory optimization
@@ -164,8 +145,8 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 - `infra/terraform/modules/github-oidc/main.tf` - Added `lambda:TagResource` permission
 - `infra/terraform/main.tf` - Added image-processor ECR to github_oidc module
 - `infra/terraform/envs/prod.tfvars` - Added image processor comment
-- `backend/lambdas/image_processor/handler.py` - Added thumbnail generation and smart source selection
-- `backend/lambdas/image_processor/tests/test_handler.py` - Added 9 new tests
+- `backend/lambdas/image_processor/handler.py` - Added thumbnail generation, smart source selection, removed validation
+- `backend/lambdas/image_processor/tests/test_handler.py` - Added 9 new tests, removed 3 validation tests
 
 ## PRs Created
 
@@ -174,6 +155,7 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 - PR #1153 - Staging to main promotion (CLOSED - had merge conflicts)
 - PR #1154 - Thumbnail generation + smart source selection fixes (MERGED to staging)
 - PR #1155 - Staging to production promotion (MERGED to main)
+- PR #1156 - Remove validation thresholds from image processor (OPEN)
 
 ## Validation Results
 
