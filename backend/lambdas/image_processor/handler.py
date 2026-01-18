@@ -12,7 +12,6 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from pathlib import PurePath
 
 import boto3
 from PIL import Image
