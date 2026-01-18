@@ -93,6 +93,146 @@ infra/terraform/
     └── vpc-networking/  # VPC endpoints, NAT
 ```
 
+## Lambda Layers
+
+Shared Python dependencies deployed as a Lambda Layer:
+
+```text
+infra/terraform/modules/lambda-layer/
+├── main.tf          # Layer version resource
+├── variables.tf     # Configuration inputs
+└── outputs.tf       # Layer ARN output
+```
+
+**Configuration:**
+
+| Parameter | Value |
+|-----------|-------|
+| Layer Name | `bluemoxon-{env}-deps` |
+| Runtime | Python 3.12 |
+| Source | `s3://{artifacts-bucket}/lambda/layer.zip` |
+
+**Benefits:**
+
+- **Shared Dependencies** - Single layer used by API, cleanup, and worker Lambdas
+- **Faster Deploys** - Code packages smaller without bundled dependencies
+- **Version Immutability** - Layer versions never redeployed (CI/CD publishes new versions)
+- **Cold Start Optimization** - Dependencies pre-loaded in execution environment
+
+## Cleanup Lambda
+
+Automated maintenance for stale data and orphaned resources:
+
+```text
+infra/terraform/modules/cleanup-lambda/
+├── main.tf          # Lambda + IAM + EventBridge
+├── variables.tf     # Schedule configuration
+└── outputs.tf       # Function ARN
+```
+
+**Cleanup Tasks:**
+
+| Task | Description |
+|------|-------------|
+| Archive Stale Evaluating | Books in EVALUATING >30 days -> archived |
+| Check Source URLs | Verify eBay listings still active (25/batch) |
+| Find Orphan Images | Detect S3 images without database records |
+| Delete Orphans | Remove orphaned images (with job tracking) |
+| Retry Archives | Retry failed archive.org submissions (max 3) |
+
+**Configuration:**
+
+- **Schedule**: Optional EventBridge rule (e.g., `rate(1 day)`)
+- **Memory**: 256 MB
+- **Timeout**: 300 seconds
+- **Trigger**: Scheduled or on-demand via Admin API
+
+## Tracking Worker
+
+Asynchronous package tracking with circuit breaker pattern:
+
+```text
+infra/terraform/modules/tracking-worker/
+├── main.tf          # Dispatcher + Worker + SQS
+├── variables.tf     # Concurrency limits
+└── outputs.tf       # Queue URLs
+```
+
+**Circuit Breaker (SQS-based):**
+
+| Parameter | Value |
+|-----------|-------|
+| Max Retries | 3 attempts |
+| Visibility Timeout | 120 seconds |
+| DLQ Retention | 14 days |
+| Reserved Concurrency | 10 workers |
+
+**Benefits:**
+
+- **Automatic Retry** - Failed tracking checks retry up to 3 times
+- **Backpressure** - SQS absorbs spikes, workers process at controlled rate
+- **Failure Isolation** - Bad tracking numbers move to DLQ, don't block others
+- **Observability** - CloudWatch alarms on DLQ depth
+
+## Artifacts Bucket
+
+Central repository for Lambda deployment packages:
+
+**Bucket Name:** `{app_name}-artifacts-{environment}`
+
+**Structure:**
+
+```text
+s3://bluemoxon-artifacts-staging/
+├── lambda/
+│   ├── layer.zip        # Shared dependencies layer
+│   ├── api.zip          # API Lambda code
+│   ├── cleanup.zip      # Cleanup Lambda code
+│   └── ...              # Other Lambda packages
+```
+
+**Features:**
+
+- **Versioning Enabled** - Supports rollback to previous deployments
+- **Private Access** - No public access, IAM-only
+- **CI/CD Integration** - GitHub Actions uploads artifacts on deploy
+- **Cross-Lambda Sharing** - Single source for all Lambda packages
+
+## Image Processor Lambda
+
+Container-based Lambda for AI-powered image processing:
+
+```text
+infra/terraform/modules/image-processor/
+├── main.tf          # Lambda + SQS + IAM
+├── variables.tf     # Memory, timeout config
+└── outputs.tf       # Queue URL, function ARN
+```
+
+**Configuration:**
+
+| Parameter | Value | Reason |
+|-----------|-------|--------|
+| Architecture | x86_64 | ARM64 has ONNX Runtime issues |
+| Memory | 7168 MB | rembg model requires ~6GB |
+| Timeout | 300 seconds | Large image processing |
+| Reserved Concurrency | 2 | Cost control |
+| Batch Size | 1 | One image per invocation |
+
+**Container Image:**
+
+- **Base**: AWS Lambda Python 3.12 (x86_64)
+- **Pre-loaded Models**: u2net, isnet-general-use
+- **Environment**: `U2NET_HOME=/opt/u2net`, `NUMBA_CACHE_DIR=/tmp`
+
+**SQS Configuration:**
+
+| Parameter | Value |
+|-----------|-------|
+| Visibility Timeout | 600 seconds |
+| Message Retention | 4 days |
+| DLQ Max Receives | 3 |
+
 ### Terraform Commands
 
 | Task | Command |
