@@ -1,28 +1,83 @@
 # Session: Image Processor Issues - 2026-01-17
 
-## Status: BUG FIX IN PROGRESS
+## Status: BUG FIX READY FOR DEPLOYMENT
 
-The image processor Lambda was deployed but had a validation bug causing images to be rejected.
+PR #1156 created - removes validation thresholds that were rejecting valid images.
 
-### Bug Found: Validation Thresholds Rejecting Valid Images
+---
 
-**Symptom:** Book 635 (created via eBay import) had no processed image despite Lambda running.
+## CRITICAL RULES FOR ALL SESSIONS
 
-**Root Cause:** Lambda added validation thresholds that didn't exist in the original working script:
+### 1. ALWAYS Use Superpowers Skills
+
+**Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke the skill.
+
+Key skills for this work:
+- `superpowers:systematic-debugging` - For ANY bug investigation
+- `superpowers:verification-before-completion` - Before claiming ANYTHING works
+- `superpowers:test-driven-development` - Before implementing fixes
+
+### 2. Bash Command Rules
+
+**NEVER use these** (trigger permission prompts):
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
+
+**ALWAYS use:**
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls (no permission prompts)
+
+---
+
+## Next Steps
+
+1. **Merge PR #1156** to staging
+2. **Watch CI**: `gh pr checks 1156 --watch`
+3. **After staging deploy, test book 635**:
+   - Trigger reprocess: `bmx-api PUT /books/635/images/reorder '[5720, 5721, ...]'`
+   - Check Lambda logs: `AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-image-processor --since 5m`
+   - Verify processed image created
+4. **Promote to production** when staging verified
+5. **Reprocess any affected books** in production
+
+---
+
+## Bug Found: Validation Thresholds Rejecting Valid Images
+
+**Symptom:** Book 635 (created via eBay import) had no processed image despite Lambda running successfully.
+
+**Investigation Path (Systematic Debugging):**
+1. API logs showed: `Image processing job sent, MessageId: 8289b821-...` ✓
+2. Lambda logs showed: `Processing job 88ce0edf-... for book 635, image 5720` ✓
+3. Lambda logs showed: `Attempt 1 failed validation: area_too_small`
+4. Lambda logs showed: `Attempt 2 failed validation: area_too_small`
+5. Lambda logs showed: `Attempt 3 failed validation: aspect_ratio_mismatch`
+6. Lambda logs showed: `Job 88ce0edf-...: all attempts failed, keeping original as primary`
+
+**Root Cause:** Lambda had validation thresholds that didn't exist in the original working script:
 - `MIN_AREA_RATIO = 0.5` - Rejected if subject area <50% of original
 - `MAX_ASPECT_DIFF = 0.2` - Rejected if aspect ratio changed >20%
 
-Book 635 failed with:
-- Attempts 1,2: `area_too_small`
-- Attempt 3: `aspect_ratio_mismatch`
+**Original Script Behavior:** `scripts/process-book-images.sh` (lines 118-149) had NO validation:
+```bash
+docker run ... danielgatis/rembg i -a "$ORIG_FILE" "$NOBG_FILE"
+BRIGHTNESS=$(magick "$NOBG_FILE" -colorspace Gray -format "%[fx:mean*255]" info:)
+magick "$NOBG_FILE" -background "$BG_COLOR" -flatten "$FINAL_FILE"
+```
+This processed 100+ books flawlessly - no area ratio check, no aspect ratio check.
 
-**Original Script Behavior:** `scripts/process-book-images.sh` had NO validation - it just ran rembg and used whatever result was returned. This processed 100+ books flawlessly.
+**Fix Applied:** Removed `validate_image_quality()` function and all validation calls from `handler.py`. Lambda now uses whatever rembg returns without quality gates.
 
-**Fix:** Removed validation thresholds from `handler.py`. The Lambda now matches the original script behavior - use whatever rembg returns without quality gates.
+### Files Changed in Fix
+- `backend/lambdas/image_processor/handler.py` - Removed validation function and thresholds
+- `backend/lambdas/image_processor/tests/test_handler.py` - Removed 3 validation tests
 
-### Files Changed
-- `backend/lambdas/image_processor/handler.py` - Removed `validate_image_quality()` and thresholds
-- `backend/lambdas/image_processor/tests/test_handler.py` - Removed validation tests
+### PR Created
+- **PR #1156** - `fix: Remove validation thresholds from image processor`
 
 ---
 
