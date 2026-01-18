@@ -12,7 +12,6 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from pathlib import PurePath
 
 import boto3
 from PIL import Image
@@ -38,14 +37,6 @@ BRIGHTNESS_THRESHOLD = 128
 
 # Maximum processing attempts before marking job as failed
 MAX_ATTEMPTS = 3
-
-# Minimum subject area as ratio of original image area (0.0-1.0)
-# Subject smaller than this ratio fails quality validation
-MIN_AREA_RATIO = 0.5
-
-# Maximum aspect ratio difference tolerance (0.0-1.0)
-# Aspect ratio change greater than this fails quality validation
-MAX_ASPECT_DIFF = 0.2
 
 # Maximum input image dimension (width or height) in pixels
 # Images larger than this are rejected to prevent OOM
@@ -202,40 +193,6 @@ def get_processing_config(attempt: int) -> dict:
         }
 
 
-def validate_image_quality(
-    original_width: int,
-    original_height: int,
-    subject_width: int,
-    subject_height: int,
-) -> dict:
-    """Validate processed image quality.
-
-    Args:
-        original_width: Original image width
-        original_height: Original image height
-        subject_width: Extracted subject width
-        subject_height: Extracted subject height
-
-    Returns:
-        Dict with passed (bool) and reason (str if failed)
-    """
-    original_area = original_width * original_height
-    subject_area = subject_width * subject_height
-    area_ratio = subject_area / original_area
-
-    if area_ratio < MIN_AREA_RATIO:
-        return {"passed": False, "reason": "area_too_small"}
-
-    original_aspect = original_width / original_height
-    subject_aspect = subject_width / subject_height
-    aspect_diff = abs(original_aspect - subject_aspect) / original_aspect
-
-    if aspect_diff > MAX_ASPECT_DIFF:
-        return {"passed": False, "reason": "aspect_ratio_mismatch"}
-
-    return {"passed": True, "reason": None}
-
-
 def select_background_color(brightness: int) -> str:
     """Select background color based on image brightness.
 
@@ -316,11 +273,18 @@ def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -
     )
 
 
+# Valid rembg model names - reject unknown models to prevent unbounded cache growth
+VALID_REMBG_MODELS = {"u2net", "isnet-general-use"}
+
+
 def get_rembg_session(model_name: str):
     """Get or create rembg session for model.
 
     Caches sessions to avoid reloading models.
+    Validates model name to prevent unbounded cache growth from typos.
     """
+    if model_name not in VALID_REMBG_MODELS:
+        raise ValueError(f"Invalid model name: {model_name}. Valid: {VALID_REMBG_MODELS}")
     global _rembg_sessions
     _ensure_rembg_loaded()
     if model_name not in _rembg_sessions:
@@ -387,8 +351,8 @@ def calculate_subject_bounds(image: Image.Image) -> tuple[int, int, int, int] | 
 def calculate_brightness(image: Image.Image) -> int:
     """Calculate average brightness of non-transparent pixels.
 
-    Uses streaming iteration to avoid loading all pixels into memory.
-    For a 4096x4096 image, this uses O(1) memory instead of O(16M).
+    Uses streaming iteration to avoid creating a second copy of pixel data.
+    For a 4096x4096 image, this avoids doubling memory from list() copy.
 
     Args:
         image: RGBA PIL Image
@@ -508,7 +472,11 @@ def select_best_source_image(images: list, primary_image_id: int):
         if img.id == primary_image_id:
             return img
 
-    # Last resort: first unprocessed image
+    # Last resort: first unprocessed image (primary_image_id not found)
+    logger.warning(
+        f"primary_image_id {primary_image_id} not found in unprocessed images, "
+        f"falling back to first unprocessed image {unprocessed[0].id}"
+    )
     return unprocessed[0]
 
 
@@ -652,18 +620,7 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
                         logger.warning(f"Attempt {attempt}: background removal returned None")
                         continue
 
-                    validation = validate_image_quality(
-                        original_width,
-                        original_height,
-                        result["subject_width"],
-                        result["subject_height"],
-                    )
-                    if not validation["passed"]:
-                        logger.warning(
-                            f"Attempt {attempt} failed validation: {validation['reason']}"
-                        )
-                        continue
-
+                    # Use the result directly - no validation (matches original script behavior)
                     processed_image = result["image"]
                     model_used = config["model_name"]
                     logger.info(f"Attempt {attempt} succeeded with model {model_used}")
@@ -674,10 +631,10 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
             if processed_image is None:
                 job.status = "failed"
-                job.failure_reason = "All processing attempts failed quality validation"
+                job.failure_reason = "All background removal attempts failed"
                 job.completed_at = datetime.now(UTC)
                 db.commit()
-                logger.warning(f"Job {job_id}: all attempts failed, keeping original as primary")
+                logger.warning(f"Job {job_id}: all rembg attempts failed")
                 return False
 
             brightness = calculate_brightness(processed_image)
@@ -700,10 +657,10 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
             # Generate and upload thumbnail
+            # Key format: thumb_{s3_key} - preserves full key including extension
+            # Note: Thumbnail is JPEG format but keeps original extension for API URL compatibility
             thumbnail = generate_thumbnail(final_image)
-            # Use proper path manipulation for extension change
-            db_s3_path = PurePath(db_s3_key)
-            thumb_s3_key = f"thumb_{db_s3_path.stem}.jpg"
+            thumb_s3_key = f"thumb_{db_s3_key}"
             full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
 
             thumb_buffer = io.BytesIO()

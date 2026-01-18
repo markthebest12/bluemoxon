@@ -130,6 +130,12 @@ def get_thumbnail_key(s3_key: str) -> str:
     """Get the S3 key for a thumbnail from the original image key.
 
     Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
+
+    Note: Preserves the full path structure and original extension.
+    The thumbnail file is always JPEG format (content-type: image/jpeg),
+    but we keep the original extension for backwards compatibility with
+    existing thumbnails that were created with various extensions.
     """
     return f"thumb_{s3_key}"
 

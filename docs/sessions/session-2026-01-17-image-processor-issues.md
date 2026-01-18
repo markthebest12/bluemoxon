@@ -1,16 +1,20 @@
 # Session: Image Processor Issues - 2026-01-17
 
-## Status: FIXES IMPLEMENTED - PENDING PR REVIEW
+## Status: BUG FIX READY FOR DEPLOYMENT
 
-## Critical Rules for Continuation
+PR #1156 created - removes validation thresholds that were rejecting valid images.
+
+---
+
+## CRITICAL RULES FOR ALL SESSIONS
 
 ### 1. ALWAYS Use Superpowers Skills
 
 **Invoke relevant skills BEFORE any response or action.** Even 1% chance = invoke the skill.
 
 Key skills for this work:
-- `superpowers:systematic-debugging` - For any bug investigation
-- `superpowers:verification-before-completion` - Before claiming anything works
+- `superpowers:systematic-debugging` - For ANY bug investigation
+- `superpowers:verification-before-completion` - Before claiming ANYTHING works
 - `superpowers:test-driven-development` - Before implementing fixes
 
 ### 2. Bash Command Rules
@@ -27,108 +31,154 @@ Key skills for this work:
 - Separate sequential Bash tool calls instead of `&&`
 - `bmx-api` for all BlueMoxon API calls (no permission prompts)
 
+---
+
+## Next Steps
+
+1. **Merge PR #1156** to staging
+2. **Watch CI**: `gh pr checks 1156 --watch`
+3. **After staging deploy, test book 635**:
+   - Trigger reprocess: `bmx-api PUT /books/635/images/reorder '[5720, 5721, ...]'`
+   - Check Lambda logs: `AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-image-processor --since 5m`
+   - Verify processed image created
+4. **Promote to production** when staging verified
+5. **Reprocess any affected books** in production
+
+---
+
+## Bug Found: Validation Thresholds Rejecting Valid Images
+
+**Symptom:** Book 635 (created via eBay import) had no processed image despite Lambda running successfully.
+
+**Investigation Path (Systematic Debugging):**
+1. API logs showed: `Image processing job sent, MessageId: 8289b821-...` ✓
+2. Lambda logs showed: `Processing job 88ce0edf-... for book 635, image 5720` ✓
+3. Lambda logs showed: `Attempt 1 failed validation: area_too_small`
+4. Lambda logs showed: `Attempt 2 failed validation: area_too_small`
+5. Lambda logs showed: `Attempt 3 failed validation: aspect_ratio_mismatch`
+6. Lambda logs showed: `Job 88ce0edf-...: all attempts failed, keeping original as primary`
+
+**Root Cause:** Lambda had validation thresholds that didn't exist in the original working script:
+- `MIN_AREA_RATIO = 0.5` - Rejected if subject area <50% of original
+- `MAX_ASPECT_DIFF = 0.2` - Rejected if aspect ratio changed >20%
+
+**Original Script Behavior:** `scripts/process-book-images.sh` (lines 118-149) had NO validation:
+```bash
+docker run ... danielgatis/rembg i -a "$ORIG_FILE" "$NOBG_FILE"
+BRIGHTNESS=$(magick "$NOBG_FILE" -colorspace Gray -format "%[fx:mean*255]" info:)
+magick "$NOBG_FILE" -background "$BG_COLOR" -flatten "$FINAL_FILE"
+```
+This processed 100+ books flawlessly - no area ratio check, no aspect ratio check.
+
+**Fix Applied:** Removed `validate_image_quality()` function and all validation calls from `handler.py`. Lambda now uses whatever rembg returns without quality gates.
+
+### Files Changed in Fix
+- `backend/lambdas/image_processor/handler.py` - Removed validation function and thresholds
+- `backend/lambdas/image_processor/tests/test_handler.py` - Removed 3 validation tests
+
+### PR Created
+- **PR #1156** - `fix: Remove validation thresholds from image processor`
+
+---
+
+## Previous Status: PRODUCTION DEPLOYMENT SUCCESSFUL
+
+The image processor Lambda was deployed and operational in production.
+
+### Production Verification
+- **Lambda:** `bluemoxon-prod-image-processor` - Active, 7168MB memory, 300s timeout
+- **Last Updated:** 2026-01-17T23:27:44Z
+- **SQS Queue:** `bluemoxon-prod-image-processing` - Connected and ready
+- **GitHub Actions:** Run #21101453048 completed successfully
+
+---
+
+## Deployment History
+
+### Issue: Production Lambda Did Not Exist
+
+**What Happened:**
+1. PR #1155 (staging to main) was merged successfully
+2. GitHub Actions deploy workflow ran
+3. "Build Image Processor" step succeeded (ECR push now works after terraform fix)
+4. "Deploy Image Processor Lambda" step FAILED - Lambda didn't exist
+
+**Root Cause:**
+The image processor Lambda function was never created in production via terraform. GitHub Actions tries to UPDATE Lambda code, but the Lambda didn't exist yet.
+
+**Resolution:**
+1. Applied terraform for `module.github_oidc` - Added ECR push permissions
+2. Tagged ECR image as `v2` for terraform bootstrap
+3. Applied terraform for `module.image_processor` - Created Lambda
+4. Re-ran GitHub Actions workflow #21101453048 - Deployed latest code
+
 ## Background
 
 The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was deployed to staging. It uses rembg/u2net to remove backgrounds from book images and replace with white/black backgrounds based on subject brightness.
 
 ### What Works
-- Lambda deploys and runs successfully
+- Lambda deploys and runs successfully in STAGING and PRODUCTION
 - SQS queue triggers Lambda correctly
 - Background removal with rembg/u2net works
 - Processed images upload to S3
 - Database records created for processed images
 
-### Issues Found
+### Issues Found and Fixed
 
-#### Issue 1: Missing Thumbnails (CRITICAL) - ✅ FIXED
+#### Issue 1: Missing Thumbnails (CRITICAL) - FIXED
+- Added `generate_thumbnail()` function and thumbnail upload after processed image upload
 
-**Symptom:** Processed images appear "broken" on the website because thumbnails don't exist.
+#### Issue 2: Wrong Source Image Selection - FIXED
+- Added `select_best_source_image()` with type priority: title_page > binding > cover > spine
 
-**Root Cause:** The image processor Lambda uploads the processed PNG to S3 but does NOT generate a thumbnail.
+#### Issue 3: Validation Thresholds Rejecting Valid Images - FIXED (PR #1156)
+- Removed `MIN_AREA_RATIO` and `MAX_ASPECT_DIFF` validation that didn't exist in original script
+- Lambda now uses rembg result directly without quality gates
 
-**Fix Implemented:**
-- Added `THUMBNAIL_MAX_SIZE = (300, 300)` and `THUMBNAIL_QUALITY = 85` constants
-- Added `generate_thumbnail()` function matching API endpoint behavior
-- Added thumbnail upload after processed image upload (JPEG format)
-- Added 3 unit tests for thumbnail generation
-
-**Commits:** `90f6491` - feat: Add thumbnail generation to image processor Lambda
-
-#### Issue 2: Wrong Source Image Selection - ✅ FIXED
-
-**Symptom:** Processor sometimes processes title pages instead of book cover/binding.
-
-**Expected Behavior:** Should prioritize:
-1. Title page image (if exists)
-2. Binding/spine image (if no title page)
-
-**Fix Implemented:**
-- Added `IMAGE_TYPE_PRIORITY = ["title_page", "binding", "cover", "spine"]` constant
-- Added `select_best_source_image()` function with priority-based selection
-- Integrated into `process_image()` to select best source from all book images
-- Added 6 unit tests for source selection
-- Falls back to primary image, then passed image_id, then first unprocessed
-
-**Commits:** `a6cd2c8` - feat: Add smart source image selection for image processor
-
-#### Code Review Fixes - ✅ FIXED
-
-**P0 Critical:**
-- Added row-level locking (`SELECT FOR UPDATE`) to prevent race conditions on concurrent book processing
-- Added idempotency check for job status before processing (SQS at-least-once delivery)
-
-**P1 High:**
-- Added null check for `select_best_source_image()` return value
-- Reset DB engine when secret cache expires (handles RDS credential rotation)
-- Optimized brightness calculation to use streaming iteration (O(1) memory instead of O(16M))
-
-**P2 Medium:**
-- Extracted `normalize_s3_key()` helper for consistent S3 prefix handling
-- Fixed filter to exclude source_image instead of trigger image in renumbering
-- Used pathlib for thumbnail filename manipulation
-
-**Commits:** `0a62303` - fix: Address code review issues for image processor
+#### Code Review Fixes - FIXED
+- P0: Row-level locking, idempotency check
+- P1: Null check, credential rotation handling, memory optimization
+- P2: S3 key normalization, filter fix, pathlib usage
 
 ## Files Modified This Session
 
 - `infra/terraform/modules/github-oidc/main.tf` - Added `lambda:TagResource` permission
 - `infra/terraform/main.tf` - Added image-processor ECR to github_oidc module
-- `backend/lambdas/image_processor/handler.py` - Added thumbnail generation and smart source selection
-- `backend/lambdas/image_processor/tests/test_handler.py` - Added 9 new tests (3 thumbnail, 6 source selection)
+- `infra/terraform/envs/prod.tfvars` - Added image processor comment
+- `backend/lambdas/image_processor/handler.py` - Added thumbnail generation, smart source selection, removed validation
+- `backend/lambdas/image_processor/tests/test_handler.py` - Added 9 new tests, removed 3 validation tests
 
 ## PRs Created
 
 - PR #1151 - Code review fixes (MERGED to staging)
 - PR #1152 - TagResource permission fix (MERGED to staging)
-- PR #1153 - Staging to main promotion (OPEN, needs review)
-- PR #1154 - Thumbnail generation + smart source selection fixes (OPEN, needs review)
+- PR #1153 - Staging to main promotion (CLOSED - had merge conflicts)
+- PR #1154 - Thumbnail generation + smart source selection fixes (MERGED to staging)
+- PR #1155 - Staging to production promotion (MERGED to main)
+- PR #1156 - Remove validation thresholds from image processor (OPEN)
 
-## Test Books
+## Validation Results
 
-- **Book 635** (Ruskin - Unto This Last): Processed successfully, missing thumbnail
-- **Book 626** (Charles O'Malley): Processed title page instead of cover, missing thumbnail
+### Staging Validation (Book 636) - PASSED
+- Source selection: `Selected source image 5528 (type=title_page)`
+- Thumbnail generation: `Uploading thumbnail to s3://...thumb_636_processed_...jpg`
+- Thumbnail in S3: 6084 bytes
+- Thumbnail via CDN: HTTP 200
 
-## Next Steps
-
-1. ✅ ~~**Fix thumbnail generation** in image processor Lambda~~
-   - DONE - Added `generate_thumbnail()` function and upload code
-
-2. ✅ ~~**Investigate source image selection**~~
-   - DONE - Added `select_best_source_image()` with type priority
-
-3. ✅ ~~**Create PR for staging** with both fixes~~
-   - DONE - PR #1154 created, pending user review before merge
-
-4. **Apply terraform to production** before merging PR #1153
-   - `lambda:TagResource` permission needed
-   - ECR permissions for image-processor
-
-5. **Merge PR #1153** to deploy to production
-
-6. **Test in staging** after fixes are deployed
-   - Reprocess book 635 and 626
-   - Verify thumbnails appear
-   - Verify correct source images are selected
+### Production Validation (Book 634) - PASSED
+Full end-to-end test via acquisition flow on 2026-01-18:
+- Created test book via `bmx-api --prod POST /books`
+- Uploaded binding image (5716) and title_page image (5717)
+- Triggered processing via image reorder
+- Lambda logs confirmed:
+  - `Selected source image 5717 (type=title_page, requested=5716)` - Smart selection ✓
+  - `Attempt 1 succeeded with model u2net-alpha` - Background removal ✓
+  - `Subject brightness: 183, selected background: white` - Brightness detection ✓
+  - `Uploading thumbnail to s3://...thumb_634_processed_...jpg` - Thumbnail ✓
+  - `Job completed successfully, new image id: 5718` - Success ✓
+- Processed image accessible via CDN: HTTP 200, 1.6MB PNG
+- Thumbnail accessible via CDN: HTTP 200, 8.8KB JPEG
+- Test book cleaned up after validation
 
 ## Commands for Testing
 
@@ -136,19 +186,16 @@ The image processor Lambda (`backend/lambdas/image_processor/handler.py`) was de
 # Check processed images for a book
 bmx-api GET /books/635/images
 
-# Check SQS queue status
+# Check SQS queue status (use separate commands, no chaining)
 AWS_PROFILE=bmx-staging aws sqs get-queue-attributes --queue-url https://sqs.us-west-2.amazonaws.com/652617421195/bluemoxon-staging-image-processing --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
 
 # Check Lambda logs
 AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-image-processor --since 5m
-
-# Upload primary image to trigger processing
-curl -X POST "https://staging.api.bluemoxon.com/api/v1/books/BOOK_ID/images?is_primary=true" -H "X-API-Key: $(cat ~/.bmx/staging.key)" -F "file=@/path/to/image.jpg"
 ```
 
 ## Key Code Locations
 
 - **Image processor Lambda:** `backend/lambdas/image_processor/handler.py`
-- **Thumbnail generation reference:** `backend/app/api/v1/images.py:87` (`generate_thumbnail()`)
+- **Thumbnail generation reference:** `backend/app/api/v1/images.py:87`
 - **Image upload with processing trigger:** `backend/app/api/v1/images.py:482-487`
 - **Queue image processing:** `backend/app/services/image_processing.py`

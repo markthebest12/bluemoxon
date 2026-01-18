@@ -167,52 +167,6 @@ class TestProcessingConfig:
         assert config["model_name"] == "isnet-general-use"
 
 
-class TestImageQualityValidation:
-    """Tests for image quality validation."""
-
-    def test_valid_image_passes(self):
-        """Image with good area ratio and aspect ratio passes."""
-        from handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=1000,
-            original_height=1000,
-            subject_width=800,
-            subject_height=800,
-        )
-
-        assert result["passed"] is True
-        assert result["reason"] is None
-
-    def test_area_too_small_fails(self):
-        """Image with subject area less than 50% fails."""
-        from handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=1000,
-            original_height=1000,
-            subject_width=300,
-            subject_height=300,
-        )
-
-        assert result["passed"] is False
-        assert result["reason"] == "area_too_small"
-
-    def test_aspect_ratio_mismatch_fails(self):
-        """Image with aspect ratio change greater than 20% fails."""
-        from handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=1000,
-            original_height=1000,
-            subject_width=900,
-            subject_height=600,
-        )
-
-        assert result["passed"] is False
-        assert result["reason"] == "aspect_ratio_mismatch"
-
-
 class TestCalculateBrightness:
     """Tests for brightness calculation."""
 
