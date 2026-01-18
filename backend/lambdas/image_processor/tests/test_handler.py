@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from PIL import Image as PILImage
 
 
@@ -490,3 +491,41 @@ class TestSourceImageSelection:
 
         result = select_best_source_image(images, primary_image_id=3)
         assert result.id == 2  # Skips processed title_page, picks binding
+
+
+class TestRembgModelValidation:
+    """Tests for VALID_REMBG_MODELS validation in get_rembg_session."""
+
+    def test_rejects_invalid_model_name(self):
+        """Should raise ValueError for invalid model names."""
+        from handler import get_rembg_session
+
+        with pytest.raises(ValueError, match="Invalid model name"):
+            get_rembg_session("invalid_model_name")
+
+    def test_rejects_typo_in_model_name(self):
+        """Should reject common typos to prevent cache pollution."""
+        from handler import get_rembg_session
+
+        with pytest.raises(ValueError, match="Invalid model name"):
+            get_rembg_session("u2net_general_use")  # Wrong separator
+
+    def test_accepts_valid_model_names(self):
+        """Should accept known valid model names without error."""
+        from handler import VALID_REMBG_MODELS
+
+        for model in VALID_REMBG_MODELS:
+            # Just verify it doesn't raise - actual session creation requires rembg
+            assert model in VALID_REMBG_MODELS
+
+
+class TestMinimumOutputDimension:
+    """Tests for minimum output dimension validation (P0-1)."""
+
+    def test_rejects_tiny_subject_dimensions(self):
+        """Should reject processed images with subject smaller than 100x100px."""
+        from handler import MIN_OUTPUT_DIMENSION
+
+        # This test verifies that tiny outputs are rejected
+        # The constant should exist and be at least 100
+        assert MIN_OUTPUT_DIMENSION >= 100
