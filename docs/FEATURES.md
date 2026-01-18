@@ -52,6 +52,47 @@
 - **Pre-commit Hooks** - Ruff, ESLint, Prettier, Mypy run before commit
 - **Strict TypeScript** - `@typescript-eslint/no-explicit-any` enforced
 
+### Collection Spotlight
+
+- **Top Books Carousel** - Dashboard showcases 3 rotating high-value books
+- **Smart Selection** - Fetches top 20% by value, shuffles for variety
+- **Owned Books Only** - Displays ON_HAND and IN_TRANSIT items (not EVALUATING)
+- **Premium Binding Badges** - Highlights authenticated binders and premium materials
+- **Dual Caching** - Redis backend + localStorage frontend for performance
+- **Click to View** - Each spotlight card links to detailed book view
+
+### Era Filter
+
+- **Period Classification** - Books categorized by British literary/historical eras
+- **Filter Options**:
+  - Pre-Romantic (before 1800)
+  - Romantic (1800-1836)
+  - Victorian (1837-1901)
+  - Edwardian (1902-1910)
+  - Post-1910
+  - Unknown (no date data)
+- **Auto-Computed** - Era derived from publication year_start/year_end
+- **URL State** - Filter bookmarkable via `?era=Victorian` query parameter
+- **Chart Integration** - Era distribution chart links to filtered views
+
+### Condition Grade Dropdown
+
+- **AB Bookman Scale** - Industry-standard antiquarian grading system
+- **Structured Input** - Dropdown replaces free-form text entry
+- **Grade Levels**:
+
+| Grade | Description |
+|-------|-------------|
+| Fine | Nearly as new, no defects |
+| Near Fine | Approaching fine, very minor defects |
+| Very Good | Worn but untorn, minimum for collectors |
+| Good | Average used, regular wear |
+| Fair | Wear and tear, but complete |
+| Poor | Heavily damaged, reading copy only |
+
+- **Legacy Support** - Existing free-form values preserved in display
+- **Filter Support** - `?condition_grade=VERY_GOOD` and `?condition_grade__isnull=true`
+
 ---
 
 ## What's New in 1.1
@@ -320,11 +361,26 @@ sequenceDiagram
 
 ## Administrative Tools
 
-### Currency Configuration
+### Real-time Exchange Rates
 
-- GBP to USD conversion rate
-- EUR to USD conversion rate
-- Used for normalizing international purchases
+- **Live Rates** - Fetches current GBP/EUR to USD from frankfurter.app
+- **Resilient Fallback Chain**:
+  1. Live API (3 retries with exponential backoff)
+  2. Database-cached rates
+  3. Hardcoded defaults (GBP: 1.35, EUR: 1.17)
+- **Circuit Breaker** - Skips live fetch after 3 failures (1-minute cooldown)
+- **15-Minute Cache** - Reduces API calls while staying current
+- **Admin Override** - Manual rate updates via Admin Dashboard
+- **Acquisition Forms** - Currency selector (USD/GBP/EUR) auto-converts on submit
+
+### CSV/JSON Export
+
+- **Authenticated Export** - Requires viewer role or higher
+- **CSV Format** - 16 columns matching PRIMARY_COLLECTION.csv structure
+- **JSON Format** - 30+ fields with full metadata
+- **Inventory Filter** - `?inventory_type=PRIMARY` (default) or other types
+- **Streaming Response** - Efficient delivery for large collections
+- **Composite Notes** - Combines binder, binding type, and condition in Notes column
 
 ### Collection Statistics
 
@@ -437,6 +493,29 @@ Mark entities as "preferred" for +10 scoring bonus:
 - Visual indicator in entity lists
 - Reflected in investment scoring
 
+### Entity Validation
+
+Real-time duplicate prevention for reference data:
+
+- **Fuzzy Matching** - Detects similar names (80% threshold)
+- **Suggestions** - Shows existing entities when duplicates detected
+- **Force Override** - `?force=true` bypasses validation when needed
+- **Two-Phase Safety** - Validates upfront, re-checks before commit (TOCTOU protection)
+
+**Validation Response (409 Conflict):**
+
+```json
+{
+  "error": "similar_entity_exists",
+  "entity_type": "publisher",
+  "input": "Chapman and Hall",
+  "suggestions": [
+    {"id": 174, "name": "Chapman & Hall", "match": 0.92, "book_count": 15}
+  ],
+  "resolution": "Use existing entity or add ?force=true"
+}
+```
+
 ---
 
 ## AI-Powered Image Analysis
@@ -457,6 +536,26 @@ Analyses store the AI model version used:
 - **Model ID** - Full Bedrock model identifier
 - **Comparison** - Compare analyses across model versions
 - **Audit Trail** - Know which model generated each analysis
+
+### Auto-Process Book Images
+
+Automatic background removal and enhancement for book photographs:
+
+- **Background Removal** - AI-powered removal using rembg (u2net model)
+- **Smart Background Selection** - White or black background based on subject brightness
+- **Thumbnail Generation** - 300x300px thumbnails for fast loading
+- **Source Priority** - Processes title_page → binding → cover → spine
+- **Carousel Management** - Processed image becomes primary, originals preserved
+
+**Processing Configuration:**
+
+| Parameter | Value |
+|-----------|-------|
+| Max Dimensions | 4096x4096 |
+| Thumbnail Size | 300x300 |
+| Brightness Threshold | 128 |
+| Retry Attempts | 3 |
+| Fallback Model | isnet-general-use |
 
 ---
 
