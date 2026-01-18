@@ -475,17 +475,13 @@ def select_best_source_image(images: list, primary_image_id: int):
     # Fall back to primary image
     for img in unprocessed:
         if getattr(img, "is_primary", False):
-            logger.info(
-                f"No preferred image type found, falling back to primary image {img.id}"
-            )
+            logger.info(f"No preferred image type found, falling back to primary image {img.id}")
             return img
 
     # Final fallback: the image that was passed in
     for img in unprocessed:
         if img.id == primary_image_id:
-            logger.info(
-                f"No primary image found, using requested image {primary_image_id}"
-            )
+            logger.info(f"No primary image found, using requested image {primary_image_id}")
             return img
 
     # Last resort: first unprocessed image (primary_image_id not found)
