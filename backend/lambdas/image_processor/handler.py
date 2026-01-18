@@ -276,6 +276,9 @@ def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -
 # Valid rembg model names - reject unknown models to prevent unbounded cache growth
 VALID_REMBG_MODELS = {"u2net", "isnet-general-use"}
 
+# Minimum output dimension - reject tiny artifacts from rembg (safety net for unpredictable inputs)
+MIN_OUTPUT_DIMENSION = 100
+
 
 def get_rembg_session(model_name: str):
     """Get or create rembg session for model.
@@ -321,6 +324,14 @@ def remove_background(image_bytes: bytes, config: dict) -> dict | None:
         subject_width = bbox[2] - bbox[0]
         subject_height = bbox[3] - bbox[1]
 
+        # Safety net: reject tiny artifacts from unpredictable user uploads
+        if subject_width < MIN_OUTPUT_DIMENSION or subject_height < MIN_OUTPUT_DIMENSION:
+            logger.warning(
+                f"Subject too small: {subject_width}x{subject_height}px "
+                f"(minimum: {MIN_OUTPUT_DIMENSION}x{MIN_OUTPUT_DIMENSION}px)"
+            )
+            return None
+
         return {
             "image": image,
             "subject_width": subject_width,
@@ -351,8 +362,7 @@ def calculate_subject_bounds(image: Image.Image) -> tuple[int, int, int, int] | 
 def calculate_brightness(image: Image.Image) -> int:
     """Calculate average brightness of non-transparent pixels.
 
-    Uses streaming iteration to avoid creating a second copy of pixel data.
-    For a 4096x4096 image, this avoids doubling memory from list() copy.
+    Iterates pixels directly without intermediate list conversion.
 
     Args:
         image: RGBA PIL Image
@@ -465,11 +475,17 @@ def select_best_source_image(images: list, primary_image_id: int):
     # Fall back to primary image
     for img in unprocessed:
         if getattr(img, "is_primary", False):
+            logger.info(
+                f"No preferred image type found, falling back to primary image {img.id}"
+            )
             return img
 
     # Final fallback: the image that was passed in
     for img in unprocessed:
         if img.id == primary_image_id:
+            logger.info(
+                f"No primary image found, using requested image {primary_image_id}"
+            )
             return img
 
     # Last resort: first unprocessed image (primary_image_id not found)
@@ -620,7 +636,7 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
                         logger.warning(f"Attempt {attempt}: background removal returned None")
                         continue
 
-                    # Use the result directly - no validation (matches original script behavior)
+                    # Validation (subject detection, minimum dimensions) happens in remove_background
                     processed_image = result["image"]
                     model_used = config["model_name"]
                     logger.info(f"Attempt {attempt} succeeded with model {model_used}")
@@ -658,7 +674,8 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
 
             # Generate and upload thumbnail
             # Key format: thumb_{s3_key} - preserves full key including extension
-            # Note: Thumbnail is JPEG format but keeps original extension for API URL compatibility
+            # TODO: Extension mismatch - thumbnail is JPEG but key ends in .png (from processed image)
+            # Kept for backward compatibility with existing URLs. Consider migration to .jpg extension.
             thumbnail = generate_thumbnail(final_image)
             thumb_s3_key = f"thumb_{db_s3_key}"
             full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
