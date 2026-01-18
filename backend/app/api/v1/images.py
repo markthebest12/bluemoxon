@@ -130,12 +130,11 @@ def get_thumbnail_key(s3_key: str) -> str:
     """Get the S3 key for a thumbnail from the original image key.
 
     Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
-    Example: 'book_123_abc.png' -> 'thumb_book_123_abc.jpg'
+    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
 
-    Note: Thumbnails are always JPEG regardless of original format.
+    Note: Preserves the full path and extension from the original key.
     """
-    stem = Path(s3_key).stem
-    return f"thumb_{stem}.jpg"
+    return f"thumb_{s3_key}"
 
 
 def get_api_base_url() -> str:

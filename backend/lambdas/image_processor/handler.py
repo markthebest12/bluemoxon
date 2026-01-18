@@ -12,7 +12,6 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from pathlib import PurePath
 
 import boto3
 from PIL import Image
@@ -647,10 +646,9 @@ def process_image(job_id: str, book_id: int, image_id: int) -> bool:
             upload_to_s3(IMAGES_BUCKET, full_s3_key, output_bytes, "image/png")
 
             # Generate and upload thumbnail
+            # Key format: thumb_{s3_key} to match API's get_thumbnail_key()
             thumbnail = generate_thumbnail(final_image)
-            # Use proper path manipulation for extension change
-            db_s3_path = PurePath(db_s3_key)
-            thumb_s3_key = f"thumb_{db_s3_path.stem}.jpg"
+            thumb_s3_key = f"thumb_{db_s3_key}"
             full_thumb_s3_key = f"{S3_IMAGES_PREFIX}{thumb_s3_key}"
 
             thumb_buffer = io.BytesIO()
