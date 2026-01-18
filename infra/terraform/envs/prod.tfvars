@@ -57,6 +57,10 @@ enable_eval_runbook_worker   = true # Enabled for prod eval runbook generation
 enable_tracking_worker       = true # Enabled for prod tracking updates
 tracking_schedule_expression = "rate(1 hour)"
 
+# Image Processor Configuration
+# Limit image processor concurrency to avoid overwhelming DB/S3
+# enable_image_processor = true # (optional, defaults to true via enable_lambda)
+
 # Lambda VPC configuration (for Aurora connectivity)
 # These are NOT used for external_lambda (which is disabled) but for VPC config
 # Security group will be created by the module

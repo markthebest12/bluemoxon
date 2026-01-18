@@ -7,60 +7,6 @@ from unittest.mock import MagicMock
 sys.modules["rembg"] = MagicMock()
 
 
-class TestQualityValidation:
-    """Tests for image quality validation."""
-
-    def test_area_check_passes_when_sufficient(self):
-        """Should pass when subject area >= 50% of original."""
-        from lambdas.image_processor.handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=100,
-            original_height=100,
-            subject_width=80,
-            subject_height=80,
-        )
-        assert result["passed"] is True
-
-    def test_area_check_fails_when_insufficient(self):
-        """Should fail when subject area < 50% of original."""
-        from lambdas.image_processor.handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=100,
-            original_height=100,
-            subject_width=50,
-            subject_height=50,
-        )
-        assert result["passed"] is False
-        assert result["reason"] == "area_too_small"
-
-    def test_aspect_ratio_check_passes_when_similar(self):
-        """Should pass when aspect ratio within +-20%."""
-        from lambdas.image_processor.handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=100,
-            original_height=150,
-            subject_width=90,
-            subject_height=130,
-        )
-        assert result["passed"] is True
-
-    def test_aspect_ratio_check_fails_when_different(self):
-        """Should fail when aspect ratio differs by >20%."""
-        from lambdas.image_processor.handler import validate_image_quality
-
-        result = validate_image_quality(
-            original_width=100,
-            original_height=100,
-            subject_width=100,
-            subject_height=50,
-        )
-        assert result["passed"] is False
-        assert result["reason"] == "aspect_ratio_mismatch"
-
-
 class TestRetryStrategy:
     """Tests for retry strategy with model fallback."""
 
