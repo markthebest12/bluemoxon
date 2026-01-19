@@ -457,31 +457,32 @@ class TestBedrockHealthCheck:
 
 
 class TestCheckRedis:
-    """Tests for Redis health check function."""
+    """Tests for Redis health check function.
+
+    Tests target _check_redis_sync directly since that contains the logic.
+    The async check_redis wrapper just runs it in an executor.
+    """
 
     def test_check_redis_skipped_when_not_configured(self, monkeypatch):
-        """Test check_redis returns skipped status when redis_url is empty."""
+        """Test _check_redis_sync returns skipped status when redis_url is empty."""
         from app.api.v1 import health
 
-        # Patch the redis_url on the existing settings object
         monkeypatch.setattr(health.settings, "redis_url", "")
 
-        result = health.check_redis()
+        result = health._check_redis_sync()
 
         assert result["status"] == "skipped"
         assert result["reason"] == "Redis not configured"
         assert "latency_ms" not in result
 
     def test_check_redis_healthy_on_successful_ping(self, monkeypatch):
-        """Test check_redis returns healthy status when PING succeeds."""
+        """Test _check_redis_sync returns healthy status when PING succeeds."""
         from unittest.mock import MagicMock
 
         from app.api.v1 import health
 
-        # Patch the redis_url on the existing settings object
         monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
 
-        # Mock redis.from_url to return a mock client
         mock_client = MagicMock()
         mock_client.ping.return_value = True
 
@@ -490,46 +491,137 @@ class TestCheckRedis:
 
         monkeypatch.setattr(health.redis, "from_url", mock_from_url)
 
-        result = health.check_redis()
+        result = health._check_redis_sync()
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
         assert isinstance(result["latency_ms"], float)
         assert "error" not in result
 
-    def test_check_redis_unhealthy_on_connection_error(self, monkeypatch):
-        """Test check_redis returns unhealthy status on connection error."""
-        from redis.exceptions import ConnectionError as RedisConnectionError
+    def test_check_redis_closes_connection_on_success(self, monkeypatch):
+        """Test _check_redis_sync closes connection in finally block."""
+        from unittest.mock import MagicMock
 
         from app.api.v1 import health
 
-        # Patch the redis_url on the existing settings object
         monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
 
-        # Mock redis.from_url to raise ConnectionError
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
         def mock_from_url(url, socket_timeout=None):
-            raise RedisConnectionError("Connection refused")
+            return mock_client
 
         monkeypatch.setattr(health.redis, "from_url", mock_from_url)
 
-        result = health.check_redis()
+        health._check_redis_sync()
+
+        mock_client.close.assert_called_once()
+
+    def test_check_redis_closes_connection_on_error(self, monkeypatch):
+        """Test _check_redis_sync closes connection even when ping fails."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisConnectionError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisConnectionError("Connection refused")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        health._check_redis_sync()
+
+        mock_client.close.assert_called_once()
+
+    def test_check_redis_unhealthy_on_connection_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on ConnectionError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisConnectionError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisConnectionError("Connection refused to /secret/path")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
 
         assert result["status"] == "unhealthy"
-        assert "error" in result
-        assert "Connection refused" in result["error"]
+        assert result["error"] == "Redis connection failed"
+        assert "/secret/path" not in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_unhealthy_on_timeout_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on TimeoutError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisTimeoutError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisTimeoutError(
+            "Timeout connecting to redis://secret:6379"
+        )
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "unhealthy"
+        assert result["error"] == "Redis connection timed out"
+        assert "secret" not in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_unhealthy_on_redis_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on other RedisError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisError("NOAUTH password required at /etc/redis.conf")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "unhealthy"
+        assert result["error"] == "Redis error occurred"
+        assert "/etc/redis.conf" not in result["error"]
         assert "latency_ms" in result
 
     def test_check_redis_latency_measurement(self, monkeypatch):
-        """Test check_redis measures latency accurately."""
+        """Test _check_redis_sync measures latency accurately."""
         import time
         from unittest.mock import MagicMock
 
         from app.api.v1 import health
 
-        # Patch the redis_url on the existing settings object
         monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
 
-        # Mock redis client with artificial delay
         mock_client = MagicMock()
 
         def slow_ping():
@@ -543,12 +635,33 @@ class TestCheckRedis:
 
         monkeypatch.setattr(health.redis, "from_url", mock_from_url)
 
-        result = health.check_redis()
+        result = health._check_redis_sync()
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
-        # Latency should be at least 50ms (the artificial delay)
         assert result["latency_ms"] >= 50.0
+
+    @pytest.mark.asyncio
+    async def test_check_redis_async_wrapper(self, monkeypatch):
+        """Test async check_redis wrapper calls sync version via executor."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = await health.check_redis()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
 
 
 class TestDeepHealthCheckWithRedis:
@@ -567,7 +680,6 @@ class TestDeepHealthCheckWithRedis:
         """Test deep health shows redis as skipped when not configured."""
         from app.api.v1 import health
 
-        # Patch the redis_url on the existing settings object
         monkeypatch.setattr(health.settings, "redis_url", "")
 
         response = client.get("/api/v1/health/deep")
