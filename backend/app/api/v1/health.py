@@ -1,11 +1,18 @@
 """Deep health check endpoints for system monitoring and CI/CD validation."""
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.config import Config
+from botocore.exceptions import (
+    BotoCoreError,
+    ClientError,
+    ConnectTimeoutError,
+    ReadTimeoutError,
+)
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -232,8 +239,20 @@ def check_sqs() -> dict[str, Any]:
         }
 
 
-def check_bedrock() -> dict[str, Any]:
-    """Check Bedrock service accessibility.
+_bedrock_client = None
+
+
+def _get_bedrock_client():
+    """Get or create a cached Bedrock client with timeouts configured."""
+    global _bedrock_client
+    if _bedrock_client is None:
+        config = Config(connect_timeout=5, read_timeout=5)
+        _bedrock_client = boto3.client("bedrock", region_name=settings.aws_region, config=config)
+    return _bedrock_client
+
+
+def _check_bedrock_sync() -> dict[str, Any]:
+    """Check Bedrock service accessibility (sync version).
 
     Uses the Bedrock control plane API to list foundation models,
     which validates that the service is reachable and IAM permissions
@@ -241,7 +260,7 @@ def check_bedrock() -> dict[str, Any]:
     """
     start = time.time()
     try:
-        bedrock = boto3.client("bedrock", region_name=settings.aws_region)
+        bedrock = _get_bedrock_client()
 
         # List foundation models to verify Bedrock access
         # This is a lightweight call that validates service connectivity
@@ -255,8 +274,15 @@ def check_bedrock() -> dict[str, Any]:
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         latency_ms = round((time.time() - start) * 1000, 2)
-        # AccessDeniedException is an IAM issue, not a service health issue
+        # AccessDeniedException in production means IAM is broken - that's unhealthy
+        # In dev/staging, permissions may not be configured, so skip
         if error_code == "AccessDeniedException":
+            if settings.environment == "production":
+                return {
+                    "status": "unhealthy",
+                    "error": "Bedrock IAM permissions not configured",
+                    "latency_ms": latency_ms,
+                }
             return {
                 "status": "skipped",
                 "reason": "IAM permissions not configured for Bedrock",
@@ -267,12 +293,28 @@ def check_bedrock() -> dict[str, Any]:
             "error": error_code,
             "latency_ms": latency_ms,
         }
-    except Exception as e:
+    except (ConnectTimeoutError, ReadTimeoutError):
         return {
             "status": "unhealthy",
-            "error": str(e),
+            "error": "Bedrock connection timeout",
             "latency_ms": round((time.time() - start) * 1000, 2),
         }
+    except BotoCoreError:
+        return {
+            "status": "unhealthy",
+            "error": "Bedrock SDK error",
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+
+
+async def check_bedrock() -> dict[str, Any]:
+    """Check Bedrock service accessibility (async wrapper).
+
+    Uses run_in_executor to avoid blocking the async event loop
+    during the synchronous boto3 API call.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _check_bedrock_sync)
 
 
 def check_config() -> dict[str, Any]:
@@ -364,13 +406,14 @@ async def deep_health_check(db: Session = Depends(get_db)):
     """Deep health check - validates all dependencies."""
     start = time.time()
 
-    # Run all checks
+    # Run all checks (bedrock is async, others are sync)
+    bedrock_result = await check_bedrock()
     checks = {
         "database": check_database(db),
         "s3": check_s3(),
         "sqs": check_sqs(),
         "cognito": check_cognito(),
-        "bedrock": check_bedrock(),
+        "bedrock": bedrock_result,
         "config": check_config(),
     }
 
