@@ -16,6 +16,12 @@ variable "lambda_invoke_arns" {
   default     = []
 }
 
+variable "lambda_health_check_arns" {
+  type        = list(string)
+  description = "Lambda function ARNs this function can check via GetFunction (for health monitoring)"
+  default     = []
+}
+
 variable "cognito_user_pool_arns" {
   type        = list(string)
   description = "Cognito user pool ARNs the Lambda function can access for admin operations"
