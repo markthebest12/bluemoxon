@@ -1032,3 +1032,124 @@ class TestCheckLambdas:
             "unhealthy",
             "skipped",
         )
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_access_denied_non_production(self, monkeypatch):
+        """Test check_lambdas returns skipped when AccessDeniedException in non-production.
+
+        In staging/dev environments, IAM permissions for Lambda:GetFunction may not
+        be configured. This should result in 'skipped' status, not 'error' or 'unhealthy'.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+        mock_lambda_client.get_function.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDeniedException",
+                    "Message": "User is not authorized to perform: lambda:GetFunction",
+                }
+            },
+            "GetFunction",
+        )
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        # Patch settings.environment to staging
+        import app.api.v1.health as health_module
+
+        with patch.object(health_module.settings, "environment", "staging"):
+            result = await check_lambdas()
+
+        # All Lambdas should be skipped, overall status should be healthy
+        assert result["status"] == "healthy"
+        for lambda_name, lambda_status in result["lambdas"].items():
+            assert lambda_status["status"] == "skipped", (
+                f"Lambda {lambda_name} should be skipped on AccessDeniedException in non-prod"
+            )
+            assert "reason" in lambda_status
+            assert "IAM" in lambda_status["reason"]
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_access_denied_production(self, monkeypatch):
+        """Test check_lambdas returns unhealthy when AccessDeniedException in production.
+
+        In production, IAM permissions should be properly configured. AccessDeniedException
+        indicates a broken configuration and should result in 'unhealthy' status.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "prod")
+
+        mock_lambda_client = MagicMock()
+        mock_lambda_client.get_function.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDeniedException",
+                    "Message": "User is not authorized to perform: lambda:GetFunction",
+                }
+            },
+            "GetFunction",
+        )
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        # Patch settings.environment to production
+        import app.api.v1.health as health_module
+
+        with patch.object(health_module.settings, "environment", "production"):
+            result = await check_lambdas()
+
+        # All Lambdas should be unhealthy, overall status should be unhealthy
+        assert result["status"] == "unhealthy"
+        for lambda_name, lambda_status in result["lambdas"].items():
+            assert lambda_status["status"] == "unhealthy", (
+                f"Lambda {lambda_name} should be unhealthy on AccessDeniedException in production"
+            )
+            assert "error" in lambda_status
+            assert "IAM" in lambda_status["error"]
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_overall_healthy_when_all_skipped(self, monkeypatch):
+        """Test overall status is healthy when all Lambdas are skipped.
+
+        When all Lambda checks return 'skipped' (e.g., due to missing IAM permissions
+        in non-production), the overall status should be 'healthy', not 'unhealthy'.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+        mock_lambda_client.get_function.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDeniedException",
+                    "Message": "Access denied",
+                }
+            },
+            "GetFunction",
+        )
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        import app.api.v1.health as health_module
+
+        with patch.object(health_module.settings, "environment", "staging"):
+            result = await check_lambdas()
+
+        # Overall status should be healthy, not unhealthy
+        assert result["status"] == "healthy", (
+            "Overall status should be 'healthy' when all Lambdas are 'skipped'"
+        )

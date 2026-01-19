@@ -396,6 +396,26 @@ def _check_single_lambda(
                     "error": "Function not found",
                 },
             )
+        elif error_code == "AccessDeniedException":
+            # AccessDeniedException in production means IAM is broken - that's unhealthy
+            # In dev/staging, permissions may not be configured, so skip
+            if settings.environment == "production":
+                return (
+                    service_key,
+                    {
+                        "status": "unhealthy",
+                        "function_name": function_name,
+                        "error": "Lambda IAM permissions not configured",
+                    },
+                )
+            return (
+                service_key,
+                {
+                    "status": "skipped",
+                    "function_name": function_name,
+                    "reason": "IAM permissions not configured for Lambda:GetFunction",
+                },
+            )
         else:
             return (
                 service_key,
@@ -472,8 +492,9 @@ def _check_lambdas_sync() -> dict[str, Any]:
 
         # Determine overall status
         # Treat error and not_found as unhealthy since they indicate something is broken
+        # Treat skipped as healthy (non-production environments without IAM permissions)
         statuses = [r["status"] for r in results.values()]
-        if all(s == "healthy" for s in statuses):
+        if all(s in ("healthy", "skipped") for s in statuses):
             overall = "healthy"
         elif any(s in ("unhealthy", "error", "not_found") for s in statuses):
             overall = "unhealthy"
