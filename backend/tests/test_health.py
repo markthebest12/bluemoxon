@@ -454,3 +454,125 @@ class TestBedrockHealthCheck:
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
+
+
+class TestCheckRedis:
+    """Tests for Redis health check function."""
+
+    def test_check_redis_skipped_when_not_configured(self, monkeypatch):
+        """Test check_redis returns skipped status when redis_url is empty."""
+        from app.api.v1 import health
+
+        # Patch the redis_url on the existing settings object
+        monkeypatch.setattr(health.settings, "redis_url", "")
+
+        result = health.check_redis()
+
+        assert result["status"] == "skipped"
+        assert result["reason"] == "Redis not configured"
+        assert "latency_ms" not in result
+
+    def test_check_redis_healthy_on_successful_ping(self, monkeypatch):
+        """Test check_redis returns healthy status when PING succeeds."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        # Patch the redis_url on the existing settings object
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        # Mock redis.from_url to return a mock client
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health.check_redis()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+        assert isinstance(result["latency_ms"], float)
+        assert "error" not in result
+
+    def test_check_redis_unhealthy_on_connection_error(self, monkeypatch):
+        """Test check_redis returns unhealthy status on connection error."""
+        from redis.exceptions import ConnectionError as RedisConnectionError
+
+        from app.api.v1 import health
+
+        # Patch the redis_url on the existing settings object
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        # Mock redis.from_url to raise ConnectionError
+        def mock_from_url(url, socket_timeout=None):
+            raise RedisConnectionError("Connection refused")
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health.check_redis()
+
+        assert result["status"] == "unhealthy"
+        assert "error" in result
+        assert "Connection refused" in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_latency_measurement(self, monkeypatch):
+        """Test check_redis measures latency accurately."""
+        import time
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        # Patch the redis_url on the existing settings object
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        # Mock redis client with artificial delay
+        mock_client = MagicMock()
+
+        def slow_ping():
+            time.sleep(0.05)  # 50ms delay
+            return True
+
+        mock_client.ping = slow_ping
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health.check_redis()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+        # Latency should be at least 50ms (the artificial delay)
+        assert result["latency_ms"] >= 50.0
+
+
+class TestDeepHealthCheckWithRedis:
+    """Tests for Redis integration in deep health check endpoint."""
+
+    def test_deep_health_includes_redis_check(self, client):
+        """Test deep health check includes redis in checks."""
+        response = client.get("/api/v1/health/deep")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "checks" in data
+        assert "redis" in data["checks"]
+
+    def test_deep_health_redis_skipped_when_not_configured(self, client, monkeypatch):
+        """Test deep health shows redis as skipped when not configured."""
+        from app.api.v1 import health
+
+        # Patch the redis_url on the existing settings object
+        monkeypatch.setattr(health.settings, "redis_url", "")
+
+        response = client.get("/api/v1/health/deep")
+        data = response.json()
+
+        redis_check = data["checks"]["redis"]
+        assert redis_check["status"] == "skipped"
+        assert redis_check["reason"] == "Redis not configured"

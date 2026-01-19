@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import boto3
+import redis
 from botocore.config import Config
 from botocore.exceptions import (
     BotoCoreError,
@@ -347,6 +348,36 @@ def check_config() -> dict[str, Any]:
     }
 
 
+def check_redis() -> dict[str, Any]:
+    """Check Redis cache connectivity.
+
+    Returns skipped status if redis_url is not configured (empty string).
+    Uses PING command to verify connection.
+    """
+    if not settings.redis_url:
+        return {
+            "status": "skipped",
+            "reason": "Redis not configured",
+        }
+
+    start = time.time()
+    try:
+        client = redis.from_url(settings.redis_url, socket_timeout=5)
+        client.ping()
+
+        latency_ms = round((time.time() - start) * 1000, 2)
+        return {
+            "status": "healthy",
+            "latency_ms": latency_ms,
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+
+
 @router.get(
     "/live",
     summary="Liveness probe",
@@ -390,6 +421,7 @@ Comprehensive health check that validates all system dependencies:
 - **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing)
 - **Cognito**: User pool availability (if configured)
 - **Bedrock**: AI model service availability
+- **Redis**: Cache connectivity (if configured)
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
@@ -414,6 +446,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
         "sqs": check_sqs(),
         "cognito": check_cognito(),
         "bedrock": bedrock_result,
+        "redis": check_redis(),
         "config": check_config(),
     }
 
