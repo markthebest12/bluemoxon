@@ -279,6 +279,7 @@ VALID_REMBG_MODELS = {"u2net", "isnet-general-use"}
 # Minimum output dimension - reject tiny artifacts from rembg (safety net for unpredictable inputs)
 MIN_OUTPUT_DIMENSION = 100
 
+
 def get_rembg_session(model_name: str):
     """Get or create rembg session for model.
 

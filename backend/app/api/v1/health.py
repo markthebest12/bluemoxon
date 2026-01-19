@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import boto3
+import redis
 from botocore.config import Config
 from botocore.exceptions import (
     BotoCoreError,
@@ -14,6 +15,9 @@ from botocore.exceptions import (
     ReadTimeoutError,
 )
 from fastapi import APIRouter, Depends
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -347,6 +351,68 @@ def check_config() -> dict[str, Any]:
     }
 
 
+def _check_redis_sync() -> dict[str, Any]:
+    """Check Redis cache connectivity (sync version).
+
+    Returns skipped status if redis_url is not configured (empty string).
+    Uses PING command to verify connection.
+
+    This is the internal sync implementation. Use check_redis() for the
+    async wrapper that runs this in an executor to avoid blocking.
+    """
+    if not settings.redis_url:
+        return {
+            "status": "skipped",
+            "reason": "Redis not configured",
+        }
+
+    start = time.time()
+    client = None
+    try:
+        client = redis.from_url(settings.redis_url, socket_timeout=5)
+        client.ping()
+
+        latency_ms = round((time.time() - start) * 1000, 2)
+        return {
+            "status": "healthy",
+            "latency_ms": latency_ms,
+        }
+    except RedisConnectionError:
+        return {
+            "status": "unhealthy",
+            "error": "Redis connection failed",
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+    except RedisTimeoutError:
+        return {
+            "status": "unhealthy",
+            "error": "Redis connection timed out",
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+    except RedisError:
+        return {
+            "status": "unhealthy",
+            "error": "Redis error occurred",
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+    finally:
+        if client is not None:
+            client.close()
+
+
+async def check_redis() -> dict[str, Any]:
+    """Check Redis cache connectivity (async wrapper).
+
+    Returns skipped status if redis_url is not configured (empty string).
+    Uses PING command to verify connection.
+
+    Wraps _check_redis_sync in run_in_executor to avoid blocking the
+    async event loop.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _check_redis_sync)
+
+
 @router.get(
     "/live",
     summary="Liveness probe",
@@ -390,6 +456,7 @@ Comprehensive health check that validates all system dependencies:
 - **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing)
 - **Cognito**: User pool availability (if configured)
 - **Bedrock**: AI model service availability
+- **Redis**: Cache connectivity (if configured)
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
@@ -414,6 +481,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
         "sqs": check_sqs(),
         "cognito": check_cognito(),
         "bedrock": bedrock_result,
+        "redis": await check_redis(),
         "config": check_config(),
     }
 

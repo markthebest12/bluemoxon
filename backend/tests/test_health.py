@@ -454,3 +454,237 @@ class TestBedrockHealthCheck:
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
+
+
+class TestCheckRedis:
+    """Tests for Redis health check function.
+
+    Tests target _check_redis_sync directly since that contains the logic.
+    The async check_redis wrapper just runs it in an executor.
+    """
+
+    def test_check_redis_skipped_when_not_configured(self, monkeypatch):
+        """Test _check_redis_sync returns skipped status when redis_url is empty."""
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "")
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "skipped"
+        assert result["reason"] == "Redis not configured"
+        assert "latency_ms" not in result
+
+    def test_check_redis_healthy_on_successful_ping(self, monkeypatch):
+        """Test _check_redis_sync returns healthy status when PING succeeds."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+        assert isinstance(result["latency_ms"], float)
+        assert "error" not in result
+
+    def test_check_redis_closes_connection_on_success(self, monkeypatch):
+        """Test _check_redis_sync closes connection in finally block."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        health._check_redis_sync()
+
+        mock_client.close.assert_called_once()
+
+    def test_check_redis_closes_connection_on_error(self, monkeypatch):
+        """Test _check_redis_sync closes connection even when ping fails."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisConnectionError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisConnectionError("Connection refused")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        health._check_redis_sync()
+
+        mock_client.close.assert_called_once()
+
+    def test_check_redis_unhealthy_on_connection_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on ConnectionError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisConnectionError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisConnectionError("Connection refused to /secret/path")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "unhealthy"
+        assert result["error"] == "Redis connection failed"
+        assert "/secret/path" not in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_unhealthy_on_timeout_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on TimeoutError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisTimeoutError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisTimeoutError(
+            "Timeout connecting to redis://secret:6379"
+        )
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "unhealthy"
+        assert result["error"] == "Redis connection timed out"
+        assert "secret" not in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_unhealthy_on_redis_error(self, monkeypatch):
+        """Test _check_redis_sync returns unhealthy with sanitized error on other RedisError."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+        from app.api.v1.health import RedisError
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = RedisError("NOAUTH password required at /etc/redis.conf")
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "unhealthy"
+        assert result["error"] == "Redis error occurred"
+        assert "/etc/redis.conf" not in result["error"]
+        assert "latency_ms" in result
+
+    def test_check_redis_latency_measurement(self, monkeypatch):
+        """Test _check_redis_sync measures latency accurately."""
+        import time
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+
+        def slow_ping():
+            time.sleep(0.05)  # 50ms delay
+            return True
+
+        mock_client.ping = slow_ping
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = health._check_redis_sync()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+        assert result["latency_ms"] >= 50.0
+
+    @pytest.mark.asyncio
+    async def test_check_redis_async_wrapper(self, monkeypatch):
+        """Test async check_redis wrapper calls sync version via executor."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "redis://localhost:6379")
+
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+
+        def mock_from_url(url, socket_timeout=None):
+            return mock_client
+
+        monkeypatch.setattr(health.redis, "from_url", mock_from_url)
+
+        result = await health.check_redis()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+
+
+class TestDeepHealthCheckWithRedis:
+    """Tests for Redis integration in deep health check endpoint."""
+
+    def test_deep_health_includes_redis_check(self, client):
+        """Test deep health check includes redis in checks."""
+        response = client.get("/api/v1/health/deep")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "checks" in data
+        assert "redis" in data["checks"]
+
+    def test_deep_health_redis_skipped_when_not_configured(self, client, monkeypatch):
+        """Test deep health shows redis as skipped when not configured."""
+        from app.api.v1 import health
+
+        monkeypatch.setattr(health.settings, "redis_url", "")
+
+        response = client.get("/api/v1/health/deep")
+        data = response.json()
+
+        redis_check = data["checks"]["redis"]
+        assert redis_check["status"] == "skipped"
+        assert redis_check["reason"] == "Redis not configured"
