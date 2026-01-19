@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
@@ -22,7 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import require_admin
-from app.config import get_settings
+from app.config import get_lambda_environment, get_settings
 from app.db import get_db
 from app.db.migration_sql import (
     CLEANUP_ORPHANS_SQL,
@@ -255,6 +256,23 @@ def _get_bedrock_client():
     return _bedrock_client
 
 
+# Module-level cached Lambda client with lazy initialization
+_lambda_client = None
+_lambda_client_config = Config(connect_timeout=5, read_timeout=5)
+
+
+def _get_lambda_client():
+    """Get or create cached Lambda client with timeout configuration."""
+    global _lambda_client
+    if _lambda_client is None:
+        _lambda_client = boto3.client(
+            "lambda",
+            region_name=settings.aws_region,
+            config=_lambda_client_config,
+        )
+    return _lambda_client
+
+
 def _check_bedrock_sync() -> dict[str, Any]:
     """Check Bedrock service accessibility (sync version).
 
@@ -319,6 +337,176 @@ async def check_bedrock() -> dict[str, Any]:
     """
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _check_bedrock_sync)
+
+
+def _check_single_lambda(
+    lambda_client, function_name: str, service_key: str
+) -> tuple[str, dict[str, Any]]:
+    """Check a single Lambda function's availability.
+
+    Args:
+        lambda_client: The boto3 Lambda client to use.
+        function_name: The full Lambda function name.
+        service_key: The service key for result mapping.
+
+    Returns:
+        Tuple of (service_key, result_dict) for the Lambda check.
+    """
+    try:
+        response = lambda_client.get_function(FunctionName=function_name)
+        state = response["Configuration"]["State"]
+
+        if state == "Active":
+            return (
+                service_key,
+                {
+                    "status": "healthy",
+                    "function_name": function_name,
+                    "state": state,
+                },
+            )
+        elif state == "Failed":
+            return (
+                service_key,
+                {
+                    "status": "unhealthy",
+                    "function_name": function_name,
+                    "state": state,
+                },
+            )
+        else:
+            # Pending, Inactive states are degraded
+            return (
+                service_key,
+                {
+                    "status": "degraded",
+                    "function_name": function_name,
+                    "state": state,
+                },
+            )
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        if error_code == "ResourceNotFoundException":
+            return (
+                service_key,
+                {
+                    "status": "not_found",
+                    "function_name": function_name,
+                    "error": "Function not found",
+                },
+            )
+        else:
+            return (
+                service_key,
+                {
+                    "status": "error",
+                    "function_name": function_name,
+                    "error": error_code,
+                },
+            )
+    except (ConnectTimeoutError, ReadTimeoutError) as e:
+        return (
+            service_key,
+            {
+                "status": "error",
+                "function_name": function_name,
+                "error": f"Timeout: {type(e).__name__}",
+            },
+        )
+    except BotoCoreError as e:
+        return (
+            service_key,
+            {
+                "status": "error",
+                "function_name": function_name,
+                "error": str(e),
+            },
+        )
+
+
+def _check_lambdas_sync() -> dict[str, Any]:
+    """Check Lambda function availability (synchronous implementation).
+
+    Checks the following Lambda functions in parallel:
+    - bluemoxon-{env}-scraper - eBay listing scraping
+    - bluemoxon-{env}-cleanup - Maintenance tasks
+    - bluemoxon-{env}-image-processor - Background removal
+
+    Returns:
+        Dict with status (healthy/unhealthy/degraded/skipped), lambdas dict,
+        and latency_ms.
+    """
+    start = time.time()
+
+    # Define Lambda functions to check
+    lambda_services = {
+        "scraper": "scraper",
+        "cleanup": "cleanup",
+        "image_processor": "image-processor",
+    }
+
+    results = {}
+
+    # Note: Assumes all Lambda functions use the same environment.
+    # In a partial deploy scenario, individual functions could be in different states.
+    env = get_lambda_environment("scraper")
+
+    try:
+        lambda_client = _get_lambda_client()
+
+        # Check all Lambdas in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(
+                    _check_single_lambda,
+                    lambda_client,
+                    f"bluemoxon-{env}-{name}",
+                    key,
+                ): key
+                for key, name in lambda_services.items()
+            }
+            for future in as_completed(futures):
+                key, result = future.result()
+                results[key] = result
+
+        # Determine overall status
+        # Treat error and not_found as unhealthy since they indicate something is broken
+        statuses = [r["status"] for r in results.values()]
+        if all(s == "healthy" for s in statuses):
+            overall = "healthy"
+        elif any(s in ("unhealthy", "error", "not_found") for s in statuses):
+            overall = "unhealthy"
+        else:
+            overall = "degraded"
+
+        latency_ms = round((time.time() - start) * 1000, 2)
+        return {
+            "status": overall,
+            "lambdas": results,
+            "latency_ms": latency_ms,
+        }
+
+    except (ClientError, BotoCoreError, ConnectTimeoutError, ReadTimeoutError) as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+
+
+async def check_lambdas() -> dict[str, Any]:
+    """Check Lambda function availability (async wrapper).
+
+    Wraps the synchronous Lambda check in run_in_executor to avoid
+    blocking the async event loop.
+
+    Returns:
+        Dict with status (healthy/unhealthy/degraded/skipped), lambdas dict,
+        and latency_ms.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _check_lambdas_sync)
 
 
 def check_config() -> dict[str, Any]:
@@ -457,6 +645,7 @@ Comprehensive health check that validates all system dependencies:
 - **Cognito**: User pool availability (if configured)
 - **Bedrock**: AI model service availability
 - **Redis**: Cache connectivity (if configured)
+- **Lambdas**: Lambda function availability (scraper, cleanup, image-processor)
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
@@ -473,8 +662,9 @@ async def deep_health_check(db: Session = Depends(get_db)):
     """Deep health check - validates all dependencies."""
     start = time.time()
 
-    # Run all checks (bedrock is async, others are sync)
+    # Run all checks (bedrock and lambdas are async, others are sync)
     bedrock_result = await check_bedrock()
+    lambdas_result = await check_lambdas()
     checks = {
         "database": check_database(db),
         "s3": check_s3(),
@@ -482,6 +672,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
         "cognito": check_cognito(),
         "bedrock": bedrock_result,
         "redis": await check_redis(),
+        "lambdas": lambdas_result,
         "config": check_config(),
     }
 

@@ -688,3 +688,347 @@ class TestDeepHealthCheckWithRedis:
         redis_check = data["checks"]["redis"]
         assert redis_check["status"] == "skipped"
         assert redis_check["reason"] == "Redis not configured"
+
+
+class TestCheckLambdas:
+    """Tests for Lambda availability check function."""
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_all_healthy(self, monkeypatch):
+        """Test check_lambdas returns healthy when all Lambda functions are Active."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1.health import check_lambdas
+
+        # Mock get_lambda_environment to return test environment
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        # Mock the _get_lambda_client helper for cleaner mocking
+        mock_lambda_client = MagicMock()
+        mock_lambda_client.get_function.return_value = {
+            "Configuration": {
+                "FunctionName": "bluemoxon-staging-scraper",
+                "State": "Active",
+            }
+        }
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        assert result["status"] == "healthy"
+        assert "lambdas" in result
+        assert "latency_ms" in result
+
+        # Verify all three Lambdas were checked
+        assert "scraper" in result["lambdas"]
+        assert "cleanup" in result["lambdas"]
+        assert "image_processor" in result["lambdas"]
+
+        # Verify each Lambda shows Active status
+        for _name, status in result["lambdas"].items():
+            assert status["status"] == "healthy"
+            assert status["state"] == "Active"
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_one_failed(self, monkeypatch):
+        """Test check_lambdas returns unhealthy when one Lambda is Failed."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        # Mock the _get_lambda_client helper for cleaner mocking
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                return {
+                    "Configuration": {
+                        "FunctionName": FunctionName,
+                        "State": "Active",
+                    }
+                }
+            elif "cleanup" in FunctionName:
+                return {
+                    "Configuration": {
+                        "FunctionName": FunctionName,
+                        "State": "Failed",
+                    }
+                }
+            else:
+                return {
+                    "Configuration": {
+                        "FunctionName": FunctionName,
+                        "State": "Active",
+                    }
+                }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        assert result["status"] == "unhealthy"
+        assert result["lambdas"]["scraper"]["status"] == "healthy"
+        assert result["lambdas"]["cleanup"]["status"] == "unhealthy"
+        assert result["lambdas"]["cleanup"]["state"] == "Failed"
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_missing_function(self, monkeypatch):
+        """Test check_lambdas handles ResourceNotFoundException for missing Lambda.
+
+        Missing functions (not_found) should result in overall unhealthy status
+        since a missing Lambda indicates something is broken.
+        """
+        from unittest.mock import MagicMock
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        # Mock the _get_lambda_client helper for cleaner mocking
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                raise ClientError(
+                    {
+                        "Error": {
+                            "Code": "ResourceNotFoundException",
+                            "Message": "Function not found",
+                        }
+                    },
+                    "GetFunction",
+                )
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Missing function should be marked as not_found, overall unhealthy
+        # (not_found indicates something is broken)
+        assert result["status"] == "unhealthy"
+        assert result["lambdas"]["scraper"]["status"] == "not_found"
+        assert result["lambdas"]["cleanup"]["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_pending_state(self, monkeypatch):
+        """Test check_lambdas returns degraded when a Lambda is Pending."""
+        from unittest.mock import MagicMock
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                return {
+                    "Configuration": {
+                        "FunctionName": FunctionName,
+                        "State": "Pending",
+                    }
+                }
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Pending state is degraded (not unhealthy, not healthy)
+        assert result["status"] == "degraded"
+        assert result["lambdas"]["scraper"]["status"] == "degraded"
+        assert result["lambdas"]["scraper"]["state"] == "Pending"
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_error_status_is_unhealthy(self, monkeypatch):
+        """Test check_lambdas returns unhealthy when a Lambda returns error status.
+
+        Error status (from unexpected ClientError like throttling) should result
+        in overall unhealthy status since it indicates something is broken.
+        """
+        from unittest.mock import MagicMock
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                raise ClientError(
+                    {
+                        "Error": {
+                            "Code": "ThrottlingException",
+                            "Message": "Rate exceeded",
+                        }
+                    },
+                    "GetFunction",
+                )
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Error status should result in overall unhealthy
+        assert result["status"] == "unhealthy"
+        assert result["lambdas"]["scraper"]["status"] == "error"
+        assert result["lambdas"]["scraper"]["error"] == "ThrottlingException"
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_connect_timeout(self, monkeypatch):
+        """Test check_lambdas handles ConnectTimeoutError."""
+        from unittest.mock import MagicMock
+
+        from botocore.exceptions import ConnectTimeoutError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                raise ConnectTimeoutError(endpoint_url="https://lambda.us-east-1.amazonaws.com")
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Timeout should result in error status and overall unhealthy
+        assert result["status"] == "unhealthy"
+        assert result["lambdas"]["scraper"]["status"] == "error"
+        assert "Timeout" in result["lambdas"]["scraper"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_read_timeout(self, monkeypatch):
+        """Test check_lambdas handles ReadTimeoutError."""
+        from unittest.mock import MagicMock
+
+        from botocore.exceptions import ReadTimeoutError
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+
+        def mock_get_function(FunctionName):
+            if "scraper" in FunctionName:
+                raise ReadTimeoutError(endpoint_url="https://lambda.us-east-1.amazonaws.com")
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Timeout should result in error status and overall unhealthy
+        assert result["status"] == "unhealthy"
+        assert result["lambdas"]["scraper"]["status"] == "error"
+        assert "Timeout" in result["lambdas"]["scraper"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_check_lambdas_parallel_execution(self, monkeypatch):
+        """Test check_lambdas executes Lambda checks in parallel.
+
+        Verifies that all Lambda function names are checked (indicating
+        parallel execution was attempted). The ThreadPoolExecutor should
+        check all 3 functions concurrently.
+        """
+        from unittest.mock import MagicMock
+
+        from app.api.v1.health import check_lambdas
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+        checked_functions = []
+
+        def mock_get_function(FunctionName):
+            checked_functions.append(FunctionName)
+            return {
+                "Configuration": {
+                    "FunctionName": FunctionName,
+                    "State": "Active",
+                }
+            }
+
+        mock_lambda_client.get_function.side_effect = mock_get_function
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        result = await check_lambdas()
+
+        # Verify all 3 functions were checked
+        assert len(checked_functions) == 3
+        assert any("scraper" in f for f in checked_functions)
+        assert any("cleanup" in f for f in checked_functions)
+        assert any("image-processor" in f for f in checked_functions)
+        assert result["status"] == "healthy"
+
+    def test_deep_health_includes_lambdas_check(self, client, monkeypatch):
+        """Test deep health endpoint includes Lambda availability check."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setattr("app.api.v1.health.get_lambda_environment", lambda service: "staging")
+
+        mock_lambda_client = MagicMock()
+        mock_lambda_client.get_function.return_value = {
+            "Configuration": {
+                "FunctionName": "bluemoxon-staging-scraper",
+                "State": "Active",
+            }
+        }
+        monkeypatch.setattr("app.api.v1.health._get_lambda_client", lambda: mock_lambda_client)
+
+        response = client.get("/api/v1/health/deep")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "lambdas" in data["checks"]
+        assert data["checks"]["lambdas"]["status"] in (
+            "healthy",
+            "degraded",
+            "unhealthy",
+            "skipped",
+        )
