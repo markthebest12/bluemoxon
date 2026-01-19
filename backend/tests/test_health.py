@@ -231,3 +231,102 @@ class TestMigrationSqlModule:
 
         # Verify health.py's migrations list comes from migration_sql
         assert health.migrations == migration_sql.MIGRATIONS
+
+
+class TestBedrockHealthCheck:
+    """Tests for Bedrock health check function (issue #1168)."""
+
+    def test_check_bedrock_healthy(self):
+        """Test check_bedrock returns healthy when Bedrock API is accessible."""
+        from unittest.mock import MagicMock, patch
+
+        from app.api.v1.health import check_bedrock
+
+        mock_client = MagicMock()
+        mock_client.list_foundation_models.return_value = {
+            "modelSummaries": [{"modelId": "amazon.titan-text-lite-v1"}]
+        }
+
+        with patch("boto3.client", return_value=mock_client):
+            result = check_bedrock()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+        assert isinstance(result["latency_ms"], int | float)
+        assert result["latency_ms"] >= 0
+
+    def test_check_bedrock_unhealthy_on_error(self):
+        """Test check_bedrock returns unhealthy on API error."""
+        from unittest.mock import MagicMock, patch
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_bedrock
+
+        mock_client = MagicMock()
+        mock_client.list_foundation_models.side_effect = ClientError(
+            {"Error": {"Code": "ServiceUnavailable", "Message": "Service unavailable"}},
+            "ListFoundationModels",
+        )
+
+        with patch("boto3.client", return_value=mock_client):
+            result = check_bedrock()
+
+        assert result["status"] == "unhealthy"
+        assert "error" in result
+        assert result["error"] == "ServiceUnavailable"
+        assert "latency_ms" in result
+
+    def test_check_bedrock_skipped_on_access_denied(self):
+        """Test check_bedrock returns skipped when IAM permissions missing."""
+        from unittest.mock import MagicMock, patch
+
+        from botocore.exceptions import ClientError
+
+        from app.api.v1.health import check_bedrock
+
+        mock_client = MagicMock()
+        mock_client.list_foundation_models.side_effect = ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "Access denied"}},
+            "ListFoundationModels",
+        )
+
+        with patch("boto3.client", return_value=mock_client):
+            result = check_bedrock()
+
+        assert result["status"] == "skipped"
+        assert "reason" in result
+        assert "IAM" in result["reason"] or "permission" in result["reason"].lower()
+        assert "latency_ms" in result
+
+    def test_check_bedrock_latency_is_measured(self):
+        """Test that latency measurement is accurate (not zero for real call)."""
+        import time
+        from unittest.mock import MagicMock, patch
+
+        from app.api.v1.health import check_bedrock
+
+        mock_client = MagicMock()
+
+        def slow_call(*args, **kwargs):
+            time.sleep(0.05)  # 50ms delay
+            return {"modelSummaries": []}
+
+        mock_client.list_foundation_models.side_effect = slow_call
+
+        with patch("boto3.client", return_value=mock_client):
+            result = check_bedrock()
+
+        assert result["status"] == "healthy"
+        assert result["latency_ms"] >= 50  # Should be at least 50ms
+
+    def test_deep_health_includes_bedrock(self, client):
+        """Test deep health check includes Bedrock status."""
+        response = client.get("/api/v1/health/deep")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "bedrock" in data["checks"], "Deep health must include Bedrock check"
+        bedrock_check = data["checks"]["bedrock"]
+        assert "status" in bedrock_check
+        assert bedrock_check["status"] in ("healthy", "unhealthy", "skipped")

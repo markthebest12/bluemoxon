@@ -232,6 +232,49 @@ def check_sqs() -> dict[str, Any]:
         }
 
 
+def check_bedrock() -> dict[str, Any]:
+    """Check Bedrock service accessibility.
+
+    Uses the Bedrock control plane API to list foundation models,
+    which validates that the service is reachable and IAM permissions
+    are configured.
+    """
+    start = time.time()
+    try:
+        bedrock = boto3.client("bedrock", region_name=settings.aws_region)
+
+        # List foundation models to verify Bedrock access
+        # This is a lightweight call that validates service connectivity
+        bedrock.list_foundation_models(byOutputModality="TEXT")
+
+        latency_ms = round((time.time() - start) * 1000, 2)
+        return {
+            "status": "healthy",
+            "latency_ms": latency_ms,
+        }
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        latency_ms = round((time.time() - start) * 1000, 2)
+        # AccessDeniedException is an IAM issue, not a service health issue
+        if error_code == "AccessDeniedException":
+            return {
+                "status": "skipped",
+                "reason": "IAM permissions not configured for Bedrock",
+                "latency_ms": latency_ms,
+            }
+        return {
+            "status": "unhealthy",
+            "error": error_code,
+            "latency_ms": latency_ms,
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "latency_ms": round((time.time() - start) * 1000, 2),
+        }
+
+
 def check_config() -> dict[str, Any]:
     """Validate critical configuration is present."""
     issues = []
@@ -304,6 +347,7 @@ Comprehensive health check that validates all system dependencies:
 - **S3**: Images bucket accessibility
 - **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing)
 - **Cognito**: User pool availability (if configured)
+- **Bedrock**: AI model service availability
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
@@ -326,6 +370,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
         "s3": check_s3(),
         "sqs": check_sqs(),
         "cognito": check_cognito(),
+        "bedrock": check_bedrock(),
         "config": check_config(),
     }
 
