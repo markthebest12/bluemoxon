@@ -1,8 +1,8 @@
 # Session: Documentation Release & Image Processor Code Review
 
 **Date:** 2026-01-18
-**Issues:** #1138 (docs), Code review for image processor
-**Status:** IN PROGRESS - Code review fixes pending
+**Issues:** #1138 (docs), #1166 (validation gaps follow-up)
+**Status:** DEPLOYED TO PRODUCTION - Website reorganization in progress
 
 ## CRITICAL RULES FOR CONTINUATION
 
@@ -40,101 +40,73 @@
 
 ---
 
-## Completed Work
+## Completed Work (Deployed to Production)
 
-### Documentation PR #1162 (Issue #1138)
+### PRs Merged
 
-**Branch:** `docs/release-v2026.01.XX-1138`
-**Status:** Ready for staging review
+| PR | Title | Status |
+|----|-------|--------|
+| #1162 | docs: Document features for v2026.01.XX release | Merged to staging, then main |
+| #1163 | fix: Address code review feedback for image processor | Merged to staging, then main |
+| #1164 | style: Format image processor handler | Merged to staging |
+| #1165 | chore: Promote staging to production | Merged to main |
+| #1167 | style: Format image processor handler | Merged to main (fixed CI) |
 
-**FEATURES.md additions:**
-- Collection Spotlight - Dashboard carousel for high-value books
-- Era Filter - Period classification (Victorian, Edwardian, etc.)
-- Condition Grade Dropdown - AB Bookman grading scale
-- Auto-Process Book Images - Background removal and enhancement
-- Real-time Exchange Rates - Live GBP/EUR conversion with fallbacks
-- Entity Validation - Duplicate prevention with fuzzy matching
-- CSV/JSON Export - Authenticated export improvements
+### Code Review Fixes Implemented (P0-P2)
 
-**INFRASTRUCTURE.md additions:**
-- Lambda Layers - Shared Python dependencies
-- Cleanup Lambda - Automated maintenance tasks
-- Tracking Worker - Circuit breaker pattern
-- Artifacts Bucket - Deployment package repository
-- Image Processor Lambda - Container-based AI processing
+All items from code review were implemented:
 
-**Marketing site (site/features.html):**
-- Collection Spotlight feature card
-- AI Image Processing feature card
-- Interactive Analytics feature card
+- **P0-1**: Added `MIN_OUTPUT_DIMENSION = 100` constant and validation in `remove_background()`
+- **P1-3**: Added `TestRembgModelValidation` class with tests for invalid model rejection
+- **P2-4**: Fixed brightness docstring to "Iterates pixels directly without intermediate list conversion"
+- **P2-5**: Added INFO logging for fallback image selection
+- **P2-6**: Updated comment to "Validation (subject detection, minimum dimensions) happens in remove_background"
+- **P1-2**: Added TODO documenting thumbnail extension mismatch
 
----
+### Follow-up Issue Created
 
-## Pending Work: Image Processor Code Review Fixes
+**Issue #1166**: Image Processor validation gaps and edge cases
 
-**Branch:** `fix/image-processor-review-1138`
-**File:** `backend/lambdas/image_processor/handler.py`
-
-### P0 - Critical (Production Risk)
-
-**1. Missing output validation safety net**
-- Location: Lines 618-627 (after `remove_background()` call)
-- Problem: Removed `validate_image_quality()` with no replacement
-- Fix: Add minimum dimension check (≥100x100px) for processed output
-- Rationale: User uploads are unpredictable, rembg can return tiny artifacts
-
-### P1 - High (Will bite you)
-
-**2. Extension mismatch - JPEG saved as .webp/.png**
-- Location: Lines 659-671 (thumbnail generation/upload)
-- Problem: JPEG bytes uploaded with original extension (e.g., `thumb_*.webp`)
-- Fix: Either rename to `.jpg` or document properly for future migration
-- Current decision: Keep for backwards compat but add TODO for migration
-
-**3. Missing test for VALID_REMBG_MODELS validation**
-- Location: Line 286-287 (get_rembg_session validation)
-- Problem: Added validation but no test verifies it works
-- Fix: Add test in `test_handler.py` for invalid model rejection
-
-### P2 - Medium (Code quality)
-
-**4. Brightness comment still misleading**
-- Location: Lines 351-356 (calculate_brightness docstring)
-- Problem: Claims about "second copy" are technically incorrect
-- Fix: Change to "Iterates pixels directly without intermediate list conversion"
-
-**5. Silent fallback behavior**
-- Location: Lines 475-480 (select_best_source_image)
-- Problem: Falls back silently when explicit ID not found
-- Fix: Make behavior configurable or add more prominent logging
-
-**6. Comment documents deletion not current state**
-- Location: Line 623
-- Problem: "matches original script behavior" is unhelpful
-- Fix: Describe what code does now, not what was removed
+Documents remaining concerns from code review:
+- P0: Validation removal too aggressive (area ratio, brightness variance needed)
+- P1: MIN_OUTPUT_DIMENSION check after expensive compute (should check input first)
+- P1: JPEG/PNG extension mismatch is corruption, needs migration
+- P2: Test coverage insufficient (tautology test)
+- P2: Edge cases (grayscale, animated, ICC profiles, large subjects, S3 retry)
 
 ---
 
-## Implementation Plan for Code Review Fixes
+## Current Work: Website Reorganization
 
-### Task Order (by priority):
+### Task
 
-1. **P0-1**: Add MIN_OUTPUT_DIMENSION constant and validation after rembg
-2. **P1-3**: Add test for VALID_REMBG_MODELS validation
-3. **P2-4**: Fix brightness calculation docstring
-4. **P2-5**: Enhance fallback logging (make more prominent)
-5. **P2-6**: Rewrite comment at line 623
-6. **P1-2**: Add TODO comment about extension mismatch (defer migration)
+Move API/backend features from `site/features.html` to `site/index.html` where architecture and API docs already live. This keeps features.html purely user-focused.
 
-### Test command:
-```bash
-poetry run pytest backend/lambdas/image_processor/tests/test_handler.py -v
-```
+### Features to Move (from features.html to index.html)
 
-### Lint command:
-```bash
-poetry run ruff check backend/lambdas/image_processor/
-```
+| Feature | Current Section in features.html | Why Move |
+|---------|----------------------------------|----------|
+| **Async Generation** | AI-Powered Analysis | SQS queue, retry logic - implementation detail |
+| **API Key Access** | Access & Security | Developer/CLI tooling, not end-user |
+| **Container Queries** | Theming & Accessibility | CSS implementation detail |
+| **Model Selection** | AI-Powered Analysis | Backend config (Sonnet vs Opus) |
+
+### Target Location in index.html
+
+Add to the Architecture section (id="architecture") which already contains:
+- Infrastructure Overview diagram
+- AI-Powered Valuation Flow diagram
+- Tech stack details (Frontend, Backend, Infrastructure, Security)
+- Performance Optimizations (Redis Caching, Cold Start UX)
+
+### Next Steps
+
+1. Read full Architecture section in index.html to find best insertion point
+2. Create new subsection "Developer Features" or similar
+3. Move the 4 features from features.html
+4. Remove moved features from features.html
+5. Verify no redundancy with existing content
+6. Create PR for staging review
 
 ---
 
@@ -142,14 +114,15 @@ poetry run ruff check backend/lambdas/image_processor/
 
 | File | Purpose |
 |------|---------|
-| `backend/lambdas/image_processor/handler.py` | Main Lambda handler |
-| `backend/lambdas/image_processor/tests/test_handler.py` | Unit tests |
+| `site/features.html` | User-facing feature descriptions (source) |
+| `site/index.html` | Main site with Architecture/API sections (target) |
+| `backend/lambdas/image_processor/handler.py` | Image processor Lambda |
 | `docs/sessions/session-2026-01-18-docs-and-image-processor-review.md` | This session log |
 
 ---
 
-## Related Context
+## Worktree & Branch
 
-- Previous session: `docs/sessions/session-2026-01-18-thumbnail-regression.md`
-- Worktree: `/Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
-- Documentation PR: https://github.com/markthebest12/bluemoxon/pull/1162
+- **Worktree:** `/Users/mark/projects/bluemoxon/.worktrees/auto-process-images`
+- **Current branch:** `fix/main-format` (should switch to new branch for website work)
+- **Main repo:** `/Users/mark/projects/bluemoxon`
