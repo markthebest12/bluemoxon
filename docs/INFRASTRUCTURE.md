@@ -901,6 +901,35 @@ All resource IDs are stored in: `infra/aws-resources.json`
 
 ---
 
+## Adding Async Workers (SQS + Lambda)
+
+When adding a new async worker flow (SQS queue + Lambda processor), update these locations:
+
+### Backend
+
+- [ ] **app/config.py** - Add `<worker>_queue_name` setting with `BMX_` prefix alias
+- [ ] **app/api/v1/health.py** - Add queue to `check_sqs()` function's `queues` dict
+- [ ] **app/api/v1/admin.py** - Add `<worker>_queue` to `InfrastructureConfig` model and wire in `get_system_info()`
+
+### Frontend
+
+- [ ] **src/types/admin.ts** - Add `<worker>_queue` to `InfrastructureConfig` interface
+- [ ] **src/views/AdminConfigView.vue** - Add queue display in Infrastructure section
+
+### Infrastructure
+
+- [ ] **infra/terraform/main.tf** - Add `BMX_<WORKER>_QUEUE_NAME` to Lambda environment variables (wire from worker module output)
+
+### Existing Flows (Reference)
+
+| Flow | Config | Health | Admin | Frontend |
+|------|--------|--------|-------|----------|
+| Analysis | `analysis_queue_name` | `check_sqs()` | `analysis_queue` | AdminConfigView |
+| Eval Runbook | `eval_runbook_queue_name` | `check_sqs()` | `eval_runbook_queue` | AdminConfigView |
+| Image Processing | `image_processor_queue_name` | `check_sqs()` | `image_processor_queue` | AdminConfigView |
+
+---
+
 ## Related Documents
 
 | Document | Purpose |
