@@ -227,6 +227,12 @@ resource "aws_iam_role_policy" "bedrock_access" {
           # Cross-region inference profiles (us.anthropic.* format)
           ["arn:aws:bedrock:*:*:inference-profile/us.anthropic.*"]
         )
+      },
+      {
+        # Health check uses ListFoundationModels to verify Bedrock connectivity
+        Effect   = "Allow"
+        Action   = "bedrock:ListFoundationModels"
+        Resource = "*"
       }
     ]
   })
@@ -245,6 +251,24 @@ resource "aws_iam_role_policy" "lambda_invoke" {
         Effect   = "Allow"
         Action   = "lambda:InvokeFunction"
         Resource = var.lambda_invoke_arns
+      }
+    ]
+  })
+}
+
+# Lambda health check access (GetFunction to verify Lambda availability)
+resource "aws_iam_role_policy" "lambda_health_check" {
+  count = length(var.lambda_health_check_arns) > 0 ? 1 : 0
+  name  = "lambda-health-check"
+  role  = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "lambda:GetFunction"
+        Resource = var.lambda_health_check_arns
       }
     ]
   })
