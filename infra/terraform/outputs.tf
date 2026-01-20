@@ -320,3 +320,13 @@ output "alerts_sns_topic_arn" {
   description = "SNS topic ARN for CloudWatch alarms and operational alerts"
   value       = aws_sns_topic.alerts.arn
 }
+
+# =============================================================================
+# Pre-flight Validation Outputs
+# =============================================================================
+
+output "lambda_environment_variables" {
+  description = "Environment variables configured for the API Lambda (for pre-flight validation)"
+  value       = var.enable_lambda ? module.lambda[0].environment_variables : {}
+  sensitive   = true # May contain API keys
+}

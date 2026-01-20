@@ -107,6 +107,18 @@ AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
 AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
 ```
 
+**API Key for Terraform:** CI fetches automatically from Secrets Manager. For manual runs:
+
+| Environment | Secret Path | AWS Account |
+|-------------|-------------|-------------|
+| Staging | `bluemoxon-staging/api-key` | bmx-staging |
+| Production | `bluemoxon-prod/api-key` | bmx-prod |
+
+```bash
+export TF_VAR_api_key=$(aws secretsmanager get-secret-value --secret-id bluemoxon-staging/api-key --query SecretString --output text)
+terraform apply -var-file=envs/staging.tfvars
+```
+
 **Lambda Python version** must match between Terraform runtime and deploy build image (currently 3.12).
 
 See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for details.
