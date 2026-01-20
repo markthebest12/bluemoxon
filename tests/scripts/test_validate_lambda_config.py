@@ -1,8 +1,12 @@
 """Tests for validate_lambda_config.py script."""
 
-import pytest
+import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+import pytest
 
 # Add scripts directory to path for imports
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -173,3 +177,77 @@ class TestFormatOutput:
 
         # Should contain success indicator
         assert "validation passed" in output
+
+
+class TestCLI:
+    """Test suite for command-line interface."""
+
+    def test_cli_success_with_json_args(self):
+        """CLI returns 0 and success message when validation passes."""
+        expected_vars = {
+            "required": [
+                {"name": "BMX_DATABASE_URL", "source": "config.py:35"},
+            ],
+            "optional": [],
+        }
+
+        actual_vars = {
+            "BMX_DATABASE_URL": "postgres://...",
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(expected_vars, f)
+            expected_file = f.name
+
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(scripts_dir / "validate_lambda_config.py"),
+                    "--expected", expected_file,
+                    "--actual", json.dumps(actual_vars),
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0
+            assert "validation passed" in result.stdout
+        finally:
+            Path(expected_file).unlink()
+
+    def test_cli_failure_exits_with_code_1(self):
+        """CLI returns 1 when validation fails."""
+        expected_vars = {
+            "required": [
+                {"name": "BMX_DATABASE_URL", "source": "config.py:35"},
+                {"name": "BMX_MISSING_VAR", "source": "config.py:99"},
+            ],
+            "optional": [],
+        }
+
+        actual_vars = {
+            "BMX_DATABASE_URL": "postgres://...",
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(expected_vars, f)
+            expected_file = f.name
+
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(scripts_dir / "validate_lambda_config.py"),
+                    "--expected", expected_file,
+                    "--actual", json.dumps(actual_vars),
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 1
+            assert "validation failed" in result.stdout
+            assert "BMX_MISSING_VAR" in result.stdout
+        finally:
+            Path(expected_file).unlink()

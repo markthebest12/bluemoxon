@@ -4,8 +4,14 @@ Validate Lambda environment configuration against expected BMX_* variables.
 
 This script compares expected environment variables (from extract_config_vars.py output)
 against actual Lambda environment variables to ensure all required vars are set.
+
+Usage:
+    python validate_lambda_config.py --expected expected.json --actual '{"VAR": "value"}'
 """
 
+import argparse
+import json
+import sys
 from dataclasses import dataclass, field
 
 
@@ -97,3 +103,45 @@ def format_success_output(result: ValidationResult) -> str:
         lines.append(f"  Note: {count} optional vars not set")
 
     return "\n".join(lines)
+
+
+def main() -> int:
+    """
+    CLI entry point for Lambda config validation.
+
+    Returns:
+        0 on success, 1 on validation failure.
+    """
+    parser = argparse.ArgumentParser(
+        description="Validate Lambda environment configuration against expected BMX_* variables."
+    )
+    parser.add_argument(
+        "--expected",
+        required=True,
+        help="Path to JSON file with expected vars (from extract_config_vars.py)",
+    )
+    parser.add_argument(
+        "--actual",
+        required=True,
+        help="JSON string of actual Lambda env vars",
+    )
+
+    args = parser.parse_args()
+
+    with open(args.expected) as f:
+        expected_vars = json.load(f)
+
+    actual_vars = json.loads(args.actual)
+
+    result = validate_lambda_config(expected_vars, actual_vars)
+
+    if result.success:
+        print(format_success_output(result))
+        return 0
+    else:
+        print(format_error_output(result))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
