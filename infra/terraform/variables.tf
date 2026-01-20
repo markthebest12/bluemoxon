@@ -229,6 +229,12 @@ variable "cleanup_function_name_override" {
   default     = null
 }
 
+variable "retry_queue_failed_function_name_override" {
+  type        = string
+  description = "Override retry-queue-failed Lambda function name"
+  default     = null
+}
+
 variable "enable_tracking_worker" {
   type        = bool
   description = "Enable tracking worker Lambda + SQS for async tracking updates (can be enabled independently of main Lambda)"

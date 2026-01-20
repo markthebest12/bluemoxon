@@ -237,6 +237,20 @@ output "cleanup_lambda_function_arn" {
 }
 
 # =============================================================================
+# Retry Queue Failed Worker Outputs
+# =============================================================================
+
+output "retry_queue_failed_function_name" {
+  description = "Retry queue failed Lambda function name"
+  value       = local.cleanup_lambda_enabled ? module.retry_queue_failed_worker[0].function_name : null
+}
+
+output "retry_queue_failed_function_arn" {
+  description = "Retry queue failed Lambda function ARN"
+  value       = local.cleanup_lambda_enabled ? module.retry_queue_failed_worker[0].function_arn : null
+}
+
+# =============================================================================
 # GitHub OIDC Outputs
 # =============================================================================
 

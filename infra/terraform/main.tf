@@ -763,6 +763,64 @@ module "cleanup_lambda" {
 }
 
 # =============================================================================
+# Retry Queue Failed Worker
+# =============================================================================
+# Scheduled Lambda that retries image processing jobs that failed to queue to SQS.
+# - Runs every 5 minutes
+# - Queries jobs with queue_failed status
+# - Attempts to re-send to SQS
+# - Marks permanently_failed after 3 attempts
+
+module "retry_queue_failed_worker" {
+  count  = local.cleanup_lambda_enabled ? 1 : 0
+  source = "./modules/retry-queue-failed-worker"
+
+  function_name = coalesce(var.retry_queue_failed_function_name_override, "${local.name_prefix}-retry-queue-failed")
+  environment   = var.environment
+
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = local.lambda_s3_key
+  runtime   = var.lambda_runtime
+  layers    = var.enable_lambda ? [module.lambda_layer[0].layer_version_arn] : []
+
+  memory_size = 256
+  timeout     = 60
+
+  # VPC configuration for RDS access
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # Secrets Manager access for database credentials
+  secret_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+    ] : (
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
+
+  # SQS access for sending messages to image processing queue
+  sqs_queue_arns = local.image_processor_enabled ? [module.image_processor[0].queue_arn] : []
+
+  # Run every 5 minutes
+  schedule_expression = "rate(5 minutes)"
+
+  # Environment variables
+  environment_variables = merge(
+    {
+      IMAGE_PROCESSING_QUEUE_NAME = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
+    },
+    var.enable_database ? {
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
+  )
+
+  tags = local.common_tags
+}
+
+# =============================================================================
 # Alerts SNS Topic
 # =============================================================================
 # Central SNS topic for CloudWatch alarms and operational alerts.

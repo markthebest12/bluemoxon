@@ -37,6 +37,7 @@ class ImageProcessingJob(Base):
 
     status: Mapped[str] = mapped_column(String(20), default="pending")
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    queue_retry_count: Mapped[int] = mapped_column(Integer, default=0)
     model_used: Mapped[str | None] = mapped_column(String(50), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
