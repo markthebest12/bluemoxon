@@ -122,6 +122,17 @@ export interface LimitsConfig {
   presigned_url_expiry_sec: number;
 }
 
+export interface ImageProcessingConfig {
+  brightness_threshold: number;
+  max_attempts: number;
+  max_image_dimension: number;
+  thumbnail_max_size: [number, number];
+  thumbnail_quality: number;
+  u2net_fallback_attempt: number;
+  min_output_dimension: number;
+  image_type_priority: string[];
+}
+
 export interface SystemInfoResponse {
   is_cold_start: boolean;
   timestamp: string;
@@ -130,6 +141,7 @@ export interface SystemInfoResponse {
   models: Record<string, ModelInfo>;
   infrastructure: InfrastructureConfig;
   limits: LimitsConfig;
+  image_processing: ImageProcessingConfig;
   scoring_config: ScoringConfig;
   entity_tiers: EntityTiers;
 }
