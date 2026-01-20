@@ -190,6 +190,18 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_NOTIFICATION_FROM_EMAIL", "NOTIFICATION_FROM_EMAIL"),
     )
 
+    # =========================================================================
+    # VALIDATION SENTINEL - DO NOT ADD TO TERRAFORM
+    # =========================================================================
+    # This setting tests the pre-flight validation system.
+    # It should trigger a warning during deploy (Phase 1: warning mode).
+    # Remove after validation is promoted to blocking mode.
+    # See: docs/plans/2026-01-19-lambda-preflight-validation-design.md
+    validation_sentinel: str = Field(
+        default=...,  # Required - no default (Ellipsis means required in pydantic)
+        validation_alias=AliasChoices("BMX_VALIDATION_SENTINEL"),
+    )
+
     @property
     def is_aws_lambda(self) -> bool:
         """True when running in AWS Lambda (staging or production).
