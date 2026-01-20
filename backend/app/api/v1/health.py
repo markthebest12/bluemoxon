@@ -207,9 +207,7 @@ def check_sqs() -> dict[str, Any]:
                     QueueUrl=queue_url,
                     AttributeNames=["ApproximateNumberOfMessages"],
                 )
-                msg_count = int(
-                    attrs["Attributes"].get("ApproximateNumberOfMessages", 0)
-                )
+                msg_count = int(attrs["Attributes"].get("ApproximateNumberOfMessages", 0))
 
                 results[queue_type] = {
                     "status": "healthy",
@@ -798,9 +796,7 @@ async def cleanup_orphans(
             total_deleted += rows_deleted
             # Extract table name from SQL for reporting
             table_name = sql.split("FROM ")[1].split()[0]
-            results.append(
-                {"table": table_name, "deleted": rows_deleted, "status": "success"}
-            )
+            results.append({"table": table_name, "deleted": rows_deleted, "status": "success"})
         except Exception as e:
             errors.append({"sql": sql[:50] + "...", "error": str(e)})
 
@@ -1066,9 +1062,7 @@ async def run_migrations(
 
     # Check current alembic version
     try:
-        current_version = db.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar()
+        current_version = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     except Exception:
         current_version = None
 
@@ -1113,9 +1107,7 @@ async def run_migrations(
                 try:
                     # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
                     db.execute(text(sql))
-                    results.append(
-                        {"sql": f"setval({table}_id_seq)", "status": "success"}
-                    )
+                    results.append({"sql": f"setval({table}_id_seq)", "status": "success"})
                 except Exception as e:
                     errors.append({"sql": f"setval({table}_id_seq)", "error": str(e)})
 
@@ -1131,9 +1123,7 @@ async def run_migrations(
                 text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
                 {"version": final_version},
             )
-        results.append(
-            {"sql": f"UPDATE alembic_version to {final_version}", "status": "success"}
-        )
+        results.append({"sql": f"UPDATE alembic_version to {final_version}", "status": "success"})
     except Exception as e:
         errors.append({"sql": "UPDATE alembic_version", "error": str(e)})
 
