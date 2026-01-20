@@ -18,6 +18,17 @@ from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.constants.image_processing import (
+    BRIGHTNESS_THRESHOLD,
+    IMAGE_TYPE_PRIORITY,
+    MAX_ATTEMPTS,
+    MAX_IMAGE_DIMENSION,
+    MIN_OUTPUT_DIMENSION,
+    THUMBNAIL_MAX_SIZE,
+    THUMBNAIL_QUALITY,
+    U2NET_FALLBACK_ATTEMPT,
+)
+
 # Lazy-loaded rembg functions (deferred to avoid ONNX Runtime init at module load)
 _rembg_new_session = None
 _rembg_remove = None
@@ -25,36 +36,8 @@ _rembg_remove = None
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# =============================================================================
-# Processing Constants
-# =============================================================================
-# These values are intentionally set and should be displayed in admin config.
-# See GitHub issue #1149 for admin display feature.
-
-# Background color selection threshold (0-255)
-# Images with average brightness below this get black background, above get white
-BRIGHTNESS_THRESHOLD = 128
-
-# Maximum processing attempts before marking job as failed
-MAX_ATTEMPTS = 3
-
-# Maximum input image dimension (width or height) in pixels
-# Images larger than this are rejected to prevent OOM
-MAX_IMAGE_DIMENSION = 4096
-
-# Thumbnail settings (matches API endpoint in images.py)
-THUMBNAIL_MAX_SIZE = (300, 300)
-THUMBNAIL_QUALITY = 85
-
-# Image type priority for source selection (highest priority first)
-# Lambda will select best source image based on this order
-IMAGE_TYPE_PRIORITY = ["title_page", "binding", "cover", "spine"]
-
 # S3 key prefix for book images (matches API's S3_IMAGES_PREFIX)
 S3_IMAGES_PREFIX = "books/"
-
-# Attempt number at which to switch from u2net to isnet-general-use model
-U2NET_FALLBACK_ATTEMPT = 3
 
 # Environment variables
 DATABASE_SECRET_ARN = os.environ.get("DATABASE_SECRET_ARN", "")
@@ -275,9 +258,6 @@ def upload_to_s3(bucket: str, key: str, image_bytes: bytes, content_type: str) -
 
 # Valid rembg model names - reject unknown models to prevent unbounded cache growth
 VALID_REMBG_MODELS = {"u2net", "isnet-general-use"}
-
-# Minimum output dimension - reject tiny artifacts from rembg (safety net for unpredictable inputs)
-MIN_OUTPUT_DIMENSION = 100
 
 
 def get_rembg_session(model_name: str):
