@@ -67,3 +67,26 @@ class TestExtractsBmxSettingFromAliasChoices:
 
         all_vars = [v["name"] for v in result["required"] + result["optional"]]
         assert len(all_vars) == 0
+
+
+class TestDetectsRequiredSettingNoDefault:
+    """Test detection of required settings (no default value)."""
+
+    def test_field_without_default_is_required(self):
+        """A field with no default keyword is required."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                api_key: str = Field(
+                    validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        required_names = [v["name"] for v in result["required"]]
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_API_KEY" in required_names
+        assert "BMX_API_KEY" not in optional_names
