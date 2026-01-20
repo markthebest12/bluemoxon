@@ -40,7 +40,9 @@ def validate_lambda_config(expected_vars: dict, actual_vars: dict) -> Validation
     missing_optional = []
 
     for var in expected_vars.get("required", []):
-        if var["name"] not in actual_vars:
+        name = var["name"]
+        # Check both existence AND non-empty value for required vars
+        if name not in actual_vars or actual_vars[name] == "":
             missing_required.append(var)
 
     for var in expected_vars.get("optional", []):
@@ -75,10 +77,8 @@ def format_error_output(result: ValidationResult) -> str:
         lines.append(f"  - {name} (defined in {source})")
 
     lines.append("")
-    lines.append("These must be added to Terraform before deploying:")
-    lines.append("  File: infra/terraform/main.tf (lines 385-400)")
-    lines.append("")
-    lines.append("Fix: Run 'terraform apply' first, or add missing vars to main.tf")
+    lines.append("Fix: Add missing vars to Terraform (infra/terraform/main.tf)")
+    lines.append("     then run 'terraform apply' before deploying.")
 
     return "\n".join(lines)
 
@@ -118,10 +118,16 @@ def main() -> int:
         required=True,
         help="Path to JSON file with expected vars (from extract_config_vars.py)",
     )
-    parser.add_argument(
+    # Support both --actual (JSON string) and --actual-file (file path)
+    # Prefer --actual-file to avoid shell injection with untrusted JSON
+    actual_group = parser.add_mutually_exclusive_group(required=True)
+    actual_group.add_argument(
         "--actual",
-        required=True,
-        help="JSON string of actual Lambda env vars",
+        help="JSON string of actual Lambda env vars (use --actual-file for untrusted input)",
+    )
+    actual_group.add_argument(
+        "--actual-file",
+        help="Path to JSON file with actual Lambda env vars (safer than --actual)",
     )
 
     args = parser.parse_args()
@@ -129,7 +135,11 @@ def main() -> int:
     with open(args.expected) as f:
         expected_vars = json.load(f)
 
-    actual_vars = json.loads(args.actual)
+    if args.actual_file:
+        with open(args.actual_file) as f:
+            actual_vars = json.load(f)
+    else:
+        actual_vars = json.loads(args.actual)
 
     result = validate_lambda_config(expected_vars, actual_vars)
 

@@ -3,7 +3,6 @@
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from scripts.extract_config_vars import extract_config_vars, parse_config_source
 
@@ -13,7 +12,7 @@ class TestExtractsBmxSettingFromAliasChoices:
 
     def test_extracts_single_bmx_var(self):
         """Extract a single BMX variable from AliasChoices."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -22,7 +21,7 @@ class TestExtractsBmxSettingFromAliasChoices:
                     default="value",
                     validation_alias=AliasChoices("BMX_MY_SETTING", "MY_SETTING"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         assert len(result["required"]) + len(result["optional"]) == 1
@@ -31,7 +30,7 @@ class TestExtractsBmxSettingFromAliasChoices:
 
     def test_extracts_multiple_bmx_vars(self):
         """Extract multiple BMX variables from different fields."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -44,7 +43,7 @@ class TestExtractsBmxSettingFromAliasChoices:
                     default="b",
                     validation_alias=AliasChoices("BMX_SETTING_B", "SETTING_B"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         all_vars = [v["name"] for v in result["required"] + result["optional"]]
@@ -53,7 +52,7 @@ class TestExtractsBmxSettingFromAliasChoices:
 
     def test_ignores_non_bmx_vars(self):
         """Only extract BMX_* prefixed variables."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -62,7 +61,7 @@ class TestExtractsBmxSettingFromAliasChoices:
                     default="value",
                     validation_alias=AliasChoices("OTHER_SETTING", "LEGACY_SETTING"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         all_vars = [v["name"] for v in result["required"] + result["optional"]]
@@ -74,7 +73,7 @@ class TestDetectsRequiredSettingNoDefault:
 
     def test_field_without_default_is_required(self):
         """A field with no default keyword is required."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -82,7 +81,7 @@ class TestDetectsRequiredSettingNoDefault:
                 api_key: str = Field(
                     validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         required_names = [v["name"] for v in result["required"]]
@@ -97,7 +96,7 @@ class TestDetectsRequiredSettingEllipsisDefault:
 
     def test_field_with_ellipsis_default_is_required(self):
         """A field with default=... is required."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -106,7 +105,7 @@ class TestDetectsRequiredSettingEllipsisDefault:
                     default=...,
                     validation_alias=AliasChoices("BMX_DATABASE_URL", "DATABASE_URL"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         required_names = [v["name"] for v in result["required"]]
@@ -117,11 +116,11 @@ class TestDetectsRequiredSettingEllipsisDefault:
 
 
 class TestDetectsOptionalWithNoneType:
-    """Test detection of optional settings (type includes | None)."""
+    """Test detection of optional settings (type includes None)."""
 
-    def test_field_with_none_type_is_optional(self):
+    def test_field_with_union_none_type_is_optional(self):
         """A field with str | None type is optional."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -130,7 +129,7 @@ class TestDetectsOptionalWithNoneType:
                     default=None,
                     validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         required_names = [v["name"] for v in result["required"]]
@@ -141,7 +140,7 @@ class TestDetectsOptionalWithNoneType:
 
     def test_field_with_none_type_even_without_explicit_default(self):
         """A field with None in union type is optional even without explicit default."""
-        source = textwrap.dedent('''
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -149,19 +148,61 @@ class TestDetectsOptionalWithNoneType:
                 optional_setting: str | None = Field(
                     validation_alias=AliasChoices("BMX_OPTIONAL", "OPTIONAL"),
                 )
-        ''')
+        """)
         result = parse_config_source(source)
 
         optional_names = [v["name"] for v in result["optional"]]
         assert "BMX_OPTIONAL" in optional_names
 
+    def test_field_with_typing_optional_is_optional(self):
+        """A field with Optional[str] type is optional."""
+        source = textwrap.dedent("""
+            from typing import Optional
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
 
-class TestIncludesLineNumbers:
-    """Test that line numbers are included in output."""
+            class Settings(BaseSettings):
+                api_key: Optional[str] = Field(
+                    default=None,
+                    validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
+                )
+        """)
+        result = parse_config_source(source)
 
-    def test_line_number_matches_field_definition(self):
-        """Line number should point to the field definition line."""
-        source = textwrap.dedent('''
+        required_names = [v["name"] for v in result["required"]]
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_API_KEY" not in required_names
+        assert "BMX_API_KEY" in optional_names
+
+    def test_field_with_typing_union_none_is_optional(self):
+        """A field with Union[str, None] type is optional."""
+        source = textwrap.dedent("""
+            from typing import Union
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                api_key: Union[str, None] = Field(
+                    default=None,
+                    validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
+                )
+        """)
+        result = parse_config_source(source)
+
+        required_names = [v["name"] for v in result["required"]]
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_API_KEY" not in required_names
+        assert "BMX_API_KEY" in optional_names
+
+
+class TestIncludesSourceInfo:
+    """Test that source info (filename:line) is included in output."""
+
+    def test_source_includes_line_number(self):
+        """Source should include filename and line number."""
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -174,19 +215,19 @@ class TestIncludesLineNumbers:
                     default="value2",
                     validation_alias=AliasChoices("BMX_SECOND", "SECOND"),
                 )
-        ''')
-        result = parse_config_source(source)
+        """)
+        result = parse_config_source(source, "test.py")
 
         all_vars = result["required"] + result["optional"]
         first_var = next(v for v in all_vars if v["name"] == "BMX_FIRST")
         second_var = next(v for v in all_vars if v["name"] == "BMX_SECOND")
 
-        assert first_var["line"] == 6
-        assert second_var["line"] == 10
+        assert first_var["source"] == "test.py:6"
+        assert second_var["source"] == "test.py:10"
 
-    def test_line_number_present_in_all_vars(self):
-        """All extracted variables must have a line number."""
-        source = textwrap.dedent('''
+    def test_source_present_in_all_vars(self):
+        """All extracted variables must have source info."""
+        source = textwrap.dedent("""
             from pydantic import AliasChoices, Field
             from pydantic_settings import BaseSettings
 
@@ -198,31 +239,26 @@ class TestIncludesLineNumbers:
                     default=None,
                     validation_alias=AliasChoices("BMX_OPT", "OPT"),
                 )
-        ''')
-        result = parse_config_source(source)
+        """)
+        result = parse_config_source(source, "config.py")
 
         for var in result["required"]:
-            assert "line" in var
-            assert isinstance(var["line"], int)
-            assert var["line"] > 0
+            assert "source" in var
+            assert isinstance(var["source"], str)
+            assert ":" in var["source"]
 
         for var in result["optional"]:
-            assert "line" in var
-            assert isinstance(var["line"], int)
-            assert var["line"] > 0
+            assert "source" in var
+            assert isinstance(var["source"], str)
+            assert ":" in var["source"]
 
 
 class TestParsesRealConfigFile:
     """Integration test against the actual config.py file."""
 
-    @pytest.fixture
-    def config_path(self) -> Path:
-        """Return path to the real config.py file."""
-        return Path(__file__).parent.parent.parent / "backend" / "app" / "config.py"
-
-    def test_extracts_known_bmx_vars(self, config_path: Path):
+    def test_extracts_known_bmx_vars(self, backend_config_path: Path):
         """Extract known BMX variables from the real config file."""
-        result = extract_config_vars(config_path)
+        result = extract_config_vars(backend_config_path)
 
         all_names = [v["name"] for v in result["required"] + result["optional"]]
 
@@ -232,9 +268,9 @@ class TestParsesRealConfigFile:
         assert "BMX_IMAGES_BUCKET" in all_names
         assert "BMX_ENVIRONMENT" in all_names
 
-    def test_correctly_classifies_optional_vars(self, config_path: Path):
+    def test_correctly_classifies_optional_vars(self, backend_config_path: Path):
         """Variables with | None type should be classified as optional."""
-        result = extract_config_vars(config_path)
+        result = extract_config_vars(backend_config_path)
 
         optional_names = [v["name"] for v in result["optional"]]
 
@@ -243,17 +279,18 @@ class TestParsesRealConfigFile:
         assert "BMX_IMAGES_CDN_URL" in optional_names
         assert "BMX_API_KEY" in optional_names
 
-    def test_all_vars_have_line_numbers(self, config_path: Path):
-        """All extracted variables should have line numbers."""
-        result = extract_config_vars(config_path)
+    def test_all_vars_have_source_info(self, backend_config_path: Path):
+        """All extracted variables should have source info (filename:line)."""
+        result = extract_config_vars(backend_config_path)
 
         for var in result["required"] + result["optional"]:
-            assert "line" in var
-            assert var["line"] > 0
+            assert "source" in var
+            assert isinstance(var["source"], str)
+            assert "config.py:" in var["source"]
 
-    def test_extracts_reasonable_number_of_vars(self, config_path: Path):
+    def test_extracts_reasonable_number_of_vars(self, backend_config_path: Path):
         """Should extract a reasonable number of variables (sanity check)."""
-        result = extract_config_vars(config_path)
+        result = extract_config_vars(backend_config_path)
 
         total = len(result["required"]) + len(result["optional"])
         assert total >= 10

@@ -116,7 +116,6 @@ jobs:
       s3_artifacts_bucket: ${{ steps.config.outputs.s3_artifacts_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
       api_url: ${{ steps.config.outputs.api_url }}
-      api_key: ${{ steps.api-key.outputs.api_key }}
       app_url: ${{ steps.config.outputs.app_url }}
       cognito_user_pool_id: ${{ steps.config.outputs.cognito_user_pool_id }}
       cognito_client_id: ${{ steps.config.outputs.cognito_client_id }}
@@ -471,16 +470,26 @@ jobs:
         run: |
           FUNCTION_NAME="${{ needs.configure.outputs.lambda_function_name }}"
           echo "Getting env vars for Lambda: $FUNCTION_NAME"
-          ENV_VARS=$(aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --query 'Environment.Variables' --output json 2>/dev/null || echo '{}')
-          echo "actual_vars=$ENV_VARS" >> $GITHUB_OUTPUT
-          echo "Actual vars from Lambda:"
-          echo "$ENV_VARS" | head -c 500
+
+          if aws lambda get-function --function-name "$FUNCTION_NAME" > /dev/null 2>&1; then
+            aws lambda get-function-configuration --function-name "$FUNCTION_NAME" --query 'Environment.Variables' --output json > actual_vars.json
+            echo "lambda_exists=true" >> $GITHUB_OUTPUT
+            echo "Actual vars from Lambda:"
+            head -c 500 actual_vars.json
+          else
+            echo "::warning::Lambda function $FUNCTION_NAME does not exist yet (first deploy?)"
+            echo "lambda_exists=false" >> $GITHUB_OUTPUT
+            echo "{}" > actual_vars.json
+          fi
 
       - name: Validate config
         run: |
-          python scripts/validate_lambda_config.py \
-            --expected expected_vars.json \
-            --actual '${{ steps.actual.outputs.actual_vars }}'
+          if [[ "${{ steps.actual.outputs.lambda_exists }}" == "false" ]]; then
+            echo "::warning::Skipping validation - Lambda does not exist yet (first deploy)"
+            echo "First deploy detected. Config validation will run on subsequent deploys."
+            exit 0
+          fi
+          python scripts/validate_lambda_config.py --expected expected_vars.json --actual-file actual_vars.json
 
   # ============================================
   # Build Jobs (run in parallel)

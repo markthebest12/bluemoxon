@@ -6,10 +6,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add scripts directory to path for imports
-scripts_dir = Path(__file__).parent.parent.parent / "scripts"
-sys.path.insert(0, str(scripts_dir))
-
 
 class TestValidateLambdaConfig:
     """Test suite for Lambda config validation."""
@@ -107,6 +103,31 @@ class TestValidateLambdaConfig:
         assert "BMX_LOG_LEVEL" in missing_names
         assert "BMX_CACHE_TTL" in missing_names
 
+    def test_fails_when_required_has_empty_value(self):
+        """Validation fails when required env var exists but has empty string value."""
+        from validate_lambda_config import validate_lambda_config
+
+        expected_vars = {
+            "required": [
+                {"name": "BMX_DATABASE_URL", "source": "config.py:35"},
+                {"name": "BMX_API_KEY", "source": "config.py:50"},
+            ],
+            "optional": [],
+        }
+
+        actual_vars = {
+            "BMX_DATABASE_URL": "postgres://...",
+            "BMX_API_KEY": "",  # Empty string should be treated as missing
+        }
+
+        result = validate_lambda_config(expected_vars, actual_vars)
+
+        assert result.success is False
+        assert len(result.missing_required) == 1
+
+        missing_names = [v["name"] for v in result.missing_required]
+        assert "BMX_API_KEY" in missing_names
+
 
 class TestFormatOutput:
     """Test suite for output formatting functions."""
@@ -135,8 +156,9 @@ class TestFormatOutput:
         assert "BMX_NEW_FEATURE" in output
         assert "config.py:200" in output
 
-        # Should include Terraform fix hint
+        # Should include fix hint
         assert "Terraform" in output
+        assert "terraform apply" in output
 
     def test_format_success_output(self):
         """Success output includes optional var count."""
@@ -180,7 +202,7 @@ class TestFormatOutput:
 class TestCLI:
     """Test suite for command-line interface."""
 
-    def test_cli_success_with_json_args(self):
+    def test_cli_success_with_json_args(self, scripts_dir: Path):
         """CLI returns 0 and success message when validation passes."""
         expected_vars = {
             "required": [
@@ -202,8 +224,10 @@ class TestCLI:
                 [
                     sys.executable,
                     str(scripts_dir / "validate_lambda_config.py"),
-                    "--expected", expected_file,
-                    "--actual", json.dumps(actual_vars),
+                    "--expected",
+                    expected_file,
+                    "--actual",
+                    json.dumps(actual_vars),
                 ],
                 capture_output=True,
                 text=True,
@@ -214,7 +238,7 @@ class TestCLI:
         finally:
             Path(expected_file).unlink()
 
-    def test_cli_failure_exits_with_code_1(self):
+    def test_cli_failure_exits_with_code_1(self, scripts_dir: Path):
         """CLI returns 1 when validation fails."""
         expected_vars = {
             "required": [
@@ -237,8 +261,10 @@ class TestCLI:
                 [
                     sys.executable,
                     str(scripts_dir / "validate_lambda_config.py"),
-                    "--expected", expected_file,
-                    "--actual", json.dumps(actual_vars),
+                    "--expected",
+                    expected_file,
+                    "--actual",
+                    json.dumps(actual_vars),
                 ],
                 capture_output=True,
                 text=True,

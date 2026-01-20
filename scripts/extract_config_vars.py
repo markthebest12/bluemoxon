@@ -15,7 +15,7 @@ class VarInfo(TypedDict):
     """Information about an extracted variable."""
 
     name: str
-    line: int
+    source: str  # Format: "filename:line" e.g. "config.py:35"
 
 
 class ExtractResult(TypedDict):
@@ -25,11 +25,12 @@ class ExtractResult(TypedDict):
     optional: list[VarInfo]
 
 
-def parse_config_source(source: str) -> ExtractResult:
+def parse_config_source(source: str, filename: str = "config.py") -> ExtractResult:
     """Parse Python source code and extract BMX_* variables from AliasChoices.
 
     Args:
         source: Python source code as string
+        filename: Name of the source file (for error messages)
 
     Returns:
         Dict with 'required' and 'optional' lists of variable info
@@ -41,17 +42,18 @@ def parse_config_source(source: str) -> ExtractResult:
         if isinstance(node, ast.ClassDef):
             for item in node.body:
                 if isinstance(item, ast.AnnAssign):
-                    _process_field(item, result)
+                    _process_field(item, result, filename)
 
     return result
 
 
-def _process_field(node: ast.AnnAssign, result: ExtractResult) -> None:
+def _process_field(node: ast.AnnAssign, result: ExtractResult, filename: str) -> None:
     """Process a single annotated assignment (field definition).
 
     Args:
         node: AST annotated assignment node
         result: Result dict to populate
+        filename: Source filename for error messages
     """
     if node.value is None:
         return
@@ -63,7 +65,7 @@ def _process_field(node: ast.AnnAssign, result: ExtractResult) -> None:
     if bmx_var is None:
         return
 
-    var_info: VarInfo = {"name": bmx_var, "line": node.lineno}
+    var_info: VarInfo = {"name": bmx_var, "source": f"{filename}:{node.lineno}"}
 
     if _is_optional_field(node):
         result["optional"].append(var_info)
@@ -137,7 +139,12 @@ def _is_optional_field(node: ast.AnnAssign) -> bool:
 
 
 def _type_includes_none(annotation: ast.expr | None) -> bool:
-    """Check if type annotation includes None (e.g., str | None).
+    """Check if type annotation includes None.
+
+    Handles:
+    - str | None (modern union syntax)
+    - Optional[str] (typing module)
+    - Union[str, None] (typing module)
 
     Args:
         annotation: AST expression for type annotation
@@ -148,12 +155,42 @@ def _type_includes_none(annotation: ast.expr | None) -> bool:
     if annotation is None:
         return False
 
+    # Handle X | None syntax (Python 3.10+)
     if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
-        if isinstance(annotation.right, ast.Constant) and annotation.right.value is None:
+        if (
+            isinstance(annotation.right, ast.Constant)
+            and annotation.right.value is None
+        ):
             return True
         if isinstance(annotation.left, ast.Constant) and annotation.left.value is None:
             return True
-        return _type_includes_none(annotation.left) or _type_includes_none(annotation.right)
+        return _type_includes_none(annotation.left) or _type_includes_none(
+            annotation.right
+        )
+
+    # Handle Optional[X] and Union[X, None] syntax
+    if isinstance(annotation, ast.Subscript):
+        # Get the subscript value (e.g., "Optional" or "Union")
+        if isinstance(annotation.value, ast.Attribute):
+            type_name = annotation.value.attr
+        elif isinstance(annotation.value, ast.Name):
+            type_name = annotation.value.id
+        else:
+            return False
+
+        # Optional[X] is equivalent to Union[X, None]
+        if type_name == "Optional":
+            return True
+
+        # Check Union[..., None]
+        if type_name == "Union":
+            # Union args are in annotation.slice
+            if isinstance(annotation.slice, ast.Tuple):
+                for elt in annotation.slice.elts:
+                    if isinstance(elt, ast.Constant) and elt.value is None:
+                        return True
+                    if isinstance(elt, ast.Name) and elt.id == "None":
+                        return True
 
     return False
 
@@ -168,7 +205,7 @@ def extract_config_vars(config_path: Path) -> ExtractResult:
         Dict with 'required' and 'optional' lists of variable info
     """
     source = config_path.read_text()
-    return parse_config_source(source)
+    return parse_config_source(source, config_path.name)
 
 
 def main() -> None:
