@@ -114,3 +114,43 @@ class TestDetectsRequiredSettingEllipsisDefault:
 
         assert "BMX_DATABASE_URL" in required_names
         assert "BMX_DATABASE_URL" not in optional_names
+
+
+class TestDetectsOptionalWithNoneType:
+    """Test detection of optional settings (type includes | None)."""
+
+    def test_field_with_none_type_is_optional(self):
+        """A field with str | None type is optional."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                api_key: str | None = Field(
+                    default=None,
+                    validation_alias=AliasChoices("BMX_API_KEY", "API_KEY"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        required_names = [v["name"] for v in result["required"]]
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_API_KEY" not in required_names
+        assert "BMX_API_KEY" in optional_names
+
+    def test_field_with_none_type_even_without_explicit_default(self):
+        """A field with None in union type is optional even without explicit default."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                optional_setting: str | None = Field(
+                    validation_alias=AliasChoices("BMX_OPTIONAL", "OPTIONAL"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        optional_names = [v["name"] for v in result["optional"]]
+        assert "BMX_OPTIONAL" in optional_names
