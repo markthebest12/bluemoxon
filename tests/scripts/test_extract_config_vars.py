@@ -154,3 +154,59 @@ class TestDetectsOptionalWithNoneType:
 
         optional_names = [v["name"] for v in result["optional"]]
         assert "BMX_OPTIONAL" in optional_names
+
+
+class TestIncludesLineNumbers:
+    """Test that line numbers are included in output."""
+
+    def test_line_number_matches_field_definition(self):
+        """Line number should point to the field definition line."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                first_setting: str = Field(
+                    default="value",
+                    validation_alias=AliasChoices("BMX_FIRST", "FIRST"),
+                )
+                second_setting: str = Field(
+                    default="value2",
+                    validation_alias=AliasChoices("BMX_SECOND", "SECOND"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        all_vars = result["required"] + result["optional"]
+        first_var = next(v for v in all_vars if v["name"] == "BMX_FIRST")
+        second_var = next(v for v in all_vars if v["name"] == "BMX_SECOND")
+
+        assert first_var["line"] == 6
+        assert second_var["line"] == 10
+
+    def test_line_number_present_in_all_vars(self):
+        """All extracted variables must have a line number."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                req_setting: str = Field(
+                    validation_alias=AliasChoices("BMX_REQ", "REQ"),
+                )
+                opt_setting: str | None = Field(
+                    default=None,
+                    validation_alias=AliasChoices("BMX_OPT", "OPT"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        for var in result["required"]:
+            assert "line" in var
+            assert isinstance(var["line"], int)
+            assert var["line"] > 0
+
+        for var in result["optional"]:
+            assert "line" in var
+            assert isinstance(var["line"], int)
+            assert var["line"] > 0
