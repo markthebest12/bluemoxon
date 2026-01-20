@@ -47,7 +47,6 @@ output "environment_variables" {
   description = "Environment variables configured for the Lambda function (for pre-flight validation)"
   value = merge(
     {
-      LOG_LEVEL   = var.log_level
       ENVIRONMENT = var.environment
     },
     var.environment_variables
