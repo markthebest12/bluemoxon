@@ -90,3 +90,27 @@ class TestDetectsRequiredSettingNoDefault:
 
         assert "BMX_API_KEY" in required_names
         assert "BMX_API_KEY" not in optional_names
+
+
+class TestDetectsRequiredSettingEllipsisDefault:
+    """Test detection of required settings (default=... ellipsis)."""
+
+    def test_field_with_ellipsis_default_is_required(self):
+        """A field with default=... is required."""
+        source = textwrap.dedent('''
+            from pydantic import AliasChoices, Field
+            from pydantic_settings import BaseSettings
+
+            class Settings(BaseSettings):
+                database_url: str = Field(
+                    default=...,
+                    validation_alias=AliasChoices("BMX_DATABASE_URL", "DATABASE_URL"),
+                )
+        ''')
+        result = parse_config_source(source)
+
+        required_names = [v["name"] for v in result["required"]]
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_DATABASE_URL" in required_names
+        assert "BMX_DATABASE_URL" not in optional_names
