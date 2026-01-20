@@ -817,3 +817,31 @@ def delete_stale_listings(
         failed_count=result.get("failed_count", 0),
         truncated=result.get("truncated", False),
     )
+
+
+class RetryQueueFailedResult(BaseModel):
+    """Result of retry queue_failed operation."""
+
+    retried: int
+    succeeded: int
+    still_failing: int
+    permanently_failed: int
+
+
+@router.post("/image-processing/retry-queue-failed", response_model=RetryQueueFailedResult)
+def retry_queue_failed_endpoint(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Manually trigger retry of queue_failed image processing jobs (admin only).
+
+    Queries for jobs with queue_failed status and attempts to re-send them to SQS.
+    Jobs exceeding max retries (3) are marked permanently_failed.
+
+    Uses SELECT FOR UPDATE SKIP LOCKED to prevent race conditions with the
+    scheduled Lambda. Safe to call while Lambda is also running.
+    """
+    from app.services.retry_queue_failed import retry_queue_failed_jobs
+
+    result = retry_queue_failed_jobs(db)
+    return RetryQueueFailedResult(**result)
