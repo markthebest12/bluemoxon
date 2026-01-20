@@ -62,6 +62,19 @@ class HealthCheck(BaseModel):
     reason: str | None = None
 
 
+class ImageProcessingConfig(BaseModel):
+    """Image processing Lambda configuration constants."""
+
+    brightness_threshold: int
+    max_attempts: int
+    max_image_dimension: int
+    thumbnail_max_size: tuple[int, int]
+    thumbnail_quality: int
+    u2net_fallback_attempt: int
+    min_output_dimension: int
+    image_type_priority: list[str]
+
+
 class SqsQueueHealth(BaseModel):
     """Health check for a single SQS queue."""
 
@@ -190,6 +203,7 @@ class SystemInfoResponse(BaseModel):
     health: HealthInfo
     models: dict[str, ModelInfo]
     infrastructure: InfrastructureConfig
+    image_processing: ImageProcessingConfig
     limits: LimitsConfig
     scoring_config: dict
     entity_tiers: EntityTiers
@@ -492,6 +506,16 @@ def get_system_info(
             analysis_queue=settings.analysis_queue_name,
             eval_runbook_queue=settings.eval_runbook_queue_name,
             image_processing_queue=settings.image_processing_queue_name,
+        ),
+        image_processing=ImageProcessingConfig(
+            brightness_threshold=128,
+            max_attempts=3,
+            max_image_dimension=4096,
+            thumbnail_max_size=(300, 300),
+            thumbnail_quality=85,
+            u2net_fallback_attempt=3,
+            min_output_dimension=100,
+            image_type_priority=["title_page", "binding", "cover", "spine"],
         ),
         limits=LimitsConfig(
             bedrock_read_timeout_sec=540,
