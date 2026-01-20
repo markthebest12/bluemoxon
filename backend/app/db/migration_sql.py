@@ -561,6 +561,12 @@ MIGRATION_0FC4653FE40B_SQL = [
     END $$""",
 ]
 
+# Migration SQL for z1234567defg_add_queue_retry_count
+# Adds queue_retry_count column for tracking SQS send retry attempts
+MIGRATION_Z1234567DEFG_SQL = [
+    "ALTER TABLE image_processing_jobs ADD COLUMN IF NOT EXISTS queue_retry_count INTEGER NOT NULL DEFAULT 0",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -820,5 +826,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "0fc4653fe40b",
         "name": "add_image_processing_indexes_and_fix_failure_reason",
         "sql_statements": MIGRATION_0FC4653FE40B_SQL,
+    },
+    {
+        "id": "z1234567defg",
+        "name": "add_queue_retry_count",
+        "sql_statements": MIGRATION_Z1234567DEFG_SQL,
     },
 ]
