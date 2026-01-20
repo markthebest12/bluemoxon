@@ -210,3 +210,51 @@ class TestIncludesLineNumbers:
             assert "line" in var
             assert isinstance(var["line"], int)
             assert var["line"] > 0
+
+
+class TestParsesRealConfigFile:
+    """Integration test against the actual config.py file."""
+
+    @pytest.fixture
+    def config_path(self) -> Path:
+        """Return path to the real config.py file."""
+        return Path(__file__).parent.parent.parent / "backend" / "app" / "config.py"
+
+    def test_extracts_known_bmx_vars(self, config_path: Path):
+        """Extract known BMX variables from the real config file."""
+        result = extract_config_vars(config_path)
+
+        all_names = [v["name"] for v in result["required"] + result["optional"]]
+
+        assert "BMX_DATABASE_URL" in all_names
+        assert "BMX_AWS_REGION" in all_names
+        assert "BMX_COGNITO_USER_POOL_ID" in all_names
+        assert "BMX_IMAGES_BUCKET" in all_names
+        assert "BMX_ENVIRONMENT" in all_names
+
+    def test_correctly_classifies_optional_vars(self, config_path: Path):
+        """Variables with | None type should be classified as optional."""
+        result = extract_config_vars(config_path)
+
+        optional_names = [v["name"] for v in result["optional"]]
+
+        assert "BMX_DATABASE_SECRET_ARN" in optional_names
+        assert "BMX_DATABASE_SECRET_NAME" in optional_names
+        assert "BMX_IMAGES_CDN_URL" in optional_names
+        assert "BMX_API_KEY" in optional_names
+
+    def test_all_vars_have_line_numbers(self, config_path: Path):
+        """All extracted variables should have line numbers."""
+        result = extract_config_vars(config_path)
+
+        for var in result["required"] + result["optional"]:
+            assert "line" in var
+            assert var["line"] > 0
+
+    def test_extracts_reasonable_number_of_vars(self, config_path: Path):
+        """Should extract a reasonable number of variables (sanity check)."""
+        result = extract_config_vars(config_path)
+
+        total = len(result["required"]) + len(result["optional"])
+        assert total >= 10
+        assert total <= 50
