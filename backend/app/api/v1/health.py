@@ -4,6 +4,7 @@ import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 
 import boto3
@@ -48,7 +49,7 @@ def check_database(db: Session) -> dict[str, Any]:
     database doesn't) that would cause API endpoints to fail with 500 errors
     while health check falsely reports healthy.
     """
-    start = time.time()
+    start = time.monotonic()
     try:
         # Test connection with simple query
         db.execute(text("SELECT 1"))
@@ -62,7 +63,7 @@ def check_database(db: Session) -> dict[str, Any]:
         # (SQLAlchemy would raise if model columns don't exist in DB)
         book_count = db.query(Book).count()
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": "healthy",
             "latency_ms": latency_ms,
@@ -73,14 +74,14 @@ def check_database(db: Session) -> dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
             "schema_validated": False,
         }
 
 
 def check_s3() -> dict[str, Any]:
     """Check S3 bucket accessibility."""
-    start = time.time()
+    start = time.monotonic()
     try:
         s3 = boto3.client("s3", region_name=settings.aws_region)
 
@@ -93,7 +94,7 @@ def check_s3() -> dict[str, Any]:
             MaxKeys=1,
         )
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": "healthy",
             "bucket": settings.images_bucket,
@@ -106,20 +107,20 @@ def check_s3() -> dict[str, Any]:
             "status": "unhealthy",
             "bucket": settings.images_bucket,
             "error": error_code,
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     except Exception as e:
         return {
             "status": "unhealthy",
             "bucket": settings.images_bucket,
             "error": str(e),
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
 
 
 def check_cognito() -> dict[str, Any]:
     """Check Cognito user pool accessibility."""
-    start = time.time()
+    start = time.monotonic()
 
     if not settings.cognito_user_pool_id:
         return {
@@ -134,7 +135,7 @@ def check_cognito() -> dict[str, Any]:
         response = cognito.describe_user_pool(UserPoolId=settings.cognito_user_pool_id)
 
         pool_name = response["UserPool"]["Name"]
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
 
         return {
             "status": "healthy",
@@ -148,7 +149,7 @@ def check_cognito() -> dict[str, Any]:
             return {
                 "status": "skipped",
                 "reason": "IAM permissions not configured for Cognito describe",
-                "latency_ms": round((time.time() - start) * 1000, 2),
+                "latency_ms": round((time.monotonic() - start) * 1000, 2),
             }
         # InvalidParameterException happens when using cross-account Cognito
         # (staging Lambda using prod Cognito via VPC endpoint routes to wrong account)
@@ -157,24 +158,24 @@ def check_cognito() -> dict[str, Any]:
             return {
                 "status": "skipped",
                 "reason": "Cross-account Cognito (expected in staging)",
-                "latency_ms": round((time.time() - start) * 1000, 2),
+                "latency_ms": round((time.monotonic() - start) * 1000, 2),
             }
         return {
             "status": "unhealthy",
             "error": error_code,
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
 
 
 def check_sqs() -> dict[str, Any]:
     """Check SQS queue accessibility for all configured queues."""
-    start = time.time()
+    start = time.monotonic()
 
     queues = {
         "analysis": settings.analysis_queue_name,
@@ -230,7 +231,7 @@ def check_sqs() -> dict[str, Any]:
         else:
             overall = "degraded"
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": overall,
             "queues": results,
@@ -240,37 +241,32 @@ def check_sqs() -> dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
 
 
-_bedrock_client = None
-
-
+@lru_cache(maxsize=1)
 def _get_bedrock_client():
-    """Get or create a cached Bedrock client with timeouts configured."""
-    global _bedrock_client
-    if _bedrock_client is None:
-        config = Config(connect_timeout=5, read_timeout=5)
-        _bedrock_client = boto3.client("bedrock", region_name=settings.aws_region, config=config)
-    return _bedrock_client
+    """Get or create a cached Bedrock client with timeouts configured.
+
+    Uses lru_cache for thread-safe lazy initialization.
+    """
+    config = Config(connect_timeout=5, read_timeout=5)
+    return boto3.client("bedrock", region_name=settings.aws_region, config=config)
 
 
-# Module-level cached Lambda client with lazy initialization
-_lambda_client = None
-_lambda_client_config = Config(connect_timeout=5, read_timeout=5)
-
-
+@lru_cache(maxsize=1)
 def _get_lambda_client():
-    """Get or create cached Lambda client with timeout configuration."""
-    global _lambda_client
-    if _lambda_client is None:
-        _lambda_client = boto3.client(
-            "lambda",
-            region_name=settings.aws_region,
-            config=_lambda_client_config,
-        )
-    return _lambda_client
+    """Get or create cached Lambda client with timeout configuration.
+
+    Uses lru_cache for thread-safe lazy initialization.
+    """
+    config = Config(connect_timeout=5, read_timeout=5)
+    return boto3.client(
+        "lambda",
+        region_name=settings.aws_region,
+        config=config,
+    )
 
 
 def _check_bedrock_sync() -> dict[str, Any]:
@@ -280,7 +276,7 @@ def _check_bedrock_sync() -> dict[str, Any]:
     which validates that the service is reachable and IAM permissions
     are configured.
     """
-    start = time.time()
+    start = time.monotonic()
     try:
         bedrock = _get_bedrock_client()
 
@@ -288,14 +284,14 @@ def _check_bedrock_sync() -> dict[str, Any]:
         # This is a lightweight call that validates service connectivity
         bedrock.list_foundation_models(byOutputModality="TEXT")
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": "healthy",
             "latency_ms": latency_ms,
         }
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         # AccessDeniedException in production means IAM is broken - that's unhealthy
         # In dev/staging, permissions may not be configured, so skip
         if error_code == "AccessDeniedException":
@@ -319,13 +315,13 @@ def _check_bedrock_sync() -> dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": "Bedrock connection timeout",
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     except BotoCoreError:
         return {
             "status": "unhealthy",
             "error": "Bedrock SDK error",
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
 
 
@@ -335,7 +331,7 @@ async def check_bedrock() -> dict[str, Any]:
     Uses run_in_executor to avoid blocking the async event loop
     during the synchronous boto3 API call.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _check_bedrock_sync)
 
 
@@ -457,13 +453,15 @@ def _check_lambdas_sync() -> dict[str, Any]:
         Dict with status (healthy/unhealthy/degraded/skipped), lambdas dict,
         and latency_ms.
     """
-    start = time.time()
+    start = time.monotonic()
 
     # Define Lambda functions to check
+    # Each key is the health check identifier, value is the Lambda name suffix
     lambda_services = {
         "scraper": "scraper",
         "cleanup": "cleanup",
         "image_processor": "image-processor",
+        "retry_queue_failed": "retry-queue-failed",
     }
 
     results = {}
@@ -476,7 +474,7 @@ def _check_lambdas_sync() -> dict[str, Any]:
         lambda_client = _get_lambda_client()
 
         # Check all Lambdas in parallel using ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {
                 executor.submit(
                     _check_single_lambda,
@@ -501,7 +499,7 @@ def _check_lambdas_sync() -> dict[str, Any]:
         else:
             overall = "degraded"
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": overall,
             "lambdas": results,
@@ -512,7 +510,7 @@ def _check_lambdas_sync() -> dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
 
 
@@ -526,7 +524,7 @@ async def check_lambdas() -> dict[str, Any]:
         Dict with status (healthy/unhealthy/degraded/skipped), lambdas dict,
         and latency_ms.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _check_lambdas_sync)
 
 
@@ -575,13 +573,13 @@ def _check_redis_sync() -> dict[str, Any]:
             "reason": "Redis not configured",
         }
 
-    start = time.time()
+    start = time.monotonic()
     client = None
     try:
         client = redis.from_url(settings.redis_url, socket_timeout=5)
         client.ping()
 
-        latency_ms = round((time.time() - start) * 1000, 2)
+        latency_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "status": "healthy",
             "latency_ms": latency_ms,
@@ -590,19 +588,19 @@ def _check_redis_sync() -> dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": "Redis connection failed",
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     except RedisTimeoutError:
         return {
             "status": "unhealthy",
             "error": "Redis connection timed out",
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     except RedisError:
         return {
             "status": "unhealthy",
             "error": "Redis error occurred",
-            "latency_ms": round((time.time() - start) * 1000, 2),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
         }
     finally:
         if client is not None:
@@ -618,7 +616,7 @@ async def check_redis() -> dict[str, Any]:
     Wraps _check_redis_sync in run_in_executor to avoid blocking the
     async event loop.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _check_redis_sync)
 
 
@@ -666,7 +664,7 @@ Comprehensive health check that validates all system dependencies:
 - **Cognito**: User pool availability (if configured)
 - **Bedrock**: AI model service availability
 - **Redis**: Cache connectivity (if configured)
-- **Lambdas**: Lambda function availability (scraper, cleanup, image-processor)
+- **Lambdas**: Lambda function availability (scraper, cleanup, image-processor, retry-queue-failed)
 - **Config**: Critical configuration validation
 
 Use this endpoint for:
@@ -681,18 +679,23 @@ Returns detailed status for each component with latency measurements.
 )
 async def deep_health_check(db: Session = Depends(get_db)):
     """Deep health check - validates all dependencies."""
-    start = time.time()
+    start = time.monotonic()
 
-    # Run all checks (bedrock and lambdas are async, others are sync)
-    bedrock_result = await check_bedrock()
-    lambdas_result = await check_lambdas()
+    # Run async checks in parallel for better latency
+    bedrock_result, lambdas_result, redis_result = await asyncio.gather(
+        check_bedrock(),
+        check_lambdas(),
+        check_redis(),
+    )
+
+    # Sync checks run sequentially (they're fast and some share db session)
     checks = {
         "database": check_database(db),
         "s3": check_s3(),
         "sqs": check_sqs(),
         "cognito": check_cognito(),
         "bedrock": bedrock_result,
-        "redis": await check_redis(),
+        "redis": redis_result,
         "lambdas": lambdas_result,
         "config": check_config(),
     }
@@ -706,7 +709,7 @@ async def deep_health_check(db: Session = Depends(get_db)):
     else:
         overall = "degraded"
 
-    total_latency = round((time.time() - start) * 1000, 2)
+    total_latency = round((time.monotonic() - start) * 1000, 2)
 
     return {
         "status": overall,
@@ -1082,7 +1085,11 @@ async def run_migrations(
                     error_msg = str(e)
                     if "already exists" in error_msg.lower():
                         results.append(
-                            {"sql": sql, "status": "skipped", "reason": "already exists"}
+                            {
+                                "sql": sql,
+                                "status": "skipped",
+                                "reason": "already exists",
+                            }
                         )
                     else:
                         errors.append({"sql": sql, "error": error_msg})
