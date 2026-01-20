@@ -236,11 +236,10 @@ class TestMigrationSqlModule:
 class TestBedrockHealthCheck:
     """Tests for Bedrock health check function (issue #1168)."""
 
-    def test_check_bedrock_healthy(self):
+    def test_check_bedrock_healthy(self, monkeypatch):
         """Test check_bedrock returns healthy when Bedrock API is accessible."""
         from unittest.mock import MagicMock
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import _check_bedrock_sync
 
         mock_client = MagicMock()
@@ -248,25 +247,20 @@ class TestBedrockHealthCheck:
             "modelSummaries": [{"modelId": "amazon.titan-text-lite-v1"}]
         }
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = _check_bedrock_sync()
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
         assert isinstance(result["latency_ms"], int | float)
         assert result["latency_ms"] >= 0
 
-    def test_check_bedrock_unhealthy_on_error(self):
+    def test_check_bedrock_unhealthy_on_error(self, monkeypatch):
         """Test check_bedrock returns unhealthy on API error."""
         from unittest.mock import MagicMock
 
         from botocore.exceptions import ClientError
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import _check_bedrock_sync
 
         mock_client = MagicMock()
@@ -275,19 +269,15 @@ class TestBedrockHealthCheck:
             "ListFoundationModels",
         )
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = _check_bedrock_sync()
 
         assert result["status"] == "unhealthy"
         assert "error" in result
         assert result["error"] == "ServiceUnavailable"
         assert "latency_ms" in result
 
-    def test_check_bedrock_skipped_on_access_denied_non_production(self):
+    def test_check_bedrock_skipped_on_access_denied_non_production(self, monkeypatch):
         """Test check_bedrock returns skipped when IAM permissions missing (non-prod)."""
         from unittest.mock import MagicMock, patch
 
@@ -302,20 +292,16 @@ class TestBedrockHealthCheck:
             "ListFoundationModels",
         )
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            with patch.object(health_module.settings, "environment", "staging"):
-                result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        with patch.object(health_module.settings, "environment", "staging"):
+            result = _check_bedrock_sync()
 
         assert result["status"] == "skipped"
         assert "reason" in result
         assert "IAM" in result["reason"] or "permission" in result["reason"].lower()
         assert "latency_ms" in result
 
-    def test_check_bedrock_unhealthy_on_access_denied_production(self):
+    def test_check_bedrock_unhealthy_on_access_denied_production(self, monkeypatch):
         """Test check_bedrock returns unhealthy for AccessDenied in production."""
         from unittest.mock import MagicMock, patch
 
@@ -330,26 +316,21 @@ class TestBedrockHealthCheck:
             "ListFoundationModels",
         )
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            with patch.object(health_module.settings, "environment", "production"):
-                result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        with patch.object(health_module.settings, "environment", "production"):
+            result = _check_bedrock_sync()
 
         assert result["status"] == "unhealthy"
         assert "error" in result
         assert "IAM" in result["error"] or "permission" in result["error"].lower()
         assert "latency_ms" in result
 
-    def test_check_bedrock_timeout_handling(self):
+    def test_check_bedrock_timeout_handling(self, monkeypatch):
         """Test check_bedrock handles connection timeouts gracefully."""
         from unittest.mock import MagicMock
 
         from botocore.exceptions import ConnectTimeoutError
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import _check_bedrock_sync
 
         mock_client = MagicMock()
@@ -357,25 +338,20 @@ class TestBedrockHealthCheck:
             endpoint_url="https://bedrock.us-east-1.amazonaws.com"
         )
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = _check_bedrock_sync()
 
         assert result["status"] == "unhealthy"
         assert "error" in result
         assert "timeout" in result["error"].lower()
         assert "latency_ms" in result
 
-    def test_check_bedrock_read_timeout_handling(self):
+    def test_check_bedrock_read_timeout_handling(self, monkeypatch):
         """Test check_bedrock handles read timeouts gracefully."""
         from unittest.mock import MagicMock
 
         from botocore.exceptions import ReadTimeoutError
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import _check_bedrock_sync
 
         mock_client = MagicMock()
@@ -383,24 +359,19 @@ class TestBedrockHealthCheck:
             endpoint_url="https://bedrock.us-east-1.amazonaws.com"
         )
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = _check_bedrock_sync()
 
         assert result["status"] == "unhealthy"
         assert "error" in result
         assert "timeout" in result["error"].lower()
         assert "latency_ms" in result
 
-    def test_check_bedrock_latency_is_measured(self):
+    def test_check_bedrock_latency_is_measured(self, monkeypatch):
         """Test that latency measurement is accurate (not zero for real call)."""
         import time
         from unittest.mock import MagicMock
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import _check_bedrock_sync
 
         mock_client = MagicMock()
@@ -411,12 +382,8 @@ class TestBedrockHealthCheck:
 
         mock_client.list_foundation_models.side_effect = slow_call
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = _check_bedrock_sync()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = _check_bedrock_sync()
 
         assert result["status"] == "healthy"
         assert result["latency_ms"] >= 50  # Should be at least 50ms
@@ -433,11 +400,10 @@ class TestBedrockHealthCheck:
         assert bedrock_check["status"] in ("healthy", "unhealthy", "skipped")
 
     @pytest.mark.asyncio
-    async def test_check_bedrock_async_wrapper(self):
+    async def test_check_bedrock_async_wrapper(self, monkeypatch):
         """Test that check_bedrock async wrapper properly calls sync function."""
         from unittest.mock import MagicMock
 
-        import app.api.v1.health as health_module
         from app.api.v1.health import check_bedrock
 
         mock_client = MagicMock()
@@ -445,12 +411,8 @@ class TestBedrockHealthCheck:
             "modelSummaries": [{"modelId": "amazon.titan-text-lite-v1"}]
         }
 
-        original_client = health_module._bedrock_client
-        try:
-            health_module._bedrock_client = mock_client
-            result = await check_bedrock()
-        finally:
-            health_module._bedrock_client = original_client
+        monkeypatch.setattr("app.api.v1.health._get_bedrock_client", lambda: mock_client)
+        result = await check_bedrock()
 
         assert result["status"] == "healthy"
         assert "latency_ms" in result
@@ -719,10 +681,11 @@ class TestCheckLambdas:
         assert "lambdas" in result
         assert "latency_ms" in result
 
-        # Verify all three Lambdas were checked
+        # Verify all four Lambdas were checked
         assert "scraper" in result["lambdas"]
         assert "cleanup" in result["lambdas"]
         assert "image_processor" in result["lambdas"]
+        assert "retry_queue_failed" in result["lambdas"]
 
         # Verify each Lambda shows Active status
         for _name, status in result["lambdas"].items():
@@ -974,7 +937,7 @@ class TestCheckLambdas:
 
         Verifies that all Lambda function names are checked (indicating
         parallel execution was attempted). The ThreadPoolExecutor should
-        check all 3 functions concurrently.
+        check all 4 functions concurrently.
         """
         from unittest.mock import MagicMock
 
@@ -999,11 +962,12 @@ class TestCheckLambdas:
 
         result = await check_lambdas()
 
-        # Verify all 3 functions were checked
-        assert len(checked_functions) == 3
+        # Verify all 4 functions were checked (scraper, cleanup, image-processor, retry-queue-failed)
+        assert len(checked_functions) == 4
         assert any("scraper" in f for f in checked_functions)
         assert any("cleanup" in f for f in checked_functions)
         assert any("image-processor" in f for f in checked_functions)
+        assert any("retry-queue-failed" in f for f in checked_functions)
         assert result["status"] == "healthy"
 
     def test_deep_health_includes_lambdas_check(self, client, monkeypatch):

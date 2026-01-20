@@ -208,8 +208,13 @@ resource "aws_lambda_function" "dispatcher" {
 
   depends_on = [aws_cloudwatch_log_group.dispatcher]
 
+  # Code deployment is handled by CI/CD
+  # Layers are managed by CI/CD workflow, not Terraform
   lifecycle {
-    ignore_changes = [s3_key]
+    ignore_changes = [
+      s3_key,
+      layers,
+    ]
   }
 }
 
@@ -249,8 +254,13 @@ resource "aws_lambda_function" "worker" {
 
   depends_on = [aws_cloudwatch_log_group.worker]
 
+  # Code deployment is handled by CI/CD
+  # Layers are managed by CI/CD workflow, not Terraform
   lifecycle {
-    ignore_changes = [s3_key]
+    ignore_changes = [
+      s3_key,
+      layers,
+    ]
   }
 }
 
