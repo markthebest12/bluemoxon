@@ -40,9 +40,20 @@ Feature Branch → PR to staging → Merge → Validate → PR staging→main �
 3. Run validation (see Validation section below)
 4. Commit: `git commit -m "<type>: <description>"`
 5. PR to staging: `gh pr create --base staging`
-6. After staging merge, validate in staging environment
-7. Promote: `gh pr create --base main --head staging --title "chore: Promote staging"`
-8. Watch deploy: `gh run watch <id> --exit-status`
+6. Merge to staging: `gh pr merge <n> --squash` (squash for clean history)
+7. After staging merge, validate in staging environment
+8. Promote: `gh pr create --base main --head staging --title "chore: Promote staging"`
+9. Merge to main: `gh pr merge <n> --merge` (merge commit, NOT squash)
+10. Watch deploy: `gh run watch <id> --exit-status`
+
+### Merge Strategy
+
+| PR Type | Strategy | Command | Why |
+|---------|----------|---------|-----|
+| Feature → staging | Squash | `--squash` | Clean history, one commit per feature |
+| staging → main | Merge | `--merge` | Preserves commit identity, prevents drift |
+
+**Why not squash promotions?** Squash creates new commit hashes. If staging has commits A,B,C and main gets squash-ABC, Git sees them as unrelated. Next promotion conflicts because A,B,C ≠ ABC.
 
 ### Branch Protection
 
@@ -155,9 +166,10 @@ npm run --prefix frontend dev          # Frontend dev server
 poetry run pytest                      # Backend tests
 
 # Git/CI
-gh pr create --base staging            # Create PR
+gh pr create --base staging            # Create feature PR
 gh pr checks <n> --watch               # Watch CI
-gh pr merge <n> --squash --auto        # Auto-merge when CI passes
+gh pr merge <n> --squash               # Merge feature PR (squash)
+gh pr merge <n> --merge                # Merge promotion PR (no squash)
 
 # Staging
 AWS_PROFILE=bmx-staging aws ...        # All staging AWS commands
