@@ -15,6 +15,16 @@ from app.api.v1.health import check_cognito, check_database, check_s3, check_sqs
 from app.auth import require_admin
 from app.cold_start import get_cold_start_status
 from app.config import get_cleanup_environment, get_settings
+from app.constants.image_processing import (
+    BRIGHTNESS_THRESHOLD,
+    IMAGE_TYPE_PRIORITY,
+    MAX_ATTEMPTS,
+    MAX_IMAGE_DIMENSION,
+    MIN_OUTPUT_DIMENSION,
+    THUMBNAIL_MAX_SIZE,
+    THUMBNAIL_QUALITY,
+    U2NET_FALLBACK_ATTEMPT,
+)
 from app.db.session import get_db
 from app.models.admin_config import AdminConfig
 from app.models.author import Author
@@ -508,14 +518,14 @@ def get_system_info(
             image_processing_queue=settings.image_processing_queue_name,
         ),
         image_processing=ImageProcessingConfig(
-            brightness_threshold=128,
-            max_attempts=3,
-            max_image_dimension=4096,
-            thumbnail_max_size=(300, 300),
-            thumbnail_quality=85,
-            u2net_fallback_attempt=3,
-            min_output_dimension=100,
-            image_type_priority=["title_page", "binding", "cover", "spine"],
+            brightness_threshold=BRIGHTNESS_THRESHOLD,
+            max_attempts=MAX_ATTEMPTS,
+            max_image_dimension=MAX_IMAGE_DIMENSION,
+            thumbnail_max_size=THUMBNAIL_MAX_SIZE,
+            thumbnail_quality=THUMBNAIL_QUALITY,
+            u2net_fallback_attempt=U2NET_FALLBACK_ATTEMPT,
+            min_output_dimension=MIN_OUTPUT_DIMENSION,
+            image_type_priority=IMAGE_TYPE_PRIORITY,
         ),
         limits=LimitsConfig(
             bedrock_read_timeout_sec=540,
