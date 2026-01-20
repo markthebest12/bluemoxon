@@ -19,6 +19,7 @@ from app.db import get_db
 from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
 from app.services.image_processing import queue_image_processing
+from app.utils.image_utils import detect_content_type, fix_extension
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -435,6 +436,13 @@ async def upload_image(
     # Upload to S3 in production - Issue #858: wrap blocking boto3 calls
     if settings.is_aws_lambda:
         s3 = get_s3_client()
+
+        # Detect actual image format from file content
+        with open(file_path, "rb") as f:
+            file_header = f.read(12)
+        content_type = detect_content_type(file_header)
+        unique_name = fix_extension(unique_name, file_header)
+
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
 
@@ -444,7 +452,7 @@ async def upload_image(
             str(file_path),
             settings.images_bucket,
             s3_key,
-            ExtraArgs={"ContentType": "image/jpeg"},
+            ExtraArgs={"ContentType": content_type},
         )
 
         # Upload thumbnail (blocking -> thread pool)
