@@ -15,6 +15,16 @@ from app.api.v1.health import check_cognito, check_database, check_s3, check_sqs
 from app.auth import require_admin
 from app.cold_start import get_cold_start_status
 from app.config import get_cleanup_environment, get_settings
+from app.constants.image_processing import (
+    BRIGHTNESS_THRESHOLD,
+    IMAGE_TYPE_PRIORITY,
+    MAX_ATTEMPTS,
+    MAX_IMAGE_DIMENSION,
+    MIN_OUTPUT_DIMENSION,
+    THUMBNAIL_MAX_SIZE,
+    THUMBNAIL_QUALITY,
+    U2NET_FALLBACK_ATTEMPT,
+)
 from app.db.session import get_db
 from app.models.admin_config import AdminConfig
 from app.models.author import Author
@@ -60,6 +70,19 @@ class HealthCheck(BaseModel):
     bucket: str | None = None
     user_pool: str | None = None
     reason: str | None = None
+
+
+class ImageProcessingConfig(BaseModel):
+    """Image processing Lambda configuration constants."""
+
+    brightness_threshold: int
+    max_attempts: int
+    max_image_dimension: int
+    thumbnail_max_size: tuple[int, int]
+    thumbnail_quality: int
+    u2net_fallback_attempt: int
+    min_output_dimension: int
+    image_type_priority: list[str]
 
 
 class SqsQueueHealth(BaseModel):
@@ -190,6 +213,7 @@ class SystemInfoResponse(BaseModel):
     health: HealthInfo
     models: dict[str, ModelInfo]
     infrastructure: InfrastructureConfig
+    image_processing: ImageProcessingConfig
     limits: LimitsConfig
     scoring_config: dict
     entity_tiers: EntityTiers
@@ -492,6 +516,16 @@ def get_system_info(
             analysis_queue=settings.analysis_queue_name,
             eval_runbook_queue=settings.eval_runbook_queue_name,
             image_processing_queue=settings.image_processing_queue_name,
+        ),
+        image_processing=ImageProcessingConfig(
+            brightness_threshold=BRIGHTNESS_THRESHOLD,
+            max_attempts=MAX_ATTEMPTS,
+            max_image_dimension=MAX_IMAGE_DIMENSION,
+            thumbnail_max_size=THUMBNAIL_MAX_SIZE,
+            thumbnail_quality=THUMBNAIL_QUALITY,
+            u2net_fallback_attempt=U2NET_FALLBACK_ATTEMPT,
+            min_output_dimension=MIN_OUTPUT_DIMENSION,
+            image_type_priority=IMAGE_TYPE_PRIORITY,
         ),
         limits=LimitsConfig(
             bedrock_read_timeout_sec=540,

@@ -835,6 +835,50 @@ function getBarWidth(cost: number): string {
             </div>
           </dl>
         </div>
+
+        <!-- Image Processing -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-semibold mb-4">Image Processing</h3>
+          <dl class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt class="text-gray-500">Brightness Threshold</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.brightness_threshold }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Max Attempts</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.max_attempts }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Max Image Dimension</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.max_image_dimension }}px</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Thumbnail Max Size</dt>
+              <dd class="font-mono">
+                {{ systemInfo.image_processing.thumbnail_max_size[0] }} x
+                {{ systemInfo.image_processing.thumbnail_max_size[1] }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Thumbnail Quality</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.thumbnail_quality }}%</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">U2Net Fallback Attempt</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.u2net_fallback_attempt }}</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Min Output Dimension</dt>
+              <dd class="font-mono">{{ systemInfo.image_processing.min_output_dimension }}px</dd>
+            </div>
+            <div>
+              <dt class="text-gray-500">Image Type Priority</dt>
+              <dd class="font-mono">
+                {{ systemInfo.image_processing.image_type_priority.join(", ") }}
+              </dd>
+            </div>
+          </dl>
+        </div>
       </div>
     </div>
 
