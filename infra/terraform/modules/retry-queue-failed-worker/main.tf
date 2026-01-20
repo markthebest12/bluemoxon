@@ -1,11 +1,11 @@
 # =============================================================================
 # Retry Queue Failed Worker Module
 # =============================================================================
-# Creates a Lambda function that processes failed SQS messages from DLQ:
-# - Scans dead letter queue for failed messages
-# - Evaluates retry eligibility based on failure count and age
-# - Re-queues eligible messages to main processing queue
-# - Logs metrics for monitoring and alerting
+# Creates a Lambda function that retries image processing jobs with queue_failed status:
+# - Queries database for jobs that failed to send to SQS
+# - Attempts to re-send them to the image processing queue
+# - Marks jobs as permanently_failed after 3 retry attempts
+# - Runs on a schedule (default: every 5 minutes)
 # =============================================================================
 
 # -----------------------------------------------------------------------------

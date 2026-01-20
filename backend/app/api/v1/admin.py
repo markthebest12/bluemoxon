@@ -837,44 +837,11 @@ def retry_queue_failed_endpoint(
 
     Queries for jobs with queue_failed status and attempts to re-send them to SQS.
     Jobs exceeding max retries (3) are marked permanently_failed.
+
+    Uses SELECT FOR UPDATE SKIP LOCKED to prevent race conditions with the
+    scheduled Lambda. Safe to call while Lambda is also running.
     """
-    from app.models.image_processing_job import ImageProcessingJob
-    from app.services.image_processing import send_image_processing_job
+    from app.services.retry_queue_failed import retry_queue_failed_jobs
 
-    MAX_RETRIES = 3
-    BATCH_SIZE = 50
-
-    jobs = (
-        db.query(ImageProcessingJob)
-        .filter(ImageProcessingJob.status == "queue_failed")
-        .filter(ImageProcessingJob.queue_retry_count < MAX_RETRIES)
-        .limit(BATCH_SIZE)
-        .all()
-    )
-
-    retried = 0
-    succeeded = 0
-    permanently_failed = 0
-
-    for job in jobs:
-        retried += 1
-        try:
-            send_image_processing_job(str(job.id), job.book_id, job.source_image_id)
-            job.status = "pending"
-            job.queue_retry_count = 0
-            succeeded += 1
-        except Exception as e:
-            job.queue_retry_count += 1
-            job.failure_reason = str(e)[:1000]
-            if job.queue_retry_count >= MAX_RETRIES:
-                job.status = "permanently_failed"
-                permanently_failed += 1
-
-    db.commit()
-
-    return RetryQueueFailedResult(
-        retried=retried,
-        succeeded=succeeded,
-        still_failing=retried - succeeded - permanently_failed,
-        permanently_failed=permanently_failed,
-    )
+    result = retry_queue_failed_jobs(db)
+    return RetryQueueFailedResult(**result)

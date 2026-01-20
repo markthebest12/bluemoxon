@@ -772,7 +772,7 @@ module "cleanup_lambda" {
 # - Marks permanently_failed after 3 attempts
 
 module "retry_queue_failed_worker" {
-  count  = local.cleanup_lambda_enabled ? 1 : 0
+  count  = local.image_processor_enabled ? 1 : 0
   source = "./modules/retry-queue-failed-worker"
 
   function_name = coalesce(var.retry_queue_failed_function_name_override, "${local.name_prefix}-retry-queue-failed")

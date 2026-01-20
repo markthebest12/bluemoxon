@@ -71,11 +71,11 @@ class TestRetryQueueFailedJobs:
 
     def test_retries_queue_failed_jobs_successfully(self, db: Session):
         """Should retry queue_failed jobs and update status to pending on success."""
-        from lambdas.retry_queue_failed.handler import retry_queue_failed_jobs
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
 
         job = self._create_queue_failed_job(db)
 
-        with patch("lambdas.retry_queue_failed.handler.send_image_processing_job"):
+        with patch("app.services.retry_queue_failed.send_image_processing_job"):
             result = retry_queue_failed_jobs(db)
 
         assert result["retried"] == 1
@@ -87,12 +87,12 @@ class TestRetryQueueFailedJobs:
 
     def test_increments_retry_count_on_failure(self, db: Session):
         """Should increment queue_retry_count when SQS send fails again."""
-        from lambdas.retry_queue_failed.handler import retry_queue_failed_jobs
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
 
         job = self._create_queue_failed_job(db, queue_retry_count=1)
 
         with patch(
-            "lambdas.retry_queue_failed.handler.send_image_processing_job",
+            "app.services.retry_queue_failed.send_image_processing_job",
             side_effect=Exception("SQS still failing"),
         ):
             result = retry_queue_failed_jobs(db)
@@ -106,12 +106,12 @@ class TestRetryQueueFailedJobs:
 
     def test_sets_permanently_failed_after_max_retries(self, db: Session):
         """Should set status to permanently_failed after 3 retry attempts."""
-        from lambdas.retry_queue_failed.handler import retry_queue_failed_jobs
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
 
         job = self._create_queue_failed_job(db, queue_retry_count=2)
 
         with patch(
-            "lambdas.retry_queue_failed.handler.send_image_processing_job",
+            "app.services.retry_queue_failed.send_image_processing_job",
             side_effect=Exception("SQS still failing"),
         ):
             result = retry_queue_failed_jobs(db)
@@ -124,11 +124,11 @@ class TestRetryQueueFailedJobs:
 
     def test_skips_jobs_at_max_retry_count(self, db: Session):
         """Should not retry jobs that have already reached max retry count."""
-        from lambdas.retry_queue_failed.handler import retry_queue_failed_jobs
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
 
         self._create_queue_failed_job(db, queue_retry_count=3)
 
-        with patch("lambdas.retry_queue_failed.handler.send_image_processing_job") as mock_send:
+        with patch("app.services.retry_queue_failed.send_image_processing_job") as mock_send:
             result = retry_queue_failed_jobs(db)
 
         assert result["retried"] == 0
@@ -136,7 +136,7 @@ class TestRetryQueueFailedJobs:
 
     def test_only_retries_queue_failed_status(self, db: Session):
         """Should only retry jobs with queue_failed status, not other statuses."""
-        from lambdas.retry_queue_failed.handler import retry_queue_failed_jobs
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
 
         book = Book(title="Test Book", status="EVALUATING")
         db.add(book)
@@ -153,7 +153,7 @@ class TestRetryQueueFailedJobs:
         db.add_all([pending_job, failed_job])
         db.commit()
 
-        with patch("lambdas.retry_queue_failed.handler.send_image_processing_job") as mock_send:
+        with patch("app.services.retry_queue_failed.send_image_processing_job") as mock_send:
             result = retry_queue_failed_jobs(db)
 
         assert result["retried"] == 0
@@ -161,15 +161,45 @@ class TestRetryQueueFailedJobs:
 
     def test_respects_batch_size_limit(self, db: Session):
         """Should only process up to BATCH_SIZE jobs per invocation."""
-        from lambdas.retry_queue_failed.handler import BATCH_SIZE, retry_queue_failed_jobs
+        from app.services.retry_queue_failed import BATCH_SIZE, retry_queue_failed_jobs
 
         for _ in range(BATCH_SIZE + 5):
             self._create_queue_failed_job(db)
 
-        with patch("lambdas.retry_queue_failed.handler.send_image_processing_job"):
+        with patch("app.services.retry_queue_failed.send_image_processing_job"):
             result = retry_queue_failed_jobs(db)
 
         assert result["retried"] == BATCH_SIZE
+
+    def test_orders_by_created_at_to_prevent_starvation(self, db: Session):
+        """Should process oldest jobs first to prevent starvation."""
+        from datetime import UTC, datetime, timedelta
+
+        from app.services.retry_queue_failed import retry_queue_failed_jobs
+
+        # Create jobs with explicit created_at timestamps
+        old_job = self._create_queue_failed_job(db)
+        new_job = self._create_queue_failed_job(db)
+
+        # Manually set created_at to control order
+        old_job.created_at = datetime.now(UTC) - timedelta(hours=2)
+        new_job.created_at = datetime.now(UTC)
+        db.commit()
+
+        processed_ids = []
+
+        def capture_job_id(job_id, book_id, image_id):
+            processed_ids.append(job_id)
+
+        with patch(
+            "app.services.retry_queue_failed.send_image_processing_job",
+            side_effect=capture_job_id,
+        ):
+            retry_queue_failed_jobs(db)
+
+        # Old job should be processed first
+        assert processed_ids[0] == str(old_job.id)
+        assert processed_ids[1] == str(new_job.id)
 
 
 class TestLambdaHandler:
@@ -196,7 +226,7 @@ class TestLambdaHandler:
         db.add(job)
         db.commit()
 
-        with patch("lambdas.retry_queue_failed.handler.send_image_processing_job"):
+        with patch("app.services.retry_queue_failed.send_image_processing_job"):
             with patch("lambdas.retry_queue_failed.handler.SessionLocal", return_value=db):
                 result = handler({}, None)
 
@@ -239,7 +269,7 @@ class TestAdminRetryEndpoint:
         db.add(job)
         db.commit()
 
-        with patch("app.services.image_processing.send_image_processing_job"):
+        with patch("app.services.retry_queue_failed.send_image_processing_job"):
             result = retry_queue_failed_endpoint(db=db)
 
         assert result.retried >= 0
