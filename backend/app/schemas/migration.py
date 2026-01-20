@@ -1,0 +1,66 @@
+"""Schemas for image migration endpoints."""
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class MigrationRequest(BaseModel):
+    """Request to start a migration job."""
+
+    stage: Literal[1, 2, 3] = Field(
+        ...,
+        description="Migration stage: 1=fix ContentType, 2=copy thumbnails, 3=cleanup",
+    )
+    dry_run: bool = Field(
+        default=True,
+        description="If true, only report what would be done without making changes",
+    )
+    limit: int | None = Field(
+        default=None,
+        description="Maximum number of objects to process (for testing)",
+    )
+
+
+class MigrationStats(BaseModel):
+    """Statistics from a migration run."""
+
+    processed: int = 0
+    fixed: int = 0
+    already_correct: int = 0
+    copied: int = 0
+    already_exists: int = 0
+    deleted: int = 0
+    skipped: int = 0
+    skipped_not_jpeg: int = 0
+    skipped_no_jpg: int = 0
+    errors: int = 0
+
+
+class MigrationError(BaseModel):
+    """Error encountered during migration."""
+
+    key: str
+    error: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class MigrationJob(BaseModel):
+    """Status of a migration job."""
+
+    job_id: str
+    stage: int
+    status: Literal["running", "completed", "failed"]
+    dry_run: bool
+    started_at: datetime
+    completed_at: datetime | None = None
+    stats: MigrationStats = Field(default_factory=MigrationStats)
+    errors: list[MigrationError] = Field(default_factory=list)
+
+
+class MigrationResponse(BaseModel):
+    """Response when starting a migration."""
+
+    job_id: str
+    status: str
