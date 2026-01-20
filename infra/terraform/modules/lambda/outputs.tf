@@ -42,3 +42,15 @@ output "security_group_id" {
   description = "Security group ID for the Lambda function (if created)"
   value       = var.create_security_group && var.vpc_id != null ? aws_security_group.lambda[0].id : null
 }
+
+output "environment_variables" {
+  description = "Environment variables configured for the Lambda function (for pre-flight validation)"
+  value = merge(
+    {
+      LOG_LEVEL   = var.log_level
+      ENVIRONMENT = var.environment
+    },
+    var.environment_variables
+  )
+  sensitive = true
+}
