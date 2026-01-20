@@ -38,3 +38,35 @@ class TestValidateLambdaConfig:
         assert result.success is True
         assert result.missing_required == []
         assert result.missing_optional == []
+
+    def test_fails_when_required_missing(self):
+        """Validation fails when required environment variables are missing."""
+        from validate_lambda_config import validate_lambda_config
+
+        expected_vars = {
+            "required": [
+                {"name": "BMX_DATABASE_URL", "source": "config.py:35"},
+                {"name": "BMX_AWS_REGION", "source": "config.py:40"},
+                {"name": "BMX_NEW_FEATURE", "source": "config.py:200"},
+            ],
+            "optional": [],
+        }
+
+        actual_vars = {
+            "BMX_DATABASE_URL": "postgres://...",
+            # BMX_AWS_REGION is missing
+            # BMX_NEW_FEATURE is missing
+        }
+
+        result = validate_lambda_config(expected_vars, actual_vars)
+
+        assert result.success is False
+        assert len(result.missing_required) == 2
+
+        missing_names = [v["name"] for v in result.missing_required]
+        assert "BMX_AWS_REGION" in missing_names
+        assert "BMX_NEW_FEATURE" in missing_names
+
+        # Verify source info is preserved
+        for var in result.missing_required:
+            assert "source" in var
