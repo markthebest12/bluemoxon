@@ -1,7 +1,7 @@
 """Add queue_retry_count to image_processing_jobs.
 
 Revision ID: z1234567defg
-Revises: z0012345cdef
+Revises: 0fc4653fe40b
 Create Date: 2026-01-19
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "z1234567defg"
-down_revision: str | None = "z0012345cdef"
+down_revision: str | None = "0fc4653fe40b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
