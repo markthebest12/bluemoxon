@@ -48,3 +48,52 @@ def validate_lambda_config(
         missing_required=missing_required,
         missing_optional=missing_optional,
     )
+
+
+def format_error_output(result: ValidationResult) -> str:
+    """
+    Format error output for CI when validation fails.
+
+    Args:
+        result: ValidationResult with missing required vars.
+
+    Returns:
+        Formatted error message string with variable names and source locations.
+    """
+    lines = []
+    lines.append("Lambda config validation failed")
+    lines.append("")
+    lines.append("Missing required environment variables:")
+
+    for var in result.missing_required:
+        name = var["name"]
+        source = var.get("source", "unknown")
+        lines.append(f"  - {name} (defined in {source})")
+
+    lines.append("")
+    lines.append("These must be added to Terraform before deploying:")
+    lines.append("  File: infra/terraform/main.tf (lines 385-400)")
+    lines.append("")
+    lines.append("Fix: Run 'terraform apply' first, or add missing vars to main.tf")
+
+    return "\n".join(lines)
+
+
+def format_success_output(result: ValidationResult) -> str:
+    """
+    Format success output for CI when validation passes.
+
+    Args:
+        result: ValidationResult that passed validation.
+
+    Returns:
+        Formatted success message string.
+    """
+    lines = []
+    lines.append("Lambda config validation passed")
+
+    if result.missing_optional:
+        count = len(result.missing_optional)
+        lines.append(f"  Note: {count} optional vars not set")
+
+    return "\n".join(lines)

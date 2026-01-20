@@ -104,3 +104,72 @@ class TestValidateLambdaConfig:
         assert "BMX_DEBUG" in missing_names
         assert "BMX_LOG_LEVEL" in missing_names
         assert "BMX_CACHE_TTL" in missing_names
+
+
+class TestFormatOutput:
+    """Test suite for output formatting functions."""
+
+    def test_format_error_includes_line_numbers(self):
+        """Error output includes source file and line numbers."""
+        from validate_lambda_config import format_error_output, ValidationResult
+
+        result = ValidationResult(
+            success=False,
+            missing_required=[
+                {"name": "BMX_DATABASE_URL", "source": "config.py:35"},
+                {"name": "BMX_NEW_FEATURE", "source": "config.py:200"},
+            ],
+            missing_optional=[],
+        )
+
+        output = format_error_output(result)
+
+        # Should contain the error indicator
+        assert "Lambda config validation failed" in output
+
+        # Should list missing vars with source info
+        assert "BMX_DATABASE_URL" in output
+        assert "config.py:35" in output
+        assert "BMX_NEW_FEATURE" in output
+        assert "config.py:200" in output
+
+        # Should include Terraform fix hint
+        assert "Terraform" in output
+
+    def test_format_success_output(self):
+        """Success output includes optional var count."""
+        from validate_lambda_config import format_success_output, ValidationResult
+
+        result = ValidationResult(
+            success=True,
+            missing_required=[],
+            missing_optional=[
+                {"name": "BMX_DEBUG", "source": "config.py:50"},
+                {"name": "BMX_LOG_LEVEL", "source": "config.py:55"},
+                {"name": "BMX_CACHE_TTL", "source": "config.py:60"},
+            ],
+        )
+
+        output = format_success_output(result)
+
+        # Should contain success indicator
+        assert "validation passed" in output
+
+        # Should note the optional vars
+        assert "3" in output
+        assert "optional" in output
+
+    def test_format_success_no_optional_missing(self):
+        """Success output when no optional vars are missing."""
+        from validate_lambda_config import format_success_output, ValidationResult
+
+        result = ValidationResult(
+            success=True,
+            missing_required=[],
+            missing_optional=[],
+        )
+
+        output = format_success_output(result)
+
+        # Should contain success indicator
+        assert "validation passed" in output
