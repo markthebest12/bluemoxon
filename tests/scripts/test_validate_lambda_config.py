@@ -6,8 +6,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-import pytest
-
 # Add scripts directory to path for imports
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
@@ -18,7 +16,7 @@ class TestValidateLambdaConfig:
 
     def test_passes_when_all_required_present(self):
         """Validation passes when all required environment variables are present."""
-        from validate_lambda_config import validate_lambda_config, ValidationResult
+        from validate_lambda_config import ValidationResult, validate_lambda_config
 
         expected_vars = {
             "required": [
@@ -115,7 +113,7 @@ class TestFormatOutput:
 
     def test_format_error_includes_line_numbers(self):
         """Error output includes source file and line numbers."""
-        from validate_lambda_config import format_error_output, ValidationResult
+        from validate_lambda_config import ValidationResult, format_error_output
 
         result = ValidationResult(
             success=False,
@@ -142,7 +140,7 @@ class TestFormatOutput:
 
     def test_format_success_output(self):
         """Success output includes optional var count."""
-        from validate_lambda_config import format_success_output, ValidationResult
+        from validate_lambda_config import ValidationResult, format_success_output
 
         result = ValidationResult(
             success=True,
@@ -165,7 +163,7 @@ class TestFormatOutput:
 
     def test_format_success_no_optional_missing(self):
         """Success output when no optional vars are missing."""
-        from validate_lambda_config import format_success_output, ValidationResult
+        from validate_lambda_config import ValidationResult, format_success_output
 
         result = ValidationResult(
             success=True,
@@ -200,7 +198,7 @@ class TestCLI:
             expected_file = f.name
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 [
                     sys.executable,
                     str(scripts_dir / "validate_lambda_config.py"),
@@ -235,7 +233,7 @@ class TestCLI:
             expected_file = f.name
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 [
                     sys.executable,
                     str(scripts_dir / "validate_lambda_config.py"),

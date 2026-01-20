@@ -24,9 +24,7 @@ class ValidationResult:
     missing_optional: list[dict] = field(default_factory=list)
 
 
-def validate_lambda_config(
-    expected_vars: dict, actual_vars: dict
-) -> ValidationResult:
+def validate_lambda_config(expected_vars: dict, actual_vars: dict) -> ValidationResult:
     """
     Validate that actual Lambda env vars contain all expected required vars.
 
@@ -136,10 +134,10 @@ def main() -> int:
     result = validate_lambda_config(expected_vars, actual_vars)
 
     if result.success:
-        print(format_success_output(result))
+        print(format_success_output(result))  # noqa: T201
         return 0
     else:
-        print(format_error_output(result))
+        print(format_error_output(result))  # noqa: T201
         return 1
 
 
