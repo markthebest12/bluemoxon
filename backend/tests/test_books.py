@@ -371,11 +371,13 @@ class TestCopyListingImagesToBook:
             Bucket="test-bucket",
             CopySource={"Bucket": "test-bucket", "Key": "listings/item123/image_0.jpg"},
             Key=f"books/{book.id}/image_00.jpg",
+            MetadataDirective="COPY",
         )
         mock_s3.copy_object.assert_any_call(
             Bucket="test-bucket",
             CopySource={"Bucket": "test-bucket", "Key": "listings/item123/image_1.png"},
             Key=f"books/{book.id}/image_01.png",
+            MetadataDirective="COPY",
         )
 
         # Verify BookImage records created

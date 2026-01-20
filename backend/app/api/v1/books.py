@@ -323,6 +323,7 @@ def _copy_listing_images_to_book(book_id: int, listing_s3_keys: list[str], db: S
                 Bucket=bucket_name,
                 CopySource={"Bucket": bucket_name, "Key": source_key},
                 Key=target_key,
+                MetadataDirective="COPY",
             )
 
             # Generate thumbnail: download, resize, upload
