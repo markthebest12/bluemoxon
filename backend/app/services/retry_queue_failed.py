@@ -7,7 +7,7 @@ SKIP LOCKED to prevent duplicate processing when multiple workers run concurrent
 
 import logging
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, lazyload
 
 from app.models.image_processing_job import ImageProcessingJob
 from app.services.image_processing import send_image_processing_job
@@ -33,13 +33,16 @@ def retry_queue_failed_jobs(db: Session) -> dict:
     """
     # Query with FOR UPDATE SKIP LOCKED to prevent race conditions
     # Order by created_at to prevent starvation of older jobs
+    # Use lazyload('*') to prevent eager loading which conflicts with FOR UPDATE
+    # (PostgreSQL: "FOR UPDATE cannot be applied to the nullable side of an outer join")
     jobs = (
         db.query(ImageProcessingJob)
+        .options(lazyload("*"))
         .filter(ImageProcessingJob.status == "queue_failed")
         .filter(ImageProcessingJob.queue_retry_count < MAX_RETRIES)
         .order_by(ImageProcessingJob.created_at.asc())
         .limit(BATCH_SIZE)
-        .with_for_update(skip_locked=True)
+        .with_for_update(skip_locked=True, of=ImageProcessingJob)
         .all()
     )
 
