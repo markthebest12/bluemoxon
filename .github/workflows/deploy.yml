@@ -116,6 +116,7 @@ jobs:
       s3_artifacts_bucket: ${{ steps.config.outputs.s3_artifacts_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
       api_url: ${{ steps.config.outputs.api_url }}
+      api_key: ${{ steps.api-key.outputs.api_key }}
       app_url: ${{ steps.config.outputs.app_url }}
       cognito_user_pool_id: ${{ steps.config.outputs.cognito_user_pool_id }}
       cognito_client_id: ${{ steps.config.outputs.cognito_client_id }}
@@ -148,6 +149,19 @@ jobs:
           role-to-assume: ${{ steps.env.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get API key from Secrets Manager
+        id: api-key
+        run: |
+          if [[ "${{ steps.env.outputs.environment }}" == "production" ]]; then
+            SECRET_NAME="bluemoxon-prod/api-key"
+          else
+            SECRET_NAME="bluemoxon-staging/api-key"
+          fi
+          echo "Fetching API key from: $SECRET_NAME"
+          API_KEY=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query 'SecretString' --output text)
+          echo "::add-mask::$API_KEY"
+          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -166,6 +180,7 @@ jobs:
         working-directory: infra/terraform
         env:
           TF_VAR_db_password: "drift-check-dummy-not-applied"
+          TF_VAR_api_key: ${{ steps.api-key.outputs.api_key }}
         run: |
           echo "Running pre-deploy drift check..."
           ENV="${{ steps.env.outputs.environment }}"
