@@ -379,12 +379,13 @@ module "lambda" {
   lambda_invoke_arns = local.scraper_enabled ? [] : (local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : [])
 
   # Lambda health check permissions (GetFunction to verify Lambda availability)
-  # Health check uses pattern: bluemoxon-{env}-{name} for scraper, cleanup, image-processor
+  # Health check uses pattern: bluemoxon-{env}-{name} for scraper, cleanup, image-processor, retry-queue-failed
   # ARN format: arn:aws:lambda:{region}:{account}:function:{name}
   lambda_health_check_arns = [
     "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:bluemoxon-${coalesce(var.scraper_environment_override, var.environment)}-scraper",
     "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:bluemoxon-${coalesce(var.cleanup_environment_override, var.environment)}-cleanup",
-    "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:bluemoxon-${var.environment}-image-processor"
+    "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:bluemoxon-${var.environment}-image-processor",
+    "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:bluemoxon-${var.environment}-retry-queue-failed"
   ]
 
   # Cost Explorer access for admin dashboard
