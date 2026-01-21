@@ -9,7 +9,8 @@ class TestGetThumbnailKey:
     """Tests for get_thumbnail_key function.
 
     This function generates S3 keys for thumbnails from original image keys.
-    All thumbnails are JPEG format, so extension is always .jpg.
+    It preserves the original file extension since thumbnails may be in
+    various formats (webp, jpg, jpeg, png).
     """
 
     def test_simple_filename(self):
@@ -17,24 +18,24 @@ class TestGetThumbnailKey:
         assert get_thumbnail_key("638_abc.jpg") == "thumb_638_abc.jpg"
 
     def test_preserves_directory_path(self):
-        """Directory paths must be preserved, extension becomes .jpg."""
-        assert get_thumbnail_key("639/image_01.webp") == "thumb_639/image_01.jpg"
+        """Directory paths must be preserved with original extension."""
+        assert get_thumbnail_key("639/image_01.webp") == "thumb_639/image_01.webp"
 
-    def test_png_converted_to_jpg(self):
-        """PNG extension converted to .jpg since all thumbnails are JPEG."""
-        assert get_thumbnail_key("638_processed_xxx.png") == "thumb_638_processed_xxx.jpg"
+    def test_png_extension_preserved(self):
+        """PNG extension preserved."""
+        assert get_thumbnail_key("638_processed_xxx.png") == "thumb_638_processed_xxx.png"
 
-    def test_webp_converted_to_jpg(self):
-        """WebP extension converted to .jpg since all thumbnails are JPEG."""
-        assert get_thumbnail_key("639/image_05.webp") == "thumb_639/image_05.jpg"
+    def test_webp_extension_preserved(self):
+        """WebP extension preserved."""
+        assert get_thumbnail_key("639/image_05.webp") == "thumb_639/image_05.webp"
 
     def test_nested_directory_path(self):
-        """Nested directories must be preserved, extension becomes .jpg."""
+        """Nested directories must be preserved with original extension."""
         assert get_thumbnail_key("books/639/cover.jpg") == "thumb_books/639/cover.jpg"
 
     def test_no_extension(self):
-        """Keys without extension get .jpg added."""
-        assert get_thumbnail_key("638_abc") == "thumb_638_abc.jpg"
+        """Keys without extension get thumb_ prefix only."""
+        assert get_thumbnail_key("638_abc") == "thumb_638_abc"
 
 
 class TestListImages:
