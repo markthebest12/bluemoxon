@@ -31,9 +31,10 @@ ROMANTIC_END = 1836
 VICTORIAN_START = 1837
 VICTORIAN_END = 1901
 
-# Condition grades
-FINE_CONDITIONS = {"Fine", "VG+"}
-GOOD_CONDITIONS = {"Good", "VG", "Very Good", "Good+", "VG-"}
+# Condition grades - use enum values (database stores FINE, VERY_GOOD, etc.)
+# Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
+FINE_CONDITIONS = frozenset({"FINE", "NEAR_FINE"})
+GOOD_CONDITIONS = frozenset({"VERY_GOOD", "GOOD"})
 
 
 def calculate_quality_score(
