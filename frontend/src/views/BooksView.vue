@@ -6,7 +6,7 @@ import { useReferencesStore } from "@/stores/references";
 import BookThumbnail from "@/components/books/BookThumbnail.vue";
 import BookCountBadge from "@/components/books/BookCountBadge.vue";
 import ComboboxWithAdd from "@/components/ComboboxWithAdd.vue";
-import { BOOK_STATUSES, BOOK_CATEGORIES, BOOK_ERA_OPTIONS } from "@/constants";
+import { BOOK_STATUS_OPTIONS, BOOK_CATEGORIES, BOOK_ERA_OPTIONS } from "@/constants";
 import ImageCarousel from "@/components/books/ImageCarousel.vue";
 
 const route = useRoute();
@@ -362,6 +362,7 @@ function closeCarousel() {
       <!-- Filter Toggle Button -->
       <button
         class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] rounded-lg hover:bg-[var(--color-surface-elevated)] transition-colors text-sm text-[var(--color-text-primary)]"
+        data-testid="filter-toggle"
         @click="showFilters = !showFilters"
       >
         <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -569,11 +570,19 @@ function closeCarousel() {
           <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
             >Status</label
           >
-          <select v-model="booksStore.filters.status" class="input text-sm">
+          <select
+            v-model="booksStore.filters.status"
+            class="input text-sm"
+            data-testid="status-filter"
+          >
             <option value="">All Statuses</option>
-            <option :value="BOOK_STATUSES.ON_HAND">On Hand</option>
-            <option :value="BOOK_STATUSES.IN_TRANSIT">In Transit</option>
-            <option value="SOLD">Sold</option>
+            <option
+              v-for="statusOption in BOOK_STATUS_OPTIONS"
+              :key="statusOption.value"
+              :value="statusOption.value"
+            >
+              {{ statusOption.label }}
+            </option>
           </select>
         </div>
 
