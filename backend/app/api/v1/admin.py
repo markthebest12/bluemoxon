@@ -6,7 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 import boto3
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -36,7 +36,6 @@ from app.schemas.migration import (
     MigrationError,
     MigrationJob,
     MigrationRequest,
-    MigrationResponse,
     MigrationStats,
 )
 from app.services import tiered_scoring
@@ -894,34 +893,45 @@ def retry_queue_failed_endpoint(
     return RetryQueueFailedResult(**result)
 
 
-# In-memory job storage (use Redis in production)
-MIGRATION_JOBS: dict[str, MigrationJob] = {}
-
-
-async def run_migration(
-    job_id: str,
+@router.post("/migrate-image-formats", response_model=MigrationJob)
+def run_image_migration(
     request: MigrationRequest,
-    s3,
-    bucket: str,
-) -> None:
-    """Background task to run migration."""
-    job = MIGRATION_JOBS[job_id]
+    s3=Depends(get_s3_client),
+    settings=Depends(get_settings),
+    _user=Depends(require_admin),
+):
+    """Run image format migration synchronously.
+
+    Stage 1: Fix ContentType on main images (non-destructive)
+    Stage 2: Copy thumb_*.png to thumb_*.jpg (non-destructive)
+    Stage 3: Delete old .png thumbnails (destructive - run after verification)
+
+    Returns full results when complete. Use dry_run=true to preview changes.
+    Use limit parameter to process in batches for large datasets.
+    """
+    job_id = f"mig_{int(datetime.utcnow().timestamp())}"
+    started_at = datetime.utcnow()
     errors: list[dict] = []
+    status = "completed"
+    stats_dict: dict = {}
 
     try:
         if request.stage == 1:
-            stats = await migrate_stage_1(s3, bucket, request.dry_run, request.limit, errors)
+            stats_dict = migrate_stage_1(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
         elif request.stage == 2:
-            stats = await migrate_stage_2(s3, bucket, request.dry_run, request.limit, errors)
+            stats_dict = migrate_stage_2(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
         elif request.stage == 3:
-            stats = await cleanup_stage_3(s3, bucket, request.dry_run, request.limit, errors)
+            stats_dict = cleanup_stage_3(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
         else:
             raise ValueError(f"Invalid stage: {request.stage}")
-
-        job.stats = MigrationStats(**stats)
-        job.status = "completed"
     except Exception as e:
-        job.status = "failed"
+        status = "failed"
         errors.append(
             {
                 "key": "fatal",
@@ -929,48 +939,14 @@ async def run_migration(
                 "timestamp": datetime.utcnow().isoformat(),
             }
         )
-    finally:
-        job.completed_at = datetime.utcnow()
-        job.errors = [MigrationError(**e) for e in errors]
 
-
-@router.post("/migrate-image-formats", response_model=MigrationResponse)
-async def start_image_migration(
-    request: MigrationRequest,
-    background_tasks: BackgroundTasks,
-    s3=Depends(get_s3_client),
-    settings=Depends(get_settings),
-    _user=Depends(require_admin),
-):
-    """Start an image format migration job.
-
-    Stage 1: Fix ContentType on main images (non-destructive)
-    Stage 2: Copy thumb_*.png to thumb_*.jpg (non-destructive)
-    Stage 3: Delete old .png thumbnails (destructive - run after verification)
-    """
-    job_id = f"mig_{int(datetime.utcnow().timestamp())}"
-
-    job = MigrationJob(
+    return MigrationJob(
         job_id=job_id,
         stage=request.stage,
-        status="running",
+        status=status,
         dry_run=request.dry_run,
-        started_at=datetime.utcnow(),
+        started_at=started_at,
+        completed_at=datetime.utcnow(),
+        stats=MigrationStats(**stats_dict) if stats_dict else None,
+        errors=[MigrationError(**e) for e in errors],
     )
-    MIGRATION_JOBS[job_id] = job
-
-    background_tasks.add_task(run_migration, job_id, request, s3, settings.images_bucket)
-
-    return MigrationResponse(job_id=job_id, status="running")
-
-
-@router.get("/migrate-image-formats/{job_id}", response_model=MigrationJob)
-async def get_migration_status(
-    job_id: str,
-    _user=Depends(require_admin),
-):
-    """Get status of a migration job."""
-    job = MIGRATION_JOBS.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job

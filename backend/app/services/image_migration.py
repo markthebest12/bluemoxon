@@ -1,7 +1,7 @@
 """Image migration service for fixing ContentType mismatches."""
 
-import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Any
 
@@ -18,7 +18,45 @@ logger = logging.getLogger(__name__)
 S3_IMAGES_PREFIX = "books/"
 
 
-async def migrate_stage_1(
+def _batch_delete_with_errors(
+    s3: Any,
+    bucket: str,
+    objects: list[dict[str, str]],
+    errors: list[dict],
+    stats: dict[str, int],
+) -> None:
+    """Delete objects and check response for errors.
+
+    Args:
+        s3: S3 client
+        bucket: Bucket name
+        objects: List of {"Key": ...} dicts
+        errors: Error list to append to
+        stats: Stats dict with "deleted" and "errors" keys to update
+    """
+    if not objects:
+        return
+
+    response = s3.delete_objects(Bucket=bucket, Delete={"Objects": objects})
+
+    # Check for per-object errors in response
+    for error in response.get("Errors", []):
+        key = error.get("Key", "unknown")
+        code = error.get("Code", "Unknown")
+        message = error.get("Message", "No message")
+        errors.append(
+            {
+                "key": key,
+                "error": f"Delete failed: {code} - {message}",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
+        stats["errors"] += 1
+        stats["deleted"] -= 1  # Correct the count since we pre-counted
+        logger.error(f"Failed to delete {key}: {code} - {message}")
+
+
+def migrate_stage_1(
     s3: Any,
     bucket: str,
     dry_run: bool,
@@ -116,12 +154,12 @@ async def migrate_stage_1(
         if not response.get("IsTruncated"):
             break
         continuation_token = response["NextContinuationToken"]
-        await asyncio.sleep(0.1)  # Rate limiting
+        time.sleep(0.1)  # Rate limiting
 
     return stats
 
 
-async def migrate_stage_2(
+def migrate_stage_2(
     s3: Any,
     bucket: str,
     dry_run: bool,
@@ -212,12 +250,12 @@ async def migrate_stage_2(
         if not response.get("IsTruncated"):
             break
         continuation_token = response["NextContinuationToken"]
-        await asyncio.sleep(0.1)
+        time.sleep(0.1)  # Rate limiting
 
     return stats
 
 
-async def cleanup_stage_3(
+def cleanup_stage_3(
     s3: Any,
     bucket: str,
     dry_run: bool,
@@ -253,7 +291,7 @@ async def cleanup_stage_3(
             if limit and stats["processed"] >= limit:
                 # Flush pending deletes before returning
                 if delete_batch and not dry_run:
-                    s3.delete_objects(Bucket=bucket, Delete={"Objects": delete_batch})
+                    _batch_delete_with_errors(s3, bucket, delete_batch, errors, stats)
                 return stats
 
             try:
@@ -274,7 +312,7 @@ async def cleanup_stage_3(
                 # Batch delete every 1000 objects
                 if len(delete_batch) >= 1000:
                     if not dry_run:
-                        s3.delete_objects(Bucket=bucket, Delete={"Objects": delete_batch})
+                        _batch_delete_with_errors(s3, bucket, delete_batch, errors, stats)
                     delete_batch = []
 
             except ClientError as e:
@@ -292,10 +330,10 @@ async def cleanup_stage_3(
         if not response.get("IsTruncated"):
             break
         continuation_token = response["NextContinuationToken"]
-        await asyncio.sleep(0.1)
+        time.sleep(0.1)  # Rate limiting
 
     # Final batch
     if delete_batch and not dry_run:
-        s3.delete_objects(Bucket=bucket, Delete={"Objects": delete_batch})
+        _batch_delete_with_errors(s3, bucket, delete_batch, errors, stats)
 
     return stats

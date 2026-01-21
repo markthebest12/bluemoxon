@@ -19,7 +19,7 @@ from app.db import get_db
 from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
 from app.services.image_processing import queue_image_processing
-from app.utils.image_utils import detect_content_type, fix_extension
+from app.utils.image_utils import detect_content_type, fix_extension, get_thumbnail_key
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -125,25 +125,6 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> tuple[bool, st
     except Exception as e:
         logger.error(f"Thumbnail failed for {image_path}: {e}")
         return False, str(e)
-
-
-def get_thumbnail_key(s3_key: str) -> str:
-    """Get the S3 key for a thumbnail from the original image key.
-
-    All thumbnails are JPEG format, so always returns .jpg extension.
-
-    Example: '638_abc.jpg' -> 'thumb_638_abc.jpg'
-    Example: '638_processed_xxx.png' -> 'thumb_638_processed_xxx.jpg'
-    Example: '639/image_01.webp' -> 'thumb_639/image_01.jpg'
-
-    IMPORTANT: Deploy this change AFTER running Stage 2 migration
-    which creates .jpg copies of all existing thumbnails.
-    """
-    if "." in s3_key:
-        base = s3_key.rsplit(".", 1)[0]
-    else:
-        base = s3_key
-    return f"thumb_{base}.jpg"
 
 
 def get_api_base_url() -> str:

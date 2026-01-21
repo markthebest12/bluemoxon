@@ -139,3 +139,18 @@ def fix_extension(filename: str, data: bytes) -> str:
         base = filename
 
     return base + get_extension(fmt)
+
+
+def get_thumbnail_key(s3_key: str) -> str:
+    """Get the S3 key for a thumbnail from the original image key.
+
+    Preserves the original extension for backward compatibility.
+    All thumbnails are JPEG format (content-type: image/jpeg).
+
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
+
+    Note: After running Stage 2 migration, this function should be
+    updated to always return .jpg extension. See issue #1201.
+    """
+    return f"thumb_{s3_key}"
