@@ -2316,3 +2316,869 @@ class TestAcquisitionsDailyDefaults:
         assert days_param.default == 90, (
             f"Expected default days=90 for dashboard service, got {days_param.default}"
         )
+
+
+class TestOwnedStatusFilter:
+    """Tests for Issue #1216: Dashboard stats should filter for OWNED_STATUSES.
+
+    Dashboard charts should only include books with status IN_TRANSIT or ON_HAND,
+    excluding EVALUATING and REMOVED books. The filter should be applied in
+    addition to inventory_type == PRIMARY.
+
+    The OWNED_STATUSES constant is defined in app.enums as:
+    OWNED_STATUSES = (BookStatus.IN_TRANSIT, BookStatus.ON_HAND)
+
+    Note: Tests use unique identifiers (UUIDs) to ensure isolation from
+    pre-existing data in shared test databases.
+    """
+
+    def test_by_condition_excludes_evaluating_books(self, client, db):
+        """Test by-condition excludes books with EVALUATING status.
+
+        Issue #1216: Stats should only include owned books (IN_TRANSIT, ON_HAND).
+        """
+        import uuid
+
+        from app.models import Book
+
+        # Use unique condition grade to isolate test from pre-existing data
+        # NEAR_FINE is rarely used, so we can use it for isolation
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline count for NEAR_FINE before adding test books
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_nf = next((c for c in baseline if c["condition"] == "NEAR_FINE"), None)
+        baseline_count = baseline_nf["count"] if baseline_nf else 0
+        baseline_value = baseline_nf["value"] if baseline_nf else 0
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand {test_id}",
+            condition_grade="NEAR_FINE",
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating {test_id}",
+            condition_grade="NEAR_FINE",
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        nf = next((c for c in data if c["condition"] == "NEAR_FINE"), None)
+        assert nf is not None
+        # Should only count the ON_HAND book, not EVALUATING (relative to baseline)
+        assert nf["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from by-condition"
+        )
+        assert nf["value"] == baseline_value + 100, "EVALUATING book value should not be included"
+
+    def test_by_condition_excludes_removed_books(self, client, db):
+        """Test by-condition excludes books with REMOVED status.
+
+        Issue #1216: REMOVED books should not appear in dashboard stats.
+        """
+        import uuid
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline count for POOR before adding test books
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_poor = next((c for c in baseline if c["condition"] == "POOR"), None)
+        baseline_count = baseline_poor["count"] if baseline_poor else 0
+        baseline_value = baseline_poor["value"] if baseline_poor else 0
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand {test_id}",
+            condition_grade="POOR",
+            value_mid=200,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create REMOVED book (should NOT be counted)
+        removed = Book(
+            title=f"Test Removed {test_id}",
+            condition_grade="POOR",
+            value_mid=1000,
+            inventory_type="PRIMARY",
+            status="REMOVED",
+        )
+        db.add_all([on_hand, removed])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        poor = next((c for c in data if c["condition"] == "POOR"), None)
+        assert poor is not None
+        assert poor["count"] == baseline_count + 1, (
+            "REMOVED books should be excluded from by-condition"
+        )
+        assert poor["value"] == baseline_value + 200, "REMOVED book value should not be included"
+
+    def test_by_condition_includes_in_transit_books(self, client, db):
+        """Test by-condition includes IN_TRANSIT books.
+
+        Issue #1216: IN_TRANSIT is an owned status and should be included.
+        """
+        import uuid
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline count for FAIR before adding test book
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_fair = next((c for c in baseline if c["condition"] == "FAIR"), None)
+        baseline_count = baseline_fair["count"] if baseline_fair else 0
+
+        # Create IN_TRANSIT book (should be counted)
+        in_transit = Book(
+            title=f"Test In Transit {test_id}",
+            condition_grade="FAIR",
+            value_mid=300,
+            inventory_type="PRIMARY",
+            status="IN_TRANSIT",
+        )
+        db.add(in_transit)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        fair = next((c for c in data if c["condition"] == "FAIR"), None)
+        assert fair is not None
+        assert fair["count"] == baseline_count + 1, (
+            "IN_TRANSIT books should be included in by-condition"
+        )
+
+    def test_by_category_excludes_evaluating_books(self, client, db):
+        """Test by-category excludes EVALUATING books.
+
+        Issue #1216: Category stats should only include owned books.
+        """
+        import uuid
+
+        from app.models import Book
+
+        # Use unique category to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_category = f"Test Poetry {test_id}"
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Poetry {test_id}",
+            category=unique_category,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Poetry {test_id}",
+            category=unique_category,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        poetry = next((c for c in data if c["category"] == unique_category), None)
+        assert poetry is not None
+        assert poetry["count"] == 1, "EVALUATING books should be excluded from by-category"
+        assert poetry["value"] == 100
+
+    def test_by_era_excludes_evaluating_books(self, client, db):
+        """Test by-era excludes EVALUATING books.
+
+        Issue #1216: Era stats should only include owned books.
+        Uses Edwardian era (1901-1910) which is less commonly used for test isolation.
+        """
+        import uuid
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline for Edwardian era before adding test books
+        response = client.get("/api/v1/stats/by-era")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_edwardian = next((e for e in baseline if "Edwardian" in e["era"]), None)
+        baseline_count = baseline_edwardian["count"] if baseline_edwardian else 0
+        baseline_value = baseline_edwardian["value"] if baseline_edwardian else 0
+
+        # Create ON_HAND Edwardian book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Edwardian {test_id}",
+            year_start=1905,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING Edwardian book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Edwardian {test_id}",
+            year_start=1908,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-era")
+        assert response.status_code == 200
+        data = response.json()
+
+        edwardian = next((e for e in data if "Edwardian" in e["era"]), None)
+        assert edwardian is not None
+        assert edwardian["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from by-era"
+        )
+        assert edwardian["value"] == baseline_value + 100
+
+    def test_by_publisher_excludes_evaluating_books(self, client, db):
+        """Test by-publisher excludes EVALUATING books.
+
+        Issue #1216: Publisher stats should only include owned books.
+        """
+        import uuid
+
+        from app.models import Book, Publisher
+
+        # Use unique publisher name to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_publisher_name = f"Test Publisher {test_id}"
+
+        publisher = Publisher(name=unique_publisher_name, tier="TIER_1")
+        db.add(publisher)
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Book {test_id}",
+            publisher_id=publisher.id,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Book {test_id}",
+            publisher_id=publisher.id,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        pub = next((p for p in data if p["publisher"] == unique_publisher_name), None)
+        assert pub is not None
+        assert pub["count"] == 1, "EVALUATING books should be excluded from by-publisher"
+        assert pub["value"] == 100
+
+    def test_by_author_excludes_evaluating_books(self, client, db):
+        """Test by-author excludes EVALUATING books.
+
+        Issue #1216: Author stats should only include owned books.
+        """
+        import uuid
+
+        from app.models import Author, Book
+
+        # Use unique author name to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_author_name = f"Test Author {test_id}"
+
+        author = Author(name=unique_author_name)
+        db.add(author)
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Book {test_id}",
+            author_id=author.id,
+            volumes=1,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Book {test_id}",
+            author_id=author.id,
+            volumes=24,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        auth = next((a for a in data if a["author"] == unique_author_name), None)
+        assert auth is not None
+        # count is total volumes for authors
+        assert auth["count"] == 1, "EVALUATING books should be excluded from by-author"
+        assert auth["titles"] == 1, "EVALUATING books should be excluded from author titles"
+        assert auth["value"] == 100
+
+    def test_bindings_excludes_evaluating_books(self, client, db):
+        """Test bindings endpoint excludes EVALUATING books.
+
+        Issue #1216: Bindings stats should only include owned books.
+        """
+        import uuid
+
+        from app.models import Binder, Book
+
+        # Use unique binder name to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_binder_name = f"Test Binder {test_id}"
+
+        binder = Binder(name=unique_binder_name, full_name=f"Test Binder Full {test_id}")
+        db.add(binder)
+        db.commit()
+
+        # Create ON_HAND authenticated book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Binding {test_id}",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING authenticated book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Binding {test_id}",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        bind = next((b for b in data if b["binder"] == unique_binder_name), None)
+        assert bind is not None
+        assert bind["count"] == 1, "EVALUATING books should be excluded from bindings"
+        assert bind["value"] == 100
+
+    def test_acquisitions_daily_excludes_evaluating_books(self, client, db):
+        """Test acquisitions-daily excludes EVALUATING books.
+
+        Issue #1216: Acquisition stats should only include owned books.
+        Uses a specific date to isolate test results.
+        """
+        import uuid
+        from datetime import date, timedelta
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+        # Use a specific date offset that's less likely to have other test data
+        recent_date = date.today() - timedelta(days=3)
+
+        # Get baseline for that date before adding test books
+        response = client.get("/api/v1/stats/acquisitions-daily?days=7")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_day = next((d for d in baseline if d["date"] == recent_date.isoformat()), None)
+        baseline_count = baseline_day["count"] if baseline_day else 0
+        baseline_value = baseline_day["value"] if baseline_day else 0
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Recent {test_id}",
+            purchase_date=recent_date,
+            value_mid=100,
+            purchase_price=80,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Recent {test_id}",
+            purchase_date=recent_date,
+            value_mid=500,
+            purchase_price=400,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/acquisitions-daily?days=7")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find the day matching our test date
+        day_data = next((d for d in data if d["date"] == recent_date.isoformat()), None)
+        assert day_data is not None
+        assert day_data["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from acquisitions-daily"
+        )
+        assert day_data["value"] == baseline_value + 100
+
+    def test_metrics_excludes_evaluating_books(self, client, db):
+        """Test metrics endpoint excludes EVALUATING books.
+
+        Issue #1216: Collection metrics should only include owned books.
+        Uses relative assertions to be resilient to pre-existing data.
+        """
+        import uuid
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline metrics before adding test books
+        response = client.get("/api/v1/stats/metrics")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_count = baseline["total_items"]
+        baseline_value = baseline["total_current_value"]
+        baseline_cost = baseline["total_purchase_cost"]
+
+        # Create ON_HAND Victorian book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Victorian {test_id}",
+            year_start=1850,
+            value_mid=100,
+            purchase_price=80,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING Victorian book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Victorian {test_id}",
+            year_start=1860,
+            value_mid=500,
+            purchase_price=400,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/metrics")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only count the ON_HAND book (relative to baseline)
+        assert data["total_items"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from metrics"
+        )
+        assert data["total_current_value"] == baseline_value + 100
+        assert data["total_purchase_cost"] == baseline_cost + 80
+        # victorian_percentage depends on full dataset, so we just verify it's valid
+        assert 0 <= data["victorian_percentage"] <= 100
+
+    def test_dashboard_batch_excludes_evaluating_books(self, client, db):
+        """Test dashboard batch endpoint excludes EVALUATING books from all stats.
+
+        Issue #1216: Dashboard should use optimized queries that filter for OWNED_STATUSES.
+        Uses unique identifiers to isolate test from pre-existing data.
+        """
+        import uuid
+
+        from app.models import Author, Binder, Book, Publisher
+
+        # Use unique names to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_author = f"Test Author {test_id}"
+        unique_binder = f"Test Binder {test_id}"
+        unique_publisher = f"Test Publisher {test_id}"
+        unique_category = f"Test Category {test_id}"
+
+        # Create reference data
+        author = Author(name=unique_author)
+        binder = Binder(name=unique_binder, full_name=f"Test Binder Full {test_id}")
+        publisher = Publisher(name=unique_publisher, tier="TIER_1")
+        db.add_all([author, binder, publisher])
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Book {test_id}",
+            author_id=author.id,
+            publisher_id=publisher.id,
+            binder_id=binder.id,
+            binding_authenticated=True,
+            year_start=1905,  # Edwardian era for isolation
+            condition_grade="NEAR_FINE",
+            category=unique_category,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Book {test_id}",
+            author_id=author.id,
+            publisher_id=publisher.id,
+            binder_id=binder.id,
+            binding_authenticated=True,
+            year_start=1908,  # Also Edwardian
+            condition_grade="NEAR_FINE",
+            category=unique_category,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check by_category (unique, so count should be exactly 1)
+        cat = next((c for c in data["by_category"] if c["category"] == unique_category), None)
+        assert cat is not None
+        assert cat["count"] == 1, "Dashboard by_category should exclude EVALUATING"
+
+        # Check by_publisher (unique, so count should be exactly 1)
+        pub = next((p for p in data["by_publisher"] if p["publisher"] == unique_publisher), None)
+        assert pub is not None
+        assert pub["count"] == 1, "Dashboard by_publisher should exclude EVALUATING"
+
+        # Check by_author (unique, so count should be exactly 1)
+        auth = next((a for a in data["by_author"] if a["author"] == unique_author), None)
+        assert auth is not None
+        assert auth["count"] == 1, "Dashboard by_author should exclude EVALUATING"
+
+        # Check bindings (unique, so count should be exactly 1)
+        bind = next((b for b in data["bindings"] if b["binder"] == unique_binder), None)
+        assert bind is not None
+        assert bind["count"] == 1, "Dashboard bindings should exclude EVALUATING"
+
+    def test_batch_fetch_sample_titles_excludes_evaluating_books(self, client, db):
+        """Test batch_fetch_sample_titles excludes EVALUATING books.
+
+        Issue #1216: Sample titles fetched for authors/publishers/binders
+        should exclude EVALUATING books. The batch_fetch_sample_titles function
+        is used internally by query_by_author, query_bindings, etc. to fetch
+        sample book titles for display.
+        Uses unique author name to isolate from pre-existing data.
+        """
+        import uuid
+
+        from app.models import Author, Book
+
+        # Use unique author name to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_author = f"Sample Titles Author {test_id}"
+        owned_title = f"Owned Book Title {test_id}"
+        evaluating_title = f"Evaluating Book Title {test_id}"
+
+        author = Author(name=unique_author)
+        db.add(author)
+        db.commit()
+
+        # Create ON_HAND book (should appear in sample_titles)
+        on_hand = Book(
+            title=owned_title,
+            author_id=author.id,
+            volumes=1,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT appear in sample_titles)
+        evaluating = Book(
+            title=evaluating_title,
+            author_id=author.id,
+            volumes=1,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        author_data = next((a for a in data if a["author"] == unique_author), None)
+        assert author_data is not None
+
+        # sample_titles should only include the ON_HAND book
+        sample_titles = author_data["sample_titles"]
+        assert owned_title in sample_titles, "ON_HAND book should appear in sample_titles"
+        assert evaluating_title not in sample_titles, (
+            "EVALUATING book should be excluded from sample_titles"
+        )
+        assert len(sample_titles) == 1, "Only 1 title should be in sample_titles (ON_HAND only)"
+
+    def test_dashboard_dimension_stats_excludes_evaluating(self, client, db):
+        """Test get_dimension_stats in dashboard_stats.py excludes EVALUATING.
+
+        Issue #1216: The optimized dimension queries should filter for OWNED_STATUSES.
+        Uses unique category to isolate test from pre-existing data.
+        """
+        import uuid
+
+        from app.models import Book
+
+        # Use unique category to isolate this test
+        test_id = uuid.uuid4().hex[:8]
+        unique_category = f"Test Poetry {test_id}"
+
+        # Create ON_HAND book
+        on_hand = Book(
+            title=f"Test On Hand Book {test_id}",
+            condition_grade="NEAR_FINE",
+            category=unique_category,
+            year_start=1905,  # Edwardian era for isolation
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book
+        evaluating = Book(
+            title=f"Test Evaluating Book {test_id}",
+            condition_grade="NEAR_FINE",
+            category=unique_category,
+            year_start=1908,  # Also Edwardian
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        # Test via dashboard endpoint which uses get_dimension_stats
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # by_category from get_dimension_stats (unique category)
+        poetry = next((c for c in data["by_category"] if c["category"] == unique_category), None)
+        assert poetry is not None
+        assert poetry["count"] == 1, "get_dimension_stats should exclude EVALUATING from categories"
+        assert poetry["value"] == 100
+
+    def test_acquisitions_by_month_excludes_evaluating_books(self, client, db):
+        """Test acquisitions-by-month excludes EVALUATING books.
+
+        Issue #1216: Acquisition trends should only include owned books.
+        Uses a unique month unlikely to have pre-existing data for isolation.
+        """
+        import uuid
+        from datetime import date
+
+        from app.models import Book
+
+        test_id = uuid.uuid4().hex[:8]
+        # Use a historical date unlikely to have other test data
+        purchase_date = date(2019, 2, 15)
+
+        # Get baseline for that month before adding test books
+        response = client.get("/api/v1/stats/acquisitions-by-month")
+        assert response.status_code == 200
+        baseline = response.json()
+        baseline_month = next((m for m in baseline if m["year"] == 2019 and m["month"] == 2), None)
+        baseline_count = baseline_month["count"] if baseline_month else 0
+        baseline_value = baseline_month["value"] if baseline_month else 0
+        baseline_cost = baseline_month["cost"] if baseline_month else 0
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title=f"Test On Hand Book {test_id}",
+            purchase_date=purchase_date,
+            value_mid=100,
+            purchase_price=80,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title=f"Test Evaluating Book {test_id}",
+            purchase_date=purchase_date,
+            value_mid=500,
+            purchase_price=400,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/acquisitions-by-month")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find the month with our books
+        feb_2019 = next((m for m in data if m["year"] == 2019 and m["month"] == 2), None)
+        assert feb_2019 is not None
+        assert feb_2019["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from acquisitions-by-month"
+        )
+        assert feb_2019["value"] == baseline_value + 100
+        assert feb_2019["cost"] == baseline_cost + 80
+
+    def test_value_by_category_excludes_evaluating_books(self, client, db):
+        """Test value-by-category excludes EVALUATING books from all three queries.
+
+        Issue #1216: Value category stats should only include owned books.
+        This endpoint has three queries: premium_value, tier1_value, total_value.
+        """
+        import uuid
+
+        from app.models import Binder, Book, Publisher
+
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline values before adding test data
+        baseline_response = client.get("/api/v1/stats/value-by-category")
+        assert baseline_response.status_code == 200
+        baseline_data = baseline_response.json()
+
+        baseline_premium = next(
+            (c for c in baseline_data if c["category"] == "Premium Bindings"),
+            {"value": 0},
+        )
+        baseline_tier1 = next(
+            (c for c in baseline_data if c["category"] == "Tier 1 Publishers"),
+            {"value": 0},
+        )
+        baseline_other = next((c for c in baseline_data if c["category"] == "Other"), {"value": 0})
+
+        # Create test binder and publisher with unique names
+        binder = Binder(name=f"TestBinder_{test_id}", full_name=f"Test Binder {test_id}")
+        publisher = Publisher(name=f"TestPublisher_{test_id}", tier="TIER_1")
+        db.add_all([binder, publisher])
+        db.commit()
+
+        # Create ON_HAND premium binding book (should be counted in premium_value)
+        on_hand_premium = Book(
+            title=f"On Hand Premium {test_id}",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING premium binding book (should NOT be counted)
+        evaluating_premium = Book(
+            title=f"Evaluating Premium {test_id}",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        # Create ON_HAND Tier 1 publisher book (should be counted in tier1_value)
+        on_hand_tier1 = Book(
+            title=f"On Hand Tier1 {test_id}",
+            publisher_id=publisher.id,
+            binding_authenticated=False,
+            value_mid=200,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING Tier 1 publisher book (should NOT be counted)
+        evaluating_tier1 = Book(
+            title=f"Evaluating Tier1 {test_id}",
+            publisher_id=publisher.id,
+            binding_authenticated=False,
+            value_mid=1000,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        # Create ON_HAND other book (should be counted in other_value)
+        on_hand_other = Book(
+            title=f"On Hand Other {test_id}",
+            value_mid=50,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING other book (should NOT be counted)
+        evaluating_other = Book(
+            title=f"Evaluating Other {test_id}",
+            value_mid=2000,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all(
+            [
+                on_hand_premium,
+                evaluating_premium,
+                on_hand_tier1,
+                evaluating_tier1,
+                on_hand_other,
+                evaluating_other,
+            ]
+        )
+        db.commit()
+
+        response = client.get("/api/v1/stats/value-by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        premium = next((c for c in data if c["category"] == "Premium Bindings"), None)
+        tier1 = next((c for c in data if c["category"] == "Tier 1 Publishers"), None)
+        other = next((c for c in data if c["category"] == "Other"), None)
+
+        # Assert values increased by only ON_HAND amounts (EVALUATING excluded)
+        assert premium is not None
+        expected_premium = baseline_premium["value"] + 100
+        assert premium["value"] == expected_premium, (
+            f"Premium should be baseline ({baseline_premium['value']}) + 100 ON_HAND, "
+            f"got {premium['value']} - EVALUATING books should be excluded"
+        )
+
+        assert tier1 is not None
+        expected_tier1 = baseline_tier1["value"] + 200
+        assert tier1["value"] == expected_tier1, (
+            f"Tier1 should be baseline ({baseline_tier1['value']}) + 200 ON_HAND, "
+            f"got {tier1['value']} - EVALUATING books should be excluded"
+        )
+
+        assert other is not None
+        expected_other = baseline_other["value"] + 50
+        assert other["value"] == expected_other, (
+            f"Other should be baseline ({baseline_other['value']}) + 50 ON_HAND, "
+            f"got {other['value']} - EVALUATING books should be excluded"
+        )
