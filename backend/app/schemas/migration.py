@@ -21,6 +21,16 @@ class MigrationRequest(BaseModel):
         default=None,
         description="Maximum number of objects to process (for testing)",
     )
+    batch_size: int = Field(
+        default=500,
+        ge=1,
+        le=5000,
+        description="Objects to process per request before returning (default 500)",
+    )
+    continuation_token: str | None = Field(
+        default=None,
+        description="Token from previous response to resume processing",
+    )
 
 
 class MigrationStats(BaseModel):
@@ -51,16 +61,17 @@ class MigrationJob(BaseModel):
 
     job_id: str
     stage: int
-    status: Literal["running", "completed", "failed"]
+    status: Literal["running", "completed", "failed", "partial"]
     dry_run: bool
     started_at: datetime
     completed_at: datetime | None = None
     stats: MigrationStats = Field(default_factory=MigrationStats)
     errors: list[MigrationError] = Field(default_factory=list)
-
-
-class MigrationResponse(BaseModel):
-    """Response when starting a migration."""
-
-    job_id: str
-    status: str
+    continuation_token: str | None = Field(
+        default=None,
+        description="Token to pass in next request to continue processing. None means complete.",
+    )
+    has_more: bool = Field(
+        default=False,
+        description="True if there are more objects to process",
+    )
