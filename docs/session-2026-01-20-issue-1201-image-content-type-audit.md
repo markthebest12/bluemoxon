@@ -44,12 +44,13 @@ This issue consolidates all JPEG/JPG/PNG/WebP content-type and extension mismatc
 ## Progress
 
 - [x] Brainstorming/Design phase
-- [ ] Implementation plan created
-- [ ] Phase 1 implementation
-- [ ] Phase 2 implementation
-- [ ] Phase 3 implementation
+- [x] Implementation plan created
+- [x] Phase 1 implementation (code fixes)
+- [x] Phase 2 implementation (migration endpoint)
+- [x] Phase 3 implementation (get_thumbnail_key update)
 - [ ] PR to staging
 - [ ] Staging validation
+- [ ] Run migrations
 - [ ] PR to production
 
 ## Session Notes
@@ -71,4 +72,35 @@ This issue consolidates all JPEG/JPG/PNG/WebP content-type and extension mismatc
 
 **Design document**: `docs/plans/2026-01-20-image-content-type-audit-design.md`
 
-**Next**: Create implementation plan and execute with TDD.
+### 2026-01-20 - Implementation Complete
+
+**Parallel execution with git worktrees:**
+- Group A (parallel): Task 1 (image_utils), Task 5 (migration schemas)
+- Group B (parallel): Task 2 (images.py), Task 3 (books.py), Task 4 (bedrock.py)
+- Group C (parallel): Task 6 (migration service), Task 7 (migration API)
+- Group D: Task 8 (get_thumbnail_key update)
+
+**Files created:**
+- `backend/app/utils/image_utils.py` - Format detection utilities (35 tests)
+- `backend/app/schemas/migration.py` - Pydantic models for migration
+- `backend/app/services/image_migration.py` - 3-stage migration service
+- `backend/tests/utils/test_image_utils.py` - Unit tests
+- `backend/tests/services/test_image_migration.py` - Migration tests
+
+**Files modified:**
+- `backend/app/api/v1/images.py` - Format detection on upload, get_thumbnail_key → .jpg
+- `backend/app/api/v1/books.py` - MetadataDirective=COPY in copy_object
+- `backend/app/services/bedrock.py` - Use image_utils for format detection
+- `backend/app/api/v1/admin.py` - Migration endpoints
+- `backend/app/services/image_cleanup.py` - get_thumbnail_key → .jpg
+
+**All tests passing:** 38 new tests + existing tests
+
+**Deployment order (IMPORTANT):**
+1. Deploy Tasks 1-7 (migration endpoint + code fixes)
+2. Run Stage 2 migration: `POST /admin/migrate-image-formats {"stage": 2, "dry_run": false}`
+3. Deploy Task 8 (get_thumbnail_key update)
+4. Run Stage 1 migration (fix ContentType)
+5. Run Stage 3 cleanup (delete old .png thumbnails)
+
+**Next**: Create PR to staging for review.
