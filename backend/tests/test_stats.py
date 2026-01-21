@@ -2379,7 +2379,9 @@ class TestOwnedStatusFilter:
         nf = next((c for c in data if c["condition"] == "NEAR_FINE"), None)
         assert nf is not None
         # Should only count the ON_HAND book, not EVALUATING (relative to baseline)
-        assert nf["count"] == baseline_count + 1, "EVALUATING books should be excluded from by-condition"
+        assert nf["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from by-condition"
+        )
         assert nf["value"] == baseline_value + 100, "EVALUATING book value should not be included"
 
     def test_by_condition_excludes_removed_books(self, client, db):
@@ -2426,7 +2428,9 @@ class TestOwnedStatusFilter:
 
         poor = next((c for c in data if c["condition"] == "POOR"), None)
         assert poor is not None
-        assert poor["count"] == baseline_count + 1, "REMOVED books should be excluded from by-condition"
+        assert poor["count"] == baseline_count + 1, (
+            "REMOVED books should be excluded from by-condition"
+        )
         assert poor["value"] == baseline_value + 200, "REMOVED book value should not be included"
 
     def test_by_condition_includes_in_transit_books(self, client, db):
@@ -2464,7 +2468,9 @@ class TestOwnedStatusFilter:
 
         fair = next((c for c in data if c["condition"] == "FAIR"), None)
         assert fair is not None
-        assert fair["count"] == baseline_count + 1, "IN_TRANSIT books should be included in by-condition"
+        assert fair["count"] == baseline_count + 1, (
+            "IN_TRANSIT books should be included in by-condition"
+        )
 
     def test_by_category_excludes_evaluating_books(self, client, db):
         """Test by-category excludes EVALUATING books.
@@ -2552,7 +2558,9 @@ class TestOwnedStatusFilter:
 
         edwardian = next((e for e in data if "Edwardian" in e["era"]), None)
         assert edwardian is not None
-        assert edwardian["count"] == baseline_count + 1, "EVALUATING books should be excluded from by-era"
+        assert edwardian["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from by-era"
+        )
         assert edwardian["value"] == baseline_value + 100
 
     def test_by_publisher_excludes_evaluating_books(self, client, db):
@@ -2747,7 +2755,9 @@ class TestOwnedStatusFilter:
         # Find the day matching our test date
         day_data = next((d for d in data if d["date"] == recent_date.isoformat()), None)
         assert day_data is not None
-        assert day_data["count"] == baseline_count + 1, "EVALUATING books should be excluded from acquisitions-daily"
+        assert day_data["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from acquisitions-daily"
+        )
         assert day_data["value"] == baseline_value + 100
 
     def test_metrics_excludes_evaluating_books(self, client, db):
@@ -2796,7 +2806,9 @@ class TestOwnedStatusFilter:
         data = response.json()
 
         # Should only count the ON_HAND book (relative to baseline)
-        assert data["total_items"] == baseline_count + 1, "EVALUATING books should be excluded from metrics"
+        assert data["total_items"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from metrics"
+        )
         assert data["total_current_value"] == baseline_value + 100
         assert data["total_purchase_cost"] == baseline_cost + 80
         # victorian_percentage depends on full dataset, so we just verify it's valid
@@ -2929,22 +2941,16 @@ class TestOwnedStatusFilter:
         assert response.status_code == 200
         data = response.json()
 
-        author_data = next(
-            (a for a in data if a["author"] == unique_author), None
-        )
+        author_data = next((a for a in data if a["author"] == unique_author), None)
         assert author_data is not None
 
         # sample_titles should only include the ON_HAND book
         sample_titles = author_data["sample_titles"]
-        assert owned_title in sample_titles, (
-            "ON_HAND book should appear in sample_titles"
-        )
+        assert owned_title in sample_titles, "ON_HAND book should appear in sample_titles"
         assert evaluating_title not in sample_titles, (
             "EVALUATING book should be excluded from sample_titles"
         )
-        assert len(sample_titles) == 1, (
-            "Only 1 title should be in sample_titles (ON_HAND only)"
-        )
+        assert len(sample_titles) == 1, "Only 1 title should be in sample_titles (ON_HAND only)"
 
     def test_dashboard_dimension_stats_excludes_evaluating(self, client, db):
         """Test get_dimension_stats in dashboard_stats.py excludes EVALUATING.
@@ -3046,7 +3052,9 @@ class TestOwnedStatusFilter:
         # Find the month with our books
         feb_2019 = next((m for m in data if m["year"] == 2019 and m["month"] == 2), None)
         assert feb_2019 is not None
-        assert feb_2019["count"] == baseline_count + 1, "EVALUATING books should be excluded from acquisitions-by-month"
+        assert feb_2019["count"] == baseline_count + 1, (
+            "EVALUATING books should be excluded from acquisitions-by-month"
+        )
         assert feb_2019["value"] == baseline_value + 100
         assert feb_2019["cost"] == baseline_cost + 80
 
@@ -3075,14 +3083,10 @@ class TestOwnedStatusFilter:
             (c for c in baseline_data if c["category"] == "Tier 1 Publishers"),
             {"value": 0},
         )
-        baseline_other = next(
-            (c for c in baseline_data if c["category"] == "Other"), {"value": 0}
-        )
+        baseline_other = next((c for c in baseline_data if c["category"] == "Other"), {"value": 0})
 
         # Create test binder and publisher with unique names
-        binder = Binder(
-            name=f"TestBinder_{test_id}", full_name=f"Test Binder {test_id}"
-        )
+        binder = Binder(name=f"TestBinder_{test_id}", full_name=f"Test Binder {test_id}")
         publisher = Publisher(name=f"TestPublisher_{test_id}", tier="TIER_1")
         db.add_all([binder, publisher])
         db.commit()

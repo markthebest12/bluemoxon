@@ -241,6 +241,7 @@ def get_collection_metrics(db: Session = Depends(get_db), _user=Depends(require_
             "complete_sets": 0,
             "total_purchase_cost": 0,
             "total_current_value": 0,
+            "total_items": 0,
         }
 
     victorian_count = result.victorian_count or 0
