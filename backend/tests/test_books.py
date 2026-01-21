@@ -74,6 +74,39 @@ class TestCreateBook:
         response = client.post("/api/v1/books", json={})
         assert response.status_code == 422
 
+    def test_create_book_with_near_fine_condition(self, client):
+        """Test creating and updating a book with NEAR_FINE condition grade.
+
+        Issue #1223: NEAR_FINE was in the database (from migrations) and frontend
+        but missing from the backend ConditionGrade enum, causing API validation
+        failures when editing books with this condition.
+        """
+        # Create book with NEAR_FINE condition
+        response = client.post(
+            "/api/v1/books",
+            json={
+                "title": "The Princess",
+                "condition_grade": "NEAR_FINE",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["condition_grade"] == "NEAR_FINE"
+        book_id = data["id"]
+
+        # Verify it roundtrips correctly on GET
+        response = client.get(f"/api/v1/books/{book_id}")
+        assert response.status_code == 200
+        assert response.json()["condition_grade"] == "NEAR_FINE"
+
+        # Verify PUT works with NEAR_FINE (API uses PUT for updates)
+        response = client.put(
+            f"/api/v1/books/{book_id}",
+            json={"title": "The Princess", "condition_grade": "NEAR_FINE"},
+        )
+        assert response.status_code == 200
+        assert response.json()["condition_grade"] == "NEAR_FINE"
+
 
 class TestGetBook:
     """Tests for GET /api/v1/books/{id}."""
