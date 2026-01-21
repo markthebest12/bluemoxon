@@ -2,15 +2,15 @@
 
 import io
 
-from app.api.v1.images import get_thumbnail_key
+from app.utils.image_utils import get_thumbnail_key
 
 
 class TestGetThumbnailKey:
     """Tests for get_thumbnail_key function.
 
     This function generates S3 keys for thumbnails from original image keys.
-    It preserves the full path structure and original extension for backwards
-    compatibility with existing thumbnails.
+    It preserves the original file extension since thumbnails may be in
+    various formats (webp, jpg, jpeg, png).
     """
 
     def test_simple_filename(self):
@@ -18,20 +18,24 @@ class TestGetThumbnailKey:
         assert get_thumbnail_key("638_abc.jpg") == "thumb_638_abc.jpg"
 
     def test_preserves_directory_path(self):
-        """Directory paths must be preserved."""
+        """Directory paths must be preserved with original extension."""
         assert get_thumbnail_key("639/image_01.webp") == "thumb_639/image_01.webp"
 
-    def test_preserves_png_extension(self):
-        """PNG extension preserved for backwards compatibility."""
+    def test_png_extension_preserved(self):
+        """PNG extension preserved."""
         assert get_thumbnail_key("638_processed_xxx.png") == "thumb_638_processed_xxx.png"
 
-    def test_preserves_webp_extension(self):
-        """WebP extension preserved for backwards compatibility."""
+    def test_webp_extension_preserved(self):
+        """WebP extension preserved."""
         assert get_thumbnail_key("639/image_05.webp") == "thumb_639/image_05.webp"
 
     def test_nested_directory_path(self):
-        """Nested directories must be preserved."""
+        """Nested directories must be preserved with original extension."""
         assert get_thumbnail_key("books/639/cover.jpg") == "thumb_books/639/cover.jpg"
+
+    def test_no_extension(self):
+        """Keys without extension get thumb_ prefix only."""
+        assert get_thumbnail_key("638_abc") == "thumb_638_abc"
 
 
 class TestListImages:
