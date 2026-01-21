@@ -69,11 +69,15 @@ class TestTier:
 
 
 class TestConditionGrade:
-    """Tests for ConditionGrade enum."""
+    """Tests for ConditionGrade enum.
+
+    Condition grades ordered best to worst: FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
+    """
 
     def test_values(self):
         """Verify all ConditionGrade values are correct."""
         assert ConditionGrade.FINE == "FINE"
+        assert ConditionGrade.NEAR_FINE == "NEAR_FINE"
         assert ConditionGrade.VERY_GOOD == "VERY_GOOD"
         assert ConditionGrade.GOOD == "GOOD"
         assert ConditionGrade.FAIR == "FAIR"
@@ -81,11 +85,34 @@ class TestConditionGrade:
 
     def test_all_values_accounted_for(self):
         """Ensure no values are missing from tests."""
-        assert len(ConditionGrade) == 5
+        assert len(ConditionGrade) == 6
 
     def test_string_serialization(self):
         """StrEnum should serialize to string values."""
+        assert str(ConditionGrade.NEAR_FINE) == "NEAR_FINE"
         assert str(ConditionGrade.VERY_GOOD) == "VERY_GOOD"
+
+    def test_condition_grade_semantic_ordering(self):
+        """Verify semantic ordering: FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR.
+
+        This test documents the expected quality ordering for business logic.
+        The ordering is enforced by the enum definition order.
+        """
+        # Define expected ordering explicitly (best to worst)
+        expected_order = [
+            ConditionGrade.FINE,
+            ConditionGrade.NEAR_FINE,
+            ConditionGrade.VERY_GOOD,
+            ConditionGrade.GOOD,
+            ConditionGrade.FAIR,
+            ConditionGrade.POOR,
+        ]
+        # Verify the enum definition matches expected ordering
+        actual_order = list(ConditionGrade)
+        assert actual_order == expected_order, (
+            f"ConditionGrade enum order must be FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR. "
+            f"Got: {[g.value for g in actual_order]}"
+        )
 
 
 class TestSortOrder:
