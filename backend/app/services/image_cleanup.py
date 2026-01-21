@@ -20,9 +20,16 @@ S3_IMAGES_PREFIX = "books/"
 def get_thumbnail_key(s3_key: str) -> str:
     """Get the S3 key for a thumbnail from the original image key.
 
-    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    All thumbnails are JPEG format, so always returns .jpg extension.
+
+    Example: '638_abc.jpg' -> 'thumb_638_abc.jpg'
+    Example: '638_processed_xxx.png' -> 'thumb_638_processed_xxx.jpg'
     """
-    return f"thumb_{s3_key}"
+    if "." in s3_key:
+        base = s3_key.rsplit(".", 1)[0]
+    else:
+        base = s3_key
+    return f"thumb_{base}.jpg"
 
 
 def delete_unrelated_images(
