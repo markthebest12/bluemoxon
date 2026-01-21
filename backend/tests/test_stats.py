@@ -3056,16 +3056,40 @@ class TestOwnedStatusFilter:
         Issue #1216: Value category stats should only include owned books.
         This endpoint has three queries: premium_value, tier1_value, total_value.
         """
+        import uuid
+
         from app.models import Binder, Book, Publisher
 
-        binder = Binder(name="Zaehnsdorf", full_name="Joseph Zaehnsdorf")
-        publisher = Publisher(name="Chapman & Hall", tier="TIER_1")
+        test_id = uuid.uuid4().hex[:8]
+
+        # Get baseline values before adding test data
+        baseline_response = client.get("/api/v1/stats/value-by-category")
+        assert baseline_response.status_code == 200
+        baseline_data = baseline_response.json()
+
+        baseline_premium = next(
+            (c for c in baseline_data if c["category"] == "Premium Bindings"),
+            {"value": 0},
+        )
+        baseline_tier1 = next(
+            (c for c in baseline_data if c["category"] == "Tier 1 Publishers"),
+            {"value": 0},
+        )
+        baseline_other = next(
+            (c for c in baseline_data if c["category"] == "Other"), {"value": 0}
+        )
+
+        # Create test binder and publisher with unique names
+        binder = Binder(
+            name=f"TestBinder_{test_id}", full_name=f"Test Binder {test_id}"
+        )
+        publisher = Publisher(name=f"TestPublisher_{test_id}", tier="TIER_1")
         db.add_all([binder, publisher])
         db.commit()
 
         # Create ON_HAND premium binding book (should be counted in premium_value)
         on_hand_premium = Book(
-            title="On Hand Premium",
+            title=f"On Hand Premium {test_id}",
             binder_id=binder.id,
             binding_authenticated=True,
             value_mid=100,
@@ -3074,7 +3098,7 @@ class TestOwnedStatusFilter:
         )
         # Create EVALUATING premium binding book (should NOT be counted)
         evaluating_premium = Book(
-            title="Evaluating Premium",
+            title=f"Evaluating Premium {test_id}",
             binder_id=binder.id,
             binding_authenticated=True,
             value_mid=500,
@@ -3083,7 +3107,7 @@ class TestOwnedStatusFilter:
         )
         # Create ON_HAND Tier 1 publisher book (should be counted in tier1_value)
         on_hand_tier1 = Book(
-            title="On Hand Tier1",
+            title=f"On Hand Tier1 {test_id}",
             publisher_id=publisher.id,
             binding_authenticated=False,
             value_mid=200,
@@ -3092,7 +3116,7 @@ class TestOwnedStatusFilter:
         )
         # Create EVALUATING Tier 1 publisher book (should NOT be counted)
         evaluating_tier1 = Book(
-            title="Evaluating Tier1",
+            title=f"Evaluating Tier1 {test_id}",
             publisher_id=publisher.id,
             binding_authenticated=False,
             value_mid=1000,
@@ -3101,26 +3125,28 @@ class TestOwnedStatusFilter:
         )
         # Create ON_HAND other book (should be counted in other_value)
         on_hand_other = Book(
-            title="On Hand Other",
+            title=f"On Hand Other {test_id}",
             value_mid=50,
             inventory_type="PRIMARY",
             status="ON_HAND",
         )
         # Create EVALUATING other book (should NOT be counted)
         evaluating_other = Book(
-            title="Evaluating Other",
+            title=f"Evaluating Other {test_id}",
             value_mid=2000,
             inventory_type="PRIMARY",
             status="EVALUATING",
         )
-        db.add_all([
-            on_hand_premium,
-            evaluating_premium,
-            on_hand_tier1,
-            evaluating_tier1,
-            on_hand_other,
-            evaluating_other,
-        ])
+        db.add_all(
+            [
+                on_hand_premium,
+                evaluating_premium,
+                on_hand_tier1,
+                evaluating_tier1,
+                on_hand_other,
+                evaluating_other,
+            ]
+        )
         db.commit()
 
         response = client.get("/api/v1/stats/value-by-category")
@@ -3131,12 +3157,24 @@ class TestOwnedStatusFilter:
         tier1 = next((c for c in data if c["category"] == "Tier 1 Publishers"), None)
         other = next((c for c in data if c["category"] == "Other"), None)
 
+        # Assert values increased by only ON_HAND amounts (EVALUATING excluded)
         assert premium is not None
-        assert premium["value"] == 100, "EVALUATING books should be excluded from premium_value"
+        expected_premium = baseline_premium["value"] + 100
+        assert premium["value"] == expected_premium, (
+            f"Premium should be baseline ({baseline_premium['value']}) + 100 ON_HAND, "
+            f"got {premium['value']} - EVALUATING books should be excluded"
+        )
 
         assert tier1 is not None
-        assert tier1["value"] == 200, "EVALUATING books should be excluded from tier1_value"
+        expected_tier1 = baseline_tier1["value"] + 200
+        assert tier1["value"] == expected_tier1, (
+            f"Tier1 should be baseline ({baseline_tier1['value']}) + 200 ON_HAND, "
+            f"got {tier1['value']} - EVALUATING books should be excluded"
+        )
 
         assert other is not None
-        # Other = total (100 + 200 + 50) - premium (100) - tier1 (200) = 50
-        assert other["value"] == 50, "EVALUATING books should be excluded from total_value calculation"
+        expected_other = baseline_other["value"] + 50
+        assert other["value"] == expected_other, (
+            f"Other should be baseline ({baseline_other['value']}) + 50 ON_HAND, "
+            f"got {other['value']} - EVALUATING books should be excluded"
+        )
