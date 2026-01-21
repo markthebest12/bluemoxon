@@ -119,10 +119,10 @@ class TestQualityScore:
         assert score == 15
 
     def test_fine_condition_adds_15(self):
-        """Fine/VG+ condition should add 15 points."""
+        """FINE/NEAR_FINE condition should add 15 points (enum values, not display labels)."""
         from app.services.tiered_scoring import calculate_quality_score
 
-        for grade in ["Fine", "VG+"]:
+        for grade in ["FINE", "NEAR_FINE"]:
             score = calculate_quality_score(
                 publisher_tier=None,
                 binder_tier=None,
@@ -136,10 +136,10 @@ class TestQualityScore:
             assert score == 15, f"Failed for grade: {grade}"
 
     def test_good_condition_adds_10(self):
-        """Good condition should add 10 points."""
+        """VERY_GOOD/GOOD condition should add 10 points (enum values, not display labels)."""
         from app.services.tiered_scoring import calculate_quality_score
 
-        for grade in ["Good", "VG", "Very Good", "Good+"]:
+        for grade in ["VERY_GOOD", "GOOD"]:
             score = calculate_quality_score(
                 publisher_tier=None,
                 binder_tier=None,
@@ -224,7 +224,7 @@ class TestQualityScore:
             publisher_tier="TIER_1",  # +25
             binder_tier="TIER_1",  # +30 + 10 bonus = 40
             year_start=1867,  # +15
-            condition_grade="Fine",  # +15
+            condition_grade="FINE",  # +15 (enum value)
             is_complete=True,  # +10
             author_priority_score=50,  # +15 (capped)
             volume_count=1,
