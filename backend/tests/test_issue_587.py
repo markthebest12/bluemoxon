@@ -66,7 +66,7 @@ class TestIssue587_VolumeScoring:
             binder_tier="TIER_1",  # +40 + 15 (DOUBLE TIER 1)
             year_start=1867,  # +20 (Victorian)
             is_complete=True,  # +15
-            condition_grade="Very Good",  # +15
+            condition_grade="VERY_GOOD",  # +15 (enum value, not display label)
             author_priority_score=50,  # +50
             volume_count=4,  # Should be 0 now, not -10
         )
