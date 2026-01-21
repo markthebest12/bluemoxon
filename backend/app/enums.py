@@ -36,9 +36,13 @@ class Tier(StrEnum):
 
 
 class ConditionGrade(StrEnum):
-    """Physical condition grade for books."""
+    """Physical condition grade for books.
+
+    Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
+    """
 
     FINE = "FINE"
+    NEAR_FINE = "NEAR_FINE"
     VERY_GOOD = "VERY_GOOD"
     GOOD = "GOOD"
     FAIR = "FAIR"

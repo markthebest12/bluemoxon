@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from app.enums import ConditionGrade
+
 # Quality score point values
 QUALITY_TIER_1_PUBLISHER = 25
 QUALITY_TIER_2_PUBLISHER = 10
@@ -31,10 +33,10 @@ ROMANTIC_END = 1836
 VICTORIAN_START = 1837
 VICTORIAN_END = 1901
 
-# Condition grades - use enum values (database stores FINE, VERY_GOOD, etc.)
+# Condition grades - use enum members for type safety
 # Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
-FINE_CONDITIONS = frozenset({"FINE", "NEAR_FINE"})
-GOOD_CONDITIONS = frozenset({"VERY_GOOD", "GOOD"})
+FINE_CONDITIONS = frozenset({ConditionGrade.FINE, ConditionGrade.NEAR_FINE})
+GOOD_CONDITIONS = frozenset({ConditionGrade.VERY_GOOD, ConditionGrade.GOOD})
 
 
 def calculate_quality_score(
@@ -94,12 +96,21 @@ def calculate_quality_score(
         if ROMANTIC_START <= year_start <= VICTORIAN_END:
             score += QUALITY_ERA_BONUS
 
-    # Condition bonus
+    # Condition bonus - convert string to enum for type-safe comparison
     if condition_grade:
-        if condition_grade in FINE_CONDITIONS:
-            score += QUALITY_CONDITION_FINE
-        elif condition_grade in GOOD_CONDITIONS:
-            score += QUALITY_CONDITION_GOOD
+        try:
+            grade = (
+                ConditionGrade(condition_grade)
+                if isinstance(condition_grade, str)
+                else condition_grade
+            )
+            if grade in FINE_CONDITIONS:
+                score += QUALITY_CONDITION_FINE
+            elif grade in GOOD_CONDITIONS:
+                score += QUALITY_CONDITION_GOOD
+        except ValueError:
+            # Invalid condition grade - no bonus (fails loudly if enum validation is desired)
+            pass
 
     # Complete set bonus
     if is_complete:
