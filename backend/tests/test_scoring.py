@@ -269,7 +269,8 @@ class TestStrategicFit:
 
     def test_good_condition_adds_15(self):
         """Good or better condition should add 15 points."""
-        for grade in ["Fine", "VG+", "VG", "Very Good", "VG-", "Good+", "Good"]:
+        # Uses enum values: FINE, NEAR_FINE, VERY_GOOD, GOOD
+        for grade in ["FINE", "NEAR_FINE", "VERY_GOOD", "GOOD"]:
             score = calculate_strategic_fit(
                 publisher_tier=None,
                 binder_tier=None,
@@ -325,7 +326,7 @@ class TestStrategicFit:
             binder_tier="TIER_1",  # +40 + 15 (DOUBLE TIER 1)
             year_start=1867,  # +20 (Victorian)
             is_complete=True,  # +15
-            condition_grade="Very Good",  # +15
+            condition_grade="VERY_GOOD",  # +15
             author_priority_score=50,  # +50
             volume_count=4,  # 0 (noted but no penalty per Issue #587)
         )
@@ -434,7 +435,7 @@ class TestCalculateAllScores:
             binder_tier=None,
             year_start=1867,
             is_complete=True,
-            condition_grade="Very Good",
+            condition_grade="VERY_GOOD",
             author_priority_score=50,
             author_book_count=0,
             is_duplicate=False,
@@ -456,7 +457,7 @@ class TestCalculateAllScores:
             binder_tier=None,
             year_start=1867,  # +20
             is_complete=True,  # +15
-            condition_grade="Very Good",  # +15
+            condition_grade="VERY_GOOD",  # +15
             author_priority_score=0,  # +0
             author_book_count=0,  # +30
             is_duplicate=False,  # +0
@@ -483,7 +484,7 @@ class TestCalculateAllScores:
             binder_tier="TIER_1",  # +40 + 15 (DOUBLE TIER 1)
             year_start=1867,  # +20
             is_complete=True,  # +15
-            condition_grade="VG",  # +15
+            condition_grade="VERY_GOOD",  # +15
             author_priority_score=0,
             author_book_count=0,  # +30
             is_duplicate=False,
@@ -567,7 +568,7 @@ class TestStrategicFitBreakdown:
             binder_tier="TIER_1",
             year_start=1867,
             is_complete=True,
-            condition_grade="Very Good",
+            condition_grade="VERY_GOOD",
             author_priority_score=50,
             volume_count=4,
             author_name="George Eliot",
@@ -700,7 +701,7 @@ class TestCalculateAllScoresWithBreakdown:
             binder_tier=None,
             year_start=1850,
             is_complete=True,
-            condition_grade="Very Good",
+            condition_grade="VERY_GOOD",
             author_priority_score=30,
             author_book_count=0,
             is_duplicate=False,
@@ -737,7 +738,7 @@ class TestCalculateAllScoresWithBreakdown:
             binder_tier=None,
             year_start=1820,
             is_complete=False,
-            condition_grade="Good",
+            condition_grade="GOOD",
             author_priority_score=0,
             author_book_count=2,
             is_duplicate=False,
