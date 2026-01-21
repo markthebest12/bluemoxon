@@ -232,7 +232,8 @@ def get_dashboard_optimized(db: Session, reference_date: str = None, days: int =
     logger = logging.getLogger(__name__)
 
     # Build cache key based on parameters
-    cache_key = f"dashboard:stats:{reference_date or 'default'}:{days}"
+    # v2: Added OWNED_STATUSES filter to dimension stats queries
+    cache_key = f"dashboard:v2:stats:{reference_date or 'default'}:{days}"
 
     # Try cache first
     client = get_redis()

@@ -101,5 +101,27 @@ describe("BooksView", () => {
       // Should have REMOVED from the constant
       expect(optionValues).toContain(BOOK_STATUSES.REMOVED);
     });
+
+    it("updates store filter when status is selected", async () => {
+      const wrapper = mountComponent();
+      await expandFilters(wrapper);
+
+      // Get the books store to verify filter updates
+      const { useBooksStore } = await import("@/stores/books");
+      const booksStore = useBooksStore();
+
+      // Verify initial state - no status filter
+      expect(booksStore.filters.status).toBeUndefined();
+
+      // Find the status select dropdown
+      const statusSelect = wrapper.find('select[data-testid="status-filter"]');
+      expect(statusSelect.exists()).toBe(true);
+
+      // Simulate selecting "EVALUATING" option
+      await statusSelect.setValue(BOOK_STATUSES.EVALUATING);
+
+      // Verify the store filter was updated
+      expect(booksStore.filters.status).toBe(BOOK_STATUSES.EVALUATING);
+    });
   });
 });

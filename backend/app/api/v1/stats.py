@@ -586,6 +586,7 @@ def get_acquisitions_by_month(db: Session = Depends(get_db), _user=Depends(requi
         )
         .filter(
             Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
             Book.purchase_date.isnot(None),
         )
         .group_by(
@@ -714,6 +715,7 @@ def get_value_by_category(db: Session = Depends(get_db), _user=Depends(require_v
         db.query(func.sum(Book.value_mid))
         .filter(
             Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
             Book.binding_authenticated.is_(True),
         )
         .scalar()
@@ -726,6 +728,7 @@ def get_value_by_category(db: Session = Depends(get_db), _user=Depends(require_v
         .join(Publisher)
         .filter(
             Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
             Publisher.tier == "TIER_1",
             Book.binding_authenticated.is_not(True),
         )
@@ -735,7 +738,13 @@ def get_value_by_category(db: Session = Depends(get_db), _user=Depends(require_v
 
     # Get remaining value
     total_value = (
-        db.query(func.sum(Book.value_mid)).filter(Book.inventory_type == "PRIMARY").scalar() or 0
+        db.query(func.sum(Book.value_mid))
+        .filter(
+            Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
+        )
+        .scalar()
+        or 0
     )
 
     other_value = safe_float(total_value) - safe_float(premium_value) - safe_float(tier1_value)
