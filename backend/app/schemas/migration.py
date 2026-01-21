@@ -42,6 +42,7 @@ class MigrationStats(BaseModel):
     copied: int = 0
     already_exists: int = 0
     deleted: int = 0
+    versions_deleted: int = 0
     skipped: int = 0
     skipped_not_jpeg: int = 0
     skipped_no_jpg: int = 0

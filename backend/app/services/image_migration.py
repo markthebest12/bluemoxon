@@ -5,6 +5,7 @@ Each migration function accepts a continuation_token and batch_size, returning
 the next continuation token (or None if complete) along with stats.
 """
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -34,6 +35,46 @@ class MigrationResult:
     stats: dict[str, int]
     continuation_token: str | None
     has_more: bool
+
+
+def _encode_checkpoint(s3_token: str | None, skip_count: int) -> str | None:
+    """Encode S3 token and skip count into a compound checkpoint token.
+
+    This allows precise resumption within a page when batch_size is reached
+    mid-page. Without this, we'd re-process items already handled.
+
+    Args:
+        s3_token: The S3 continuation token (or None if first page)
+        skip_count: Number of items to skip at start of the page
+
+    Returns:
+        JSON-encoded compound token, or None if no checkpoint needed
+    """
+    if s3_token is None and skip_count == 0:
+        return None
+    return json.dumps({"s3_token": s3_token, "skip": skip_count})
+
+
+def _decode_checkpoint(token: str | None) -> tuple[str | None, int]:
+    """Decode a compound checkpoint token into S3 token and skip count.
+
+    Args:
+        token: The compound token (or plain S3 token for backwards compat)
+
+    Returns:
+        Tuple of (s3_token, skip_count)
+    """
+    if token is None:
+        return None, 0
+    # Try to parse as JSON compound token
+    if token.startswith("{"):
+        try:
+            data = json.loads(token)
+            return data.get("s3_token"), data.get("skip", 0)
+        except json.JSONDecodeError:
+            pass
+    # Fallback: treat as plain S3 token (backwards compatibility)
+    return token, 0
 
 
 def _check_bucket_versioning(s3: Any, bucket: str) -> bool:
@@ -200,7 +241,9 @@ def migrate_stage_1(
         "skipped": 0,
         "errors": 0,
     }
-    current_token = continuation_token
+    s3_token, skip_count = _decode_checkpoint(continuation_token)
+    current_token = s3_token
+    items_in_page = 0
 
     while True:
         kwargs: dict[str, Any] = {
@@ -214,11 +257,18 @@ def migrate_stage_1(
         response = s3.list_objects_v2(**kwargs)
 
         for obj in response.get("Contents", []):
+            # Skip items already processed in previous batch (on resume)
+            if skip_count > 0:
+                skip_count -= 1
+                items_in_page += 1
+                continue
+
             key = obj["Key"]
 
             # Skip thumbnails - handled in Stage 2
             if "/thumb_" in key:
                 stats["skipped"] += 1
+                items_in_page += 1
                 continue
 
             # Check limit (total objects across all batches)
@@ -231,13 +281,9 @@ def migrate_stage_1(
 
             # Check batch size - return early with continuation token
             if stats["processed"] >= batch_size:
-                # Return the current S3 token to resume from
-                next_token = (
-                    response.get("NextContinuationToken") if response.get("IsTruncated") else None
-                )
                 return MigrationResult(
                     stats=stats,
-                    continuation_token=current_token or next_token,
+                    continuation_token=_encode_checkpoint(current_token, items_in_page),
                     has_more=True,
                 )
 
@@ -254,12 +300,14 @@ def migrate_stage_1(
                     )
                     stats["skipped"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
 
                 actual_format = detect_format(magic_bytes, strict=False)
                 if actual_format == ImageFormat.UNKNOWN:
                     stats["skipped"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
 
                 # Check current metadata
@@ -304,10 +352,12 @@ def migrate_stage_1(
                 stats["errors"] += 1
 
             stats["processed"] += 1
+            items_in_page += 1
 
         if not response.get("IsTruncated"):
             break
         current_token = response["NextContinuationToken"]
+        items_in_page = 0
 
     return MigrationResult(
         stats=stats,
@@ -348,7 +398,9 @@ def migrate_stage_2(
         "skipped_not_jpeg": 0,
         "errors": 0,
     }
-    current_token = continuation_token
+    s3_token, skip_count = _decode_checkpoint(continuation_token)
+    current_token = s3_token
+    items_in_page = 0
 
     while True:
         kwargs: dict[str, Any] = {
@@ -362,8 +414,15 @@ def migrate_stage_2(
         response = s3.list_objects_v2(**kwargs)
 
         for obj in response.get("Contents", []):
+            # Skip items already processed in previous batch (on resume)
+            if skip_count > 0:
+                skip_count -= 1
+                items_in_page += 1
+                continue
+
             key = obj["Key"]
             if not key.endswith(".png"):
+                items_in_page += 1
                 continue
 
             # Check limit
@@ -376,12 +435,9 @@ def migrate_stage_2(
 
             # Check batch size - return early with continuation token
             if stats["processed"] >= batch_size:
-                next_token = (
-                    response.get("NextContinuationToken") if response.get("IsTruncated") else None
-                )
                 return MigrationResult(
                     stats=stats,
-                    continuation_token=current_token or next_token,
+                    continuation_token=_encode_checkpoint(current_token, items_in_page),
                     has_more=True,
                 )
 
@@ -393,6 +449,7 @@ def migrate_stage_2(
                     s3.head_object(Bucket=bucket, Key=new_key)
                     stats["already_exists"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
                 except ClientError:
                     pass  # Doesn't exist, proceed
@@ -416,6 +473,7 @@ def migrate_stage_2(
                     )
                     stats["skipped_not_jpeg"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
 
                 actual_format = detect_format(magic_bytes, strict=False)
@@ -430,6 +488,7 @@ def migrate_stage_2(
                     )
                     stats["skipped_not_jpeg"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
 
                 if not dry_run:
@@ -454,10 +513,12 @@ def migrate_stage_2(
                 stats["errors"] += 1
 
             stats["processed"] += 1
+            items_in_page += 1
 
         if not response.get("IsTruncated"):
             break
         current_token = response["NextContinuationToken"]
+        items_in_page = 0
 
     return MigrationResult(
         stats=stats,
@@ -501,8 +562,10 @@ def cleanup_stage_3(
         "skipped_no_jpg": 0,
         "errors": 0,
     }
-    current_token = continuation_token
+    s3_token, skip_count = _decode_checkpoint(continuation_token)
+    current_token = s3_token
     delete_batch: list[dict[str, str]] = []
+    items_in_page = 0
 
     # Check if bucket has versioning enabled
     versioning_enabled = _check_bucket_versioning(s3, bucket)
@@ -525,8 +588,15 @@ def cleanup_stage_3(
         response = s3.list_objects_v2(**kwargs)
 
         for obj in response.get("Contents", []):
+            # Skip items already processed in previous batch (on resume)
+            if skip_count > 0:
+                skip_count -= 1
+                items_in_page += 1
+                continue
+
             key = obj["Key"]
             if not key.endswith(".png"):
+                items_in_page += 1
                 continue
 
             # Check limit
@@ -551,12 +621,9 @@ def cleanup_stage_3(
                         stats["deleted"] += len(delete_batch)
                     else:
                         _batch_delete_with_errors(s3, bucket, delete_batch, errors, stats)
-                next_token = (
-                    response.get("NextContinuationToken") if response.get("IsTruncated") else None
-                )
                 return MigrationResult(
                     stats=stats,
-                    continuation_token=current_token or next_token,
+                    continuation_token=_encode_checkpoint(current_token, items_in_page),
                     has_more=True,
                 )
 
@@ -569,6 +636,7 @@ def cleanup_stage_3(
                 except ClientError:
                     stats["skipped_no_jpg"] += 1
                     stats["processed"] += 1
+                    items_in_page += 1
                     continue
 
                 if versioning_enabled:
@@ -604,10 +672,12 @@ def cleanup_stage_3(
                 stats["errors"] += 1
 
             stats["processed"] += 1
+            items_in_page += 1
 
         if not response.get("IsTruncated"):
             break
         current_token = response["NextContinuationToken"]
+        items_in_page = 0
 
     # Final batch (non-versioned only)
     if delete_batch:
