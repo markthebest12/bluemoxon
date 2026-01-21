@@ -144,14 +144,10 @@ def fix_extension(filename: str, data: bytes) -> str:
 def get_thumbnail_key(s3_key: str) -> str:
     """Get the S3 key for a thumbnail from the original image key.
 
-    All thumbnails are JPEG format, so this always returns .jpg extension.
+    Preserves the original file extension since thumbnails may be in
+    various formats (webp, jpg, jpeg, png).
 
-    Example: 'book_123_abc.png' -> 'thumb_book_123_abc.jpg'
-    Example: '639/image_01.webp' -> 'thumb_639/image_01.jpg'
+    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
+    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
     """
-    # Remove existing extension and add .jpg
-    if "." in s3_key:
-        base = s3_key.rsplit(".", 1)[0]
-    else:
-        base = s3_key
-    return f"thumb_{base}.jpg"
+    return f"thumb_{s3_key}"
