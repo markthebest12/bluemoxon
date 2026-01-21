@@ -16,6 +16,7 @@ from PIL import Image
 from app.config import get_settings
 from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.models import BookImage
+from app.utils.image_utils import detect_content_type
 
 # Claude's maximum image size limit (base64 encoded) is 5MB
 # Base64 adds ~33% overhead, so raw limit is ~3.75MB
@@ -318,16 +319,8 @@ def fetch_book_images_for_bedrock(
             response = s3.get_object(Bucket=bucket, Key=s3_key)
             image_data = response["Body"].read()
 
-            # Determine media type from S3 ContentType, fallback to filename extension
-            content_type = response.get("ContentType")
-            if not content_type or content_type == "application/octet-stream":
-                # S3 metadata missing or generic, infer from filename
-                if img.s3_key.lower().endswith(".png"):
-                    content_type = "image/png"
-                elif img.s3_key.lower().endswith((".jpg", ".jpeg")):
-                    content_type = "image/jpeg"
-                else:
-                    content_type = "image/jpeg"  # Default
+            # Detect actual format from image content (more reliable than S3 metadata)
+            content_type = detect_content_type(image_data[:12])
 
             # Resize if needed to fit Claude's 5MB base64 limit
             image_data, content_type = resize_image_for_bedrock(image_data, content_type)

@@ -19,6 +19,7 @@ from app.db import get_db
 from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
 from app.services.image_processing import queue_image_processing
+from app.utils.image_utils import detect_content_type, fix_extension, get_thumbnail_key
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -124,20 +125,6 @@ def generate_thumbnail(image_path: Path, thumbnail_path: Path) -> tuple[bool, st
     except Exception as e:
         logger.error(f"Thumbnail failed for {image_path}: {e}")
         return False, str(e)
-
-
-def get_thumbnail_key(s3_key: str) -> str:
-    """Get the S3 key for a thumbnail from the original image key.
-
-    Example: 'book_123_abc.jpg' -> 'thumb_book_123_abc.jpg'
-    Example: '639/image_01.webp' -> 'thumb_639/image_01.webp'
-
-    Note: Preserves the full path structure and original extension.
-    The thumbnail file is always JPEG format (content-type: image/jpeg),
-    but we keep the original extension for backwards compatibility with
-    existing thumbnails that were created with various extensions.
-    """
-    return f"thumb_{s3_key}"
 
 
 def get_api_base_url() -> str:
@@ -435,6 +422,13 @@ async def upload_image(
     # Upload to S3 in production - Issue #858: wrap blocking boto3 calls
     if settings.is_aws_lambda:
         s3 = get_s3_client()
+
+        # Detect actual image format from file content
+        with open(file_path, "rb") as f:
+            file_header = f.read(12)
+        content_type = detect_content_type(file_header)
+        unique_name = fix_extension(unique_name, file_header)
+
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
 
@@ -444,7 +438,7 @@ async def upload_image(
             str(file_path),
             settings.images_bucket,
             s3_key,
-            ExtraArgs={"ContentType": "image/jpeg"},
+            ExtraArgs={"ContentType": content_type},
         )
 
         # Upload thumbnail (blocking -> thread pool)

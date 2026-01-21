@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.health import check_cognito, check_database, check_s3, check_sqs
+from app.api.v1.images import get_s3_client
 from app.auth import require_admin
 from app.cold_start import get_cold_start_status
 from app.config import get_cleanup_environment, get_settings
@@ -31,6 +32,12 @@ from app.models.author import Author
 from app.models.binder import Binder
 from app.models.cleanup_job import CleanupJob
 from app.models.publisher import Publisher
+from app.schemas.migration import (
+    MigrationError,
+    MigrationJob,
+    MigrationRequest,
+    MigrationStats,
+)
 from app.services import tiered_scoring
 from app.services.bedrock import (
     CLAUDE_MAX_IMAGE_BYTES,
@@ -40,6 +47,11 @@ from app.services.bedrock import (
     PROMPT_CACHE_TTL,
 )
 from app.services.cost_explorer import get_costs as fetch_costs
+from app.services.image_migration import (
+    cleanup_stage_3,
+    migrate_stage_1,
+    migrate_stage_2,
+)
 from app.version import get_version_info
 from lambdas.cleanup.handler import cleanup_stale_listings
 
@@ -879,3 +891,62 @@ def retry_queue_failed_endpoint(
 
     result = retry_queue_failed_jobs(db)
     return RetryQueueFailedResult(**result)
+
+
+@router.post("/migrate-image-formats", response_model=MigrationJob)
+def run_image_migration(
+    request: MigrationRequest,
+    s3=Depends(get_s3_client),
+    settings=Depends(get_settings),
+    _user=Depends(require_admin),
+):
+    """Run image format migration synchronously.
+
+    Stage 1: Fix ContentType on main images (non-destructive)
+    Stage 2: Copy thumb_*.png to thumb_*.jpg (non-destructive)
+    Stage 3: Delete old .png thumbnails (destructive - run after verification)
+
+    Returns full results when complete. Use dry_run=true to preview changes.
+    Use limit parameter to process in batches for large datasets.
+    """
+    job_id = f"mig_{int(datetime.utcnow().timestamp())}"
+    started_at = datetime.utcnow()
+    errors: list[dict] = []
+    status = "completed"
+    stats_dict: dict = {}
+
+    try:
+        if request.stage == 1:
+            stats_dict = migrate_stage_1(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
+        elif request.stage == 2:
+            stats_dict = migrate_stage_2(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
+        elif request.stage == 3:
+            stats_dict = cleanup_stage_3(
+                s3, settings.images_bucket, request.dry_run, request.limit, errors
+            )
+        else:
+            raise ValueError(f"Invalid stage: {request.stage}")
+    except Exception as e:
+        status = "failed"
+        errors.append(
+            {
+                "key": "fatal",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
+
+    return MigrationJob(
+        job_id=job_id,
+        stage=request.stage,
+        status=status,
+        dry_run=request.dry_run,
+        started_at=started_at,
+        completed_at=datetime.utcnow(),
+        stats=MigrationStats(**stats_dict) if stats_dict else None,
+        errors=[MigrationError(**e) for e in errors],
+    )

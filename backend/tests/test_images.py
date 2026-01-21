@@ -2,7 +2,7 @@
 
 import io
 
-from app.api.v1.images import get_thumbnail_key
+from app.utils.image_utils import get_thumbnail_key
 
 
 class TestGetThumbnailKey:
