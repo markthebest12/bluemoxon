@@ -13,6 +13,11 @@ from app.enums import OWNED_STATUSES
 from app.services.book_queries import get_other_books_by_author
 from app.services.set_detection import detect_set_completion
 
+# Condition grades that receive full points in strategic fit scoring.
+# Grades below GOOD (FAIR, POOR) do not receive condition bonus.
+# Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
+ACCEPTABLE_CONDITION_GRADES = frozenset({"FINE", "NEAR_FINE", "VERY_GOOD", "GOOD"})
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -244,8 +249,7 @@ def calculate_strategic_fit(
         score += 15
 
     # Condition - FINE through GOOD get full points; FAIR and POOR do not
-    # Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
-    if condition_grade in {"FINE", "NEAR_FINE", "VERY_GOOD", "GOOD"}:
+    if condition_grade in ACCEPTABLE_CONDITION_GRADES:
         score += 15
 
     # Volume count - noted but no penalty (Issue #587)
@@ -517,12 +521,10 @@ def calculate_strategic_fit_breakdown(
         breakdown.add("completeness", 0, "Incomplete or multi-volume set")
 
     # Condition - FINE through GOOD get full points; FAIR and POOR do not
-    # Order (best to worst): FINE > NEAR_FINE > VERY_GOOD > GOOD > FAIR > POOR
-    acceptable_conditions = {"FINE", "NEAR_FINE", "VERY_GOOD", "GOOD"}
     condition_label = CONDITION_GRADE_DEFINITIONS.get(condition_grade, {}).get(
         "label", condition_grade
     )
-    if condition_grade in acceptable_conditions:
+    if condition_grade in ACCEPTABLE_CONDITION_GRADES:
         score += 15
         breakdown.add("condition", 15, f"{condition_label} condition")
     elif condition_grade:
