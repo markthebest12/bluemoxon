@@ -2316,3 +2316,517 @@ class TestAcquisitionsDailyDefaults:
         assert days_param.default == 90, (
             f"Expected default days=90 for dashboard service, got {days_param.default}"
         )
+
+
+class TestOwnedStatusFilter:
+    """Tests for Issue #1216: Dashboard stats should filter for OWNED_STATUSES.
+
+    Dashboard charts should only include books with status IN_TRANSIT or ON_HAND,
+    excluding EVALUATING and REMOVED books. The filter should be applied in
+    addition to inventory_type == PRIMARY.
+
+    The OWNED_STATUSES constant is defined in app.enums as:
+    OWNED_STATUSES = (BookStatus.IN_TRANSIT, BookStatus.ON_HAND)
+    """
+
+    def test_by_condition_excludes_evaluating_books(self, client, db):
+        """Test by-condition excludes books with EVALUATING status.
+
+        Issue #1216: Stats should only include owned books (IN_TRANSIT, ON_HAND).
+        """
+        from app.models import Book
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Book",
+            condition_grade="FINE",
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Book",
+            condition_grade="FINE",
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        fine = next((c for c in data if c["condition"] == "FINE"), None)
+        assert fine is not None
+        # Should only count the ON_HAND book, not EVALUATING
+        assert fine["count"] == 1, "EVALUATING books should be excluded from by-condition"
+        assert fine["value"] == 100, "EVALUATING book value should not be included"
+
+    def test_by_condition_excludes_removed_books(self, client, db):
+        """Test by-condition excludes books with REMOVED status.
+
+        Issue #1216: REMOVED books should not appear in dashboard stats.
+        """
+        from app.models import Book
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Book",
+            condition_grade="GOOD",
+            value_mid=200,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create REMOVED book (should NOT be counted)
+        removed = Book(
+            title="Removed Book",
+            condition_grade="GOOD",
+            value_mid=1000,
+            inventory_type="PRIMARY",
+            status="REMOVED",
+        )
+        db.add_all([on_hand, removed])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        good = next((c for c in data if c["condition"] == "GOOD"), None)
+        assert good is not None
+        assert good["count"] == 1, "REMOVED books should be excluded from by-condition"
+        assert good["value"] == 200, "REMOVED book value should not be included"
+
+    def test_by_condition_includes_in_transit_books(self, client, db):
+        """Test by-condition includes IN_TRANSIT books.
+
+        Issue #1216: IN_TRANSIT is an owned status and should be included.
+        """
+        from app.models import Book
+
+        # Create IN_TRANSIT book (should be counted)
+        in_transit = Book(
+            title="In Transit Book",
+            condition_grade="VERY_GOOD",
+            value_mid=300,
+            inventory_type="PRIMARY",
+            status="IN_TRANSIT",
+        )
+        db.add(in_transit)
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-condition")
+        assert response.status_code == 200
+        data = response.json()
+
+        vg = next((c for c in data if c["condition"] == "VERY_GOOD"), None)
+        assert vg is not None
+        assert vg["count"] == 1, "IN_TRANSIT books should be included in by-condition"
+
+    def test_by_category_excludes_evaluating_books(self, client, db):
+        """Test by-category excludes EVALUATING books.
+
+        Issue #1216: Category stats should only include owned books.
+        """
+        from app.models import Book
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Poetry",
+            category="Victorian Poetry",
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Poetry",
+            category="Victorian Poetry",
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-category")
+        assert response.status_code == 200
+        data = response.json()
+
+        poetry = next((c for c in data if c["category"] == "Victorian Poetry"), None)
+        assert poetry is not None
+        assert poetry["count"] == 1, "EVALUATING books should be excluded from by-category"
+        assert poetry["value"] == 100
+
+    def test_by_era_excludes_evaluating_books(self, client, db):
+        """Test by-era excludes EVALUATING books.
+
+        Issue #1216: Era stats should only include owned books.
+        """
+        from app.models import Book
+
+        # Create ON_HAND Victorian book (should be counted)
+        on_hand = Book(
+            title="On Hand Victorian",
+            year_start=1850,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING Victorian book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Victorian",
+            year_start=1860,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-era")
+        assert response.status_code == 200
+        data = response.json()
+
+        victorian = next((e for e in data if "Victorian" in e["era"]), None)
+        assert victorian is not None
+        assert victorian["count"] == 1, "EVALUATING books should be excluded from by-era"
+        assert victorian["value"] == 100
+
+    def test_by_publisher_excludes_evaluating_books(self, client, db):
+        """Test by-publisher excludes EVALUATING books.
+
+        Issue #1216: Publisher stats should only include owned books.
+        """
+        from app.models import Book, Publisher
+
+        publisher = Publisher(name="Chapman & Hall", tier="TIER_1")
+        db.add(publisher)
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Book",
+            publisher_id=publisher.id,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Book",
+            publisher_id=publisher.id,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-publisher")
+        assert response.status_code == 200
+        data = response.json()
+
+        ch = next((p for p in data if p["publisher"] == "Chapman & Hall"), None)
+        assert ch is not None
+        assert ch["count"] == 1, "EVALUATING books should be excluded from by-publisher"
+        assert ch["value"] == 100
+
+    def test_by_author_excludes_evaluating_books(self, client, db):
+        """Test by-author excludes EVALUATING books.
+
+        Issue #1216: Author stats should only include owned books.
+        """
+        from app.models import Author, Book
+
+        author = Author(name="Charles Dickens")
+        db.add(author)
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Dickens",
+            author_id=author.id,
+            volumes=1,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Dickens",
+            author_id=author.id,
+            volumes=24,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/by-author")
+        assert response.status_code == 200
+        data = response.json()
+
+        dickens = next((a for a in data if a["author"] == "Charles Dickens"), None)
+        assert dickens is not None
+        # count is total volumes for authors
+        assert dickens["count"] == 1, "EVALUATING books should be excluded from by-author"
+        assert dickens["titles"] == 1, "EVALUATING books should be excluded from author titles"
+        assert dickens["value"] == 100
+
+    def test_bindings_excludes_evaluating_books(self, client, db):
+        """Test bindings endpoint excludes EVALUATING books.
+
+        Issue #1216: Bindings stats should only include owned books.
+        """
+        from app.models import Binder, Book
+
+        binder = Binder(name="Zaehnsdorf", full_name="Joseph Zaehnsdorf")
+        db.add(binder)
+        db.commit()
+
+        # Create ON_HAND authenticated book (should be counted)
+        on_hand = Book(
+            title="On Hand Binding",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING authenticated book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Binding",
+            binder_id=binder.id,
+            binding_authenticated=True,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/bindings")
+        assert response.status_code == 200
+        data = response.json()
+
+        zaehnsdorf = next((b for b in data if b["binder"] == "Zaehnsdorf"), None)
+        assert zaehnsdorf is not None
+        assert zaehnsdorf["count"] == 1, "EVALUATING books should be excluded from bindings"
+        assert zaehnsdorf["value"] == 100
+
+    def test_acquisitions_daily_excludes_evaluating_books(self, client, db):
+        """Test acquisitions-daily excludes EVALUATING books.
+
+        Issue #1216: Acquisition stats should only include owned books.
+        """
+        from datetime import date, timedelta
+
+        from app.models import Book
+
+        recent_date = date.today() - timedelta(days=5)
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Recent",
+            purchase_date=recent_date,
+            value_mid=100,
+            purchase_price=80,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Recent",
+            purchase_date=recent_date,
+            value_mid=500,
+            purchase_price=400,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/acquisitions-daily?days=7")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find the day with our books
+        day_data = next((d for d in data if d["count"] > 0), None)
+        assert day_data is not None
+        assert day_data["count"] == 1, "EVALUATING books should be excluded from acquisitions-daily"
+        assert day_data["value"] == 100
+
+    def test_metrics_excludes_evaluating_books(self, client, db):
+        """Test metrics endpoint excludes EVALUATING books.
+
+        Issue #1216: Collection metrics should only include owned books.
+        """
+        from app.models import Book
+
+        # Create ON_HAND Victorian book (should be counted)
+        on_hand = Book(
+            title="On Hand Victorian",
+            year_start=1850,
+            value_mid=100,
+            purchase_price=80,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING Victorian book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Victorian",
+            year_start=1860,
+            value_mid=500,
+            purchase_price=400,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/metrics")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only count the ON_HAND book
+        assert data["total_items"] == 1, "EVALUATING books should be excluded from metrics"
+        assert data["total_current_value"] == 100
+        assert data["total_purchase_cost"] == 80
+        assert data["victorian_percentage"] == 100.0  # 1 out of 1 is Victorian
+
+    def test_dashboard_batch_excludes_evaluating_books(self, client, db):
+        """Test dashboard batch endpoint excludes EVALUATING books from all stats.
+
+        Issue #1216: Dashboard should use optimized queries that filter for OWNED_STATUSES.
+        """
+        from app.models import Author, Binder, Book, Publisher
+
+        # Create reference data
+        author = Author(name="Test Author")
+        binder = Binder(name="Test Binder", full_name="Test Binder Full")
+        publisher = Publisher(name="Test Publisher", tier="TIER_1")
+        db.add_all([author, binder, publisher])
+        db.commit()
+
+        # Create ON_HAND book (should be counted)
+        on_hand = Book(
+            title="On Hand Book",
+            author_id=author.id,
+            publisher_id=publisher.id,
+            binder_id=binder.id,
+            binding_authenticated=True,
+            year_start=1850,
+            condition_grade="FINE",
+            category="Test Category",
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book (should NOT be counted)
+        evaluating = Book(
+            title="Evaluating Book",
+            author_id=author.id,
+            publisher_id=publisher.id,
+            binder_id=binder.id,
+            binding_authenticated=True,
+            year_start=1860,
+            condition_grade="FINE",
+            category="Test Category",
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check by_condition
+        fine = next((c for c in data["by_condition"] if c["condition"] == "FINE"), None)
+        assert fine is not None
+        assert fine["count"] == 1, "Dashboard by_condition should exclude EVALUATING"
+
+        # Check by_category
+        cat = next((c for c in data["by_category"] if c["category"] == "Test Category"), None)
+        assert cat is not None
+        assert cat["count"] == 1, "Dashboard by_category should exclude EVALUATING"
+
+        # Check by_era
+        victorian = next((e for e in data["by_era"] if "Victorian" in e["era"]), None)
+        assert victorian is not None
+        assert victorian["count"] == 1, "Dashboard by_era should exclude EVALUATING"
+
+        # Check by_publisher
+        pub = next((p for p in data["by_publisher"] if p["publisher"] == "Test Publisher"), None)
+        assert pub is not None
+        assert pub["count"] == 1, "Dashboard by_publisher should exclude EVALUATING"
+
+        # Check by_author
+        auth = next((a for a in data["by_author"] if a["author"] == "Test Author"), None)
+        assert auth is not None
+        assert auth["count"] == 1, "Dashboard by_author should exclude EVALUATING"
+
+        # Check bindings
+        bind = next((b for b in data["bindings"] if b["binder"] == "Test Binder"), None)
+        assert bind is not None
+        assert bind["count"] == 1, "Dashboard bindings should exclude EVALUATING"
+
+    def test_dashboard_dimension_stats_excludes_evaluating(self, client, db):
+        """Test get_dimension_stats in dashboard_stats.py excludes EVALUATING.
+
+        Issue #1216: The optimized dimension queries should filter for OWNED_STATUSES.
+        """
+        from app.models import Book
+
+        # Create ON_HAND book
+        on_hand = Book(
+            title="On Hand Book",
+            condition_grade="FINE",
+            category="Poetry",
+            year_start=1850,
+            value_mid=100,
+            inventory_type="PRIMARY",
+            status="ON_HAND",
+        )
+        # Create EVALUATING book
+        evaluating = Book(
+            title="Evaluating Book",
+            condition_grade="FINE",
+            category="Poetry",
+            year_start=1860,
+            value_mid=500,
+            inventory_type="PRIMARY",
+            status="EVALUATING",
+        )
+        db.add_all([on_hand, evaluating])
+        db.commit()
+
+        # Test via dashboard endpoint which uses get_dimension_stats
+        response = client.get("/api/v1/stats/dashboard")
+        assert response.status_code == 200
+        data = response.json()
+
+        # by_condition from get_dimension_stats
+        fine = next((c for c in data["by_condition"] if c["condition"] == "FINE"), None)
+        assert fine is not None
+        assert fine["count"] == 1, "get_dimension_stats should exclude EVALUATING from conditions"
+        assert fine["value"] == 100
+
+        # by_category from get_dimension_stats
+        poetry = next((c for c in data["by_category"] if c["category"] == "Poetry"), None)
+        assert poetry is not None
+        assert poetry["count"] == 1, "get_dimension_stats should exclude EVALUATING from categories"
+        assert poetry["value"] == 100
+
+        # by_era from get_dimension_stats
+        victorian = next((e for e in data["by_era"] if "Victorian" in e["era"]), None)
+        assert victorian is not None
+        assert victorian["count"] == 1, "get_dimension_stats should exclude EVALUATING from eras"
+        assert victorian["value"] == 100

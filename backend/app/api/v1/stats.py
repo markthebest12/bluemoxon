@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.auth import require_viewer
 from app.db import get_db
+from app.enums import OWNED_STATUSES
 from app.models import Binder, Book, Publisher
 from app.schemas.stats import DashboardResponse
 from app.utils import safe_float
@@ -48,8 +49,12 @@ def batch_fetch_sample_titles(
     if not ids:
         return {}
 
-    # Build filter list
-    filters = [fk_column.in_(ids), Book.inventory_type == "PRIMARY"]
+    # Build filter list - include OWNED_STATUSES filter
+    filters = [
+        fk_column.in_(ids),
+        Book.inventory_type == "PRIMARY",
+        Book.status.in_(OWNED_STATUSES),
+    ]
     if additional_filters:
         filters.extend(additional_filters)
 
@@ -220,6 +225,7 @@ def get_collection_metrics(db: Session = Depends(get_db), _user=Depends(require_
         )
         .outerjoin(Publisher)
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .first()
     )
 
@@ -271,6 +277,7 @@ def get_by_category(db: Session = Depends(get_db), _user=Depends(require_viewer)
             func.sum(Book.value_mid),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Book.category)
         .all()
     )
@@ -295,6 +302,7 @@ def get_by_condition(db: Session = Depends(get_db), _user=Depends(require_viewer
             func.sum(Book.value_mid),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Book.condition_grade)
         .order_by(Book.condition_grade)
         .all()
@@ -329,6 +337,7 @@ def query_by_publisher(db: Session) -> list[dict]:
         )
         .join(Book, Book.publisher_id == Publisher.id)
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Publisher.id)
         .order_by(Publisher.tier, func.count(Book.id).desc())
         .all()
@@ -377,6 +386,7 @@ def query_by_author(db: Session) -> list[dict]:
         )
         .join(Book, Book.author_id == Author.id)
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Author.id)
         .order_by(func.sum(Book.volumes).desc())  # Order by total volumes
         .all()
@@ -452,6 +462,7 @@ def query_bindings(db: Session) -> list[dict]:
         .filter(
             Book.binding_authenticated.is_(True),
             Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
         )
         .group_by(Binder.id)
         .order_by(func.count(Book.id).desc())
@@ -516,6 +527,7 @@ def get_by_era(db: Session = Depends(get_db), _user=Depends(require_viewer)):
             func.sum(Book.value_mid).label("value"),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(era_case)
         .all()
     )
@@ -623,6 +635,7 @@ def query_acquisitions_daily(db: Session, reference_date: str = None, days: int 
         db.query(Book.purchase_date, Book.value_mid, Book.purchase_price)
         .filter(
             Book.inventory_type == "PRIMARY",
+            Book.status.in_(OWNED_STATUSES),
             Book.purchase_date.isnot(None),
             Book.purchase_date >= start_date,
             Book.purchase_date <= ref_date,

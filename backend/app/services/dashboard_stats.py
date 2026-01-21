@@ -12,6 +12,7 @@ from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
 from app.cache import get_redis
+from app.enums import OWNED_STATUSES
 from app.models import Book
 from app.utils import safe_float
 
@@ -44,6 +45,7 @@ def get_dimension_stats(db: Session) -> dict:
             func.sum(Book.value_mid).label("value"),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Book.condition_grade)
         .order_by(Book.condition_grade)
         .all()
@@ -57,6 +59,7 @@ def get_dimension_stats(db: Session) -> dict:
             func.sum(Book.value_mid).label("value"),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(Book.category)
         .all()
     )
@@ -69,6 +72,7 @@ def get_dimension_stats(db: Session) -> dict:
             func.sum(Book.value_mid).label("value"),
         )
         .filter(Book.inventory_type == "PRIMARY")
+        .filter(Book.status.in_(OWNED_STATUSES))
         .group_by(era_case)
         .all()
     )
