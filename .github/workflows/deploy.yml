@@ -1694,8 +1694,19 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: us-west-2
 
-      - name: Wait for deployment to propagate
-        run: sleep 30
+      - name: Wait for API readiness
+        run: |
+          echo "Polling API health endpoint..."
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          for i in {1..10}; do
+            if curl -sf "${API_URL}/api/v1/health" > /dev/null 2>&1; then
+              echo "API ready after $((i * 3)) seconds"
+              exit 0
+            fi
+            echo "Attempt $i/10: API not ready, waiting 3s..."
+            sleep 3
+          done
+          echo "::warning::API did not respond within 30 seconds, proceeding with tests"
 
       - name: Set test URLs
         id: urls
