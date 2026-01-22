@@ -516,6 +516,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-lambda-python312-layer-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            docker-${{ runner.os }}-lambda-python312-layer-
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -571,6 +582,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-lambda-python312-backend-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            docker-${{ runner.os }}-lambda-python312-backend-
 
       - name: Create VERSION and version_info.json files
         run: |
