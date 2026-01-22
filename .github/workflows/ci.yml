@@ -526,6 +526,7 @@ jobs:
   # SAST - Static Application Security Testing
   sast-scan:
     name: SAST Security Scan
+    needs: changes
     runs-on: ubuntu-latest
 
     steps:
@@ -554,8 +555,9 @@ jobs:
         working-directory: backend
         run: poetry install --no-interaction --no-root
 
-      # Bandit - Python SAST
+      # Bandit - Python SAST (skip for frontend-only changes)
       - name: Run Bandit security scan
+        if: needs.changes.outputs.backend == 'true'
         working-directory: backend
         run: |
           poetry run bandit -r app/ \
@@ -574,6 +576,10 @@ jobs:
             -lll \
             --exclude '**/tests/**' \
             -f txt
+
+      - name: Skip Bandit (frontend-only)
+        if: needs.changes.outputs.backend != 'true'
+        run: echo "Skipping Bandit - backend=${{ needs.changes.outputs.backend }}"
 
       # Semgrep - Multi-language SAST (BLOCKING on high/critical findings)
       - name: Install Semgrep
@@ -636,6 +642,8 @@ jobs:
   # Note: NPM audit moved to frontend-quality job to reduce duplication
   dependency-scan:
     name: Python Dependency Scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:

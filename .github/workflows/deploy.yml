@@ -26,6 +26,11 @@ on:
         required: false
         type: boolean
         default: false
+      wait_for_cdn:
+        description: 'Wait for CloudFront invalidation to complete'
+        required: false
+        type: boolean
+        default: true
 
 # Only one deployment at a time per environment
 concurrency:
@@ -61,7 +66,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
-    needs: [ci]
+    # No needs - runs in parallel with CI for faster startup
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -511,6 +516,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-lambda-python312-layer-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            docker-${{ runner.os }}-lambda-python312-layer-
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -566,6 +582,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-lambda-python312-backend-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            docker-${{ runner.os }}-lambda-python312-backend-
 
       - name: Create VERSION and version_info.json files
         run: |
@@ -907,69 +934,137 @@ jobs:
           fi
 
   # ============================================
-  # Deploy Analysis Worker Lambda
+  # Deploy Worker Lambdas (Matrix)
   # ============================================
 
-  deploy-worker-lambda:
-    name: Deploy Analysis Worker Lambda
+  deploy-worker-lambdas:
+    name: Deploy ${{ matrix.display_name }} Lambda
     runs-on: ubuntu-latest
     needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
     if: |
       always() &&
       needs.configure.result == 'success' &&
       needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.worker_function_name != '' &&
       (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
     environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
+    strategy:
+      matrix:
+        include:
+          - name: worker
+            display_name: Analysis Worker
+          - name: eval-runbook-worker
+            display_name: Eval Runbook Worker
+          - name: cleanup
+            display_name: Cleanup
+          - name: retry-queue-failed
+            display_name: Retry Queue Failed
+          - name: tracking-dispatcher
+            display_name: Tracking Dispatcher
+          - name: tracking-worker
+            display_name: Tracking Worker
+      fail-fast: false
 
     steps:
+      - name: Get function name
+        id: get-fn
+        run: |
+          case "${{ matrix.name }}" in
+            worker)
+              FN="${{ needs.configure.outputs.worker_function_name }}"
+              ;;
+            eval-runbook-worker)
+              FN="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
+              ;;
+            cleanup)
+              FN="${{ needs.configure.outputs.cleanup_function_name }}"
+              ;;
+            retry-queue-failed)
+              FN="${{ needs.configure.outputs.retry_queue_failed_function_name }}"
+              ;;
+            tracking-dispatcher)
+              FN="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
+              ;;
+            tracking-worker)
+              FN="${{ needs.configure.outputs.tracking_worker_function_name }}"
+              ;;
+            *)
+              echo "::error::Unknown matrix name: ${{ matrix.name }}"
+              exit 1
+              ;;
+          esac
+
+          if [[ -z "$FN" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Lambda ${{ matrix.display_name }} not configured in this environment, skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "function_name=$FN" >> $GITHUB_OUTPUT
+            echo "Deploying Lambda: $FN"
+          fi
+
       - name: Configure AWS credentials via OIDC
+        if: steps.get-fn.outputs.skip != 'true'
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update Worker Lambda with layer
+      - name: Update Lambda with layer
+        if: steps.get-fn.outputs.skip != 'true'
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Worker Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$WORKER_FUNCTION" --layers "$LAYER_ARN"
+          echo "Updating ${{ matrix.display_name }} Lambda with layer: $LAYER_ARN"
+          aws lambda update-function-configuration \
+            --function-name "${{ steps.get-fn.outputs.function_name }}" \
+            --layers "$LAYER_ARN"
 
-      - name: Wait for Worker Lambda config update
+      - name: Wait for Lambda config update
+        if: steps.get-fn.outputs.skip != 'true'
         run: |
           aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.worker_function_name }}
+            --function-name "${{ steps.get-fn.outputs.function_name }}"
 
-      - name: Update Worker Lambda function code
+      - name: Update Lambda function code
+        if: steps.get-fn.outputs.skip != 'true'
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          echo "Deploying worker Lambda: $WORKER_FUNCTION"
-          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
+          echo "Deploying ${{ matrix.display_name }} Lambda code"
+          aws lambda update-function-code \
+            --function-name "${{ steps.get-fn.outputs.function_name }}" \
+            --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} \
+            --s3-key lambda/backend.zip
 
-      - name: Wait for Worker Lambda code update
+      - name: Wait for Lambda code update
+        if: steps.get-fn.outputs.skip != 'true'
         run: |
           aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.worker_function_name }}
+            --function-name "${{ steps.get-fn.outputs.function_name }}"
 
-      - name: Publish Worker Lambda version
+      - name: Publish Lambda version
+        if: steps.get-fn.outputs.skip != 'true'
         id: publish-version
         run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
-          echo "Publishing new Worker Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$WORKER_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published worker version: $VERSION"
+          echo "Publishing new ${{ matrix.display_name }} Lambda version..."
+          VERSION=$(aws lambda publish-version \
+            --function-name "${{ steps.get-fn.outputs.function_name }}" \
+            --description "Deployed from commit ${{ github.sha }}" \
+            --query 'Version' \
+            --output text)
+          echo "Published version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Cleanup old Worker Lambda versions
+      - name: Cleanup old Lambda versions
+        if: steps.get-fn.outputs.skip != 'true'
         run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.worker_function_name }}"
+          FUNCTION_NAME="${{ steps.get-fn.outputs.function_name }}"
           KEEP_VERSIONS=3
-          echo "Cleaning up old Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
+          echo "Cleaning up old ${{ matrix.display_name }} Lambda versions (keeping last $KEEP_VERSIONS)..."
+
+          VERSIONS=$(aws lambda list-versions-by-function \
+            --function-name "$FUNCTION_NAME" \
+            --query 'Versions[?Version!=\`$LATEST\`].Version' \
+            --output text | tr '\t' '\n' | sort -rn)
           VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
+
           if [ -z "$VERSIONS_TO_DELETE" ]; then
             echo "No old versions to delete"
           else
@@ -978,372 +1073,6 @@ jobs:
               aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
             done
           fi
-
-  # ============================================
-  # Deploy Eval Runbook Worker Lambda
-  # ============================================
-
-  deploy-eval-worker-lambda:
-    name: Deploy Eval Runbook Worker Lambda
-    runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
-    if: |
-      always() &&
-      needs.configure.result == 'success' &&
-      needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.eval_runbook_worker_function_name != '' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
-    environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update Eval Runbook Worker Lambda with layer
-        run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Eval Runbook Worker Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$EVAL_RUNBOOK_FUNCTION" --layers "$LAYER_ARN"
-
-      - name: Wait for Eval Runbook Worker Lambda config update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }}
-
-      - name: Update Eval Runbook Worker Lambda function code
-        run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          echo "Deploying eval runbook worker Lambda: $EVAL_RUNBOOK_FUNCTION"
-          aws lambda update-function-code --function-name "$EVAL_RUNBOOK_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
-
-      - name: Wait for Eval Runbook Worker Lambda code update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.eval_runbook_worker_function_name }}
-
-      - name: Publish Eval Runbook Worker Lambda version
-        id: publish-version
-        run: |
-          EVAL_RUNBOOK_FUNCTION="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          echo "Publishing new Eval Runbook Worker Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$EVAL_RUNBOOK_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published eval runbook worker version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Cleanup old Eval Runbook Worker Lambda versions
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.eval_runbook_worker_function_name }}"
-          KEEP_VERSIONS=3
-          echo "Cleaning up old Eval Runbook Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
-          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
-            done
-          fi
-
-  # ============================================
-  # Deploy Cleanup Lambda
-  # ============================================
-
-  deploy-cleanup-lambda:
-    name: Deploy Cleanup Lambda
-    runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
-    if: |
-      always() &&
-      needs.configure.result == 'success' &&
-      needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.cleanup_function_name != '' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
-    environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update Cleanup Lambda with layer
-        run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Cleanup Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$CLEANUP_FUNCTION" --layers "$LAYER_ARN"
-
-      - name: Wait for Cleanup Lambda config update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.cleanup_function_name }}
-
-      - name: Update Cleanup Lambda function code
-        run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          echo "Deploying cleanup Lambda: $CLEANUP_FUNCTION"
-          aws lambda update-function-code --function-name "$CLEANUP_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
-
-      - name: Wait for Cleanup Lambda code update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.cleanup_function_name }}
-
-      - name: Publish Cleanup Lambda version
-        id: publish-version
-        run: |
-          CLEANUP_FUNCTION="${{ needs.configure.outputs.cleanup_function_name }}"
-          echo "Publishing new Cleanup Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$CLEANUP_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published cleanup version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Cleanup old Cleanup Lambda versions
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.cleanup_function_name }}"
-          KEEP_VERSIONS=3
-          echo "Cleaning up old Cleanup Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
-          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
-            done
-          fi
-
-  # ============================================
-  # Deploy Retry Queue Failed Lambda
-  # ============================================
-
-  deploy-retry-queue-failed-lambda:
-    name: Deploy Retry Queue Failed Lambda
-    runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
-    if: |
-      always() &&
-      needs.configure.result == 'success' &&
-      needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.retry_queue_failed_function_name != '' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
-    environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update Retry Queue Failed Lambda with layer
-        run: |
-          RETRY_QUEUE_FUNCTION="${{ needs.configure.outputs.retry_queue_failed_function_name }}"
-          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Retry Queue Failed Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$RETRY_QUEUE_FUNCTION" --layers "$LAYER_ARN"
-
-      - name: Wait for Retry Queue Failed Lambda config update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.retry_queue_failed_function_name }}
-
-      - name: Update Retry Queue Failed Lambda function code
-        run: |
-          RETRY_QUEUE_FUNCTION="${{ needs.configure.outputs.retry_queue_failed_function_name }}"
-          echo "Deploying retry queue failed Lambda: $RETRY_QUEUE_FUNCTION"
-          aws lambda update-function-code --function-name "$RETRY_QUEUE_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
-
-      - name: Wait for Retry Queue Failed Lambda code update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.retry_queue_failed_function_name }}
-
-      - name: Publish Retry Queue Failed Lambda version
-        id: publish-version
-        run: |
-          RETRY_QUEUE_FUNCTION="${{ needs.configure.outputs.retry_queue_failed_function_name }}"
-          echo "Publishing new Retry Queue Failed Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$RETRY_QUEUE_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published retry queue failed version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Cleanup old Retry Queue Failed Lambda versions
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.retry_queue_failed_function_name }}"
-          KEEP_VERSIONS=3
-          echo "Cleaning up old Retry Queue Failed Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
-          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
-            done
-          fi
-
-  # ============================================
-  # Deploy Tracking Dispatcher Lambda
-  # ============================================
-
-  deploy-tracking-dispatcher-lambda:
-    name: Deploy Tracking Dispatcher Lambda
-    runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
-    if: |
-      always() &&
-      needs.configure.result == 'success' &&
-      needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.tracking_dispatcher_function_name != '' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
-    environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update Tracking Dispatcher Lambda with layer
-        run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Tracking Dispatcher Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$DISPATCHER_FUNCTION" --layers "$LAYER_ARN"
-
-      - name: Wait for Tracking Dispatcher Lambda config update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }}
-
-      - name: Update Tracking Dispatcher Lambda function code
-        run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          echo "Deploying tracking dispatcher Lambda: $DISPATCHER_FUNCTION"
-          aws lambda update-function-code --function-name "$DISPATCHER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
-
-      - name: Wait for Tracking Dispatcher Lambda code update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.tracking_dispatcher_function_name }}
-
-      - name: Publish Tracking Dispatcher Lambda version
-        id: publish-version
-        run: |
-          DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          echo "Publishing new Tracking Dispatcher Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$DISPATCHER_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published tracking dispatcher version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Cleanup old Tracking Dispatcher Lambda versions
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
-          KEEP_VERSIONS=3
-          echo "Cleaning up old Tracking Dispatcher Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
-          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
-            done
-          fi
-
-  # ============================================
-  # Deploy Tracking Worker Lambda
-  # ============================================
-
-  deploy-tracking-worker-lambda:
-    name: Deploy Tracking Worker Lambda
-    runs-on: ubuntu-latest
-    needs: [configure, generate-version, build-layer, build-backend, changes, deploy-api-lambda]
-    if: |
-      always() &&
-      needs.configure.result == 'success' &&
-      needs.deploy-api-lambda.result == 'success' &&
-      needs.configure.outputs.tracking_worker_function_name != '' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
-    environment: ${{ needs.configure.outputs.environment }}
-    outputs:
-      version: ${{ steps.publish-version.outputs.version }}
-
-    steps:
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update Tracking Worker Lambda with layer
-        run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          LAYER_ARN="${{ needs.deploy-api-lambda.outputs.layer_arn }}"
-          echo "Updating Tracking Worker Lambda with layer: $LAYER_ARN"
-          aws lambda update-function-configuration --function-name "$WORKER_FUNCTION" --layers "$LAYER_ARN"
-
-      - name: Wait for Tracking Worker Lambda config update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }}
-
-      - name: Update Tracking Worker Lambda function code
-        run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          echo "Deploying tracking worker Lambda: $WORKER_FUNCTION"
-          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --s3-bucket ${{ needs.configure.outputs.s3_artifacts_bucket }} --s3-key lambda/backend.zip
-
-      - name: Wait for Tracking Worker Lambda code update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ needs.configure.outputs.tracking_worker_function_name }}
-
-      - name: Publish Tracking Worker Lambda version
-        id: publish-version
-        run: |
-          WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          echo "Publishing new Tracking Worker Lambda version..."
-          VERSION=$(aws lambda publish-version --function-name "$WORKER_FUNCTION" --description "Deployed from commit ${{ github.sha }}" --query 'Version' --output text)
-          echo "Published tracking worker version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Cleanup old Tracking Worker Lambda versions
-        run: |
-          FUNCTION_NAME="${{ needs.configure.outputs.tracking_worker_function_name }}"
-          KEEP_VERSIONS=3
-          echo "Cleaning up old Tracking Worker Lambda versions (keeping last $KEEP_VERSIONS)..."
-          VERSIONS=$(aws lambda list-versions-by-function --function-name "$FUNCTION_NAME" --query 'Versions[?Version!=`$LATEST`].Version' --output text | tr '\t' '\n' | sort -rn)
-          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | tail -n +$((KEEP_VERSIONS + 1)))
-          if [ -z "$VERSIONS_TO_DELETE" ]; then
-            echo "No old versions to delete"
-          else
-            for VERSION in $VERSIONS_TO_DELETE; do
-              echo "Deleting version $VERSION"
-              aws lambda delete-function --function-name "$FUNCTION_NAME" --qualifier "$VERSION" || true
-            done
-          fi
-
   # ============================================
   # Deploy Scraper Lambda
   # ============================================
@@ -1561,12 +1290,20 @@ jobs:
           echo "invalidation_id=$INVALIDATION_ID" >> $GITHUB_OUTPUT
 
       - name: Wait for CloudFront invalidation
+        if: github.event.inputs.wait_for_cdn != 'false'
         run: |
           DISTRIBUTION_ID="${{ needs.configure.outputs.cloudfront_distribution_id }}"
           INVALIDATION_ID="${{ steps.invalidation.outputs.invalidation_id }}"
           echo "Waiting for invalidation $INVALIDATION_ID to complete..."
           aws cloudfront wait invalidation-completed --distribution-id "$DISTRIBUTION_ID" --id "$INVALIDATION_ID"
           echo "CloudFront invalidation completed"
+
+      - name: Skip CloudFront wait
+        if: github.event.inputs.wait_for_cdn == 'false'
+        run: |
+          echo "Skipping CloudFront invalidation wait (wait_for_cdn=false)"
+          echo "Invalidation ID: ${{ steps.invalidation.outputs.invalidation_id }}"
+          echo "Note: Invalidation is still in progress, just not waiting for completion"
 
   # ============================================
   # Run Database Migrations
@@ -1656,12 +1393,7 @@ jobs:
       - generate-version
       - changes
       - deploy-api-lambda
-      - deploy-worker-lambda
-      - deploy-eval-worker-lambda
-      - deploy-cleanup-lambda
-      - deploy-retry-queue-failed-lambda
-      - deploy-tracking-dispatcher-lambda
-      - deploy-tracking-worker-lambda
+      - deploy-worker-lambdas
       - deploy-scraper-lambda
       - deploy-image-processor-lambda
       - deploy-frontend
@@ -1681,8 +1413,20 @@ jobs:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
           aws-region: us-west-2
 
-      - name: Wait for deployment to propagate
-        run: sleep 30
+      - name: Wait for API readiness
+        run: |
+          echo "Polling API health endpoint..."
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          for i in {1..10}; do
+            if curl -sf "${API_URL}/api/v1/health" > /dev/null 2>&1; then
+              echo "API ready after $((i * 3)) seconds"
+              exit 0
+            fi
+            echo "Attempt $i/10: API not ready, waiting 3s..."
+            sleep 3
+          done
+          echo "::error::API did not respond within 30 seconds"
+          exit 1
 
       - name: Set test URLs
         id: urls
@@ -1702,36 +1446,21 @@ jobs:
           FAILED_JOBS=""
 
           API_RESULT="${{ needs.deploy-api-lambda.result }}"
-          WORKER_RESULT="${{ needs.deploy-worker-lambda.result }}"
-          EVAL_RESULT="${{ needs.deploy-eval-worker-lambda.result }}"
-          CLEANUP_RESULT="${{ needs.deploy-cleanup-lambda.result }}"
-          RETRY_QUEUE_RESULT="${{ needs.deploy-retry-queue-failed-lambda.result }}"
-          DISPATCHER_RESULT="${{ needs.deploy-tracking-dispatcher-lambda.result }}"
-          TRACKING_RESULT="${{ needs.deploy-tracking-worker-lambda.result }}"
+          WORKER_LAMBDAS_RESULT="${{ needs.deploy-worker-lambdas.result }}"
           SCRAPER_RESULT="${{ needs.deploy-scraper-lambda.result }}"
           IMAGE_PROCESSOR_RESULT="${{ needs.deploy-image-processor-lambda.result }}"
           FRONTEND_RESULT="${{ needs.deploy-frontend.result }}"
 
           echo "Deploy results:"
           echo "  API Lambda: $API_RESULT"
-          echo "  Worker Lambda: $WORKER_RESULT"
-          echo "  Eval Worker Lambda: $EVAL_RESULT"
-          echo "  Cleanup Lambda: $CLEANUP_RESULT"
-          echo "  Retry Queue Failed Lambda: $RETRY_QUEUE_RESULT"
-          echo "  Tracking Dispatcher Lambda: $DISPATCHER_RESULT"
-          echo "  Tracking Worker Lambda: $TRACKING_RESULT"
+          echo "  Worker Lambdas (matrix): $WORKER_LAMBDAS_RESULT"
           echo "  Scraper Lambda: $SCRAPER_RESULT"
           echo "  Image Processor Lambda: $IMAGE_PROCESSOR_RESULT"
           echo "  Frontend: $FRONTEND_RESULT"
 
           # Check for any non-successful, non-skipped results (failure, cancelled, or unexpected)
           if [[ "$API_RESULT" != "success" && "$API_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-api-lambda($API_RESULT)"; fi
-          if [[ "$WORKER_RESULT" != "success" && "$WORKER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-worker-lambda($WORKER_RESULT)"; fi
-          if [[ "$EVAL_RESULT" != "success" && "$EVAL_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-eval-worker-lambda($EVAL_RESULT)"; fi
-          if [[ "$CLEANUP_RESULT" != "success" && "$CLEANUP_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-cleanup-lambda($CLEANUP_RESULT)"; fi
-          if [[ "$RETRY_QUEUE_RESULT" != "success" && "$RETRY_QUEUE_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-retry-queue-failed-lambda($RETRY_QUEUE_RESULT)"; fi
-          if [[ "$DISPATCHER_RESULT" != "success" && "$DISPATCHER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-dispatcher-lambda($DISPATCHER_RESULT)"; fi
-          if [[ "$TRACKING_RESULT" != "success" && "$TRACKING_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-tracking-worker-lambda($TRACKING_RESULT)"; fi
+          if [[ "$WORKER_LAMBDAS_RESULT" != "success" && "$WORKER_LAMBDAS_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-worker-lambdas($WORKER_LAMBDAS_RESULT)"; fi
           if [[ "$SCRAPER_RESULT" != "success" && "$SCRAPER_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-scraper-lambda($SCRAPER_RESULT)"; fi
           if [[ "$IMAGE_PROCESSOR_RESULT" != "success" && "$IMAGE_PROCESSOR_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-image-processor-lambda($IMAGE_PROCESSOR_RESULT)"; fi
           if [[ "$FRONTEND_RESULT" != "success" && "$FRONTEND_RESULT" != "skipped" ]]; then FAILED_JOBS="$FAILED_JOBS deploy-frontend($FRONTEND_RESULT)"; fi
@@ -1981,7 +1710,7 @@ jobs:
           echo "Scraper Lambda version check passed!"
 
       - name: Test Analysis Worker Lambda version
-        if: needs.configure.outputs.worker_function_name != '' && needs.deploy-worker-lambda.result == 'success'
+        if: needs.configure.outputs.worker_function_name != '' && needs.deploy-worker-lambdas.result == 'success'
         run: |
           WORKER_FUNCTION="${{ needs.configure.outputs.worker_function_name }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
@@ -2020,15 +1749,10 @@ jobs:
           TRACKING_DISPATCHER_FUNCTION="${{ needs.configure.outputs.tracking_dispatcher_function_name }}"
           TRACKING_WORKER_FUNCTION="${{ needs.configure.outputs.tracking_worker_function_name }}"
 
-          # Lambda published versions from individual deploy jobs
+          # Lambda published versions
           API_LAMBDA_VER="${{ needs.deploy-api-lambda.outputs.version }}"
-          WORKER_LAMBDA_VER="${{ needs.deploy-worker-lambda.outputs.version }}"
-          EVAL_WORKER_LAMBDA_VER="${{ needs.deploy-eval-worker-lambda.outputs.version }}"
-          CLEANUP_LAMBDA_VER="${{ needs.deploy-cleanup-lambda.outputs.version }}"
-          RETRY_QUEUE_FAILED_LAMBDA_VER="${{ needs.deploy-retry-queue-failed-lambda.outputs.version }}"
-          TRACKING_DISPATCHER_LAMBDA_VER="${{ needs.deploy-tracking-dispatcher-lambda.outputs.version }}"
-          TRACKING_WORKER_LAMBDA_VER="${{ needs.deploy-tracking-worker-lambda.outputs.version }}"
           SCRAPER_LAMBDA_VER="${{ needs.deploy-scraper-lambda.outputs.version }}"
+          # Worker lambdas deployed via matrix job (individual versions not exposed)
 
           echo "========================================"
           echo "Deployment to $ENV completed successfully!"
