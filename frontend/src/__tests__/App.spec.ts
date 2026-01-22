@@ -5,7 +5,10 @@ import { createPinia, setActivePinia } from "pinia";
 // Use vi.hoisted to ensure the state is available at mock time
 const mockState = vi.hoisted(() => ({
   authInitializing: true,
+  authError: false,
 }));
+
+const mockInitializeAuth = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("@/stores/auth", () => {
   return {
@@ -14,7 +17,10 @@ vi.mock("@/stores/auth", () => {
       get authInitializing() {
         return mockState.authInitializing;
       },
-      initializeAuth: vi.fn().mockResolvedValue(undefined),
+      get authError() {
+        return mockState.authError;
+      },
+      initializeAuth: mockInitializeAuth,
     }),
   };
 });
@@ -42,6 +48,8 @@ describe("App.vue - cold start loading", () => {
     setActivePinia(createPinia());
     // Reset to initializing state before each test
     mockState.authInitializing = true;
+    mockState.authError = false;
+    mockInitializeAuth.mockClear();
   });
 
   const mountApp = () =>
@@ -104,5 +112,60 @@ describe("App.vue - cold start loading", () => {
 
     const loadingOverlay = wrapper.find('[data-testid="auth-loading"]');
     expect(loadingOverlay.text()).toContain("BlueMoxon");
+  });
+
+  it("shows error screen when authError is true", async () => {
+    mockState.authError = true;
+    mockState.authInitializing = false;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const errorScreen = wrapper.find('[data-testid="auth-error"]');
+    expect(errorScreen.exists()).toBe(true);
+    expect(errorScreen.text()).toContain("Unable to connect");
+  });
+
+  it("error screen has retry button that calls initializeAuth", async () => {
+    mockState.authError = true;
+    mockState.authInitializing = false;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const retryButton = wrapper.find('[data-testid="auth-retry-button"]');
+    expect(retryButton.exists()).toBe(true);
+    expect(retryButton.text()).toBe("Retry");
+
+    await retryButton.trigger("click");
+    expect(mockInitializeAuth).toHaveBeenCalled();
+  });
+
+  it("error screen has higher priority than loading overlay", async () => {
+    mockState.authError = true;
+    mockState.authInitializing = true;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const errorScreen = wrapper.find('[data-testid="auth-error"]');
+    const loadingOverlay = wrapper.find('[data-testid="auth-loading"]');
+
+    expect(errorScreen.exists()).toBe(true);
+    expect(loadingOverlay.exists()).toBe(false);
+  });
+
+  it("shows loading overlay when authInitializing is true and authError is false", async () => {
+    mockState.authError = false;
+    mockState.authInitializing = true;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const errorScreen = wrapper.find('[data-testid="auth-error"]');
+    const loadingOverlay = wrapper.find('[data-testid="auth-loading"]');
+
+    expect(errorScreen.exists()).toBe(false);
+    expect(loadingOverlay.exists()).toBe(true);
   });
 });
