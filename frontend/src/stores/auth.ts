@@ -28,6 +28,7 @@ export const useAuthStore = defineStore("auth", () => {
   const mfaStep = ref<MfaStep>("none");
   const totpSetupUri = ref<string | null>(null);
   const authInitializing = ref(true);
+  const authError = ref(false); // Stub for error screen - real implementation in parallel worktree
   let initializeAuthInProgress = false; // Race condition guard
 
   const isAuthenticated = computed(() => !!user.value);
@@ -393,6 +394,7 @@ export const useAuthStore = defineStore("auth", () => {
     mfaStep,
     totpSetupUri,
     authInitializing,
+    authError,
     isAuthenticated,
     isAdmin,
     isEditor,

@@ -14,9 +14,29 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- Error screen when auth initialization fails -->
+  <div
+    v-if="authStore.authError"
+    data-testid="auth-error"
+    class="min-h-screen bg-[var(--color-surface-base)] flex flex-col items-center justify-center"
+  >
+    <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6" />
+    <div class="text-[var(--color-text-primary)] text-lg mb-4">Unable to connect</div>
+    <div class="text-[var(--color-text-secondary)] text-sm mb-6">
+      Please check your connection and try again.
+    </div>
+    <button
+      data-testid="auth-retry-button"
+      class="px-4 py-2 bg-[var(--color-brand)] text-white rounded hover:opacity-90 transition-opacity"
+      @click="authStore.initializeAuth()"
+    >
+      Retry
+    </button>
+  </div>
+
   <!-- Loading overlay during cold start auth initialization -->
   <div
-    v-if="authStore.authInitializing"
+    v-else-if="authStore.authInitializing"
     data-testid="auth-loading"
     class="min-h-screen bg-[var(--color-surface-base)] flex flex-col items-center justify-center"
   >
