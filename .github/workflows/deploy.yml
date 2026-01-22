@@ -26,6 +26,11 @@ on:
         required: false
         type: boolean
         default: false
+      wait_for_cdn:
+        description: 'Wait for CloudFront invalidation to complete'
+        required: false
+        type: boolean
+        default: true
 
 # Only one deployment at a time per environment
 concurrency:
@@ -1561,12 +1566,20 @@ jobs:
           echo "invalidation_id=$INVALIDATION_ID" >> $GITHUB_OUTPUT
 
       - name: Wait for CloudFront invalidation
+        if: github.event.inputs.wait_for_cdn != 'false'
         run: |
           DISTRIBUTION_ID="${{ needs.configure.outputs.cloudfront_distribution_id }}"
           INVALIDATION_ID="${{ steps.invalidation.outputs.invalidation_id }}"
           echo "Waiting for invalidation $INVALIDATION_ID to complete..."
           aws cloudfront wait invalidation-completed --distribution-id "$DISTRIBUTION_ID" --id "$INVALIDATION_ID"
           echo "CloudFront invalidation completed"
+
+      - name: Skip CloudFront wait
+        if: github.event.inputs.wait_for_cdn == 'false'
+        run: |
+          echo "Skipping CloudFront invalidation wait (wait_for_cdn=false)"
+          echo "Invalidation ID: ${{ steps.invalidation.outputs.invalidation_id }}"
+          echo "Note: Invalidation is still in progress, just not waiting for completion"
 
   # ============================================
   # Run Database Migrations
