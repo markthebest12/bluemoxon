@@ -283,4 +283,149 @@ describe("Auth Store", () => {
       expect(store.mfaStep).toBe("mfa_setup_required");
     }, 10000); // 10s test timeout
   });
+
+  describe("cold start UX - authInitializing", () => {
+    it("exposes authInitializing state that starts as true", async () => {
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Before any auth check, authInitializing should be true
+      expect(store.authInitializing).toBe(true);
+    });
+
+    it("sets authInitializing to false after initializeAuth completes", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      mockApiGet.mockResolvedValue({
+        data: { role: "admin", mfa_exempt: true },
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      expect(store.authInitializing).toBe(true);
+      await store.initializeAuth();
+      expect(store.authInitializing).toBe(false);
+    });
+
+    it("keeps authInitializing true until fresh auth completes", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      // Make API slow
+      mockApiGet.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { data: { role: "admin", mfa_exempt: true } };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Start initializeAuth but don't await yet
+      const initPromise = store.initializeAuth();
+
+      // authInitializing should stay TRUE until fresh auth completes
+      expect(store.authInitializing).toBe(true);
+
+      // Wait for full auth to complete
+      await initPromise;
+      expect(store.authInitializing).toBe(false);
+    });
+
+    it("isAdmin is false until auth completes (security)", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "admin@example.com" },
+      } as never);
+
+      // Slow API response
+      mockApiGet.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { data: { role: "admin", mfa_exempt: true } };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Start init
+      const initPromise = store.initializeAuth();
+
+      // SECURITY: isAdmin should be FALSE until fresh auth completes
+      expect(store.isAdmin).toBe(false);
+
+      await initPromise;
+
+      // Now isAdmin should be true from verified user
+      expect(store.isAdmin).toBe(true);
+    });
+
+    it("sets authInitializing to false even on auth failure", async () => {
+      // Auth will fail - no current user
+      mockGetCurrentUser.mockRejectedValue(new Error("Not authenticated"));
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      await store.initializeAuth();
+
+      expect(store.authInitializing).toBe(false);
+      expect(store.user).toBeNull();
+    });
+
+    it("prevents concurrent initializeAuth calls (race condition guard)", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      let apiCallCount = 0;
+      mockApiGet.mockImplementation(async () => {
+        apiCallCount++;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { data: { role: "admin", mfa_exempt: true } };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // Call initializeAuth multiple times concurrently
+      const promise1 = store.initializeAuth();
+      const promise2 = store.initializeAuth();
+      const promise3 = store.initializeAuth();
+
+      await Promise.all([promise1, promise2, promise3]);
+
+      // Should only have made one API call due to race condition guard
+      expect(apiCallCount).toBe(1);
+    });
+  });
 });
