@@ -42,6 +42,13 @@ onMounted(() => {
   >
     <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6 animate-pulse" />
     <div class="text-[var(--color-text-secondary)] text-sm">Loading BlueMoxon...</div>
+    <div
+      v-if="authStore.authRetrying"
+      data-testid="auth-retrying"
+      class="text-[var(--color-text-secondary)] text-xs mt-2"
+    >
+      Taking longer than usual...
+    </div>
   </div>
 
   <!-- Main app content -->

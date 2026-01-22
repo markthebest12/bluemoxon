@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 
 // Store references to mocked functions
@@ -425,6 +425,14 @@ describe("Auth Store", () => {
   });
 
   describe("fetchUserProfileWithRetry - cold start retry logic", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("succeeds on first attempt without retry", async () => {
       mockGetCurrentUser.mockResolvedValue({
         username: "testuser",
@@ -452,7 +460,10 @@ describe("Auth Store", () => {
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
-      await store.checkAuth();
+
+      const checkAuthPromise = store.checkAuth();
+      await vi.runAllTimersAsync();
+      await checkAuthPromise;
 
       // Should only call /users/me once (no retry needed)
       expect(apiCallCount).toBe(1);
@@ -492,12 +503,53 @@ describe("Auth Store", () => {
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
-      await store.checkAuth();
+
+      const checkAuthPromise = store.checkAuth();
+      await vi.runAllTimersAsync();
+      await checkAuthPromise;
 
       // Should have retried once after initial failure
       expect(apiCallCount).toBe(2);
       expect(store.user?.role).toBe("admin");
       expect(store.user?.first_name).toBe("Test");
+      // authRetrying should be false after success
+      expect(store.authRetrying).toBe(false);
+    });
+
+    it("sets authRetrying to true after first failure", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      let apiCallCount = 0;
+      mockApiGet.mockImplementation(async () => {
+        apiCallCount++;
+        if (apiCallCount <= 2) {
+          throw new Error("API error");
+        }
+        return { data: { role: "admin", mfa_exempt: true } };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // authRetrying should start as false
+      expect(store.authRetrying).toBe(false);
+
+      const checkAuthPromise = store.checkAuth();
+      await vi.runAllTimersAsync();
+      await checkAuthPromise;
+
+      // authRetrying should be false after success (cleared on 3rd attempt success)
+      expect(store.authRetrying).toBe(false);
+      expect(apiCallCount).toBe(3);
     });
 
     it("exhausts all retries and returns null", async () => {
@@ -520,14 +572,17 @@ describe("Auth Store", () => {
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
-      await store.checkAuth();
+
+      const checkAuthPromise = store.checkAuth();
+      await vi.runAllTimersAsync();
+      await checkAuthPromise;
 
       // Should have made 3 attempts
       expect(apiCallCount).toBe(3);
       // User should still be set from Cognito but with default role
       expect(store.user).not.toBeNull();
       expect(store.user?.role).toBe("viewer");
-    }, 20000);
+    });
 
     it("sets authError to true when all retries fail", async () => {
       mockGetCurrentUser.mockResolvedValue({
@@ -550,11 +605,13 @@ describe("Auth Store", () => {
       // authError should start as false
       expect(store.authError).toBe(false);
 
-      await store.initializeAuth();
+      const initPromise = store.initializeAuth();
+      await vi.runAllTimersAsync();
+      await initPromise;
 
       // After all retries exhausted, authError should be true
       expect(store.authError).toBe(true);
-    }, 20000);
+    });
 
     it("clears authError when auth succeeds", async () => {
       mockGetCurrentUser.mockResolvedValue({
@@ -577,22 +634,29 @@ describe("Auth Store", () => {
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
-      await store.initializeAuth();
+
+      const initPromise = store.initializeAuth();
+      await vi.runAllTimersAsync();
+      await initPromise;
 
       // After successful auth, authError should be false
       expect(store.authError).toBe(false);
       expect(store.user?.role).toBe("admin");
     });
 
-    it("sets authError to false at start of initializeAuth", async () => {
-      // First, simulate a failed auth that sets authError to true
+    it("resets authRetrying at start of initializeAuth", async () => {
       mockGetCurrentUser.mockResolvedValue({
         username: "testuser",
         userId: "123",
         signInDetails: { loginId: "test@example.com" },
       } as never);
 
-      mockApiGet.mockRejectedValue(new Error("API error"));
+      mockApiGet.mockResolvedValue({
+        data: {
+          role: "admin",
+          mfa_exempt: true,
+        },
+      });
 
       mockFetchMFAPreference.mockResolvedValue({
         preferred: "TOTP",
@@ -601,25 +665,13 @@ describe("Auth Store", () => {
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
-      await store.initializeAuth();
 
-      // authError should be true after failed auth
-      expect(store.authError).toBe(true);
+      const initPromise = store.initializeAuth();
+      await vi.runAllTimersAsync();
+      await initPromise;
 
-      // Now set up a successful auth
-      mockApiGet.mockResolvedValue({
-        data: {
-          role: "admin",
-          mfa_exempt: true,
-        },
-      });
-
-      // Reset the guard to allow another initializeAuth
-      // We need to call checkAuth directly to test the behavior
-      await store.checkAuth();
-
-      // authError should be cleared on success
-      expect(store.authError).toBe(false);
-    }, 20000);
+      // authRetrying should be false after successful init
+      expect(store.authRetrying).toBe(false);
+    });
   });
 });

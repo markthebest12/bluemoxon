@@ -6,6 +6,7 @@ import { createPinia, setActivePinia } from "pinia";
 const mockState = vi.hoisted(() => ({
   authInitializing: true,
   authError: false,
+  authRetrying: false,
 }));
 
 const mockInitializeAuth = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -19,6 +20,9 @@ vi.mock("@/stores/auth", () => {
       },
       get authError() {
         return mockState.authError;
+      },
+      get authRetrying() {
+        return mockState.authRetrying;
       },
       initializeAuth: mockInitializeAuth,
     }),
@@ -49,6 +53,7 @@ describe("App.vue - cold start loading", () => {
     // Reset to initializing state before each test
     mockState.authInitializing = true;
     mockState.authError = false;
+    mockState.authRetrying = false;
     mockInitializeAuth.mockClear();
   });
 
@@ -167,5 +172,30 @@ describe("App.vue - cold start loading", () => {
 
     expect(errorScreen.exists()).toBe(false);
     expect(loadingOverlay.exists()).toBe(true);
+  });
+
+  it("shows 'taking longer' message when authRetrying is true", async () => {
+    mockState.authInitializing = true;
+    mockState.authError = false;
+    mockState.authRetrying = true;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const retryingMessage = wrapper.find('[data-testid="auth-retrying"]');
+    expect(retryingMessage.exists()).toBe(true);
+    expect(retryingMessage.text()).toContain("Taking longer than usual");
+  });
+
+  it("hides 'taking longer' message when authRetrying is false", async () => {
+    mockState.authInitializing = true;
+    mockState.authError = false;
+    mockState.authRetrying = false;
+
+    const wrapper = mountApp();
+    await flushPromises();
+
+    const retryingMessage = wrapper.find('[data-testid="auth-retrying"]');
+    expect(retryingMessage.exists()).toBe(false);
   });
 });

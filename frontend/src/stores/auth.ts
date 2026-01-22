@@ -29,7 +29,8 @@ export const useAuthStore = defineStore("auth", () => {
   const totpSetupUri = ref<string | null>(null);
   const authInitializing = ref(true);
   const authError = ref(false);
-  let initializeAuthInProgress = false; // Race condition guard
+  const authRetrying = ref(false); // True after first retry fails, shows "taking longer" message
+  let pendingInitPromise: Promise<void> | null = null; // Race condition guard using Promise reference
 
   interface UserProfileResponse {
     data: {
@@ -44,6 +45,7 @@ export const useAuthStore = defineStore("auth", () => {
    * Fetch user profile with exponential backoff retry for cold start resilience.
    * Retries up to 3 times with delays of 2s, 4s between attempts.
    * Each attempt has a 10s timeout to handle hung promises.
+   * Sets authRetrying=true after first failure for progressive UI feedback.
    */
   async function fetchUserProfileWithRetry(): Promise<UserProfileResponse | null> {
     const MAX_RETRIES = 3;
@@ -58,10 +60,12 @@ export const useAuthStore = defineStore("auth", () => {
             setTimeout(() => reject(new Error("Request timeout")), ATTEMPT_TIMEOUT_MS);
           }),
         ]);
+        authRetrying.value = false; // Clear retrying state on success
         return response;
       } catch (e) {
         console.warn(`[Auth] /users/me attempt ${attempt}/${MAX_RETRIES} failed:`, e);
         if (attempt < MAX_RETRIES) {
+          authRetrying.value = true; // Show "taking longer" message after first failure
           const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
           console.log(`[Auth] Retrying in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -201,20 +205,27 @@ export const useAuthStore = defineStore("auth", () => {
 
   /**
    * Initialize auth - shows loading overlay until fresh auth completes.
+   * Uses Promise reference pattern to handle concurrent calls safely.
    */
   async function initializeAuth(): Promise<void> {
-    // Race condition guard - prevent multiple concurrent calls
-    if (initializeAuthInProgress) {
-      return;
+    // Race condition guard using Promise reference - return existing promise if in progress
+    if (pendingInitPromise) {
+      return pendingInitPromise;
     }
-    initializeAuthInProgress = true;
 
-    try {
-      await checkAuth();
-    } finally {
-      authInitializing.value = false;
-      initializeAuthInProgress = false;
-    }
+    authRetrying.value = false; // Reset retrying state at start
+
+    const doInit = async () => {
+      try {
+        await checkAuth();
+      } finally {
+        authInitializing.value = false;
+        pendingInitPromise = null;
+      }
+    };
+
+    pendingInitPromise = doInit();
+    return pendingInitPromise;
   }
 
   async function login(username: string, password: string) {
@@ -433,6 +444,7 @@ export const useAuthStore = defineStore("auth", () => {
     totpSetupUri,
     authInitializing,
     authError,
+    authRetrying,
     isAuthenticated,
     isAdmin,
     isEditor,
