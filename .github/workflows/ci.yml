@@ -579,7 +579,7 @@ jobs:
 
       - name: Skip Bandit (frontend-only)
         if: needs.changes.outputs.backend != 'true'
-        run: echo "Skipping Bandit - no backend changes detected"
+        run: echo "Skipping Bandit - backend=${{ needs.changes.outputs.backend }}"
 
       # Semgrep - Multi-language SAST (BLOCKING on high/critical findings)
       - name: Install Semgrep

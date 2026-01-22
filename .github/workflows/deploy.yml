@@ -987,6 +987,10 @@ jobs:
             tracking-worker)
               FN="${{ needs.configure.outputs.tracking_worker_function_name }}"
               ;;
+            *)
+              echo "::error::Unknown matrix name: ${{ matrix.name }}"
+              exit 1
+              ;;
           esac
 
           if [[ -z "$FN" ]]; then
@@ -1003,7 +1007,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Update Lambda with layer
         if: steps.get-fn.outputs.skip != 'true'
@@ -1421,7 +1425,8 @@ jobs:
             echo "Attempt $i/10: API not ready, waiting 3s..."
             sleep 3
           done
-          echo "::warning::API did not respond within 30 seconds, proceeding with tests"
+          echo "::error::API did not respond within 30 seconds"
+          exit 1
 
       - name: Set test URLs
         id: urls
