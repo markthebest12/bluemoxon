@@ -109,7 +109,7 @@ describe("Auth Store", () => {
         signInDetails: { loginId: "test@example.com" },
       } as never);
 
-      // /users/me fails
+      // /users/me fails on all retries
       mockApiGet.mockRejectedValue(new Error("API error"));
 
       // MFA check should still run
@@ -122,10 +122,10 @@ describe("Auth Store", () => {
       const store = useAuthStore();
       await store.checkAuth();
 
-      // Both should have been called
+      // Both should have been called (3 times for /users/me due to retry)
       expect(mockApiGet).toHaveBeenCalledWith("/users/me");
       expect(mockFetchMFAPreference).toHaveBeenCalled();
-    });
+    }, 20000); // Extended timeout for retry delays
 
     it("requires MFA setup when MFA check fails for non-exempt user (security)", async () => {
       // Issue 1: MFA check failure should NOT silently pass
@@ -252,36 +252,31 @@ describe("Auth Store", () => {
 
     it("times out slow API calls instead of hanging forever", async () => {
       // Issue 6: Add timeout handling for hung promises
+      // With retry logic, /users/me retries 3 times with 10s timeout each
+      // Plus 2s + 4s delays between retries = 36s total for /users/me
+      // MFA check has 5s timeout
       mockGetCurrentUser.mockResolvedValue({
         username: "testuser",
         userId: "123",
         signInDetails: { loginId: "test@example.com" },
       } as never);
 
-      // Make /users/me hang for a long time (longer than timeout)
-      mockApiGet.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 20000)));
+      // Make /users/me hang for a long time (will timeout on each attempt)
+      mockApiGet.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       // MFA check also hangs
-      mockFetchMFAPreference.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 20000))
-      );
+      mockFetchMFAPreference.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       const { useAuthStore } = await import("../auth");
       const store = useAuthStore();
 
-      // Should complete within reasonable time (auth timeout is 5s)
-      const startTime = Date.now();
       await store.checkAuth();
-      const elapsed = Date.now() - startTime;
 
-      // Should timeout around 5s, not hang for 20s
-      expect(elapsed).toBeLessThan(7000);
-      expect(elapsed).toBeGreaterThan(4000); // Should wait for timeout
       // User should still be set from Cognito (just without API profile data)
       expect(store.user).not.toBeNull();
-      // MFA should require setup since both calls timed out (security)
+      // MFA should require setup since both calls failed (security)
       expect(store.mfaStep).toBe("mfa_setup_required");
-    }, 10000); // 10s test timeout
+    }, 60000); // 60s timeout for all retries with per-attempt timeouts
   });
 
   describe("cold start UX - authInitializing", () => {
@@ -427,5 +422,204 @@ describe("Auth Store", () => {
       // Should only have made one API call due to race condition guard
       expect(apiCallCount).toBe(1);
     });
+  });
+
+  describe("fetchUserProfileWithRetry - cold start retry logic", () => {
+    it("succeeds on first attempt without retry", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      let apiCallCount = 0;
+      mockApiGet.mockImplementation(async () => {
+        apiCallCount++;
+        return {
+          data: {
+            role: "admin",
+            first_name: "Test",
+            last_name: "User",
+            mfa_exempt: true,
+          },
+        };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+      await store.checkAuth();
+
+      // Should only call /users/me once (no retry needed)
+      expect(apiCallCount).toBe(1);
+      expect(store.user?.role).toBe("admin");
+      expect(store.user?.first_name).toBe("Test");
+    });
+
+    it("retries on failure and succeeds on 2nd attempt", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      let apiCallCount = 0;
+      mockApiGet.mockImplementation(async () => {
+        apiCallCount++;
+        if (apiCallCount === 1) {
+          // First call fails (simulates cold start timeout)
+          throw new Error("Cold start timeout");
+        }
+        // Second call succeeds
+        return {
+          data: {
+            role: "admin",
+            first_name: "Test",
+            last_name: "User",
+            mfa_exempt: true,
+          },
+        };
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+      await store.checkAuth();
+
+      // Should have retried once after initial failure
+      expect(apiCallCount).toBe(2);
+      expect(store.user?.role).toBe("admin");
+      expect(store.user?.first_name).toBe("Test");
+    });
+
+    it("exhausts all retries and returns null", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      let apiCallCount = 0;
+      mockApiGet.mockImplementation(async () => {
+        apiCallCount++;
+        throw new Error("API error");
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+      await store.checkAuth();
+
+      // Should have made 3 attempts
+      expect(apiCallCount).toBe(3);
+      // User should still be set from Cognito but with default role
+      expect(store.user).not.toBeNull();
+      expect(store.user?.role).toBe("viewer");
+    }, 20000);
+
+    it("sets authError to true when all retries fail", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      // All retries fail
+      mockApiGet.mockRejectedValue(new Error("API error"));
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      // authError should start as false
+      expect(store.authError).toBe(false);
+
+      await store.initializeAuth();
+
+      // After all retries exhausted, authError should be true
+      expect(store.authError).toBe(true);
+    }, 20000);
+
+    it("clears authError when auth succeeds", async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      mockApiGet.mockResolvedValue({
+        data: {
+          role: "admin",
+          mfa_exempt: true,
+        },
+      });
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+      await store.initializeAuth();
+
+      // After successful auth, authError should be false
+      expect(store.authError).toBe(false);
+      expect(store.user?.role).toBe("admin");
+    });
+
+    it("sets authError to false at start of initializeAuth", async () => {
+      // First, simulate a failed auth that sets authError to true
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      mockApiGet.mockRejectedValue(new Error("API error"));
+
+      mockFetchMFAPreference.mockResolvedValue({
+        preferred: "TOTP",
+        enabled: ["TOTP"],
+      } as never);
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+      await store.initializeAuth();
+
+      // authError should be true after failed auth
+      expect(store.authError).toBe(true);
+
+      // Now set up a successful auth
+      mockApiGet.mockResolvedValue({
+        data: {
+          role: "admin",
+          mfa_exempt: true,
+        },
+      });
+
+      // Reset the guard to allow another initializeAuth
+      // We need to call checkAuth directly to test the behavior
+      await store.checkAuth();
+
+      // authError should be cleared on success
+      expect(store.authError).toBe(false);
+    }, 20000);
   });
 });
