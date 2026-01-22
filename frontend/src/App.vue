@@ -18,11 +18,11 @@ onMounted(() => {
   <div
     v-if="authStore.authError"
     data-testid="auth-error"
-    class="min-h-screen bg-[var(--color-surface-base)] flex flex-col items-center justify-center"
+    class="min-h-screen bg-slate-900 flex flex-col items-center justify-center"
   >
     <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6" />
-    <div class="text-[var(--color-text-primary)] text-lg mb-4">Unable to connect</div>
-    <div class="text-[var(--color-text-secondary)] text-sm mb-6">
+    <div class="text-white text-lg mb-4">Unable to connect</div>
+    <div class="text-slate-400 text-sm mb-6">
       Please check your connection and try again.
     </div>
     <button
@@ -38,14 +38,14 @@ onMounted(() => {
   <div
     v-else-if="authStore.authInitializing"
     data-testid="auth-loading"
-    class="min-h-screen bg-[var(--color-surface-base)] flex flex-col items-center justify-center"
+    class="min-h-screen bg-slate-900 flex flex-col items-center justify-center"
   >
     <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6 animate-pulse" />
-    <div class="text-[var(--color-text-secondary)] text-sm">Loading BlueMoxon...</div>
+    <div class="text-slate-300 text-sm">Loading BlueMoxon...</div>
     <div
       v-if="authStore.authRetrying"
       data-testid="auth-retrying"
-      class="text-[var(--color-text-secondary)] text-xs mt-2"
+      class="text-slate-400 text-xs mt-2"
     >
       Taking longer than usual...
     </div>
