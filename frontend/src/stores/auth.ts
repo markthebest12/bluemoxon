@@ -28,7 +28,52 @@ export const useAuthStore = defineStore("auth", () => {
   const mfaStep = ref<MfaStep>("none");
   const totpSetupUri = ref<string | null>(null);
   const authInitializing = ref(true);
-  let initializeAuthInProgress = false; // Race condition guard
+  const authError = ref(false);
+  const authRetrying = ref(false); // True after first retry fails, shows "taking longer" message
+  let pendingInitPromise: Promise<void> | null = null; // Race condition guard using Promise reference
+
+  interface UserProfileResponse {
+    data: {
+      role?: string;
+      first_name?: string;
+      last_name?: string;
+      mfa_exempt?: boolean;
+    };
+  }
+
+  /**
+   * Fetch user profile with exponential backoff retry for cold start resilience.
+   * Retries up to 3 times with delays of 2s, 4s between attempts.
+   * Each attempt has a 10s timeout to handle hung promises.
+   * Sets authRetrying=true after first failure for progressive UI feedback.
+   */
+  async function fetchUserProfileWithRetry(): Promise<UserProfileResponse | null> {
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 2000;
+    const ATTEMPT_TIMEOUT_MS = 10000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await Promise.race([
+          api.get("/users/me"),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Request timeout")), ATTEMPT_TIMEOUT_MS);
+          }),
+        ]);
+        authRetrying.value = false; // Clear retrying state on success
+        return response;
+      } catch (e) {
+        console.warn(`[Auth] /users/me attempt ${attempt}/${MAX_RETRIES} failed:`, e);
+        if (attempt < MAX_RETRIES) {
+          authRetrying.value = true; // Show "taking longer" message after first failure
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.log(`[Auth] Retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+    return null;
+  }
 
   const isAuthenticated = computed(() => !!user.value);
   // SECURITY: Only use verified user role, never cached role for authorization
@@ -96,17 +141,11 @@ export const useAuthStore = defineStore("auth", () => {
       // Track whether MFA check failed vs returned null result
       let mfaCheckFailed = false;
 
-      // Fetch user profile and MFA preference in parallel for better performance
+      // Fetch user profile (with retry for cold start) and MFA preference in parallel
       // Both calls are independent - we'll use mfa_exempt from profile to decide
       // whether to apply the MFA preference result
       const [userResult, mfaPreference] = await Promise.all([
-        withTimeout(
-          api.get("/users/me").catch((e) => {
-            console.warn("Could not fetch user profile from API:", e);
-            return null;
-          }),
-          "/users/me"
-        ),
+        fetchUserProfileWithRetry(),
         withTimeout(
           fetchMFAPreference().catch((e) => {
             console.warn("Could not fetch MFA preference:", e);
@@ -131,6 +170,10 @@ export const useAuthStore = defineStore("auth", () => {
         user.value.last_name = userResult.data.last_name;
         isMfaExempt = userResult.data.mfa_exempt === true;
         user.value.mfa_exempt = isMfaExempt;
+        authError.value = false; // Clear error on successful fetch
+      } else {
+        // All retries exhausted - set authError to show error UI
+        authError.value = true;
       }
 
       // Apply MFA preference
@@ -162,20 +205,27 @@ export const useAuthStore = defineStore("auth", () => {
 
   /**
    * Initialize auth - shows loading overlay until fresh auth completes.
+   * Uses Promise reference pattern to handle concurrent calls safely.
    */
   async function initializeAuth(): Promise<void> {
-    // Race condition guard - prevent multiple concurrent calls
-    if (initializeAuthInProgress) {
-      return;
+    // Race condition guard using Promise reference - return existing promise if in progress
+    if (pendingInitPromise) {
+      return pendingInitPromise;
     }
-    initializeAuthInProgress = true;
 
-    try {
-      await checkAuth();
-    } finally {
-      authInitializing.value = false;
-      initializeAuthInProgress = false;
-    }
+    authRetrying.value = false; // Reset retrying state at start
+
+    const doInit = async () => {
+      try {
+        await checkAuth();
+      } finally {
+        authInitializing.value = false;
+        pendingInitPromise = null;
+      }
+    };
+
+    pendingInitPromise = doInit();
+    return pendingInitPromise;
   }
 
   async function login(username: string, password: string) {
@@ -393,6 +443,8 @@ export const useAuthStore = defineStore("auth", () => {
     mfaStep,
     totpSetupUri,
     authInitializing,
+    authError,
+    authRetrying,
     isAuthenticated,
     isAdmin,
     isEditor,
