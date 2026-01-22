@@ -526,6 +526,8 @@ jobs:
   # SAST - Static Application Security Testing
   sast-scan:
     name: SAST Security Scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -636,6 +638,8 @@ jobs:
   # Note: NPM audit moved to frontend-quality job to reduce duplication
   dependency-scan:
     name: Python Dependency Scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -719,7 +723,7 @@ jobs:
       - frontend-test
       - frontend-build
       - build-layer-cache
-      # Security scans always run
+      # Security scans - Python scans only run for backend changes
       - sast-scan
       - dependency-scan
       - secret-scan
@@ -780,16 +784,23 @@ jobs:
             echo "No backend or frontend changes detected"
           fi
 
-          # SAST scan is always blocking (code security issues)
-          if [[ "${{ needs.sast-scan.result }}" != "success" ]]; then
-            echo "::error::SAST security scan failed - deployment blocked"
-            exit 1
+          # SAST scan is blocking when backend changes (code security issues)
+          # Skipped is acceptable for frontend-only changes
+          if [[ "${{ needs.changes.outputs.backend }}" == "true" ]]; then
+            if [[ "${{ needs.sast-scan.result }}" != "success" ]]; then
+              echo "::error::SAST security scan failed - deployment blocked"
+              exit 1
+            fi
+            echo "SAST scan passed"
+          else
+            echo "SAST scan skipped (no backend changes)"
           fi
-          echo "SAST scan passed"
 
-          # Dependency and secret scans are advisory for now
-          if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
-            echo "::warning::Dependency scan reported issues - please review"
+          # Dependency scan is advisory when backend changes, skipped otherwise
+          if [[ "${{ needs.changes.outputs.backend }}" == "true" ]]; then
+            if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
+              echo "::warning::Dependency scan reported issues - please review"
+            fi
           fi
 
           if [[ "${{ needs.secret-scan.result }}" != "success" ]]; then
