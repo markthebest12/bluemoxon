@@ -27,8 +27,11 @@ export const useAuthStore = defineStore("auth", () => {
   const error = ref<string | null>(null);
   const mfaStep = ref<MfaStep>("none");
   const totpSetupUri = ref<string | null>(null);
+  const authInitializing = ref(true);
+  let initializeAuthInProgress = false; // Race condition guard
 
   const isAuthenticated = computed(() => !!user.value);
+  // SECURITY: Only use verified user role, never cached role for authorization
   const isAdmin = computed(() => user.value?.role === "admin");
   const isEditor = computed(() => ["admin", "editor"].includes(user.value?.role || ""));
   const needsMfa = computed(() => mfaStep.value !== "none");
@@ -154,6 +157,24 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = null;
     } finally {
       loading.value = false;
+    }
+  }
+
+  /**
+   * Initialize auth - shows loading overlay until fresh auth completes.
+   */
+  async function initializeAuth(): Promise<void> {
+    // Race condition guard - prevent multiple concurrent calls
+    if (initializeAuthInProgress) {
+      return;
+    }
+    initializeAuthInProgress = true;
+
+    try {
+      await checkAuth();
+    } finally {
+      authInitializing.value = false;
+      initializeAuthInProgress = false;
     }
   }
 
@@ -346,7 +367,7 @@ export const useAuthStore = defineStore("auth", () => {
     // Clear dashboard cache
     invalidateDashboardCache();
 
-    // Always clear local state
+    // Clear local state
     user.value = null;
     mfaStep.value = "none";
     totpSetupUri.value = null;
@@ -371,11 +392,13 @@ export const useAuthStore = defineStore("auth", () => {
     error,
     mfaStep,
     totpSetupUri,
+    authInitializing,
     isAuthenticated,
     isAdmin,
     isEditor,
     needsMfa,
     checkAuth,
+    initializeAuth,
     login,
     confirmTotpCode,
     confirmNewPassword,
