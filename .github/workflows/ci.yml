@@ -642,6 +642,8 @@ jobs:
   # Note: NPM audit moved to frontend-quality job to reduce duplication
   dependency-scan:
     name: Python Dependency Scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
