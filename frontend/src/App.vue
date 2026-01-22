@@ -18,7 +18,7 @@ onMounted(() => {
   <div
     v-if="authStore.authError"
     data-testid="auth-error"
-    class="min-h-screen bg-slate-900 flex flex-col items-center justify-center"
+    class="min-h-screen bg-[#0f2318] flex flex-col items-center justify-center"
   >
     <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6" />
     <div class="text-white text-lg mb-4">Unable to connect</div>
@@ -36,7 +36,7 @@ onMounted(() => {
   <div
     v-else-if="authStore.authInitializing"
     data-testid="auth-loading"
-    class="min-h-screen bg-slate-900 flex flex-col items-center justify-center"
+    class="min-h-screen bg-[#0f2318] flex flex-col items-center justify-center"
   >
     <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="h-20 w-auto mb-6 animate-pulse" />
     <div class="text-slate-300 text-sm">Loading BlueMoxon...</div>
