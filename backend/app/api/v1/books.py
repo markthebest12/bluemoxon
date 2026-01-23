@@ -666,7 +666,7 @@ def get_top_books(
                 if settings.is_aws_lambda:
                     primary_image_url = get_cloudfront_url(primary_image.s3_key)
                 else:
-                    base_url = get_api_base_url()
+                    base_url = settings.base_url or "http://localhost:8000"
                     primary_image_url = (
                         f"{base_url}/api/v1/books/{book.id}/images/{primary_image.id}/file"
                     )
