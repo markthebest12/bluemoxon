@@ -93,8 +93,11 @@ class TestImageProcessingClientCaching:
 class TestScraperClientCaching:
     """Tests for scraper service client caching."""
 
-    def test_get_lambda_client_returns_same_instance(self):
+    def test_get_lambda_client_returns_same_instance(self, monkeypatch):
         """Verify get_lambda_client in scraper returns cached instance."""
+        # Lambda client requires a region in CI environment
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
         from app.services.scraper import get_lambda_client
 
         # Clear any cached instance
@@ -121,8 +124,11 @@ class TestScraperClientCaching:
 class TestFmvLookupClientCaching:
     """Tests for FMV lookup Lambda client caching."""
 
-    def test_get_lambda_client_returns_same_instance(self):
+    def test_get_lambda_client_returns_same_instance(self, monkeypatch):
         """Verify _get_lambda_client returns cached instance on repeated calls."""
+        # Lambda client requires a region in CI environment
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
         from app.services.fmv_lookup import _get_lambda_client
 
         # Clear any cached instance
@@ -137,8 +143,11 @@ class TestFmvLookupClientCaching:
 class TestTrackingDispatcherClientCaching:
     """Tests for tracking dispatcher SQS client caching."""
 
-    def test_get_sqs_client_returns_same_instance(self):
+    def test_get_sqs_client_returns_same_instance(self, monkeypatch):
         """Verify get_sqs_client in tracking_dispatcher returns cached instance."""
+        # SQS client requires a region in CI environment
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
         from app.workers.tracking_dispatcher import get_sqs_client
 
         # Clear any cached instance
