@@ -8,11 +8,11 @@ import json
 import logging
 import re
 import urllib.parse
-from functools import lru_cache
 
 import httpx
 
 from app.config import get_scraper_environment
+from app.services.aws_clients import get_lambda_client
 from app.services.bedrock import get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
@@ -37,14 +37,6 @@ ABEBOOKS_SEARCH_URL = (
 )
 
 
-@lru_cache(maxsize=1)
-def _get_lambda_client():
-    """Get cached boto3 Lambda client."""
-    import boto3
-
-    return boto3.client("lambda")
-
-
 def _fetch_via_scraper_lambda(url: str) -> str | None:
     """Fetch URL via scraper Lambda (Playwright browser).
 
@@ -58,7 +50,7 @@ def _fetch_via_scraper_lambda(url: str) -> str | None:
         HTML content or None if failed
     """
     try:
-        client = _get_lambda_client()
+        client = get_lambda_client()
         environment = get_scraper_environment()
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 
@@ -122,7 +114,7 @@ def _fetch_listings_via_scraper_lambda(url: str) -> list[dict] | None:
         List of listing dicts or None if failed
     """
     try:
-        client = _get_lambda_client()
+        client = get_lambda_client()
         environment = get_scraper_environment()
         function_name = SCRAPER_FUNCTION_NAME.format(environment=environment)
 

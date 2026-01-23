@@ -17,6 +17,7 @@ from PIL import Image
 from app.config import get_settings
 from app.constants import DEFAULT_ANALYSIS_MODEL
 from app.models import BookImage
+from app.services.aws_clients import get_s3_client
 from app.utils.image_utils import detect_content_type
 
 # Claude's maximum image size limit (base64 encoded) is 5MB
@@ -86,13 +87,6 @@ def get_bedrock_client():
     # Extended read timeout for long Claude responses (default is 60s)
     config = Config(read_timeout=540, connect_timeout=10, retries={"max_attempts": 0})
     return boto3.client("bedrock-runtime", region_name=region, config=config)
-
-
-@lru_cache(maxsize=1)
-def get_s3_client():
-    """Get cached S3 client."""
-    region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("s3", region_name=region)
 
 
 def get_model_id(model_name: str) -> str:

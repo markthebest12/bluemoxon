@@ -558,46 +558,50 @@ class TestCopyListingImagesToBook:
         assert primary_image is not None
         assert call_args[0][2] == primary_image.id  # image_id
 
-    @patch("app.services.image_processing.boto3")
+    @patch("app.services.aws_clients.boto3")
+    @patch("app.services.aws_clients.get_settings")
     @patch("app.services.image_processing.get_settings")
     @patch("app.api.v1.books.boto3")
     @patch("app.api.v1.books.settings")
     def test_image_processing_job_created_integration(
-        self, mock_books_settings, mock_books_boto3, mock_svc_settings, mock_svc_boto3, db
+        self,
+        mock_books_settings,
+        mock_books_boto3,
+        mock_ip_settings,
+        mock_aws_settings,
+        mock_aws_boto3,
+        db,
     ):
         """Integration test: verify ImageProcessingJob is actually created in database.
 
         This test does NOT mock queue_image_processing - it tests the real function
         and only mocks the boto3 clients to avoid actual AWS calls.
         """
+        import app.services.image_processing as ip_module
         from app.api.v1.books import _copy_listing_images_to_book
         from app.models import ImageProcessingJob
-        from app.services.image_processing import get_sqs_client
+        from app.services.aws_clients import get_sqs_client
 
         # Clear cached SQS client so mock takes effect
         get_sqs_client.cache_clear()
+        # Clear cached queue URL
+        ip_module._queue_url_cache = None
 
         mock_books_settings.images_bucket = "test-bucket"
 
-        mock_svc_settings.return_value.image_processing_queue_name = "test-queue"
-        mock_svc_settings.return_value.aws_region = "us-east-1"
+        mock_ip_settings.return_value.image_processing_queue_name = "test-queue"
+        mock_aws_settings.return_value.aws_region = "us-east-1"
 
         mock_s3 = MagicMock()
         mock_books_boto3.client.return_value = mock_s3
 
         mock_sqs = MagicMock()
         mock_sqs.send_message.return_value = {"MessageId": "test-message-id"}
-        mock_sts = MagicMock()
-        mock_sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        mock_sqs.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
+        }
 
-        def svc_boto3_client(service, **kwargs):
-            if service == "sqs":
-                return mock_sqs
-            elif service == "sts":
-                return mock_sts
-            return MagicMock()
-
-        mock_svc_boto3.client.side_effect = svc_boto3_client
+        mock_aws_boto3.client.return_value = mock_sqs
 
         book = Book(title="Test Book")
         db.add(book)
