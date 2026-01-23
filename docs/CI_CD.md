@@ -151,6 +151,7 @@ flowchart TB
         BB[build-backend<br/>Lambda package]
         BF[build-frontend<br/>Vite build]
         BS[build-scraper<br/>Docker image]
+        BIP[build-image-processor<br/>Container image]
     end
 
     subgraph "Stage 3: Deploy API + Layer"
@@ -164,6 +165,8 @@ flowchart TB
         DTD[deploy-tracking-dispatcher<br/>Tracking Dispatcher]
         DTW[deploy-tracking-worker<br/>Tracking Worker]
         DSC[deploy-scraper-lambda<br/>Scraper]
+        DIP[deploy-image-processor<br/>Image Processor]
+        DRQ[deploy-retry-queue-failed<br/>Retry Queue]
     end
 
     subgraph "Stage 5: Frontend + Migrations"
@@ -213,7 +216,7 @@ Deploy workflow skips unchanged components:
 - Non-blocking: deployment continues (warn-only mode)
 
 **Parallel Lambda Deploys:**
-After API Lambda publishes the shared layer, 6 Lambda functions deploy in parallel:
+After API Lambda publishes the shared layer, 8 Lambda functions deploy in parallel:
 
 | Lambda | Purpose |
 |--------|---------|
@@ -223,6 +226,8 @@ After API Lambda publishes the shared layer, 6 Lambda functions deploy in parall
 | `deploy-tracking-dispatcher` | Shipment tracking dispatcher |
 | `deploy-tracking-worker` | Shipment tracking worker |
 | `deploy-scraper-lambda` | Web scraper (Docker image) |
+| `deploy-image-processor` | AI image processing (container) |
+| `deploy-retry-queue-failed` | Retry failed image jobs |
 
 **Atomicity Checks:**
 Smoke tests detect partial deploy failures - if some Lambda deploys succeeded but others failed, the workflow fails with clear diagnostics.
@@ -377,6 +382,36 @@ cd infra/terraform
 AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
 ```
 
+## Preflight Config Validation
+
+The API Lambda validates critical configuration on startup (blocking mode):
+
+**What's Validated:**
+
+- Database connection string format
+- Required environment variables present
+- S3 bucket names configured
+- Cognito pool/client IDs set
+- SQS queue URLs valid
+
+**Behavior:**
+
+| Mode | On Failure |
+|------|------------|
+| **Blocking** (default) | Lambda fails to start, deploy marked failed |
+| Warn-only | Lambda starts, logs warning |
+
+**Troubleshooting Failed Preflight:**
+
+```bash
+# Check Lambda logs for preflight errors
+AWS_PROFILE=bmx-staging aws logs filter-log-events \
+  --log-group-name /aws/lambda/bluemoxon-staging-api \
+  --filter-pattern "PREFLIGHT"
+```
+
+If preflight fails, check that Terraform outputs match Lambda environment variables.
+
 ## Smoke Tests
 
 After deployment, automated smoke tests verify:
@@ -481,4 +516,4 @@ Updates flow: Dependabot PR → staging → test → promote to main
 
 ---
 
-*Last Updated: January 7, 2026*
+*Last Updated: January 2026*

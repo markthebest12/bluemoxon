@@ -940,4 +940,4 @@ When adding a new async worker flow (SQS queue + Lambda processor), update these
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: January 2026*
