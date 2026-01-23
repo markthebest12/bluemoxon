@@ -7,7 +7,7 @@ ARG VERSION=0.0.0-dev
 
 # Copy backend models (single source of truth) and dependencies
 COPY backend/app/__init__.py /opt/python/app/
-COPY backend/app/constants.py /opt/python/app/
+COPY backend/app/constants/ /opt/python/app/constants/
 COPY backend/app/models/ /opt/python/app/models/
 
 # Make models readable by Lambda's sandbox user
