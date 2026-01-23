@@ -33,10 +33,10 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __BUILD_TIME__: JSON.stringify(buildTime),
-    // Vue compile-time flags for smaller bundles
-    __VUE_OPTIONS_API__: "true",
-    __VUE_PROD_DEVTOOLS__: "false",
-    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
+    // Vue compile-time flag - disable Options API (100% Composition API codebase)
+    // Removes ~10-15kb of compatibility code from Vue bundle
+    __VUE_OPTIONS_API__: JSON.stringify(false),
+    __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
   },
   resolve: {
     alias: {
@@ -72,7 +72,7 @@ export default defineConfig({
             return "aws-auth";
           }
           // Chart.js in separate chunk for better caching
-          if (id.includes("node_modules/chart.js") || id.includes("vue-chartjs")) {
+          if (id.includes("node_modules/chart.js") || id.includes("node_modules/vue-chartjs")) {
             return "charts";
           }
         },
@@ -80,7 +80,7 @@ export default defineConfig({
     },
     // Target modern browsers for smaller bundles
     target: "es2020",
-    // Vite 7 defaults to Oxc minifier (30-90x faster than esbuild)
+    // Removed deprecated minify: "esbuild" - Vite 7 uses Oxc by default
     // Warn if chunk exceeds 500kb
     chunkSizeWarningLimit: 500,
   },
