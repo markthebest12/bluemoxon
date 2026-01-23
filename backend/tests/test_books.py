@@ -564,7 +564,13 @@ class TestCopyListingImagesToBook:
     @patch("app.api.v1.books.boto3")
     @patch("app.api.v1.books.settings")
     def test_image_processing_job_created_integration(
-        self, mock_books_settings, mock_books_boto3, mock_ip_settings, mock_aws_settings, mock_aws_boto3, db
+        self,
+        mock_books_settings,
+        mock_books_boto3,
+        mock_ip_settings,
+        mock_aws_settings,
+        mock_aws_boto3,
+        db,
     ):
         """Integration test: verify ImageProcessingJob is actually created in database.
 
@@ -591,7 +597,9 @@ class TestCopyListingImagesToBook:
 
         mock_sqs = MagicMock()
         mock_sqs.send_message.return_value = {"MessageId": "test-message-id"}
-        mock_sqs.get_queue_url.return_value = {"QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"}
+        mock_sqs.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
+        }
 
         mock_aws_boto3.client.return_value = mock_sqs
 
