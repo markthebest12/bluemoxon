@@ -52,6 +52,20 @@
 - **Pre-commit Hooks** - Ruff, ESLint, Prettier, Mypy run before commit
 - **Strict TypeScript** - `@typescript-eslint/no-explicit-any` enforced
 
+### Cold Start Resilience
+
+- **Auth Retry Logic** - Frontend automatically retries failed auth requests up to 3 times with exponential backoff
+- **Cold Start Loading UX** - Dedicated loading screen during Lambda cold starts (2-5 seconds)
+- **Graceful Degradation** - Most cold start delays transparent to users
+- **Preflight Validation** - API validates config on startup, fails fast if misconfigured
+
+### Image Processing Reliability
+
+- **Retry Queue** - Failed image processing jobs automatically queued for retry
+- **DLQ Monitoring** - Dead letter queue captures persistently failing jobs
+- **Manual Retry** - Admin can trigger retry of failed jobs via Lambda invocation
+- **Continuation Tokens** - Large image migrations resume from where they left off
+
 ### Collection Spotlight
 
 - **Top Books Carousel** - Dashboard showcases 3 rotating high-value books

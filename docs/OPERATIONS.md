@@ -163,6 +163,8 @@ AWS_PROFILE=bmx-staging aws lambda get-function-configuration --function-name bl
 | `bluemoxon-api` / `bluemoxon-staging-api` | Main API | 30s |
 | `bluemoxon-analysis-worker` | Async Bedrock analysis | 600s |
 | `bluemoxon-eval-runbook-worker` | Async eval runbook generation | 600s |
+| `bluemoxon-image-processor` | AI background removal (container) | 300s |
+| `bluemoxon-retry-queue-failed` | Retry failed image processing jobs | 60s |
 | `bluemoxon-scraper` | eBay Playwright scraping | 120s |
 | `bluemoxon-staging-db-sync` | Prod→Staging data sync | 300s |
 
@@ -198,6 +200,36 @@ bmx-api GET /books/{book_id}
 
 ```bash
 AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-eval-runbook-worker --since 10m
+```
+
+### Image Processing Jobs
+
+Image processing (background removal, thumbnails) runs via container-based Lambda:
+
+**Check queue depth:**
+
+```bash
+AWS_PROFILE=bmx-staging aws sqs get-queue-attributes \
+  --queue-url https://sqs.us-west-2.amazonaws.com/ACCOUNT/bluemoxon-staging-image-processor \
+  --attribute-names ApproximateNumberOfMessages
+```
+
+**View processor logs:**
+
+```bash
+AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-image-processor --since 10m
+```
+
+**Retry failed jobs:**
+
+Failed image processing jobs can be retried via the retry-queue-failed Lambda:
+
+```bash
+# Invoke retry Lambda (moves DLQ messages back to main queue)
+AWS_PROFILE=bmx-staging aws lambda invoke \
+  --function-name bluemoxon-staging-retry-queue-failed \
+  --payload '{}' \
+  .tmp/retry-response.json
 ```
 
 ### Dead Letter Queue (DLQ)
@@ -281,6 +313,33 @@ AWS_PROFILE=bmx-staging aws lambda invoke \
   --payload '{"cognito_only": true}' \
   --cli-binary-format raw-in-base64-out \
   .tmp/sync.json
+```
+
+### Cold Start Authentication Failures
+
+**Symptom:** Login fails on first attempt after Lambda cold start, succeeds on retry
+
+**Root Cause:** Lambda cold start delays can cause auth token validation to timeout
+
+**Built-in Mitigations:**
+
+- **Frontend Auth Retry** - Automatically retries failed auth requests up to 3 times with exponential backoff
+- **Cold Start Loading UX** - Shows loading spinner during initial app bootstrap
+- **Preflight Validation** - API validates config on startup, fails fast if misconfigured
+
+**User Experience:**
+
+- Users see a loading screen during cold start (2-5 seconds)
+- If auth fails, the app automatically retries before showing an error
+- Most cold start delays are transparent to users
+
+**Troubleshooting:**
+
+```bash
+# Check for auth-related errors in API logs
+AWS_PROFILE=bmx-staging aws logs filter-log-events \
+  --log-group-name /aws/lambda/bluemoxon-staging-api \
+  --filter-pattern "AuthError"
 ```
 
 ### Bedrock Rate Limiting

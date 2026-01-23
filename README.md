@@ -91,7 +91,7 @@ bluemoxon/
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.12+
 - Node.js 20+
 - Poetry (`curl -sSL https://install.python-poetry.org | python3 -`)
 - Docker (optional - only for local database debugging)
