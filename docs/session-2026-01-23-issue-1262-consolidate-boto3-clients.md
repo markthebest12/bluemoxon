@@ -2,93 +2,161 @@
 
 **Date:** 2026-01-23
 **Issue:** https://github.com/markthebest12/bluemoxon/issues/1262
-**Status:** Ready for PR Review
+**PR:** https://github.com/markthebest12/bluemoxon/pull/1271
+**Status:** PR Ready for Final Review (post code review fixes applied)
 
-## Objective
+---
 
-Consolidate duplicate boto3 client factory implementations into a single `aws_clients.py` module.
+## CRITICAL SESSION RULES
+
+### 1. ALWAYS Use Superpowers Skills
+
+**Invoke relevant skills BEFORE any response or action.** Even a 1% chance a skill might apply means invoke it.
+
+Key skills for this work:
+- `superpowers:brainstorming` - Before any design work
+- `superpowers:test-driven-development` - Before writing any implementation code
+- `superpowers:receiving-code-review` - When receiving feedback (verify before implementing)
+- `superpowers:verification-before-completion` - Before claiming work is done
+
+### 2. Bash Command Formatting - NEVER USE
+
+These trigger permission prompts - NEVER use them:
+- `#` comment lines before commands
+- `\` backslash line continuations
+- `$(...)` command substitution
+- `||` or `&&` chaining
+- `!` in quoted strings
+
+### 3. Bash Command Formatting - ALWAYS USE
+
+- Simple single-line commands
+- Separate sequential Bash tool calls instead of `&&`
+- `bmx-api` for all BlueMoxon API calls (no permission prompts)
+
+---
 
 ## Background
 
-PR #1260 added `@lru_cache` to multiple boto3 client factory functions. However, there are duplicate implementations:
+PR #1260 added `@lru_cache` to multiple boto3 client factory functions. However, duplicate implementations existed across 7+ files with inconsistent region configuration.
 
-### Current State (from issue)
+### Original Problem (10 duplicate implementations)
 
-**S3 Clients (4 implementations):**
-- backend/app/services/bedrock.py:get_s3_client()
-- backend/app/services/scraper.py:get_s3_client()
-- backend/app/api/v1/images.py:get_s3_client()
-- backend/lambdas/image_processor/handler.py (global _s3_client)
+**S3 Clients (4):** bedrock.py, scraper.py, images.py, image_processor/handler.py
+**SQS Clients (3):** sqs.py, image_processing.py, tracking_dispatcher.py
+**Lambda Clients (3):** scraper.py, fmv_lookup.py, health.py
 
-**SQS Clients (3 implementations):**
-- backend/app/services/sqs.py:get_sqs_client()
-- backend/app/services/image_processing.py:get_sqs_client()
-- backend/app/workers/tracking_dispatcher.py:get_sqs_client()
-
-**Lambda Clients (3 implementations):**
-- backend/app/services/scraper.py:get_lambda_client()
-- backend/app/services/fmv_lookup.py:_get_lambda_client()
-- backend/app/api/v1/health.py (already cached)
+---
 
 ## Solution Implemented
 
-Created centralized `backend/app/services/aws_clients.py`:
-- Single @lru_cache per client type (S3, SQS, Lambda)
-- Consistent region configuration (AWS_REGION env var or settings.aws_region)
-- Updated all 7 consumer modules to delegate to central location
-- Left specialized clients unchanged (health.py timeouts, bedrock.py extended timeout, Lambda handler cold start pattern)
+### New Central Module: `backend/app/services/aws_clients.py`
 
-## Session Log
+```python
+@lru_cache(maxsize=1)
+def get_s3_client():
+    region = os.environ.get("AWS_REGION", settings.aws_region)
+    return boto3.client("s3", region_name=region)
 
-### 2026-01-23 - Implementation Complete
+@lru_cache(maxsize=1)
+def get_sqs_client():
+    # Same pattern...
 
-1. **Design phase** - Used brainstorming skill, sequential thinking MCP
-2. **TDD implementation:**
-   - Wrote 9 tests for aws_clients.py (RED)
-   - Implemented aws_clients.py (GREEN)
-   - Updated 7 consumer files to delegate to central module
-   - Fixed related test files (test_books.py, test_boto3_caching.py)
-3. **Validation:**
-   - All 1910 unit tests passing
-   - Linting clean (ruff check + ruff format)
+@lru_cache(maxsize=1)
+def get_lambda_client():
+    # Same pattern...
+```
 
-## Files Changed
+### Consumer Modules Updated (Pattern A - Direct Import)
+
+All 7 modules now use direct import at module level:
+```python
+from app.services.aws_clients import get_s3_client
+```
+
+Files updated:
+- `app/services/scraper.py` - S3 + Lambda
+- `app/services/bedrock.py` - S3
+- `app/api/v1/images.py` - S3
+- `app/services/sqs.py` - SQS
+- `app/services/image_processing.py` - SQS
+- `app/workers/tracking_dispatcher.py` - SQS
+- `app/services/fmv_lookup.py` - Lambda
+
+### Kept Separate (Specialized Configs)
+
+- `health.py` - 5-second timeout for health checks
+- `bedrock.py` get_bedrock_client - 540-second timeout for Claude
+- `lambdas/image_processor/handler.py` - Different deployment package
+
+---
+
+## Code Review Feedback Applied
+
+| Issue | Resolution |
+|-------|------------|
+| P1 - Inconsistent patterns (wrapper vs direct import) | All modules now use Pattern A (direct import) |
+| P2 - Late imports without justification | All imports at module level |
+| P3 - Dead boto3 import in sqs.py | NOT dead - used for STS client in `_get_queue_url()` |
+| P4/P5 - Scattered/redundant tests | Consolidated into single `test_aws_clients.py` with simpler identity tests |
+
+---
+
+## Current State
+
+- **Branch:** `refactor/consolidate-boto3-clients`
+- **Commits:** 2 (initial + review fixes)
+- **Tests:** 1904 passing (consolidated from 1910)
+- **Linting:** Clean
+
+---
+
+## Next Steps
+
+1. **User reviews PR #1271** - Awaiting approval
+2. **Merge to staging** - Use `gh pr merge 1271 --squash`
+3. **Validate staging** - Check staging environment works
+4. **Watch deploy** - `gh run list --workflow Deploy --limit 1` then `gh run watch <id> --exit-status`
+5. **Create staging→main PR** - `gh pr create --base main --head staging --title "chore: Promote staging"`
+6. **User reviews promotion PR**
+7. **Merge to main** - Use `gh pr merge <n> --merge` (NOT squash for promotions)
+8. **Watch prod deploy**
+
+---
+
+## Files Changed Summary
 
 ### New Files
-- `backend/app/services/aws_clients.py` - Central factory module
-- `backend/tests/services/test_aws_clients.py` - Unit tests
-- `docs/plans/2026-01-23-consolidate-boto3-clients-design.md` - Design doc
+- `backend/app/services/aws_clients.py`
+- `backend/tests/services/test_aws_clients.py`
+- `docs/plans/2026-01-23-consolidate-boto3-clients-design.md`
 
-### Modified Files (consumer updates)
-- `backend/app/services/scraper.py` - Imports from aws_clients
-- `backend/app/services/bedrock.py` - Delegates get_s3_client
-- `backend/app/api/v1/images.py` - Delegates get_s3_client
-- `backend/app/services/sqs.py` - Imports from aws_clients
-- `backend/app/services/image_processing.py` - Imports from aws_clients
-- `backend/app/workers/tracking_dispatcher.py` - Imports from aws_clients
-- `backend/app/services/fmv_lookup.py` - Delegates _get_lambda_client
+### Modified Files
+- `backend/app/services/scraper.py`
+- `backend/app/services/bedrock.py`
+- `backend/app/api/v1/images.py`
+- `backend/app/services/sqs.py`
+- `backend/app/services/image_processing.py`
+- `backend/app/workers/tracking_dispatcher.py`
+- `backend/app/services/fmv_lookup.py`
+- `backend/tests/test_books.py` (mock updates)
 
-### Test File Updates
-- `backend/tests/test_books.py` - Updated mocks for new module structure
-- `backend/tests/test_boto3_caching.py` - Updated to test delegation pattern
+### Deleted Files
+- `backend/tests/test_boto3_caching.py` (consolidated)
 
-## Implementation Progress
+---
 
-- [x] Design phase (brainstorming)
-- [x] Create implementation plan
-- [x] Create aws_clients.py with TDD
-- [x] Update S3 client consumers
-- [x] Update SQS client consumers
-- [x] Update Lambda client consumers
-- [x] Keep image_processor Lambda as-is (cold start optimization)
-- [ ] PR to staging - **AWAITING REVIEW**
-- [ ] Review and validate staging
-- [ ] PR staging → main
-- [ ] Review and deploy to prod
+## Validation Commands
 
-## Notes
+```bash
+# Backend linting
+poetry run ruff check backend/
+poetry run ruff format --check backend/
 
-- Lambda handler (image_processor) left unchanged - uses global variable pattern for cold start optimization
-- Health.py clients left unchanged - specialized 5-second timeout for health checks
-- Bedrock client left unchanged - specialized 540-second timeout for Claude generations
-- Cognito client left unchanged - already standalone and fine
+# Run tests
+poetry run pytest backend/tests/ --ignore=backend/tests/integration/ -q
+
+# Check PR status
+gh pr view 1271
+gh pr checks 1271
+```
