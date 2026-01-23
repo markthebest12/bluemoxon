@@ -17,8 +17,7 @@ Feature Branch → PR to staging → Merge → Deploy to Staging
 | Workflow | Trigger | Target |
 |----------|---------|--------|
 | `ci.yml` | PR to staging/main | CI checks only |
-| `deploy.yml` | Push to main | Production |
-| `deploy-staging.yml` | Push to staging | Staging |
+| `deploy.yml` | Push to staging or main | Staging or Production (unified) |
 | `deploy-site.yml` | Push to main (site/* changes) | Marketing site |
 | `terraform.yml` | PR with infra/* changes | Plan only |
 
@@ -55,15 +54,18 @@ Configure AWS profiles in `~/.aws/credentials`:
 [default]
 # Production account (266672885920)
 
-[staging]
+[bmx-staging]
 # Staging account (637423662077)
+
+[bmx-prod]
+# Production account (266672885920)
 ```
 
 Verify access:
 
 ```bash
 aws sts get-caller-identity
-AWS_PROFILE=staging aws sts get-caller-identity
+AWS_PROFILE=bmx-staging aws sts get-caller-identity
 ```
 
 ## Manual Deployment
@@ -90,8 +92,8 @@ zip -q -r ../bluemoxon-api.zip . -x "*.pyc" -x "*__pycache__*"
 cd ../..
 
 # Deploy to staging
-AWS_PROFILE=staging aws s3 cp .tmp/bluemoxon-api.zip s3://bluemoxon-staging-deploy/lambda/bluemoxon-api.zip
-AWS_PROFILE=staging aws lambda update-function-code \
+AWS_PROFILE=bmx-staging aws s3 cp .tmp/bluemoxon-api.zip s3://bluemoxon-staging-deploy/lambda/bluemoxon-api.zip
+AWS_PROFILE=bmx-staging aws lambda update-function-code \
   --function-name bluemoxon-staging-api \
   --s3-bucket bluemoxon-staging-deploy \
   --s3-key lambda/bluemoxon-api.zip
@@ -113,8 +115,8 @@ cd frontend
 npm run build
 
 # Deploy to staging
-AWS_PROFILE=staging aws s3 sync dist/ s3://bluemoxon-staging-frontend/
-AWS_PROFILE=staging aws cloudfront create-invalidation \
+AWS_PROFILE=bmx-staging aws s3 sync dist/ s3://bluemoxon-staging-frontend/
+AWS_PROFILE=bmx-staging aws cloudfront create-invalidation \
   --distribution-id <STAGING_DISTRIBUTION_ID> \
   --paths "/*"
 
@@ -135,6 +137,28 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
+### Deploy Image Processor Lambda
+
+The image processor is a container-based Lambda deployed via ECR:
+
+```bash
+# Build and push container (handled by CI/CD, manual only if needed)
+cd backend
+docker build -f Dockerfile.image-processor -t bluemoxon-image-processor .
+
+# Tag and push to ECR
+AWS_PROFILE=bmx-staging aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-west-2.amazonaws.com
+docker tag bluemoxon-image-processor:latest <ACCOUNT_ID>.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest
+docker push <ACCOUNT_ID>.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest
+
+# Update Lambda to use new image
+AWS_PROFILE=bmx-staging aws lambda update-function-code \
+  --function-name bluemoxon-staging-image-processor \
+  --image-uri <ACCOUNT_ID>.dkr.ecr.us-west-2.amazonaws.com/bluemoxon-staging-image-processor:latest
+```
+
+**Note:** Image processor requires 7GB memory and 300s timeout for AI model loading.
+
 ## Infrastructure Changes (Terraform)
 
 ### Plan Changes
@@ -143,7 +167,7 @@ aws cloudfront create-invalidation \
 cd infra/terraform
 
 # Staging
-AWS_PROFILE=staging terraform plan -var-file=envs/staging.tfvars
+AWS_PROFILE=bmx-staging terraform plan -var-file=envs/staging.tfvars
 
 # Production
 terraform plan -var-file=envs/prod.tfvars
@@ -153,7 +177,7 @@ terraform plan -var-file=envs/prod.tfvars
 
 ```bash
 # Apply to staging first
-AWS_PROFILE=staging terraform apply -var-file=envs/staging.tfvars
+AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
 
 # Validate staging works
 curl -s https://staging.api.bluemoxon.com/api/v1/health/deep | jq
@@ -176,7 +200,7 @@ terraform import 'module.cognito.aws_cognito_user_pool.this' us-west-2_POOLID
 
 ```bash
 # Get staging credentials
-AWS_PROFILE=staging aws secretsmanager get-secret-value \
+AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value \
   --secret-id bluemoxon-staging/database \
   --query SecretString --output text | jq
 
@@ -191,7 +215,7 @@ DATABASE_URL="postgresql://user:pass@host:5432/bluemoxon" \
 Use the db-sync Lambda to copy production data to staging:
 
 ```bash
-AWS_PROFILE=staging aws lambda invoke \
+AWS_PROFILE=bmx-staging aws lambda invoke \
   --function-name bluemoxon-staging-db-sync \
   --payload '{}' \
   .tmp/sync-response.json
@@ -298,4 +322,4 @@ aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*"
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: January 2026*
