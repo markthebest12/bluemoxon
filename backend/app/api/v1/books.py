@@ -14,7 +14,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import exists, func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.v1.images import (
     LOCAL_IMAGES_PATH,
@@ -518,9 +518,19 @@ def list_books(
         sort_column = sort_column.desc()
     query = query.order_by(sort_column)
 
-    # Apply pagination
+    # Apply pagination with eager loading to avoid N+1 queries
+    # The list endpoint accesses: analysis, eval_runbook, images
     offset = (params.page - 1) * params.per_page
-    books = query.offset(offset).limit(params.per_page).all()
+    books = (
+        query.options(
+            selectinload(Book.analysis),
+            selectinload(Book.eval_runbook),
+            selectinload(Book.images),
+        )
+        .offset(offset)
+        .limit(params.per_page)
+        .all()
+    )
 
     # Build response
     base_url = get_api_base_url()
@@ -629,6 +639,7 @@ def get_top_books(
         .outerjoin(Author, Book.author_id == Author.id)
         .outerjoin(Binder, Book.binder_id == Binder.id)
         .outerjoin(Publisher, Book.publisher_id == Publisher.id)
+        .options(selectinload(Book.images))
         .filter(
             Book.inventory_type == inventory_type,
             Book.value_mid > 0,

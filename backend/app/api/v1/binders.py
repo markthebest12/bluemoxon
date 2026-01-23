@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
@@ -24,7 +25,15 @@ router = APIRouter()
 @router.get("")
 def list_binders(db: Session = Depends(get_db)):
     """List all authenticated binding houses."""
-    binders = db.query(Binder).order_by(Binder.name).all()
+    # Use subquery count to avoid N+1 queries for book_count
+    book_count_subq = (
+        db.query(func.count(Book.id))
+        .filter(Book.binder_id == Binder.id)
+        .correlate(Binder)
+        .scalar_subquery()
+    )
+
+    results = db.query(Binder, book_count_subq.label("book_count")).order_by(Binder.name).all()
     return [
         {
             "id": b.id,
@@ -33,9 +42,9 @@ def list_binders(db: Session = Depends(get_db)):
             "authentication_markers": b.authentication_markers,
             "tier": b.tier,
             "preferred": b.preferred,
-            "book_count": len(b.books),
+            "book_count": book_count,
         }
-        for b in binders
+        for b, book_count in results
     ]
 
 
