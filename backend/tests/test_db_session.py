@@ -19,6 +19,6 @@ class TestDatabaseConfiguration:
         """
         from app.db.session import engine
 
-        assert isinstance(
-            engine.pool, NullPool
-        ), f"Expected NullPool but got {type(engine.pool).__name__}"
+        assert isinstance(engine.pool, NullPool), (
+            f"Expected NullPool but got {type(engine.pool).__name__}"
+        )
