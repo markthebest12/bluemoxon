@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import warnings
+from functools import lru_cache
 
 import boto3
 from sqlalchemy.orm import Session
@@ -25,8 +26,9 @@ if not _settings.image_processing_queue_name:
 _queue_url_cache: str | None = None
 
 
+@lru_cache(maxsize=1)
 def get_sqs_client():
-    """Get SQS client."""
+    """Get cached SQS client."""
     settings = get_settings()
     region = os.environ.get("AWS_REGION", settings.aws_region)
     return boto3.client("sqs", region_name=region)
