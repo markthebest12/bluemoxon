@@ -16,6 +16,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
+from app.services.aws_clients import get_s3_client
 from app.services.image_processing import queue_image_processing
 from app.utils.image_utils import detect_content_type, fix_extension, get_thumbnail_key
 
@@ -69,13 +70,6 @@ def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
         s3_key = get_thumbnail_key(s3_key)
     cdn_url = get_cloudfront_cdn_url()
     return f"{cdn_url}/{S3_IMAGES_PREFIX}{s3_key}"
-
-
-def get_s3_client():
-    """Get cached S3 client from centralized aws_clients module."""
-    from app.services.aws_clients import get_s3_client as _get_s3_client
-
-    return _get_s3_client()
 
 
 def ensure_images_dir():
