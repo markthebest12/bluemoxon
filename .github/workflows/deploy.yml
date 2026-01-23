@@ -1422,7 +1422,7 @@ jobs:
           if [[ "$BACKEND_DEPLOYED" == "success" ]]; then
             echo "Backend deployed - polling for version $EXPECTED_VERSION..."
             for i in {1..20}; do
-              ACTUAL_VERSION=$(curl -sf "${API_URL}/api/v1/health/version" 2>/dev/null | jq -r '.version' 2>/dev/null || echo "")
+              ACTUAL_VERSION=$(curl -sf "${API_URL}/health/version" 2>/dev/null | jq -r '.version' 2>/dev/null || echo "")
               if [[ "$ACTUAL_VERSION" == "$EXPECTED_VERSION" ]]; then
                 echo "New version $EXPECTED_VERSION responding after $((i * 3)) seconds"
                 exit 0
@@ -1438,7 +1438,7 @@ jobs:
           else
             echo "No backend deploy - checking basic API health..."
             for i in {1..20}; do
-              if curl -sf "${API_URL}/api/v1/health" > /dev/null 2>&1; then
+              if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
                 exit 0
               fi
