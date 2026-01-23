@@ -3,21 +3,14 @@
 import json
 import logging
 import os
-from functools import lru_cache
 
 import boto3
 
 from app.config import get_settings
+from app.services.aws_clients import get_sqs_client
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
-
-@lru_cache(maxsize=1)
-def get_sqs_client():
-    """Get cached SQS client."""
-    region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("sqs", region_name=region)
 
 
 def _get_queue_url(queue_name: str) -> str:

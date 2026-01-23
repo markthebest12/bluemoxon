@@ -8,7 +8,6 @@ import json
 import logging
 import re
 import urllib.parse
-from functools import lru_cache
 
 import httpx
 
@@ -37,12 +36,11 @@ ABEBOOKS_SEARCH_URL = (
 )
 
 
-@lru_cache(maxsize=1)
 def _get_lambda_client():
-    """Get cached boto3 Lambda client."""
-    import boto3
+    """Get cached boto3 Lambda client from centralized aws_clients module."""
+    from app.services.aws_clients import get_lambda_client
 
-    return boto3.client("lambda")
+    return get_lambda_client()
 
 
 def _fetch_via_scraper_lambda(url: str) -> str | None:

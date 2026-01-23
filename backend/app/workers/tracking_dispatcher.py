@@ -6,22 +6,15 @@ Queries active tracking books and dispatches their IDs to SQS for processing.
 import json
 import logging
 import os
-from functools import lru_cache
 
-import boto3
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import Book
+from app.services.aws_clients import get_sqs_client
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-@lru_cache(maxsize=1)
-def get_sqs_client():
-    """Get SQS client for queue operations."""
-    return boto3.client("sqs")
 
 
 def dispatch_tracking_jobs(db: Session, queue_url: str) -> dict:

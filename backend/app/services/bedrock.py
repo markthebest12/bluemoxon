@@ -88,11 +88,11 @@ def get_bedrock_client():
     return boto3.client("bedrock-runtime", region_name=region, config=config)
 
 
-@lru_cache(maxsize=1)
 def get_s3_client():
-    """Get cached S3 client."""
-    region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("s3", region_name=region)
+    """Get cached S3 client from centralized aws_clients module."""
+    from app.services.aws_clients import get_s3_client as _get_s3_client
+
+    return _get_s3_client()
 
 
 def get_model_id(model_name: str) -> str:

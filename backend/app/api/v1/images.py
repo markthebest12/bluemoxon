@@ -3,12 +3,9 @@
 import asyncio
 import hashlib
 import logging
-import os
 import uuid
-from functools import lru_cache
 from pathlib import Path
 
-import boto3
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps
@@ -74,12 +71,11 @@ def get_cloudfront_url(s3_key: str, is_thumbnail: bool = False) -> str:
     return f"{cdn_url}/{S3_IMAGES_PREFIX}{s3_key}"
 
 
-@lru_cache(maxsize=1)
 def get_s3_client():
-    """Get cached S3 client using Lambda's AWS_REGION env var."""
-    # Lambda automatically sets AWS_REGION to the function's region
-    region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("s3", region_name=region)
+    """Get cached S3 client from centralized aws_clients module."""
+    from app.services.aws_clients import get_s3_client as _get_s3_client
+
+    return _get_s3_client()
 
 
 def ensure_images_dir():
