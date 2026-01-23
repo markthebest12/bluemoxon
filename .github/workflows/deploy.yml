@@ -458,7 +458,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -520,7 +520,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
           key: docker-${{ runner.os }}-lambda-python312-layer-${{ hashFiles('backend/requirements.txt') }}
@@ -587,7 +587,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
           key: docker-${{ runner.os }}-lambda-python312-backend-${{ hashFiles('backend/requirements.txt') }}
@@ -723,12 +723,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Cache pip dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-image-processor-${{ hashFiles('backend/lambdas/image_processor/requirements.txt') }}
