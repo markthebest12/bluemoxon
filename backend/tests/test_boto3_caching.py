@@ -88,3 +88,63 @@ class TestImageProcessingClientCaching:
         client2 = get_sqs_client()
 
         assert client1 is client2, "get_sqs_client() should return the same cached instance"
+
+
+class TestScraperClientCaching:
+    """Tests for scraper service client caching."""
+
+    def test_get_lambda_client_returns_same_instance(self):
+        """Verify get_lambda_client in scraper returns cached instance."""
+        from app.services.scraper import get_lambda_client
+
+        # Clear any cached instance
+        get_lambda_client.cache_clear()
+
+        client1 = get_lambda_client()
+        client2 = get_lambda_client()
+
+        assert client1 is client2, "get_lambda_client() should return the same cached instance"
+
+    def test_get_s3_client_returns_same_instance(self):
+        """Verify get_s3_client in scraper returns cached instance."""
+        from app.services.scraper import get_s3_client
+
+        # Clear any cached instance
+        get_s3_client.cache_clear()
+
+        client1 = get_s3_client()
+        client2 = get_s3_client()
+
+        assert client1 is client2, "get_s3_client() should return the same cached instance"
+
+
+class TestFmvLookupClientCaching:
+    """Tests for FMV lookup Lambda client caching."""
+
+    def test_get_lambda_client_returns_same_instance(self):
+        """Verify _get_lambda_client returns cached instance on repeated calls."""
+        from app.services.fmv_lookup import _get_lambda_client
+
+        # Clear any cached instance
+        _get_lambda_client.cache_clear()
+
+        client1 = _get_lambda_client()
+        client2 = _get_lambda_client()
+
+        assert client1 is client2, "_get_lambda_client() should return the same cached instance"
+
+
+class TestTrackingDispatcherClientCaching:
+    """Tests for tracking dispatcher SQS client caching."""
+
+    def test_get_sqs_client_returns_same_instance(self):
+        """Verify get_sqs_client in tracking_dispatcher returns cached instance."""
+        from app.workers.tracking_dispatcher import get_sqs_client
+
+        # Clear any cached instance
+        get_sqs_client.cache_clear()
+
+        client1 = get_sqs_client()
+        client2 = get_sqs_client()
+
+        assert client1 is client2, "get_sqs_client() should return the same cached instance"
