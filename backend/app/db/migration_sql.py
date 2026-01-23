@@ -567,6 +567,14 @@ MIGRATION_Z1234567DEFG_SQL = [
     "ALTER TABLE image_processing_jobs ADD COLUMN IF NOT EXISTS queue_retry_count INTEGER NOT NULL DEFAULT 0",
 ]
 
+# Migration SQL for z2345678ghij_add_fk_indexes_for_eager_loading
+# Adds indexes on FK columns for correlated subquery optimization (issue #1239)
+MIGRATION_Z2345678GHIJ_SQL = [
+    "CREATE INDEX IF NOT EXISTS books_author_id_idx ON books (author_id)",
+    "CREATE INDEX IF NOT EXISTS books_publisher_id_idx ON books (publisher_id)",
+    "CREATE INDEX IF NOT EXISTS books_binder_id_idx ON books (binder_id)",
+]
+
 # Tables with auto-increment sequences for g7890123def0_fix_sequence_sync
 # Note: Only include tables that already exist. New tables (eval_runbooks, eval_price_history)
 # don't need sequence sync since they start fresh with id=1.
@@ -831,5 +839,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "z1234567defg",
         "name": "add_queue_retry_count",
         "sql_statements": MIGRATION_Z1234567DEFG_SQL,
+    },
+    {
+        "id": "z2345678ghij",
+        "name": "add_fk_indexes_for_eager_loading",
+        "sql_statements": MIGRATION_Z2345678GHIJ_SQL,
     },
 ]

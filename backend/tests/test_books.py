@@ -572,6 +572,10 @@ class TestCopyListingImagesToBook:
         """
         from app.api.v1.books import _copy_listing_images_to_book
         from app.models import ImageProcessingJob
+        from app.services.image_processing import get_sqs_client
+
+        # Clear cached SQS client so mock takes effect
+        get_sqs_client.cache_clear()
 
         mock_books_settings.images_bucket = "test-bucket"
 
