@@ -2,15 +2,13 @@
 
 import json
 import logging
-import os
 import warnings
-from functools import lru_cache
 
-import boto3
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import ImageProcessingJob
+from app.services.aws_clients import get_sqs_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +22,6 @@ if not _settings.image_processing_queue_name:
 
 # Module-level cache for queue URL (avoids STS call on every invocation)
 _queue_url_cache: str | None = None
-
-
-@lru_cache(maxsize=1)
-def get_sqs_client():
-    """Get cached SQS client."""
-    settings = get_settings()
-    region = os.environ.get("AWS_REGION", settings.aws_region)
-    return boto3.client("sqs", region_name=region)
 
 
 def get_image_processing_queue_url() -> str:
