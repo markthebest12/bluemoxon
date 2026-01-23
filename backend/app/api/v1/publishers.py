@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
@@ -24,7 +25,19 @@ router = APIRouter()
 @router.get("")
 def list_publishers(db: Session = Depends(get_db)):
     """List all publishers."""
-    publishers = db.query(Publisher).order_by(Publisher.tier, Publisher.name).all()
+    # Use subquery count to avoid N+1 queries for book_count
+    book_count_subq = (
+        db.query(func.count(Book.id))
+        .filter(Book.publisher_id == Publisher.id)
+        .correlate(Publisher)
+        .scalar_subquery()
+    )
+
+    results = (
+        db.query(Publisher, book_count_subq.label("book_count"))
+        .order_by(Publisher.tier, Publisher.name)
+        .all()
+    )
     return [
         {
             "id": p.id,
@@ -33,9 +46,9 @@ def list_publishers(db: Session = Depends(get_db)):
             "founded_year": p.founded_year,
             "description": p.description,
             "preferred": p.preferred,
-            "book_count": len(p.books),
+            "book_count": book_count,
         }
-        for p in publishers
+        for p, book_count in results
     ]
 
 
