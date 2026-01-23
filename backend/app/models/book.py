@@ -190,4 +190,8 @@ class Book(Base, TimestampMixin):
         Index("books_category_idx", "category"),
         Index("books_status_idx", "status"),
         Index("books_source_item_id_idx", "source_item_id"),
+        # FK indexes for eager loading subquery performance (issue #1239)
+        Index("books_author_id_idx", "author_id"),
+        Index("books_publisher_id_idx", "publisher_id"),
+        Index("books_binder_id_idx", "binder_id"),
     )

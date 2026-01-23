@@ -2,6 +2,7 @@
 
 import json
 import logging
+from functools import lru_cache
 
 from app.config import get_scraper_environment, get_settings
 from app.services.listing import extract_listing_data
@@ -27,15 +28,17 @@ class ScraperRateLimitError(ScraperError):
     pass
 
 
+@lru_cache(maxsize=1)
 def get_lambda_client():
-    """Get boto3 Lambda client."""
+    """Get cached boto3 Lambda client."""
     import boto3
 
     return boto3.client("lambda")
 
 
+@lru_cache(maxsize=1)
 def get_s3_client():
-    """Get boto3 S3 client."""
+    """Get cached boto3 S3 client."""
     import boto3
 
     return boto3.client("s3")

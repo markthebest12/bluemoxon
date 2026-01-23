@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import require_editor
@@ -27,12 +28,20 @@ def list_authors(
     db: Session = Depends(get_db),
 ):
     """List all authors, optionally filtered by search."""
-    query = db.query(Author)
+    # Use subquery count to avoid N+1 queries for book_count
+    book_count_subq = (
+        db.query(func.count(Book.id))
+        .filter(Book.author_id == Author.id)
+        .correlate(Author)
+        .scalar_subquery()
+    )
+
+    query = db.query(Author, book_count_subq.label("book_count"))
 
     if search:
         query = query.filter(Author.name.ilike(f"%{search}%"))
 
-    authors = query.order_by(Author.name).all()
+    results = query.order_by(Author.name).all()
     return [
         {
             "id": a.id,
@@ -43,9 +52,9 @@ def list_authors(
             "priority_score": a.priority_score,
             "tier": a.tier,
             "preferred": a.preferred,
-            "book_count": len(a.books),
+            "book_count": book_count,
         }
-        for a in authors
+        for a, book_count in results
     ]
 
 

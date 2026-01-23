@@ -7,6 +7,7 @@ import logging
 import os
 import random
 import time
+from functools import lru_cache
 
 import boto3
 import httpx
@@ -76,8 +77,9 @@ Use markdown formatting with headers, bullet points, and tables where appropriat
 """
 
 
+@lru_cache(maxsize=1)
 def get_bedrock_client():
-    """Get Bedrock runtime client with extended timeout for long generations."""
+    """Get cached Bedrock runtime client with extended timeout for long generations."""
     from botocore.config import Config
 
     region = os.environ.get("AWS_REGION", settings.aws_region)
@@ -86,8 +88,9 @@ def get_bedrock_client():
     return boto3.client("bedrock-runtime", region_name=region, config=config)
 
 
+@lru_cache(maxsize=1)
 def get_s3_client():
-    """Get S3 client."""
+    """Get cached S3 client."""
     region = os.environ.get("AWS_REGION", settings.aws_region)
     return boto3.client("s3", region_name=region)
 
