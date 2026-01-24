@@ -79,7 +79,8 @@ class ConditionGrade(StrEnum):
         import re
 
         normalized = value.strip().lower()
-        normalized = re.sub(r"-", " ", normalized)
+        # Replace underscores and hyphens with spaces, collapse multiple spaces
+        normalized = re.sub(r"[-_]", " ", normalized)
         normalized = re.sub(r"\s+", " ", normalized)
 
         alias_map: dict[str, ConditionGrade] = {
