@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release Notes | BlueMoxon</title>
+    <meta name="description" content="What's new in BlueMoxon - release history and feature updates for the rare book collection management platform.">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-blue-light: #60a5fa;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --border-color: #1e293b;
+            --gradient-start: #1e3a5f;
+            --gradient-end: #0a0f1a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 0.75rem 2rem;
+        }
+
+        nav .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        nav .logo img {
+            height: 48px;
+            width: auto;
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        nav .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav .nav-links a:hover,
+        nav .nav-links a.active {
+            color: var(--accent-blue-light);
+        }
+
+        /* Hamburger button */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 28px;
+            height: 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1001;
+        }
+
+        .hamburger span {
+            width: 100%;
+            height: 3px;
+            background: var(--text-primary);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            background: linear-gradient(180deg, var(--gradient-start) 0%, var(--bg-primary) 100%);
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--accent-blue-light) 50%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Timeline Container */
+        .timeline-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4rem 2rem 6rem;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+        }
+
+        /* Timeline Item */
+        .timeline-item {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Timeline Node */
+        .timeline-node {
+            position: absolute;
+            left: -40px;
+            top: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 3px solid var(--accent-blue);
+            z-index: 1;
+        }
+
+        .timeline-item.current .timeline-node {
+            background: var(--accent-blue);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+            }
+        }
+
+        /* Release Card */
+        .release-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .release-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .release-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 0.375rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .version-badge.current {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+        }
+
+        .version-badge.past {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .release-date {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .release-theme {
+            font-style: italic;
+            color: var(--accent-blue-light);
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .release-features {
+            list-style: none;
+        }
+
+        .release-features li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        .release-features li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 1rem;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+        }
+
+        .release-features li strong {
+            color: var(--text-primary);
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            margin-left: 1rem;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-secondary);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--accent-blue-light);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 0.5rem 1rem;
+            }
+
+            nav .logo img {
+                height: 44px;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            nav .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(10, 15, 26, 0.98);
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links.active {
+                display: flex;
+            }
+
+            nav .nav-links li {
+                padding: 0.75rem 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            nav .nav-links li:last-child {
+                border-bottom: none;
+            }
+
+            nav .nav-links a {
+                font-size: 1rem;
+            }
+
+            .hero {
+                padding: 6rem 1rem 3rem;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .timeline-container {
+                padding: 2rem 1rem 4rem;
+            }
+
+            .timeline {
+                padding-left: 30px;
+            }
+
+            .timeline::before {
+                left: 6px;
+            }
+
+            .timeline-node {
+                left: -30px;
+                width: 14px;
+                height: 14px;
+            }
+
+            .release-card {
+                padding: 1.5rem;
+            }
+
+            .release-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .release-theme {
+                font-size: 1rem;
+            }
+
+            .cta-section {
+                padding: 2rem 1rem;
+            }
+
+            .btn {
+                display: block;
+                width: 100%;
+                max-width: 280px;
+                margin: 0.5rem auto;
+                text-align: center;
+            }
+
+            .btn-secondary {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-content">
+            <a href="index.html" class="logo">
+                <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
+            </a>
+            <button class="hamburger" aria-label="Toggle menu" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="index.html#about">About</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="index.html#screenshots">Screenshots</a></li>
+                <li><a href="admin-guide.html">Admin Guide</a></li>
+                <li><a href="releases.html" class="active">Releases</a></li>
+                <li><a href="index.html#architecture">Architecture</a></li>
+                <li><a href="index.html#api">API</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Release Notes</h1>
+        <p>What's new in BlueMoxon — a history of features and improvements</p>
+    </section>
+
+    <!-- Timeline -->
+    <div class="timeline-container">
+        <div class="timeline">
+            <!-- v2.1 -->
+            <div class="timeline-item current">
+                <div class="timeline-node"></div>
+                <div class="release-card">
+                    <div class="release-header">
+                        <span class="version-badge current">v2.1</span>
+                        <span class="release-date">January 2026</span>
+                    </div>
+                    <div class="release-theme">"Collection Intelligence"</div>
+                    <ul class="release-features">
+                        <li><strong>Collection Spotlight</strong> — Dashboard showcases your top-value books in a rotating carousel with premium binding badges</li>
+                        <li><strong>Interactive Charts</strong> — Click any chart segment to filter your collection; hover for book counts and sample titles</li>
+                        <li><strong>Era Classification</strong> — Filter by literary period: Pre-Romantic, Romantic, Victorian, Edwardian, Post-1910</li>
+                        <li><strong>Condition Grades</strong> — AB Bookman scale dropdown (Fine → Poor) replaces free-form text</li>
+                        <li><strong>Dashboard Performance</strong> — 40% faster loads via API batching and Redis caching</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- v2.0 -->
+            <div class="timeline-item">
+                <div class="timeline-node"></div>
+                <div class="release-card">
+                    <div class="release-header">
+                        <span class="version-badge past">v2.0</span>
+                        <span class="release-date">December 2025</span>
+                    </div>
+                    <div class="release-theme">"Acquisition Pipeline"</div>
+                    <ul class="release-features">
+                        <li><strong>eBay Import</strong> — Paste a listing URL to auto-extract title, author, publisher, price, and images</li>
+                        <li><strong>Kanban Workflow</strong> — Track books through Watchlist → In Transit → On Hand</li>
+                        <li><strong>Shipment Tracking</strong> — Auto-detect carriers (USPS, UPS, FedEx, Royal Mail) with live status updates</li>
+                        <li><strong>Wayback Archive</strong> — One-click preservation of listings to the Internet Archive</li>
+                        <li><strong>Async AI Analysis</strong> — Queue Napoleon valuations in the background via SQS</li>
+                        <li><strong>Investment Scoring</strong> — Investment Grade (0-100) and Strategic Fit (0-7) calculated at acquisition</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- v1.1 -->
+            <div class="timeline-item">
+                <div class="timeline-node"></div>
+                <div class="release-card">
+                    <div class="release-header">
+                        <span class="version-badge past">v1.1</span>
+                        <span class="release-date">November 2025</span>
+                    </div>
+                    <div class="release-theme">"The Victorian Update"</div>
+                    <ul class="release-features">
+                        <li><strong>Victorian Dark Mode</strong> — Deep burgundy and aged parchment theme inspired by antique bookbinding</li>
+                        <li><strong>Entity Management</strong> — Full CRUD for Authors, Publishers, and Binders with merge/reassignment</li>
+                        <li><strong>Toast Notifications</strong> — User-friendly feedback for errors and confirmations with auto-dismiss</li>
+                        <li><strong>Reference Library</strong> — Tiered scoring for publishers and binderies (Tier 1/2/3 bonuses)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- v1.0 -->
+            <div class="timeline-item">
+                <div class="timeline-node"></div>
+                <div class="release-card">
+                    <div class="release-header">
+                        <span class="version-badge past">v1.0</span>
+                        <span class="release-date">October 2025</span>
+                    </div>
+                    <div class="release-theme">"Foundation"</div>
+                    <ul class="release-features">
+                        <li><strong>Collection Catalog</strong> — Browse, search, and filter your book inventory</li>
+                        <li><strong>Napoleon AI Valuations</strong> — Claude-powered condition assessments and fair market value estimates</li>
+                        <li><strong>Image Galleries</strong> — CDN-delivered photos with lightbox viewing and drag-and-drop reordering</li>
+                        <li><strong>Book Detail Views</strong> — Complete metadata, provenance, and analysis documents</li>
+                        <li><strong>CSV & PDF Export</strong> — Insurance reports and collection summaries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta-section">
+            <a href="features.html" class="btn btn-primary">See All Features</a>
+            <a href="https://github.com/markthebest12/bluemoxon" class="btn btn-secondary" target="_blank">View on GitHub</a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            Built with Vue 3, FastAPI, Aurora PostgreSQL, and Terraform<br>
+            <a href="https://www.bluemoxon.com">www.bluemoxon.com</a>
+        </p>
+        <p style="margin-top: 1rem;">
+            Open source under the <a href="https://github.com/markthebest12/bluemoxon/blob/main/LICENSE" target="_blank">Apache License 2.0</a>
+        </p>
+    </footer>
+
+    <!-- Hamburger menu toggle -->
+    <script>
+        function toggleMenu() {
+            const hamburger = document.querySelector('.hamburger');
+            const navLinks = document.querySelector('.nav-links');
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        }
+
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const hamburger = document.querySelector('.hamburger');
+                const navLinks = document.querySelector('.nav-links');
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>
