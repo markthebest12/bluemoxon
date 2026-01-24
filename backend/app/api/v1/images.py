@@ -18,7 +18,12 @@ from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
 from app.services.aws_clients import get_s3_client
 from app.services.image_processing import queue_image_processing
-from app.utils.image_utils import detect_content_type, fix_extension, get_thumbnail_key
+from app.utils.image_utils import (
+    detect_content_type,
+    detect_format,
+    get_extension,
+    get_thumbnail_key,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -389,8 +394,11 @@ async def upload_image(
             message="Image already exists (identical content)",
         )
 
-    # Generate unique filename
-    ext = Path(file.filename).suffix or ".jpg"
+    # Generate unique filename with correct extension based on actual content
+    # Detect format from content already in memory (no extra file read needed)
+    file_header = content[:12] if len(content) >= 12 else content
+    detected_ext = get_extension(detect_format(file_header))
+    ext = detected_ext or Path(file.filename).suffix or ".jpg"
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
     file_path = LOCAL_IMAGES_PATH / unique_name
 
@@ -415,11 +423,8 @@ async def upload_image(
     if settings.is_aws_lambda:
         s3 = get_s3_client()
 
-        # Detect actual image format from file content
-        with open(file_path, "rb") as f:
-            file_header = f.read(12)
+        # Get content type from file_header already detected above
         content_type = detect_content_type(file_header)
-        unique_name = fix_extension(unique_name, file_header)
 
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
