@@ -11,7 +11,71 @@ from typing import Any
 
 import yaml
 
+from app.enums import ConditionGrade
+
 logger = logging.getLogger(__name__)
+
+# Mapping of common AI aliases to valid ConditionGrade enum values
+CONDITION_GRADE_ALIASES: dict[str, str] = {
+    # Exact enum values (uppercase)
+    "FINE": ConditionGrade.FINE.value,
+    "NEAR_FINE": ConditionGrade.NEAR_FINE.value,
+    "VERY_GOOD": ConditionGrade.VERY_GOOD.value,
+    "GOOD": ConditionGrade.GOOD.value,
+    "FAIR": ConditionGrade.FAIR.value,
+    "POOR": ConditionGrade.POOR.value,
+    # Common abbreviations
+    "VG": ConditionGrade.VERY_GOOD.value,
+    "VG+": ConditionGrade.NEAR_FINE.value,
+    "VG-": ConditionGrade.VERY_GOOD.value,
+    "NF": ConditionGrade.NEAR_FINE.value,
+    "G": ConditionGrade.GOOD.value,
+    "G+": ConditionGrade.GOOD.value,
+    "F": ConditionGrade.FINE.value,
+    # Human-readable variants (with spaces)
+    "NEAR FINE": ConditionGrade.NEAR_FINE.value,
+    "VERY GOOD": ConditionGrade.VERY_GOOD.value,
+}
+
+
+def normalize_condition_grade(value: str | None) -> str | None:
+    """Normalize AI-generated condition grade to valid enum value.
+
+    Handles common aliases and case variations from AI analysis output.
+
+    Args:
+        value: Raw condition grade string from AI output
+
+    Returns:
+        Valid ConditionGrade enum value, or None if invalid/unrecognized
+    """
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        return None
+
+    # Strip whitespace and normalize
+    normalized = value.strip().upper().replace("_", " ").replace("-", " ")
+
+    # Also try with underscores for enum-style values
+    with_underscores = normalized.replace(" ", "_")
+
+    # Check aliases (case-insensitive via uppercase normalization)
+    if normalized in CONDITION_GRADE_ALIASES:
+        return CONDITION_GRADE_ALIASES[normalized]
+
+    if with_underscores in CONDITION_GRADE_ALIASES:
+        return CONDITION_GRADE_ALIASES[with_underscores]
+
+    # Try direct enum lookup
+    try:
+        return ConditionGrade(with_underscores).value
+    except ValueError:
+        pass
+
+    logger.warning(f"Unrecognized condition grade: {value!r}, skipping")
+    return None
 
 
 def parse_analysis_summary(analysis_text: str) -> dict[str, Any] | None:
@@ -184,9 +248,12 @@ def extract_book_updates_from_yaml(yaml_data: dict[str, Any] | None) -> dict[str
     elif "value_low" in updates and "value_high" in updates:
         updates["value_mid"] = (updates["value_low"] + updates["value_high"]) / 2
 
-    # condition_grade (same name in both formats)
-    if yaml_data.get("condition_grade") is not None:
-        updates["condition_grade"] = yaml_data["condition_grade"]
+    # condition_grade - validate and normalize to enum value
+    raw_condition = yaml_data.get("condition_grade")
+    if raw_condition is not None:
+        normalized = normalize_condition_grade(raw_condition)
+        if normalized is not None:
+            updates["condition_grade"] = normalized
 
     # acquisition_cost
     if yaml_data.get("acquisition_cost") is not None:
