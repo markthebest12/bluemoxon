@@ -60,6 +60,69 @@ class TestNormalizeConditionGrade:
         assert normalize_condition_grade("  FINE  ") == "FINE"
         assert normalize_condition_grade(" VG ") == "VERY_GOOD"
 
+    def test_hyphenated_inputs(self):
+        """Hyphenated inputs should normalize to underscore format."""
+        assert normalize_condition_grade("NEAR-FINE") == "NEAR_FINE"
+        assert normalize_condition_grade("VERY-GOOD") == "VERY_GOOD"
+
+    def test_whitespace_variations(self):
+        """Various whitespace patterns should be handled correctly."""
+        assert normalize_condition_grade("VG  +") == "NEAR_FINE"
+        assert normalize_condition_grade("VERY   GOOD") == "VERY_GOOD"
+        assert normalize_condition_grade("good +") == "GOOD"
+        assert normalize_condition_grade("vg -") == "GOOD"
+
+    def test_tabs_and_newlines(self):
+        """Tabs and newlines should be stripped."""
+        assert normalize_condition_grade("FINE\t") == "FINE"
+        assert normalize_condition_grade("\nVG") == "VERY_GOOD"
+        assert normalize_condition_grade(" VG \n") == "VERY_GOOD"
+
+    def test_migration_aliases_all_normalized(self):
+        """Test ALL aliases from migration dd7f743834bc."""
+        assert normalize_condition_grade("as new") == "FINE"
+        assert normalize_condition_grade("mint") == "FINE"
+        assert normalize_condition_grade("near-fine") == "NEAR_FINE"
+        assert normalize_condition_grade("vg +") == "NEAR_FINE"
+        assert normalize_condition_grade("very-good") == "VERY_GOOD"
+        assert normalize_condition_grade("vg-") == "GOOD"
+        assert normalize_condition_grade("vg -") == "GOOD"
+        assert normalize_condition_grade("good+") == "GOOD"
+        assert normalize_condition_grade("good +") == "GOOD"
+        assert normalize_condition_grade("vg/g") == "GOOD"
+        assert normalize_condition_grade("reading copy") == "FAIR"
+        assert normalize_condition_grade("ex-library") == "POOR"
+        assert normalize_condition_grade("ex-lib") == "POOR"
+        assert normalize_condition_grade("ex library") == "POOR"
+
+    def test_vg_minus_maps_to_good_not_very_good(self):
+        """VG- is definitionally worse than VG. Must map to GOOD."""
+        assert normalize_condition_grade("VG-") == "GOOD"
+        assert normalize_condition_grade("vg-") == "GOOD"
+        assert normalize_condition_grade("VG -") == "GOOD"
+
+
+class TestConditionGradeFromAlias:
+    """Tests for ConditionGrade.from_alias() enum method."""
+
+    def test_returns_enum_not_string(self):
+        from app.enums import ConditionGrade
+
+        result = ConditionGrade.from_alias("VG")
+        assert result == ConditionGrade.VERY_GOOD
+        assert isinstance(result, ConditionGrade)
+
+    def test_none_input_returns_none(self):
+        from app.enums import ConditionGrade
+
+        assert ConditionGrade.from_alias(None) is None
+
+    def test_non_string_returns_none(self):
+        from app.enums import ConditionGrade
+
+        assert ConditionGrade.from_alias(123) is None
+        assert ConditionGrade.from_alias([]) is None
+
 
 class TestExtractBookUpdatesValidation:
     """Tests that extract_book_updates_from_yaml validates condition_grade."""
