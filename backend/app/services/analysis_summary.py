@@ -5,76 +5,60 @@ Supports both the new STRUCTURED-DATA format and legacy YAML format.
 """
 
 import logging
+import os
 import re
 from decimal import Decimal
 from typing import Any
 
 import yaml
 
-from app.enums import ConditionGrade
-
 logger = logging.getLogger(__name__)
-
-# Mapping of common AI aliases to valid ConditionGrade enum values
-CONDITION_GRADE_ALIASES: dict[str, str] = {
-    # Exact enum values (uppercase)
-    "FINE": ConditionGrade.FINE.value,
-    "NEAR_FINE": ConditionGrade.NEAR_FINE.value,
-    "VERY_GOOD": ConditionGrade.VERY_GOOD.value,
-    "GOOD": ConditionGrade.GOOD.value,
-    "FAIR": ConditionGrade.FAIR.value,
-    "POOR": ConditionGrade.POOR.value,
-    # Common abbreviations
-    "VG": ConditionGrade.VERY_GOOD.value,
-    "VG+": ConditionGrade.NEAR_FINE.value,
-    "VG-": ConditionGrade.VERY_GOOD.value,
-    "NF": ConditionGrade.NEAR_FINE.value,
-    "G": ConditionGrade.GOOD.value,
-    "G+": ConditionGrade.GOOD.value,
-    "F": ConditionGrade.FINE.value,
-    # Human-readable variants (with spaces)
-    "NEAR FINE": ConditionGrade.NEAR_FINE.value,
-    "VERY GOOD": ConditionGrade.VERY_GOOD.value,
-}
 
 
 def normalize_condition_grade(value: str | None) -> str | None:
     """Normalize AI-generated condition grade to valid enum value.
 
-    Handles common aliases and case variations from AI analysis output.
+    Delegates to ConditionGrade.from_alias() for mapping logic.
+    Logs and emits metric when unrecognized values are encountered.
 
     Args:
         value: Raw condition grade string from AI output
 
     Returns:
-        Valid ConditionGrade enum value, or None if invalid/unrecognized
+        Valid ConditionGrade enum value string, or None if invalid
     """
-    if value is None:
-        return None
+    from app.enums import ConditionGrade
 
-    if not isinstance(value, str):
-        return None
+    result = ConditionGrade.from_alias(value)
 
-    # Strip whitespace and normalize
-    normalized = value.strip().upper().replace("_", " ").replace("-", " ")
+    if result is not None:
+        return result.value
 
-    # Also try with underscores for enum-style values
-    with_underscores = normalized.replace(" ", "_")
+    if value is not None and isinstance(value, str) and value.strip():
+        logger.warning(f"Unrecognized condition grade: {value!r}, skipping")
+        try:
+            import boto3
 
-    # Check aliases (case-insensitive via uppercase normalization)
-    if normalized in CONDITION_GRADE_ALIASES:
-        return CONDITION_GRADE_ALIASES[normalized]
+            cloudwatch = boto3.client("cloudwatch")
+            cloudwatch.put_metric_data(
+                Namespace="BlueMoxon/Analysis",
+                MetricData=[
+                    {
+                        "MetricName": "UnrecognizedConditionGrade",
+                        "Value": 1,
+                        "Unit": "Count",
+                        "Dimensions": [
+                            {
+                                "Name": "Environment",
+                                "Value": os.environ.get("ENVIRONMENT", "unknown"),
+                            }
+                        ],
+                    }
+                ],
+            )
+        except Exception:  # noqa: S110
+            pass
 
-    if with_underscores in CONDITION_GRADE_ALIASES:
-        return CONDITION_GRADE_ALIASES[with_underscores]
-
-    # Try direct enum lookup
-    try:
-        return ConditionGrade(with_underscores).value
-    except ValueError:
-        pass
-
-    logger.warning(f"Unrecognized condition grade: {value!r}, skipping")
     return None
 
 
