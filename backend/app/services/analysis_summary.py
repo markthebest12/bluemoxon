@@ -5,6 +5,7 @@ Supports both the new STRUCTURED-DATA format and legacy YAML format.
 """
 
 import logging
+import os
 import re
 from decimal import Decimal
 from typing import Any
@@ -12,6 +13,53 @@ from typing import Any
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_condition_grade(value: str | None) -> str | None:
+    """Normalize AI-generated condition grade to valid enum value.
+
+    Delegates to ConditionGrade.from_alias() for mapping logic.
+    Logs and emits metric when unrecognized values are encountered.
+
+    Args:
+        value: Raw condition grade string from AI output
+
+    Returns:
+        Valid ConditionGrade enum value string, or None if invalid
+    """
+    from app.enums import ConditionGrade
+
+    result = ConditionGrade.from_alias(value)
+
+    if result is not None:
+        return result.value
+
+    if value is not None and isinstance(value, str) and value.strip():
+        logger.warning(f"Unrecognized condition grade: {value!r}, skipping")
+        try:
+            import boto3
+
+            cloudwatch = boto3.client("cloudwatch")
+            cloudwatch.put_metric_data(
+                Namespace="BlueMoxon/Analysis",
+                MetricData=[
+                    {
+                        "MetricName": "UnrecognizedConditionGrade",
+                        "Value": 1,
+                        "Unit": "Count",
+                        "Dimensions": [
+                            {
+                                "Name": "Environment",
+                                "Value": os.environ.get("ENVIRONMENT", "unknown"),
+                            }
+                        ],
+                    }
+                ],
+            )
+        except Exception:  # noqa: S110
+            pass
+
+    return None
 
 
 def parse_analysis_summary(analysis_text: str) -> dict[str, Any] | None:
@@ -184,9 +232,12 @@ def extract_book_updates_from_yaml(yaml_data: dict[str, Any] | None) -> dict[str
     elif "value_low" in updates and "value_high" in updates:
         updates["value_mid"] = (updates["value_low"] + updates["value_high"]) / 2
 
-    # condition_grade (same name in both formats)
-    if yaml_data.get("condition_grade") is not None:
-        updates["condition_grade"] = yaml_data["condition_grade"]
+    # condition_grade - validate and normalize to enum value
+    raw_condition = yaml_data.get("condition_grade")
+    if raw_condition is not None:
+        normalized = normalize_condition_grade(raw_condition)
+        if normalized is not None:
+            updates["condition_grade"] = normalized
 
     # acquisition_cost
     if yaml_data.get("acquisition_cost") is not None:

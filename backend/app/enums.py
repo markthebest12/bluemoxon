@@ -48,6 +48,68 @@ class ConditionGrade(StrEnum):
     FAIR = "FAIR"
     POOR = "POOR"
 
+    @classmethod
+    def from_alias(cls, value: str | None) -> "ConditionGrade | None":
+        """Normalize raw condition grade string to enum value.
+
+        Handles AI-generated condition grades, dealer abbreviations, and
+        human-readable variants. Mappings match migration dd7f743834bc.
+
+        Grading follows antiquarian book conventions:
+        - FINE: As new, mint, pristine - no defects
+        - NEAR_FINE: Almost fine, very minor wear (VG+ upgrades here)
+        - VERY_GOOD: Light wear, all parts present (VG)
+        - GOOD: Moderate wear, complete and readable (VG-, G+, good+)
+        - FAIR: Heavy wear but readable (reading copy)
+        - POOR: Significant damage (ex-library)
+
+        Note on "F" ambiguity: ABAA uses "F" for Fine. Some dealers use
+        "F" for Fair. We follow ABAA convention (F -> FINE) for consistency
+        with migration and industry standard.
+
+        Args:
+            value: Raw condition grade string (case-insensitive)
+
+        Returns:
+            ConditionGrade enum value, or None if unrecognized
+        """
+        if value is None or not isinstance(value, str):
+            return None
+
+        import re
+
+        normalized = value.strip().lower()
+        # Replace underscores and hyphens with spaces, collapse multiple spaces
+        normalized = re.sub(r"[-_]", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized)
+
+        alias_map: dict[str, ConditionGrade] = {
+            "as new": cls.FINE,
+            "mint": cls.FINE,
+            "fine": cls.FINE,
+            "f": cls.FINE,
+            "near fine": cls.NEAR_FINE,
+            "nf": cls.NEAR_FINE,
+            "vg+": cls.NEAR_FINE,
+            "vg +": cls.NEAR_FINE,
+            "very good": cls.VERY_GOOD,
+            "vg": cls.VERY_GOOD,
+            "vg ": cls.GOOD,
+            "vg/g": cls.GOOD,
+            "good+": cls.GOOD,
+            "good +": cls.GOOD,
+            "good": cls.GOOD,
+            "good ": cls.GOOD,
+            "g": cls.GOOD,
+            "fair": cls.FAIR,
+            "reading copy": cls.FAIR,
+            "poor": cls.POOR,
+            "ex library": cls.POOR,
+            "ex lib": cls.POOR,
+        }
+
+        return alias_map.get(normalized)
+
 
 class SortOrder(StrEnum):
     """Sort order direction for API queries."""

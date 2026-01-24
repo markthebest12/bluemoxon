@@ -276,7 +276,7 @@ class TestExtractBookUpdates:
         assert updates["value_low"] == Decimal("35")
         assert updates["value_high"] == Decimal("65")
         assert updates["value_mid"] == Decimal("50")  # (35 + 65) / 2
-        assert updates["condition_grade"] == "Very Good"
+        assert updates["condition_grade"] == "VERY_GOOD"  # Normalized from "Very Good"
         assert updates["acquisition_cost"] == Decimal("20.00")
         assert updates["provenance"] == "From library of John Smith"
 
@@ -365,7 +365,7 @@ class TestExtractNapoleonV2Updates:
         assert updates["value_low"] == Decimal("400")
         assert updates["value_mid"] == Decimal("525")
         assert updates["value_high"] == Decimal("650")
-        assert updates["condition_grade"] == "Good"
+        assert updates["condition_grade"] == "GOOD"  # Normalized from "Good"
         assert updates["binding_type"] == "Full Morocco"
 
     def test_extract_calculates_mid_when_missing(self):
@@ -429,5 +429,5 @@ Darwin's Descent of Man analysis...
         assert updates["value_low"] == Decimal("400")
         assert updates["value_mid"] == Decimal("525")
         assert updates["value_high"] == Decimal("650")
-        assert updates["condition_grade"] == "VG+"
+        assert updates["condition_grade"] == "NEAR_FINE"  # Normalized from "VG+"
         assert updates["binding_type"] == "Full Morocco"
