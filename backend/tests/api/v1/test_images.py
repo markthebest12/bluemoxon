@@ -17,7 +17,77 @@ Example: Upload "image.jpg" containing WebP data
 import io
 from unittest.mock import MagicMock
 
+import pytest
 from PIL import Image
+
+
+@pytest.fixture
+def lambda_environment(monkeypatch, tmp_path):
+    """Set up Lambda-like environment with mocked S3.
+
+    Returns dict with:
+        - uploaded_keys: list tracking S3 upload keys
+        - mock_s3: the mocked S3 client
+        - tmp_path: temp directory for local files
+    """
+    uploaded_keys = []
+
+    def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
+        uploaded_keys.append(s3_key)
+
+    mock_s3 = MagicMock()
+    mock_s3.upload_file = mock_upload_file
+
+    # Set environment variable to trigger is_aws_lambda property
+    monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
+
+    # Clear cached settings so new env var is picked up
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    # Reload settings to pick up env change
+    from app import config
+
+    new_settings = config.Settings()
+
+    # Patch the settings and S3 client in images module
+    monkeypatch.setattr("app.api.v1.images.settings", new_settings)
+    monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
+    monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
+
+    return {
+        "uploaded_keys": uploaded_keys,
+        "mock_s3": mock_s3,
+        "tmp_path": tmp_path,
+    }
+
+
+@pytest.fixture
+def local_dev_environment(monkeypatch, tmp_path):
+    """Set up local development environment (non-Lambda).
+
+    Returns dict with:
+        - tmp_path: temp directory where files are saved
+    """
+    # Ensure DATABASE_SECRET_ARN is NOT set (local dev mode)
+    monkeypatch.delenv("DATABASE_SECRET_ARN", raising=False)
+
+    # Clear cached settings
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    # Reload settings
+    from app import config
+
+    new_settings = config.Settings()
+
+    # Patch settings and local path
+    monkeypatch.setattr("app.api.v1.images.settings", new_settings)
+    monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
+
+    return {"tmp_path": tmp_path}
 
 
 class TestThumbnailExtensionMismatch:
@@ -50,10 +120,10 @@ class TestThumbnailExtensionMismatch:
         img.save(buffer, format="PNG")
         return buffer.getvalue()
 
-    def test_jpeg_extension_normalized_in_thumbnail(self, client, monkeypatch, tmp_path):
+    def test_jpeg_extension_normalized_in_thumbnail(self, client, lambda_environment):
         """Upload .jpeg file with JPEG data should create thumbnail with .jpg extension.
 
-        The fix_extension() function normalizes .jpeg to .jpg for consistency.
+        The fix normalizes .jpeg to .jpg for consistency.
         The thumbnail filename must also use .jpg, not the original .jpeg.
         """
         # Create a book
@@ -62,34 +132,6 @@ class TestThumbnailExtensionMismatch:
 
         # Create JPEG image data
         jpeg_bytes = self._create_jpeg_bytes()
-
-        # Track what S3 keys are used for upload
-        uploaded_keys = []
-
-        def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
-            uploaded_keys.append(s3_key)
-
-        # Mock S3 client and settings to simulate Lambda environment
-        mock_s3 = MagicMock()
-        mock_s3.upload_file = mock_upload_file
-
-        # Set environment variable to trigger is_aws_lambda property
-        monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
-
-        # Clear the cached settings so new env var is picked up
-        from app.config import get_settings
-        get_settings.cache_clear()
-
-        # Reload settings module to pick up env change
-        from app import config
-        new_settings = config.Settings()
-
-        # Patch the settings object used in images module
-        monkeypatch.setattr("app.api.v1.images.settings", new_settings)
-        monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
-
-        # Use temp path for local images during test
-        monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
 
         # Upload with .jpeg extension (should be normalized to .jpg)
         response = client.post(
@@ -100,22 +142,21 @@ class TestThumbnailExtensionMismatch:
         assert response.status_code == 201
 
         # Find the thumbnail key that was uploaded
+        uploaded_keys = lambda_environment["uploaded_keys"]
         thumbnail_keys = [k for k in uploaded_keys if k.startswith("books/thumb_")]
 
         assert len(thumbnail_keys) == 1, f"Expected 1 thumbnail upload, got: {uploaded_keys}"
         thumbnail_key = thumbnail_keys[0]
 
-        # BUG: Currently thumbnail_key ends with .jpeg (wrong)
-        # FIX: Should end with .jpg (normalized)
+        # Should end with .jpg (normalized from .jpeg)
         assert thumbnail_key.endswith(".jpg"), (
-            f"Thumbnail key should end with .jpg (normalized), "
-            f"but got: {thumbnail_key}"
+            f"Thumbnail key should end with .jpg (normalized), but got: {thumbnail_key}"
         )
 
-    def test_wrong_extension_corrected_in_thumbnail(self, client, monkeypatch, tmp_path):
+    def test_wrong_extension_corrected_in_thumbnail(self, client, lambda_environment):
         """Upload .jpg file containing WebP data should create thumbnail with .webp extension.
 
-        When file content doesn't match extension, fix_extension() corrects it.
+        When file content doesn't match extension, format detection corrects it.
         The thumbnail must use the corrected extension based on actual content.
         """
         # Create a book
@@ -124,34 +165,6 @@ class TestThumbnailExtensionMismatch:
 
         # Create WebP image data (but we'll upload it with .jpg extension)
         webp_bytes = self._create_webp_bytes()
-
-        # Track what S3 keys are used for upload
-        uploaded_keys = []
-
-        def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
-            uploaded_keys.append(s3_key)
-
-        # Mock S3 client and settings to simulate Lambda environment
-        mock_s3 = MagicMock()
-        mock_s3.upload_file = mock_upload_file
-
-        # Set environment variable to trigger is_aws_lambda property
-        monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
-
-        # Clear the cached settings so new env var is picked up
-        from app.config import get_settings
-        get_settings.cache_clear()
-
-        # Reload settings module to pick up env change
-        from app import config
-        new_settings = config.Settings()
-
-        # Patch the settings object used in images module
-        monkeypatch.setattr("app.api.v1.images.settings", new_settings)
-        monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
-
-        # Use temp path for local images during test
-        monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
 
         # Upload WebP data with wrong .jpg extension
         response = client.post(
@@ -162,6 +175,7 @@ class TestThumbnailExtensionMismatch:
         assert response.status_code == 201
 
         # Find the thumbnail and main image keys
+        uploaded_keys = lambda_environment["uploaded_keys"]
         main_keys = [k for k in uploaded_keys if "thumb_" not in k]
         thumbnail_keys = [k for k in uploaded_keys if "thumb_" in k]
 
@@ -173,18 +187,15 @@ class TestThumbnailExtensionMismatch:
 
         # Main image should be corrected to .webp
         assert main_key.endswith(".webp"), (
-            f"Main image key should end with .webp (corrected from .jpg), "
-            f"but got: {main_key}"
+            f"Main image key should end with .webp (corrected from .jpg), but got: {main_key}"
         )
 
-        # BUG: Currently thumbnail_key ends with .jpg (original wrong extension)
-        # FIX: Should end with .webp (matching corrected main image)
+        # Should end with .webp (matching corrected main image)
         assert thumbnail_key.endswith(".webp"), (
-            f"Thumbnail key should end with .webp (matching main image), "
-            f"but got: {thumbnail_key}"
+            f"Thumbnail key should end with .webp (matching main image), but got: {thumbnail_key}"
         )
 
-    def test_thumbnail_url_matches_corrected_extension(self, client, monkeypatch, tmp_path):
+    def test_thumbnail_url_matches_corrected_extension(self, client, lambda_environment):
         """Verify thumbnail_url in response uses the corrected extension.
 
         When listing images, the thumbnail_url should reflect the actual
@@ -196,30 +207,6 @@ class TestThumbnailExtensionMismatch:
 
         # Create JPEG data, upload with .jpeg extension
         jpeg_bytes = self._create_jpeg_bytes()
-
-        # Track uploads
-        uploaded_keys = []
-
-        def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
-            uploaded_keys.append(s3_key)
-
-        mock_s3 = MagicMock()
-        mock_s3.upload_file = mock_upload_file
-
-        # Set environment variable to trigger is_aws_lambda property
-        monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
-
-        # Clear the cached settings so new env var is picked up
-        from app.config import get_settings
-        get_settings.cache_clear()
-
-        # Reload settings module to pick up env change
-        from app import config
-        new_settings = config.Settings()
-
-        monkeypatch.setattr("app.api.v1.images.settings", new_settings)
-        monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
-        monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
 
         # Upload with .jpeg extension
         response = client.post(
@@ -237,11 +224,8 @@ class TestThumbnailExtensionMismatch:
         image = images[0]
 
         # The s3_key stored in DB should have corrected extension
-        # BUG: Currently s3_key might have .jpeg
-        # FIX: Should have .jpg (normalized)
         assert image["s3_key"].endswith(".jpg"), (
-            f"s3_key should end with .jpg (normalized), "
-            f"but got: {image['s3_key']}"
+            f"s3_key should end with .jpg (normalized), but got: {image['s3_key']}"
         )
 
         # thumbnail_url should derive from corrected s3_key
@@ -262,7 +246,14 @@ class TestThumbnailExtensionConsistency:
         img.save(buffer, format="PNG")
         return buffer.getvalue()
 
-    def test_png_data_with_jpg_extension_fixed_in_both(self, client, monkeypatch, tmp_path):
+    def _create_jpeg_bytes(self) -> bytes:
+        """Create valid JPEG image bytes."""
+        img = Image.new("RGB", (100, 100), color="red")
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG")
+        return buffer.getvalue()
+
+    def test_png_data_with_jpg_extension_fixed_in_both(self, client, lambda_environment):
         """PNG data uploaded with .jpg extension should fix both main and thumbnail.
 
         Main: xxx.jpg -> xxx.png
@@ -273,29 +264,6 @@ class TestThumbnailExtensionConsistency:
 
         png_bytes = self._create_png_bytes()
 
-        uploaded_keys = []
-
-        def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
-            uploaded_keys.append(s3_key)
-
-        mock_s3 = MagicMock()
-        mock_s3.upload_file = mock_upload_file
-
-        # Set environment variable to trigger is_aws_lambda property
-        monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
-
-        # Clear the cached settings so new env var is picked up
-        from app.config import get_settings
-        get_settings.cache_clear()
-
-        # Reload settings module to pick up env change
-        from app import config
-        new_settings = config.Settings()
-
-        monkeypatch.setattr("app.api.v1.images.settings", new_settings)
-        monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
-        monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
-
         # Upload PNG data with wrong .jpg extension
         response = client.post(
             f"/api/v1/books/{book_id}/images",
@@ -304,6 +272,7 @@ class TestThumbnailExtensionConsistency:
 
         assert response.status_code == 201
 
+        uploaded_keys = lambda_environment["uploaded_keys"]
         main_keys = [k for k in uploaded_keys if "thumb_" not in k]
         thumbnail_keys = [k for k in uploaded_keys if "thumb_" in k]
 
@@ -313,7 +282,7 @@ class TestThumbnailExtensionConsistency:
             f"Thumbnail key should be .png (matching main): {thumbnail_keys[0]}"
         )
 
-    def test_thumbnail_key_derived_from_corrected_name(self, client, monkeypatch, tmp_path):
+    def test_thumbnail_key_derived_from_corrected_name(self, client, lambda_environment):
         """Verify thumbnail key is derived from corrected unique_name.
 
         The bug is that thumbnail_name is generated before fix_extension runs.
@@ -323,33 +292,7 @@ class TestThumbnailExtensionConsistency:
         book_id = response.json()["id"]
 
         # Create JPEG but upload as .png (wrong extension)
-        img = Image.new("RGB", (100, 100), color="red")
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG")
-        jpeg_bytes = buffer.getvalue()
-
-        uploaded_keys = []
-
-        def mock_upload_file(local_path, bucket, s3_key, ExtraArgs=None):
-            uploaded_keys.append(s3_key)
-
-        mock_s3 = MagicMock()
-        mock_s3.upload_file = mock_upload_file
-
-        # Set environment variable to trigger is_aws_lambda property
-        monkeypatch.setenv("DATABASE_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:test")
-
-        # Clear the cached settings so new env var is picked up
-        from app.config import get_settings
-        get_settings.cache_clear()
-
-        # Reload settings module to pick up env change
-        from app import config
-        new_settings = config.Settings()
-
-        monkeypatch.setattr("app.api.v1.images.settings", new_settings)
-        monkeypatch.setattr("app.api.v1.images.get_s3_client", lambda: mock_s3)
-        monkeypatch.setattr("app.api.v1.images.LOCAL_IMAGES_PATH", tmp_path)
+        jpeg_bytes = self._create_jpeg_bytes()
 
         response = client.post(
             f"/api/v1/books/{book_id}/images",
@@ -358,6 +301,7 @@ class TestThumbnailExtensionConsistency:
 
         assert response.status_code == 201
 
+        uploaded_keys = lambda_environment["uploaded_keys"]
         main_keys = [k for k in uploaded_keys if "thumb_" not in k]
         thumbnail_keys = [k for k in uploaded_keys if "thumb_" in k]
 
@@ -377,3 +321,145 @@ class TestThumbnailExtensionConsistency:
             f"Expected thumbnail: {expected_thumbnail}\n"
             f"Actual thumbnail: {thumbnail_filename}"
         )
+
+
+class TestSmallFileHandling:
+    """Tests for edge cases with small files."""
+
+    def test_file_smaller_than_12_bytes_uses_filename_extension(self, client, lambda_environment):
+        """Files < 12 bytes can't be detected - should fall back to filename extension.
+
+        The detect_format function requires 12 bytes minimum. For smaller files,
+        we should use the filename extension rather than crashing with ValueError.
+        """
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create a tiny file (smaller than 12 bytes)
+        tiny_content = b"tiny"  # 4 bytes
+
+        # Upload with .jpg extension - should use that extension since content too small
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("small.jpg", io.BytesIO(tiny_content), "image/jpeg")},
+        )
+
+        # Should NOT crash with 500 error - should gracefully fall back
+        assert response.status_code in (201, 400), (
+            f"Expected 201 (success with fallback) or 400 (validation error), "
+            f"not 500 crash. Got: {response.status_code}"
+        )
+
+        # If successful, verify the extension was used
+        if response.status_code == 201:
+            uploaded_keys = lambda_environment["uploaded_keys"]
+            main_keys = [k for k in uploaded_keys if "thumb_" not in k]
+            if main_keys:
+                assert main_keys[0].endswith(".jpg"), (
+                    f"Should use filename extension for small files: {main_keys[0]}"
+                )
+
+
+class TestLocalDevPath:
+    """Tests for local development (non-Lambda) code path."""
+
+    def _create_jpeg_bytes(self) -> bytes:
+        """Create valid JPEG image bytes."""
+        img = Image.new("RGB", (100, 100), color="red")
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG")
+        return buffer.getvalue()
+
+    def test_local_dev_saves_file_with_correct_extension(self, client, local_dev_environment):
+        """In local dev, files should be saved with correct extension based on content.
+
+        This tests the non-Lambda path where files are saved locally instead of S3.
+        """
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create JPEG data, upload with .jpeg extension
+        jpeg_bytes = self._create_jpeg_bytes()
+
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("photo.jpeg", io.BytesIO(jpeg_bytes), "image/jpeg")},
+        )
+
+        assert response.status_code == 201
+
+        # Check that file was saved locally with correct extension
+        tmp_path = local_dev_environment["tmp_path"]
+        saved_files = list(tmp_path.glob("*.jpg"))
+
+        # Should have main image and thumbnail both with .jpg extension
+        main_files = [f for f in saved_files if not f.name.startswith("thumb_")]
+        thumb_files = [f for f in saved_files if f.name.startswith("thumb_")]
+
+        assert len(main_files) >= 1, f"Expected main image file, found: {list(tmp_path.iterdir())}"
+        assert main_files[0].suffix == ".jpg", (
+            f"Main image should have .jpg extension: {main_files[0].name}"
+        )
+
+        # Thumbnail should also exist with matching extension
+        assert len(thumb_files) >= 1, f"Expected thumbnail file, found: {list(tmp_path.iterdir())}"
+        assert thumb_files[0].suffix == ".jpg", (
+            f"Thumbnail should have .jpg extension: {thumb_files[0].name}"
+        )
+
+
+class TestUnrecognizedFormats:
+    """Tests for handling unrecognized image formats."""
+
+    def test_unrecognized_format_uses_filename_extension(self, client, lambda_environment):
+        """Unrecognized formats should fall back to filename extension.
+
+        For formats like TIFF, BMP, HEIC that we don't recognize by magic bytes,
+        we should use the filename extension as the fallback.
+        """
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Create fake TIFF-like content (we don't recognize TIFF)
+        # Real TIFF starts with II or MM, but we only detect JPEG/PNG/WebP/GIF
+        fake_tiff = b"II*\x00" + b"\x00" * 100  # Fake TIFF header + padding
+
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("image.tiff", io.BytesIO(fake_tiff), "image/tiff")},
+        )
+
+        # Should use .tiff extension from filename since format not recognized
+        if response.status_code == 201:
+            uploaded_keys = lambda_environment["uploaded_keys"]
+            main_keys = [k for k in uploaded_keys if "thumb_" not in k]
+            if main_keys:
+                assert main_keys[0].endswith(".tiff"), (
+                    f"Should fall back to filename extension: {main_keys[0]}"
+                )
+
+    def test_garbage_data_uses_default_jpg(self, client, lambda_environment):
+        """Garbage data with no extension should default to .jpg.
+
+        When format detection fails and filename has no extension,
+        we fall back to .jpg as the default.
+        """
+        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        book_id = response.json()["id"]
+
+        # Random garbage that doesn't match any known format
+        garbage = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f" * 10
+
+        response = client.post(
+            f"/api/v1/books/{book_id}/images",
+            files={"file": ("noextension", io.BytesIO(garbage), "application/octet-stream")},
+        )
+
+        # Should use .jpg as fallback when no extension and unrecognized format
+        if response.status_code == 201:
+            uploaded_keys = lambda_environment["uploaded_keys"]
+            main_keys = [k for k in uploaded_keys if "thumb_" not in k]
+            if main_keys:
+                assert main_keys[0].endswith(".jpg"), (
+                    f"Should default to .jpg for unknown format: {main_keys[0]}"
+                )
