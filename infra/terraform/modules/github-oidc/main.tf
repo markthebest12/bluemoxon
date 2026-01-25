@@ -417,6 +417,8 @@ resource "aws_iam_role_policy" "deploy" {
         }
       ] : [],
       # Bedrock integration test permissions
+      # Note: Uses * for region because Bedrock models may be in different regions
+      # and * for account because foundation models use empty account ID
       var.enable_bedrock_integration_tests ? [
         {
           Sid    = "BedrockIntegrationTests"
@@ -425,7 +427,8 @@ resource "aws_iam_role_policy" "deploy" {
             "bedrock:InvokeModel"
           ]
           Resource = [
-            "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/*"
+            "arn:aws:bedrock:*:${data.aws_caller_identity.current.account_id}:inference-profile/*",
+            "arn:aws:bedrock:*::foundation-model/*"
           ]
         }
       ] : []
