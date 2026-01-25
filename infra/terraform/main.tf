@@ -958,6 +958,9 @@ module "github_oidc" {
   # Enable read-only permissions for Terraform drift detection during deploys
   enable_terraform_drift_detection = var.enable_github_oidc_drift_detection
 
+  # Enable Bedrock permissions for integration tests
+  enable_bedrock_integration_tests = var.enable_github_oidc_bedrock_tests
+
   tags = local.common_tags
 }
 
