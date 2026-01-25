@@ -389,9 +389,15 @@ async def upload_image(
             message="Image already exists (identical content)",
         )
 
-    # Generate unique filename
+    # Generate unique filename with extension from original file
     ext = Path(file.filename).suffix or ".jpg"
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
+
+    # Fix extension based on actual content (detect format from magic bytes)
+    # Need at least 12 bytes for detection; use filename extension as fallback
+    if len(content) >= 12:
+        unique_name = fix_extension(unique_name, content[:12])
+
     file_path = LOCAL_IMAGES_PATH / unique_name
 
     # Save file (write content we already read) - Issue #858: use async I/O
@@ -403,6 +409,7 @@ async def upload_image(
 
     # Generate thumbnail - capture result for response (Issue #866)
     # Issue #858: run blocking PIL operations in thread pool
+    # Note: thumbnail_name is derived from already-corrected unique_name
     thumbnail_name = get_thumbnail_key(unique_name)
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
     thumbnail_success, thumbnail_error = await asyncio.to_thread(
@@ -415,11 +422,8 @@ async def upload_image(
     if settings.is_aws_lambda:
         s3 = get_s3_client()
 
-        # Detect actual image format from file content
-        with open(file_path, "rb") as f:
-            file_header = f.read(12)
-        content_type = detect_content_type(file_header)
-        unique_name = fix_extension(unique_name, file_header)
+        # Detect content type for S3 upload
+        content_type = detect_content_type(content[:12]) if len(content) >= 12 else "image/jpeg"
 
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
