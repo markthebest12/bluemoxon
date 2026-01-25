@@ -415,6 +415,19 @@ resource "aws_iam_role_policy" "deploy" {
           ]
           Resource = "*"
         }
+      ] : [],
+      # Bedrock integration test permissions
+      var.enable_bedrock_integration_tests ? [
+        {
+          Sid    = "BedrockIntegrationTests"
+          Effect = "Allow"
+          Action = [
+            "bedrock:InvokeModel"
+          ]
+          Resource = [
+            "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/*"
+          ]
+        }
       ] : []
     )
   })

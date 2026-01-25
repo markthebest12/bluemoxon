@@ -459,6 +459,12 @@ variable "enable_github_oidc_drift_detection" {
   default     = false
 }
 
+variable "enable_github_oidc_bedrock_tests" {
+  type        = bool
+  description = "Enable Bedrock InvokeModel permission for integration tests"
+  default     = false
+}
+
 variable "github_oidc_cloudfront_distribution_arns" {
   type        = list(string)
   description = "CloudFront distribution ARNs for GitHub Actions deployment (override for legacy resources)"

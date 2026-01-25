@@ -73,3 +73,9 @@ variable "enable_terraform_drift_detection" {
   description = "Enable read-only permissions for Terraform drift detection during deploys"
   default     = false
 }
+
+variable "enable_bedrock_integration_tests" {
+  type        = bool
+  description = "Enable Bedrock InvokeModel permission for integration tests"
+  default     = false
+}
