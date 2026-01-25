@@ -167,7 +167,7 @@ class TestGarbageDetectionIntegration:
         # All returned indices should be valid (0 to TOTAL_IMAGES-1)
         for idx in garbage_indices:
             assert 0 <= idx < TOTAL_IMAGES, (
-                f"Invalid index {idx} returned. Must be 0-{TOTAL_IMAGES-1}."
+                f"Invalid index {idx} returned. Must be 0-{TOTAL_IMAGES - 1}."
             )
 
         # Verify images were actually deleted from DB
@@ -179,8 +179,9 @@ class TestGarbageDetectionIntegration:
             f"Got {remaining_count}. Garbage detected: {len(garbage_indices)}"
         )
 
-
-    @pytest.mark.skip(reason="Requires fresh S3 data - run test_garbage_detection_identifies_known_garbage_images first")
+    @pytest.mark.skip(
+        reason="Requires fresh S3 data - run test_garbage_detection_identifies_known_garbage_images first"
+    )
     def test_garbage_detection_with_title_only(self, db: Session):
         """Test garbage detection works with title only (no author).
 
