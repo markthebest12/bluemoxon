@@ -35,6 +35,7 @@ enable_cost_explorer_access = true
 # GitHub OIDC - manages GitHub Actions deployment role
 enable_github_oidc                 = true
 enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check
+enable_github_oidc_bedrock_tests   = true # Bedrock access for garbage detection integration tests
 
 # Tracking worker - hourly sync of shipments and inventory updates
 enable_tracking_worker       = true
