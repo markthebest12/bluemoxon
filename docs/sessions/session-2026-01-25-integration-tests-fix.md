@@ -2,8 +2,14 @@
 
 ## Current Status
 
-**S3 Cleanup Tests:** 3/3 PASSING
-**Garbage Detection Tests:** 0/3 - Waiting for Terraform to apply Bedrock IAM permissions
+| Test | Status | Notes |
+|------|--------|-------|
+| S3 Cleanup Tests | 3/3 PASS | All fixed |
+| test_garbage_detection_with_title_only | 1/1 PASS | Bedrock permission fixed |
+| test_garbage_detection_identifies_known_garbage | 0/1 FAIL | AI flagged 20/24 images |
+| test_images_deleted_after_detection | 0/1 FAIL | s3:DeleteObject denied + AI over-flagging |
+
+**Summary:** 4/6 tests passing. Bedrock InvokeModel permission is now working. Two remaining issues need fixing.
 
 ## Issues Addressed
 
@@ -46,41 +52,77 @@
 **PRs:** #1307 → staging, #1308 → main
 **Status:** FIXED
 
-### Issue - Bedrock Access Denied (IN PROGRESS)
-**Root Cause:** GitHub Actions OIDC role lacks `bedrock:InvokeModel` permission
+### Issue - Bedrock InvokeModel Access Denied (FIXED)
+**Root Cause:** GitHub Actions OIDC role lacked `bedrock:InvokeModel` permission for foundation models
+
+**Initial Fix (PR #1309, #1310):** Added inference-profile permission
+**Problem:** Code uses foundation-model, not inference-profile, and in us-east-1 not us-west-2
+
+**Final Fix (PR #1312, #1313):** Extended permission to include:
+```hcl
+Resource = [
+  "arn:aws:bedrock:*:${account_id}:inference-profile/*",
+  "arn:aws:bedrock:*::foundation-model/*"
+]
 ```
-AccessDeniedException: User github-actions-deploy/GitHubActions is not authorized
-to perform: bedrock:InvokeModel on resource: inference-profile/...
+
+**Status:** FIXED - Terraform applied, Bedrock calls now succeed
+
+### Issue - AI Over-Flagging Images (NEW - IN PROGRESS)
+**Symptom:** Claude flagged 20/24 images as garbage (expected ~5)
+```
+AssertionError: Too many images flagged as garbage: [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23]. Expected around 5.
 ```
 
-**Fix:** Added Bedrock permission to GitHub OIDC module
-- New variable `enable_bedrock_integration_tests` in github-oidc module
-- New variable `enable_github_oidc_bedrock_tests` in root module
-- Enabled in staging.tfvars
+**Root Cause:** Unclear - may be prompt issue, image quality issue, or Claude model variability
 
-**PRs:**
-- #1309 → staging (MERGED)
-- #1310 → main (CI RUNNING - needs merge then Terraform apply)
+**Status:** NEEDS INVESTIGATION
 
-**Status:** IN PROGRESS - Terraform must be applied after PR #1310 merges
+### Issue - S3 DeleteObject Access Denied (NEW - IN PROGRESS)
+**Symptom:**
+```
+AccessDenied: s3:DeleteObject on resource "arn:aws:s3:::bluemoxon-images-staging/books/test-garbage-397448193086/image_00.webp"
+```
+
+**Root Cause:** GitHub OIDC images bucket policy only grants GetObject, PutObject, ListBucket - not DeleteObject
+
+**Location:** `infra/terraform/modules/github-oidc/main.tf` lines 117-132
+
+**Current Policy:**
+```hcl
+Action = [
+  "s3:GetObject",
+  "s3:PutObject",
+  "s3:ListBucket"
+]
+```
+
+**Fix Needed:** Add `s3:DeleteObject` to the images bucket policy
+
+**Status:** NEEDS FIX
+
+## Code Review Feedback Applied
+
+PR #1311 applied minor documentation improvements from code review:
+- Added restore instructions to test docstring
+- Added explicit `enable_github_oidc_bedrock_tests = false` in prod.tfvars
+- Skipped other findings (YAGNI, pragmatic for AI variability)
 
 ## Next Steps
 
-1. Merge PR #1310 to main: `gh pr merge 1310 --repo markthebest12/bluemoxon --merge --admin`
-2. Apply Terraform to staging:
-   ```bash
-   cd infra/terraform
-   AWS_PROFILE=bmx-staging terraform apply -var-file=envs/staging.tfvars
-   ```
-3. Trigger integration tests: `gh workflow run integration-tests.yml --repo markthebest12/bluemoxon`
-4. Verify all 6 tests pass (3 S3 cleanup + 3 garbage detection)
-5. Close GitHub issue #1299 when all tests pass
+1. **Add s3:DeleteObject permission** to GitHub OIDC images bucket policy
+2. **Investigate AI over-flagging** - Why is Claude flagging 20/24 images as garbage?
+   - Check prompt in `eval_generation.py`
+   - Review image quality
+   - Consider Claude model variability
+3. **Re-run integration tests** after fix
+4. **Close GitHub issue #1299** when all 6 tests pass
 
 ## S3 Test Data Location
 - **Bucket:** `bluemoxon-images-staging`
 - **Path:** `books/test-garbage-397448193086/`
 - **Files:** `image_00.webp` through `image_18.webp`, `image_19.jpg` through `image_23.jpg`
-- **Protection:** `test-garbage-` prefix makes it unparseable by cleanup Lambda (manually triggered only)
+- **Protection:** `test-garbage-` prefix makes it unparseable by cleanup Lambda
 
 To restore if deleted:
 ```bash
@@ -136,20 +178,50 @@ BookImage.s3_key must be RELATIVE to `books/` prefix.
 - **Parsing:** Only parses numeric book IDs from path
 - **Test Data Safety:** Keys with non-numeric prefixes like `test-garbage-` are silently skipped
 
-### GitHub OIDC Bedrock Permission
-Added to `infra/terraform/modules/github-oidc/main.tf`:
+### GitHub OIDC Bedrock Permission (UPDATED)
+`infra/terraform/modules/github-oidc/main.tf`:
 ```hcl
 var.enable_bedrock_integration_tests ? [
   {
     Sid    = "BedrockIntegrationTests"
     Effect = "Allow"
     Action = ["bedrock:InvokeModel"]
-    Resource = ["arn:aws:bedrock:${region}:${account_id}:inference-profile/*"]
+    Resource = [
+      "arn:aws:bedrock:*:${account_id}:inference-profile/*",
+      "arn:aws:bedrock:*::foundation-model/*"
+    ]
   }
 ] : []
+```
+
+### GitHub OIDC Images Bucket Permission (NEEDS UPDATE)
+`infra/terraform/modules/github-oidc/main.tf` lines 117-132:
+```hcl
+# S3 Images access permissions
+length(var.images_bucket_arns) > 0 ? [
+  {
+    Sid    = "S3ImagesAccess"
+    Effect = "Allow"
+    Action = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:ListBucket"
+      # TODO: Add "s3:DeleteObject" for integration tests
+    ]
+    Resource = concat(
+      var.images_bucket_arns,
+      [for arn in var.images_bucket_arns : "${arn}/*"]
+    )
+  }
+] : [],
 ```
 
 ### Environment Variables
 - `BMX_IMAGES_BUCKET` - S3 bucket for images (set in workflow)
 - `RUN_INTEGRATION_TESTS=1` - Required to run integration tests
 - `AWS_STAGING_ROLE_ARN` - GitHub secret for OIDC auth
+
+## PRs This Session
+- PR #1311 - Review feedback (merged)
+- PR #1312 → staging (merged) - Bedrock foundation-model permission
+- PR #1313 → main (merged) - Promote staging

@@ -930,28 +930,34 @@ def detect_garbage_images(
     safe_title = _sanitize_for_prompt(title, max_length=200)
     safe_author = _sanitize_for_prompt(author, max_length=100)
     author_str = f" by {safe_author}" if safe_author else ""
-    prompt = f"""You are examining images from an online book listing.
+    num_images = len(image_blocks)
+    prompt = f"""You are examining {num_images} images from an online book listing for an antiquarian book.
 
 The listing is for: "{safe_title}"{author_str}
 
-For each image, determine if it shows THIS SPECIFIC BOOK.
+Your task: Identify images that are CLEARLY NOT part of this book listing.
 
-Answer YES if the image shows:
-- The cover of "{safe_title}"{author_str}
-- Interior pages of this book
-- The spine showing this title
-- Multiple angles of this specific book
+KEEP images that show (do NOT mark as garbage):
+- The cover, spine, or binding of the listed book
+- Interior pages, text pages, or illustrations from ANY book that could be part of this listing
+- Close-ups of binding details, gilt edges, marbled endpapers, or decorative elements
+- Multiple volumes that could be part of a set
+- Any book-related content that is consistent with the listing (even if title is not visible)
 
-Answer NO if the image shows:
-- A completely different book (different title or author)
-- Objects that are not books (yarn, buttons, clothing, etc.)
-- Seller promotional material or store banners
-- Generic stock photos
+REMOVE images that show (mark as garbage):
+- Objects that are NOT books at all (yarn, buttons, clothing, household items, etc.)
+- Books with CLEARLY DIFFERENT titles visible (e.g., completely unrelated subjects)
+- Seller promotional material, store banners, or "Visit My Store" graphics
+- Generic stock photos not of any actual book
 - Shipping/contact information graphics
 
-Return a JSON object with garbage_indices array of image indices (0-based) that should be REMOVED.
-Example: {{"garbage_indices": [3, 7, 12]}} means images 3, 7, and 12 are NOT this book.
-Return {{"garbage_indices": []}} if all images show the correct book.
+IMPORTANT: When in doubt, KEEP the image. Interior pages without visible titles should be KEPT
+because they likely show content from the listed book. Only flag images where you are CERTAIN
+they do not belong to this listing.
+
+Return a JSON object with garbage_indices array containing 0-based indices (0 to {num_images - 1}) of images to REMOVE.
+Example: {{"garbage_indices": [3, 7]}} means images 3 and 7 are clearly NOT part of this listing.
+Return {{"garbage_indices": []}} if all images appear to be from this book listing.
 
 Return ONLY valid JSON, no other text."""
 
