@@ -70,6 +70,8 @@ jobs:
       - name: Run integration tests
         id: tests
         working-directory: backend
+        env:
+          BMX_IMAGES_BUCKET: bluemoxon-images-staging
         run: RUN_INTEGRATION_TESTS=1 poetry run pytest tests/integration/ -v --tb=short
 
   # Create issue on failure (with deduplication)
