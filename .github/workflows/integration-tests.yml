@@ -27,6 +27,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Verify required secrets
+        env:
+          AWS_ROLE: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ROLE" ]; then
+            echo "::error::AWS_STAGING_ROLE_ARN secret is not configured. See docs/INFRASTRUCTURE.md for setup."
+            exit 1
+          fi
+
       - uses: actions/checkout@v6
 
       - name: Set up Python

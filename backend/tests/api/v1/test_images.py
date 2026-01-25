@@ -49,6 +49,19 @@ def png_bytes():
 
 
 @pytest.fixture
+def create_image_bytes():
+    """Factory fixture to create image bytes for any PIL-supported format."""
+
+    def _create(format_name: str) -> bytes:
+        img = Image.new("RGB", (100, 100), color="gray")
+        buffer = io.BytesIO()
+        img.save(buffer, format=format_name.upper())
+        return buffer.getvalue()
+
+    return _create
+
+
+@pytest.fixture
 def lambda_environment(monkeypatch, tmp_path):
     """Set up Lambda-like environment with mocked S3.
 
@@ -126,73 +139,55 @@ class TestThumbnailExtensionMismatch:
     3. The thumbnail_url in responses uses the correct extension
     """
 
-    def test_jpeg_extension_normalized_in_thumbnail(self, client, lambda_environment, jpeg_bytes):
-        """Upload .jpeg file with JPEG data should create thumbnail with .jpg extension.
+    @pytest.mark.parametrize(
+        "actual_format,wrong_ext,expected_ext",
+        [
+            ("JPEG", ".jpeg", ".jpg"),  # Normalization: .jpeg -> .jpg
+            ("WEBP", ".jpg", ".webp"),  # Format mismatch: WebP data with .jpg
+            ("PNG", ".jpg", ".png"),  # Format mismatch: PNG data with .jpg
+            ("JPEG", ".png", ".jpg"),  # Format mismatch: JPEG data with .png
+        ],
+    )
+    def test_extension_corrected_based_on_content(
+        self,
+        client,
+        lambda_environment,
+        create_image_bytes,
+        actual_format,
+        wrong_ext,
+        expected_ext,
+    ):
+        """Extension should be corrected based on actual image content, not filename.
 
-        The fix normalizes .jpeg to .jpg for consistency.
-        The thumbnail filename must also use .jpg, not the original .jpeg.
+        Tests both normalization (.jpeg -> .jpg) and format mismatch correction.
+        Both main image and thumbnail should have the corrected extension.
         """
-        # Create a book
         response = client.post("/api/v1/books", json={"title": "Test Book"})
         book_id = response.json()["id"]
 
-        # Upload with .jpeg extension (should be normalized to .jpg)
+        image_bytes = create_image_bytes(actual_format)
+
         response = client.post(
             f"/api/v1/books/{book_id}/images",
-            files={"file": ("photo.jpeg", io.BytesIO(jpeg_bytes), "image/jpeg")},
+            files={
+                "file": (f"image{wrong_ext}", io.BytesIO(image_bytes), "application/octet-stream")
+            },
         )
 
         assert response.status_code == 201
 
-        # Find the thumbnail key that was uploaded
-        uploaded_keys = lambda_environment["uploaded_keys"]
-        thumbnail_keys = [k for k in uploaded_keys if k.startswith("books/thumb_")]
-
-        assert len(thumbnail_keys) == 1, f"Expected 1 thumbnail upload, got: {uploaded_keys}"
-        thumbnail_key = thumbnail_keys[0]
-
-        # Should end with .jpg (normalized from .jpeg)
-        assert thumbnail_key.endswith(".jpg"), (
-            f"Thumbnail key should end with .jpg (normalized), but got: {thumbnail_key}"
-        )
-
-    def test_wrong_extension_corrected_in_thumbnail(self, client, lambda_environment, webp_bytes):
-        """Upload .jpg file containing WebP data should create thumbnail with .webp extension.
-
-        When file content doesn't match extension, format detection corrects it.
-        The thumbnail must use the corrected extension based on actual content.
-        """
-        # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
-        book_id = response.json()["id"]
-
-        # Upload WebP data with wrong .jpg extension
-        response = client.post(
-            f"/api/v1/books/{book_id}/images",
-            files={"file": ("image.jpg", io.BytesIO(webp_bytes), "image/webp")},
-        )
-
-        assert response.status_code == 201
-
-        # Find the thumbnail and main image keys
         uploaded_keys = lambda_environment["uploaded_keys"]
         main_keys = [k for k in uploaded_keys if "thumb_" not in k]
         thumbnail_keys = [k for k in uploaded_keys if "thumb_" in k]
 
-        assert len(main_keys) == 1, f"Expected 1 main image upload, got: {uploaded_keys}"
-        assert len(thumbnail_keys) == 1, f"Expected 1 thumbnail upload, got: {uploaded_keys}"
+        assert len(main_keys) == 1, f"Expected 1 main image, got: {uploaded_keys}"
+        assert len(thumbnail_keys) == 1, f"Expected 1 thumbnail, got: {uploaded_keys}"
 
-        main_key = main_keys[0]
-        thumbnail_key = thumbnail_keys[0]
-
-        # Main image should be corrected to .webp
-        assert main_key.endswith(".webp"), (
-            f"Main image key should end with .webp (corrected from .jpg), but got: {main_key}"
+        assert main_keys[0].endswith(expected_ext), (
+            f"Main image should end with {expected_ext}, got: {main_keys[0]}"
         )
-
-        # Should end with .webp (matching corrected main image)
-        assert thumbnail_key.endswith(".webp"), (
-            f"Thumbnail key should end with .webp (matching main image), but got: {thumbnail_key}"
+        assert thumbnail_keys[0].endswith(expected_ext), (
+            f"Thumbnail should end with {expected_ext}, got: {thumbnail_keys[0]}"
         )
 
     def test_thumbnail_url_matches_corrected_extension(
@@ -237,33 +232,6 @@ class TestThumbnailExtensionMismatch:
 
 class TestThumbnailExtensionConsistency:
     """Additional tests for thumbnail/main image extension consistency."""
-
-    def test_png_data_with_jpg_extension_fixed_in_both(self, client, lambda_environment, png_bytes):
-        """PNG data uploaded with .jpg extension should fix both main and thumbnail.
-
-        Main: xxx.jpg -> xxx.png
-        Thumbnail: thumb_xxx.jpg -> thumb_xxx.png
-        """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
-        book_id = response.json()["id"]
-
-        # Upload PNG data with wrong .jpg extension
-        response = client.post(
-            f"/api/v1/books/{book_id}/images",
-            files={"file": ("wrong.jpg", io.BytesIO(png_bytes), "image/png")},
-        )
-
-        assert response.status_code == 201
-
-        uploaded_keys = lambda_environment["uploaded_keys"]
-        main_keys = [k for k in uploaded_keys if "thumb_" not in k]
-        thumbnail_keys = [k for k in uploaded_keys if "thumb_" in k]
-
-        # Both should be corrected to .png
-        assert main_keys[0].endswith(".png"), f"Main key should be .png: {main_keys[0]}"
-        assert thumbnail_keys[0].endswith(".png"), (
-            f"Thumbnail key should be .png (matching main): {thumbnail_keys[0]}"
-        )
 
     def test_thumbnail_key_derived_from_corrected_name(
         self, client, lambda_environment, jpeg_bytes
