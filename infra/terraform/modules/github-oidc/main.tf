@@ -115,6 +115,7 @@ resource "aws_iam_role_policy" "deploy" {
         }
       ] : [],
       # S3 Images access permissions
+      # Note: DeleteObject needed for integration tests that clean up garbage images
       length(var.images_bucket_arns) > 0 ? [
         {
           Sid    = "S3ImagesAccess"
@@ -122,6 +123,7 @@ resource "aws_iam_role_policy" "deploy" {
           Action = [
             "s3:GetObject",
             "s3:PutObject",
+            "s3:DeleteObject",
             "s3:ListBucket"
           ]
           Resource = concat(
