@@ -240,6 +240,9 @@ terraform_state_dynamodb_table_arn = "arn:aws:dynamodb:us-west-2:266672885920:ta
 # GitHub OIDC Drift Detection - read-only permissions for pre-deploy drift check
 enable_github_oidc_drift_detection = true
 
+# Bedrock integration tests - disabled in prod (only needed for staging CI)
+enable_github_oidc_bedrock_tests = false
+
 # =============================================================================
 # Entity Validation (#967, #969)
 # =============================================================================
