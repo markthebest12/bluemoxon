@@ -45,7 +45,7 @@ pytestmark = [
 
 # S3 bucket - configurable for staging vs production testing
 # Default: staging. Set TEST_S3_BUCKET=bluemoxon-images for production.
-S3_BUCKET = os.environ.get("TEST_S3_BUCKET", "bluemoxon-staging-images")
+S3_BUCKET = os.environ.get("TEST_S3_BUCKET", "bluemoxon-images-staging")
 BOOKS_PREFIX = "books/"
 
 
