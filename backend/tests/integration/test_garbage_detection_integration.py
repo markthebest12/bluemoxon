@@ -13,14 +13,17 @@ USAGE:
     poetry run pytest -m "not integration"
 
 TEST DATA:
-    eBay item 397448193086 was re-extracted to S3 at listings/397448193086/:
-    - 24 images extracted (indices 0-23)
+    Test images copied from eBay item 397448193086 to books/test-garbage-397448193086/:
+    - 24 images (indices 0-23)
     - Known garbage images at indices 19-23:
         * 19: Yarn/textile skeins (not a book)
         * 20: Decorative buttons (not a book)
         * 21: "From Friend to Friend" - different book
         * 22: "With Kennedy" by Pierre Salinger - different book
         * 23: German-English Dictionary - different book
+
+    The images are stored under books/ prefix because bedrock.py prepends "books/"
+    to all BookImage.s3_key values when fetching from S3.
 """
 
 import os
@@ -41,8 +44,10 @@ pytestmark = [
 ]
 
 
-# Book 539 listing data - Napoleon by Adolphe Thiers (24 volumes)
-LISTING_ID = "397448193086"
+# Test data - Napoleon by Adolphe Thiers (24 volumes)
+# Images stored at books/test-garbage-397448193086/ (copied from eBay listing 397448193086)
+# The "test-garbage-" prefix ensures cleanup Lambda won't delete this test data
+TEST_DATA_PREFIX = "test-garbage-397448193086"
 BOOK_TITLE = "HISTORY OF THE CONSULATE AND THE EMPIRE OF FRANCE UNDER NAPOLEON"
 BOOK_AUTHOR = "Adolphe Thiers"
 
@@ -59,9 +64,14 @@ def create_book_with_images_from_s3(db: Session) -> Book:
     This creates the database records but does NOT upload any images.
     The images must already exist in S3 at the expected paths.
 
-    S3 path patterns for listing 397448193086:
-    - Images 0-18: listings/{listing_id}/image_{index:02d}.webp (zero-padded, webp)
-    - Images 19-23: listings/{listing_id}/image_{index}.jpg (not padded, jpg)
+    S3 structure:
+    - Full path: books/{TEST_DATA_PREFIX}/image_{index}.{ext}
+    - BookImage.s3_key stores path RELATIVE to "books/" prefix
+    - bedrock.py prepends "books/" when fetching, so s3_key = "{TEST_DATA_PREFIX}/..."
+
+    File naming:
+    - Images 0-18: image_{index:02d}.webp (zero-padded, webp format)
+    - Images 19-23: image_{index}.jpg (not padded, jpg format)
     """
     book = Book(
         title=BOOK_TITLE,
@@ -71,12 +81,12 @@ def create_book_with_images_from_s3(db: Session) -> Book:
     db.flush()
 
     # Create BookImage records for all 24 images
-    # S3 files have mixed naming: webp (0-18) and jpg (19-23)
+    # s3_key is relative to books/ prefix (bedrock.py adds "books/" when fetching)
     for i in range(TOTAL_IMAGES):
         if i < 19:
-            s3_key = f"listings/{LISTING_ID}/image_{i:02d}.webp"
+            s3_key = f"{TEST_DATA_PREFIX}/image_{i:02d}.webp"
         else:
-            s3_key = f"listings/{LISTING_ID}/image_{i}.jpg"
+            s3_key = f"{TEST_DATA_PREFIX}/image_{i}.jpg"
         image = BookImage(
             book_id=book.id,
             s3_key=s3_key,
@@ -94,10 +104,13 @@ class TestGarbageDetectionIntegration:
 
     DATA DEPENDENCY: These tests require specific S3 data to exist:
     - S3 bucket: bluemoxon-images-staging (set via BMX_IMAGES_BUCKET env var)
-    - Path: listings/397448193086/image_{0-23}.jpg
-    - If S3 data is cleaned up, tests will fail with "Failed to load any images"
+    - Path: books/test-garbage-397448193086/image_{0-23}.{webp,jpg}
+    - The "test-garbage-" prefix prevents cleanup Lambda from deleting test data
+    - If S3 data is deleted, tests will fail with "Failed to load any images"
 
-    To restore test data, re-run eBay extraction for item 397448193086.
+    To restore test data:
+    aws s3 cp s3://bluemoxon-images-staging/listings/397448193086/ \
+              s3://bluemoxon-images-staging/books/test-garbage-397448193086/ --recursive
     """
 
     def test_garbage_detection_identifies_known_garbage_images(self, db: Session):
