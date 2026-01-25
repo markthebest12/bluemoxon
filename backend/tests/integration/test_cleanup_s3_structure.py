@@ -48,6 +48,11 @@ pytestmark = [
 S3_BUCKET = os.environ.get("TEST_S3_BUCKET", "bluemoxon-images-staging")
 BOOKS_PREFIX = "books/"
 
+# Test data prefix - intentionally unparseable by cleanup Lambda
+# Keys like "books/test-garbage-397448193086/..." are used for integration tests
+# and should be excluded from validation (they are meant to be unparseable)
+TEST_DATA_PREFIX = "test-"
+
 
 def can_cleanup_lambda_parse_key(key: str) -> tuple[bool, int | None, str]:
     """Check if cleanup Lambda can parse a key and extract book_id.
@@ -118,6 +123,7 @@ class TestS3BucketStructure:
         unparseable_keys: list[tuple[str, str]] = []  # (key, reason)
         format_counts = {"nested": 0, "thumbnail": 0, "flat": 0}
         total_count = 0
+        test_data_count = 0
 
         for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=BOOKS_PREFIX):
             for obj in page.get("Contents", []):
@@ -125,6 +131,12 @@ class TestS3BucketStructure:
 
                 # Skip directory markers
                 if key.endswith("/"):
+                    continue
+
+                # Skip test data (intentionally unparseable - see TEST_DATA_PREFIX)
+                parts = key.split("/")
+                if len(parts) >= 2 and parts[1].startswith(TEST_DATA_PREFIX):
+                    test_data_count += 1
                     continue
 
                 total_count += 1
@@ -145,6 +157,7 @@ class TestS3BucketStructure:
             f"  Bucket: {S3_BUCKET}\n"
             f"  Prefix: {BOOKS_PREFIX}\n"
             f"  Total objects: {total_count}\n"
+            f"  Test data (excluded): {test_data_count}\n"
             f"  Format breakdown:\n"
             f"    - Nested (books/{{id}}/{{file}}): {format_counts['nested']}\n"
             f"    - Thumbnail (books/thumb_{{id}}/{{file}}): {format_counts['thumbnail']}\n"
