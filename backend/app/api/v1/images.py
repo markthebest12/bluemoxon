@@ -18,7 +18,14 @@ from app.models import Book, BookImage
 from app.schemas.image import ImageUploadResponse
 from app.services.aws_clients import get_s3_client
 from app.services.image_processing import queue_image_processing
-from app.utils.image_utils import detect_content_type, fix_extension, get_thumbnail_key
+from app.utils.image_utils import (
+    MIN_DETECTION_BYTES,
+    ImageFormat,
+    detect_format,
+    get_content_type,
+    get_extension,
+    get_thumbnail_key,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -393,10 +400,18 @@ async def upload_image(
     ext = Path(file.filename).suffix or ".jpg"
     unique_name = f"{book_id}_{uuid.uuid4().hex}{ext}"
 
-    # Fix extension based on actual content (detect format from magic bytes)
-    # Need at least 12 bytes for detection; use filename extension as fallback
-    if len(content) >= 12:
-        unique_name = fix_extension(unique_name, content[:12])
+    # Detect format once from magic bytes - reuse for extension fix and S3 content type
+    # Need at least MIN_DETECTION_BYTES for detection; use filename extension as fallback
+    detected_format = (
+        detect_format(content[:MIN_DETECTION_BYTES])
+        if len(content) >= MIN_DETECTION_BYTES
+        else ImageFormat.UNKNOWN
+    )
+
+    # Fix extension based on detected format
+    if detected_format != ImageFormat.UNKNOWN:
+        base = unique_name.rsplit(".", 1)[0]
+        unique_name = base + get_extension(detected_format)
 
     file_path = LOCAL_IMAGES_PATH / unique_name
 
@@ -409,7 +424,6 @@ async def upload_image(
 
     # Generate thumbnail - capture result for response (Issue #866)
     # Issue #858: run blocking PIL operations in thread pool
-    # Note: thumbnail_name is derived from already-corrected unique_name
     thumbnail_name = get_thumbnail_key(unique_name)
     thumbnail_path = LOCAL_IMAGES_PATH / thumbnail_name
     thumbnail_success, thumbnail_error = await asyncio.to_thread(
@@ -422,8 +436,8 @@ async def upload_image(
     if settings.is_aws_lambda:
         s3 = get_s3_client()
 
-        # Detect content type for S3 upload
-        content_type = detect_content_type(content[:12]) if len(content) >= 12 else "image/jpeg"
+        # Get content type from already-detected format (no redundant detection)
+        content_type = get_content_type(detected_format)
 
         s3_key = f"{S3_IMAGES_PREFIX}{unique_name}"
         s3_thumbnail_key = f"{S3_IMAGES_PREFIX}{thumbnail_name}"
