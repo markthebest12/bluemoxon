@@ -59,7 +59,9 @@ def create_book_with_images_from_s3(db: Session) -> Book:
     This creates the database records but does NOT upload any images.
     The images must already exist in S3 at the expected paths.
 
-    S3 path pattern: listings/{listing_id}/image_{index}.jpg
+    S3 path patterns for listing 397448193086:
+    - Images 0-18: listings/{listing_id}/image_{index:02d}.webp (zero-padded, webp)
+    - Images 19-23: listings/{listing_id}/image_{index}.jpg (not padded, jpg)
     """
     book = Book(
         title=BOOK_TITLE,
@@ -69,8 +71,12 @@ def create_book_with_images_from_s3(db: Session) -> Book:
     db.flush()
 
     # Create BookImage records for all 24 images
+    # S3 files have mixed naming: webp (0-18) and jpg (19-23)
     for i in range(TOTAL_IMAGES):
-        s3_key = f"listings/{LISTING_ID}/image_{i}.jpg"
+        if i < 19:
+            s3_key = f"listings/{LISTING_ID}/image_{i:02d}.webp"
+        else:
+            s3_key = f"listings/{LISTING_ID}/image_{i}.jpg"
         image = BookImage(
             book_id=book.id,
             s3_key=s3_key,
