@@ -87,7 +87,7 @@ class TestGarbageDetectionIntegration:
     """Integration tests for garbage detection with real Claude API calls.
 
     DATA DEPENDENCY: These tests require specific S3 data to exist:
-    - S3 bucket: bluemoxon-images (staging)
+    - S3 bucket: bluemoxon-images-staging (set via BMX_IMAGES_BUCKET env var)
     - Path: listings/397448193086/image_{0-23}.jpg
     - If S3 data is cleaned up, tests will fail with "Failed to load any images"
 
