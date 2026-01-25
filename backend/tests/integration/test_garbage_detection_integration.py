@@ -69,9 +69,14 @@ def create_book_with_images_from_s3(db: Session) -> Book:
     - BookImage.s3_key stores path RELATIVE to "books/" prefix
     - bedrock.py prepends "books/" when fetching, so s3_key = "{TEST_DATA_PREFIX}/..."
 
-    File naming:
+    File naming (MUST match S3 exactly):
     - Images 0-18: image_{index:02d}.webp (zero-padded, webp format)
     - Images 19-23: image_{index}.jpg (not padded, jpg format)
+
+    If S3 files are renamed or deleted, tests will fail with "Failed to load any images".
+    Restore with: aws s3 cp s3://bluemoxon-images-staging/listings/397448193086/ \
+                          s3://bluemoxon-images-staging/books/test-garbage-397448193086/ --recursive
+    Then verify naming matches the pattern above.
     """
     book = Book(
         title=BOOK_TITLE,
