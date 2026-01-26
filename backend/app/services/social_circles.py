@@ -73,8 +73,12 @@ def build_social_circles_graph(
     publisher_authors: dict[int, set[int]] = defaultdict(set)  # publisher_id -> author_ids
     author_binders: dict[int, set[int]] = defaultdict(set)  # author_id -> binder_ids
     author_books: dict[int, list[int]] = defaultdict(list)  # author_id -> book_ids
-    publisher_books: dict[int, list[int]] = defaultdict(list)  # publisher_id -> book_ids
-    binder_books: dict[int, list[int]] = defaultdict(list)  # binder_id -> book_ids
+    publisher_books: dict[int, set[int]] = defaultdict(
+        set
+    )  # publisher_id -> book_ids (set for O(1) lookup)
+    binder_books: dict[int, set[int]] = defaultdict(
+        set
+    )  # binder_id -> book_ids (set for O(1) lookup)
 
     # First pass: collect relationships
     for book in books:
@@ -83,10 +87,10 @@ def build_social_circles_graph(
             if book.publisher_id:
                 author_publishers[book.author_id].add(book.publisher_id)
                 publisher_authors[book.publisher_id].add(book.author_id)
-                publisher_books[book.publisher_id].append(book.id)
+                publisher_books[book.publisher_id].add(book.id)
             if book.binder_id and include_binders:
                 author_binders[book.author_id].add(book.binder_id)
-                binder_books[book.binder_id].append(book.id)
+                binder_books[book.binder_id].add(book.id)
 
     # Build author nodes
     authors = db.query(Author).filter(Author.id.in_(list(author_books.keys()))).all()
@@ -118,8 +122,8 @@ def build_social_circles_graph(
     publishers = db.query(Publisher).filter(Publisher.id.in_(list(publisher_books.keys()))).all()
 
     for publisher in publishers:
-        book_ids = publisher_books[publisher.id]
-        if len(book_ids) < min_book_count:
+        book_ids_set = publisher_books[publisher.id]
+        if len(book_ids_set) < min_book_count:
             continue
 
         node_id = f"publisher:{publisher.id}"
@@ -129,8 +133,8 @@ def build_social_circles_graph(
             name=publisher.name,
             type=NodeType.publisher,
             tier=publisher.tier,
-            book_count=len(book_ids),
-            book_ids=book_ids,
+            book_count=len(book_ids_set),
+            book_ids=list(book_ids_set),
         )
 
     # Build binder nodes
@@ -138,8 +142,8 @@ def build_social_circles_graph(
         binders = db.query(Binder).filter(Binder.id.in_(list(binder_books.keys()))).all()
 
         for binder in binders:
-            book_ids = binder_books[binder.id]
-            if len(book_ids) < min_book_count:
+            book_ids_set = binder_books[binder.id]
+            if len(book_ids_set) < min_book_count:
                 continue
 
             node_id = f"binder:{binder.id}"
@@ -149,8 +153,8 @@ def build_social_circles_graph(
                 name=binder.name,
                 type=NodeType.binder,
                 tier=binder.tier,
-                book_count=len(book_ids),
-                book_ids=book_ids,
+                book_count=len(book_ids_set),
+                book_ids=list(book_ids_set),
             )
 
     # Build edges: Author -> Publisher
@@ -170,7 +174,7 @@ def build_social_circles_graph(
             ]
 
             edge_id = f"e:{author_node_id}:{publisher_node_id}"
-            strength = min(len(shared_books) * 2, 10)  # Scale strength
+            strength = max(1, min(len(shared_books) * 2, 10))  # Scale strength, ensure >=1
 
             edges[edge_id] = SocialCircleEdge(
                 id=edge_id,
@@ -199,18 +203,21 @@ def build_social_circles_graph(
                 if author2_node_id not in nodes:
                     continue
 
-                # Ensure consistent edge ID ordering
-                if author1_node_id > author2_node_id:
-                    author1_node_id, author2_node_id = author2_node_id, author1_node_id
+                # Ensure consistent edge ID ordering (use local vars to avoid corrupting loop)
+                source_id, target_id = (
+                    (author1_node_id, author2_node_id)
+                    if author1_node_id < author2_node_id
+                    else (author2_node_id, author1_node_id)
+                )
 
-                edge_id = f"e:{author1_node_id}:{author2_node_id}"
+                edge_id = f"e:{source_id}:{target_id}"
                 if edge_id in edges:
                     continue  # Already added from another publisher
 
                 edges[edge_id] = SocialCircleEdge(
                     id=edge_id,
-                    source=author1_node_id,
-                    target=author2_node_id,
+                    source=source_id,
+                    target=target_id,
                     type=ConnectionType.shared_publisher,
                     strength=3,  # Lower strength for indirect connection
                     evidence=f"Both published by {nodes[publisher_node_id].name}",
@@ -233,7 +240,7 @@ def build_social_circles_graph(
                 ]
 
                 edge_id = f"e:{author_node_id}:{binder_node_id}"
-                strength = min(len(shared_books) * 2, 10)
+                strength = max(1, min(len(shared_books) * 2, 10))  # Ensure >=1
 
                 edges[edge_id] = SocialCircleEdge(
                     id=edge_id,

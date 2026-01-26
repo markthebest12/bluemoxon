@@ -30,7 +30,7 @@ router = APIRouter()
     - **binder**: Author's book was bound by a binder
     """,
 )
-async def get_social_circles(
+def get_social_circles(
     include_binders: bool = Query(
         True,
         description="Include binder nodes and edges in the graph",

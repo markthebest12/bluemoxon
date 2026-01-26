@@ -93,11 +93,3 @@ class SocialCirclesResponse(BaseModel):
     nodes: list[SocialCircleNode] = Field(..., description="Graph nodes")
     edges: list[SocialCircleEdge] = Field(..., description="Graph edges")
     meta: SocialCirclesMeta = Field(..., description="Response metadata")
-
-
-class SocialCirclesParams(BaseModel):
-    """Query parameters for the social circles endpoint."""
-
-    include_binders: bool = Field(True, description="Include binder nodes and edges")
-    min_book_count: int = Field(1, ge=1, description="Minimum books to include entity")
-    era: list[Era] | None = Field(None, description="Filter by era(s)")
