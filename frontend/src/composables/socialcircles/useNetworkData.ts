@@ -5,6 +5,7 @@
 import { ref, readonly } from "vue";
 import type { SocialCirclesResponse, LoadingState, AppError } from "@/types/socialCircles";
 import { API } from "@/constants/socialCircles";
+import { api } from "@/services/api";
 
 // Module-level cache
 let cachedData: SocialCirclesResponse | null = null;
@@ -36,23 +37,14 @@ export function useNetworkData() {
     error.value = null;
 
     try {
-      const params = new URLSearchParams({
-        include_binders: String(includeBinders),
-        min_book_count: String(minBookCount),
-      });
-
-      const response = await fetch(`${API.endpoint}?${params}`, {
-        headers: {
-          "Content-Type": "application/json",
+      const response = await api.get<SocialCirclesResponse>(API.endpoint, {
+        params: {
+          include_binders: includeBinders,
+          min_book_count: minBookCount,
         },
-        credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const json = await response.json();
+      const json = response.data;
 
       // Update cache
       cachedData = json;
