@@ -5,7 +5,7 @@
  * Visual encoding, animation timings, and configuration.
  */
 
-import type { NodeType, ConnectionType, Era, LayoutMode } from '@/types/socialCircles';
+import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
 
 // =============================================================================
 // Victorian Color Palette
@@ -14,26 +14,26 @@ import type { NodeType, ConnectionType, Era, LayoutMode } from '@/types/socialCi
 /** Node colors by type and variant */
 export const NODE_COLORS: Record<string, string> = {
   // Authors by era
-  'author:romantic': 'var(--color-victorian-burgundy-light)',     // #8b3a42
-  'author:victorian': 'var(--color-victorian-hunter-700)',        // #254a3d
-  'author:edwardian': 'var(--color-victorian-hunter-500)',        // #3a6b5c
-  'author:default': 'var(--color-victorian-hunter-600)',          // #2f5a4b
+  "author:romantic": "var(--color-victorian-burgundy-light)", // #8b3a42
+  "author:victorian": "var(--color-victorian-hunter-700)", // #254a3d
+  "author:edwardian": "var(--color-victorian-hunter-500)", // #3a6b5c
+  "author:default": "var(--color-victorian-hunter-600)", // #2f5a4b
 
   // Publishers by tier
-  'publisher:tier1': 'var(--color-victorian-gold-light)',         // #d4af37
-  'publisher:tier2': 'var(--color-victorian-gold-muted)',         // #b8956e
-  'publisher:default': 'var(--color-victorian-gold)',             // #c9a227
+  "publisher:tier1": "var(--color-victorian-gold-light)", // #d4af37
+  "publisher:tier2": "var(--color-victorian-gold-muted)", // #b8956e
+  "publisher:default": "var(--color-victorian-gold)", // #c9a227
 
   // Binders
-  'binder:tier1': 'var(--color-victorian-burgundy-dark)',         // #5c262e
-  'binder:default': 'var(--color-victorian-burgundy)',            // #722f37
+  "binder:tier1": "var(--color-victorian-burgundy-dark)", // #5c262e
+  "binder:default": "var(--color-victorian-burgundy)", // #722f37
 };
 
 /** Edge colors by connection type */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
-  publisher: 'var(--color-victorian-gold)',            // #c9a227
-  shared_publisher: 'var(--color-victorian-hunter-500)', // #3a6b5c
-  binder: 'var(--color-victorian-burgundy)',           // #722f37
+  publisher: "var(--color-victorian-gold)", // #c9a227
+  shared_publisher: "var(--color-victorian-hunter-500)", // #3a6b5c
+  binder: "var(--color-victorian-burgundy)", // #722f37
 };
 
 // =============================================================================
@@ -42,9 +42,9 @@ export const EDGE_COLORS: Record<ConnectionType, string> = {
 
 /** Node shapes by type */
 export const NODE_SHAPES: Record<NodeType, string> = {
-  author: 'ellipse',
-  publisher: 'rectangle',
-  binder: 'diamond',
+  author: "ellipse",
+  publisher: "rectangle",
+  binder: "diamond",
 };
 
 /** Node size calculation */
@@ -72,9 +72,9 @@ export const EDGE_WIDTH = {
 
 /** Edge styles by connection type */
 export const EDGE_STYLES: Record<ConnectionType, { lineStyle: string; opacity: number }> = {
-  publisher: { lineStyle: 'solid', opacity: 0.8 },
-  shared_publisher: { lineStyle: 'solid', opacity: 0.6 },
-  binder: { lineStyle: 'dashed', opacity: 0.5 },
+  publisher: { lineStyle: "solid", opacity: 0.8 },
+  shared_publisher: { lineStyle: "solid", opacity: 0.6 },
+  binder: { lineStyle: "dashed", opacity: 0.5 },
 };
 
 /** Calculate edge width from strength */
@@ -104,7 +104,7 @@ export const ANIMATION = {
 
 export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
   force: {
-    name: 'cose',
+    name: "cose",
     idealEdgeLength: 100,
     nodeOverlap: 20,
     refresh: 20,
@@ -122,14 +122,14 @@ export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
     minTemp: 1.0,
   },
   circle: {
-    name: 'circle',
+    name: "circle",
     fit: true,
     padding: 30,
     avoidOverlap: true,
     spacingFactor: 1.5,
   },
   grid: {
-    name: 'grid',
+    name: "grid",
     fit: true,
     padding: 30,
     avoidOverlap: true,
@@ -138,8 +138,8 @@ export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
     cols: undefined,
   },
   hierarchical: {
-    name: 'dagre',
-    rankDir: 'TB',
+    name: "dagre",
+    rankDir: "TB",
     nodeSep: 50,
     rankSep: 100,
     fit: true,
@@ -162,11 +162,11 @@ export const ERA_RANGES: Record<Era, [number, number]> = {
 
 /** Determine era from year */
 export function getEraFromYear(year: number): Era {
-  if (year < 1789) return 'pre_romantic';
-  if (year < 1837) return 'romantic';
-  if (year < 1901) return 'victorian';
-  if (year < 1910) return 'edwardian';
-  return 'post_1910';
+  if (year < 1789) return "pre_romantic";
+  if (year < 1837) return "romantic";
+  if (year < 1901) return "victorian";
+  if (year < 1910) return "edwardian";
+  return "post_1910";
 }
 
 // =============================================================================
@@ -174,8 +174,8 @@ export function getEraFromYear(year: number): Era {
 // =============================================================================
 
 export const API = {
-  endpoint: '/api/v1/social-circles',
-  cacheKey: 'social-circles-data',
+  endpoint: "/api/v1/social-circles",
+  cacheKey: "social-circles-data",
   cacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
 
@@ -184,16 +184,16 @@ export const API = {
 // =============================================================================
 
 export const KEYBOARD_SHORTCUTS = {
-  zoomIn: ['+', '='],
-  zoomOut: ['-', '_'],
-  fitToView: ['0'],
-  togglePlay: [' '],
-  escape: ['Escape'],
-  search: ['/'],
-  export: ['e'],
-  share: ['s'],
-  help: ['?'],
-  nextNode: ['ArrowRight'],
-  prevNode: ['ArrowLeft'],
-  openDetails: ['Enter'],
+  zoomIn: ["+", "="],
+  zoomOut: ["-", "_"],
+  fitToView: ["0"],
+  togglePlay: [" "],
+  escape: ["Escape"],
+  search: ["/"],
+  export: ["e"],
+  share: ["s"],
+  help: ["?"],
+  nextNode: ["ArrowRight"],
+  prevNode: ["ArrowLeft"],
+  openDetails: ["Enter"],
 } as const;

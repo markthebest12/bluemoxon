@@ -2,10 +2,10 @@
  * useUrlState - Syncs filter/selection state to URL for shareable links.
  */
 
-import { ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import type { FilterState, NodeId, Era, ConnectionType } from '@/types/socialCircles';
-import { ANIMATION } from '@/constants/socialCircles';
+import { ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import type { FilterState, NodeId, Era, ConnectionType } from "@/types/socialCircles";
+import { ANIMATION } from "@/constants/socialCircles";
 
 export function useUrlState() {
   const router = useRouter();
@@ -19,23 +19,23 @@ export function useUrlState() {
     const query = route.query;
     const filters: Partial<FilterState> = {};
 
-    if (query.authors === 'false') filters.showAuthors = false;
-    if (query.publishers === 'false') filters.showPublishers = false;
-    if (query.binders === 'false') filters.showBinders = false;
-    if (query.tier1 === 'true') filters.tier1Only = true;
+    if (query.authors === "false") filters.showAuthors = false;
+    if (query.publishers === "false") filters.showPublishers = false;
+    if (query.binders === "false") filters.showBinders = false;
+    if (query.tier1 === "true") filters.tier1Only = true;
     if (query.search) filters.searchQuery = String(query.search);
 
     if (query.connections) {
-      const types = String(query.connections).split(',') as ConnectionType[];
+      const types = String(query.connections).split(",") as ConnectionType[];
       filters.connectionTypes = types.filter((t) =>
-        ['publisher', 'shared_publisher', 'binder'].includes(t),
+        ["publisher", "shared_publisher", "binder"].includes(t)
       );
     }
 
     if (query.eras) {
-      const eras = String(query.eras).split(',') as Era[];
+      const eras = String(query.eras).split(",") as Era[];
       filters.eras = eras.filter((e) =>
-        ['pre_romantic', 'romantic', 'victorian', 'edwardian', 'post_1910'].includes(e),
+        ["pre_romantic", "romantic", "victorian", "edwardian", "post_1910"].includes(e)
       );
     }
 
@@ -45,7 +45,7 @@ export function useUrlState() {
   // Parse selected node from URL
   function parseSelectedNode(): NodeId | null {
     const selected = route.query.selected;
-    if (selected && typeof selected === 'string') {
+    if (selected && typeof selected === "string") {
       return selected as NodeId;
     }
     return null;
@@ -74,16 +74,16 @@ export function useUrlState() {
 
       if (params.filters) {
         const f = params.filters;
-        if (!f.showAuthors) query.authors = 'false';
-        if (!f.showPublishers) query.publishers = 'false';
-        if (!f.showBinders) query.binders = 'false';
-        if (f.tier1Only) query.tier1 = 'true';
+        if (!f.showAuthors) query.authors = "false";
+        if (!f.showPublishers) query.publishers = "false";
+        if (!f.showBinders) query.binders = "false";
+        if (f.tier1Only) query.tier1 = "true";
         if (f.searchQuery) query.search = f.searchQuery;
         if (f.connectionTypes.length < 3) {
-          query.connections = f.connectionTypes.join(',');
+          query.connections = f.connectionTypes.join(",");
         }
         if (f.eras.length > 0) {
-          query.eras = f.eras.join(',');
+          query.eras = f.eras.join(",");
         }
       }
 

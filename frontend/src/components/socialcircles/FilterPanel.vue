@@ -11,7 +11,7 @@
  * - Search input
  */
 
-import { ref } from 'vue';
+import { ref } from "vue";
 
 // Props
 interface Props {
@@ -28,16 +28,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
-  'filter-change': [key: string, value: unknown];
+  "filter-change": [key: string, value: unknown];
   reset: [];
 }>();
 
 // Local state
-const searchQuery = ref('');
+const searchQuery = ref("");
 
 function handleReset() {
-  searchQuery.value = '';
-  emit('reset');
+  searchQuery.value = "";
+  emit("reset");
 }
 </script>
 

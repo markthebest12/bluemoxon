@@ -4,13 +4,13 @@
  * Supports point mode (single year) and range mode (date span).
  */
 
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 
 interface Props {
   minYear?: number;
   maxYear?: number;
   currentYear?: number;
-  mode?: 'point' | 'range';
+  mode?: "point" | "range";
   isPlaying?: boolean;
 }
 
@@ -18,30 +18,28 @@ const props = withDefaults(defineProps<Props>(), {
   minYear: 1780,
   maxYear: 1920,
   currentYear: 1850,
-  mode: 'point',
+  mode: "point",
   isPlaying: false,
 });
 
 const emit = defineEmits<{
-  'year-change': [year: number];
-  'mode-change': [mode: 'point' | 'range'];
-  'play': [];
-  'pause': [];
+  "year-change": [year: number];
+  "mode-change": [mode: "point" | "range"];
+  play: [];
+  pause: [];
 }>();
 
 const localYear = ref(props.currentYear);
 
 const yearLabel = computed(() => {
-  return props.mode === 'point'
-    ? `${localYear.value}`
-    : `${props.minYear} - ${localYear.value}`;
+  return props.mode === "point" ? `${localYear.value}` : `${props.minYear} - ${localYear.value}`;
 });
 
 function handlePlay() {
   if (props.isPlaying) {
-    emit('pause');
+    emit("pause");
   } else {
-    emit('play');
+    emit("play");
   }
 }
 </script>
@@ -65,7 +63,7 @@ function handlePlay() {
       </div>
 
       <button class="timeline-slider__play" @click="handlePlay">
-        {{ isPlaying ? '⏸' : '▶' }}
+        {{ isPlaying ? "⏸" : "▶" }}
       </button>
     </div>
 

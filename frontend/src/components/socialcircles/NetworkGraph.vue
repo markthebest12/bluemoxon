@@ -10,7 +10,7 @@
  * - Layout management
  */
 
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from "vue";
 
 // Props
 interface Props {
@@ -25,9 +25,9 @@ defineProps<Props>();
 
 // Emits
 defineEmits<{
-  'node-selected': [nodeId: string];
-  'node-hovered': [nodeId: string | null];
-  'edge-hovered': [edgeId: string | null];
+  "node-selected": [nodeId: string];
+  "node-hovered": [nodeId: string | null];
+  "edge-hovered": [edgeId: string | null];
 }>();
 
 // Refs
@@ -59,9 +59,7 @@ defineExpose({
     class="network-graph"
     :class="{ 'network-graph--initialized': isInitialized }"
   >
-    <div v-if="!isInitialized" class="network-graph__loading">
-      Initializing graph...
-    </div>
+    <div v-if="!isInitialized" class="network-graph__loading">Initializing graph...</div>
   </div>
 </template>
 

@@ -3,14 +3,21 @@
  * Combines all social circles composables into a single interface.
  */
 
-import { computed, watch, shallowRef } from 'vue';
-import { useNetworkData } from './useNetworkData';
-import { useNetworkFilters } from './useNetworkFilters';
-import { useNetworkSelection } from './useNetworkSelection';
-import { useNetworkTimeline } from './useNetworkTimeline';
-import { useUrlState } from './useUrlState';
-import { transformToCytoscapeElements } from '@/utils/socialCircles/dataTransformers';
-import type { ApiNode, ApiEdge, ConnectionType, Era, NodeId, FilterState } from '@/types/socialCircles';
+import { computed, watch, shallowRef } from "vue";
+import { useNetworkData } from "./useNetworkData";
+import { useNetworkFilters } from "./useNetworkFilters";
+import { useNetworkSelection } from "./useNetworkSelection";
+import { useNetworkTimeline } from "./useNetworkTimeline";
+import { useUrlState } from "./useUrlState";
+import { transformToCytoscapeElements } from "@/utils/socialCircles/dataTransformers";
+import type {
+  ApiNode,
+  ApiEdge,
+  ConnectionType,
+  Era,
+  NodeId,
+  FilterState,
+} from "@/types/socialCircles";
 
 // Cytoscape instance type (inline to avoid @types/cytoscape dependency)
 interface CytoscapeCore {
@@ -31,8 +38,8 @@ export function useSocialCircles() {
   const urlState = useUrlState();
 
   // Computed: is loading
-  const isLoading = computed(() => networkData.loadingState.value === 'loading');
-  const hasError = computed(() => networkData.loadingState.value === 'error');
+  const isLoading = computed(() => networkData.loadingState.value === "loading");
+  const hasError = computed(() => networkData.loadingState.value === "error");
 
   // Computed: nodes from data
   const nodes = computed(() => networkData.data.value?.nodes ?? []);
@@ -48,12 +55,12 @@ export function useSocialCircles() {
       const f = filters.filters.value;
 
       // Node type filter
-      if (node.type === 'author' && !f.showAuthors) return false;
-      if (node.type === 'publisher' && !f.showPublishers) return false;
-      if (node.type === 'binder' && !f.showBinders) return false;
+      if (node.type === "author" && !f.showAuthors) return false;
+      if (node.type === "publisher" && !f.showPublishers) return false;
+      if (node.type === "binder" && !f.showBinders) return false;
 
       // Tier filter
-      if (f.tier1Only && node.tier !== 'Tier 1') return false;
+      if (f.tier1Only && node.tier !== "Tier 1") return false;
 
       // Era filter
       if (f.eras.length > 0 && node.era && !f.eras.includes(node.era)) {
@@ -67,9 +74,9 @@ export function useSocialCircles() {
       }
 
       // Timeline filter (point mode)
-      if (timeline.timeline.value.mode === 'point') {
+      if (timeline.timeline.value.mode === "point") {
         const year = timeline.timeline.value.currentYear;
-        if (node.type === 'author') {
+        if (node.type === "author") {
           const birth = node.birth_year || 0;
           const death = node.death_year || 9999;
           if (year < birth || year > death) return false;
@@ -81,7 +88,7 @@ export function useSocialCircles() {
   });
 
   // Computed: filtered edges (edges where both source and target are in filteredNodes)
-  const filteredNodeIds = computed(() => new Set(filteredNodes.value.map(n => n.id)));
+  const filteredNodeIds = computed(() => new Set(filteredNodes.value.map((n) => n.id)));
 
   const filteredEdges = computed(() => {
     const edgeList = edges.value;
@@ -112,13 +119,21 @@ export function useSocialCircles() {
     const result: Array<{ key: string; label: string; value: unknown }> = [];
     const f = filters.filters.value;
 
-    if (!f.showAuthors) result.push({ key: 'showAuthors', label: 'Hide Authors', value: false });
-    if (!f.showPublishers) result.push({ key: 'showPublishers', label: 'Hide Publishers', value: false });
-    if (!f.showBinders) result.push({ key: 'showBinders', label: 'Hide Binders', value: false });
-    if (f.tier1Only) result.push({ key: 'tier1Only', label: 'Tier 1 Only', value: true });
-    if (f.searchQuery) result.push({ key: 'searchQuery', label: `Search: "${f.searchQuery}"`, value: f.searchQuery });
-    f.eras.forEach(era => result.push({ key: `era:${era}`, label: `Era: ${era}`, value: era }));
-    f.connectionTypes.forEach(ct => result.push({ key: `ct:${ct}`, label: `Connection: ${ct}`, value: ct }));
+    if (!f.showAuthors) result.push({ key: "showAuthors", label: "Hide Authors", value: false });
+    if (!f.showPublishers)
+      result.push({ key: "showPublishers", label: "Hide Publishers", value: false });
+    if (!f.showBinders) result.push({ key: "showBinders", label: "Hide Binders", value: false });
+    if (f.tier1Only) result.push({ key: "tier1Only", label: "Tier 1 Only", value: true });
+    if (f.searchQuery)
+      result.push({
+        key: "searchQuery",
+        label: `Search: "${f.searchQuery}"`,
+        value: f.searchQuery,
+      });
+    f.eras.forEach((era) => result.push({ key: `era:${era}`, label: `Era: ${era}`, value: era }));
+    f.connectionTypes.forEach((ct) =>
+      result.push({ key: `ct:${ct}`, label: `Connection: ${ct}`, value: ct })
+    );
 
     return result;
   });
@@ -127,7 +142,7 @@ export function useSocialCircles() {
   const selectedNode = computed(() => {
     const nodeId = selection.selection.value.selectedNodeId;
     if (!nodeId) return null;
-    return nodes.value.find(n => n.id === nodeId) ?? null;
+    return nodes.value.find((n) => n.id === nodeId) ?? null;
   });
 
   // Edge selection (not yet implemented in useNetworkSelection)
@@ -147,25 +162,25 @@ export function useSocialCircles() {
   // Apply a filter update (generic)
   function applyFilter(key: keyof FilterState, value: unknown) {
     switch (key) {
-      case 'showAuthors':
+      case "showAuthors":
         filters.setShowAuthors(value as boolean);
         break;
-      case 'showPublishers':
+      case "showPublishers":
         filters.setShowPublishers(value as boolean);
         break;
-      case 'showBinders':
+      case "showBinders":
         filters.setShowBinders(value as boolean);
         break;
-      case 'tier1Only':
+      case "tier1Only":
         filters.setTier1Only(value as boolean);
         break;
-      case 'searchQuery':
+      case "searchQuery":
         filters.setSearchQuery(value as string);
         break;
-      case 'connectionTypes':
+      case "connectionTypes":
         filters.setConnectionTypes(value as ConnectionType[]);
         break;
-      case 'eras':
+      case "eras":
         filters.setEras(value as Era[]);
         break;
     }
@@ -173,15 +188,15 @@ export function useSocialCircles() {
 
   // Remove a specific filter
   function removeFilter(filterKey: string) {
-    if (filterKey === 'showAuthors') filters.setShowAuthors(true);
-    else if (filterKey === 'showPublishers') filters.setShowPublishers(true);
-    else if (filterKey === 'showBinders') filters.setShowBinders(true);
-    else if (filterKey === 'tier1Only') filters.setTier1Only(false);
-    else if (filterKey === 'searchQuery') filters.setSearchQuery('');
-    else if (filterKey.startsWith('era:')) {
+    if (filterKey === "showAuthors") filters.setShowAuthors(true);
+    else if (filterKey === "showPublishers") filters.setShowPublishers(true);
+    else if (filterKey === "showBinders") filters.setShowBinders(true);
+    else if (filterKey === "tier1Only") filters.setTier1Only(false);
+    else if (filterKey === "searchQuery") filters.setSearchQuery("");
+    else if (filterKey.startsWith("era:")) {
       const era = filterKey.substring(4) as Era;
       filters.toggleEra(era);
-    } else if (filterKey.startsWith('ct:')) {
+    } else if (filterKey.startsWith("ct:")) {
       const ct = filterKey.substring(3) as ConnectionType;
       filters.toggleConnectionType(ct);
     }
@@ -248,7 +263,7 @@ export function useSocialCircles() {
         total_authors: m?.total_authors ?? 0,
         total_publishers: m?.total_publishers ?? 0,
         total_binders: m?.total_binders ?? 0,
-        date_range: m?.date_range ? [...m.date_range] as [number, number] : [1800, 1900],
+        date_range: m?.date_range ? ([...m.date_range] as [number, number]) : [1800, 1900],
         generated_at: m?.generated_at ?? new Date().toISOString(),
       },
     });
@@ -259,14 +274,14 @@ export function useSocialCircles() {
     if (!cytoscapeInstance.value) return;
 
     const png = cytoscapeInstance.value.png({
-      output: 'blob',
-      bg: '#fdfcfa',
+      output: "blob",
+      bg: "#fdfcfa",
       scale: 2,
     });
 
     // Download
     const url = URL.createObjectURL(png);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `social-circles-${Date.now()}.png`;
     a.click();
@@ -281,9 +296,9 @@ export function useSocialCircles() {
       exportedAt: new Date().toISOString(),
     };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `social-circles-${Date.now()}.json`;
     a.click();
@@ -334,7 +349,7 @@ export function useSocialCircles() {
     if (networkData.data.value) {
       selection.setNodesAndEdges(
         [...networkData.data.value.nodes] as ApiNode[],
-        [...networkData.data.value.edges] as ApiEdge[],
+        [...networkData.data.value.edges] as ApiEdge[]
       );
 
       // Set date range from data
@@ -380,7 +395,7 @@ export function useSocialCircles() {
         });
       }
     },
-    { deep: true },
+    { deep: true }
   );
 
   watch(
@@ -402,7 +417,7 @@ export function useSocialCircles() {
           year: timeline.timeline.value.currentYear,
         });
       }
-    },
+    }
   );
 
   return {

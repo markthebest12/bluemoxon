@@ -16,10 +16,10 @@ withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'zoom-in': [];
-  'zoom-out': [];
-  'fit': [];
-  'zoom-change': [level: number];
+  "zoom-in": [];
+  "zoom-out": [];
+  fit: [];
+  "zoom-change": [level: number];
 }>();
 
 function formatZoom(level: number): string {

@@ -3,40 +3,38 @@
  * ExportMenu - Export and share functionality.
  */
 
-import { ref } from 'vue';
+import { ref } from "vue";
 
 const isOpen = ref(false);
 
 const emit = defineEmits<{
-  'export-png': [];
-  'export-json': [];
-  'share': [];
+  "export-png": [];
+  "export-json": [];
+  share: [];
 }>();
 
 function toggleMenu() {
   isOpen.value = !isOpen.value;
 }
 
-function handleExport(type: 'png' | 'json') {
-  if (type === 'png') {
-    emit('export-png');
+function handleExport(type: "png" | "json") {
+  if (type === "png") {
+    emit("export-png");
   } else {
-    emit('export-json');
+    emit("export-json");
   }
   isOpen.value = false;
 }
 
 function handleShare() {
-  emit('share');
+  emit("share");
   isOpen.value = false;
 }
 </script>
 
 <template>
   <div class="export-menu">
-    <button class="export-menu__trigger" @click="toggleMenu">
-      Export ▾
-    </button>
+    <button class="export-menu__trigger" @click="toggleMenu">Export ▾</button>
 
     <Transition name="fade">
       <div v-if="isOpen" class="export-menu__dropdown">

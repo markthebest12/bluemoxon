@@ -10,7 +10,9 @@
       <div class="loading-state__ring"></div>
     </div>
     <p class="loading-state__text">Loading social circles...</p>
-    <p class="loading-state__subtext">Analyzing connections between authors, publishers, and binders</p>
+    <p class="loading-state__subtext">
+      Analyzing connections between authors, publishers, and binders
+    </p>
   </div>
 </template>
 
@@ -41,7 +43,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-state__text {

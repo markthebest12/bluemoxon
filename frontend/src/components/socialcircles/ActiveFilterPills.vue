@@ -17,7 +17,7 @@ defineProps<Props>();
 
 const emit = defineEmits<{
   remove: [key: string];
-  'clear-all': [];
+  "clear-all": [];
 }>();
 </script>
 
@@ -36,11 +36,7 @@ const emit = defineEmits<{
         <span class="active-filter-pills__pill-remove">×</span>
       </button>
     </div>
-    <button
-      v-if="filters.length > 1"
-      class="active-filter-pills__clear"
-      @click="emit('clear-all')"
-    >
+    <button v-if="filters.length > 1" class="active-filter-pills__clear" @click="emit('clear-all')">
       Clear all
     </button>
   </div>

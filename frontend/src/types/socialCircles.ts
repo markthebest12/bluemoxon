@@ -10,37 +10,31 @@
 // =============================================================================
 
 /** Node identifier (e.g., "author:42", "publisher:7") */
-export type NodeId = string & { readonly __brand: 'NodeId' };
+export type NodeId = string & { readonly __brand: "NodeId" };
 
 /** Edge identifier (e.g., "e:author:42:publisher:7") */
-export type EdgeId = string & { readonly __brand: 'EdgeId' };
+export type EdgeId = string & { readonly __brand: "EdgeId" };
 
 /** Book ID reference */
-export type BookId = number & { readonly __brand: 'BookId' };
+export type BookId = number & { readonly __brand: "BookId" };
 
 // =============================================================================
 // Enums
 // =============================================================================
 
-export type NodeType = 'author' | 'publisher' | 'binder';
+export type NodeType = "author" | "publisher" | "binder";
 
-export type ConnectionType = 'publisher' | 'shared_publisher' | 'binder';
+export type ConnectionType = "publisher" | "shared_publisher" | "binder";
 
-export type Era =
-  | 'pre_romantic'
-  | 'romantic'
-  | 'victorian'
-  | 'edwardian'
-  | 'post_1910'
-  | 'unknown';
+export type Era = "pre_romantic" | "romantic" | "victorian" | "edwardian" | "post_1910" | "unknown";
 
-export type Tier = 'Tier 1' | 'Tier 2' | 'Tier 3' | null;
+export type Tier = "Tier 1" | "Tier 2" | "Tier 3" | null;
 
-export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+export type LoadingState = "idle" | "loading" | "success" | "error";
 
-export type LayoutMode = 'force' | 'circle' | 'grid' | 'hierarchical';
+export type LayoutMode = "force" | "circle" | "grid" | "hierarchical";
 
-export type TimelineMode = 'point' | 'range';
+export type TimelineMode = "point" | "range";
 
 export type PlaybackSpeed = 0.5 | 1 | 2 | 5;
 
@@ -127,7 +121,7 @@ export interface SelectionState {
 // Error Types
 // =============================================================================
 
-export type ErrorType = 'network' | 'parse' | 'not_found' | 'timeout' | 'unknown';
+export type ErrorType = "network" | "parse" | "not_found" | "timeout" | "unknown";
 
 export interface AppError {
   type: ErrorType;
@@ -135,9 +129,7 @@ export interface AppError {
   retryable: boolean;
 }
 
-export type Result<T, E = AppError> =
-  | { success: true; data: T }
-  | { success: false; error: E };
+export type Result<T, E = AppError> = { success: true; data: T } | { success: false; error: E };
 
 // =============================================================================
 // Type Guards & Validators
@@ -163,21 +155,21 @@ export function createEdgeId(source: NodeId, target: NodeId): EdgeId {
 }
 
 export function parseNodeId(id: NodeId): { type: NodeType; entityId: number } {
-  const [type, entityId] = id.split(':');
+  const [type, entityId] = id.split(":");
   return { type: type as NodeType, entityId: parseInt(entityId, 10) };
 }
 
 // Node type guards
-export function isAuthorNode(node: ApiNode): node is ApiNode & { type: 'author' } {
-  return node.type === 'author';
+export function isAuthorNode(node: ApiNode): node is ApiNode & { type: "author" } {
+  return node.type === "author";
 }
 
-export function isPublisherNode(node: ApiNode): node is ApiNode & { type: 'publisher' } {
-  return node.type === 'publisher';
+export function isPublisherNode(node: ApiNode): node is ApiNode & { type: "publisher" } {
+  return node.type === "publisher";
 }
 
-export function isBinderNode(node: ApiNode): node is ApiNode & { type: 'binder' } {
-  return node.type === 'binder';
+export function isBinderNode(node: ApiNode): node is ApiNode & { type: "binder" } {
+  return node.type === "binder";
 }
 
 // =============================================================================
@@ -188,10 +180,10 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   showAuthors: true,
   showPublishers: true,
   showBinders: true,
-  connectionTypes: ['publisher', 'shared_publisher', 'binder'],
+  connectionTypes: ["publisher", "shared_publisher", "binder"],
   tier1Only: false,
   eras: [],
-  searchQuery: '',
+  searchQuery: "",
 };
 
 export const DEFAULT_TIMELINE_STATE: TimelineState = {
@@ -200,7 +192,7 @@ export const DEFAULT_TIMELINE_STATE: TimelineState = {
   maxYear: 1920,
   isPlaying: false,
   playbackSpeed: 1,
-  mode: 'point',
+  mode: "point",
   rangeStart: undefined,
   rangeEnd: undefined,
 };

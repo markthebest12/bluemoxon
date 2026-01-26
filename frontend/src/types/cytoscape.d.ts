@@ -5,9 +5,9 @@
  * Extends core Cytoscape types with our custom data shapes.
  */
 
-import type { NodeId, EdgeId, NodeType, ConnectionType, Era, Tier, BookId } from './socialCircles';
+import type { NodeId, EdgeId, NodeType, ConnectionType, Era, Tier, BookId } from "./socialCircles";
 
-declare module 'cytoscape' {
+declare module "cytoscape" {
   interface NodeDataDefinition {
     id: NodeId;
     entity_id: number;

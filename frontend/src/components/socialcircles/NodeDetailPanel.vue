@@ -7,7 +7,7 @@ interface Props {
   isOpen?: boolean;
   nodeId?: string;
   name?: string;
-  nodeType?: 'author' | 'publisher' | 'binder';
+  nodeType?: "author" | "publisher" | "binder";
   birthYear?: number;
   deathYear?: number;
   era?: string;
@@ -31,16 +31,16 @@ withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: [];
-  'view-book': [bookId: number];
+  "view-book": [bookId: number];
 }>();
 
 function getTypeLabel(type?: string) {
   const labels: Record<string, string> = {
-    author: 'Author',
-    publisher: 'Publisher',
-    binder: 'Binder',
+    author: "Author",
+    publisher: "Publisher",
+    binder: "Binder",
   };
-  return labels[type || ''] || 'Unknown';
+  return labels[type || ""] || "Unknown";
 }
 </script>
 
@@ -50,18 +50,16 @@ function getTypeLabel(type?: string) {
       <header class="node-detail-panel__header">
         <div>
           <span class="node-detail-panel__type">{{ getTypeLabel(nodeType) }}</span>
-          <h2 class="node-detail-panel__name">{{ name || 'Unknown' }}</h2>
+          <h2 class="node-detail-panel__name">{{ name || "Unknown" }}</h2>
         </div>
-        <button class="node-detail-panel__close" @click="emit('close')">
-          ✕
-        </button>
+        <button class="node-detail-panel__close" @click="emit('close')">✕</button>
       </header>
 
       <div class="node-detail-panel__content">
         <!-- Dates -->
         <section v-if="birthYear || deathYear" class="node-detail-panel__section">
           <h3 class="node-detail-panel__section-title">Dates</h3>
-          <p>{{ birthYear || '?' }} – {{ deathYear || '?' }}</p>
+          <p>{{ birthYear || "?" }} – {{ deathYear || "?" }}</p>
         </section>
 
         <!-- Era & Tier -->
@@ -77,14 +75,10 @@ function getTypeLabel(type?: string) {
           <h3 class="node-detail-panel__section-title">
             Books in Collection ({{ bookCount || 0 }})
           </h3>
-          <p v-if="!bookIds?.length" class="text-sm text-victorian-ink-muted">
-            No books linked
-          </p>
+          <p v-if="!bookIds?.length" class="text-sm text-victorian-ink-muted">No books linked</p>
           <ul v-else class="node-detail-panel__books">
             <li v-for="bookId in bookIds?.slice(0, 5)" :key="bookId">
-              <button @click="emit('view-book', bookId)">
-                Book #{{ bookId }}
-              </button>
+              <button @click="emit('view-book', bookId)">Book #{{ bookId }}</button>
             </li>
           </ul>
         </section>

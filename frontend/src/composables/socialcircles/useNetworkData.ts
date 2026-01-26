@@ -2,9 +2,9 @@
  * useNetworkData - Fetches and caches social circles data.
  */
 
-import { ref, readonly } from 'vue';
-import type { SocialCirclesResponse, LoadingState, AppError } from '@/types/socialCircles';
-import { API } from '@/constants/socialCircles';
+import { ref, readonly } from "vue";
+import type { SocialCirclesResponse, LoadingState, AppError } from "@/types/socialCircles";
+import { API } from "@/constants/socialCircles";
 
 // Module-level cache
 let cachedData: SocialCirclesResponse | null = null;
@@ -12,7 +12,7 @@ let cacheTimestamp = 0;
 
 export function useNetworkData() {
   const data = ref<SocialCirclesResponse | null>(null);
-  const loadingState = ref<LoadingState>('idle');
+  const loadingState = ref<LoadingState>("idle");
   const error = ref<AppError | null>(null);
 
   async function fetchData(
@@ -28,11 +28,11 @@ export function useNetworkData() {
     const now = Date.now();
     if (!forceRefresh && cachedData && now - cacheTimestamp < API.cacheTtlMs) {
       data.value = cachedData;
-      loadingState.value = 'success';
+      loadingState.value = "success";
       return;
     }
 
-    loadingState.value = 'loading';
+    loadingState.value = "loading";
     error.value = null;
 
     try {
@@ -43,9 +43,9 @@ export function useNetworkData() {
 
       const response = await fetch(`${API.endpoint}?${params}`, {
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -59,15 +59,15 @@ export function useNetworkData() {
       cacheTimestamp = now;
 
       data.value = json;
-      loadingState.value = 'success';
+      loadingState.value = "success";
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
+      const message = e instanceof Error ? e.message : "Unknown error";
       error.value = {
-        type: 'network',
+        type: "network",
         message,
         retryable: true,
       };
-      loadingState.value = 'error';
+      loadingState.value = "error";
     }
   }
 

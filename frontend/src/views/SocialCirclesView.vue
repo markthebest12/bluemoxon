@@ -7,21 +7,21 @@
  * Shows connections between authors, publishers, and binders.
  */
 
-import { computed, onMounted, onUnmounted, provide } from 'vue';
-import { useSocialCircles } from '@/composables/socialcircles';
+import { computed, onMounted, onUnmounted, provide } from "vue";
+import { useSocialCircles } from "@/composables/socialcircles";
 
 // Components will be lazy-loaded as they're built out
-import NetworkGraph from '@/components/socialcircles/NetworkGraph.vue';
-import FilterPanel from '@/components/socialcircles/FilterPanel.vue';
-import TimelineSlider from '@/components/socialcircles/TimelineSlider.vue';
-import NodeDetailPanel from '@/components/socialcircles/NodeDetailPanel.vue';
-import ZoomControls from '@/components/socialcircles/ZoomControls.vue';
-import LoadingState from '@/components/socialcircles/LoadingState.vue';
-import EmptyState from '@/components/socialcircles/EmptyState.vue';
-import ErrorState from '@/components/socialcircles/ErrorState.vue';
-import ActiveFilterPills from '@/components/socialcircles/ActiveFilterPills.vue';
-import NetworkLegend from '@/components/socialcircles/NetworkLegend.vue';
-import ExportMenu from '@/components/socialcircles/ExportMenu.vue';
+import NetworkGraph from "@/components/socialcircles/NetworkGraph.vue";
+import FilterPanel from "@/components/socialcircles/FilterPanel.vue";
+import TimelineSlider from "@/components/socialcircles/TimelineSlider.vue";
+import NodeDetailPanel from "@/components/socialcircles/NodeDetailPanel.vue";
+import ZoomControls from "@/components/socialcircles/ZoomControls.vue";
+import LoadingState from "@/components/socialcircles/LoadingState.vue";
+import EmptyState from "@/components/socialcircles/EmptyState.vue";
+import ErrorState from "@/components/socialcircles/ErrorState.vue";
+import ActiveFilterPills from "@/components/socialcircles/ActiveFilterPills.vue";
+import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
+import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 
 // Initialize the main orchestrator composable
 const {
@@ -77,7 +77,7 @@ const {
 } = useSocialCircles();
 
 // Provide context to child components
-provide('socialCircles', {
+provide("socialCircles", {
   nodes,
   edges,
   filteredNodes,
@@ -92,15 +92,19 @@ provide('socialCircles', {
 });
 
 // Computed states
-const showGraph = computed(() => !isLoading.value && !hasError.value && filteredNodes.value.length > 0);
-const showEmpty = computed(() => !isLoading.value && !hasError.value && filteredNodes.value.length === 0);
+const showGraph = computed(
+  () => !isLoading.value && !hasError.value && filteredNodes.value.length > 0
+);
+const showEmpty = computed(
+  () => !isLoading.value && !hasError.value && filteredNodes.value.length === 0
+);
 
 // Detail panel visibility
 const showDetailPanel = computed(() => selectedNode.value !== null);
 
 // Transform activeFilters to match component interface (value must be string)
 const filterPills = computed(() =>
-  activeFilters.value.map(f => ({
+  activeFilters.value.map((f) => ({
     key: f.key,
     label: f.label,
     value: String(f.value),
@@ -145,19 +149,13 @@ onUnmounted(() => {
     <!-- Header -->
     <header class="social-circles-header">
       <div class="header-left">
-        <h1 class="text-2xl font-serif text-victorian-hunter-700">
-          Victorian Social Circles
-        </h1>
+        <h1 class="text-2xl font-serif text-victorian-hunter-700">Victorian Social Circles</h1>
         <p class="text-sm text-victorian-ink-muted">
           Explore the connections between authors, publishers, and binders
         </p>
       </div>
       <div class="header-right">
-        <ExportMenu
-          @export-png="exportPng"
-          @export-json="exportJson"
-          @share="shareUrl"
-        />
+        <ExportMenu @export-png="exportPng" @export-json="exportJson" @share="shareUrl" />
       </div>
     </header>
 
@@ -165,17 +163,10 @@ onUnmounted(() => {
     <LoadingState v-if="isLoading" />
 
     <!-- Error State -->
-    <ErrorState
-      v-else-if="hasError"
-      :error="error"
-      @retry="handleRetry"
-    />
+    <ErrorState v-else-if="hasError" :error="error" @retry="handleRetry" />
 
     <!-- Empty State -->
-    <EmptyState
-      v-else-if="showEmpty"
-      @reset-filters="resetFilters"
-    />
+    <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
 
     <!-- Main Content -->
     <div v-else-if="showGraph" class="social-circles-content">
@@ -212,11 +203,7 @@ onUnmounted(() => {
 
           <!-- Zoom Controls (top-right of graph) -->
           <div class="zoom-controls-container">
-            <ZoomControls
-              @zoom-in="zoomIn"
-              @zoom-out="zoomOut"
-              @fit="fitToView"
-            />
+            <ZoomControls @zoom-in="zoomIn" @zoom-out="zoomOut" @fit="fitToView" />
           </div>
 
           <!-- Legend (bottom-right of graph) -->
@@ -238,10 +225,7 @@ onUnmounted(() => {
       </main>
 
       <!-- Detail Panel (right sidebar, slides in) -->
-      <aside
-        class="detail-sidebar"
-        :class="{ 'detail-sidebar--open': showDetailPanel }"
-      >
+      <aside class="detail-sidebar" :class="{ 'detail-sidebar--open': showDetailPanel }">
         <NodeDetailPanel
           v-if="selectedNode"
           :is-open="showDetailPanel"

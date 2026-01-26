@@ -4,15 +4,15 @@
  */
 
 const nodeTypes = [
-  { shape: 'circle', color: 'var(--color-victorian-hunter-600)', label: 'Author' },
-  { shape: 'square', color: 'var(--color-victorian-gold)', label: 'Publisher' },
-  { shape: 'diamond', color: 'var(--color-victorian-burgundy)', label: 'Binder' },
+  { shape: "circle", color: "var(--color-victorian-hunter-600)", label: "Author" },
+  { shape: "square", color: "var(--color-victorian-gold)", label: "Publisher" },
+  { shape: "diamond", color: "var(--color-victorian-burgundy)", label: "Binder" },
 ];
 
 const connectionTypes = [
-  { style: 'solid', color: 'var(--color-victorian-gold)', label: 'Published by' },
-  { style: 'solid', color: 'var(--color-victorian-hunter-500)', label: 'Shared publisher' },
-  { style: 'dashed', color: 'var(--color-victorian-burgundy)', label: 'Bound by' },
+  { style: "solid", color: "var(--color-victorian-gold)", label: "Published by" },
+  { style: "solid", color: "var(--color-victorian-hunter-500)", label: "Shared publisher" },
+  { style: "dashed", color: "var(--color-victorian-burgundy)", label: "Bound by" },
 ];
 </script>
 

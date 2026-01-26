@@ -2,9 +2,9 @@
  * useNetworkTimeline - Manages timeline state and playback.
  */
 
-import { ref, computed, readonly, onUnmounted } from 'vue';
-import type { TimelineState, TimelineMode, PlaybackSpeed } from '@/types/socialCircles';
-import { DEFAULT_TIMELINE_STATE } from '@/types/socialCircles';
+import { ref, computed, readonly, onUnmounted } from "vue";
+import type { TimelineState, TimelineMode, PlaybackSpeed } from "@/types/socialCircles";
+import { DEFAULT_TIMELINE_STATE } from "@/types/socialCircles";
 
 export function useNetworkTimeline() {
   const timeline = ref<TimelineState>({ ...DEFAULT_TIMELINE_STATE });
@@ -13,7 +13,7 @@ export function useNetworkTimeline() {
   // Computed
   const yearLabel = computed(() => {
     const t = timeline.value;
-    if (t.mode === 'point') {
+    if (t.mode === "point") {
       return `${t.currentYear}`;
     }
     return `${t.rangeStart || t.minYear} – ${t.rangeEnd || t.currentYear}`;
@@ -34,7 +34,7 @@ export function useNetworkTimeline() {
 
   function setMode(mode: TimelineMode) {
     timeline.value.mode = mode;
-    if (mode === 'range') {
+    if (mode === "range") {
       timeline.value.rangeStart = timeline.value.minYear;
       timeline.value.rangeEnd = timeline.value.currentYear;
     }

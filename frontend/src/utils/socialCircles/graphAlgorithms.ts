@@ -3,14 +3,12 @@
  * Shortest path, centrality calculations, etc.
  */
 
-import type { ApiNode, ApiEdge, NodeId } from '@/types/socialCircles';
+import type { ApiNode, ApiEdge, NodeId } from "@/types/socialCircles";
 
 /**
  * Build adjacency list from edges.
  */
-export function buildAdjacencyList(
-  edges: ApiEdge[]
-): Map<NodeId, Set<NodeId>> {
+export function buildAdjacencyList(edges: ApiEdge[]): Map<NodeId, Set<NodeId>> {
   const adjacency = new Map<NodeId, Set<NodeId>>();
 
   edges.forEach((edge) => {
@@ -43,9 +41,7 @@ export function findShortestPath(
   if (startId === endId) return [startId];
 
   const visited = new Set<NodeId>();
-  const queue: { nodeId: NodeId; path: NodeId[] }[] = [
-    { nodeId: startId, path: [startId] },
-  ];
+  const queue: { nodeId: NodeId; path: NodeId[] }[] = [{ nodeId: startId, path: [startId] }];
 
   while (queue.length > 0) {
     const { nodeId, path } = queue.shift()!;
@@ -87,10 +83,7 @@ export function degreesOfSeparation(
  * Calculate degree centrality for all nodes.
  * Higher degree = more connected.
  */
-export function calculateDegreeCentrality(
-  nodes: ApiNode[],
-  edges: ApiEdge[]
-): Map<NodeId, number> {
+export function calculateDegreeCentrality(nodes: ApiNode[], edges: ApiEdge[]): Map<NodeId, number> {
   const centrality = new Map<NodeId, number>();
 
   // Initialize all nodes with 0
@@ -125,9 +118,7 @@ export function findHubs(
     degree: centrality.get(node.id) || 0,
   }));
 
-  return nodesWithDegree
-    .sort((a, b) => b.degree - a.degree)
-    .slice(0, limit);
+  return nodesWithDegree.sort((a, b) => b.degree - a.degree).slice(0, limit);
 }
 
 /**
@@ -164,10 +155,13 @@ export function findSimilarNodes(
   // Map back to nodes
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-  return similarities.slice(0, limit).map((s) => ({
-    node: nodeMap.get(s.nodeId)!,
-    sharedConnections: s.shared,
-  })).filter((s) => s.node);
+  return similarities
+    .slice(0, limit)
+    .map((s) => ({
+      node: nodeMap.get(s.nodeId)!,
+      sharedConnections: s.shared,
+    }))
+    .filter((s) => s.node);
 }
 
 /**
@@ -188,9 +182,7 @@ export function calculateGraphStats(
 
   const totalNodes = nodes.length;
   const totalEdges = edges.length;
-  const avgDegree = degrees.length > 0
-    ? degrees.reduce((a, b) => a + b, 0) / degrees.length
-    : 0;
+  const avgDegree = degrees.length > 0 ? degrees.reduce((a, b) => a + b, 0) / degrees.length : 0;
   const maxDegree = degrees.length > 0 ? Math.max(...degrees) : 0;
 
   // Graph density = 2E / N(N-1) for undirected graph

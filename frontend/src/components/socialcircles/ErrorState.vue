@@ -9,7 +9,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  message: 'An error occurred while loading the network.',
+  message: "An error occurred while loading the network.",
   retryable: true,
 });
 
@@ -23,13 +23,7 @@ const emit = defineEmits<{
     <div class="error-state__icon">⚠️</div>
     <h3 class="error-state__title">Something went wrong</h3>
     <p class="error-state__message">{{ message }}</p>
-    <button
-      v-if="retryable"
-      class="error-state__btn"
-      @click="emit('retry')"
-    >
-      Try Again
-    </button>
+    <button v-if="retryable" class="error-state__btn" @click="emit('retry')">Try Again</button>
   </div>
 </template>
 

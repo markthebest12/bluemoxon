@@ -2,14 +2,14 @@
  * Transform API data to Cytoscape format.
  */
 
-import type { Core, ElementDefinition } from 'cytoscape';
+import type { Core, ElementDefinition } from "cytoscape";
 import type {
   ApiNode,
   ApiEdge,
   SocialCirclesResponse,
   NodeType,
   ConnectionType,
-} from '@/types/socialCircles';
+} from "@/types/socialCircles";
 import {
   NODE_COLORS,
   NODE_SHAPES,
@@ -17,16 +17,16 @@ import {
   EDGE_STYLES,
   calculateNodeSize,
   calculateEdgeWidth,
-} from '@/constants/socialCircles';
+} from "@/constants/socialCircles";
 
 function getNodeColorKey(node: ApiNode): string {
   const { type, era, tier } = node;
-  if (type === 'author' && era) return `author:${era}`;
-  if (type === 'publisher' && tier) {
-    const tierKey = tier === 'Tier 1' ? 'tier1' : 'tier2';
+  if (type === "author" && era) return `author:${era}`;
+  if (type === "publisher" && tier) {
+    const tierKey = tier === "Tier 1" ? "tier1" : "tier2";
     return `publisher:${tierKey}`;
   }
-  if (type === 'binder' && tier === 'Tier 1') return 'binder:tier1';
+  if (type === "binder" && tier === "Tier 1") return "binder:tier1";
   return `${type}:default`;
 }
 
@@ -37,10 +37,10 @@ export function transformNode(node: ApiNode): ElementDefinition {
   const size = calculateNodeSize(node.type, node.book_count);
 
   return {
-    group: 'nodes',
+    group: "nodes",
     data: { ...node },
     style: {
-      'background-color': color,
+      "background-color": color,
       shape,
       width: size,
       height: size,
@@ -55,22 +55,20 @@ export function transformEdge(edge: ApiEdge): ElementDefinition {
   const width = calculateEdgeWidth(edge.strength);
 
   return {
-    group: 'edges',
+    group: "edges",
     data: { ...edge },
     style: {
-      'line-color': color,
-      'line-style': lineStyle,
-      'line-opacity': opacity,
+      "line-color": color,
+      "line-style": lineStyle,
+      "line-opacity": opacity,
       width,
-      'target-arrow-color': color,
-      'curve-style': 'bezier',
+      "target-arrow-color": color,
+      "curve-style": "bezier",
     },
   };
 }
 
-export function transformToCytoscapeElements(
-  response: SocialCirclesResponse
-): ElementDefinition[] {
+export function transformToCytoscapeElements(response: SocialCirclesResponse): ElementDefinition[] {
   const nodeElements = response.nodes.map(transformNode);
   const edgeElements = response.edges.map(transformEdge);
   return [...nodeElements, ...edgeElements];
@@ -87,14 +85,14 @@ export function getVisibleElementIds(
   const edgeIds = new Set<string>();
 
   cy.nodes().forEach((node) => {
-    const nodeType = node.data('type') as NodeType;
-    if (nodeType === 'author' && showAuthors) nodeIds.add(node.id());
-    else if (nodeType === 'publisher' && showPublishers) nodeIds.add(node.id());
-    else if (nodeType === 'binder' && showBinders) nodeIds.add(node.id());
+    const nodeType = node.data("type") as NodeType;
+    if (nodeType === "author" && showAuthors) nodeIds.add(node.id());
+    else if (nodeType === "publisher" && showPublishers) nodeIds.add(node.id());
+    else if (nodeType === "binder" && showBinders) nodeIds.add(node.id());
   });
 
   cy.edges().forEach((edge) => {
-    const edgeType = edge.data('type') as ConnectionType;
+    const edgeType = edge.data("type") as ConnectionType;
     const sourceId = edge.source().id();
     const targetId = edge.target().id();
     if (connectionTypes.includes(edgeType) && nodeIds.has(sourceId) && nodeIds.has(targetId)) {

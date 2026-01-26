@@ -15,9 +15,7 @@ const emit = defineEmits<{
     <p class="empty-state__text">
       Try adjusting your filters or search criteria to see more results.
     </p>
-    <button class="empty-state__btn" @click="emit('reset')">
-      Reset Filters
-    </button>
+    <button class="empty-state__btn" @click="emit('reset')">Reset Filters</button>
   </div>
 </template>
 

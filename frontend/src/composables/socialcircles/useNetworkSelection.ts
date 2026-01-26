@@ -2,9 +2,9 @@
  * useNetworkSelection - Manages node/edge selection and highlighting.
  */
 
-import { ref, computed, readonly } from 'vue';
-import type { NodeId, EdgeId, SelectionState, ApiNode, ApiEdge } from '@/types/socialCircles';
-import { DEFAULT_SELECTION_STATE } from '@/types/socialCircles';
+import { ref, computed, readonly } from "vue";
+import type { NodeId, EdgeId, SelectionState, ApiNode, ApiEdge } from "@/types/socialCircles";
+import { DEFAULT_SELECTION_STATE } from "@/types/socialCircles";
 
 export function useNetworkSelection() {
   const selection = ref<SelectionState>({ ...DEFAULT_SELECTION_STATE });

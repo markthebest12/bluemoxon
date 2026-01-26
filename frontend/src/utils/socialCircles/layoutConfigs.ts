@@ -2,17 +2,17 @@
  * Cytoscape layout configurations.
  */
 
-import type { LayoutOptions } from 'cytoscape';
-import type { LayoutMode } from '@/types/socialCircles';
+import type { LayoutOptions } from "cytoscape";
+import type { LayoutMode } from "@/types/socialCircles";
 
 /**
  * Get layout configuration for a given mode.
  */
 export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
   switch (mode) {
-    case 'force':
+    case "force":
       return {
-        name: 'cose',
+        name: "cose",
         idealEdgeLength: 100,
         nodeOverlap: 20,
         refresh: 20,
@@ -30,12 +30,12 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
         minTemp: 1.0,
         animate: true,
         animationDuration: 800,
-        animationEasing: 'ease-out-quad',
+        animationEasing: "ease-out-quad",
       };
 
-    case 'circle':
+    case "circle":
       return {
-        name: 'circle',
+        name: "circle",
         fit: true,
         padding: 30,
         avoidOverlap: true,
@@ -44,9 +44,9 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
         animationDuration: 500,
       };
 
-    case 'grid':
+    case "grid":
       return {
-        name: 'grid',
+        name: "grid",
         fit: true,
         padding: 30,
         avoidOverlap: true,
@@ -55,10 +55,10 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
         animationDuration: 500,
       };
 
-    case 'hierarchical':
+    case "hierarchical":
       return {
-        name: 'dagre',
-        rankDir: 'TB',
+        name: "dagre",
+        rankDir: "TB",
         nodeSep: 50,
         rankSep: 100,
         fit: true,
@@ -68,7 +68,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
       } as LayoutOptions;
 
     default:
-      return getLayoutConfig('force');
+      return getLayoutConfig("force");
   }
 }
 
@@ -76,28 +76,23 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
  * Layout mode display names.
  */
 export const LAYOUT_MODE_LABELS: Record<LayoutMode, string> = {
-  force: 'Force-Directed',
-  circle: 'Circle',
-  grid: 'Grid',
-  hierarchical: 'Hierarchical',
+  force: "Force-Directed",
+  circle: "Circle",
+  grid: "Grid",
+  hierarchical: "Hierarchical",
 };
 
 /**
  * Layout mode descriptions.
  */
 export const LAYOUT_MODE_DESCRIPTIONS: Record<LayoutMode, string> = {
-  force: 'Natural clustering based on connections',
-  circle: 'Nodes arranged in a circle',
-  grid: 'Nodes arranged in a grid pattern',
-  hierarchical: 'Top-down hierarchy based on relationships',
+  force: "Natural clustering based on connections",
+  circle: "Nodes arranged in a circle",
+  grid: "Nodes arranged in a grid pattern",
+  hierarchical: "Top-down hierarchy based on relationships",
 };
 
 /**
  * Available layout modes in order of presentation.
  */
-export const AVAILABLE_LAYOUTS: LayoutMode[] = [
-  'force',
-  'circle',
-  'grid',
-  'hierarchical',
-];
+export const AVAILABLE_LAYOUTS: LayoutMode[] = ["force", "circle", "grid", "hierarchical"];

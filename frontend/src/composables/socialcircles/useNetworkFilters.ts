@@ -2,9 +2,9 @@
  * useNetworkFilters - Manages filter state for the graph.
  */
 
-import { ref, computed, readonly } from 'vue';
-import type { FilterState, ConnectionType, Era } from '@/types/socialCircles';
-import { DEFAULT_FILTER_STATE } from '@/types/socialCircles';
+import { ref, computed, readonly } from "vue";
+import type { FilterState, ConnectionType, Era } from "@/types/socialCircles";
+import { DEFAULT_FILTER_STATE } from "@/types/socialCircles";
 
 export function useNetworkFilters() {
   const filters = ref<FilterState>({ ...DEFAULT_FILTER_STATE });
@@ -19,7 +19,7 @@ export function useNetworkFilters() {
       f.connectionTypes.length < 3 ||
       f.tier1Only ||
       f.eras.length > 0 ||
-      f.searchQuery !== ''
+      f.searchQuery !== ""
     );
   });
 

@@ -2,8 +2,8 @@
  * useNetworkKeyboard - Keyboard navigation and shortcuts.
  */
 
-import { onMounted, onUnmounted } from 'vue';
-import { KEYBOARD_SHORTCUTS } from '@/constants/socialCircles';
+import { onMounted, onUnmounted } from "vue";
+import { KEYBOARD_SHORTCUTS } from "@/constants/socialCircles";
 
 export interface KeyboardHandlers {
   onZoomIn?: () => void;
@@ -24,7 +24,7 @@ export function useNetworkKeyboard(handlers: KeyboardHandlers) {
   function handleKeyDown(event: KeyboardEvent) {
     // Ignore if user is typing in an input
     const target = event.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
       return;
     }
 
@@ -105,11 +105,11 @@ export function useNetworkKeyboard(handlers: KeyboardHandlers) {
   }
 
   onMounted(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
   });
 
   onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener("keydown", handleKeyDown);
   });
 
   return {

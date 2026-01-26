@@ -18,9 +18,9 @@ withDefaults(defineProps<Props>(), {
   visible: false,
   x: 0,
   y: 0,
-  sourceNode: '',
-  targetNode: '',
-  connectionType: '',
+  sourceNode: "",
+  targetNode: "",
+  connectionType: "",
   strength: undefined,
   evidence: undefined,
 });
@@ -28,24 +28,16 @@ withDefaults(defineProps<Props>(), {
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="visible"
-      class="connection-tooltip"
-      :style="{ left: `${x}px`, top: `${y}px` }"
-    >
+    <div v-if="visible" class="connection-tooltip" :style="{ left: `${x}px`, top: `${y}px` }">
       <div class="connection-tooltip__header">
         <span class="connection-tooltip__type">{{ connectionType }}</span>
       </div>
       <div class="connection-tooltip__content">
-        <p class="connection-tooltip__nodes">
-          {{ sourceNode }} → {{ targetNode }}
-        </p>
+        <p class="connection-tooltip__nodes">{{ sourceNode }} → {{ targetNode }}</p>
         <p v-if="evidence" class="connection-tooltip__evidence">
           {{ evidence }}
         </p>
-        <p v-if="strength" class="connection-tooltip__strength">
-          Strength: {{ strength }}/10
-        </p>
+        <p v-if="strength" class="connection-tooltip__strength">Strength: {{ strength }}/10</p>
       </div>
     </div>
   </Teleport>
