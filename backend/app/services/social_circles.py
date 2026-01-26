@@ -12,6 +12,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from app.enums import OWNED_STATUSES
 from app.schemas.social_circles import (
     ConnectionType,
     Era,
@@ -60,8 +61,8 @@ def build_social_circles_graph(
     """
     from app.models import Author, Binder, Book, Publisher
 
-    # Fetch all books with relationships
-    books_query = db.query(Book).filter(Book.is_garbage.is_(False))
+    # Fetch all owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
+    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES))
     books = books_query.all()
 
     # Build node maps
