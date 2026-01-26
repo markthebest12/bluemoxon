@@ -91,6 +91,12 @@ const router = createRouter({
       component: () => import("@/views/StickersView.vue"),
       meta: { requiresAuth: true },
     },
+    {
+      path: "/socialcircles",
+      name: "social-circles",
+      component: () => import("@/views/SocialCirclesView.vue"),
+      meta: { requiresAuth: true },
+    },
   ],
 });
 
