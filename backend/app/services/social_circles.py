@@ -61,8 +61,10 @@ def build_social_circles_graph(
     """
     from app.models import Author, Binder, Book, Publisher
 
-    # Fetch all owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
-    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES))
+    # Fetch owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
+    # Limit to 5000 to prevent OOM in Lambda (1GB memory limit)
+    MAX_BOOKS = 5000
+    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
     books = books_query.all()
 
     # Build node maps
@@ -169,10 +171,8 @@ def build_social_circles_graph(
             if publisher_node_id not in nodes:
                 continue
 
-            # Find shared books
-            shared_books = [
-                bid for bid in author_books[author_id] if bid in publisher_books[publisher_id]
-            ]
+            # Find shared books using set intersection
+            shared_books = list(set(author_books[author_id]) & publisher_books[publisher_id])
 
             edge_id = f"e:{author_node_id}:{publisher_node_id}"
             strength = max(1, min(len(shared_books) * 2, 10))  # Scale strength, ensure >=1
@@ -236,9 +236,8 @@ def build_social_circles_graph(
                 if binder_node_id not in nodes:
                     continue
 
-                shared_books = [
-                    bid for bid in author_books[author_id] if bid in binder_books[binder_id]
-                ]
+                # Find shared books using set intersection
+                shared_books = list(set(author_books[author_id]) & binder_books[binder_id])
 
                 edge_id = f"e:{author_node_id}:{binder_node_id}"
                 strength = max(1, min(len(shared_books) * 2, 10))  # Ensure >=1

@@ -143,12 +143,12 @@ function handleEdgeSelect(edgeId: string | null) {
 
 // Handle retry after error
 function handleRetry() {
-  void initialize();
+  initialize().catch(console.error);
 }
 
 // Lifecycle
 onMounted(() => {
-  void initialize();
+  initialize().catch(console.error);
 });
 
 onUnmounted(() => {
