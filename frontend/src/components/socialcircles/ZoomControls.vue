@@ -9,7 +9,7 @@ interface Props {
   maxZoom?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   zoomLevel: 1,
   minZoom: 0.1,
   maxZoom: 3,

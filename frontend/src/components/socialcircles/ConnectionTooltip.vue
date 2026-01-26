@@ -4,9 +4,9 @@
  */
 
 interface Props {
-  visible: boolean;
-  x: number;
-  y: number;
+  visible?: boolean;
+  x?: number;
+  y?: number;
   sourceNode?: string;
   targetNode?: string;
   connectionType?: string;
@@ -14,10 +14,15 @@ interface Props {
   evidence?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   visible: false,
   x: 0,
   y: 0,
+  sourceNode: '',
+  targetNode: '',
+  connectionType: '',
+  strength: undefined,
+  evidence: undefined,
 });
 </script>
 

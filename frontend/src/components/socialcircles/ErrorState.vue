@@ -8,7 +8,7 @@ interface Props {
   retryable?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   message: 'An error occurred while loading the network.',
   retryable: true,
 });

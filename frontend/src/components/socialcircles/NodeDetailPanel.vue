@@ -4,7 +4,7 @@
  */
 
 interface Props {
-  isOpen: boolean;
+  isOpen?: boolean;
   nodeId?: string;
   name?: string;
   nodeType?: 'author' | 'publisher' | 'binder';
@@ -16,8 +16,17 @@ interface Props {
   bookIds?: number[];
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isOpen: false,
+  nodeId: undefined,
+  name: undefined,
+  nodeType: undefined,
+  birthYear: undefined,
+  deathYear: undefined,
+  era: undefined,
+  tier: undefined,
+  bookCount: 0,
+  bookIds: () => [],
 });
 
 const emit = defineEmits<{
