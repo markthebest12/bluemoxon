@@ -12,10 +12,16 @@
 
 import { ref, onMounted, onUnmounted } from 'vue';
 
-// Props - will be populated with actual props
-defineProps<{
-  // Placeholder for future props
-}>();
+// Props
+interface Props {
+  elements?: unknown[];
+  selectedNode?: unknown;
+  selectedEdge?: unknown;
+  highlightedNodes?: string[];
+  highlightedEdges?: string[];
+}
+
+defineProps<Props>();
 
 // Emits
 defineEmits<{

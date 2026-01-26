@@ -95,7 +95,7 @@ export function useUrlState() {
         query.year = String(params.year);
       }
 
-      router.replace({ query });
+      void router.replace({ query });
     }, ANIMATION.debounceUrl);
   }
 

@@ -33,7 +33,6 @@ const {
   meta,
 
   // State
-  loadingState,
   error,
   isLoading,
   hasError,
@@ -99,6 +98,15 @@ const showEmpty = computed(() => !isLoading.value && !hasError.value && filtered
 // Detail panel visibility
 const showDetailPanel = computed(() => selectedNode.value !== null);
 
+// Transform activeFilters to match component interface (value must be string)
+const filterPills = computed(() =>
+  activeFilters.value.map(f => ({
+    key: f.key,
+    label: f.label,
+    value: String(f.value),
+  }))
+);
+
 // Handle node selection from graph
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
@@ -119,12 +127,12 @@ function handleEdgeSelect(edgeId: string | null) {
 
 // Handle retry after error
 function handleRetry() {
-  initialize();
+  void initialize();
 }
 
 // Lifecycle
 onMounted(() => {
-  initialize();
+  void initialize();
 });
 
 onUnmounted(() => {
@@ -181,8 +189,8 @@ onUnmounted(() => {
 
         <!-- Active Filter Pills -->
         <ActiveFilterPills
-          v-if="activeFilters.length > 0"
-          :filters="activeFilters"
+          v-if="filterPills.length > 0"
+          :filters="filterPills"
           @remove="removeFilter"
           @clear-all="resetFilters"
         />
@@ -235,10 +243,17 @@ onUnmounted(() => {
         :class="{ 'detail-sidebar--open': showDetailPanel }"
       >
         <NodeDetailPanel
-          v-if="showDetailPanel"
-          :node="selectedNode"
-          :connected-nodes="highlightedNodes"
-          :connected-edges="highlightedEdges"
+          v-if="selectedNode"
+          :is-open="showDetailPanel"
+          :node-id="selectedNode?.id"
+          :name="selectedNode?.name"
+          :node-type="selectedNode?.type"
+          :birth-year="selectedNode?.birth_year"
+          :death-year="selectedNode?.death_year"
+          :era="selectedNode?.era"
+          :tier="selectedNode?.tier ?? undefined"
+          :book-count="selectedNode?.book_count"
+          :book-ids="selectedNode?.book_ids ? [...selectedNode.book_ids] : undefined"
           @close="clearSelection"
         />
       </aside>

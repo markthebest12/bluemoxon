@@ -3,22 +3,25 @@
  * Combines all social circles composables into a single interface.
  */
 
-import { computed, ref, watch, shallowRef } from 'vue';
+import { computed, watch, shallowRef } from 'vue';
 import { useNetworkData } from './useNetworkData';
 import { useNetworkFilters } from './useNetworkFilters';
 import { useNetworkSelection } from './useNetworkSelection';
 import { useNetworkTimeline } from './useNetworkTimeline';
 import { useUrlState } from './useUrlState';
-import { useNetworkKeyboard } from './useNetworkKeyboard';
-import { transformToCytoscapeElements } from '@/utils/socialcircles/dataTransformers';
-import type { ApiNode, ApiEdge, ConnectionType, Era, NodeId, EdgeId, FilterState, SocialCirclesResponse } from '@/types/socialCircles';
+import { transformToCytoscapeElements } from '@/utils/socialCircles/dataTransformers';
+import type { ApiNode, ApiEdge, ConnectionType, Era, NodeId, FilterState } from '@/types/socialCircles';
 
-// Cytoscape instance reference (optional, for external access)
-import type cytoscape from 'cytoscape';
+// Cytoscape instance type (inline to avoid @types/cytoscape dependency)
+interface CytoscapeCore {
+  zoom: (level?: number) => number;
+  fit: (eles?: unknown, padding?: number) => void;
+  png: (options: { output: string; bg: string; scale: number }) => Blob;
+}
 
 export function useSocialCircles() {
   // Cytoscape instance ref (set by NetworkGraph component)
-  const cytoscapeInstance = shallowRef<cytoscape.Core | null>(null);
+  const cytoscapeInstance = shallowRef<CytoscapeCore | null>(null);
 
   // Compose all sub-composables
   const networkData = useNetworkData();
@@ -41,7 +44,7 @@ export function useSocialCircles() {
     const nodeList = nodes.value;
     if (!nodeList.length) return [];
 
-    return nodeList.filter((node: ApiNode) => {
+    return nodeList.filter((node) => {
       const f = filters.filters.value;
 
       // Node type filter
@@ -85,7 +88,7 @@ export function useSocialCircles() {
     const nodeIds = filteredNodeIds.value;
     if (!edgeList.length) return [];
 
-    return edgeList.filter((edge: ApiEdge) => {
+    return edgeList.filter((edge) => {
       // Both endpoints must be visible
       if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
         return false;
@@ -127,11 +130,8 @@ export function useSocialCircles() {
     return nodes.value.find(n => n.id === nodeId) ?? null;
   });
 
-  const selectedEdge = computed(() => {
-    const edgeId = selection.selection.value.selectedEdgeId;
-    if (!edgeId) return null;
-    return edges.value.find(e => e.id === edgeId) ?? null;
-  });
+  // Edge selection (not yet implemented in useNetworkSelection)
+  const selectedEdge = computed(() => null as ApiEdge | null);
 
   const highlightedNodes = computed(() => {
     return Array.from(selection.selection.value.highlightedNodeIds);
@@ -192,8 +192,9 @@ export function useSocialCircles() {
     selection.selectNode(nodeId as NodeId);
   }
 
-  function selectEdge(edgeId: string) {
-    selection.selectEdge(edgeId as EdgeId);
+  function selectEdge(_edgeId: string) {
+    // Edge selection not implemented in useNetworkSelection yet
+    // TODO: Add edge selection support
   }
 
   function clearSelection() {
@@ -206,8 +207,7 @@ export function useSocialCircles() {
   }
 
   function setRange(start: number, end: number) {
-    timeline.setRangeStart(start);
-    timeline.setRangeEnd(end);
+    timeline.setRange(start, end);
   }
 
   function togglePlayback() {
@@ -239,10 +239,18 @@ export function useSocialCircles() {
 
   // Get Cytoscape elements for rendering
   function getCytoscapeElements() {
-    return transformToCytoscapeElements(filteredNodes.value, filteredEdges.value, {
-      selectedNodeId: selection.selection.value.selectedNodeId,
-      highlightedNodeIds: selection.selection.value.highlightedNodeIds,
-      highlightedEdgeIds: selection.selection.value.highlightedEdgeIds,
+    const m = meta.value;
+    return transformToCytoscapeElements({
+      nodes: [...filteredNodes.value] as ApiNode[],
+      edges: [...filteredEdges.value] as ApiEdge[],
+      meta: {
+        total_books: m?.total_books ?? 0,
+        total_authors: m?.total_authors ?? 0,
+        total_publishers: m?.total_publishers ?? 0,
+        total_binders: m?.total_binders ?? 0,
+        date_range: m?.date_range ? [...m.date_range] as [number, number] : [1800, 1900],
+        generated_at: m?.generated_at ?? new Date().toISOString(),
+      },
     });
   }
 
@@ -257,7 +265,7 @@ export function useSocialCircles() {
     });
 
     // Download
-    const url = URL.createObjectURL(png as Blob);
+    const url = URL.createObjectURL(png);
     const a = document.createElement('a');
     a.href = url;
     a.download = `social-circles-${Date.now()}.png`;
@@ -325,8 +333,8 @@ export function useSocialCircles() {
     // Set up selection data
     if (networkData.data.value) {
       selection.setNodesAndEdges(
-        networkData.data.value.nodes,
-        networkData.data.value.edges,
+        [...networkData.data.value.nodes] as ApiNode[],
+        [...networkData.data.value.edges] as ApiEdge[],
       );
 
       // Set date range from data
@@ -348,7 +356,7 @@ export function useSocialCircles() {
   }
 
   // Set Cytoscape instance (called by NetworkGraph)
-  function setCytoscapeInstance(cy: cytoscape.Core) {
+  function setCytoscapeInstance(cy: CytoscapeCore) {
     cytoscapeInstance.value = cy;
   }
 
@@ -358,7 +366,15 @@ export function useSocialCircles() {
     (newFilters) => {
       if (urlState.isInitialized.value) {
         urlState.updateUrl({
-          filters: newFilters,
+          filters: {
+            showAuthors: newFilters.showAuthors,
+            showPublishers: newFilters.showPublishers,
+            showBinders: newFilters.showBinders,
+            connectionTypes: [...newFilters.connectionTypes],
+            tier1Only: newFilters.tier1Only,
+            eras: [...newFilters.eras],
+            searchQuery: newFilters.searchQuery,
+          },
           selectedNode: selection.selection.value.selectedNodeId,
           year: timeline.timeline.value.currentYear,
         });
@@ -371,8 +387,17 @@ export function useSocialCircles() {
     () => selection.selection.value.selectedNodeId,
     (nodeId) => {
       if (urlState.isInitialized.value) {
+        const f = filters.filters.value;
         urlState.updateUrl({
-          filters: filters.filters.value,
+          filters: {
+            showAuthors: f.showAuthors,
+            showPublishers: f.showPublishers,
+            showBinders: f.showBinders,
+            connectionTypes: [...f.connectionTypes],
+            tier1Only: f.tier1Only,
+            eras: [...f.eras],
+            searchQuery: f.searchQuery,
+          },
           selectedNode: nodeId,
           year: timeline.timeline.value.currentYear,
         });

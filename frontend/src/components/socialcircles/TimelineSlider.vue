@@ -72,10 +72,10 @@ function handlePlay() {
     <div class="timeline-slider__track">
       <span class="timeline-slider__label">{{ minYear }}</span>
       <input
+        v-model.number="localYear"
         type="range"
         :min="minYear"
         :max="maxYear"
-        v-model.number="localYear"
         class="timeline-slider__input"
         @input="emit('year-change', localYear)"
       />
