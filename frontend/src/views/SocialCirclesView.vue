@@ -7,7 +7,7 @@
  * Shows connections between authors, publishers, and binders.
  */
 
-import { computed, onMounted, onUnmounted, provide } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useSocialCircles } from "@/composables/socialcircles";
 
 // Components will be lazy-loaded as they're built out
@@ -61,9 +61,6 @@ const {
   setPlaybackSpeed,
 
   // Graph operations
-  zoomIn,
-  zoomOut,
-  fitToView,
   getCytoscapeElements,
 
   // Export
@@ -75,6 +72,21 @@ const {
   initialize,
   cleanup,
 } = useSocialCircles();
+
+// NetworkGraph ref for zoom controls
+const networkGraphRef = ref<InstanceType<typeof NetworkGraph> | null>(null);
+
+function handleZoomIn() {
+  networkGraphRef.value?.zoomIn();
+}
+
+function handleZoomOut() {
+  networkGraphRef.value?.zoomOut();
+}
+
+function handleFitToView() {
+  networkGraphRef.value?.fitToView();
+}
 
 // Provide context to child components
 provide("socialCircles", {
@@ -192,6 +204,7 @@ onUnmounted(() => {
         <!-- Graph viewport -->
         <div class="graph-viewport">
           <NetworkGraph
+            ref="networkGraphRef"
             :elements="getCytoscapeElements()"
             :selected-node="selectedNode"
             :selected-edge="selectedEdge"
@@ -203,7 +216,11 @@ onUnmounted(() => {
 
           <!-- Zoom Controls (top-right of graph) -->
           <div class="zoom-controls-container">
-            <ZoomControls @zoom-in="zoomIn" @zoom-out="zoomOut" @fit="fitToView" />
+            <ZoomControls
+              @zoom-in="handleZoomIn"
+              @zoom-out="handleZoomOut"
+              @fit="handleFitToView"
+            />
           </div>
 
           <!-- Legend (bottom-right of graph) -->
