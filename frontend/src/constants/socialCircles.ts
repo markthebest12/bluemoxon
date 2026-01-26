@@ -174,7 +174,7 @@ export function getEraFromYear(year: number): Era {
 // =============================================================================
 
 export const API = {
-  endpoint: "/api/v1/social-circles",
+  endpoint: "/social-circles", // Relative to api baseURL (/api/v1)
   cacheKey: "social-circles-data",
   cacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
