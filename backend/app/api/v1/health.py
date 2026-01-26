@@ -1008,6 +1008,82 @@ async def merge_binders(
 
 
 @router.post(
+    "/normalize-condition-grades",
+    summary="Normalize condition grades to enum values",
+    description="""
+Normalize condition_grade values to valid enum values using ConditionGrade.from_alias().
+
+Queries books where condition_grade IS NOT NULL and NOT IN the valid enum values
+('FINE', 'NEAR_FINE', 'VERY_GOOD', 'GOOD', 'FAIR', 'POOR').
+
+For each book:
+- Attempts normalization using ConditionGrade.from_alias()
+- Updates if recognized
+- Skips if unrecognized (leaves original value)
+
+Returns count of normalized and skipped records with details.
+    """,
+    response_description="Normalization results",
+    tags=["health"],
+)
+async def normalize_condition_grades(
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Normalize condition grades to valid enum values."""
+    from app.enums import ConditionGrade
+
+    # Derive valid grades from enum to avoid hardcoded duplication
+    valid_grades = {g.value for g in ConditionGrade}
+
+    # Limit query to avoid memory issues in Lambda (max 1000 at a time)
+    # Endpoint is idempotent - call multiple times if more than 1000 need fixing
+    books = (
+        db.query(Book)
+        .filter(Book.condition_grade.isnot(None))
+        .filter(Book.condition_grade.notin_(valid_grades))
+        .limit(1000)
+        .all()
+    )
+
+    normalized_count = 0
+    skipped_count = 0
+    details = []
+
+    for book in books:
+        old_grade = book.condition_grade
+        normalized_grade = ConditionGrade.from_alias(old_grade)
+
+        if normalized_grade:
+            book.condition_grade = normalized_grade.value
+            normalized_count += 1
+            details.append(
+                {
+                    "book_id": book.id,
+                    "old": old_grade,
+                    "new": normalized_grade.value,
+                }
+            )
+        else:
+            skipped_count += 1
+            details.append(
+                {
+                    "book_id": book.id,
+                    "old": old_grade,
+                    "reason": "unrecognized",
+                }
+            )
+
+    db.commit()
+
+    return {
+        "normalized": normalized_count,
+        "skipped": skipped_count,
+        "details": details,
+    }
+
+
+@router.post(
     "/migrate",
     summary="Run database migrations",
     description="""
