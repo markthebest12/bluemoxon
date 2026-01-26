@@ -652,6 +652,141 @@ class TestDeepHealthCheckWithRedis:
         assert redis_check["reason"] == "Redis not configured"
 
 
+class TestNormalizeConditionGrades:
+    """Tests for /health/normalize-condition-grades endpoint."""
+
+    def test_normalizes_vg_to_very_good(self, client, db):
+        """Test normalization works: VG -> VERY_GOOD."""
+        from app.models import Book
+
+        book = Book(title="Test Book", condition_grade="VG")
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        response = client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["normalized"] == 1
+        assert data["skipped"] == 0
+        assert len(data["details"]) == 1
+        assert data["details"][0]["book_id"] == book_id
+        assert data["details"][0]["old"] == "VG"
+        assert data["details"][0]["new"] == "VERY_GOOD"
+
+        db.refresh(book)
+        assert book.condition_grade == "VERY_GOOD"
+
+    def test_null_condition_grades_untouched(self, client, db):
+        """Test NULL condition grades are not modified."""
+        from app.models import Book
+
+        book = Book(title="Test Book", condition_grade=None)
+        db.add(book)
+        db.commit()
+
+        response = client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["normalized"] == 0
+        assert data["skipped"] == 0
+
+        db.refresh(book)
+        assert book.condition_grade is None
+
+    def test_idempotent_second_call_returns_zero(self, client, db):
+        """Test idempotency: second call returns normalized: 0."""
+        from app.models import Book
+
+        book = Book(title="Test Book", condition_grade="VG")
+        db.add(book)
+        db.commit()
+
+        response1 = client.post("/api/v1/health/normalize-condition-grades")
+        assert response1.status_code == 200
+        data1 = response1.json()
+        assert data1["normalized"] == 1
+
+        response2 = client.post("/api/v1/health/normalize-condition-grades")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert data2["normalized"] == 0
+        assert data2["skipped"] == 0
+
+    def test_already_normalized_values_skipped(self, client, db):
+        """Test already normalized values are not changed."""
+        from app.models import Book
+
+        book = Book(title="Test Book", condition_grade="VERY_GOOD")
+        db.add(book)
+        db.commit()
+
+        response = client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["normalized"] == 0
+        assert data["skipped"] == 0
+
+        db.refresh(book)
+        assert book.condition_grade == "VERY_GOOD"
+
+    def test_unrecognized_values_are_skipped(self, client, db):
+        """Test unrecognized condition grades are skipped, not normalized."""
+        from app.models import Book
+
+        book = Book(title="Test Book", condition_grade="UNKNOWN_VALUE")
+        db.add(book)
+        db.commit()
+        book_id = book.id
+
+        response = client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["normalized"] == 0
+        assert data["skipped"] == 1
+        assert len(data["details"]) == 1
+        assert data["details"][0]["book_id"] == book_id
+        assert data["details"][0]["old"] == "UNKNOWN_VALUE"
+        assert data["details"][0]["reason"] == "unrecognized"
+
+        db.refresh(book)
+        assert book.condition_grade == "UNKNOWN_VALUE"
+
+    def test_multiple_books_normalized(self, client, db):
+        """Test multiple books are normalized in one call."""
+        from app.models import Book
+
+        book1 = Book(title="Book 1", condition_grade="VG")
+        book2 = Book(title="Book 2", condition_grade="NF")
+        book3 = Book(title="Book 3", condition_grade="G")
+        db.add_all([book1, book2, book3])
+        db.commit()
+
+        response = client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["normalized"] == 3
+        assert data["skipped"] == 0
+        assert len(data["details"]) == 3
+
+        db.refresh(book1)
+        db.refresh(book2)
+        db.refresh(book3)
+        assert book1.condition_grade == "VERY_GOOD"
+        assert book2.condition_grade == "NEAR_FINE"
+        assert book3.condition_grade == "GOOD"
+
+    def test_requires_admin_auth(self, unauthenticated_client):
+        """Test endpoint requires admin authentication."""
+        response = unauthenticated_client.post("/api/v1/health/normalize-condition-grades")
+        assert response.status_code == 401
+
+
 class TestCheckLambdas:
     """Tests for Lambda availability check function."""
 
