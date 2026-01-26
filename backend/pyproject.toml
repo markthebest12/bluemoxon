@@ -15,9 +15,9 @@ psycopg2-binary = "^2.9.9"
 pydantic = {extras = ["email"], version = "^2.5.0"}
 pydantic-settings = "^2.1.0"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-boto3 = "^1.42.33"
+boto3 = "^1.42.34"
 mangum = "^0.20.0"
-python-multipart = "^0.0.21"
+python-multipart = "^0.0.22"
 httpx = "^0.28.1"
 markdown = "^3.10.1"
 reportlab = "^4.4.9"
