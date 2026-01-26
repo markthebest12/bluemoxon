@@ -256,7 +256,11 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
                     book_updates["value_low"] + book_updates["value_high"]
                 ) / 2
             if extracted_data.get("condition_grade"):
-                book_updates["condition_grade"] = extracted_data["condition_grade"]
+                from app.services.analysis_summary import normalize_condition_grade
+
+                normalized = normalize_condition_grade(extracted_data["condition_grade"])
+                if normalized:
+                    book_updates["condition_grade"] = normalized
             if extracted_data.get("binding_type"):
                 book_updates["binding_type"] = extracted_data["binding_type"]
             # Provenance fields
