@@ -5,13 +5,17 @@
  * Shows relationship between two entities with shared books.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useFocusTrap } from '@vueuse/integrations/useFocusTrap';
-import { api } from '@/services/api';
-import type { ApiNode, ApiEdge, NodeId, ConnectionType } from '@/types/socialCircles';
-import { getPlaceholderImage, renderStrength, calculateStrength } from '@/utils/socialCircles/formatters';
-import { PANEL_ANIMATION } from '@/constants/socialCircles';
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { api } from "@/services/api";
+import type { ApiNode, ApiEdge, NodeId, ConnectionType } from "@/types/socialCircles";
+import {
+  getPlaceholderImage,
+  renderStrength,
+  calculateStrength,
+} from "@/utils/socialCircles/formatters";
+import { PANEL_ANIMATION } from "@/constants/socialCircles";
 
 interface Props {
   edge: ApiEdge | null;
@@ -34,28 +38,28 @@ const isPinned = ref(false);
 // Source and target nodes
 const sourceNode = computed(() => {
   if (!props.edge) return null;
-  return props.nodes.find(n => n.id === props.edge!.source) || null;
+  return props.nodes.find((n) => n.id === props.edge!.source) || null;
 });
 
 const targetNode = computed(() => {
   if (!props.edge) return null;
-  return props.nodes.find(n => n.id === props.edge!.target) || null;
+  return props.nodes.find((n) => n.id === props.edge!.target) || null;
 });
 
 // Connection type display
 const connectionLabel = computed(() => {
-  if (!props.edge) return '';
+  if (!props.edge) return "";
   const labels: Record<ConnectionType, string> = {
-    publisher: 'Published together',
-    shared_publisher: 'Shared Publisher',
-    binder: 'Bound works',
+    publisher: "Published together",
+    shared_publisher: "Shared Publisher",
+    binder: "Bound works",
   };
   return labels[props.edge.type];
 });
 
 // Strength display
 const strengthDisplay = computed(() => {
-  if (!props.edge) return '';
+  if (!props.edge) return "";
   const strength = calculateStrength(props.edge.shared_book_ids?.length || props.edge.strength);
   return renderStrength(strength);
 });
@@ -84,12 +88,12 @@ watch(
 
     isLoadingBooks.value = true;
     try {
-      const ids = bookIds.slice(0, 20).join(',');
+      const ids = bookIds.slice(0, 20).join(",");
       const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`);
       sharedBooks.value = response.data.items || [];
     } catch (error) {
-      console.error('Failed to fetch shared books:', error);
-      sharedBooks.value = bookIds.slice(0, 20).map(id => ({ id, title: `Book #${id}` }));
+      console.error("Failed to fetch shared books:", error);
+      sharedBooks.value = bookIds.slice(0, 20).map((id) => ({ id, title: `Book #${id}` }));
     } finally {
       isLoadingBooks.value = false;
     }
@@ -99,37 +103,40 @@ watch(
 
 // Navigate to book
 function viewBook(bookId: number) {
-  void router.push({ name: 'book-detail', params: { id: bookId } });
+  void router.push({ name: "book-detail", params: { id: bookId } });
 }
 
 // Entity images
 function getEntityImage(node: ApiNode | null): string {
-  if (!node) return '';
+  if (!node) return "";
   return getPlaceholderImage(node.type, node.entity_id);
 }
 
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    emit('close');
+  if (event.key === "Escape") {
+    emit("close");
   }
 }
 
 // Focus trap management
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
-    setTimeout(() => activate(), PANEL_ANIMATION.duration);
-  } else {
-    deactivate();
+watch(
+  () => props.isOpen,
+  (isOpen) => {
+    if (isOpen) {
+      setTimeout(() => activate(), PANEL_ANIMATION.duration);
+    } else {
+      deactivate();
+    }
   }
-});
+);
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener("keydown", handleKeydown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener("keydown", handleKeydown);
   deactivate();
 });
 </script>
@@ -149,10 +156,7 @@ onUnmounted(() => {
       <header class="edge-sidebar__header">
         <div class="edge-sidebar__entities">
           <!-- Source Entity -->
-          <button
-            class="edge-sidebar__entity"
-            @click="emit('selectNode', sourceNode.id)"
-          >
+          <button class="edge-sidebar__entity" @click="emit('selectNode', sourceNode.id)">
             <img
               :src="getEntityImage(sourceNode)"
               :alt="sourceNode.name"
@@ -165,14 +169,11 @@ onUnmounted(() => {
 
           <!-- Connection indicator -->
           <div class="edge-sidebar__connection-arrow">
-            {{ edge.type === 'shared_publisher' ? '↔' : '→' }}
+            {{ edge.type === "shared_publisher" ? "↔" : "→" }}
           </div>
 
           <!-- Target Entity -->
-          <button
-            class="edge-sidebar__entity"
-            @click="emit('selectNode', targetNode.id)"
-          >
+          <button class="edge-sidebar__entity" @click="emit('selectNode', targetNode.id)">
             <img
               :src="getEntityImage(targetNode)"
               :alt="targetNode.name"
@@ -194,13 +195,7 @@ onUnmounted(() => {
           >
             📌
           </button>
-          <button
-            class="edge-sidebar__close"
-            aria-label="Close"
-            @click="emit('close')"
-          >
-            ✕
-          </button>
+          <button class="edge-sidebar__close" aria-label="Close" @click="emit('close')">✕</button>
         </div>
       </header>
 
@@ -216,7 +211,7 @@ onUnmounted(() => {
       <!-- Shared Books (scrollable) -->
       <section class="edge-sidebar__content">
         <h4 class="edge-sidebar__section-title">
-          {{ edge.type === 'binder' ? 'Bound Books' : 'Shared Books' }}
+          {{ edge.type === "binder" ? "Bound Books" : "Shared Books" }}
         </h4>
 
         <div v-if="isLoadingBooks" class="edge-sidebar__loading">
@@ -226,15 +221,8 @@ onUnmounted(() => {
         </div>
 
         <ul v-else-if="sharedBooks.length > 0" class="edge-sidebar__book-list">
-          <li
-            v-for="book in sharedBooks"
-            :key="book.id"
-            class="edge-sidebar__book-item"
-          >
-            <button
-              class="edge-sidebar__book-button"
-              @click="viewBook(book.id)"
-            >
+          <li v-for="book in sharedBooks" :key="book.id" class="edge-sidebar__book-item">
+            <button class="edge-sidebar__book-button" @click="viewBook(book.id)">
               <span class="edge-sidebar__book-icon">📖</span>
               <span class="edge-sidebar__book-title">{{ book.title }}</span>
               <span v-if="book.year" class="edge-sidebar__book-year">({{ book.year }})</span>
@@ -242,24 +230,23 @@ onUnmounted(() => {
           </li>
         </ul>
 
-        <p v-else class="edge-sidebar__empty">
-          No shared books found in your collection.
-        </p>
+        <p v-else class="edge-sidebar__empty">No shared books found in your collection.</p>
       </section>
 
       <!-- Footer (sticky) -->
       <footer class="edge-sidebar__footer">
-        <button
-          class="edge-sidebar__view-button"
-          @click="emit('selectNode', sourceNode.id)"
-        >
-          View {{ sourceNode.type === 'author' ? 'Author' : sourceNode.type }}
+        <button class="edge-sidebar__view-button" @click="emit('selectNode', sourceNode.id)">
+          View {{ sourceNode.type === "author" ? "Author" : sourceNode.type }}
         </button>
-        <button
-          class="edge-sidebar__view-button"
-          @click="emit('selectNode', targetNode.id)"
-        >
-          View {{ targetNode.type === 'publisher' ? 'Publisher' : targetNode.type === 'binder' ? 'Bindery' : targetNode.type }}
+        <button class="edge-sidebar__view-button" @click="emit('selectNode', targetNode.id)">
+          View
+          {{
+            targetNode.type === "publisher"
+              ? "Publisher"
+              : targetNode.type === "binder"
+                ? "Bindery"
+                : targetNode.type
+          }}
         </button>
       </footer>
     </aside>
@@ -275,8 +262,8 @@ onUnmounted(() => {
   width: 35%;
   min-width: 320px;
   max-width: 500px;
-  background: var(--color-sidebar-bg, #FAF8F3);
-  border-left: 1px solid var(--color-border, #D4CFC4);
+  background: var(--color-sidebar-bg, #faf8f3);
+  border-left: 1px solid var(--color-border, #d4cfc4);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -284,23 +271,23 @@ onUnmounted(() => {
 }
 
 .edge-sidebar--publisher {
-  border-top: 3px solid var(--color-accent-gold, #B8860B);
+  border-top: 3px solid var(--color-accent-gold, #b8860b);
 }
 
 .edge-sidebar--shared_publisher {
-  border-top: 3px solid var(--color-publisher, #2C5F77);
+  border-top: 3px solid var(--color-publisher, #2c5f77);
 }
 
 .edge-sidebar--binder {
-  border-top: 3px solid var(--color-binder, #8B4513);
+  border-top: 3px solid var(--color-binder, #8b4513);
 }
 
 .edge-sidebar__header {
   position: sticky;
   top: 0;
   padding: 16px;
-  background: var(--color-sidebar-bg, #FAF8F3);
-  border-bottom: 1px solid var(--color-border, #D4CFC4);
+  background: var(--color-sidebar-bg, #faf8f3);
+  border-bottom: 1px solid var(--color-border, #d4cfc4);
   z-index: 1;
 }
 
@@ -334,24 +321,24 @@ onUnmounted(() => {
   height: 64px;
   object-fit: cover;
   border-radius: 4px;
-  background: var(--color-skeleton-bg, #E8E4DB);
+  background: var(--color-skeleton-bg, #e8e4db);
 }
 
 .edge-sidebar__entity-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary, #2C2416);
+  color: var(--color-text-primary, #2c2416);
   text-align: center;
 }
 
 .edge-sidebar__entity-type {
   font-size: 0.75rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
 }
 
 .edge-sidebar__connection-arrow {
   font-size: 1.5rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
 }
 
 .edge-sidebar__actions {
@@ -367,7 +354,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 1rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   cursor: pointer;
   padding: 4px;
   min-width: 44px;
@@ -379,16 +366,16 @@ onUnmounted(() => {
 
 .edge-sidebar__pin:hover,
 .edge-sidebar__close:hover {
-  color: var(--color-text-primary, #2C2416);
+  color: var(--color-text-primary, #2c2416);
 }
 
 .edge-sidebar__pin--active {
-  color: var(--color-accent-gold, #B8860B);
+  color: var(--color-accent-gold, #b8860b);
 }
 
 .edge-sidebar__connection-info {
   padding: 16px;
-  border-bottom: 1px solid var(--color-border, #D4CFC4);
+  border-bottom: 1px solid var(--color-border, #d4cfc4);
 }
 
 .edge-sidebar__connection-label {
@@ -396,7 +383,7 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-secondary, #5C5446);
+  color: var(--color-text-secondary, #5c5446);
   margin: 0 0 8px;
 }
 
@@ -408,13 +395,13 @@ onUnmounted(() => {
 
 .edge-sidebar__strength-dots {
   font-size: 1rem;
-  color: var(--color-accent-gold, #B8860B);
+  color: var(--color-accent-gold, #b8860b);
   letter-spacing: 2px;
 }
 
 .edge-sidebar__strength-count {
   font-size: 0.875rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
 }
 
 .edge-sidebar__content {
@@ -428,7 +415,7 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   margin: 0 0 12px;
 }
 
@@ -440,15 +427,24 @@ onUnmounted(() => {
 
 .edge-sidebar__skeleton-book {
   height: 48px;
-  background: linear-gradient(90deg, var(--color-skeleton-bg, #E8E4DB) 25%, #f0ede5 50%, var(--color-skeleton-bg, #E8E4DB) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-bg, #e8e4db) 25%,
+    #f0ede5 50%,
+    var(--color-skeleton-bg, #e8e4db) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .edge-sidebar__book-list {
@@ -482,7 +478,7 @@ onUnmounted(() => {
 
 .edge-sidebar__book-button:hover .edge-sidebar__book-title {
   text-decoration: underline;
-  color: var(--color-accent-gold, #B8860B);
+  color: var(--color-accent-gold, #b8860b);
 }
 
 .edge-sidebar__book-icon {
@@ -492,18 +488,18 @@ onUnmounted(() => {
 .edge-sidebar__book-title {
   flex: 1;
   font-size: 0.875rem;
-  color: var(--color-link, #6B4423);
+  color: var(--color-link, #6b4423);
   font-style: italic;
 }
 
 .edge-sidebar__book-year {
   font-size: 0.75rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
 }
 
 .edge-sidebar__empty {
   font-size: 0.875rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   font-style: italic;
 }
 
@@ -511,8 +507,8 @@ onUnmounted(() => {
   position: sticky;
   bottom: 0;
   padding: 16px;
-  background: var(--color-sidebar-bg, #FAF8F3);
-  border-top: 1px solid var(--color-border, #D4CFC4);
+  background: var(--color-sidebar-bg, #faf8f3);
+  border-top: 1px solid var(--color-border, #d4cfc4);
   display: flex;
   gap: 12px;
 }
@@ -521,26 +517,28 @@ onUnmounted(() => {
   flex: 1;
   padding: 10px 16px;
   background: white;
-  color: var(--color-text-primary, #2C2416);
-  border: 1px solid var(--color-border, #D4CFC4);
+  color: var(--color-text-primary, #2c2416);
+  border: 1px solid var(--color-border, #d4cfc4);
   border-radius: 4px;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: background 150ms ease-out, border-color 150ms ease-out;
+  transition:
+    background 150ms ease-out,
+    border-color 150ms ease-out;
 }
 
 .edge-sidebar__view-button:hover {
-  background: var(--color-card-bg, #F5F1E8);
-  border-color: var(--color-accent-gold, #B8860B);
+  background: var(--color-card-bg, #f5f1e8);
+  border-color: var(--color-accent-gold, #b8860b);
 }
 
 /* Transitions */
 .sidebar-enter-active {
-  transition: transform 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-leave-active {
-  transition: transform 150ms cubic-bezier(0.4, 0.0, 1, 1);
+  transition: transform 150ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 .sidebar-enter-from,

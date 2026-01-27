@@ -207,29 +207,29 @@ export const KEYBOARD_SHORTCUTS = {
 
 export const PANEL_COLORS = {
   // Backgrounds
-  cardBg: '#F5F1E8',
-  sidebarBg: '#FAF8F3',
-  skeletonBg: '#E8E4DB',
+  cardBg: "#F5F1E8",
+  sidebarBg: "#FAF8F3",
+  skeletonBg: "#E8E4DB",
 
   // Text
-  textPrimary: '#2C2416',
-  textSecondary: '#5C5446',
-  textMuted: '#8B8579',
+  textPrimary: "#2C2416",
+  textSecondary: "#5C5446",
+  textMuted: "#8B8579",
 
   // Interactive
-  accentGold: '#B8860B',
-  hover: '#8B4513',
-  selected: '#2C5F77',
-  link: '#6B4423',
+  accentGold: "#B8860B",
+  hover: "#8B4513",
+  selected: "#2C5F77",
+  link: "#6B4423",
 
   // Borders
-  border: '#D4CFC4',
-  borderStrong: '#A69F92',
+  border: "#D4CFC4",
+  borderStrong: "#A69F92",
 
   // Entity accents
-  author: '#7B4B94',
-  publisher: '#2C5F77',
-  binder: '#8B4513',
+  author: "#7B4B94",
+  publisher: "#2C5F77",
+  binder: "#8B4513",
 } as const;
 
 // =============================================================================
@@ -238,8 +238,8 @@ export const PANEL_COLORS = {
 
 export const PANEL_ANIMATION = {
   duration: 200,
-  easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-  easingOut: 'cubic-bezier(0.4, 0.0, 1, 1)',
+  easing: "cubic-bezier(0.4, 0.0, 0.2, 1)",
+  easingOut: "cubic-bezier(0.4, 0.0, 1, 1)",
 } as const;
 
 // =============================================================================

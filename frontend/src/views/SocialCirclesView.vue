@@ -8,14 +8,18 @@
  */
 
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useWindowSize } from "@vueuse/core";
 import { useSocialCircles } from "@/composables/socialcircles";
-import type { ConnectionType } from "@/types/socialCircles";
+import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
+import type { Position } from "@/utils/socialCircles/cardPositioning";
 
-// Components will be lazy-loaded as they're built out
+// Components
 import NetworkGraph from "@/components/socialcircles/NetworkGraph.vue";
 import FilterPanel from "@/components/socialcircles/FilterPanel.vue";
 import TimelineSlider from "@/components/socialcircles/TimelineSlider.vue";
-import NodeDetailPanel from "@/components/socialcircles/NodeDetailPanel.vue";
+import NodeFloatingCard from "@/components/socialcircles/NodeFloatingCard.vue";
+import EdgeSidebar from "@/components/socialcircles/EdgeSidebar.vue";
 import ZoomControls from "@/components/socialcircles/ZoomControls.vue";
 import LoadingState from "@/components/socialcircles/LoadingState.vue";
 import EmptyState from "@/components/socialcircles/EmptyState.vue";
@@ -26,6 +30,9 @@ import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 
 // Initialize the main orchestrator composable
+const socialCircles = useSocialCircles();
+
+// Destructure commonly used values
 const {
   // Data
   nodes,
@@ -54,6 +61,13 @@ const {
   selectNode,
   selectEdge,
   clearSelection,
+  // Toggle selection (new panel behavior)
+  toggleSelectNode,
+  toggleSelectEdge,
+  closePanel,
+  isPanelOpen,
+  isNodeSelected,
+  isEdgeSelected,
 
   // Timeline
   timelineState,
@@ -74,10 +88,36 @@ const {
   // Lifecycle
   initialize,
   cleanup,
-} = useSocialCircles();
+} = socialCircles;
+
+// Router for navigation
+const router = useRouter();
+
+// Viewport tracking for smart card positioning
+const { width: viewportWidth, height: viewportHeight } = useWindowSize();
+const viewport = computed(() => ({
+  width: viewportWidth.value,
+  height: viewportHeight.value,
+}));
 
 // NetworkGraph ref for zoom controls and export
 const networkGraphRef = ref<InstanceType<typeof NetworkGraph> | null>(null);
+
+// Get node position from Cytoscape for floating card positioning
+function getNodePosition(nodeId: NodeId): Position | null {
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (!cy) return null;
+  const node = cy.$id(nodeId);
+  if (node.length === 0) return null;
+  const renderedPos = node.renderedPosition();
+  return { x: renderedPos.x, y: renderedPos.y };
+}
+
+// Computed card position based on selected node
+const cardPosition = computed((): Position | null => {
+  if (!selectedNode.value) return null;
+  return getNodePosition(selectedNode.value.id);
+});
 
 // Toast state for share feedback
 const showToast = ref(false);
@@ -229,8 +269,25 @@ const showEmpty = computed(
   () => !isLoading.value && !hasError.value && filteredNodes.value.length === 0
 );
 
-// Detail panel visibility
-const showDetailPanel = computed(() => selectedNode.value !== null);
+// Panel visibility for hiding controls (uses isPanelOpen from composable)
+const showDetailPanel = computed(() => isPanelOpen.value);
+
+// Type-cast computed properties for panel components (avoids readonly/mutable type conflicts)
+const selectedNodeForCard = computed((): ApiNode | null => {
+  return selectedNode.value as ApiNode | null;
+});
+
+const selectedEdgeForSidebar = computed((): ApiEdge | null => {
+  return selectedEdge.value as ApiEdge | null;
+});
+
+const nodesForPanel = computed((): ApiNode[] => {
+  return filteredNodes.value as ApiNode[];
+});
+
+const edgesForPanel = computed((): ApiEdge[] => {
+  return filteredEdges.value as ApiEdge[];
+});
 
 // Cytoscape elements - computed to avoid re-layout on unrelated re-renders
 const cytoscapeElements = computed(() => getCytoscapeElements());
@@ -244,22 +301,33 @@ const filterPills = computed(() =>
   }))
 );
 
-// Handle node selection from graph
+// Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
-    selectNode(nodeId);
+    toggleSelectNode(nodeId);
   } else {
     clearSelection();
   }
 }
 
-// Handle edge selection from graph
+// Handle edge selection from graph (with toggle behavior)
 function handleEdgeSelect(edgeId: string | null) {
   if (edgeId) {
-    selectEdge(edgeId);
+    toggleSelectEdge(edgeId);
   } else {
     clearSelection();
   }
+}
+
+// Handle edge selection from floating card
+function handleSelectEdge(edgeId: EdgeId) {
+  selectEdge(edgeId as string);
+}
+
+// Handle view profile navigation
+function handleViewProfile(nodeId: NodeId) {
+  // Navigate to entity detail page
+  void router.push({ name: "entity-detail", params: { id: nodeId } });
 }
 
 // Handle retry after error
@@ -386,23 +454,29 @@ onUnmounted(() => {
         </div>
       </main>
 
-      <!-- Detail Panel (right sidebar, slides in) -->
-      <aside class="detail-sidebar" :class="{ 'detail-sidebar--open': showDetailPanel }">
-        <NodeDetailPanel
-          v-if="selectedNode"
-          :is-open="showDetailPanel"
-          :node-id="selectedNode?.id"
-          :name="selectedNode?.name"
-          :node-type="selectedNode?.type"
-          :birth-year="selectedNode?.birth_year"
-          :death-year="selectedNode?.death_year"
-          :era="selectedNode?.era"
-          :tier="selectedNode?.tier ?? undefined"
-          :book-count="selectedNode?.book_count"
-          :book-ids="selectedNode?.book_ids ? [...selectedNode.book_ids] : undefined"
-          @close="clearSelection"
-        />
-      </aside>
+      <!-- Node Floating Card (smart positioned near clicked node) -->
+      <NodeFloatingCard
+        v-if="isNodeSelected && isPanelOpen"
+        :node="selectedNodeForCard"
+        :node-position="cardPosition"
+        :viewport-size="viewport"
+        :edges="edgesForPanel"
+        :nodes="nodesForPanel"
+        :is-open="isPanelOpen"
+        @close="closePanel"
+        @select-edge="handleSelectEdge"
+        @view-profile="handleViewProfile"
+      />
+
+      <!-- Edge Sidebar (slides in from right when edge selected) -->
+      <EdgeSidebar
+        v-if="isEdgeSelected && isPanelOpen"
+        :edge="selectedEdgeForSidebar"
+        :nodes="nodesForPanel"
+        :is-open="isPanelOpen"
+        @close="closePanel"
+        @select-node="(nodeId: NodeId) => selectNode(nodeId as string)"
+      />
 
       <!-- Connection Tooltip (edge hover) -->
       <ConnectionTooltip
@@ -530,29 +604,10 @@ onUnmounted(() => {
   background-color: var(--color-victorian-paper-white, #fdfcfa);
 }
 
-.detail-sidebar {
-  width: 0;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: width 0.3s ease;
-  border-left: 1px solid transparent;
-  background-color: var(--color-victorian-paper-white, #fdfcfa);
-}
-
-.detail-sidebar--open {
-  width: 360px;
-  border-left-color: var(--color-victorian-paper-aged, #e8e4d9);
-  overflow-y: auto;
-}
-
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .filter-sidebar {
     width: 240px;
-  }
-
-  .detail-sidebar--open {
-    width: 320px;
   }
 }
 
@@ -566,17 +621,6 @@ onUnmounted(() => {
     max-height: 200px;
     border-right: none;
     border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
-  }
-
-  .detail-sidebar--open {
-    position: fixed;
-    top: 0;
-    right: 0;
-    height: 100vh;
-    width: 100%;
-    max-width: 400px;
-    z-index: 100;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   }
 }
 

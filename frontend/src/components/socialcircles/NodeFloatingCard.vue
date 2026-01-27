@@ -5,12 +5,16 @@
  * Smart positioned, shows first 5 connections, links to edge details.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useFocusTrap } from '@vueuse/integrations/useFocusTrap';
-import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from '@/types/socialCircles';
-import { formatTier, getPlaceholderImage } from '@/utils/socialCircles/formatters';
-import { getBestCardPosition, type Position, type Size } from '@/utils/socialCircles/cardPositioning';
-import { PANEL_DIMENSIONS, PANEL_ANIMATION } from '@/constants/socialCircles';
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from "@/types/socialCircles";
+import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
+import {
+  getBestCardPosition,
+  type Position,
+  type Size,
+} from "@/utils/socialCircles/cardPositioning";
+import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
 
 interface Props {
   node: ApiNode | null;
@@ -56,7 +60,7 @@ const tierDisplay = computed(() => {
 
 // Placeholder image
 const entityImage = computed(() => {
-  if (!props.node) return '';
+  if (!props.node) return "";
   return getPlaceholderImage(props.node.type, props.node.entity_id);
 });
 
@@ -86,7 +90,7 @@ const connections = computed((): ConnectionItem[] => {
     }
 
     if (otherNodeId) {
-      const otherNode = props.nodes.find(n => n.id === otherNodeId);
+      const otherNode = props.nodes.find((n) => n.id === otherNodeId);
       if (otherNode) {
         result.push({
           edgeId: edge.id,
@@ -104,9 +108,8 @@ const connections = computed((): ConnectionItem[] => {
 
 const totalConnections = computed(() => {
   if (!props.node) return 0;
-  return props.edges.filter(
-    e => e.source === props.node!.id || e.target === props.node!.id
-  ).length;
+  return props.edges.filter((e) => e.source === props.node!.id || e.target === props.node!.id)
+    .length;
 });
 
 const remainingConnections = computed(() => {
@@ -116,36 +119,39 @@ const remainingConnections = computed(() => {
 // Connection type icons
 function getConnectionIcon(type: ConnectionType): string {
   const icons: Record<ConnectionType, string> = {
-    publisher: '📚',
-    shared_publisher: '🤝',
-    binder: '🪡',
+    publisher: "📚",
+    shared_publisher: "🤝",
+    binder: "🪡",
   };
-  return icons[type] || '→';
+  return icons[type] || "→";
 }
 
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    emit('close');
+  if (event.key === "Escape") {
+    emit("close");
   }
 }
 
 // Focus trap management
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
-    setTimeout(() => activate(), PANEL_ANIMATION.duration);
-  } else {
-    deactivate();
+watch(
+  () => props.isOpen,
+  (isOpen) => {
+    if (isOpen) {
+      setTimeout(() => activate(), PANEL_ANIMATION.duration);
+    } else {
+      deactivate();
+    }
   }
-});
+);
 
 // Global escape listener
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener("keydown", handleKeydown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener("keydown", handleKeydown);
   deactivate();
 });
 </script>
@@ -177,20 +183,18 @@ onUnmounted(() => {
           <h3 class="node-floating-card__name">{{ node.name }}</h3>
           <div v-if="tierDisplay" class="node-floating-card__tier" :title="tierDisplay.tooltip">
             <span class="sr-only">{{ tierDisplay.tooltip }}</span>
-            <span aria-hidden="true">{{ '★'.repeat(tierDisplay.stars) }}{{ '☆'.repeat(3 - tierDisplay.stars) }}</span>
+            <span aria-hidden="true"
+              >{{ "★".repeat(tierDisplay.stars) }}{{ "☆".repeat(3 - tierDisplay.stars) }}</span
+            >
           </div>
           <p v-if="node.birth_year || node.death_year" class="node-floating-card__dates">
-            {{ node.birth_year || '?' }} – {{ node.death_year || '?' }}
+            {{ node.birth_year || "?" }} – {{ node.death_year || "?" }}
           </p>
           <p v-if="node.era" class="node-floating-card__era">
-            {{ node.era.replace('_', ' ') }}
+            {{ node.era.replace("_", " ") }}
           </p>
         </div>
-        <button
-          class="node-floating-card__close"
-          aria-label="Close"
-          @click="emit('close')"
-        >
+        <button class="node-floating-card__close" aria-label="Close" @click="emit('close')">
           ✕
         </button>
       </header>
@@ -206,7 +210,9 @@ onUnmounted(() => {
       <section v-if="connections.length > 0" class="node-floating-card__connections">
         <h4 class="node-floating-card__section-title">
           Connections
-          <span v-if="remainingConnections > 0">(showing {{ connections.length }} of {{ totalConnections }})</span>
+          <span v-if="remainingConnections > 0"
+            >(showing {{ connections.length }} of {{ totalConnections }})</span
+          >
         </h4>
         <ul class="node-floating-card__connection-list">
           <li
@@ -218,7 +224,9 @@ onUnmounted(() => {
               class="node-floating-card__connection-button"
               @click="emit('selectEdge', conn.edgeId)"
             >
-              <span class="node-floating-card__connection-icon">{{ getConnectionIcon(conn.connectionType) }}</span>
+              <span class="node-floating-card__connection-icon">{{
+                getConnectionIcon(conn.connectionType)
+              }}</span>
               <span class="node-floating-card__connection-name">{{ conn.nodeName }}</span>
               <span class="node-floating-card__connection-type">({{ conn.nodeType }})</span>
             </button>
@@ -240,10 +248,7 @@ onUnmounted(() => {
 
       <!-- Footer -->
       <footer class="node-floating-card__footer">
-        <button
-          class="node-floating-card__profile-button"
-          @click="emit('viewProfile', node.id)"
-        >
+        <button class="node-floating-card__profile-button" @click="emit('viewProfile', node.id)">
           View Full Profile →
         </button>
       </footer>
@@ -256,8 +261,8 @@ onUnmounted(() => {
   position: absolute;
   width: 280px;
   max-height: 400px;
-  background: var(--color-card-bg, #F5F1E8);
-  border: 1px solid var(--color-border, #D4CFC4);
+  background: var(--color-card-bg, #f5f1e8);
+  border: 1px solid var(--color-border, #d4cfc4);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
@@ -267,22 +272,22 @@ onUnmounted(() => {
 }
 
 .node-floating-card--author {
-  border-top: 3px solid var(--color-author, #7B4B94);
+  border-top: 3px solid var(--color-author, #7b4b94);
 }
 
 .node-floating-card--publisher {
-  border-top: 3px solid var(--color-publisher, #2C5F77);
+  border-top: 3px solid var(--color-publisher, #2c5f77);
 }
 
 .node-floating-card--binder {
-  border-top: 3px solid var(--color-binder, #8B4513);
+  border-top: 3px solid var(--color-binder, #8b4513);
 }
 
 .node-floating-card__header {
   display: flex;
   gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid var(--color-border, #D4CFC4);
+  border-bottom: 1px solid var(--color-border, #d4cfc4);
 }
 
 .node-floating-card__image {
@@ -290,7 +295,7 @@ onUnmounted(() => {
   height: 64px;
   object-fit: cover;
   border-radius: 4px;
-  background: var(--color-skeleton-bg, #E8E4DB);
+  background: var(--color-skeleton-bg, #e8e4db);
 }
 
 .node-floating-card__info {
@@ -302,13 +307,13 @@ onUnmounted(() => {
   font-size: 1rem;
   font-weight: 600;
   font-family: Georgia, serif;
-  color: var(--color-text-primary, #2C2416);
+  color: var(--color-text-primary, #2c2416);
   margin: 0;
   line-height: 1.3;
 }
 
 .node-floating-card__tier {
-  color: var(--color-accent-gold, #B8860B);
+  color: var(--color-accent-gold, #b8860b);
   font-size: 0.875rem;
   margin-top: 2px;
 }
@@ -316,7 +321,7 @@ onUnmounted(() => {
 .node-floating-card__dates,
 .node-floating-card__era {
   font-size: 0.75rem;
-  color: var(--color-text-secondary, #5C5446);
+  color: var(--color-text-secondary, #5c5446);
   margin: 2px 0 0;
 }
 
@@ -327,7 +332,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 1rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   cursor: pointer;
   padding: 4px;
   min-width: 44px;
@@ -338,16 +343,16 @@ onUnmounted(() => {
 }
 
 .node-floating-card__close:hover {
-  color: var(--color-text-primary, #2C2416);
+  color: var(--color-text-primary, #2c2416);
 }
 
 .node-floating-card__stats {
   padding: 8px 16px;
   font-size: 0.75rem;
-  color: var(--color-text-secondary, #5C5446);
+  color: var(--color-text-secondary, #5c5446);
   display: flex;
   gap: 6px;
-  border-bottom: 1px solid var(--color-border, #D4CFC4);
+  border-bottom: 1px solid var(--color-border, #d4cfc4);
 }
 
 .node-floating-card__connections {
@@ -361,7 +366,7 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   margin: 0 0 8px;
 }
 
@@ -387,7 +392,9 @@ onUnmounted(() => {
   border-radius: 4px;
   cursor: pointer;
   text-align: left;
-  transition: background 150ms ease-out, transform 150ms ease-out;
+  transition:
+    background 150ms ease-out,
+    transform 150ms ease-out;
 }
 
 .node-floating-card__connection-button:hover {
@@ -402,12 +409,12 @@ onUnmounted(() => {
 .node-floating-card__connection-name {
   flex: 1;
   font-size: 0.875rem;
-  color: var(--color-text-primary, #2C2416);
+  color: var(--color-text-primary, #2c2416);
 }
 
 .node-floating-card__connection-type {
   font-size: 0.75rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
 }
 
 .node-floating-card__more-link {
@@ -417,54 +424,58 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 0.75rem;
-  color: var(--color-link, #6B4423);
+  color: var(--color-link, #6b4423);
   cursor: pointer;
   text-decoration: underline;
 }
 
 .node-floating-card__more-link:hover {
-  color: var(--color-hover, #8B4513);
+  color: var(--color-hover, #8b4513);
 }
 
 .node-floating-card__empty {
   padding: 16px;
   font-size: 0.875rem;
-  color: var(--color-text-muted, #8B8579);
+  color: var(--color-text-muted, #8b8579);
   font-style: italic;
 }
 
 .node-floating-card__footer {
   padding: 12px 16px;
-  border-top: 1px solid var(--color-border, #D4CFC4);
+  border-top: 1px solid var(--color-border, #d4cfc4);
 }
 
 .node-floating-card__profile-button {
   width: 100%;
   padding: 10px 16px;
-  background: var(--color-accent-gold, #B8860B);
+  background: var(--color-accent-gold, #b8860b);
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease-out, transform 150ms ease-out;
+  transition:
+    background 150ms ease-out,
+    transform 150ms ease-out;
 }
 
 .node-floating-card__profile-button:hover {
-  background: var(--color-hover, #8B4513);
+  background: var(--color-hover, #8b4513);
   transform: translateY(-1px);
 }
 
 /* Transitions */
 .card-enter-active {
-  transition: transform 200ms cubic-bezier(0.4, 0.0, 0.2, 1),
-              opacity 200ms ease-out;
+  transition:
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 200ms ease-out;
 }
 
 .card-leave-active {
-  transition: transform 150ms cubic-bezier(0.4, 0.0, 1, 1),
-              opacity 150ms ease-in;
+  transition:
+    transform 150ms cubic-bezier(0.4, 0, 1, 1),
+    opacity 150ms ease-in;
 }
 
 .card-enter-from,
