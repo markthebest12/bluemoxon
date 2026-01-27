@@ -38,13 +38,14 @@ export function transformNode(node: ApiNode): ElementDefinition {
 
   return {
     group: "nodes",
-    data: { ...node },
-    style: {
-      "background-color": color,
-      shape,
-      width: size,
-      height: size,
-      label: node.name,
+    data: {
+      ...node,
+      style: {
+        "background-color": color,
+        shape,
+        width: size,
+        height: size,
+      },
     },
   };
 }
@@ -56,14 +57,14 @@ export function transformEdge(edge: ApiEdge): ElementDefinition {
 
   return {
     group: "edges",
-    data: { ...edge },
-    style: {
-      "line-color": color,
-      "line-style": lineStyle,
-      "line-opacity": opacity,
-      width,
-      "target-arrow-color": color,
-      "curve-style": "bezier",
+    data: {
+      ...edge,
+      style: {
+        "line-color": color,
+        "line-style": lineStyle,
+        "line-opacity": opacity,
+        width,
+      },
     },
   };
 }
