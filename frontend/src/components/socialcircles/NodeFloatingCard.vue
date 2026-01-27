@@ -133,13 +133,20 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-// Focus trap management
+// Focus trap management with timeout cleanup
+let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
+
 watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
-      setTimeout(() => activate(), PANEL_ANIMATION.duration);
+      focusTrapTimeout = setTimeout(() => activate(), PANEL_ANIMATION.duration);
     } else {
+      // Clear timeout to prevent activating on unmounted element
+      if (focusTrapTimeout !== undefined) {
+        clearTimeout(focusTrapTimeout);
+        focusTrapTimeout = undefined;
+      }
       deactivate();
     }
   }
@@ -152,6 +159,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
+  if (focusTrapTimeout !== undefined) {
+    clearTimeout(focusTrapTimeout);
+  }
   deactivate();
 });
 </script>

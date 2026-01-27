@@ -49,4 +49,47 @@ describe("getBestCardPosition", () => {
     expect(result.position.x).toBeGreaterThanOrEqual(20);
     expect(result.position.y).toBeGreaterThanOrEqual(20);
   });
+
+  describe("tiny viewport edge cases", () => {
+    it("clamps to margin when viewport is smaller than card width", () => {
+      const tinyViewport = { width: 300, height: 800 }; // Card is 280px wide
+      const nodePos = { x: 150, y: 400 };
+      const margin = 20;
+      const result = getBestCardPosition(nodePos, cardSize, tinyViewport, margin);
+      // With 300px viewport, 280px card, 20px margin: max x = 300 - 280 - 20 = 0
+      // So it should clamp to margin (20)
+      expect(result.position.x).toBe(margin);
+    });
+
+    it("clamps to margin when viewport is smaller than card height", () => {
+      const tinyViewport = { width: 1200, height: 420 }; // Card is 400px tall
+      const nodePos = { x: 600, y: 200 };
+      const margin = 20;
+      const result = getBestCardPosition(nodePos, cardSize, tinyViewport, margin);
+      // With 420px viewport, 400px card, 20px margin: max y = 420 - 400 - 20 = 0
+      // So it should clamp to margin (20)
+      expect(result.position.y).toBe(margin);
+    });
+
+    it("handles mobile viewport (320px wide)", () => {
+      const mobileViewport = { width: 320, height: 568 };
+      const nodePos = { x: 160, y: 284 }; // Center of mobile viewport
+      const margin = 10;
+      const result = getBestCardPosition(nodePos, cardSize, mobileViewport, margin);
+      // Card won't fit horizontally (280 + 2*10 = 300 < 320 but barely)
+      // Position should be clamped to valid range
+      expect(result.position.x).toBeGreaterThanOrEqual(margin);
+      expect(result.position.x).toBeLessThanOrEqual(mobileViewport.width - cardSize.width - margin);
+    });
+
+    it("handles viewport exactly equal to card size plus margins", () => {
+      const exactViewport = { width: 320, height: 440 }; // 280 + 20*2, 400 + 20*2
+      const nodePos = { x: 160, y: 220 };
+      const margin = 20;
+      const result = getBestCardPosition(nodePos, cardSize, exactViewport, margin);
+      // Only one valid position: (20, 20)
+      expect(result.position.x).toBe(margin);
+      expect(result.position.y).toBe(margin);
+    });
+  });
 });

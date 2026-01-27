@@ -50,6 +50,9 @@ const PLACEHOLDER_NAMES: Record<NodeType, string[]> = {
 
 export function getPlaceholderImage(type: NodeType, entityId: number): string {
   const names = PLACEHOLDER_NAMES[type];
+  if (!names || names.length === 0) {
+    return "/images/entity-placeholders/fallback.svg";
+  }
   const index = entityId % names.length;
   return `/images/entity-placeholders/${type}s/${names[index]}`;
 }

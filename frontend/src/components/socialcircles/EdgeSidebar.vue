@@ -5,7 +5,7 @@
  * Shows relationship between two entities with shared books.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 import { api } from "@/services/api";
@@ -28,6 +28,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   close: [];
   selectNode: [nodeId: NodeId];
+  "update:pinned": [isPinned: boolean];
 }>();
 
 const router = useRouter();
@@ -60,7 +61,7 @@ const connectionLabel = computed(() => {
 // Strength display
 const strengthDisplay = computed(() => {
   if (!props.edge) return "";
-  const strength = calculateStrength(props.edge.shared_book_ids?.length || props.edge.strength);
+  const strength = calculateStrength(props.edge.shared_book_ids?.length ?? props.edge.strength ?? 0);
   return renderStrength(strength);
 });
 
@@ -77,29 +78,85 @@ interface BookSummary {
 
 const sharedBooks = ref<BookSummary[]>([]);
 const isLoadingBooks = ref(false);
+const fetchError = ref<string | null>(null);
+const abortControllerRef = shallowRef<AbortController | null>(null);
 
 watch(
   () => ({ isOpen: props.isOpen, bookIds: props.edge?.shared_book_ids }),
   async ({ isOpen, bookIds }) => {
+    // Cancel any pending request
+    if (abortControllerRef.value) {
+      abortControllerRef.value.abort();
+      abortControllerRef.value = null;
+    }
+
+    fetchError.value = null;
+
     if (!isOpen || !bookIds || bookIds.length === 0) {
       sharedBooks.value = [];
       return;
     }
 
     isLoadingBooks.value = true;
+    const controller = new AbortController();
+    abortControllerRef.value = controller;
+
     try {
       const ids = bookIds.slice(0, 20).join(",");
-      const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`);
-      sharedBooks.value = response.data.items || [];
+      const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`, {
+        signal: controller.signal,
+      });
+      // Only update if this request wasn't aborted
+      if (!controller.signal.aborted) {
+        sharedBooks.value = response.data.items || [];
+      }
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       console.error("Failed to fetch shared books:", error);
-      sharedBooks.value = bookIds.slice(0, 20).map((id) => ({ id, title: `Book #${id}` }));
+      fetchError.value = "Failed to load book details";
+      sharedBooks.value = [];
     } finally {
-      isLoadingBooks.value = false;
+      if (!controller.signal.aborted) {
+        isLoadingBooks.value = false;
+      }
     }
   },
   { immediate: true }
 );
+
+// Retry fetching books after error
+function retryFetch() {
+  const bookIds = props.edge?.shared_book_ids;
+  if (bookIds && bookIds.length > 0) {
+    fetchError.value = null;
+    // Trigger watcher by re-setting props (via dummy state change isn't possible, so we manually call the fetch)
+    isLoadingBooks.value = true;
+    const controller = new AbortController();
+    abortControllerRef.value = controller;
+    const ids = bookIds.slice(0, 20).join(",");
+    api
+      .get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`, { signal: controller.signal })
+      .then((response) => {
+        if (!controller.signal.aborted) {
+          sharedBooks.value = response.data.items || [];
+          fetchError.value = null;
+        }
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        console.error("Retry failed:", error);
+        fetchError.value = "Failed to load book details";
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          isLoadingBooks.value = false;
+        }
+      });
+  }
+}
 
 // Navigate to book
 function viewBook(bookId: number) {
@@ -112,6 +169,12 @@ function getEntityImage(node: ApiNode | null): string {
   return getPlaceholderImage(node.type, node.entity_id);
 }
 
+// Pin toggle
+function togglePin() {
+  isPinned.value = !isPinned.value;
+  emit("update:pinned", isPinned.value);
+}
+
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === "Escape") {
@@ -119,13 +182,20 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-// Focus trap management
+// Focus trap management with timeout cleanup
+let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
+
 watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
-      setTimeout(() => activate(), PANEL_ANIMATION.duration);
+      focusTrapTimeout = setTimeout(() => activate(), PANEL_ANIMATION.duration);
     } else {
+      // Clear timeout to prevent activating on unmounted element
+      if (focusTrapTimeout !== undefined) {
+        clearTimeout(focusTrapTimeout);
+        focusTrapTimeout = undefined;
+      }
       deactivate();
     }
   }
@@ -137,7 +207,14 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
+  if (focusTrapTimeout !== undefined) {
+    clearTimeout(focusTrapTimeout);
+  }
   deactivate();
+  // Cancel any pending request on unmount
+  if (abortControllerRef.value) {
+    abortControllerRef.value.abort();
+  }
 });
 </script>
 
@@ -190,8 +267,9 @@ onUnmounted(() => {
             class="edge-sidebar__pin"
             :class="{ 'edge-sidebar__pin--active': isPinned }"
             :aria-pressed="isPinned"
-            aria-label="Pin sidebar"
-            @click="isPinned = !isPinned"
+            :aria-label="isPinned ? 'Unpin sidebar' : 'Pin sidebar'"
+            :title="isPinned ? 'Click to unpin' : 'Pin to keep open'"
+            @click="togglePin"
           >
             📌
           </button>
@@ -218,6 +296,11 @@ onUnmounted(() => {
           <div class="edge-sidebar__skeleton-book"></div>
           <div class="edge-sidebar__skeleton-book"></div>
           <div class="edge-sidebar__skeleton-book"></div>
+        </div>
+
+        <div v-else-if="fetchError" class="edge-sidebar__error">
+          <p class="edge-sidebar__error-message">{{ fetchError }}</p>
+          <button class="edge-sidebar__retry-button" @click="retryFetch">Retry</button>
         </div>
 
         <ul v-else-if="sharedBooks.length > 0" class="edge-sidebar__book-list">
@@ -501,6 +584,32 @@ onUnmounted(() => {
   font-size: 0.875rem;
   color: var(--color-text-muted, #8b8579);
   font-style: italic;
+}
+
+.edge-sidebar__error {
+  text-align: center;
+  padding: 16px;
+}
+
+.edge-sidebar__error-message {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #5c5446);
+  margin: 0 0 12px;
+}
+
+.edge-sidebar__retry-button {
+  padding: 8px 16px;
+  background: var(--color-accent-gold, #b8860b);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 150ms ease-out;
+}
+
+.edge-sidebar__retry-button:hover {
+  background: var(--color-hover, #8b4513);
 }
 
 .edge-sidebar__footer {
