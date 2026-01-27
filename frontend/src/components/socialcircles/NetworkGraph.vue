@@ -232,7 +232,12 @@ watch(
 watch(
   [() => props.highlightedNodes, () => props.highlightedEdges],
   ([nodeIds, edgeIds]) => {
-    console.log("[NetworkGraph] highlight watcher fired, nodes:", nodeIds?.length, "edges:", edgeIds?.length);
+    console.log(
+      "[NetworkGraph] highlight watcher fired, nodes:",
+      nodeIds?.length,
+      "edges:",
+      edgeIds?.length
+    );
     if (!cy.value) return;
     cy.value.elements().removeClass("highlighted dimmed");
 

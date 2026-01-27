@@ -51,7 +51,13 @@ export function useNetworkSelection() {
         }
       });
 
-      console.log("[selectNode] found connected:", connectedNodeIds.size, "nodes,", connectedEdgeIds.size, "edges");
+      console.log(
+        "[selectNode] found connected:",
+        connectedNodeIds.size,
+        "nodes,",
+        connectedEdgeIds.size,
+        "edges"
+      );
       selection.value.highlightedNodeIds = connectedNodeIds;
       selection.value.highlightedEdgeIds = connectedEdgeIds;
     } else {
