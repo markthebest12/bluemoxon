@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8E4DB"/>
+      <stop offset="100%" style="stop-color:#D4CFC4"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#bg3)"/>
+  <!-- Decorative corner flourishes -->
+  <path d="M15 15 Q25 25 15 35" fill="none" stroke="#B8860B" stroke-width="1.5"/>
+  <path d="M185 15 Q175 25 185 35" fill="none" stroke="#B8860B" stroke-width="1.5"/>
+  <path d="M15 185 Q25 175 15 165" fill="none" stroke="#B8860B" stroke-width="1.5"/>
+  <path d="M185 185 Q175 175 185 165" fill="none" stroke="#B8860B" stroke-width="1.5"/>
+  <!-- Portrait silhouette - feminine Victorian style -->
+  <ellipse cx="100" cy="68" rx="30" ry="36" fill="#7B4B94"/>
+  <!-- Hair suggestion -->
+  <ellipse cx="100" cy="55" rx="35" ry="25" fill="#5C5446"/>
+  <!-- High collar dress -->
+  <path d="M45 175 Q45 110 100 100 Q155 110 155 175" fill="#8B4513"/>
+  <!-- Lace collar detail -->
+  <ellipse cx="100" cy="105" rx="25" ry="8" fill="#F5F1E8"/>
+  <!-- Cameo brooch -->
+  <circle cx="100" cy="115" r="6" fill="#B8860B"/>
+  <circle cx="100" cy="115" r="4" fill="#F5F1E8"/>
+  <!-- Author label -->
+  <text x="100" y="192" text-anchor="middle" fill="#5C5446" font-family="Georgia, serif" font-size="10" font-style="italic">Author</text>
+</svg>

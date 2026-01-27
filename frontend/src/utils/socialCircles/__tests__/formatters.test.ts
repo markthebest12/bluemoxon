@@ -59,7 +59,7 @@ describe("getPlaceholderImage", () => {
   it("returns author placeholder path", () => {
     const result = getPlaceholderImage("author", 42);
     expect(result).toMatch(/\/images\/entity-placeholders\/authors\//);
-    expect(result).toMatch(/\.jpg$/);
+    expect(result).toMatch(/\.svg$/);
   });
 
   it("returns consistent image for same entity ID", () => {

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="toolsBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8E4DB"/>
+      <stop offset="100%" style="stop-color:#D4CFC4"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#toolsBg)"/>
+  <!-- Work surface -->
+  <rect x="0" y="150" width="200" height="50" fill="#8B4513"/>
+  <rect x="0" y="145" width="200" height="8" fill="#6B4423"/>
+  <!-- Bone folder -->
+  <rect x="20" y="100" width="60" height="8" rx="4" fill="#F5F1E8"/>
+  <rect x="20" y="102" width="15" height="4" fill="#E8E4DB"/>
+  <!-- Awl -->
+  <circle cx="120" cy="90" r="10" fill="#8B4513"/>
+  <rect x="117" y="100" width="6" height="45" fill="#5C5446"/>
+  <polygon points="117,145 123,145 120,160" fill="#8B8579"/>
+  <!-- Needle and thread -->
+  <ellipse cx="160" cy="110" rx="3" ry="8" fill="#8B8579"/>
+  <path d="M160 118 Q170 130 150 140 Q140 145 155 155" fill="none" stroke="#B8860B" stroke-width="1"/>
+  <!-- Pressing boards -->
+  <rect x="30" y="125" width="50" height="20" fill="#6B4423"/>
+  <rect x="32" y="127" width="46" height="16" fill="#8B4513"/>
+  <!-- Gold tooling wheel -->
+  <circle cx="150" cy="70" r="15" fill="none" stroke="#B8860B" stroke-width="3"/>
+  <rect x="147" y="55" width="6" height="12" fill="#5C5446"/>
+  <circle cx="150" cy="70" r="8" fill="#B8860B"/>
+  <!-- Decorative pattern suggestion -->
+  <circle cx="150" cy="70" r="4" fill="#8B4513"/>
+  <!-- Knife -->
+  <rect x="90" y="130" width="8" height="30" fill="#6B4423"/>
+  <polygon points="90,160 98,160 94,175" fill="#8B8579"/>
+  <!-- Thread spool -->
+  <ellipse cx="40" cy="80" rx="12" ry="8" fill="#8B4513"/>
+  <ellipse cx="40" cy="80" rx="8" ry="5" fill="#B8860B"/>
+  <!-- Binder label -->
+  <text x="100" y="192" text-anchor="middle" fill="#F5F1E8" font-family="Georgia, serif" font-size="9" font-style="italic">Bindery</text>
+</svg>
