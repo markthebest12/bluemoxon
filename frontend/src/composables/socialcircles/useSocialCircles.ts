@@ -323,8 +323,8 @@ export function useSocialCircles() {
 
   // Initialize: fetch data and restore state from URL
   async function initialize() {
-    // Restore state from URL
-    const urlParams = urlState.initialize();
+    // Restore state from URL (waits for router to be ready)
+    const urlParams = await urlState.initialize();
 
     // Apply URL filters
     if (urlParams.filters.showAuthors !== undefined) {

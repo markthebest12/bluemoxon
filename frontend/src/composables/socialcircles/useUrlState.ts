@@ -99,12 +99,15 @@ export function useUrlState() {
     }, ANIMATION.debounceUrl);
   }
 
-  // Initialize from URL on mount
-  function initialize(): {
+  // Initialize from URL on mount (waits for router to be ready)
+  async function initialize(): Promise<{
     filters: Partial<FilterState>;
     selectedNode: NodeId | null;
     year: number | null;
-  } {
+  }> {
+    // Wait for Vue Router to finish initial navigation
+    await router.isReady();
+
     isInitialized.value = true;
     return {
       filters: parseUrlToFilters(),
