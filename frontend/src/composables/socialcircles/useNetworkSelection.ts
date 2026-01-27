@@ -34,6 +34,7 @@ export function useNetworkSelection() {
   }
 
   function selectNode(nodeId: NodeId | null) {
+    console.log("[selectNode] nodeId:", nodeId, "edgesMap size:", edgesMap.value.size);
     selection.value.selectedNodeId = nodeId;
     selection.value.selectedEdgeId = null; // Clear edge selection
 
@@ -50,6 +51,7 @@ export function useNetworkSelection() {
         }
       });
 
+      console.log("[selectNode] found connected:", connectedNodeIds.size, "nodes,", connectedEdgeIds.size, "edges");
       selection.value.highlightedNodeIds = connectedNodeIds;
       selection.value.highlightedEdgeIds = connectedEdgeIds;
     } else {
