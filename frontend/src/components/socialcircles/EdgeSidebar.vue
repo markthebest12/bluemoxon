@@ -61,7 +61,9 @@ const connectionLabel = computed(() => {
 // Strength display
 const strengthDisplay = computed(() => {
   if (!props.edge) return "";
-  const strength = calculateStrength(props.edge.shared_book_ids?.length ?? props.edge.strength ?? 0);
+  const strength = calculateStrength(
+    props.edge.shared_book_ids?.length ?? props.edge.strength ?? 0
+  );
   return renderStrength(strength);
 });
 
@@ -87,7 +89,8 @@ function isAbortError(error: unknown): boolean {
   // Native fetch AbortError
   if (error.name === "AbortError") return true;
   // Axios cancellation
-  if (error.name === "CanceledError" || (error as { code?: string }).code === "ERR_CANCELED") return true;
+  if (error.name === "CanceledError" || (error as { code?: string }).code === "ERR_CANCELED")
+    return true;
   return false;
 }
 
