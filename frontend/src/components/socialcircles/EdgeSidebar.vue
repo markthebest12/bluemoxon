@@ -1,0 +1,558 @@
+<!-- frontend/src/components/socialcircles/EdgeSidebar.vue -->
+<script setup lang="ts">
+/**
+ * EdgeSidebar - Slide-out sidebar for edge/connection details.
+ * Shows relationship between two entities with shared books.
+ */
+
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useFocusTrap } from '@vueuse/integrations/useFocusTrap';
+import { api } from '@/services/api';
+import type { ApiNode, ApiEdge, NodeId, ConnectionType } from '@/types/socialCircles';
+import { getPlaceholderImage, renderStrength, calculateStrength } from '@/utils/socialCircles/formatters';
+import { PANEL_ANIMATION } from '@/constants/socialCircles';
+
+interface Props {
+  edge: ApiEdge | null;
+  nodes: readonly ApiNode[];
+  isOpen: boolean;
+}
+
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+  close: [];
+  selectNode: [nodeId: NodeId];
+}>();
+
+const router = useRouter();
+const sidebarRef = ref<HTMLElement | null>(null);
+const { activate, deactivate } = useFocusTrap(sidebarRef, { immediate: false });
+const isPinned = ref(false);
+
+// Source and target nodes
+const sourceNode = computed(() => {
+  if (!props.edge) return null;
+  return props.nodes.find(n => n.id === props.edge!.source) || null;
+});
+
+const targetNode = computed(() => {
+  if (!props.edge) return null;
+  return props.nodes.find(n => n.id === props.edge!.target) || null;
+});
+
+// Connection type display
+const connectionLabel = computed(() => {
+  if (!props.edge) return '';
+  const labels: Record<ConnectionType, string> = {
+    publisher: 'Published together',
+    shared_publisher: 'Shared Publisher',
+    binder: 'Bound works',
+  };
+  return labels[props.edge.type];
+});
+
+// Strength display
+const strengthDisplay = computed(() => {
+  if (!props.edge) return '';
+  const strength = calculateStrength(props.edge.shared_book_ids?.length || props.edge.strength);
+  return renderStrength(strength);
+});
+
+const sharedBookCount = computed(() => {
+  return props.edge?.shared_book_ids?.length || 0;
+});
+
+// Fetch shared books
+interface BookSummary {
+  id: number;
+  title: string;
+  year?: number;
+}
+
+const sharedBooks = ref<BookSummary[]>([]);
+const isLoadingBooks = ref(false);
+
+watch(
+  () => ({ isOpen: props.isOpen, bookIds: props.edge?.shared_book_ids }),
+  async ({ isOpen, bookIds }) => {
+    if (!isOpen || !bookIds || bookIds.length === 0) {
+      sharedBooks.value = [];
+      return;
+    }
+
+    isLoadingBooks.value = true;
+    try {
+      const ids = bookIds.slice(0, 20).join(',');
+      const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`);
+      sharedBooks.value = response.data.items || [];
+    } catch (error) {
+      console.error('Failed to fetch shared books:', error);
+      sharedBooks.value = bookIds.slice(0, 20).map(id => ({ id, title: `Book #${id}` }));
+    } finally {
+      isLoadingBooks.value = false;
+    }
+  },
+  { immediate: true }
+);
+
+// Navigate to book
+function viewBook(bookId: number) {
+  void router.push({ name: 'book-detail', params: { id: bookId } });
+}
+
+// Entity images
+function getEntityImage(node: ApiNode | null): string {
+  if (!node) return '';
+  return getPlaceholderImage(node.type, node.entity_id);
+}
+
+// Keyboard handling
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    emit('close');
+  }
+}
+
+// Focus trap management
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    setTimeout(() => activate(), PANEL_ANIMATION.duration);
+  } else {
+    deactivate();
+  }
+});
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+  deactivate();
+});
+</script>
+
+<template>
+  <Transition name="sidebar">
+    <aside
+      v-if="isOpen && edge && sourceNode && targetNode"
+      ref="sidebarRef"
+      class="edge-sidebar"
+      :class="`edge-sidebar--${edge.type}`"
+      role="dialog"
+      aria-modal="false"
+      :aria-label="`Connection between ${sourceNode.name} and ${targetNode.name}`"
+    >
+      <!-- Header (sticky) -->
+      <header class="edge-sidebar__header">
+        <div class="edge-sidebar__entities">
+          <!-- Source Entity -->
+          <button
+            class="edge-sidebar__entity"
+            @click="emit('selectNode', sourceNode.id)"
+          >
+            <img
+              :src="getEntityImage(sourceNode)"
+              :alt="sourceNode.name"
+              class="edge-sidebar__entity-image"
+              loading="lazy"
+            />
+            <span class="edge-sidebar__entity-name">{{ sourceNode.name }}</span>
+            <span class="edge-sidebar__entity-type">({{ sourceNode.type }})</span>
+          </button>
+
+          <!-- Connection indicator -->
+          <div class="edge-sidebar__connection-arrow">
+            {{ edge.type === 'shared_publisher' ? '↔' : '→' }}
+          </div>
+
+          <!-- Target Entity -->
+          <button
+            class="edge-sidebar__entity"
+            @click="emit('selectNode', targetNode.id)"
+          >
+            <img
+              :src="getEntityImage(targetNode)"
+              :alt="targetNode.name"
+              class="edge-sidebar__entity-image"
+              loading="lazy"
+            />
+            <span class="edge-sidebar__entity-name">{{ targetNode.name }}</span>
+            <span class="edge-sidebar__entity-type">({{ targetNode.type }})</span>
+          </button>
+        </div>
+
+        <div class="edge-sidebar__actions">
+          <button
+            class="edge-sidebar__pin"
+            :class="{ 'edge-sidebar__pin--active': isPinned }"
+            :aria-pressed="isPinned"
+            aria-label="Pin sidebar"
+            @click="isPinned = !isPinned"
+          >
+            📌
+          </button>
+          <button
+            class="edge-sidebar__close"
+            aria-label="Close"
+            @click="emit('close')"
+          >
+            ✕
+          </button>
+        </div>
+      </header>
+
+      <!-- Connection Info -->
+      <section class="edge-sidebar__connection-info">
+        <h3 class="edge-sidebar__connection-label">CONNECTION: {{ connectionLabel }}</h3>
+        <div class="edge-sidebar__strength">
+          <span class="edge-sidebar__strength-dots">{{ strengthDisplay }}</span>
+          <span class="edge-sidebar__strength-count">({{ sharedBookCount }} works)</span>
+        </div>
+      </section>
+
+      <!-- Shared Books (scrollable) -->
+      <section class="edge-sidebar__content">
+        <h4 class="edge-sidebar__section-title">
+          {{ edge.type === 'binder' ? 'Bound Books' : 'Shared Books' }}
+        </h4>
+
+        <div v-if="isLoadingBooks" class="edge-sidebar__loading">
+          <div class="edge-sidebar__skeleton-book"></div>
+          <div class="edge-sidebar__skeleton-book"></div>
+          <div class="edge-sidebar__skeleton-book"></div>
+        </div>
+
+        <ul v-else-if="sharedBooks.length > 0" class="edge-sidebar__book-list">
+          <li
+            v-for="book in sharedBooks"
+            :key="book.id"
+            class="edge-sidebar__book-item"
+          >
+            <button
+              class="edge-sidebar__book-button"
+              @click="viewBook(book.id)"
+            >
+              <span class="edge-sidebar__book-icon">📖</span>
+              <span class="edge-sidebar__book-title">{{ book.title }}</span>
+              <span v-if="book.year" class="edge-sidebar__book-year">({{ book.year }})</span>
+            </button>
+          </li>
+        </ul>
+
+        <p v-else class="edge-sidebar__empty">
+          No shared books found in your collection.
+        </p>
+      </section>
+
+      <!-- Footer (sticky) -->
+      <footer class="edge-sidebar__footer">
+        <button
+          class="edge-sidebar__view-button"
+          @click="emit('selectNode', sourceNode.id)"
+        >
+          View {{ sourceNode.type === 'author' ? 'Author' : sourceNode.type }}
+        </button>
+        <button
+          class="edge-sidebar__view-button"
+          @click="emit('selectNode', targetNode.id)"
+        >
+          View {{ targetNode.type === 'publisher' ? 'Publisher' : targetNode.type === 'binder' ? 'Bindery' : targetNode.type }}
+        </button>
+      </footer>
+    </aside>
+  </Transition>
+</template>
+
+<style scoped>
+.edge-sidebar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  min-width: 320px;
+  max-width: 500px;
+  background: var(--color-sidebar-bg, #FAF8F3);
+  border-left: 1px solid var(--color-border, #D4CFC4);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 3000;
+}
+
+.edge-sidebar--publisher {
+  border-top: 3px solid var(--color-accent-gold, #B8860B);
+}
+
+.edge-sidebar--shared_publisher {
+  border-top: 3px solid var(--color-publisher, #2C5F77);
+}
+
+.edge-sidebar--binder {
+  border-top: 3px solid var(--color-binder, #8B4513);
+}
+
+.edge-sidebar__header {
+  position: sticky;
+  top: 0;
+  padding: 16px;
+  background: var(--color-sidebar-bg, #FAF8F3);
+  border-bottom: 1px solid var(--color-border, #D4CFC4);
+  z-index: 1;
+}
+
+.edge-sidebar__entities {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.edge-sidebar__entity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms ease-out;
+  flex: 1;
+}
+
+.edge-sidebar__entity:hover {
+  background: rgba(184, 134, 11, 0.1);
+}
+
+.edge-sidebar__entity-image {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--color-skeleton-bg, #E8E4DB);
+}
+
+.edge-sidebar__entity-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #2C2416);
+  text-align: center;
+}
+
+.edge-sidebar__entity-type {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #8B8579);
+}
+
+.edge-sidebar__connection-arrow {
+  font-size: 1.5rem;
+  color: var(--color-text-muted, #8B8579);
+}
+
+.edge-sidebar__actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.edge-sidebar__pin,
+.edge-sidebar__close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--color-text-muted, #8B8579);
+  cursor: pointer;
+  padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edge-sidebar__pin:hover,
+.edge-sidebar__close:hover {
+  color: var(--color-text-primary, #2C2416);
+}
+
+.edge-sidebar__pin--active {
+  color: var(--color-accent-gold, #B8860B);
+}
+
+.edge-sidebar__connection-info {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border, #D4CFC4);
+}
+
+.edge-sidebar__connection-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #5C5446);
+  margin: 0 0 8px;
+}
+
+.edge-sidebar__strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edge-sidebar__strength-dots {
+  font-size: 1rem;
+  color: var(--color-accent-gold, #B8860B);
+  letter-spacing: 2px;
+}
+
+.edge-sidebar__strength-count {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #8B8579);
+}
+
+.edge-sidebar__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.edge-sidebar__section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #8B8579);
+  margin: 0 0 12px;
+}
+
+.edge-sidebar__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edge-sidebar__skeleton-book {
+  height: 48px;
+  background: linear-gradient(90deg, var(--color-skeleton-bg, #E8E4DB) 25%, #f0ede5 50%, var(--color-skeleton-bg, #E8E4DB) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.edge-sidebar__book-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.edge-sidebar__book-item {
+  margin-bottom: 4px;
+}
+
+.edge-sidebar__book-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  min-height: 48px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms ease-out;
+}
+
+.edge-sidebar__book-button:hover {
+  background: rgba(184, 134, 11, 0.1);
+}
+
+.edge-sidebar__book-button:hover .edge-sidebar__book-title {
+  text-decoration: underline;
+  color: var(--color-accent-gold, #B8860B);
+}
+
+.edge-sidebar__book-icon {
+  font-size: 1rem;
+}
+
+.edge-sidebar__book-title {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--color-link, #6B4423);
+  font-style: italic;
+}
+
+.edge-sidebar__book-year {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #8B8579);
+}
+
+.edge-sidebar__empty {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #8B8579);
+  font-style: italic;
+}
+
+.edge-sidebar__footer {
+  position: sticky;
+  bottom: 0;
+  padding: 16px;
+  background: var(--color-sidebar-bg, #FAF8F3);
+  border-top: 1px solid var(--color-border, #D4CFC4);
+  display: flex;
+  gap: 12px;
+}
+
+.edge-sidebar__view-button {
+  flex: 1;
+  padding: 10px 16px;
+  background: white;
+  color: var(--color-text-primary, #2C2416);
+  border: 1px solid var(--color-border, #D4CFC4);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 150ms ease-out, border-color 150ms ease-out;
+}
+
+.edge-sidebar__view-button:hover {
+  background: var(--color-card-bg, #F5F1E8);
+  border-color: var(--color-accent-gold, #B8860B);
+}
+
+/* Transitions */
+.sidebar-enter-active {
+  transition: transform 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.sidebar-leave-active {
+  transition: transform 150ms cubic-bezier(0.4, 0.0, 1, 1);
+}
+
+.sidebar-enter-from,
+.sidebar-leave-to {
+  transform: translateX(100%);
+}
+
+/* Mobile: full width */
+@media (max-width: 768px) {
+  .edge-sidebar {
+    width: 100%;
+    max-width: none;
+  }
+}
+</style>
