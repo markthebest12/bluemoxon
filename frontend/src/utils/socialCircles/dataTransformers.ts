@@ -36,16 +36,14 @@ export function transformNode(node: ApiNode): ElementDefinition {
   const shape = NODE_SHAPES[node.type];
   const size = calculateNodeSize(node.type, node.book_count);
 
+  // Flatten style properties - Cytoscape data() doesn't support nested paths
   return {
     group: "nodes",
     data: {
       ...node,
-      style: {
-        "background-color": color,
-        shape,
-        width: size,
-        height: size,
-      },
+      nodeColor: color,
+      nodeShape: shape,
+      nodeSize: size,
     },
   };
 }
@@ -55,16 +53,15 @@ export function transformEdge(edge: ApiEdge): ElementDefinition {
   const { lineStyle, opacity } = EDGE_STYLES[edge.type];
   const width = calculateEdgeWidth(edge.strength);
 
+  // Flatten style properties - Cytoscape data() doesn't support nested paths
   return {
     group: "edges",
     data: {
       ...edge,
-      style: {
-        "line-color": color,
-        "line-style": lineStyle,
-        "line-opacity": opacity,
-        width,
-      },
+      edgeColor: color,
+      edgeStyle: lineStyle,
+      edgeOpacity: opacity,
+      edgeWidth: width,
     },
   };
 }

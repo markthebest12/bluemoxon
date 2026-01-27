@@ -52,10 +52,10 @@ function getCytoscapeStylesheet(): StylesheetStyle[] {
     {
       selector: "node",
       style: {
-        "background-color": "data(style.background-color)",
-        shape: "data(style.shape)",
-        width: "data(style.width)",
-        height: "data(style.height)",
+        "background-color": "data(nodeColor)",
+        shape: "data(nodeShape)",
+        width: "data(nodeSize)",
+        height: "data(nodeSize)",
         label: "data(name)",
         "font-size": "10px",
         "font-family": "Georgia, serif",
@@ -73,10 +73,10 @@ function getCytoscapeStylesheet(): StylesheetStyle[] {
     {
       selector: "edge",
       style: {
-        "line-color": "data(style.line-color)",
-        "line-style": "data(style.line-style)",
-        "line-opacity": "data(style.line-opacity)",
-        width: "data(style.width)",
+        "line-color": "data(edgeColor)",
+        "line-style": "data(edgeStyle)",
+        "line-opacity": "data(edgeOpacity)",
+        width: "data(edgeWidth)",
         "curve-style": "bezier",
         "target-arrow-shape": "none",
         "transition-property": "line-color, width, line-opacity",
@@ -174,7 +174,7 @@ onMounted(() => {
     layout: LAYOUT_CONFIGS.force as LayoutOptions,
     minZoom: 0.3,
     maxZoom: 3,
-    wheelSensitivity: 0.3,
+    // Use default wheelSensitivity (1) to avoid Cytoscape warning
   });
 
   setupEventHandlers();
@@ -232,12 +232,6 @@ watch(
 watch(
   [() => props.highlightedNodes, () => props.highlightedEdges],
   ([nodeIds, edgeIds]) => {
-    console.log(
-      "[NetworkGraph] highlight watcher fired, nodes:",
-      nodeIds?.length,
-      "edges:",
-      edgeIds?.length
-    );
     if (!cy.value) return;
     cy.value.elements().removeClass("highlighted dimmed");
 
@@ -252,7 +246,6 @@ watch(
       cy.value.edges().forEach((edge) => {
         edge.addClass(edgeSet.has(edge.id()) ? "highlighted" : "dimmed");
       });
-      console.log("[NetworkGraph] applied highlight classes");
     }
   },
   { deep: true }

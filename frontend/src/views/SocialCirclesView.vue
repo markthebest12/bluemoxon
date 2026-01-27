@@ -329,6 +329,8 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+  /* Reserve space to prevent CLS during graph loading */
+  min-height: 500px;
 }
 
 .zoom-controls-container {
