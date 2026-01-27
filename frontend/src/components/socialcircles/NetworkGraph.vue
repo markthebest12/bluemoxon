@@ -215,9 +215,9 @@ watch(
   }
 );
 
-// Watch highlights
+// Watch highlights - use toRef to properly track prop changes
 watch(
-  () => [props.highlightedNodes, props.highlightedEdges] as const,
+  [() => props.highlightedNodes, () => props.highlightedEdges],
   ([nodeIds, edgeIds]) => {
     if (!cy.value) return;
     cy.value.elements().removeClass("highlighted dimmed");

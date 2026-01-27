@@ -21,6 +21,10 @@ export function useNetworkSelection() {
 
   const isNodeSelected = computed(() => selection.value.selectedNodeId !== null);
 
+  // Computed arrays for highlighted elements (ensures proper reactivity)
+  const highlightedNodeIds = computed(() => Array.from(selection.value.highlightedNodeIds));
+  const highlightedEdgeIds = computed(() => Array.from(selection.value.highlightedEdgeIds));
+
   // Actions
   function setNodesAndEdges(nodes: ApiNode[], edges: ApiEdge[]) {
     nodesMap.value.clear();
@@ -101,6 +105,8 @@ export function useNetworkSelection() {
     selection: readonly(selection),
     selectedNode,
     isNodeSelected,
+    highlightedNodeIds,
+    highlightedEdgeIds,
     setNodesAndEdges,
     selectNode,
     selectEdge,

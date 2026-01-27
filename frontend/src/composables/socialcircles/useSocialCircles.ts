@@ -153,13 +153,9 @@ export function useSocialCircles() {
     return edges.value.find((e) => e.id === edgeId) ?? null;
   });
 
-  const highlightedNodes = computed(() => {
-    return Array.from(selection.selection.value.highlightedNodeIds);
-  });
-
-  const highlightedEdges = computed(() => {
-    return Array.from(selection.selection.value.highlightedEdgeIds);
-  });
+  // Use computed properties from selection composable for proper reactivity
+  const highlightedNodes = computed(() => selection.highlightedNodeIds.value);
+  const highlightedEdges = computed(() => selection.highlightedEdgeIds.value);
 
   // Timeline state for template binding
   const timelineState = computed(() => timeline.timeline.value);
