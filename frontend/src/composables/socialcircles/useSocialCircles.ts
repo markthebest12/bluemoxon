@@ -14,6 +14,7 @@ import type {
   ApiNode,
   ApiEdge,
   ConnectionType,
+  EdgeId,
   Era,
   NodeId,
   FilterState,
@@ -145,8 +146,12 @@ export function useSocialCircles() {
     return nodes.value.find((n) => n.id === nodeId) ?? null;
   });
 
-  // Edge selection (not yet implemented in useNetworkSelection)
-  const selectedEdge = computed(() => null as ApiEdge | null);
+  // Edge selection - find edge by ID from selection state
+  const selectedEdge = computed(() => {
+    const edgeId = selection.selection.value.selectedEdgeId;
+    if (!edgeId) return null;
+    return edges.value.find((e) => e.id === edgeId) ?? null;
+  });
 
   const highlightedNodes = computed(() => {
     return Array.from(selection.selection.value.highlightedNodeIds);
@@ -207,9 +212,8 @@ export function useSocialCircles() {
     selection.selectNode(nodeId as NodeId);
   }
 
-  function selectEdge(_edgeId: string) {
-    // Edge selection not implemented in useNetworkSelection yet
-    // TODO: Add edge selection support
+  function selectEdge(edgeId: string) {
+    selection.selectEdge(edgeId as EdgeId);
   }
 
   function clearSelection() {
@@ -270,22 +274,30 @@ export function useSocialCircles() {
   }
 
   // Export functions
-  async function exportPng(): Promise<void> {
-    if (!cytoscapeInstance.value) return;
+  async function exportPng(): Promise<{ success: boolean; error?: string }> {
+    if (!cytoscapeInstance.value) {
+      return { success: false, error: "Graph not initialized" };
+    }
 
-    const png = cytoscapeInstance.value.png({
-      output: "blob",
-      bg: "#fdfcfa",
-      scale: 2,
-    });
+    try {
+      const png = cytoscapeInstance.value.png({
+        output: "blob",
+        bg: "#fdfcfa",
+        scale: 2,
+      });
 
-    // Download
-    const url = URL.createObjectURL(png);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `social-circles-${Date.now()}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+      // Download
+      const url = URL.createObjectURL(png);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `social-circles-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return { success: true };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Export failed";
+      return { success: false, error: message };
+    }
   }
 
   function exportJson(): void {

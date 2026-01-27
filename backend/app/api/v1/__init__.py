@@ -42,4 +42,4 @@ router.include_router(notifications.router, prefix="/users/me", tags=["notificat
 router.include_router(listings.router, prefix="/listings", tags=["listings"])
 router.include_router(admin.router, prefix="/admin", tags=["admin"])
 router.include_router(orders.router, prefix="/orders", tags=["orders"])
-router.include_router(social_circles.router, tags=["social-circles"])
+router.include_router(social_circles.router, prefix="/social-circles", tags=["social-circles"])

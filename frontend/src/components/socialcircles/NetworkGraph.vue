@@ -2,65 +2,258 @@
 <script setup lang="ts">
 /**
  * NetworkGraph - Cytoscape.js wrapper for the social circles visualization.
- *
- * This component renders the network graph and handles:
- * - Graph initialization and cleanup
- * - Node/edge rendering with Victorian theme
- * - User interactions (click, hover, zoom, pan)
- * - Layout management
  */
 
-import { ref, onMounted, onUnmounted } from "vue";
+import cytoscape, {
+  type Core,
+  type EventObject,
+  type ElementDefinition,
+  type StylesheetStyle,
+  type LayoutOptions,
+} from "cytoscape";
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 
 // Props
 interface Props {
-  elements?: unknown[];
-  selectedNode?: unknown;
-  selectedEdge?: unknown;
+  elements?: ElementDefinition[];
+  selectedNode?: { id: string } | null;
+  selectedEdge?: { id: string } | null;
   highlightedNodes?: string[];
   highlightedEdges?: string[];
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  elements: () => [],
+  selectedNode: null,
+  selectedEdge: null,
+  highlightedNodes: () => [],
+  highlightedEdges: () => [],
+});
 
 // Emits
-defineEmits<{
-  "node-selected": [nodeId: string];
-  "node-hovered": [nodeId: string | null];
-  "edge-hovered": [edgeId: string | null];
+const emit = defineEmits<{
+  "node-select": [nodeId: string | null];
+  "edge-select": [edgeId: string | null];
+  "node-hover": [nodeId: string | null];
+  "edge-hover": [edgeId: string | null];
 }>();
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
+const cy = ref<Core | null>(null);
 const isInitialized = ref(false);
+
+// Victorian stylesheet
+// Note: Cytoscape's types don't properly support "data(...)" dynamic values,
+// so we cast the stylesheet to the expected type
+function getCytoscapeStylesheet(): StylesheetStyle[] {
+  return [
+    {
+      selector: "node",
+      style: {
+        "background-color": "data(style.background-color)",
+        shape: "data(style.shape)",
+        width: "data(style.width)",
+        height: "data(style.height)",
+        label: "data(name)",
+        "font-size": "10px",
+        "font-family": "Georgia, serif",
+        "text-valign": "bottom",
+        "text-margin-y": 5,
+        color: "#3a3a38",
+        "text-outline-width": 2,
+        "text-outline-color": "#fdfcfa",
+        "border-width": 1,
+        "border-color": "#e8e4d9",
+        "transition-property": "background-color, border-color, width, height",
+        "transition-duration": "150ms",
+      },
+    },
+    {
+      selector: "edge",
+      style: {
+        "line-color": "data(style.line-color)",
+        "line-style": "data(style.line-style)",
+        "line-opacity": "data(style.line-opacity)",
+        width: "data(style.width)",
+        "curve-style": "bezier",
+        "target-arrow-shape": "none",
+        "transition-property": "line-color, width, line-opacity",
+        "transition-duration": "150ms",
+      },
+    },
+    {
+      selector: "node:active",
+      style: {
+        "overlay-opacity": 0,
+      },
+    },
+    {
+      selector: "node:selected",
+      style: {
+        "border-width": 3,
+        "border-color": "#722f37",
+        "z-index": 20,
+      },
+    },
+    {
+      selector: "node.highlighted",
+      style: {
+        "border-width": 2,
+        "border-color": "#3a6b5c",
+      },
+    },
+    {
+      selector: "node.dimmed",
+      style: {
+        opacity: 0.3,
+      },
+    },
+    {
+      selector: "edge.highlighted",
+      style: {
+        "line-opacity": 1,
+        width: 4,
+        "z-index": 10,
+      },
+    },
+    {
+      selector: "edge.dimmed",
+      style: {
+        "line-opacity": 0.15,
+      },
+    },
+  ] as StylesheetStyle[];
+}
+
+// Event handlers
+function setupEventHandlers() {
+  if (!cy.value) return;
+
+  cy.value.on("tap", "node", (event: EventObject) => {
+    emit("node-select", event.target.id());
+  });
+
+  cy.value.on("tap", "edge", (event: EventObject) => {
+    emit("edge-select", event.target.id());
+  });
+
+  cy.value.on("tap", (event: EventObject) => {
+    if (event.target === cy.value) {
+      emit("node-select", null);
+      emit("edge-select", null);
+    }
+  });
+
+  cy.value.on("mouseover", "node", (event: EventObject) => {
+    emit("node-hover", event.target.id());
+  });
+
+  cy.value.on("mouseout", "node", () => {
+    emit("node-hover", null);
+  });
+
+  cy.value.on("mouseover", "edge", (event: EventObject) => {
+    emit("edge-hover", event.target.id());
+  });
+
+  cy.value.on("mouseout", "edge", () => {
+    emit("edge-hover", null);
+  });
+}
 
 // Lifecycle
 onMounted(() => {
-  // Cytoscape initialization will go here
-  // containerRef.value will be used to mount the graph
-  if (containerRef.value) {
-    isInitialized.value = true;
-  }
+  if (!containerRef.value) return;
+
+  cy.value = cytoscape({
+    container: containerRef.value,
+    elements: props.elements,
+    style: getCytoscapeStylesheet(),
+    layout: LAYOUT_CONFIGS.force as LayoutOptions,
+    minZoom: 0.3,
+    maxZoom: 3,
+    wheelSensitivity: 0.3,
+  });
+
+  setupEventHandlers();
+  isInitialized.value = true;
 });
 
 onUnmounted(() => {
-  // Cleanup will go here
+  if (cy.value) {
+    cy.value.destroy();
+    cy.value = null;
+  }
 });
 
-// Expose for parent component access
+// Watch elements for filter changes
+watch(
+  () => props.elements,
+  (newElements) => {
+    if (!cy.value) return;
+    cy.value.batch(() => {
+      cy.value!.elements().remove();
+      cy.value!.add(newElements);
+    });
+    cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
+  },
+  { deep: true }
+);
+
+// Watch selection
+watch(
+  () => props.selectedNode,
+  (newNode) => {
+    if (!cy.value) return;
+    cy.value.nodes().unselect();
+    if (newNode?.id) {
+      const node = cy.value.getElementById(newNode.id);
+      if (node.length) node.select();
+    }
+  }
+);
+
+// Watch highlights
+watch(
+  () => [props.highlightedNodes, props.highlightedEdges] as const,
+  ([nodeIds, edgeIds]) => {
+    if (!cy.value) return;
+    cy.value.elements().removeClass("highlighted dimmed");
+
+    if (nodeIds && nodeIds.length > 0) {
+      const nodeSet = new Set(nodeIds);
+      const edgeSet = new Set(edgeIds || []);
+
+      cy.value.nodes().forEach((node) => {
+        node.addClass(nodeSet.has(node.id()) ? "highlighted" : "dimmed");
+      });
+
+      cy.value.edges().forEach((edge) => {
+        edge.addClass(edgeSet.has(edge.id()) ? "highlighted" : "dimmed");
+      });
+    }
+  },
+  { deep: true }
+);
+
+// Expose methods for parent
 defineExpose({
-  containerRef,
+  getCytoscape: () => cy.value,
+  fitToView: () => cy.value?.fit(undefined, 50),
+  zoomIn: () => {
+    if (cy.value) cy.value.zoom(cy.value.zoom() * 1.2);
+  },
+  zoomOut: () => {
+    if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
+  },
+  getZoom: () => cy.value?.zoom() ?? 1,
 });
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    class="network-graph"
-    :class="{ 'network-graph--initialized': isInitialized }"
-  >
-    <div v-if="!isInitialized" class="network-graph__loading">Initializing graph...</div>
-  </div>
+  <div ref="containerRef" class="network-graph" />
 </template>
 
 <style scoped>
@@ -69,15 +262,5 @@ defineExpose({
   height: 100%;
   min-height: 400px;
   background-color: var(--color-victorian-paper-cream, #f8f5f0);
-  border: 1px solid var(--color-victorian-paper-aged, #e8e1d5);
-  border-radius: 4px;
-}
-
-.network-graph__loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-victorian-ink-muted, #5c5c58);
 }
 </style>

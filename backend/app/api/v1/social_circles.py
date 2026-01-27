@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/social-circles",
+    "/",
     response_model=SocialCirclesResponse,
     summary="Get social circles network graph",
     description="""

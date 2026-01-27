@@ -31,6 +31,7 @@ export function useNetworkSelection() {
 
   function selectNode(nodeId: NodeId | null) {
     selection.value.selectedNodeId = nodeId;
+    selection.value.selectedEdgeId = null; // Clear edge selection
 
     if (nodeId) {
       // Find connected nodes and edges
@@ -53,8 +54,31 @@ export function useNetworkSelection() {
     }
   }
 
+  function selectEdge(edgeId: EdgeId | null) {
+    selection.value.selectedEdgeId = edgeId;
+
+    if (edgeId) {
+      const edge = edgesMap.value.get(edgeId);
+      if (edge) {
+        // Highlight both endpoints
+        const connectedNodeIds = new Set<NodeId>([edge.source as NodeId, edge.target as NodeId]);
+        const connectedEdgeIds = new Set<EdgeId>([edgeId]);
+
+        selection.value.highlightedNodeIds = connectedNodeIds;
+        selection.value.highlightedEdgeIds = connectedEdgeIds;
+        selection.value.selectedNodeId = null; // Clear node selection
+      }
+    } else {
+      selection.value.highlightedNodeIds = new Set();
+      selection.value.highlightedEdgeIds = new Set();
+    }
+  }
+
   function clearSelection() {
-    selectNode(null);
+    selection.value.selectedNodeId = null;
+    selection.value.selectedEdgeId = null;
+    selection.value.highlightedNodeIds = new Set();
+    selection.value.highlightedEdgeIds = new Set();
   }
 
   function setHoveredNode(nodeId: NodeId | null) {
@@ -79,6 +103,7 @@ export function useNetworkSelection() {
     isNodeSelected,
     setNodesAndEdges,
     selectNode,
+    selectEdge,
     clearSelection,
     setHoveredNode,
     setHoveredEdge,
