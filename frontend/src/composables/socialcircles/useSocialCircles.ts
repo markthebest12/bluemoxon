@@ -310,7 +310,11 @@ export function useSocialCircles() {
     URL.revokeObjectURL(url);
   }
 
-  async function shareUrl(): Promise<{ success: boolean; method: "native" | "clipboard"; error?: string }> {
+  async function shareUrl(): Promise<{
+    success: boolean;
+    method: "native" | "clipboard";
+    error?: string;
+  }> {
     const url = window.location.href;
 
     // Try native share API first (mobile)

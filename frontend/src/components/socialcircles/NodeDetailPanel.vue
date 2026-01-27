@@ -192,11 +192,7 @@ function formatEra(era?: string): string {
             {{ birthYear || "?" }} – {{ deathYear || "?" }}
           </p>
         </div>
-        <button
-          class="node-detail-panel__close"
-          aria-label="Close panel"
-          @click="emit('close')"
-        >
+        <button class="node-detail-panel__close" aria-label="Close panel" @click="emit('close')">
           ✕
         </button>
       </header>
@@ -216,7 +212,11 @@ function formatEra(era?: string): string {
         <section v-if="connectionSummary.length > 0" class="node-detail-panel__section">
           <h3 class="node-detail-panel__section-title">Connections</h3>
           <ul class="node-detail-panel__connections">
-            <li v-for="conn in connectionSummary" :key="conn.type" class="node-detail-panel__connection">
+            <li
+              v-for="conn in connectionSummary"
+              :key="conn.type"
+              class="node-detail-panel__connection"
+            >
               <span class="node-detail-panel__connection-count">{{ conn.count }}</span>
               <span class="node-detail-panel__connection-label">{{ conn.label }}</span>
               <span v-if="conn.examples.length > 0" class="node-detail-panel__connection-examples">
@@ -233,9 +233,7 @@ function formatEra(era?: string): string {
             <span class="node-detail-panel__count">({{ bookCount || 0 }})</span>
           </h3>
 
-          <div v-if="isLoadingBooks" class="node-detail-panel__loading">
-            Loading books...
-          </div>
+          <div v-if="isLoadingBooks" class="node-detail-panel__loading">Loading books...</div>
 
           <p v-else-if="!bookIds?.length" class="node-detail-panel__empty">
             No books linked to this {{ nodeType || "entity" }}

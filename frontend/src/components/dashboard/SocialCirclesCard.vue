@@ -148,7 +148,9 @@ onMounted(() => {
               <span class="block text-lg font-display text-victorian-burgundy">
                 {{ stats?.total_publishers || 0 }}
               </span>
-              <span class="text-xs text-victorian-ink-muted uppercase tracking-wider">Publishers</span>
+              <span class="text-xs text-victorian-ink-muted uppercase tracking-wider"
+                >Publishers</span
+              >
             </div>
             <div class="text-center">
               <span class="block text-lg font-display text-victorian-gold-dark">
@@ -160,14 +162,18 @@ onMounted(() => {
               <span class="block text-lg font-display text-victorian-ink">
                 {{ totalNodes }}
               </span>
-              <span class="text-xs text-victorian-ink-muted uppercase tracking-wider">Total Nodes</span>
+              <span class="text-xs text-victorian-ink-muted uppercase tracking-wider"
+                >Total Nodes</span
+              >
             </div>
           </div>
 
           <!-- Loading skeleton for stats -->
           <div v-else-if="loading" class="flex gap-4 mb-4 justify-center md:justify-start">
             <div v-for="i in 4" :key="i" class="text-center">
-              <div class="h-6 w-8 bg-victorian-paper-antique rounded animate-pulse mx-auto mb-1"></div>
+              <div
+                class="h-6 w-8 bg-victorian-paper-antique rounded animate-pulse mx-auto mb-1"
+              ></div>
               <div class="h-3 w-12 bg-victorian-paper-antique rounded animate-pulse"></div>
             </div>
           </div>
@@ -177,7 +183,13 @@ onMounted(() => {
             class="inline-flex items-center gap-1 text-sm font-medium text-victorian-hunter-600 hover:text-victorian-hunter-800 transition-colors"
           >
             Explore social circles
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </span>

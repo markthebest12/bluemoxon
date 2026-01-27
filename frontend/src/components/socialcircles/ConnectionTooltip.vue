@@ -143,11 +143,7 @@ const timePeriod = computed(() => {
         <!-- Header with relationship type -->
         <div class="connection-tooltip__header">
           <span class="connection-tooltip__type">{{ connectionInfo?.label }}</span>
-          <span
-            v-if="strengthLabel"
-            class="connection-tooltip__strength"
-            :class="strengthClass"
-          >
+          <span v-if="strengthLabel" class="connection-tooltip__strength" :class="strengthClass">
             {{ strengthLabel }}
           </span>
         </div>
@@ -160,9 +156,7 @@ const timePeriod = computed(() => {
         </div>
 
         <!-- Evidence/description -->
-        <p v-if="evidence" class="connection-tooltip__evidence">
-          "{{ evidence }}"
-        </p>
+        <p v-if="evidence" class="connection-tooltip__evidence">"{{ evidence }}"</p>
         <p v-else-if="connectionInfo?.description" class="connection-tooltip__evidence">
           {{ connectionInfo.description }}
         </p>
@@ -175,10 +169,7 @@ const timePeriod = computed(() => {
           <span v-if="timePeriod" class="connection-tooltip__time">
             {{ timePeriod }}
           </span>
-          <span
-            v-if="sharedBookCount && sharedBookCount > 0"
-            class="connection-tooltip__books"
-          >
+          <span v-if="sharedBookCount && sharedBookCount > 0" class="connection-tooltip__books">
             {{ sharedBookCount }} {{ sharedBookCount === 1 ? "book" : "books" }} in collection
           </span>
         </div>

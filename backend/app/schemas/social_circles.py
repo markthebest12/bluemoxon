@@ -69,7 +69,9 @@ class SocialCircleEdge(BaseModel):
     source: str = Field(..., description="Source node ID")
     target: str = Field(..., description="Target node ID")
     type: ConnectionType = Field(..., description="Connection type")
-    strength: int = Field(..., ge=2, le=10, description="Connection strength (2-10, based on shared works)")
+    strength: int = Field(
+        ..., ge=2, le=10, description="Connection strength (2-10, based on shared works)"
+    )
     evidence: str | None = Field(None, description="Evidence for connection")
     shared_book_ids: list[int] | None = Field(None, description="Books connecting these nodes")
     start_year: int | None = Field(None, description="Start of relationship")
