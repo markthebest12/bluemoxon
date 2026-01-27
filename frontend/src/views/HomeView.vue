@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useDashboardStore } from "@/stores/dashboard";
 import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
 import CollectionSpotlight from "@/components/dashboard/CollectionSpotlight.vue";
+import SocialCirclesCard from "@/components/dashboard/SocialCirclesCard.vue";
 import BaseTooltip from "@/components/BaseTooltip.vue";
 import { DASHBOARD_STAT_CARDS } from "@/constants";
 
@@ -242,6 +243,9 @@ function navigateToStat(filterParam: string, event?: MouseEvent): void {
 
     <!-- Collection Spotlight - showcases top value books -->
     <CollectionSpotlight />
+
+    <!-- Social Circles Preview Card -->
+    <SocialCirclesCard />
 
     <!-- Statistics Dashboard - pass data as prop -->
     <StatisticsDashboard v-if="dashboardStore.data" :data="dashboardStore.data" />
