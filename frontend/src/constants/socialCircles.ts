@@ -54,10 +54,13 @@ export const NODE_SIZE = {
   binder: { base: 20, perBook: 5, max: 55 },
 } as const;
 
-/** Calculate node size based on book count */
+/** Calculate node size based on book count with diminishing returns */
 export function calculateNodeSize(type: NodeType, bookCount: number): number {
   const config = NODE_SIZE[type];
-  return Math.min(config.base + bookCount * config.perBook, config.max);
+  // Use square root for diminishing returns scaling
+  // sqrt(1)=1, sqrt(4)=2, sqrt(9)=3, sqrt(25)=5
+  const scaled = Math.sqrt(Math.max(bookCount, 1)) * config.perBook;
+  return Math.min(config.base + scaled, config.max);
 }
 
 // =============================================================================

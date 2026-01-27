@@ -20,12 +20,9 @@ import type {
   FilterState,
 } from "@/types/socialCircles";
 
-// Cytoscape instance type (inline to avoid @types/cytoscape dependency)
-interface CytoscapeCore {
-  zoom: (level?: number) => number;
-  fit: (eles?: unknown, padding?: number) => void;
-  png: (options: { output: string; bg: string; scale: number }) => Blob;
-}
+// Cytoscape instance type - using unknown for flexibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CytoscapeCore = any;
 
 export function useSocialCircles() {
   // Cytoscape instance ref (set by NetworkGraph component)
@@ -313,8 +310,33 @@ export function useSocialCircles() {
     URL.revokeObjectURL(url);
   }
 
-  function shareUrl(): string {
-    return window.location.href;
+  async function shareUrl(): Promise<{ success: boolean; method: "native" | "clipboard"; error?: string }> {
+    const url = window.location.href;
+
+    // Try native share API first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Victorian Social Circles",
+          text: "Check out these literary connections!",
+          url,
+        });
+        return { success: true, method: "native" };
+      } catch (e) {
+        // User cancelled or error - fall through to clipboard
+        if ((e as Error).name === "AbortError") {
+          return { success: false, method: "native", error: "Cancelled" };
+        }
+      }
+    }
+
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(url);
+      return { success: true, method: "clipboard" };
+    } catch {
+      return { success: false, method: "clipboard", error: "Failed to copy to clipboard" };
+    }
   }
 
   // Initialize: fetch data and restore state from URL
