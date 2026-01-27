@@ -174,7 +174,7 @@ onMounted(() => {
     layout: LAYOUT_CONFIGS.force as LayoutOptions,
     minZoom: 0.3,
     maxZoom: 3,
-    // Use default wheelSensitivity (1) to avoid Cytoscape warning
+    // Omit wheelSensitivity to use Cytoscape default (1) and avoid deprecation warning
   });
 
   setupEventHandlers();

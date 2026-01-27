@@ -19,10 +19,7 @@ import type {
   NodeId,
   FilterState,
 } from "@/types/socialCircles";
-
-// Cytoscape instance type - using unknown for flexibility
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CytoscapeCore = any;
+import type { Core as CytoscapeCore } from "cytoscape";
 
 export function useSocialCircles() {
   // Cytoscape instance ref (set by NetworkGraph component)
@@ -281,11 +278,14 @@ export function useSocialCircles() {
 
       // Download
       const url = URL.createObjectURL(png);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `social-circles-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `social-circles-${Date.now()}.png`;
+        a.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
       return { success: true };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Export failed";
@@ -405,71 +405,31 @@ export function useSocialCircles() {
     cytoscapeInstance.value = cy;
   }
 
-  // Sync state changes to URL
+  // Sync state changes to URL (consolidated watcher for filters, selection, and timeline)
   watch(
-    () => filters.filters.value,
-    (newFilters) => {
+    () => ({
+      filters: filters.filters.value,
+      selectedNodeId: selection.selection.value.selectedNodeId,
+      currentYear: timeline.timeline.value.currentYear,
+    }),
+    ({ filters: f, selectedNodeId, currentYear }) => {
       if (urlState.isInitialized.value) {
         urlState.updateUrl({
           filters: {
-            showAuthors: newFilters.showAuthors,
-            showPublishers: newFilters.showPublishers,
-            showBinders: newFilters.showBinders,
-            connectionTypes: [...newFilters.connectionTypes],
-            tier1Only: newFilters.tier1Only,
-            eras: [...newFilters.eras],
-            searchQuery: newFilters.searchQuery,
+            showAuthors: f.showAuthors,
+            showPublishers: f.showPublishers,
+            showBinders: f.showBinders,
+            connectionTypes: [...f.connectionTypes],
+            tier1Only: f.tier1Only,
+            eras: [...f.eras],
+            searchQuery: f.searchQuery,
           },
-          selectedNode: selection.selection.value.selectedNodeId,
-          year: timeline.timeline.value.currentYear,
+          selectedNode: selectedNodeId,
+          year: currentYear,
         });
       }
     },
     { deep: true }
-  );
-
-  watch(
-    () => selection.selection.value.selectedNodeId,
-    (nodeId) => {
-      if (urlState.isInitialized.value) {
-        const f = filters.filters.value;
-        urlState.updateUrl({
-          filters: {
-            showAuthors: f.showAuthors,
-            showPublishers: f.showPublishers,
-            showBinders: f.showBinders,
-            connectionTypes: [...f.connectionTypes],
-            tier1Only: f.tier1Only,
-            eras: [...f.eras],
-            searchQuery: f.searchQuery,
-          },
-          selectedNode: nodeId,
-          year: timeline.timeline.value.currentYear,
-        });
-      }
-    }
-  );
-
-  watch(
-    () => timeline.timeline.value.currentYear,
-    (year) => {
-      if (urlState.isInitialized.value) {
-        const f = filters.filters.value;
-        urlState.updateUrl({
-          filters: {
-            showAuthors: f.showAuthors,
-            showPublishers: f.showPublishers,
-            showBinders: f.showBinders,
-            connectionTypes: [...f.connectionTypes],
-            tier1Only: f.tier1Only,
-            eras: [...f.eras],
-            searchQuery: f.searchQuery,
-          },
-          selectedNode: selection.selection.value.selectedNodeId,
-          year,
-        });
-      }
-    }
   );
 
   return {

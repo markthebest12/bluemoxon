@@ -108,8 +108,8 @@ const tooltipPosition = ref({ x: 0, y: 0 });
 
 function handleEdgeHover(edgeId: string | null, event: MouseEvent | null) {
   if (edgeId && event) {
-    // Find the edge data
-    const edge = edges.value.find((e) => e.id === edgeId);
+    // O(1) lookup via precomputed map
+    const edge = edgeMap.value.get(edgeId);
     if (edge) {
       // Convert to mutable object to avoid readonly type issues
       hoveredEdge.value = {
@@ -132,9 +132,9 @@ function handleEdgeHover(edgeId: string | null, event: MouseEvent | null) {
   }
 }
 
-// Get node name by ID for tooltip display
+// Get node name by ID for tooltip display - O(1) via precomputed map
 function getNodeName(nodeId: string): string {
-  const node = nodes.value.find((n) => n.id === nodeId);
+  const node = nodeMap.value.get(nodeId);
   return node?.name ?? nodeId;
 }
 
@@ -202,6 +202,23 @@ provide("socialCircles", {
   selectedEdge,
   highlightedNodes,
   highlightedEdges,
+});
+
+// Lookup maps for O(1) access in hover/select handlers
+const edgeMap = computed(() => {
+  const map = new Map<string, (typeof edges.value)[0]>();
+  for (const edge of edges.value) {
+    map.set(edge.id, edge);
+  }
+  return map;
+});
+
+const nodeMap = computed(() => {
+  const map = new Map<string, (typeof nodes.value)[0]>();
+  for (const node of nodes.value) {
+    map.set(node.id, node);
+  }
+  return map;
 });
 
 // Computed states

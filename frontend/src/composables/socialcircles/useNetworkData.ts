@@ -1,5 +1,8 @@
 /**
  * useNetworkData - Fetches and caches social circles data.
+ *
+ * Cache is instance-scoped to prevent data leakage across SPA navigation
+ * and user sessions. Each composable instance maintains its own cache.
  */
 
 import { ref, readonly } from "vue";
@@ -7,11 +10,11 @@ import type { SocialCirclesResponse, LoadingState, AppError } from "@/types/soci
 import { API } from "@/constants/socialCircles";
 import { api } from "@/services/api";
 
-// Module-level cache
-let cachedData: SocialCirclesResponse | null = null;
-let cacheTimestamp = 0;
-
 export function useNetworkData() {
+  // Instance-scoped cache (prevents cross-session data leakage)
+  let cachedData: SocialCirclesResponse | null = null;
+  let cacheTimestamp = 0;
+
   const data = ref<SocialCirclesResponse | null>(null);
   const loadingState = ref<LoadingState>("idle");
   const error = ref<AppError | null>(null);

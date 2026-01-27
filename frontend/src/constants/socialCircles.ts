@@ -108,45 +108,45 @@ export const ANIMATION = {
 export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
   force: {
     name: "cose",
-    idealEdgeLength: 100,
-    nodeOverlap: 20,
-    refresh: 20,
-    fit: true,
-    padding: 30,
-    randomize: false,
-    componentSpacing: 100,
-    nodeRepulsion: 400000,
-    edgeElasticity: 100,
-    nestingFactor: 5,
-    gravity: 80,
-    numIter: 1000,
-    initialTemp: 200,
-    coolingFactor: 0.95,
-    minTemp: 1.0,
+    idealEdgeLength: 100, // Target length for edges in pixels
+    nodeOverlap: 20, // Padding to prevent node overlap
+    refresh: 20, // Frames between layout updates during animation
+    fit: true, // Fit graph to viewport when layout completes
+    padding: 30, // Padding around graph when fitting
+    randomize: false, // Use existing positions as starting point
+    componentSpacing: 100, // Space between disconnected components
+    nodeRepulsion: 400000, // Higher = nodes push apart more strongly
+    edgeElasticity: 100, // Higher = edges act like stiffer springs
+    nestingFactor: 5, // Multiplier for nested node repulsion
+    gravity: 80, // Higher = nodes pulled toward center more
+    numIter: 1000, // Number of iterations for layout algorithm
+    initialTemp: 200, // Starting temperature for simulated annealing
+    coolingFactor: 0.95, // Rate temperature decreases per iteration
+    minTemp: 1.0, // Temperature at which layout stops
   },
   circle: {
     name: "circle",
-    fit: true,
-    padding: 30,
-    avoidOverlap: true,
-    spacingFactor: 1.5,
+    fit: true, // Fit graph to viewport when layout completes
+    padding: 30, // Padding around graph when fitting
+    avoidOverlap: true, // Prevent nodes from overlapping
+    spacingFactor: 1.5, // Multiplier for spacing between nodes
   },
   grid: {
     name: "grid",
-    fit: true,
-    padding: 30,
-    avoidOverlap: true,
-    condense: true,
-    rows: undefined,
-    cols: undefined,
+    fit: true, // Fit graph to viewport when layout completes
+    padding: 30, // Padding around graph when fitting
+    avoidOverlap: true, // Prevent nodes from overlapping
+    condense: true, // Pack grid tightly without gaps
+    rows: undefined, // Auto-calculate row count
+    cols: undefined, // Auto-calculate column count
   },
   hierarchical: {
     name: "dagre",
-    rankDir: "TB",
-    nodeSep: 50,
-    rankSep: 100,
-    fit: true,
-    padding: 30,
+    rankDir: "TB", // Direction: TB (top-bottom), BT, LR, RL
+    nodeSep: 50, // Horizontal spacing between nodes
+    rankSep: 100, // Vertical spacing between ranks/levels
+    fit: true, // Fit graph to viewport when layout completes
+    padding: 30, // Padding around graph when fitting
   },
 };
 

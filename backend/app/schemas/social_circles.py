@@ -69,7 +69,7 @@ class SocialCircleEdge(BaseModel):
     source: str = Field(..., description="Source node ID")
     target: str = Field(..., description="Target node ID")
     type: ConnectionType = Field(..., description="Connection type")
-    strength: int = Field(..., ge=1, le=10, description="Connection strength (1-10)")
+    strength: int = Field(..., ge=2, le=10, description="Connection strength (2-10, based on shared works)")
     evidence: str | None = Field(None, description="Evidence for connection")
     shared_book_ids: list[int] | None = Field(None, description="Books connecting these nodes")
     start_year: int | None = Field(None, description="Start of relationship")
@@ -85,6 +85,7 @@ class SocialCirclesMeta(BaseModel):
     total_binders: int = Field(..., description="Total binders in graph")
     date_range: tuple[int, int] = Field(..., description="Min/max year range")
     generated_at: datetime = Field(..., description="When data was generated")
+    truncated: bool = Field(False, description="True if data was truncated due to limits")
 
 
 class SocialCirclesResponse(BaseModel):

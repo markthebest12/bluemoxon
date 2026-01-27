@@ -8,7 +8,7 @@ import { DEFAULT_TIMELINE_STATE } from "@/types/socialCircles";
 
 export function useNetworkTimeline() {
   const timeline = ref<TimelineState>({ ...DEFAULT_TIMELINE_STATE });
-  let playbackInterval: ReturnType<typeof setInterval> | null = null;
+  const playbackIntervalRef = ref<ReturnType<typeof setInterval> | null>(null);
 
   // Computed
   const yearLabel = computed(() => {
@@ -65,27 +65,31 @@ export function useNetworkTimeline() {
   }
 
   function play() {
-    if (playbackInterval) return;
+    if (playbackIntervalRef.value) return;
 
     timeline.value.isPlaying = true;
     const intervalMs = 1000 / timeline.value.playbackSpeed;
 
-    playbackInterval = setInterval(() => {
-      const t = timeline.value;
-      if (t.currentYear >= t.maxYear) {
-        pause();
-        timeline.value.currentYear = t.minYear;
-      } else {
-        timeline.value.currentYear++;
+    playbackIntervalRef.value = setInterval(() => {
+      try {
+        const t = timeline.value;
+        if (t.currentYear >= t.maxYear) {
+          pause();
+          timeline.value.currentYear = t.minYear;
+        } else {
+          timeline.value.currentYear++;
+        }
+      } catch {
+        pause(); // Defensive cleanup on error
       }
     }, intervalMs);
   }
 
   function pause() {
     timeline.value.isPlaying = false;
-    if (playbackInterval) {
-      clearInterval(playbackInterval);
-      playbackInterval = null;
+    if (playbackIntervalRef.value) {
+      clearInterval(playbackIntervalRef.value);
+      playbackIntervalRef.value = null;
     }
   }
 

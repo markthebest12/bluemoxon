@@ -67,6 +67,9 @@ def build_social_circles_graph(
     books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
     books = books_query.all()
 
+    # Check if we hit the limit (truncation likely occurred)
+    truncated = len(books) == MAX_BOOKS
+
     # Build node maps
     nodes: dict[str, SocialCircleNode] = {}
     edges: dict[str, SocialCircleEdge] = {}
@@ -188,12 +191,18 @@ def build_social_circles_graph(
             )
 
     # Build edges: Author <-> Author (shared publisher)
+    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n²) explosion
+
     for publisher_id, author_ids in publisher_authors.items():
         publisher_node_id = f"publisher:{publisher_id}"
         if publisher_node_id not in nodes:
             continue
 
         author_list = list(author_ids)
+        # Limit authors to prevent combinatorial explosion
+        if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
+            author_list = author_list[:MAX_AUTHORS_PER_PUBLISHER]
+
         for i, author1_id in enumerate(author_list):
             author1_node_id = f"author:{author1_id}"
             if author1_node_id not in nodes:
@@ -270,6 +279,7 @@ def build_social_circles_graph(
         total_binders=sum(1 for n in nodes.values() if n.type == NodeType.binder),
         date_range=date_range,
         generated_at=datetime.now(UTC),
+        truncated=truncated,
     )
 
     return SocialCirclesResponse(
