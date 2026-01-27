@@ -283,7 +283,12 @@ onUnmounted(() => {
     <LoadingState v-if="isLoading" />
 
     <!-- Error State -->
-    <ErrorState v-else-if="hasError" :error="error" @retry="handleRetry" />
+    <ErrorState
+      v-else-if="hasError"
+      :message="error?.message"
+      :retryable="error?.retryable"
+      @retry="handleRetry"
+    />
 
     <!-- Empty State -->
     <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
