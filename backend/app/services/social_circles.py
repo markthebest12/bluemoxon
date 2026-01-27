@@ -178,7 +178,7 @@ def build_social_circles_graph(
             shared_books = list(set(author_books[author_id]) & publisher_books[publisher_id])
 
             edge_id = f"e:{author_node_id}:{publisher_node_id}"
-            strength = max(1, min(len(shared_books) * 2, 10))  # Scale strength, ensure >=1
+            strength = max(2, min(len(shared_books) * 2, 10))  # Scale strength, schema requires ge=2
 
             edges[edge_id] = SocialCircleEdge(
                 id=edge_id,
@@ -249,7 +249,7 @@ def build_social_circles_graph(
                 shared_books = list(set(author_books[author_id]) & binder_books[binder_id])
 
                 edge_id = f"e:{author_node_id}:{binder_node_id}"
-                strength = max(1, min(len(shared_books) * 2, 10))  # Ensure >=1
+                strength = max(2, min(len(shared_books) * 2, 10))  # Schema requires ge=2
 
                 edges[edge_id] = SocialCircleEdge(
                     id=edge_id,

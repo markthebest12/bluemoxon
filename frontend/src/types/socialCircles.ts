@@ -28,7 +28,8 @@ export type ConnectionType = "publisher" | "shared_publisher" | "binder";
 
 export type Era = "pre_romantic" | "romantic" | "victorian" | "edwardian" | "post_1910" | "unknown";
 
-export type Tier = "Tier 1" | "Tier 2" | "Tier 3" | null;
+// Backend returns TIER_1, TIER_2, TIER_3 format
+export type Tier = "TIER_1" | "TIER_2" | "TIER_3" | null;
 
 export type LoadingState = "idle" | "loading" | "success" | "error";
 

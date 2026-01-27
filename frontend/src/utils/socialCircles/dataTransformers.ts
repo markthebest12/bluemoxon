@@ -23,10 +23,10 @@ function getNodeColorKey(node: ApiNode): string {
   const { type, era, tier } = node;
   if (type === "author" && era) return `author:${era}`;
   if (type === "publisher" && tier) {
-    const tierKey = tier === "Tier 1" ? "tier1" : "tier2";
+    const tierKey = tier === "TIER_1" ? "tier1" : "tier2";
     return `publisher:${tierKey}`;
   }
-  if (type === "binder" && tier === "Tier 1") return "binder:tier1";
+  if (type === "binder" && tier === "TIER_1") return "binder:tier1";
   return `${type}:default`;
 }
 

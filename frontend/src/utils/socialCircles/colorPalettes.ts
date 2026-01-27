@@ -61,11 +61,11 @@ export function getNodeColor(type: NodeType, era?: Era, tier?: string | null): s
   }
 
   if (type === "publisher") {
-    return tier === "Tier 1" ? VICTORIAN_COLORS.goldLight : VICTORIAN_COLORS.goldMuted;
+    return tier === "TIER_1" ? VICTORIAN_COLORS.goldLight : VICTORIAN_COLORS.goldMuted;
   }
 
   if (type === "binder") {
-    return tier === "Tier 1" ? VICTORIAN_COLORS.burgundyDark : VICTORIAN_COLORS.burgundy;
+    return tier === "TIER_1" ? VICTORIAN_COLORS.burgundyDark : VICTORIAN_COLORS.burgundy;
   }
 
   return VICTORIAN_COLORS.hunter600;
