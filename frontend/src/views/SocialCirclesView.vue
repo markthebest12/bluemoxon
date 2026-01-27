@@ -345,8 +345,8 @@ onUnmounted(() => {
             @edge-hover="handleEdgeHover"
           />
 
-          <!-- Zoom Controls (top-right of graph) -->
-          <div class="zoom-controls-container">
+          <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
+          <div v-show="!showDetailPanel" class="zoom-controls-container">
             <ZoomControls
               @zoom-in="handleZoomIn"
               @zoom-out="handleZoomOut"
@@ -354,8 +354,8 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- Legend (bottom-right of graph) -->
-          <div class="legend-container">
+          <!-- Legend (bottom-right of graph) - hide when detail panel open -->
+          <div v-show="!showDetailPanel" class="legend-container">
             <NetworkLegend />
           </div>
         </div>
