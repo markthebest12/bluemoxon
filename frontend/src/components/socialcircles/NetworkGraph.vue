@@ -4,13 +4,15 @@
  * NetworkGraph - Cytoscape.js wrapper for the social circles visualization.
  */
 
-import cytoscape, {
-  type Core,
-  type EventObject,
-  type ElementDefinition,
-  type StylesheetStyle,
-  type LayoutOptions,
+// Types are imported statically (erased at compile time, no bundle impact)
+import type {
+  Core,
+  EventObject,
+  ElementDefinition,
+  StylesheetStyle,
+  LayoutOptions,
 } from "cytoscape";
+// Cytoscape library is dynamically imported in onMounted for code splitting
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 
@@ -163,9 +165,12 @@ function setupEventHandlers() {
   });
 }
 
-// Lifecycle
-onMounted(() => {
+// Lifecycle - dynamic import for code splitting (~300KB loaded after shell renders)
+onMounted(async () => {
   if (!containerRef.value) return;
+
+  // Dynamic import creates a separate chunk, improving First Contentful Paint
+  const cytoscape = (await import("cytoscape")).default;
 
   cy.value = cytoscape({
     container: containerRef.value,

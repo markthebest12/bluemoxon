@@ -54,8 +54,8 @@ export function useSocialCircles() {
       if (node.type === "publisher" && !f.showPublishers) return false;
       if (node.type === "binder" && !f.showBinders) return false;
 
-      // Tier filter
-      if (f.tier1Only && node.tier !== "Tier 1") return false;
+      // Tier filter (API returns TIER_1, TIER_2, TIER_3)
+      if (f.tier1Only && node.tier !== "TIER_1") return false;
 
       // Era filter
       if (f.eras.length > 0 && node.era && !f.eras.includes(node.era)) {
