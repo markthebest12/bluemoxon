@@ -188,11 +188,24 @@ onUnmounted(() => {
   }
 });
 
-// Watch elements for filter changes
+// Track element IDs to avoid unnecessary re-layouts
+let lastElementIds: string[] = [];
+
+// Watch elements for filter changes - only re-layout if elements actually changed
 watch(
   () => props.elements,
   (newElements) => {
     if (!cy.value) return;
+
+    // Check if element IDs changed (not just object references)
+    const newIds = newElements.map((e) => e.data?.id || "").sort();
+    const idsChanged =
+      newIds.length !== lastElementIds.length || newIds.some((id, i) => id !== lastElementIds[i]);
+
+    if (!idsChanged) return; // Skip if same elements
+
+    lastElementIds = newIds;
+
     cy.value.batch(() => {
       cy.value!.elements().remove();
       cy.value!.add(newElements);

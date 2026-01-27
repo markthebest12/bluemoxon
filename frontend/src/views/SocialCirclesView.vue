@@ -112,6 +112,9 @@ const showEmpty = computed(
 // Detail panel visibility
 const showDetailPanel = computed(() => selectedNode.value !== null);
 
+// Cytoscape elements - computed to avoid re-layout on unrelated re-renders
+const cytoscapeElements = computed(() => getCytoscapeElements());
+
 // Transform activeFilters to match component interface (value must be string)
 const filterPills = computed(() =>
   activeFilters.value.map((f) => ({
@@ -203,7 +206,7 @@ onUnmounted(() => {
         <div class="graph-viewport">
           <NetworkGraph
             ref="networkGraphRef"
-            :elements="getCytoscapeElements()"
+            :elements="cytoscapeElements"
             :selected-node="selectedNode"
             :selected-edge="selectedEdge"
             :highlighted-nodes="highlightedNodes"
