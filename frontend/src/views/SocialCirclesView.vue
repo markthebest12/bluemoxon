@@ -296,6 +296,12 @@ onUnmounted(() => {
       </div>
     </header>
 
+    <!-- Truncation Warning -->
+    <div v-if="meta?.truncated" class="truncation-warning">
+      <span class="truncation-warning__icon">⚠</span>
+      <span>Data limited to {{ meta.total_books }} books. Some connections may not be shown.</span>
+    </div>
+
     <!-- Loading State -->
     <LoadingState v-if="isLoading" />
 
@@ -345,8 +351,8 @@ onUnmounted(() => {
             @edge-hover="handleEdgeHover"
           />
 
-          <!-- Zoom Controls (top-right of graph) -->
-          <div class="zoom-controls-container">
+          <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
+          <div v-show="!showDetailPanel" class="zoom-controls-container">
             <ZoomControls
               @zoom-in="handleZoomIn"
               @zoom-out="handleZoomOut"
@@ -354,8 +360,8 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- Legend (bottom-right of graph) -->
-          <div class="legend-container">
+          <!-- Legend (bottom-right of graph) - hide when detail panel open -->
+          <div v-show="!showDetailPanel" class="legend-container">
             <NetworkLegend />
           </div>
         </div>
@@ -442,6 +448,22 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
   background-color: var(--color-victorian-paper-white, #fdfcfa);
   flex-shrink: 0;
+}
+
+.truncation-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  background-color: var(--color-victorian-gold-light, #f5e6c8);
+  border-bottom: 1px solid var(--color-victorian-gold-muted, #d4af37);
+  color: var(--color-victorian-ink-dark, #2d2d2a);
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.truncation-warning__icon {
+  font-size: 1rem;
 }
 
 .header-left {
