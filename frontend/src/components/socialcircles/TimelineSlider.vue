@@ -4,7 +4,7 @@
  * Supports point mode (single year) and range mode (date span).
  */
 
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 interface Props {
   minYear?: number;
@@ -30,6 +30,14 @@ const emit = defineEmits<{
 }>();
 
 const localYear = ref(props.currentYear);
+
+// Sync localYear when parent's currentYear prop changes
+watch(
+  () => props.currentYear,
+  (newYear) => {
+    localYear.value = newYear;
+  }
+);
 
 const yearLabel = computed(() => {
   return props.mode === "point" ? `${localYear.value}` : `${props.minYear} - ${localYear.value}`;

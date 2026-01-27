@@ -56,9 +56,7 @@ const {
   // Timeline
   timelineState,
   setYear,
-  setRange,
   togglePlayback,
-  setPlaybackSpeed,
 
   // Graph operations
   getCytoscapeElements,
@@ -232,11 +230,15 @@ onUnmounted(() => {
         <!-- Timeline (below graph) -->
         <div class="timeline-area">
           <TimelineSlider
-            :state="timelineState"
+            :min-year="timelineState.minYear"
+            :max-year="timelineState.maxYear"
+            :current-year="timelineState.currentYear"
+            :mode="timelineState.mode"
+            :is-playing="timelineState.isPlaying"
             @year-change="setYear"
-            @range-change="setRange"
-            @toggle-play="togglePlayback"
-            @speed-change="setPlaybackSpeed"
+            @mode-change="() => { /* TODO: wire mode change */ }"
+            @play="togglePlayback"
+            @pause="togglePlayback"
           />
         </div>
       </main>
