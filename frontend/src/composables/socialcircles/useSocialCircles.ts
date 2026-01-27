@@ -259,6 +259,7 @@ export function useSocialCircles() {
         total_binders: m?.total_binders ?? 0,
         date_range: m?.date_range ? ([...m.date_range] as [number, number]) : [1800, 1900],
         generated_at: m?.generated_at ?? new Date().toISOString(),
+        truncated: m?.truncated ?? false,
       },
     });
   }

@@ -77,6 +77,7 @@ export interface SocialCirclesMeta {
   total_binders: number;
   date_range: [number, number];
   generated_at: string;
+  truncated: boolean;
 }
 
 export interface SocialCirclesResponse {
