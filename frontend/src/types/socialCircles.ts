@@ -111,6 +111,7 @@ export interface TimelineState {
 
 export interface SelectionState {
   selectedNodeId: NodeId | null;
+  selectedEdgeId: EdgeId | null;
   highlightedNodeIds: Set<NodeId>;
   highlightedEdgeIds: Set<EdgeId>;
   hoveredNodeId: NodeId | null;
@@ -199,6 +200,7 @@ export const DEFAULT_TIMELINE_STATE: TimelineState = {
 
 export const DEFAULT_SELECTION_STATE: SelectionState = {
   selectedNodeId: null,
+  selectedEdgeId: null,
   highlightedNodeIds: new Set(),
   highlightedEdgeIds: new Set(),
   hoveredNodeId: null,

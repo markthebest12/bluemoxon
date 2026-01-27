@@ -14,6 +14,7 @@ import type {
   ApiNode,
   ApiEdge,
   ConnectionType,
+  EdgeId,
   Era,
   NodeId,
   FilterState,
@@ -211,9 +212,8 @@ export function useSocialCircles() {
     selection.selectNode(nodeId as NodeId);
   }
 
-  function selectEdge(_edgeId: string) {
-    // Edge selection not implemented in useNetworkSelection yet
-    // TODO: Add edge selection support
+  function selectEdge(edgeId: string) {
+    selection.selectEdge(edgeId as EdgeId);
   }
 
   function clearSelection() {
