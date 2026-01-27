@@ -66,7 +66,7 @@ const strengthDisplay = computed(() => {
 });
 
 const sharedBookCount = computed(() => {
-  return props.edge?.shared_book_ids?.length || 0;
+  return props.edge?.shared_book_ids?.length ?? 0;
 });
 
 // Fetch shared books
@@ -81,48 +81,66 @@ const isLoadingBooks = ref(false);
 const fetchError = ref<string | null>(null);
 const abortControllerRef = shallowRef<AbortController | null>(null);
 
+// Check if error is a cancellation (works with both fetch AbortError and axios CancelError)
+function isAbortError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  // Native fetch AbortError
+  if (error.name === "AbortError") return true;
+  // Axios cancellation
+  if (error.name === "CanceledError" || (error as { code?: string }).code === "ERR_CANCELED") return true;
+  return false;
+}
+
+// Shared fetch logic to avoid duplication
+async function fetchSharedBooks(bookIds: number[]): Promise<void> {
+  // Cancel any pending request
+  if (abortControllerRef.value) {
+    abortControllerRef.value.abort();
+    abortControllerRef.value = null;
+  }
+
+  fetchError.value = null;
+  isLoadingBooks.value = true;
+
+  const controller = new AbortController();
+  abortControllerRef.value = controller;
+
+  try {
+    const ids = bookIds.slice(0, 20).join(",");
+    const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`, {
+      signal: controller.signal,
+    });
+    // Only update if this request wasn't aborted
+    if (!controller.signal.aborted) {
+      sharedBooks.value = response.data.items || [];
+    }
+  } catch (error) {
+    // Ignore abort/cancel errors
+    if (isAbortError(error)) return;
+    console.error("Failed to fetch shared books:", error);
+    fetchError.value = "Failed to load book details";
+    sharedBooks.value = [];
+  } finally {
+    if (!controller.signal.aborted) {
+      isLoadingBooks.value = false;
+    }
+  }
+}
+
 watch(
   () => ({ isOpen: props.isOpen, bookIds: props.edge?.shared_book_ids }),
   async ({ isOpen, bookIds }) => {
-    // Cancel any pending request
-    if (abortControllerRef.value) {
-      abortControllerRef.value.abort();
-      abortControllerRef.value = null;
-    }
-
-    fetchError.value = null;
-
     if (!isOpen || !bookIds || bookIds.length === 0) {
+      // Cancel pending and clear state
+      if (abortControllerRef.value) {
+        abortControllerRef.value.abort();
+        abortControllerRef.value = null;
+      }
       sharedBooks.value = [];
+      fetchError.value = null;
       return;
     }
-
-    isLoadingBooks.value = true;
-    const controller = new AbortController();
-    abortControllerRef.value = controller;
-
-    try {
-      const ids = bookIds.slice(0, 20).join(",");
-      const response = await api.get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`, {
-        signal: controller.signal,
-      });
-      // Only update if this request wasn't aborted
-      if (!controller.signal.aborted) {
-        sharedBooks.value = response.data.items || [];
-      }
-    } catch (error) {
-      // Ignore abort errors
-      if (error instanceof Error && error.name === "AbortError") {
-        return;
-      }
-      console.error("Failed to fetch shared books:", error);
-      fetchError.value = "Failed to load book details";
-      sharedBooks.value = [];
-    } finally {
-      if (!controller.signal.aborted) {
-        isLoadingBooks.value = false;
-      }
-    }
+    await fetchSharedBooks(bookIds);
   },
   { immediate: true }
 );
@@ -131,30 +149,7 @@ watch(
 function retryFetch() {
   const bookIds = props.edge?.shared_book_ids;
   if (bookIds && bookIds.length > 0) {
-    fetchError.value = null;
-    // Trigger watcher by re-setting props (via dummy state change isn't possible, so we manually call the fetch)
-    isLoadingBooks.value = true;
-    const controller = new AbortController();
-    abortControllerRef.value = controller;
-    const ids = bookIds.slice(0, 20).join(",");
-    api
-      .get<{ items: BookSummary[] }>(`/books?ids=${ids}&page_size=20`, { signal: controller.signal })
-      .then((response) => {
-        if (!controller.signal.aborted) {
-          sharedBooks.value = response.data.items || [];
-          fetchError.value = null;
-        }
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name === "AbortError") return;
-        console.error("Retry failed:", error);
-        fetchError.value = "Failed to load book details";
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          isLoadingBooks.value = false;
-        }
-      });
+    void fetchSharedBooks(bookIds);
   }
 }
 
