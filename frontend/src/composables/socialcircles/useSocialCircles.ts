@@ -432,6 +432,28 @@ export function useSocialCircles() {
     }
   );
 
+  watch(
+    () => timeline.timeline.value.currentYear,
+    (year) => {
+      if (urlState.isInitialized.value) {
+        const f = filters.filters.value;
+        urlState.updateUrl({
+          filters: {
+            showAuthors: f.showAuthors,
+            showPublishers: f.showPublishers,
+            showBinders: f.showBinders,
+            connectionTypes: [...f.connectionTypes],
+            tier1Only: f.tier1Only,
+            eras: [...f.eras],
+            searchQuery: f.searchQuery,
+          },
+          selectedNode: selection.selection.value.selectedNodeId,
+          year,
+        });
+      }
+    }
+  );
+
   return {
     // Data
     nodes,
