@@ -19,13 +19,7 @@ import type {
   NodeId,
   FilterState,
 } from "@/types/socialCircles";
-
-// Cytoscape instance type (inline to avoid @types/cytoscape dependency)
-interface CytoscapeCore {
-  zoom: (level?: number) => number;
-  fit: (eles?: unknown, padding?: number) => void;
-  png: (options: { output: string; bg: string; scale: number }) => Blob;
-}
+import type { Core as CytoscapeCore } from "cytoscape";
 
 export function useSocialCircles() {
   // Cytoscape instance ref (set by NetworkGraph component)
@@ -284,11 +278,14 @@ export function useSocialCircles() {
 
       // Download
       const url = URL.createObjectURL(png);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `social-circles-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `social-circles-${Date.now()}.png`;
+        a.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
       return { success: true };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Export failed";
@@ -313,8 +310,37 @@ export function useSocialCircles() {
     URL.revokeObjectURL(url);
   }
 
-  function shareUrl(): string {
-    return window.location.href;
+  async function shareUrl(): Promise<{
+    success: boolean;
+    method: "native" | "clipboard";
+    error?: string;
+  }> {
+    const url = window.location.href;
+
+    // Try native share API first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Victorian Social Circles",
+          text: "Check out these literary connections!",
+          url,
+        });
+        return { success: true, method: "native" };
+      } catch (e) {
+        // User cancelled or error - fall through to clipboard
+        if ((e as Error).name === "AbortError") {
+          return { success: false, method: "native", error: "Cancelled" };
+        }
+      }
+    }
+
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(url);
+      return { success: true, method: "clipboard" };
+    } catch {
+      return { success: false, method: "clipboard", error: "Failed to copy to clipboard" };
+    }
   }
 
   // Initialize: fetch data and restore state from URL
@@ -383,71 +409,31 @@ export function useSocialCircles() {
     cytoscapeInstance.value = cy;
   }
 
-  // Sync state changes to URL
+  // Sync state changes to URL (consolidated watcher for filters, selection, and timeline)
   watch(
-    () => filters.filters.value,
-    (newFilters) => {
+    () => ({
+      filters: filters.filters.value,
+      selectedNodeId: selection.selection.value.selectedNodeId,
+      currentYear: timeline.timeline.value.currentYear,
+    }),
+    ({ filters: f, selectedNodeId, currentYear }) => {
       if (urlState.isInitialized.value) {
         urlState.updateUrl({
           filters: {
-            showAuthors: newFilters.showAuthors,
-            showPublishers: newFilters.showPublishers,
-            showBinders: newFilters.showBinders,
-            connectionTypes: [...newFilters.connectionTypes],
-            tier1Only: newFilters.tier1Only,
-            eras: [...newFilters.eras],
-            searchQuery: newFilters.searchQuery,
+            showAuthors: f.showAuthors,
+            showPublishers: f.showPublishers,
+            showBinders: f.showBinders,
+            connectionTypes: [...f.connectionTypes],
+            tier1Only: f.tier1Only,
+            eras: [...f.eras],
+            searchQuery: f.searchQuery,
           },
-          selectedNode: selection.selection.value.selectedNodeId,
-          year: timeline.timeline.value.currentYear,
+          selectedNode: selectedNodeId,
+          year: currentYear,
         });
       }
     },
     { deep: true }
-  );
-
-  watch(
-    () => selection.selection.value.selectedNodeId,
-    (nodeId) => {
-      if (urlState.isInitialized.value) {
-        const f = filters.filters.value;
-        urlState.updateUrl({
-          filters: {
-            showAuthors: f.showAuthors,
-            showPublishers: f.showPublishers,
-            showBinders: f.showBinders,
-            connectionTypes: [...f.connectionTypes],
-            tier1Only: f.tier1Only,
-            eras: [...f.eras],
-            searchQuery: f.searchQuery,
-          },
-          selectedNode: nodeId,
-          year: timeline.timeline.value.currentYear,
-        });
-      }
-    }
-  );
-
-  watch(
-    () => timeline.timeline.value.currentYear,
-    (year) => {
-      if (urlState.isInitialized.value) {
-        const f = filters.filters.value;
-        urlState.updateUrl({
-          filters: {
-            showAuthors: f.showAuthors,
-            showPublishers: f.showPublishers,
-            showBinders: f.showBinders,
-            connectionTypes: [...f.connectionTypes],
-            tier1Only: f.tier1Only,
-            eras: [...f.eras],
-            searchQuery: f.searchQuery,
-          },
-          selectedNode: selection.selection.value.selectedNodeId,
-          year,
-        });
-      }
-    }
   );
 
   return {

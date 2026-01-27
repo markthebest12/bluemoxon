@@ -36,7 +36,7 @@ const emit = defineEmits<{
   "node-select": [nodeId: string | null];
   "edge-select": [edgeId: string | null];
   "node-hover": [nodeId: string | null];
-  "edge-hover": [edgeId: string | null];
+  "edge-hover": [edgeId: string | null, event: MouseEvent | null];
 }>();
 
 // Refs
@@ -155,11 +155,11 @@ function setupEventHandlers() {
   });
 
   cy.value.on("mouseover", "edge", (event: EventObject) => {
-    emit("edge-hover", event.target.id());
+    emit("edge-hover", event.target.id(), event.originalEvent as MouseEvent);
   });
 
   cy.value.on("mouseout", "edge", () => {
-    emit("edge-hover", null);
+    emit("edge-hover", null, null);
   });
 }
 
@@ -174,7 +174,7 @@ onMounted(() => {
     layout: LAYOUT_CONFIGS.force as LayoutOptions,
     minZoom: 0.3,
     maxZoom: 3,
-    // Use default wheelSensitivity (1) to avoid Cytoscape warning
+    // Omit wheelSensitivity to use Cytoscape default (1) and avoid deprecation warning
   });
 
   setupEventHandlers();

@@ -38,7 +38,8 @@ def get_social_circles(
     min_book_count: int = Query(
         1,
         ge=1,
-        description="Minimum books for an entity to be included",
+        le=100,
+        description="Minimum books for an entity to be included (max 100)",
     ),
     era: list[Era] | None = Query(
         None,
