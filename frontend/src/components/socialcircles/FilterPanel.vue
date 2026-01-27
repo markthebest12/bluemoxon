@@ -13,24 +13,33 @@
 
 import { ref } from "vue";
 
-// Props
+import type { ConnectionType, Era } from "@/types/socialCircles";
+
+// Props - uses readonly arrays since we only read, never mutate
 interface Props {
-  showAuthors?: boolean;
-  showPublishers?: boolean;
-  showBinders?: boolean;
+  filterState: {
+    readonly showAuthors: boolean;
+    readonly showPublishers: boolean;
+    readonly showBinders: boolean;
+    readonly connectionTypes: readonly ConnectionType[];
+    readonly tier1Only: boolean;
+    readonly eras: readonly Era[];
+    readonly searchQuery: string;
+  };
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showAuthors: true,
-  showPublishers: true,
-  showBinders: true,
-});
+const props = defineProps<Props>();
 
 // Emits
+type FilterKey = keyof Props["filterState"];
 const emit = defineEmits<{
-  "filter-change": [key: string, value: unknown];
+  "update:filter": [key: FilterKey, value: unknown];
   reset: [];
 }>();
+
+function toggleNodeType(type: "showAuthors" | "showPublishers" | "showBinders") {
+  emit("update:filter", type, !props.filterState[type]);
+}
 
 // Local state
 const searchQuery = ref("");
@@ -64,16 +73,16 @@ function handleReset() {
       <!-- Node Types -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Node Types</h3>
-        <label class="filter-panel__checkbox">
-          <input type="checkbox" :checked="props.showAuthors" />
+        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showAuthors')">
+          <input type="checkbox" :checked="props.filterState.showAuthors" />
           <span>Authors</span>
         </label>
-        <label class="filter-panel__checkbox">
-          <input type="checkbox" :checked="props.showPublishers" />
+        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showPublishers')">
+          <input type="checkbox" :checked="props.filterState.showPublishers" />
           <span>Publishers</span>
         </label>
-        <label class="filter-panel__checkbox">
-          <input type="checkbox" :checked="props.showBinders" />
+        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showBinders')">
+          <input type="checkbox" :checked="props.filterState.showBinders" />
           <span>Binders</span>
         </label>
       </section>
