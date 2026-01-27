@@ -29,22 +29,22 @@ export function renderStrength(strength: number, max: number = 5): string {
 
 const PLACEHOLDER_NAMES: Record<NodeType, string[]> = {
   author: [
-    "generic-victorian-portrait-1.jpg",
-    "generic-victorian-portrait-2.jpg",
-    "generic-victorian-portrait-3.jpg",
-    "generic-victorian-portrait-4.jpg",
+    "generic-victorian-portrait-1.svg",
+    "generic-victorian-portrait-2.svg",
+    "generic-victorian-portrait-3.svg",
+    "generic-victorian-portrait-4.svg",
   ],
   publisher: [
-    "london-bookshop-exterior.jpg",
-    "victorian-printing-press.jpg",
-    "publisher-office-interior.jpg",
-    "victorian-publisher-logo.jpg",
+    "london-bookshop-exterior.svg",
+    "victorian-printing-press.svg",
+    "publisher-office-interior.svg",
+    "victorian-publisher-logo.svg",
   ],
   binder: [
-    "bookbinding-tools.jpg",
-    "leather-workshop.jpg",
-    "bindery-workbench.jpg",
-    "victorian-bindery-scene.jpg",
+    "bookbinding-tools.svg",
+    "leather-workshop.svg",
+    "bindery-workbench.svg",
+    "victorian-bindery-scene.svg",
   ],
 };
 

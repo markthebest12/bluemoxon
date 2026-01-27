@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#D4CFC4"/>
+      <stop offset="100%" style="stop-color:#E8E4DB"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#sky)"/>
+  <!-- Building facade -->
+  <rect x="20" y="40" width="160" height="150" fill="#8B4513"/>
+  <rect x="25" y="45" width="150" height="140" fill="#6B4423"/>
+  <!-- Shop sign -->
+  <rect x="40" y="50" width="120" height="25" fill="#2C2416"/>
+  <text x="100" y="68" text-anchor="middle" fill="#B8860B" font-family="Georgia, serif" font-size="12" font-weight="bold">BOOKS</text>
+  <!-- Shop window -->
+  <rect x="35" y="85" width="55" height="70" fill="#F5F1E8"/>
+  <rect x="110" y="85" width="55" height="70" fill="#F5F1E8"/>
+  <!-- Books in window -->
+  <rect x="40" y="120" width="8" height="30" fill="#7B4B94"/>
+  <rect x="50" y="115" width="8" height="35" fill="#2C5F77"/>
+  <rect x="60" y="122" width="8" height="28" fill="#8B4513"/>
+  <rect x="70" y="118" width="8" height="32" fill="#B8860B"/>
+  <rect x="115" y="118" width="8" height="32" fill="#5C5446"/>
+  <rect x="125" y="122" width="8" height="28" fill="#7B4B94"/>
+  <rect x="135" y="115" width="8" height="35" fill="#2C5F77"/>
+  <rect x="145" y="120" width="8" height="30" fill="#6B4423"/>
+  <!-- Door -->
+  <rect x="85" y="110" width="30" height="80" fill="#2C2416"/>
+  <circle cx="108" cy="150" r="3" fill="#B8860B"/>
+  <!-- Window frames -->
+  <line x1="62" y1="85" x2="62" y2="155" stroke="#5C5446" stroke-width="2"/>
+  <line x1="35" y1="120" x2="90" y2="120" stroke="#5C5446" stroke-width="2"/>
+  <line x1="137" y1="85" x2="137" y2="155" stroke="#5C5446" stroke-width="2"/>
+  <line x1="110" y1="120" x2="165" y2="120" stroke="#5C5446" stroke-width="2"/>
+  <!-- Cobblestone suggestion -->
+  <rect x="0" y="190" width="200" height="10" fill="#8B8579"/>
+  <!-- Publisher label -->
+  <text x="100" y="198" text-anchor="middle" fill="#F5F1E8" font-family="Georgia, serif" font-size="9" font-style="italic">Publisher</text>
+</svg>

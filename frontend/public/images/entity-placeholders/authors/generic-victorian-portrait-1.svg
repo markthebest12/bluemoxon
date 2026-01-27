@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5F1E8"/>
+      <stop offset="100%" style="stop-color:#E8E4DB"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#bg1)"/>
+  <!-- Decorative frame -->
+  <rect x="10" y="10" width="180" height="180" fill="none" stroke="#D4CFC4" stroke-width="2" rx="4"/>
+  <rect x="16" y="16" width="168" height="168" fill="none" stroke="#B8860B" stroke-width="1" rx="2"/>
+  <!-- Portrait silhouette -->
+  <ellipse cx="100" cy="75" rx="35" ry="42" fill="#8B8579"/>
+  <!-- Shoulders -->
+  <path d="M40 170 Q40 120 100 110 Q160 120 160 170" fill="#7B4B94"/>
+  <!-- Victorian collar detail -->
+  <path d="M70 130 L100 145 L130 130" fill="none" stroke="#E8E4DB" stroke-width="3"/>
+  <!-- Author label -->
+  <text x="100" y="188" text-anchor="middle" fill="#5C5446" font-family="Georgia, serif" font-size="10" font-style="italic">Author</text>
+</svg>
