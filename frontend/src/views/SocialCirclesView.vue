@@ -236,7 +236,11 @@ onUnmounted(() => {
             :mode="timelineState.mode"
             :is-playing="timelineState.isPlaying"
             @year-change="setYear"
-            @mode-change="() => { /* TODO: wire mode change */ }"
+            @mode-change="
+              () => {
+                /* TODO: wire mode change */
+              }
+            "
             @play="togglePlayback"
             @pause="togglePlayback"
           />
