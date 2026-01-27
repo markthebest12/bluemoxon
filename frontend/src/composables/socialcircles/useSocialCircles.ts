@@ -349,11 +349,6 @@ export function useSocialCircles() {
       filters.setEras(urlParams.filters.eras);
     }
 
-    // Apply URL timeline
-    if (urlParams.year) {
-      timeline.setCurrentYear(urlParams.year);
-    }
-
     // Fetch data
     await networkData.fetchData();
 
@@ -364,9 +359,14 @@ export function useSocialCircles() {
         [...networkData.data.value.edges] as ApiEdge[]
       );
 
-      // Set date range from data
+      // Set date range from data (must happen before setting year from URL)
       const [minYear, maxYear] = networkData.data.value.meta.date_range;
       timeline.setDateRange(minYear, maxYear);
+
+      // Apply URL timeline (after date range is set)
+      if (urlParams.year) {
+        timeline.setCurrentYear(urlParams.year);
+      }
 
       // Apply URL selection
       if (urlParams.selectedNode) {
