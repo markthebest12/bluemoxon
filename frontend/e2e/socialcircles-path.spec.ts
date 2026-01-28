@@ -149,10 +149,8 @@ test.describe("Social Circles Path Finder", () => {
         await endDropdown.locator(".pathfinder-panel__dropdown-item").first().click();
       }
 
-      // Now should be enabled (if different people selected)
-      // Note: Button might still be disabled if same person selected
-      const isEnabled = !(await findPathButton.isDisabled());
-      expect(isEnabled || true).toBeTruthy(); // Passes if enabled or if same person was selected
+      // Now should be enabled (different people selected)
+      await expect(findPathButton).toBeEnabled();
     }
   });
 
@@ -173,66 +171,35 @@ test.describe("Social Circles Path Finder", () => {
     }
   });
 
-  test("path finder shows loading state during calculation", async ({ page }) => {
+  test.skip("path finder shows loading state during calculation", async ({ page }) => {
+    // Skip: This test requires triggering an actual path calculation
+    // which may complete too quickly to observe loading state reliably.
+    // The loading state is tested implicitly by the integration.
     const pathFinderPanel = page.locator(".pathfinder-panel");
-
-    if (await pathFinderPanel.isVisible()) {
-      // This test checks the loading state exists in the markup
-      // Actual loading would require selecting nodes and clicking Find Path
-      const loadingElement = pathFinderPanel.locator(".pathfinder-panel__loading");
-      const spinnerElement = pathFinderPanel.locator(".pathfinder-panel__spinner");
-
-      // These elements exist in the template (conditionally rendered)
-      // We verify they're properly defined by checking the component structure
-      const hasLoadingMarkup = (await loadingElement.count()) >= 0;
-      const hasSpinnerMarkup = (await spinnerElement.count()) >= 0;
-      expect(hasLoadingMarkup || hasSpinnerMarkup).toBeTruthy();
-    }
+    await expect(pathFinderPanel).toBeVisible();
   });
 
-  test("path finder displays no path found message when no connection exists", async ({
+  test.skip("path finder displays no path found message when no connection exists", async ({
     page,
   }) => {
+    // Skip: This test requires finding two disconnected nodes in the graph,
+    // which depends on specific test data. The no-path UI is tested in unit tests.
     const pathFinderPanel = page.locator(".pathfinder-panel");
-
-    if (await pathFinderPanel.isVisible()) {
-      // Check that the no-path UI elements exist
-      // This verifies the markup is in place for when no path is found
-      const noPathMessage = page.locator(".pathfinder-panel__no-path");
-
-      // The no-path element is conditionally rendered
-      // We can verify the component handles this case by checking the element exists in DOM
-      const noPathCount = await noPathMessage.count();
-      expect(noPathCount).toBeGreaterThanOrEqual(0);
-    }
+    await expect(pathFinderPanel).toBeVisible();
   });
 
-  test("path finder shows degrees of separation when path found", async ({ page }) => {
+  test.skip("path finder shows degrees of separation when path found", async ({ page }) => {
+    // Skip: This test requires executing a successful path search with connected nodes.
+    // The degrees display is tested implicitly when path calculation completes.
     const pathFinderPanel = page.locator(".pathfinder-panel");
-
-    if (await pathFinderPanel.isVisible()) {
-      // Check for degrees display elements (conditionally rendered when path found)
-      const degreesElement = page.locator(".pathfinder-panel__degrees");
-      const pathResultElement = page.locator(".pathfinder-panel__path-result");
-
-      // Verify these elements exist in component structure (may be hidden until path found)
-      const degreesCount = await degreesElement.count();
-      const resultCount = await pathResultElement.count();
-      expect(degreesCount + resultCount).toBeGreaterThanOrEqual(0);
-    }
+    await expect(pathFinderPanel).toBeVisible();
   });
 
-  test("path finder displays path as ordered list", async ({ page }) => {
+  test.skip("path finder displays path as ordered list", async ({ page }) => {
+    // Skip: This test requires executing a successful path search.
+    // The ordered list structure is tested in component unit tests.
     const pathFinderPanel = page.locator(".pathfinder-panel");
-
-    if (await pathFinderPanel.isVisible()) {
-      // Check that path list structure exists (conditionally rendered)
-      const pathList = page.locator(".pathfinder-panel__path-list");
-
-      // This is an ordered list (ol) that shows the path when found
-      const pathListCount = await pathList.count();
-      expect(pathListCount).toBeGreaterThanOrEqual(0);
-    }
+    await expect(pathFinderPanel).toBeVisible();
   });
 
   test("already selected person is disabled in opposite dropdown", async ({ page }) => {
@@ -259,13 +226,13 @@ test.describe("Social Circles Path Finder", () => {
 
         const endDropdown = pathFinderPanel.locator(".pathfinder-panel__dropdown").nth(1);
         if (await endDropdown.isVisible()) {
-          // The same person should be disabled
+          // The same person should be disabled in the end dropdown
           const disabledItems = endDropdown.locator(
             ".pathfinder-panel__dropdown-item--disabled"
           );
           const count = await disabledItems.count();
           // At least one item should be disabled (the already selected person)
-          expect(count).toBeGreaterThanOrEqual(0); // May be 0 if names don't match exactly
+          expect(count).toBeGreaterThan(0);
         }
       }
     }
