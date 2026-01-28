@@ -217,6 +217,7 @@ export const KEYBOARD_SHORTCUTS = {
   nextNode: ["ArrowRight"],
   prevNode: ["ArrowLeft"],
   openDetails: ["Enter"],
+  cycleLayout: ["l", "L"],
 } as const;
 
 // =============================================================================
