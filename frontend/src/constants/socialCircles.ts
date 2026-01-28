@@ -11,29 +11,32 @@ import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCi
 // Victorian Color Palette
 // =============================================================================
 
-/** Node colors by type and variant */
+/** Node colors by type and variant (hex values - Cytoscape doesn't support CSS variables) */
 export const NODE_COLORS: Record<string, string> = {
   // Authors by era
-  "author:romantic": "var(--color-victorian-burgundy-light)", // #8b3a42
-  "author:victorian": "var(--color-victorian-hunter-700)", // #254a3d
-  "author:edwardian": "var(--color-victorian-hunter-500)", // #3a6b5c
-  "author:default": "var(--color-victorian-hunter-600)", // #2f5a4b
+  "author:pre_romantic": "#6b3a4a", // muted burgundy for pre-romantic
+  "author:romantic": "#8b3a42", // burgundy-light
+  "author:victorian": "#254a3d", // hunter-700
+  "author:edwardian": "#3a6b5c", // hunter-500
+  "author:post_1910": "#4a7b6c", // lighter hunter for post-1910
+  "author:unknown": "#2f5a4b", // hunter-600 default
+  "author:default": "#2f5a4b", // hunter-600
 
   // Publishers by tier
-  "publisher:tier1": "var(--color-victorian-gold-light)", // #d4af37
-  "publisher:tier2": "var(--color-victorian-gold-muted)", // #b8956e
-  "publisher:default": "var(--color-victorian-gold)", // #c9a227
+  "publisher:tier1": "#d4af37", // gold-light
+  "publisher:tier2": "#b8956e", // gold-muted
+  "publisher:default": "#c9a227", // gold
 
   // Binders
-  "binder:tier1": "var(--color-victorian-burgundy-dark)", // #5c262e
-  "binder:default": "var(--color-victorian-burgundy)", // #722f37
+  "binder:tier1": "#5c262e", // burgundy-dark
+  "binder:default": "#722f37", // burgundy
 };
 
-/** Edge colors by connection type */
+/** Edge colors by connection type (hex values - Cytoscape doesn't support CSS variables) */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
-  publisher: "var(--color-victorian-gold)", // #c9a227
-  shared_publisher: "var(--color-victorian-hunter-500)", // #3a6b5c
-  binder: "var(--color-victorian-burgundy)", // #722f37
+  publisher: "#c9a227", // gold
+  shared_publisher: "#3a6b5c", // hunter-500
+  binder: "#722f37", // burgundy
 };
 
 // =============================================================================
