@@ -288,6 +288,66 @@ class TestSocialCirclesAuth:
         assert response.status_code == 200
 
 
+class TestSharedPublisherTruncation:
+    """Tests for shared_publisher truncation behavior."""
+
+    def test_shared_publisher_truncation_is_deterministic(self, client, db):
+        """When >20 authors share a publisher, truncation should be deterministic."""
+        # Create publisher with 25 authors
+        publisher = Publisher(name="Test Publisher")
+        db.add(publisher)
+        db.flush()
+
+        authors = []
+        for i in range(25):
+            author = Author(name=f"Author {i:02d}")
+            db.add(author)
+            authors.append(author)
+        db.flush()
+
+        # Create books with varying counts per author
+        # Authors 0-4 get 5 books each, 5-9 get 4 books, etc.
+        for i, author in enumerate(authors):
+            book_count = max(1, 5 - (i // 5))
+            for j in range(book_count):
+                book = Book(
+                    title=f"Book {i}-{j}",
+                    author_id=author.id,
+                    publisher_id=publisher.id,
+                    status="ON_HAND",
+                )
+                db.add(book)
+        db.commit()
+
+        # Build graph twice
+        from app.services.social_circles import build_social_circles_graph
+
+        result1 = build_social_circles_graph(db)
+        result2 = build_social_circles_graph(db)
+
+        # Extract shared_publisher edges
+        edges1 = [e for e in result1.edges if e.type.value == "shared_publisher"]
+        edges2 = [e for e in result2.edges if e.type.value == "shared_publisher"]
+
+        # Should be identical (deterministic)
+        assert sorted(e.id for e in edges1) == sorted(e.id for e in edges2)
+
+        # Most prolific authors should be included
+        # Authors 0-4 each have 5 books, should be prioritized
+        included_author_ids = set()
+        for edge in edges1:
+            if edge.source.startswith("author:"):
+                included_author_ids.add(int(edge.source.split(":")[1]))
+            if edge.target.startswith("author:"):
+                included_author_ids.add(int(edge.target.split(":")[1]))
+
+        # First 5 authors (most prolific with 5 books each) should be included
+        for author in authors[:5]:
+            assert author.id in included_author_ids, (
+                f"Author {author.name} with 5 books should be included in truncated set"
+            )
+
+
 class TestSocialCirclesEdgeCases:
     """Tests for edge cases and complex scenarios."""
 

@@ -202,8 +202,13 @@ def build_social_circles_graph(
 
         author_list = list(author_ids)
         # Limit authors to prevent combinatorial explosion
+        # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
-            author_list = author_list[:MAX_AUTHORS_PER_PUBLISHER]
+            author_list = sorted(
+                author_list,
+                key=lambda a: len(author_books[a]),
+                reverse=True,
+            )[:MAX_AUTHORS_PER_PUBLISHER]
 
         for i, author1_id in enumerate(author_list):
             author1_node_id = f"author:{author1_id}"
