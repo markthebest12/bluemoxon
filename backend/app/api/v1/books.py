@@ -1453,16 +1453,7 @@ def bulk_update_status(
             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
         )
 
-    owned_status_values = [s.value for s in OWNED_STATUSES]
-
-    # Check if any books are currently owned (will leave collection)
-    # or if target status is owned (will enter collection)
-    any_currently_owned = (
-        db.query(Book).filter(Book.id.in_(book_ids), Book.status.in_(owned_status_values)).first()
-        is not None
-    )
-    target_is_owned = status in owned_status_values
-
+    # Perform the update first
     updated = (
         db.query(Book)
         .filter(Book.id.in_(book_ids))
@@ -1473,8 +1464,10 @@ def bulk_update_status(
     )
     db.commit()
 
-    # Invalidate social circles cache if any book transitions to/from owned
-    if any_currently_owned or target_is_owned:
+    # Invalidate social circles cache if any books were updated.
+    # We invalidate conservatively because we can't know pre-update status after commit.
+    # The cache has TTL so over-invalidation is acceptable for correctness.
+    if updated > 0:
         invalidate_social_circles_cache()
 
     return {"message": f"Updated {updated} books", "status": status}

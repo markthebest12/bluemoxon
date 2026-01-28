@@ -20,7 +20,7 @@
  * ```
  */
 
-import { ref, computed, watch, type Ref } from "vue";
+import { ref, computed, watch, onUnmounted, type Ref } from "vue";
 import type { ApiNode, NodeType } from "@/types/socialCircles";
 
 /** Maximum number of search results to return */
@@ -144,6 +144,14 @@ export function useSearch(nodes: Ref<ApiNode[]>) {
   // Reset active index when results change
   watch(results, () => {
     activeIndex.value = 0;
+  });
+
+  // Cleanup debounce timeout on unmount to prevent memory leak
+  onUnmounted(() => {
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = undefined;
+    }
   });
 
   return {

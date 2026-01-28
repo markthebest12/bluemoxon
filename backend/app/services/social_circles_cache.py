@@ -52,7 +52,8 @@ def get_cache_key(include_binders: bool, min_book_count: int, max_books: int) ->
     """
     # Create a stable string representation of parameters
     params_str = f"binders={include_binders}|min={min_book_count}|max={max_books}"
-    params_hash = hashlib.sha256(params_str.encode()).hexdigest()[:16]
+    # Use 32 chars (128 bits) for sufficient collision resistance
+    params_hash = hashlib.sha256(params_str.encode()).hexdigest()[:32]
     return f"{CACHE_KEY_PREFIX}:{params_hash}"
 
 

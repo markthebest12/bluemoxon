@@ -192,7 +192,7 @@ function handleToggle() {
 
         <!-- Date Range from Meta -->
         <div class="stats-panel__footer">
-          <span class="stats-panel__meta">
+          <span v-if="meta.date_range?.length === 2" class="stats-panel__meta">
             Collection: {{ meta.date_range[0] }} - {{ meta.date_range[1] }}
           </span>
           <span class="stats-panel__meta">{{ meta.total_books }} total books</span>

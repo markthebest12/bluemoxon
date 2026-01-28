@@ -11,7 +11,7 @@
  * - Click outside closes dropdown
  */
 
-import { ref, computed, watch, shallowRef, nextTick } from "vue";
+import { ref, computed, watch, shallowRef, nextTick, onUnmounted } from "vue";
 import { onClickOutside } from "@vueuse/core";
 
 import type { ApiNode, NodeType } from "@/types/socialCircles";
@@ -90,6 +90,14 @@ watch(
     debouncedQuery.value = newVal;
   }
 );
+
+// Cleanup debounce timeout on unmount to prevent memory leak
+onUnmounted(() => {
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = null;
+  }
+});
 
 // =============================================================================
 // Search & Results

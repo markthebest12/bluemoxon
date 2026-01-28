@@ -238,7 +238,7 @@ function cleanupEventListeners() {
 watch(
   () => props.cy,
   (newCy) => {
-    // Clear any pending init timeout
+    // Always clear pending init timeout first to prevent queue buildup on rapid prop changes
     if (initTimeoutId !== null) {
       clearTimeout(initTimeoutId);
       initTimeoutId = null;

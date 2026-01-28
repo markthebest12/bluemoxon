@@ -30,6 +30,9 @@ export function useMobile(): UseMobileReturn {
   // These return false during SSR and update reactively on the client.
   const isMobileQuery = useMediaQuery("(max-width: 768px)");
   const isTabletQuery = useMediaQuery("(min-width: 769px) and (max-width: 1024px)");
+  // Detect coarse pointer (touchscreens) - more reliable than touch events alone
+  // since laptops with touchscreens have fine pointers (trackpad/mouse) as primary
+  const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
   // Computed wrappers for consistent interface
   const isMobile = computed(() => isMobileQuery.value);
@@ -42,9 +45,11 @@ export function useMobile(): UseMobileReturn {
   const isFiltersOpen = ref(false);
 
   onMounted(() => {
-    // Detect touch capability using standard feature detection.
-    // ontouchstart is widely supported; maxTouchPoints is the modern approach.
-    isTouch.value = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    // Detect touch capability using standard feature detection AND coarse pointer.
+    // ontouchstart/maxTouchPoints alone give false positives on laptops with touchscreens.
+    // Combined with (pointer: coarse), we only trigger touch mode for actual touch devices.
+    const hasTouchEvents = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    isTouch.value = hasTouchEvents && isCoarsePointer.value;
   });
 
   // No cleanup needed - VueUse handles media query listeners internally

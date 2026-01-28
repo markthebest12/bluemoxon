@@ -135,18 +135,26 @@ function handleEndInputFocus() {
   showEndDropdown.value = true;
 }
 
-function handleStartInputBlur() {
-  // Delay to allow click events on dropdown items
-  setTimeout(() => {
-    showStartDropdown.value = false;
-  }, 150);
+function handleStartInputBlur(event: FocusEvent) {
+  // Check if focus moved to an element within the dropdown
+  const relatedTarget = event.relatedTarget as HTMLElement | null;
+  const wrapper = (event.target as HTMLElement)?.closest(".pathfinder-panel__input-wrapper");
+  if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
+    // Focus moved within wrapper (e.g., to dropdown item), keep open
+    return;
+  }
+  showStartDropdown.value = false;
 }
 
-function handleEndInputBlur() {
-  // Delay to allow click events on dropdown items
-  setTimeout(() => {
-    showEndDropdown.value = false;
-  }, 150);
+function handleEndInputBlur(event: FocusEvent) {
+  // Check if focus moved to an element within the dropdown
+  const relatedTarget = event.relatedTarget as HTMLElement | null;
+  const wrapper = (event.target as HTMLElement)?.closest(".pathfinder-panel__input-wrapper");
+  if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
+    // Focus moved within wrapper (e.g., to dropdown item), keep open
+    return;
+  }
+  showEndDropdown.value = false;
 }
 
 // Clear selection when search query changes (user is typing new search)
