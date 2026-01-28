@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useUrlState } from "../useUrlState";
 import { ANIMATION } from "@/constants/socialCircles";
 
-// Mock vue-router
+// Mock vue-router with configurable query
 const mockReplace = vi.fn();
 const mockIsReady = vi.fn().mockResolvedValue(undefined);
+let mockRouteQuery: Record<string, string> = {};
 
 vi.mock("vue-router", () => ({
   useRouter: () => ({
@@ -12,7 +13,7 @@ vi.mock("vue-router", () => ({
     isReady: mockIsReady,
   }),
   useRoute: () => ({
-    query: {},
+    query: mockRouteQuery,
   }),
 }));
 
@@ -20,6 +21,7 @@ describe("useUrlState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockRouteQuery = {}; // Reset query between tests
   });
 
   afterEach(() => {
@@ -116,6 +118,66 @@ describe("useUrlState", () => {
       expect(mockReplace).toHaveBeenCalledWith({
         query: { year: "1880" },
       });
+    });
+  });
+
+  describe("URL parsing", () => {
+    it("should parse filters from URL query params", async () => {
+      mockRouteQuery = {
+        authors: "false",
+        tier1: "true",
+        search: "dickens",
+        connections: "publisher,shared_publisher",
+        eras: "victorian,romantic",
+        year: "1850",
+        selected: "author-123",
+      };
+
+      const { initialize } = useUrlState();
+      const result = await initialize();
+
+      expect(result.filters.showAuthors).toBe(false);
+      expect(result.filters.tier1Only).toBe(true);
+      expect(result.filters.searchQuery).toBe("dickens");
+      expect(result.filters.connectionTypes).toEqual(["publisher", "shared_publisher"]);
+      expect(result.filters.eras).toEqual(["victorian", "romantic"]);
+      expect(result.year).toBe(1850);
+      expect(result.selectedNode).toBe("author-123");
+    });
+
+    it("should handle year value of 0", async () => {
+      mockRouteQuery = { year: "0" };
+
+      const { initialize, updateUrl } = useUrlState();
+      const result = await initialize();
+
+      expect(result.year).toBe(0);
+
+      // Also verify encoding works for year 0
+      updateUrl({ year: 0 });
+      vi.advanceTimersByTime(100);
+
+      expect(mockReplace).toHaveBeenCalledWith({
+        query: { year: "0" },
+      });
+    });
+
+    it("should filter invalid era values", async () => {
+      mockRouteQuery = { eras: "victorian,invalid_era,romantic" };
+
+      const { initialize } = useUrlState();
+      const result = await initialize();
+
+      expect(result.filters.eras).toEqual(["victorian", "romantic"]);
+    });
+
+    it("should filter invalid connection types", async () => {
+      mockRouteQuery = { connections: "publisher,invalid_type,binder" };
+
+      const { initialize } = useUrlState();
+      const result = await initialize();
+
+      expect(result.filters.connectionTypes).toEqual(["publisher", "binder"]);
     });
   });
 
