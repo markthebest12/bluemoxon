@@ -11,13 +11,14 @@ import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
 import { useSocialCircles, useNetworkKeyboard } from "@/composables/socialcircles";
-import type {
-  ConnectionType,
-  NodeId,
-  EdgeId,
-  ApiNode,
-  ApiEdge,
-  SocialCirclesMeta,
+import {
+  DEFAULT_TIMELINE_STATE,
+  type ConnectionType,
+  type NodeId,
+  type EdgeId,
+  type ApiNode,
+  type ApiEdge,
+  type SocialCirclesMeta,
 } from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
@@ -151,6 +152,13 @@ const statsCollapsed = ref(false);
 
 // Handle search result selection - center graph on selected node
 function handleSearchSelect(node: { id: string }) {
+  // Verify node exists in current filtered set before selecting
+  const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
+  if (!nodeExists) {
+    showToastMessage("Node not in current view");
+    return;
+  }
+
   selectNode(node.id);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
@@ -348,13 +356,17 @@ const nodesForSearch = computed((): ApiNode[] => {
 });
 
 // Type-cast meta for StatsPanel (avoids null type conflict)
+// Uses DEFAULT_TIMELINE_STATE for consistent year defaults
 const metaForStats = computed((): SocialCirclesMeta => {
   return (meta.value ?? {
     total_books: 0,
     total_authors: 0,
     total_publishers: 0,
     total_binders: 0,
-    date_range: [1780, 1920] as [number, number],
+    date_range: [DEFAULT_TIMELINE_STATE.minYear, DEFAULT_TIMELINE_STATE.maxYear] as [
+      number,
+      number,
+    ],
     generated_at: new Date().toISOString(),
     truncated: false,
   }) as SocialCirclesMeta;
