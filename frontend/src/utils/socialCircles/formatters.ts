@@ -6,14 +6,18 @@ export interface TierDisplay {
   tooltip: string;
 }
 
-const TIER_MAP: Record<string, TierDisplay> = {
+const TIER_MAP = {
   TIER_1: { label: "Premier", stars: 3, tooltip: "Tier 1 - Premier Figure" },
   TIER_2: { label: "Established", stars: 2, tooltip: "Tier 2 - Established Figure" },
   TIER_3: { label: "Known", stars: 1, tooltip: "Tier 3 - Known Figure" },
-};
+} as const satisfies Record<string, TierDisplay>;
 
 export function formatTier(tier: string | null): TierDisplay {
-  return TIER_MAP[tier ?? ""] || { label: "Unranked", stars: 0, tooltip: "Unranked" };
+  const key = tier ?? "";
+  if (key in TIER_MAP) {
+    return TIER_MAP[key as keyof typeof TIER_MAP];
+  }
+  return { label: "Unranked", stars: 0, tooltip: "Unranked" };
 }
 
 export function calculateStrength(sharedBooks: number): number {
