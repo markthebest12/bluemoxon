@@ -8,6 +8,17 @@
 import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
 
 // =============================================================================
+// Connection Types
+// =============================================================================
+
+/** All connection types for filter validation */
+export const ALL_CONNECTION_TYPES: readonly ConnectionType[] = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+] as const;
+
+// =============================================================================
 // Victorian Color Palette
 // =============================================================================
 
