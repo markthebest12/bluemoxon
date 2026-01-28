@@ -209,9 +209,14 @@ watch(
     if (!cy.value) return;
 
     // Use Set for O(n) comparison instead of O(n log n) sorting
-    const newIdSet = new Set<string>(newElements.map((e) => e.data?.id || ""));
+    // Filter out falsy IDs to prevent undefined/null from collapsing into single "" entry
+    const newIdSet = new Set<string>(
+      newElements.map((e) => e.data?.id).filter((id): id is NonNullable<typeof id> => Boolean(id))
+    );
+    // Check if any new ID wasn't in the old set (more intuitive: "what appeared?")
     const idsChanged =
-      newIdSet.size !== lastElementIds.size || [...lastElementIds].some((id) => !newIdSet.has(id));
+      newIdSet.size !== lastElementIds.size ||
+      [...newIdSet].some((id) => !lastElementIds.has(id));
 
     if (!idsChanged) return; // Skip if same elements
 
@@ -223,7 +228,9 @@ watch(
     });
     cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
   },
-  { flush: "post" }
+  // flush: "post" ensures DOM is ready; deep: true is defensive in case elements
+  // are ever mutated in-place (currently they're replaced via computed)
+  { deep: true, flush: "post" }
 );
 
 // Watch selection
