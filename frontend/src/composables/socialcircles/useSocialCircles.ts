@@ -411,13 +411,15 @@ export function useSocialCircles() {
   }
 
   // Sync state changes to URL (consolidated watcher for filters, selection, and timeline)
+  // URL updates are skipped during playback to avoid history spam
   watch(
     () => ({
       filters: filters.filters.value,
       selectedNodeId: selection.selection.value.selectedNodeId,
       currentYear: timeline.timeline.value.currentYear,
+      isPlaying: timeline.timeline.value.isPlaying,
     }),
-    ({ filters: f, selectedNodeId, currentYear }) => {
+    ({ filters: f, selectedNodeId, currentYear, isPlaying }) => {
       if (urlState.isInitialized.value) {
         urlState.updateUrl({
           filters: {
@@ -431,6 +433,7 @@ export function useSocialCircles() {
           },
           selectedNode: selectedNodeId,
           year: currentYear,
+          isPlaying,
         });
       }
     },

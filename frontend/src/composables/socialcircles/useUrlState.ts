@@ -62,11 +62,18 @@ export function useUrlState() {
   }
 
   // Update URL from state (debounced)
+  // Skips URL updates during playback to avoid history spam
   function updateUrl(params: {
     filters?: FilterState;
     selectedNode?: NodeId | null;
     year?: number;
+    isPlaying?: boolean;
   }) {
+    // Skip URL updates during timeline playback to avoid history spam
+    if (params.isPlaying) {
+      return;
+    }
+
     if (updateTimeout) clearTimeout(updateTimeout);
 
     updateTimeout = setTimeout(() => {

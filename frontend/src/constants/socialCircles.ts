@@ -101,7 +101,8 @@ export const ANIMATION = {
   panelSlide: 300,
   layoutReflow: 800,
   debounceFilter: 100,
-  debounceUrl: 300,
+  /** Debounce for URL state sync (reduced from 300ms for faster response) */
+  debounceUrl: 100,
 } as const;
 
 // =============================================================================
