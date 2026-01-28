@@ -15,6 +15,7 @@ import {
   type Size,
 } from "@/utils/socialCircles/cardPositioning";
 import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 
 interface Props {
@@ -36,6 +37,13 @@ const emit = defineEmits<{
 
 const cardRef = ref<HTMLElement | null>(null);
 const { activate, deactivate } = useFocusTrap(cardRef, { immediate: false });
+
+// Close panel when clicking outside (#1407)
+useClickOutside(cardRef, () => {
+  if (props.isOpen) {
+    emit("close");
+  }
+});
 
 // Computed position
 const cardPosition = computed(() => {
