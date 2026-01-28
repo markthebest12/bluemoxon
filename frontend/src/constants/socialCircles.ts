@@ -11,12 +11,15 @@ import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCi
 // Connection Types
 // =============================================================================
 
-/** All connection types for filter validation */
-export const ALL_CONNECTION_TYPES: readonly ConnectionType[] = [
+/**
+ * All connection types for filter validation.
+ * Type assertion ensures this array stays in sync with ConnectionType union.
+ */
+export const ALL_CONNECTION_TYPES = [
   "publisher",
   "shared_publisher",
   "binder",
-] as const;
+] as const satisfies readonly ConnectionType[];
 
 // =============================================================================
 // Victorian Color Palette

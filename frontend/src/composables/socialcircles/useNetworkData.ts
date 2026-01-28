@@ -28,13 +28,13 @@
  * ```ts
  * const { data, loadingState, error, fetchData, clearCache } = useNetworkData();
  *
- * onMounted(() => {
- *   fetchData(); // Uses cache if valid, otherwise fetches
+ * onMounted(async () => {
+ *   await fetchData(); // Uses cache if valid, otherwise fetches
  * });
  *
  * // Force refresh after data mutation
  * await saveChanges();
- * fetchData({ forceRefresh: true });
+ * await fetchData({ forceRefresh: true });
  * ```
  */
 

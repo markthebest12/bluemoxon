@@ -28,7 +28,7 @@ export function useUrlState() {
     if (query.connections) {
       const types = String(query.connections).split(",") as ConnectionType[];
       filters.connectionTypes = types.filter((t) =>
-        ["publisher", "shared_publisher", "binder"].includes(t)
+        (ALL_CONNECTION_TYPES as readonly string[]).includes(t)
       );
     }
 
