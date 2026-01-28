@@ -114,6 +114,14 @@ export default [
     },
   },
 
+  // Test files - allow multiple components per file (needed for test fixtures)
+  {
+    files: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    rules: {
+      "vue/one-component-per-file": "off",
+    },
+  },
+
   // Prettier must be last - disables conflicting rules
   prettier,
 ];
