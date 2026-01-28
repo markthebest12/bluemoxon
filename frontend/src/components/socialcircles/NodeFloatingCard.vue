@@ -139,14 +139,15 @@ let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
 watch(
   () => props.isOpen,
   (isOpen) => {
+    // Always clear any pending timeout first to prevent race conditions
+    if (focusTrapTimeout !== undefined) {
+      clearTimeout(focusTrapTimeout);
+      focusTrapTimeout = undefined;
+    }
+
     if (isOpen) {
       focusTrapTimeout = setTimeout(() => activate(), PANEL_ANIMATION.duration);
     } else {
-      // Clear timeout to prevent activating on unmounted element
-      if (focusTrapTimeout !== undefined) {
-        clearTimeout(focusTrapTimeout);
-        focusTrapTimeout = undefined;
-      }
       deactivate();
     }
   }

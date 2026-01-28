@@ -331,6 +331,13 @@ function handleViewProfile(_nodeId: NodeId) {
   showToastMessage("Entity profiles coming soon");
 }
 
+// Handle viewport changes (pan/zoom) - close floating card since position becomes stale
+function handleViewportChange() {
+  if (isPanelOpen.value) {
+    closePanel();
+  }
+}
+
 // Handle retry after error
 function handleRetry() {
   initialize().catch(console.error);
@@ -418,6 +425,7 @@ onUnmounted(() => {
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
+            @viewport-change="handleViewportChange"
           />
 
           <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
