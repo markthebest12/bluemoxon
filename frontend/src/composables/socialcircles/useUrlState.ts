@@ -62,11 +62,20 @@ export function useUrlState() {
   }
 
   // Update URL from state (debounced)
+  // Skips URL updates during playback to avoid history spam
   function updateUrl(params: {
     filters?: FilterState;
     selectedNode?: NodeId | null;
     year?: number;
+    isPlaying?: boolean;
   }) {
+    // Skip URL updates during timeline playback to avoid history spam
+    // Clear any pending update to prevent it firing during playback
+    if (params.isPlaying) {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      return;
+    }
+
     if (updateTimeout) clearTimeout(updateTimeout);
 
     updateTimeout = setTimeout(() => {
@@ -91,7 +100,7 @@ export function useUrlState() {
         query.selected = params.selectedNode;
       }
 
-      if (params.year) {
+      if (params.year != null) {
         query.year = String(params.year);
       }
 

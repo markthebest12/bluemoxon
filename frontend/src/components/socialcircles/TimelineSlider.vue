@@ -2,6 +2,9 @@
 /**
  * TimelineSlider - Timeline control for temporal filtering.
  * Supports point mode (single year) and range mode (date span).
+ *
+ * Supports v-model pattern via modelValue/update:modelValue.
+ * Also maintains backwards compatibility with currentYear prop.
  */
 
 import { ref, computed, watch } from "vue";
@@ -9,6 +12,9 @@ import { ref, computed, watch } from "vue";
 interface Props {
   minYear?: number;
   maxYear?: number;
+  /** v-model binding for year value */
+  modelValue?: number;
+  /** @deprecated Use modelValue instead. Kept for backwards compatibility. */
   currentYear?: number;
   mode?: "point" | "range";
   isPlaying?: boolean;
@@ -17,27 +23,37 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   minYear: 1780,
   maxYear: 1920,
-  currentYear: 1850,
+  modelValue: undefined,
+  currentYear: undefined,
   mode: "point",
   isPlaying: false,
 });
 
 const emit = defineEmits<{
+  /** v-model update event */
+  "update:modelValue": [year: number];
+  /** @deprecated Use update:modelValue instead */
   "year-change": [year: number];
   "mode-change": [mode: "point" | "range"];
   play: [];
   pause: [];
 }>();
 
-const localYear = ref(props.currentYear);
+// Computed for the effective year value (supports both v-model and legacy prop)
+const effectiveYear = computed(() => props.modelValue ?? props.currentYear ?? props.minYear);
 
-// Sync localYear when parent's currentYear prop changes
-watch(
-  () => props.currentYear,
-  (newYear) => {
-    localYear.value = newYear;
-  }
-);
+const localYear = ref(effectiveYear.value);
+
+// Sync localYear when parent's year prop changes (supports both patterns)
+watch(effectiveYear, (newYear) => {
+  localYear.value = newYear;
+});
+
+// Emit both new and legacy events for backwards compatibility
+function updateYear(year: number) {
+  emit("update:modelValue", year);
+  emit("year-change", year);
+}
 
 const yearLabel = computed(() => {
   return props.mode === "point" ? `${localYear.value}` : `${props.minYear} - ${localYear.value}`;
@@ -84,7 +100,7 @@ function handlePlay() {
         :max="maxYear"
         class="timeline-slider__input"
         aria-label="Timeline year selector"
-        @input="emit('year-change', localYear)"
+        @change="updateYear(localYear)"
       />
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
