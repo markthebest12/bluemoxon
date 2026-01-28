@@ -89,7 +89,7 @@ watch(
           }"
           @click.stop
           @touchstart="handleTouchStart"
-          @touchmove.passive="handleTouchMove"
+          @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
         >
           <div class="bottom-sheet-handle" />

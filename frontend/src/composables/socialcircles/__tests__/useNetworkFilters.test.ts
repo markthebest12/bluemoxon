@@ -670,13 +670,13 @@ describe("useNetworkFilters", () => {
       expect(hasActiveFilters.value).toBe(true);
     });
 
-    it("connection types with duplicates are handled (no deduplication)", async () => {
+    it("connection types with duplicates are deduplicated", async () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { filters, setConnectionTypes } = useNetworkFilters();
 
-      // The composable does not deduplicate, so this passes through as-is
+      // The composable deduplicates to prevent unexpected filter counts
       setConnectionTypes(["publisher", "publisher", "binder"]);
-      expect(filters.value.connectionTypes).toEqual(["publisher", "publisher", "binder"]);
+      expect(filters.value.connectionTypes).toEqual(["publisher", "binder"]);
     });
   });
 

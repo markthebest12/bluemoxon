@@ -31,6 +31,10 @@ CACHE_TTL_SECONDS = 300
 # Cache key prefix for social circles graph data
 CACHE_KEY_PREFIX = "social_circles:graph"
 
+# Maximum cache entry size in bytes (10 MB)
+# Prevents caching extremely large graphs that could cause memory issues
+MAX_CACHE_SIZE_BYTES = 10 * 1024 * 1024
+
 
 def get_cache_key(include_binders: bool, min_book_count: int, max_books: int) -> str:
     """Generate deterministic cache key from query parameters.
@@ -110,6 +114,17 @@ def _set_cached_graph_sync(client: Redis, cache_key: str, response: SocialCircle
     try:
         # Serialize using Pydantic's model_dump with JSON-compatible output
         serialized = json.dumps(response.model_dump(mode="json"), default=str)
+
+        # Skip caching if serialized data exceeds size limit
+        if len(serialized) > MAX_CACHE_SIZE_BYTES:
+            logger.warning(
+                "Skip caching %s: size %d bytes exceeds limit %d bytes",
+                cache_key,
+                len(serialized),
+                MAX_CACHE_SIZE_BYTES,
+            )
+            return
+
         client.setex(cache_key, CACHE_TTL_SECONDS, serialized)
         logger.debug("Cached %s with TTL %ds", cache_key, CACHE_TTL_SECONDS)
     except Exception as e:
@@ -138,6 +153,13 @@ async def set_cached_graph(cache_key: str, response: SocialCirclesResponse) -> N
 def _invalidate_cache_sync(client: Redis) -> int:
     """Synchronous implementation of cache invalidation.
 
+    Note: This uses SCAN + DELETE which is not atomic. In high-concurrency
+    scenarios, keys could be added between scan and delete, leaving stale data.
+    This is acceptable because:
+    1. Cache entries have a TTL, so stale data will expire naturally
+    2. Full invalidation is rare (only on data changes)
+    3. Atomicity is not critical for cache - stale reads are tolerable
+
     Args:
         client: Redis client instance.
 
@@ -145,7 +167,7 @@ def _invalidate_cache_sync(client: Redis) -> int:
         Number of keys deleted.
     """
     try:
-        # Find all social circles cache keys
+        # Find all social circles cache keys using SCAN (cursor-based, safe for large keyspaces)
         pattern = f"{CACHE_KEY_PREFIX}:*"
         keys = list(client.scan_iter(match=pattern))
         if keys:

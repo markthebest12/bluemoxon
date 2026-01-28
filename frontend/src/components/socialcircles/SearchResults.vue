@@ -121,11 +121,18 @@ function highlightMatch(name: string): string {
 
 /**
  * Escapes HTML special characters to prevent XSS.
+ * Uses string replacement for better performance (avoids DOM allocation).
  */
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+  return text.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
 }
 
 /**

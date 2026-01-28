@@ -36,6 +36,9 @@ const viewportRect = ref({ x: 0, y: 0, width: 0, height: 0 });
 // Track event handler for cleanup
 let boundHandler: (() => void) | null = null;
 
+// Track setTimeout for cleanup on unmount
+let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 // Computed style for viewport indicator
 const viewportStyle = computed(() => ({
   left: `${viewportRect.value.x}px`,
@@ -235,9 +238,16 @@ function cleanupEventListeners() {
 watch(
   () => props.cy,
   (newCy) => {
+    // Clear any pending init timeout
+    if (initTimeoutId !== null) {
+      clearTimeout(initTimeoutId);
+      initTimeoutId = null;
+    }
+
     if (newCy) {
       // Wait a tick for cytoscape to be fully initialized
-      setTimeout(() => {
+      initTimeoutId = setTimeout(() => {
+        initTimeoutId = null;
         setupEventListeners();
       }, 100);
     } else {
@@ -249,6 +259,11 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
+  // Clear pending init timeout
+  if (initTimeoutId !== null) {
+    clearTimeout(initTimeoutId);
+    initTimeoutId = null;
+  }
   cleanupEventListeners();
 });
 

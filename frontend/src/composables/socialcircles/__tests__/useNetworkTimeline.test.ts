@@ -459,7 +459,8 @@ describe("useNetworkTimeline", () => {
       timeline.setDateRange(1850, 1850);
 
       expect(timeline.timeline.value.currentYear).toBe(1850);
-      expect(timeline.progress.value).toBeNaN(); // Division by zero
+      // When minYear === maxYear, progress returns 100 (at full progress)
+      expect(timeline.progress.value).toBe(100);
 
       // Stepping should not change year
       timeline.stepForward();
