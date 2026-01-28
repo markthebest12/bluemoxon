@@ -23,6 +23,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   minYear: 1780,
   maxYear: 1920,
+  modelValue: undefined,
+  currentYear: undefined,
   mode: "point",
   isPlaying: false,
 });
