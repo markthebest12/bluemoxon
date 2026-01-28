@@ -9,7 +9,7 @@ import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 import { api } from "@/services/api";
-import type { ApiNode, ApiEdge, NodeId, ConnectionType } from "@/types/socialCircles";
+import type { ApiNode, ApiEdge, NodeId, ConnectionType, NodeType } from "@/types/socialCircles";
 import {
   getPlaceholderImage,
   renderStrength,
@@ -17,6 +17,13 @@ import {
 } from "@/utils/socialCircles/formatters";
 import { PANEL_ANIMATION } from "@/constants/socialCircles";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
+
+/** Display labels for entity types */
+const TYPE_LABELS: Record<NodeType, string> = {
+  author: "Author",
+  publisher: "Publisher",
+  binder: "Bindery",
+};
 
 interface Props {
   edge: ApiEdge | null;
@@ -310,17 +317,10 @@ onUnmounted(() => {
       <!-- Footer (sticky) -->
       <footer class="edge-sidebar__footer">
         <button class="edge-sidebar__view-button" @click="emit('selectNode', sourceNode.id)">
-          View {{ sourceNode.type === "author" ? "Author" : sourceNode.type }}
+          View {{ TYPE_LABELS[sourceNode.type] || sourceNode.type }}
         </button>
         <button class="edge-sidebar__view-button" @click="emit('selectNode', targetNode.id)">
-          View
-          {{
-            targetNode.type === "publisher"
-              ? "Publisher"
-              : targetNode.type === "binder"
-                ? "Bindery"
-                : targetNode.type
-          }}
+          View {{ TYPE_LABELS[targetNode.type] || targetNode.type }}
         </button>
       </footer>
     </aside>
