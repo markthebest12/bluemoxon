@@ -1,8 +1,41 @@
 /**
- * useNetworkData - Fetches and caches social circles data.
+ * useNetworkData - Fetches and caches social circles network data.
  *
- * Cache is instance-scoped to prevent data leakage across SPA navigation
- * and user sessions. Each composable instance maintains its own cache.
+ * ## Cache Behavior
+ *
+ * This composable uses **instance-scoped caching**:
+ * - Each component instance gets its own cache
+ * - Navigating away destroys the cache
+ * - Returning to the page triggers a fresh fetch
+ *
+ * This is intentional for several reasons:
+ * 1. **Prevents stale data** - Network data can change frequently as books
+ *    are added/removed, so fresh fetches ensure accuracy
+ * 2. **Avoids complex invalidation** - No need to track user/auth changes
+ *    or coordinate cache invalidation across components
+ * 3. **Memory management** - Cache is automatically cleaned up when component
+ *    unmounts, preventing memory leaks in long-running sessions
+ * 4. **Simplicity** - The 5-minute TTL is sufficient for within-session use;
+ *    cross-navigation caching adds complexity without significant benefit
+ *    given typical user navigation patterns
+ *
+ * If cross-navigation caching is needed in the future, consider:
+ * - Pinia store for reactive state management with devtools support
+ * - Module-level cache with auth-aware invalidation hooks
+ * - Service worker caching for offline support
+ *
+ * @example
+ * ```ts
+ * const { data, loadingState, error, fetchData, clearCache } = useNetworkData();
+ *
+ * onMounted(() => {
+ *   fetchData(); // Uses cache if valid, otherwise fetches
+ * });
+ *
+ * // Force refresh after data mutation
+ * await saveChanges();
+ * fetchData({ forceRefresh: true });
+ * ```
  */
 
 import { ref, readonly } from "vue";
