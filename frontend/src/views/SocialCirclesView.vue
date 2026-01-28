@@ -12,6 +12,7 @@ import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
 import { useSocialCircles } from "@/composables/socialcircles";
 import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
+import type { Mutable } from "@/types/utils";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
 // Components
@@ -130,18 +131,8 @@ function showToastMessage(message: string) {
   }, 3000);
 }
 
-// Tooltip state for edge hover - store only the data we need, not the readonly ref
-interface HoveredEdgeData {
-  id: string;
-  source: string;
-  target: string;
-  type: ConnectionType;
-  strength: number;
-  evidence?: string;
-  shared_book_ids?: number[];
-  start_year?: number;
-  end_year?: number;
-}
+// Tooltip state for edge hover - use Mutable<ApiEdge> to avoid duplicating fields
+type HoveredEdgeData = Mutable<ApiEdge>;
 const hoveredEdge = ref<HoveredEdgeData | null>(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 
