@@ -305,6 +305,10 @@ class BookListResponse(PaginatedResponse):
     """Paginated list of books."""
 
     items: list[BookResponse]
+    # IDs truncation indicator (for ?ids= parameter)
+    ids_truncated: bool = False
+    ids_requested: int | None = None
+    ids_processed: int | None = None
 
 
 class AcquireRequest(BaseModel):
