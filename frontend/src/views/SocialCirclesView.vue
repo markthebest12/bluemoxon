@@ -39,17 +39,15 @@ import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
 
+// Typed refs for composables (avoids inline import casts)
+const typedNodes = computed(() => socialCircles.nodes.value as ApiNode[]);
+const typedEdges = computed(() => socialCircles.edges.value as ApiEdge[]);
+
 // Initialize path finder composable
-const pathFinder = usePathFinder(
-  computed(() => socialCircles.nodes.value as import("@/types/socialCircles").ApiNode[]),
-  computed(() => socialCircles.edges.value as import("@/types/socialCircles").ApiEdge[])
-);
+const pathFinder = usePathFinder(typedNodes, typedEdges);
 
 // Initialize find similar composable
-const findSimilar = useFindSimilar(
-  computed(() => socialCircles.nodes.value as import("@/types/socialCircles").ApiNode[]),
-  computed(() => socialCircles.edges.value as import("@/types/socialCircles").ApiEdge[])
-);
+const findSimilar = useFindSimilar(typedNodes, typedEdges);
 
 // Path finder state for template
 const pathState = computed(() => ({
@@ -403,7 +401,18 @@ function handleClearPath() {
 // Find similar handler (W2-6)
 function handleFindSimilar(nodeId: string) {
   findSimilar.findSimilar(nodeId as NodeId);
-  showToastMessage(`Finding nodes similar to selected person...`);
+  const count = findSimilar.similarNodes.value.length;
+  if (count > 0) {
+    // Show top 3 similar node names in toast
+    const topNames = findSimilar.similarNodes.value
+      .slice(0, 3)
+      .map((s) => s.node.name)
+      .join(", ");
+    const suffix = count > 3 ? ` and ${count - 3} more` : "";
+    showToastMessage(`Similar: ${topNames}${suffix}`);
+  } else {
+    showToastMessage(`No similar nodes found`);
+  }
 }
 
 // Lifecycle
