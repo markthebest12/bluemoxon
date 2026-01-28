@@ -8,6 +8,20 @@
 import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
 
 // =============================================================================
+// Connection Types
+// =============================================================================
+
+/**
+ * All connection types for filter validation.
+ * Type assertion ensures this array stays in sync with ConnectionType union.
+ */
+export const ALL_CONNECTION_TYPES = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+] as const satisfies readonly ConnectionType[];
+
+// =============================================================================
 // Victorian Color Palette
 // =============================================================================
 
@@ -101,7 +115,8 @@ export const ANIMATION = {
   panelSlide: 300,
   layoutReflow: 800,
   debounceFilter: 100,
-  debounceUrl: 300,
+  /** Debounce for URL state sync (reduced from 300ms for faster response) */
+  debounceUrl: 100,
 } as const;
 
 // =============================================================================

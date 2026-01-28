@@ -5,7 +5,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import type { FilterState, NodeId, Era, ConnectionType } from "@/types/socialCircles";
-import { ANIMATION } from "@/constants/socialCircles";
+import { ALL_CONNECTION_TYPES, ANIMATION } from "@/constants/socialCircles";
 
 export function useUrlState() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export function useUrlState() {
     if (query.connections) {
       const types = String(query.connections).split(",") as ConnectionType[];
       filters.connectionTypes = types.filter((t) =>
-        ["publisher", "shared_publisher", "binder"].includes(t)
+        (ALL_CONNECTION_TYPES as readonly string[]).includes(t)
       );
     }
 
@@ -62,11 +62,20 @@ export function useUrlState() {
   }
 
   // Update URL from state (debounced)
+  // Skips URL updates during playback to avoid history spam
   function updateUrl(params: {
     filters?: FilterState;
     selectedNode?: NodeId | null;
     year?: number;
+    isPlaying?: boolean;
   }) {
+    // Skip URL updates during timeline playback to avoid history spam
+    // Clear any pending update to prevent it firing during playback
+    if (params.isPlaying) {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      return;
+    }
+
     if (updateTimeout) clearTimeout(updateTimeout);
 
     updateTimeout = setTimeout(() => {
@@ -79,7 +88,7 @@ export function useUrlState() {
         if (!f.showBinders) query.binders = "false";
         if (f.tier1Only) query.tier1 = "true";
         if (f.searchQuery) query.search = f.searchQuery;
-        if (f.connectionTypes.length < 3) {
+        if (f.connectionTypes.length < ALL_CONNECTION_TYPES.length) {
           query.connections = f.connectionTypes.join(",");
         }
         if (f.eras.length > 0) {
@@ -91,7 +100,7 @@ export function useUrlState() {
         query.selected = params.selectedNode;
       }
 
-      if (params.year) {
+      if (params.year != null) {
         query.year = String(params.year);
       }
 

@@ -26,6 +26,15 @@ from app.schemas.social_circles import (
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+# Maximum book IDs to include per node to reduce response size
+# Frontend only displays first few anyway
+MAX_BOOK_IDS_PER_NODE = 10
+
+# Default date range for Victorian collection when no node years available.
+# These values are reasonable defaults for a Victorian book collection.
+# Could be moved to settings if configurability is needed.
+DEFAULT_DATE_RANGE = (1800, 1900)
+
 
 def get_era_from_year(year: int | None) -> Era:
     """Determine historical era from a year."""
@@ -46,6 +55,7 @@ def build_social_circles_graph(
     db: Session,
     include_binders: bool = True,
     min_book_count: int = 1,
+    max_books: int = 5000,
     era_filter: list[Era] | None = None,
 ) -> SocialCirclesResponse:
     """Build the social circles graph from book data.
@@ -54,6 +64,7 @@ def build_social_circles_graph(
         db: Database session
         include_binders: Whether to include binder nodes/edges
         min_book_count: Minimum books for an entity to be included
+        max_books: Maximum number of books to process (prevents OOM in Lambda)
         era_filter: Optional list of eras to filter by
 
     Returns:
@@ -62,13 +73,12 @@ def build_social_circles_graph(
     from app.models import Author, Binder, Book, Publisher
 
     # Fetch owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
-    # Limit to 5000 to prevent OOM in Lambda (1GB memory limit)
-    MAX_BOOKS = 5000
-    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
+    # Limit to max_books to prevent OOM in Lambda (1GB memory limit)
+    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(max_books)
     books = books_query.all()
 
     # Check if we hit the limit (truncation likely occurred)
-    truncated = len(books) == MAX_BOOKS
+    truncated = len(books) == max_books
 
     # Build node maps
     nodes: dict[str, SocialCircleNode] = {}
@@ -121,7 +131,7 @@ def build_social_circles_graph(
             era=era,
             tier=author.tier,
             book_count=len(book_ids),
-            book_ids=book_ids,
+            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build publisher nodes
@@ -140,7 +150,7 @@ def build_social_circles_graph(
             type=NodeType.publisher,
             tier=publisher.tier,
             book_count=len(book_ids_set),
-            book_ids=list(book_ids_set),
+            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build binder nodes
@@ -160,7 +170,7 @@ def build_social_circles_graph(
                 type=NodeType.binder,
                 tier=binder.tier,
                 book_count=len(book_ids_set),
-                book_ids=list(book_ids_set),
+                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
             )
 
     # Build edges: Author -> Publisher
@@ -202,8 +212,13 @@ def build_social_circles_graph(
 
         author_list = list(author_ids)
         # Limit authors to prevent combinatorial explosion
+        # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
-            author_list = author_list[:MAX_AUTHORS_PER_PUBLISHER]
+            author_list = sorted(
+                author_list,
+                key=lambda a: len(author_books[a]),
+                reverse=True,
+            )[:MAX_AUTHORS_PER_PUBLISHER]
 
         for i, author1_id in enumerate(author_list):
             author1_node_id = f"author:{author1_id}"
@@ -271,7 +286,10 @@ def build_social_circles_graph(
         if node.death_year:
             years.append(node.death_year)
 
-    date_range = (min(years) if years else 1800, max(years) if years else 1900)
+    date_range = (
+        min(years) if years else DEFAULT_DATE_RANGE[0],
+        max(years) if years else DEFAULT_DATE_RANGE[1],
+    )
 
     # Build metadata
     meta = SocialCirclesMeta(

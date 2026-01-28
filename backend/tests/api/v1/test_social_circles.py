@@ -288,6 +288,183 @@ class TestSocialCirclesAuth:
         assert response.status_code == 200
 
 
+class TestSocialCirclesHealthEndpoint:
+    """Tests for /social-circles/health endpoint."""
+
+    def test_social_circles_health_endpoint(self, client, db):
+        """Health endpoint should validate social circles data and performance."""
+        # Create some test data
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles/health")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert "latency_ms" in data
+        assert "checks" in data
+        assert "node_counts" in data["checks"]
+        assert "edge_counts" in data["checks"]
+        assert "query_performance" in data["checks"]
+
+    def test_social_circles_health_empty_data(self, client, db):
+        """Health endpoint should return healthy even with no data."""
+        response = client.get("/api/v1/social-circles/health")
+        assert response.status_code == 200
+
+        data = response.json()
+        # With no data, should still report status (though may be degraded)
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert "latency_ms" in data
+
+
+class TestBookIdsLimit:
+    """Tests for book_ids limiting per node."""
+
+    def test_book_ids_limited_per_node(self, client, db):
+        """Node book_ids should be limited to prevent response bloat."""
+        # Create prolific author with 50 books
+        author = Author(name="Prolific Author")
+        db.add(author)
+        db.flush()
+
+        # Create 50 books for this author
+        for i in range(50):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles/")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find author node
+        author_nodes = [n for n in data["nodes"] if n["type"] == "author"]
+        assert len(author_nodes) == 1
+        author_node = author_nodes[0]
+
+        # book_ids should be limited (to 10)
+        assert len(author_node["book_ids"]) <= 10
+
+        # But book_count should reflect actual count
+        assert author_node["book_count"] == 50
+
+
+class TestMaxBooksQueryParam:
+    """Tests for max_books query parameter."""
+
+    def test_max_books_query_parameter(self, client, db):
+        """max_books query parameter should limit the number of books processed."""
+        # Create 150 books with unique authors to ensure they appear in graph
+        for i in range(150):
+            author = Author(name=f"Author {i}")
+            db.add(author)
+            db.flush()
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        # Request with max_books=100
+        response = client.get("/api/v1/social-circles?max_books=100")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should process at most 100 books
+        assert data["meta"]["total_books"] <= 100
+
+    def test_max_books_validation_too_small(self, client, db):
+        """max_books should reject values below 100."""
+        response = client.get("/api/v1/social-circles?max_books=50")
+        assert response.status_code == 422  # Validation error
+
+    def test_max_books_validation_too_large(self, client, db):
+        """max_books should reject values above 10000."""
+        response = client.get("/api/v1/social-circles?max_books=20000")
+        assert response.status_code == 422  # Validation error
+
+    def test_max_books_default_value(self, client, db):
+        """max_books should default to 5000."""
+        # Create a few books to verify the endpoint works
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        # Default request without max_books parameter
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+        # If default is 5000, we should get all our books (just 1)
+        data = response.json()
+        assert data["meta"]["total_books"] == 1
+
+
+class TestSharedPublisherTruncation:
+    """Tests for shared_publisher truncation behavior."""
+
+    def test_shared_publisher_truncation_is_deterministic(self, client, db):
+        """When >20 authors share a publisher, truncation should be deterministic."""
+        # Create publisher with 25 authors
+        publisher = Publisher(name="Test Publisher")
+        db.add(publisher)
+        db.flush()
+
+        authors = []
+        for i in range(25):
+            author = Author(name=f"Author {i:02d}")
+            db.add(author)
+            authors.append(author)
+        db.flush()
+
+        # Create books with varying counts per author
+        # Authors 0-4 get 5 books each, 5-9 get 4 books, etc.
+        for i, author in enumerate(authors):
+            book_count = max(1, 5 - (i // 5))
+            for j in range(book_count):
+                book = Book(
+                    title=f"Book {i}-{j}",
+                    author_id=author.id,
+                    publisher_id=publisher.id,
+                    status="ON_HAND",
+                )
+                db.add(book)
+        db.commit()
+
+        # Build graph twice
+        from app.services.social_circles import build_social_circles_graph
+
+        result1 = build_social_circles_graph(db)
+        result2 = build_social_circles_graph(db)
+
+        # Extract shared_publisher edges
+        edges1 = [e for e in result1.edges if e.type.value == "shared_publisher"]
+        edges2 = [e for e in result2.edges if e.type.value == "shared_publisher"]
+
+        # Should be identical (deterministic)
+        assert sorted(e.id for e in edges1) == sorted(e.id for e in edges2)
+
+        # Most prolific authors should be included
+        # Authors 0-4 each have 5 books, should be prioritized
+        included_author_ids = set()
+        for edge in edges1:
+            if edge.source.startswith("author:"):
+                included_author_ids.add(int(edge.source.split(":")[1]))
+            if edge.target.startswith("author:"):
+                included_author_ids.add(int(edge.target.split(":")[1]))
+
+        # First 5 authors (most prolific with 5 books each) should be included
+        for author in authors[:5]:
+            assert author.id in included_author_ids, (
+                f"Author {author.name} with 5 books should be included in truncated set"
+            )
+
+
 class TestSocialCirclesEdgeCases:
     """Tests for edge cases and complex scenarios."""
 
@@ -397,3 +574,96 @@ class TestSocialCirclesEdgeCases:
                 assert node["era"] == expected, (
                     f"Birth year {birth} should be {expected}, got {node['era']}"
                 )
+
+
+class TestTruncationBehavior:
+    """Tests for the truncated flag in social circles response."""
+
+    def test_truncated_false_when_under_limit(self, client, db):
+        """truncated should be False when under MAX_BOOKS limit."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+
+    def test_truncated_flag_exists_in_meta(self, client, db):
+        """Response meta should always include truncated flag."""
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "truncated" in data["meta"]
+        assert isinstance(data["meta"]["truncated"], bool)
+
+    def test_truncated_false_with_empty_data(self, client, db):
+        """truncated should be False when no books exist."""
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+        assert data["meta"]["total_books"] == 0
+
+    def test_truncated_false_with_moderate_data(self, client, db):
+        """truncated should be False with moderate number of books."""
+        author = Author(name="Prolific Author")
+        db.add(author)
+        db.flush()
+
+        for i in range(100):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+        assert data["meta"]["total_books"] == 100
+
+    def test_total_books_reflects_actual_count(self, client, db):
+        """total_books in meta should reflect the actual number of books processed."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        for i in range(50):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["total_books"] == 50
+
+    def test_non_owned_books_not_counted_in_total(self, client, db):
+        """total_books should only count ON_HAND and IN_TRANSIT statuses."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        owned = Book(title="Owned", author_id=author.id, status="ON_HAND")
+        transit = Book(title="Transit", author_id=author.id, status="IN_TRANSIT")
+        evaluating = Book(title="Evaluating", author_id=author.id, status="EVALUATING")
+        removed = Book(title="Removed", author_id=author.id, status="REMOVED")
+        db.add_all([owned, transit, evaluating, removed])
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["total_books"] == 2
+        assert data["meta"]["truncated"] is False
