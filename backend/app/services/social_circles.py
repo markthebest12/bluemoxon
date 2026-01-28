@@ -30,6 +30,11 @@ if TYPE_CHECKING:
 # Frontend only displays first few anyway
 MAX_BOOK_IDS_PER_NODE = 10
 
+# Default date range for Victorian collection when no node years available.
+# These values are reasonable defaults for a Victorian book collection.
+# Could be moved to settings if configurability is needed.
+DEFAULT_DATE_RANGE = (1800, 1900)
+
 
 def get_era_from_year(year: int | None) -> Era:
     """Determine historical era from a year."""
@@ -281,7 +286,10 @@ def build_social_circles_graph(
         if node.death_year:
             years.append(node.death_year)
 
-    date_range = (min(years) if years else 1800, max(years) if years else 1900)
+    date_range = (
+        min(years) if years else DEFAULT_DATE_RANGE[0],
+        max(years) if years else DEFAULT_DATE_RANGE[1],
+    )
 
     # Build metadata
     meta = SocialCirclesMeta(
