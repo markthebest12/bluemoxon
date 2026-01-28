@@ -61,6 +61,12 @@ class BookListParams(BaseModel):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=20, ge=1, le=100)
 
+    # ID filter - comma-separated list of book IDs to fetch
+    ids: str | None = Field(
+        default=None,
+        description="Comma-separated list of book IDs to filter by (e.g., '1,2,3')",
+    )
+
     # Search
     q: str | None = Field(default=None, description="Search query for title, author, notes")
 

@@ -39,6 +39,7 @@ const emit = defineEmits<{
   "edge-select": [edgeId: string | null];
   "node-hover": [nodeId: string | null];
   "edge-hover": [edgeId: string | null, event: MouseEvent | null];
+  "viewport-change": [];
 }>();
 
 // Refs
@@ -162,6 +163,11 @@ function setupEventHandlers() {
 
   cy.value.on("mouseout", "edge", () => {
     emit("edge-hover", null, null);
+  });
+
+  // Emit viewport changes (pan/zoom) so parent can close floating cards
+  cy.value.on("pan zoom", () => {
+    emit("viewport-change");
   });
 }
 

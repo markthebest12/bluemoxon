@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@types/dompurify": "^3.2.0",
+    "@vueuse/core": "^14.1.0",
+    "@vueuse/integrations": "^14.1.0",
     "aws-amplify": "^6.16.0",
     "axios": "^1.6.0",
     "chart.js": "^4.5.1",

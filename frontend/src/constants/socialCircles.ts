@@ -200,3 +200,79 @@ export const KEYBOARD_SHORTCUTS = {
   prevNode: ["ArrowLeft"],
   openDetails: ["Enter"],
 } as const;
+
+// =============================================================================
+// Detail Panel Colors (from design doc)
+// =============================================================================
+
+export const PANEL_COLORS = {
+  // Backgrounds
+  cardBg: "#F5F1E8",
+  sidebarBg: "#FAF8F3",
+  skeletonBg: "#E8E4DB",
+
+  // Text
+  textPrimary: "#2C2416",
+  textSecondary: "#5C5446",
+  textMuted: "#8B8579",
+
+  // Interactive
+  accentGold: "#B8860B",
+  hover: "#8B4513",
+  selected: "#2C5F77",
+  link: "#6B4423",
+
+  // Borders
+  border: "#D4CFC4",
+  borderStrong: "#A69F92",
+
+  // Entity accents
+  author: "#7B4B94",
+  publisher: "#2C5F77",
+  binder: "#8B4513",
+} as const;
+
+// =============================================================================
+// Panel Animation Config
+// =============================================================================
+
+export const PANEL_ANIMATION = {
+  duration: 200,
+  easing: "cubic-bezier(0.4, 0.0, 0.2, 1)",
+  easingOut: "cubic-bezier(0.4, 0.0, 1, 1)",
+} as const;
+
+// =============================================================================
+// Panel Dimensions
+// =============================================================================
+
+export const PANEL_DIMENSIONS = {
+  card: {
+    width: 280,
+    maxHeight: 400,
+    margin: 20,
+  },
+  sidebar: {
+    widthPercent: 35,
+    minWidth: 320,
+    maxWidth: 500,
+  },
+} as const;
+
+// =============================================================================
+// Responsive Breakpoints
+// =============================================================================
+
+export const BREAKPOINTS = {
+  mobile: 768,
+  tablet: 1024,
+} as const;
+
+// =============================================================================
+// Touch Targets (Accessibility)
+// =============================================================================
+
+export const TOUCH_TARGETS = {
+  minSize: 44,
+  minSizeAndroid: 48,
+} as const;

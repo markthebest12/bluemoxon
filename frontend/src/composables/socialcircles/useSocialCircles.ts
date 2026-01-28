@@ -437,6 +437,19 @@ export function useSocialCircles() {
     { deep: true }
   );
 
+  // Toggle selection handlers (for new panel components)
+  function toggleSelectNode(nodeId: string) {
+    selection.toggleSelectNode(nodeId as NodeId);
+  }
+
+  function toggleSelectEdge(edgeId: string) {
+    selection.toggleSelectEdge(edgeId as EdgeId);
+  }
+
+  function closePanel() {
+    selection.closePanel();
+  }
+
   return {
     // Data
     nodes,
@@ -466,6 +479,13 @@ export function useSocialCircles() {
     selectNode,
     selectEdge,
     clearSelection,
+    // Toggle selection (new panel behavior)
+    toggleSelectNode,
+    toggleSelectEdge,
+    closePanel,
+    isPanelOpen: selection.isPanelOpen,
+    isNodeSelected: selection.isNodeSelected,
+    isEdgeSelected: selection.isEdgeSelected,
 
     // Timeline
     timelineState,
