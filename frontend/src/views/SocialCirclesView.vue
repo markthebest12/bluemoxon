@@ -131,7 +131,9 @@ function showToastMessage(message: string) {
   }, 3000);
 }
 
-// Tooltip state for edge hover - use Mutable<ApiEdge> to avoid duplicating fields
+// Tooltip state for edge hover
+// Use Mutable<ApiEdge> because edges from the composable are readonly refs,
+// but we need a mutable copy for the tooltip's reactive state
 type HoveredEdgeData = Mutable<ApiEdge>;
 const hoveredEdge = ref<HoveredEdgeData | null>(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
