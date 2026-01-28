@@ -407,6 +407,20 @@ def list_books(
 
     query = db.query(Book)
 
+    # Filter by IDs if provided (comma-separated list, max 100 IDs)
+    if params.ids:
+        try:
+            id_list = [int(id_str.strip()) for id_str in params.ids.split(",") if id_str.strip()]
+            if len(id_list) > 100:
+                id_list = id_list[:100]  # Cap at 100 IDs to prevent abuse
+            if id_list:
+                query = query.filter(Book.id.in_(id_list))
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid 'ids' parameter: must be comma-separated integers",
+            ) from None
+
     # Apply search query
     if params.q:
         search_term = f"%{params.q}%"

@@ -11,29 +11,32 @@ import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCi
 // Victorian Color Palette
 // =============================================================================
 
-/** Node colors by type and variant */
+/** Node colors by type and variant (hex values - Cytoscape doesn't support CSS variables) */
 export const NODE_COLORS: Record<string, string> = {
   // Authors by era
-  "author:romantic": "var(--color-victorian-burgundy-light)", // #8b3a42
-  "author:victorian": "var(--color-victorian-hunter-700)", // #254a3d
-  "author:edwardian": "var(--color-victorian-hunter-500)", // #3a6b5c
-  "author:default": "var(--color-victorian-hunter-600)", // #2f5a4b
+  "author:pre_romantic": "#6b3a4a", // muted burgundy for pre-romantic
+  "author:romantic": "#8b3a42", // burgundy-light
+  "author:victorian": "#254a3d", // hunter-700
+  "author:edwardian": "#3a6b5c", // hunter-500
+  "author:post_1910": "#4a7b6c", // lighter hunter for post-1910
+  "author:unknown": "#2f5a4b", // hunter-600 default
+  "author:default": "#2f5a4b", // hunter-600
 
   // Publishers by tier
-  "publisher:tier1": "var(--color-victorian-gold-light)", // #d4af37
-  "publisher:tier2": "var(--color-victorian-gold-muted)", // #b8956e
-  "publisher:default": "var(--color-victorian-gold)", // #c9a227
+  "publisher:tier1": "#d4af37", // gold-light
+  "publisher:tier2": "#b8956e", // gold-muted
+  "publisher:default": "#c9a227", // gold
 
   // Binders
-  "binder:tier1": "var(--color-victorian-burgundy-dark)", // #5c262e
-  "binder:default": "var(--color-victorian-burgundy)", // #722f37
+  "binder:tier1": "#5c262e", // burgundy-dark
+  "binder:default": "#722f37", // burgundy
 };
 
-/** Edge colors by connection type */
+/** Edge colors by connection type (hex values - Cytoscape doesn't support CSS variables) */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
-  publisher: "var(--color-victorian-gold)", // #c9a227
-  shared_publisher: "var(--color-victorian-hunter-500)", // #3a6b5c
-  binder: "var(--color-victorian-burgundy)", // #722f37
+  publisher: "#c9a227", // gold
+  shared_publisher: "#3a6b5c", // hunter-500
+  binder: "#722f37", // burgundy
 };
 
 // =============================================================================
@@ -199,4 +202,80 @@ export const KEYBOARD_SHORTCUTS = {
   nextNode: ["ArrowRight"],
   prevNode: ["ArrowLeft"],
   openDetails: ["Enter"],
+} as const;
+
+// =============================================================================
+// Detail Panel Colors (from design doc)
+// =============================================================================
+
+export const PANEL_COLORS = {
+  // Backgrounds
+  cardBg: "#F5F1E8",
+  sidebarBg: "#FAF8F3",
+  skeletonBg: "#E8E4DB",
+
+  // Text
+  textPrimary: "#2C2416",
+  textSecondary: "#5C5446",
+  textMuted: "#8B8579",
+
+  // Interactive
+  accentGold: "#B8860B",
+  hover: "#8B4513",
+  selected: "#2C5F77",
+  link: "#6B4423",
+
+  // Borders
+  border: "#D4CFC4",
+  borderStrong: "#A69F92",
+
+  // Entity accents
+  author: "#7B4B94",
+  publisher: "#2C5F77",
+  binder: "#8B4513",
+} as const;
+
+// =============================================================================
+// Panel Animation Config
+// =============================================================================
+
+export const PANEL_ANIMATION = {
+  duration: 200,
+  easing: "cubic-bezier(0.4, 0.0, 0.2, 1)",
+  easingOut: "cubic-bezier(0.4, 0.0, 1, 1)",
+} as const;
+
+// =============================================================================
+// Panel Dimensions
+// =============================================================================
+
+export const PANEL_DIMENSIONS = {
+  card: {
+    width: 280,
+    maxHeight: 400,
+    margin: 20,
+  },
+  sidebar: {
+    widthPercent: 35,
+    minWidth: 320,
+    maxWidth: 500,
+  },
+} as const;
+
+// =============================================================================
+// Responsive Breakpoints
+// =============================================================================
+
+export const BREAKPOINTS = {
+  mobile: 768,
+  tablet: 1024,
+} as const;
+
+// =============================================================================
+// Touch Targets (Accessibility)
+// =============================================================================
+
+export const TOUCH_TARGETS = {
+  minSize: 44,
+  minSizeAndroid: 48,
 } as const;
