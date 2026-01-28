@@ -1438,7 +1438,7 @@ jobs:
           else
             echo "No backend deploy - checking basic API health..."
             for i in {1..20}; do
-              if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
+              if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
                 exit 0
               fi
@@ -1501,7 +1501,7 @@ jobs:
       - name: Test API liveness
         run: |
           API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/health")
+          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/health/deep")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then
