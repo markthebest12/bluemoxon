@@ -18,8 +18,12 @@ export function useClickOutside(elementRef: Ref<HTMLElement | null>, callback: (
   }
 
   onMounted(() => {
-    // Use capture phase to catch clicks before they're stopped by other handlers
-    document.addEventListener("click", handleClick, true);
+    // Defer adding listener by one frame to avoid catching the click that opened the panel.
+    // Without this, clicking a node to open the panel would immediately close it because
+    // the same click event is still propagating when the listener is added.
+    requestAnimationFrame(() => {
+      document.addEventListener("click", handleClick, true);
+    });
   });
 
   onUnmounted(() => {

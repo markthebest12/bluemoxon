@@ -23,12 +23,10 @@ describe("useClickOutside", () => {
 
     const wrapper = mount(TestComponent, { attachTo: document.body });
     await nextTick();
+    // Wait for requestAnimationFrame in useClickOutside
+    await new Promise((r) => requestAnimationFrame(r));
 
     // Click outside the element
-    const outsideEl = wrapper.find('[data-testid="outside"]');
-    await outsideEl.trigger("click");
-
-    // Also dispatch on document to simulate real behavior
     document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(callback).toHaveBeenCalled();
@@ -87,6 +85,42 @@ describe("useClickOutside", () => {
     document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("should NOT trigger on the click that caused component mount", async () => {
+    // This tests the scenario where clicking a node opens a panel.
+    // The same click event that opens the panel should NOT close it.
+    const callback = vi.fn();
+
+    const TestComponent = defineComponent({
+      setup() {
+        const elementRef = ref<HTMLElement | null>(null);
+        useClickOutside(elementRef, callback);
+        return { elementRef };
+      },
+      template: '<div ref="elementRef">Panel</div>',
+    });
+
+    // Simulate: click happens, THEN component mounts during same event
+    const clickEvent = new MouseEvent("click", { bubbles: true });
+
+    // Start dispatching the click
+    const wrapper = mount(TestComponent, { attachTo: document.body });
+
+    // Dispatch click immediately after mount (same event loop tick)
+    document.dispatchEvent(clickEvent);
+
+    // The opening click should NOT trigger close
+    expect(callback).not.toHaveBeenCalled();
+
+    // But a SUBSEQUENT click should work
+    await nextTick();
+    await new Promise((r) => requestAnimationFrame(r));
+    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
   });
 
   it("should not call callback if ref is null", async () => {
