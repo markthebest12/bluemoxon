@@ -70,7 +70,9 @@ export function useUrlState() {
     isPlaying?: boolean;
   }) {
     // Skip URL updates during timeline playback to avoid history spam
+    // Clear any pending update to prevent it firing during playback
     if (params.isPlaying) {
+      if (updateTimeout) clearTimeout(updateTimeout);
       return;
     }
 

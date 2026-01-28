@@ -98,7 +98,7 @@ function handlePlay() {
         :max="maxYear"
         class="timeline-slider__input"
         aria-label="Timeline year selector"
-        @input="updateYear(localYear)"
+        @change="updateYear(localYear)"
       />
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
