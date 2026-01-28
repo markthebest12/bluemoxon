@@ -199,8 +199,8 @@ onUnmounted(() => {
   }
 });
 
-// Track element IDs to avoid unnecessary re-layouts
-let lastElementIds: string[] = [];
+// Track element IDs to avoid unnecessary re-layouts (using Set for O(n) lookup)
+let lastElementIds = new Set<string>();
 
 // Watch elements for filter changes - only re-layout if elements actually changed
 watch(
@@ -208,14 +208,14 @@ watch(
   (newElements) => {
     if (!cy.value) return;
 
-    // Check if element IDs changed (not just object references)
-    const newIds = newElements.map((e) => e.data?.id || "").sort();
+    // Use Set for O(n) comparison instead of O(n log n) sorting
+    const newIdSet = new Set<string>(newElements.map((e) => e.data?.id || ""));
     const idsChanged =
-      newIds.length !== lastElementIds.length || newIds.some((id, i) => id !== lastElementIds[i]);
+      newIdSet.size !== lastElementIds.size || [...lastElementIds].some((id) => !newIdSet.has(id));
 
     if (!idsChanged) return; // Skip if same elements
 
-    lastElementIds = newIds;
+    lastElementIds = newIdSet;
 
     cy.value.batch(() => {
       cy.value!.elements().remove();
@@ -223,7 +223,7 @@ watch(
     });
     cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
   },
-  { deep: true }
+  { flush: "post" }
 );
 
 // Watch selection
