@@ -5,7 +5,7 @@
  * Shows relationship between two entities with shared books.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from "vue";
+import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 import { api } from "@/services/api";
@@ -16,6 +16,7 @@ import {
   calculateStrength,
 } from "@/utils/socialCircles/formatters";
 import { PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 
 interface Props {
   edge: ApiEdge | null;
@@ -173,12 +174,8 @@ function togglePin() {
   emit("update:pinned", isPinned.value);
 }
 
-// Keyboard handling
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    emit("close");
-  }
-}
+// Global escape listener via composable
+useEscapeKey(() => emit("close"));
 
 // Focus trap management with timeout cleanup
 let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -200,12 +197,7 @@ watch(
   }
 );
 
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
-
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
   if (focusTrapTimeout !== undefined) {
     clearTimeout(focusTrapTimeout);
   }

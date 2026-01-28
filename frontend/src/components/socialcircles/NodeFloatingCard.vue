@@ -5,7 +5,7 @@
  * Smart positioned, shows first 5 connections, links to edge details.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from "@/types/socialCircles";
 import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
@@ -15,6 +15,7 @@ import {
   type Size,
 } from "@/utils/socialCircles/cardPositioning";
 import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 
 interface Props {
   node: ApiNode | null;
@@ -126,12 +127,8 @@ function getConnectionIcon(type: ConnectionType): string {
   return icons[type] || "→";
 }
 
-// Keyboard handling
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    emit("close");
-  }
-}
+// Global escape listener via composable
+useEscapeKey(() => emit("close"));
 
 // Focus trap management with timeout cleanup
 let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -153,13 +150,7 @@ watch(
   }
 );
 
-// Global escape listener
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
-
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
   if (focusTrapTimeout !== undefined) {
     clearTimeout(focusTrapTimeout);
   }
