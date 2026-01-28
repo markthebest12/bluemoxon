@@ -8,6 +8,20 @@
 import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
 
 // =============================================================================
+// Connection Types
+// =============================================================================
+
+/**
+ * All connection types for filter validation.
+ * Type assertion ensures this array stays in sync with ConnectionType union.
+ */
+export const ALL_CONNECTION_TYPES = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+] as const satisfies readonly ConnectionType[];
+
+// =============================================================================
 // Victorian Color Palette
 // =============================================================================
 
