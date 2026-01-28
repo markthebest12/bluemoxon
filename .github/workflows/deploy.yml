@@ -1501,7 +1501,7 @@ jobs:
       - name: Test API liveness
         run: |
           API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/health")
+          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/health")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then
