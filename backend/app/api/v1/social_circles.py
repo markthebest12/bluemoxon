@@ -41,6 +41,12 @@ def get_social_circles(
         le=100,
         description="Minimum books for an entity to be included (max 100)",
     ),
+    max_books: int = Query(
+        5000,
+        ge=100,
+        le=10000,
+        description="Maximum books to process (100-10000, default 5000)",
+    ),
     era: list[Era] | None = Query(
         None,
         description="Filter nodes by historical era(s)",
@@ -53,5 +59,6 @@ def get_social_circles(
         db=db,
         include_binders=include_binders,
         min_book_count=min_book_count,
+        max_books=max_books,
         era_filter=era,
     )

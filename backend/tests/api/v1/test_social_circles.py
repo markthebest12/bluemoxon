@@ -288,6 +288,56 @@ class TestSocialCirclesAuth:
         assert response.status_code == 200
 
 
+class TestMaxBooksQueryParam:
+    """Tests for max_books query parameter."""
+
+    def test_max_books_query_parameter(self, client, db):
+        """max_books query parameter should limit the number of books processed."""
+        # Create 150 books with unique authors to ensure they appear in graph
+        for i in range(150):
+            author = Author(name=f"Author {i}")
+            db.add(author)
+            db.flush()
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        # Request with max_books=100
+        response = client.get("/api/v1/social-circles?max_books=100")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should process at most 100 books
+        assert data["meta"]["total_books"] <= 100
+
+    def test_max_books_validation_too_small(self, client, db):
+        """max_books should reject values below 100."""
+        response = client.get("/api/v1/social-circles?max_books=50")
+        assert response.status_code == 422  # Validation error
+
+    def test_max_books_validation_too_large(self, client, db):
+        """max_books should reject values above 10000."""
+        response = client.get("/api/v1/social-circles?max_books=20000")
+        assert response.status_code == 422  # Validation error
+
+    def test_max_books_default_value(self, client, db):
+        """max_books should default to 5000."""
+        # Create a few books to verify the endpoint works
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        # Default request without max_books parameter
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+        # If default is 5000, we should get all our books (just 1)
+        data = response.json()
+        assert data["meta"]["total_books"] == 1
+
+
 class TestSharedPublisherTruncation:
     """Tests for shared_publisher truncation behavior."""
 
