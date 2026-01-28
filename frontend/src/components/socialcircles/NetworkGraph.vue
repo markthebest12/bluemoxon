@@ -215,8 +215,7 @@ watch(
     );
     // Check if any new ID wasn't in the old set (more intuitive: "what appeared?")
     const idsChanged =
-      newIdSet.size !== lastElementIds.size ||
-      [...newIdSet].some((id) => !lastElementIds.has(id));
+      newIdSet.size !== lastElementIds.size || [...newIdSet].some((id) => !lastElementIds.has(id));
 
     if (!idsChanged) return; // Skip if same elements
 
