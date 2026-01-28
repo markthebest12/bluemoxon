@@ -16,6 +16,7 @@ import {
   calculateStrength,
 } from "@/utils/socialCircles/formatters";
 import { PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 
 /** Display labels for entity types */
@@ -43,6 +44,13 @@ const router = useRouter();
 const sidebarRef = ref<HTMLElement | null>(null);
 const { activate, deactivate } = useFocusTrap(sidebarRef, { immediate: false });
 const isPinned = ref(false);
+
+// Close panel when clicking outside (#1407)
+useClickOutside(sidebarRef, () => {
+  if (props.isOpen && !isPinned.value) {
+    emit("close");
+  }
+});
 
 // Source and target nodes
 const sourceNode = computed(() => {
