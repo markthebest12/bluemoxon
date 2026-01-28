@@ -287,11 +287,7 @@ defineExpose({
   <div class="network-graph-wrapper">
     <div ref="containerRef" class="network-graph" />
     <!-- MiniMap overlay (W2-7) -->
-    <MiniMap
-      v-if="isInitialized"
-      :cy="cy"
-      class="mini-map-overlay"
-    />
+    <MiniMap v-if="isInitialized" :cy="cy" class="mini-map-overlay" />
   </div>
 </template>
 
