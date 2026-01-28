@@ -10,7 +10,7 @@
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
-import { useSocialCircles, useNetworkKeyboard } from "@/composables/socialcircles";
+import { useSocialCircles, useNetworkKeyboard, useMobile } from "@/composables/socialcircles";
 import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
@@ -29,9 +29,14 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
+import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
+import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
+
+// Mobile detection and filter panel state
+const { isMobile, isFiltersOpen, toggleFilters, closeFilters } = useMobile();
 
 // Destructure commonly used values
 const {
@@ -365,6 +370,12 @@ function handleRetry() {
   initialize().catch(console.error);
 }
 
+// Mobile-specific filter reset that also closes the bottom sheet
+function handleMobileFilterReset() {
+  resetFilters();
+  closeFilters();
+}
+
 // Lifecycle
 onMounted(() => {
   initialize().catch(console.error);
@@ -414,8 +425,8 @@ onUnmounted(() => {
     <!-- Empty State -->
     <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
 
-    <!-- Main Content -->
-    <div v-else-if="showGraph" class="social-circles-content">
+    <!-- Main Content - Desktop Layout -->
+    <div v-else-if="showGraph && !isMobile" class="social-circles-content">
       <!-- Filter Panel (left sidebar) -->
       <aside class="filter-sidebar">
         <FilterPanel
@@ -522,6 +533,110 @@ onUnmounted(() => {
         :start-year="hoveredEdge?.start_year"
         :end-year="hoveredEdge?.end_year"
         :shared-book-count="hoveredEdge?.shared_book_ids?.length"
+      />
+    </div>
+
+    <!-- Main Content - Mobile Layout -->
+    <div v-else-if="showGraph && isMobile" class="social-circles-content mobile-layout">
+      <!-- Graph Area (full width on mobile) -->
+      <main class="graph-area mobile-graph-area">
+        <!-- Active Filter Pills (above graph on mobile) -->
+        <div v-if="filterPills.length > 0" class="mobile-filter-pills">
+          <ActiveFilterPills
+            :filters="filterPills"
+            @remove="removeFilter"
+            @clear-all="resetFilters"
+          />
+        </div>
+
+        <!-- Graph viewport -->
+        <div class="graph-viewport mobile-graph-viewport">
+          <NetworkGraph
+            ref="networkGraphRef"
+            :elements="cytoscapeElements"
+            :selected-node="selectedNode"
+            :selected-edge="selectedEdge"
+            :highlighted-nodes="highlightedNodes"
+            :highlighted-edges="highlightedEdges"
+            class="mobile-network-graph"
+            @node-select="handleNodeSelect"
+            @edge-select="handleEdgeSelect"
+            @viewport-change="handleViewportChange"
+          />
+
+          <!-- Zoom Controls (top-right of graph) - hide when detail panel or filters open -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="zoom-controls-container">
+            <ZoomControls
+              @zoom-in="handleZoomIn"
+              @zoom-out="handleZoomOut"
+              @fit="handleFitToView"
+            />
+          </div>
+
+          <!-- Legend (bottom-left on mobile to avoid FAB) -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
+            <NetworkLegend />
+          </div>
+        </div>
+
+        <!-- Timeline (below graph) -->
+        <div class="timeline-area mobile-timeline">
+          <TimelineSlider
+            :min-year="timelineState.minYear"
+            :max-year="timelineState.maxYear"
+            :current-year="timelineState.currentYear"
+            :mode="timelineState.mode"
+            :is-playing="timelineState.isPlaying"
+            @year-change="setYear"
+            @mode-change="
+              () => {
+                /* TODO: wire mode change */
+              }
+            "
+            @play="togglePlayback"
+            @pause="togglePlayback"
+          />
+        </div>
+      </main>
+
+      <!-- Mobile Filter FAB -->
+      <MobileFilterFab
+        :active-filter-count="filterPills.length"
+        @click="toggleFilters"
+      />
+
+      <!-- Mobile Filter BottomSheet -->
+      <BottomSheet v-model="isFiltersOpen" title="Filters">
+        <FilterPanel
+          :filter-state="filterState"
+          class="mobile-filter-panel"
+          @update:filter="applyFilter"
+          @reset="handleMobileFilterReset"
+        />
+      </BottomSheet>
+
+      <!-- Node Floating Card (positioned differently on mobile) -->
+      <NodeFloatingCard
+        v-if="isNodeSelected && isPanelOpen"
+        :node="selectedNodeForCard"
+        :node-position="cardPosition"
+        :viewport-size="viewport"
+        :edges="edgesForPanel"
+        :nodes="nodesForPanel"
+        :is-open="isPanelOpen"
+        @close="closePanel"
+        @select-edge="handleSelectEdge"
+        @view-profile="handleViewProfile"
+      />
+
+      <!-- Edge Sidebar (slides in from right when edge selected) -->
+      <EdgeSidebar
+        v-if="isEdgeSelected && isPanelOpen"
+        :edge="selectedEdgeForSidebar"
+        :nodes="nodesForPanel"
+        :is-open="isPanelOpen"
+        @close="closePanel"
+        @select-node="(nodeId: NodeId) => selectNode(nodeId as string)"
       />
     </div>
 
@@ -648,16 +763,82 @@ onUnmounted(() => {
   }
 }
 
+/* Mobile Layout Styles */
+.mobile-layout {
+  flex-direction: column;
+}
+
+.mobile-graph-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flex shrinking */
+}
+
+.mobile-filter-pills {
+  padding: 0.5rem 1rem;
+  background-color: var(--color-victorian-paper-white, #fdfcfa);
+  border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+  flex-shrink: 0;
+}
+
+.mobile-graph-viewport {
+  flex: 1;
+  min-height: 300px;
+  /* Safe area handling for iOS notch - top only since bottom is handled by timeline */
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Touch-friendly node sizes handled via Cytoscape but we ensure minimum touch targets */
+.mobile-network-graph {
+  /* Minimum height for usable touch interaction */
+  min-height: 350px;
+}
+
+/* Move legend to bottom-left on mobile to avoid FAB overlap */
+.mobile-legend {
+  right: auto;
+  left: 1rem;
+  bottom: 1rem;
+}
+
+.mobile-timeline {
+  /* Safe area handling for iOS home indicator */
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
+}
+
+/* Filter panel styling when inside BottomSheet */
+.mobile-filter-panel {
+  width: 100%;
+  border-right: none;
+  background: transparent;
+}
+
+/* Ensure mobile filter panel content scrolls properly */
+.mobile-filter-panel :deep(.filter-panel__content) {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* Hide filter sidebar completely on mobile - we use BottomSheet instead */
 @media (max-width: 768px) {
-  .social-circles-content {
-    flex-direction: column;
+  .social-circles-header {
+    padding: 0.5rem 1rem;
+    /* Safe area for iOS notch */
+    padding-top: calc(0.5rem + env(safe-area-inset-top, 0));
   }
 
-  .filter-sidebar {
-    width: 100%;
-    max-height: 200px;
-    border-right: none;
-    border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+  .social-circles-header .header-left h1 {
+    font-size: 1.25rem;
+  }
+
+  .social-circles-header .header-left p {
+    display: none; /* Hide subtitle on mobile to save space */
+  }
+
+  .truncation-warning {
+    padding: 0.375rem 1rem;
+    font-size: 0.75rem;
   }
 }
 
