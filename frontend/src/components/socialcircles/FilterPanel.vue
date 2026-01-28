@@ -298,6 +298,10 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
   padding: 0.25rem 0;
 }
 
+.filter-panel__checkbox input[type="checkbox"] {
+  accent-color: var(--color-victorian-hunter-600, #2f5a4b);
+}
+
 .filter-panel__checkbox-indicator {
   width: 10px;
   height: 10px;

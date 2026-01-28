@@ -10,7 +10,7 @@
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
-import { useSocialCircles } from "@/composables/socialcircles";
+import { useSocialCircles, useNetworkKeyboard } from "@/composables/socialcircles";
 import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
@@ -28,6 +28,7 @@ import ActiveFilterPills from "@/components/socialcircles/ActiveFilterPills.vue"
 import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
+import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
@@ -129,6 +130,27 @@ function showToastMessage(message: string) {
     showToast.value = false;
   }, 3000);
 }
+
+// Keyboard shortcuts modal state
+const showKeyboardShortcuts = ref(false);
+
+// Wire up keyboard shortcuts
+useNetworkKeyboard({
+  onZoomIn: () => networkGraphRef.value?.zoomIn(),
+  onZoomOut: () => networkGraphRef.value?.zoomOut(),
+  onFit: () => networkGraphRef.value?.fitToView(),
+  onTogglePlay: togglePlayback,
+  onEscape: () => {
+    if (showKeyboardShortcuts.value) {
+      showKeyboardShortcuts.value = false;
+    } else {
+      closePanel();
+    }
+  },
+  onHelp: () => {
+    showKeyboardShortcuts.value = true;
+  },
+});
 
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
 interface HoveredEdgeData {
@@ -502,6 +524,12 @@ onUnmounted(() => {
         :shared-book-count="hoveredEdge?.shared_book_ids?.length"
       />
     </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <KeyboardShortcutsModal
+      :is-open="showKeyboardShortcuts"
+      @close="showKeyboardShortcuts = false"
+    />
 
     <!-- Toast notification -->
     <Teleport to="body">
