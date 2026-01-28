@@ -397,3 +397,96 @@ class TestSocialCirclesEdgeCases:
                 assert node["era"] == expected, (
                     f"Birth year {birth} should be {expected}, got {node['era']}"
                 )
+
+
+class TestTruncationBehavior:
+    """Tests for the truncated flag in social circles response."""
+
+    def test_truncated_false_when_under_limit(self, client, db):
+        """truncated should be False when under MAX_BOOKS limit."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+
+    def test_truncated_flag_exists_in_meta(self, client, db):
+        """Response meta should always include truncated flag."""
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "truncated" in data["meta"]
+        assert isinstance(data["meta"]["truncated"], bool)
+
+    def test_truncated_false_with_empty_data(self, client, db):
+        """truncated should be False when no books exist."""
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+        assert data["meta"]["total_books"] == 0
+
+    def test_truncated_false_with_moderate_data(self, client, db):
+        """truncated should be False with moderate number of books."""
+        author = Author(name="Prolific Author")
+        db.add(author)
+        db.flush()
+
+        for i in range(100):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["truncated"] is False
+        assert data["meta"]["total_books"] == 100
+
+    def test_total_books_reflects_actual_count(self, client, db):
+        """total_books in meta should reflect the actual number of books processed."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        for i in range(50):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["total_books"] == 50
+
+    def test_non_owned_books_not_counted_in_total(self, client, db):
+        """total_books should only count ON_HAND and IN_TRANSIT statuses."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+
+        owned = Book(title="Owned", author_id=author.id, status="ON_HAND")
+        transit = Book(title="Transit", author_id=author.id, status="IN_TRANSIT")
+        evaluating = Book(title="Evaluating", author_id=author.id, status="EVALUATING")
+        removed = Book(title="Removed", author_id=author.id, status="REMOVED")
+        db.add_all([owned, transit, evaluating, removed])
+        db.commit()
+
+        response = client.get("/api/v1/social-circles")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["meta"]["total_books"] == 2
+        assert data["meta"]["truncated"] is False
