@@ -1,4 +1,5 @@
 // Social Circles composables
+export { useClickOutside } from "./useClickOutside";
 export { useEscapeKey } from "./useEscapeKey";
 export { useNetworkData } from "./useNetworkData";
 export { useNetworkFilters } from "./useNetworkFilters";

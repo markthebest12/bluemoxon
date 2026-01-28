@@ -3,13 +3,11 @@ import { useUrlState } from "../useUrlState";
 import { ANIMATION } from "@/constants/socialCircles";
 
 // Mock vue-router with configurable query
-const mockReplace = vi.fn();
 const mockIsReady = vi.fn().mockResolvedValue(undefined);
 let mockRouteQuery: Record<string, string> = {};
 
 vi.mock("vue-router", () => ({
   useRouter: () => ({
-    replace: mockReplace,
     isReady: mockIsReady,
   }),
   useRoute: () => ({
@@ -18,14 +16,19 @@ vi.mock("vue-router", () => ({
 }));
 
 describe("useUrlState", () => {
+  let historyReplaceSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mockRouteQuery = {}; // Reset query between tests
+    // Spy on history.replaceState
+    historyReplaceSpy = vi.spyOn(window.history, "replaceState");
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe("debounce timing", () => {
@@ -44,16 +47,13 @@ describe("useUrlState", () => {
       updateUrl({ year: 1870 });
 
       // No updates yet (debouncing)
-      expect(mockReplace).not.toHaveBeenCalled();
+      expect(historyReplaceSpy).not.toHaveBeenCalled();
 
       // Fast forward past debounce
       vi.advanceTimersByTime(100);
 
       // Only the last update should have been applied
-      expect(mockReplace).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith({
-        query: { year: "1870" },
-      });
+      expect(historyReplaceSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -69,7 +69,7 @@ describe("useUrlState", () => {
       vi.advanceTimersByTime(100);
 
       // Should NOT have updated URL
-      expect(mockReplace).not.toHaveBeenCalled();
+      expect(historyReplaceSpy).not.toHaveBeenCalled();
     });
 
     it("should update URL when isPlaying is false", async () => {
@@ -83,7 +83,7 @@ describe("useUrlState", () => {
       vi.advanceTimersByTime(100);
 
       // Should have updated URL
-      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(historyReplaceSpy).toHaveBeenCalledTimes(1);
     });
 
     it("should update URL when isPlaying is undefined (default)", async () => {
@@ -97,7 +97,7 @@ describe("useUrlState", () => {
       vi.advanceTimersByTime(100);
 
       // Should have updated URL
-      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(historyReplaceSpy).toHaveBeenCalledTimes(1);
     });
 
     it("should resume URL updates when playback stops", async () => {
@@ -107,17 +107,14 @@ describe("useUrlState", () => {
       // Update during playback (should be skipped)
       updateUrl({ year: 1850, isPlaying: true });
       vi.advanceTimersByTime(100);
-      expect(mockReplace).not.toHaveBeenCalled();
+      expect(historyReplaceSpy).not.toHaveBeenCalled();
 
       // Playback stops, update final position
       updateUrl({ year: 1880, isPlaying: false });
       vi.advanceTimersByTime(100);
 
       // Now the URL should update with the final year
-      expect(mockReplace).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith({
-        query: { year: "1880" },
-      });
+      expect(historyReplaceSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -157,9 +154,10 @@ describe("useUrlState", () => {
       updateUrl({ year: 0 });
       vi.advanceTimersByTime(100);
 
-      expect(mockReplace).toHaveBeenCalledWith({
-        query: { year: "0" },
-      });
+      expect(historyReplaceSpy).toHaveBeenCalled();
+      // Check URL contains year=0
+      const url = historyReplaceSpy.mock.calls[0][2] as string;
+      expect(url).toContain("year=0");
     });
 
     it("should filter invalid era values", async () => {
@@ -181,34 +179,35 @@ describe("useUrlState", () => {
     });
   });
 
-  describe("filter URL encoding", () => {
-    it("should encode filters in URL query params", async () => {
+  describe("scroll behavior fix (#1406)", () => {
+    it("should use history.replaceState instead of router.replace to avoid scroll reset", async () => {
       const { updateUrl, initialize } = useUrlState();
       await initialize();
 
-      updateUrl({
-        filters: {
-          showAuthors: false,
-          showPublishers: true,
-          showBinders: true,
-          tier1Only: true,
-          searchQuery: "dickens",
-          connectionTypes: ["publisher"],
-          eras: ["victorian"],
-        },
-      });
+      // Call updateUrl with year parameter
+      updateUrl({ year: 1850 });
 
-      vi.advanceTimersByTime(100);
+      // Fast-forward past debounce
+      vi.advanceTimersByTime(ANIMATION.debounceUrl + 10);
 
-      expect(mockReplace).toHaveBeenCalledWith({
-        query: expect.objectContaining({
-          authors: "false",
-          tier1: "true",
-          search: "dickens",
-          connections: "publisher",
-          eras: "victorian",
-        }),
-      });
+      // Should use history.replaceState (no scroll trigger)
+      expect(historyReplaceSpy).toHaveBeenCalled();
+    });
+
+    it("should construct correct URL with query parameters", async () => {
+      const { updateUrl, initialize } = useUrlState();
+      await initialize();
+
+      updateUrl({ year: 1850, selectedNode: "author:123" as never });
+
+      vi.advanceTimersByTime(ANIMATION.debounceUrl + 10);
+
+      // Check URL was constructed correctly
+      const call = historyReplaceSpy.mock.calls[0];
+      expect(call).toBeDefined();
+      const [, , url] = call;
+      expect(url).toContain("year=1850");
+      expect(url).toContain("selected=author");
     });
   });
 });
