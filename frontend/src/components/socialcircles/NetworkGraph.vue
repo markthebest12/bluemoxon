@@ -283,12 +283,14 @@ watch(
 );
 
 // Watch for touch mode changes to update stylesheet (e.g., viewport resize)
+// Use immediate:true to apply correct styles if cy initializes after touch mode is detected
 watch(
   isTouchDevice,
   (newTouchMode) => {
     if (!cy.value) return;
     cy.value.style(getCytoscapeStylesheet(newTouchMode));
-  }
+  },
+  { immediate: true }
 );
 
 // Expose methods for parent

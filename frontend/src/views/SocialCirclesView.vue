@@ -561,6 +561,7 @@ onUnmounted(() => {
             class="mobile-network-graph"
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
+            @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
           />
 
@@ -785,8 +786,7 @@ onUnmounted(() => {
 .mobile-graph-viewport {
   flex: 1;
   min-height: 300px;
-  /* Safe area handling for iOS notch - top only since bottom is handled by timeline */
-  padding-top: env(safe-area-inset-top, 0);
+  /* Note: Safe area for top (notch) is handled by .social-circles-header */
 }
 
 /* Touch-friendly node sizes handled via Cytoscape but we ensure minimum touch targets */
