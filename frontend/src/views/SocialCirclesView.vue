@@ -601,10 +601,7 @@ onUnmounted(() => {
       </main>
 
       <!-- Mobile Filter FAB -->
-      <MobileFilterFab
-        :active-filter-count="filterPills.length"
-        @click="toggleFilters"
-      />
+      <MobileFilterFab :active-filter-count="filterPills.length" @click="toggleFilters" />
 
       <!-- Mobile Filter BottomSheet -->
       <BottomSheet v-model="isFiltersOpen" title="Filters">
