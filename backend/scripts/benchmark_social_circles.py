@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""Performance benchmark script for the social circles endpoint.
+
+This script measures response time metrics for the /api/v1/social-circles endpoint
+across different max_books parameter values.
+
+Usage:
+    python backend/scripts/benchmark_social_circles.py
+    python backend/scripts/benchmark_social_circles.py --iterations 20 --env prod
+
+Output:
+    JSON with timing metrics (min, max, avg, p95, p99) for each max_books value.
+"""
+
+# ruff: noqa: T201
+
+import argparse
+import asyncio
+import json
+import statistics
+import sys
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+import httpx
+
+# Environment configuration
+ENVIRONMENTS = {
+    "staging": "https://staging.api.bluemoxon.com",
+    "prod": "https://api.bluemoxon.com",
+}
+
+# Default max_books values to test
+DEFAULT_MAX_BOOKS_VALUES = [100, 500, 1000, 5000]
+
+# Endpoint path
+ENDPOINT_PATH = "/api/v1/social-circles"
+
+
+@dataclass
+class TimingMetrics:
+    """Container for timing metrics in milliseconds."""
+
+    min_ms: float
+    max_ms: float
+    avg_ms: float
+    p95_ms: float
+    p99_ms: float
+
+
+@dataclass
+class BenchmarkResult:
+    """Result for a single benchmark run."""
+
+    endpoint: str
+    max_books: int
+    iterations: int
+    metrics: TimingMetrics
+    environment: str
+    timestamp: str = field(
+        default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    )
+    errors: int = 0
+
+
+def calculate_percentile(data: list[float], percentile: float) -> float:
+    """Calculate the given percentile of a sorted list of values.
+
+    Args:
+        data: List of numeric values (will be sorted).
+        percentile: Percentile to calculate (0-100).
+
+    Returns:
+        The value at the given percentile.
+    """
+    if not data:
+        return 0.0
+    sorted_data = sorted(data)
+    index = (len(sorted_data) - 1) * percentile / 100
+    lower = int(index)
+    upper = lower + 1
+    if upper >= len(sorted_data):
+        return sorted_data[-1]
+    weight = index - lower
+    return sorted_data[lower] * (1 - weight) + sorted_data[upper] * weight
+
+
+def load_api_key(env: str) -> str:
+    """Load API key from the appropriate key file.
+
+    Args:
+        env: Environment name ('staging' or 'prod').
+
+    Returns:
+        The API key as a string.
+
+    Raises:
+        FileNotFoundError: If the key file does not exist.
+    """
+    key_file = Path.home() / ".bmx" / f"{env}.key"
+    if not key_file.exists():
+        raise FileNotFoundError(f"API key file not found: {key_file}")
+    return key_file.read_text().strip()
+
+
+async def measure_request(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    max_books: int,
+) -> tuple[float, bool]:
+    """Make a single request and measure response time.
+
+    Args:
+        client: The async HTTP client.
+        url: The full URL to request.
+        headers: Request headers including authorization.
+        max_books: The max_books parameter value.
+
+    Returns:
+        Tuple of (response_time_ms, success).
+    """
+    params = {"max_books": max_books}
+    start = time.perf_counter()
+    try:
+        response = await client.get(url, headers=headers, params=params)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        return elapsed_ms, response.status_code == 200
+    except Exception:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        return elapsed_ms, False
+
+
+async def run_benchmark(
+    env: str,
+    max_books: int,
+    iterations: int,
+    api_key: str,
+) -> BenchmarkResult:
+    """Run benchmark for a specific max_books value.
+
+    Args:
+        env: Environment name ('staging' or 'prod').
+        max_books: The max_books parameter to test.
+        iterations: Number of requests to make.
+        api_key: API key for authentication.
+
+    Returns:
+        BenchmarkResult with timing metrics.
+    """
+    base_url = ENVIRONMENTS[env]
+    url = f"{base_url}{ENDPOINT_PATH}"
+    headers = {"X-API-Key": api_key}
+
+    timings: list[float] = []
+    errors = 0
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for i in range(iterations):
+            elapsed_ms, success = await measure_request(client, url, headers, max_books)
+            if success:
+                timings.append(elapsed_ms)
+            else:
+                errors += 1
+            # Progress indicator
+            print(
+                f"  Iteration {i + 1}/{iterations}: {elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
+            )
+
+    if not timings:
+        # All requests failed
+        metrics = TimingMetrics(
+            min_ms=0,
+            max_ms=0,
+            avg_ms=0,
+            p95_ms=0,
+            p99_ms=0,
+        )
+    else:
+        metrics = TimingMetrics(
+            min_ms=round(min(timings), 2),
+            max_ms=round(max(timings), 2),
+            avg_ms=round(statistics.mean(timings), 2),
+            p95_ms=round(calculate_percentile(timings, 95), 2),
+            p99_ms=round(calculate_percentile(timings, 99), 2),
+        )
+
+    return BenchmarkResult(
+        endpoint=ENDPOINT_PATH,
+        max_books=max_books,
+        iterations=iterations,
+        metrics=metrics,
+        environment=env,
+        errors=errors,
+    )
+
+
+def result_to_dict(result: BenchmarkResult) -> dict:
+    """Convert BenchmarkResult to dictionary for JSON output.
+
+    Args:
+        result: The benchmark result to convert.
+
+    Returns:
+        Dictionary representation of the result.
+    """
+    d = asdict(result)
+    return d
+
+
+async def main_async(args: argparse.Namespace) -> list[dict]:
+    """Run all benchmarks asynchronously.
+
+    Args:
+        args: Parsed command line arguments.
+
+    Returns:
+        List of benchmark results as dictionaries.
+    """
+    env = args.env
+    iterations = args.iterations
+    max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
+
+    print(f"Loading API key for {env}...")
+    try:
+        api_key = load_api_key(env)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    print(f"Running benchmark against {ENVIRONMENTS[env]}")
+    print(f"Iterations per test: {iterations}")
+    print(f"Testing max_books values: {max_books_values}")
+    print("-" * 60)
+
+    results = []
+    for max_books in max_books_values:
+        print(f"\nBenchmarking max_books={max_books}...")
+        result = await run_benchmark(env, max_books, iterations, api_key)
+        results.append(result_to_dict(result))
+
+        # Print summary for this run
+        print(
+            f"  Results: min={result.metrics.min_ms}ms, max={result.metrics.max_ms}ms, "
+            f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, p99={result.metrics.p99_ms}ms"
+        )
+        if result.errors > 0:
+            print(f"  Errors: {result.errors}/{iterations}")
+
+    return results
+
+
+def main() -> None:
+    """Main entry point for the benchmark script."""
+    parser = argparse.ArgumentParser(
+        description="Performance benchmark for the social circles endpoint",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python backend/scripts/benchmark_social_circles.py
+  python backend/scripts/benchmark_social_circles.py --iterations 20
+  python backend/scripts/benchmark_social_circles.py --env prod --iterations 5
+  python backend/scripts/benchmark_social_circles.py --max-books 100 500
+        """,
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        choices=["staging", "prod"],
+        default="staging",
+        help="Environment to test against (default: staging)",
+    )
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=10,
+        help="Number of iterations per max_books value (default: 10)",
+    )
+    parser.add_argument(
+        "--max-books",
+        type=int,
+        nargs="+",
+        dest="max_books",
+        help=f"max_books values to test (default: {DEFAULT_MAX_BOOKS_VALUES})",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Output file path for JSON results (default: stdout)",
+    )
+
+    args = parser.parse_args()
+
+    # Run benchmarks
+    results = asyncio.run(main_async(args))
+
+    # Output results
+    output = {
+        "benchmark": "social_circles",
+        "environment": args.env,
+        "base_url": ENVIRONMENTS[args.env],
+        "results": results,
+    }
+
+    json_output = json.dumps(output, indent=2)
+
+    if args.output:
+        Path(args.output).write_text(json_output)
+        print(f"\nResults written to {args.output}")
+    else:
+        print("\n" + "=" * 60)
+        print("BENCHMARK RESULTS (JSON)")
+        print("=" * 60)
+        print(json_output)
+
+
+if __name__ == "__main__":
+    main()

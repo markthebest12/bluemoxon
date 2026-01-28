@@ -32,6 +32,8 @@ export function buildAdjacencyList(edges: ApiEdge[]): Map<NodeId, Set<NodeId>> {
 /**
  * Find shortest path between two nodes using BFS.
  * Returns the path as array of node IDs, or null if no path exists.
+ *
+ * Uses parent pointer approach for O(n) memory instead of O(n²) from path copying.
  */
 export function findShortestPath(
   adjacency: Map<NodeId, Set<NodeId>>,
@@ -41,25 +43,33 @@ export function findShortestPath(
   if (startId === endId) return [startId];
 
   const visited = new Set<NodeId>();
-  const queue: { nodeId: NodeId; path: NodeId[] }[] = [{ nodeId: startId, path: [startId] }];
+  const parent = new Map<NodeId, NodeId>();
+  const queue: NodeId[] = [startId];
+  visited.add(startId);
 
   while (queue.length > 0) {
-    const { nodeId, path } = queue.shift()!;
-
-    if (visited.has(nodeId)) continue;
-    visited.add(nodeId);
+    const nodeId = queue.shift()!;
 
     const neighbors = adjacency.get(nodeId);
     if (!neighbors) continue;
 
     for (const neighbor of neighbors) {
+      if (visited.has(neighbor)) continue;
+      visited.add(neighbor);
+      parent.set(neighbor, nodeId);
+
       if (neighbor === endId) {
-        return [...path, neighbor];
+        // Reconstruct path from end to start using parent pointers
+        const path: NodeId[] = [endId];
+        let current = endId;
+        while (parent.has(current)) {
+          current = parent.get(current)!;
+          path.unshift(current);
+        }
+        return path;
       }
 
-      if (!visited.has(neighbor)) {
-        queue.push({ nodeId: neighbor, path: [...path, neighbor] });
-      }
+      queue.push(neighbor);
     }
   }
 
