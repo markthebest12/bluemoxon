@@ -26,8 +26,9 @@ describe("useClickOutside", () => {
     // Wait for requestAnimationFrame in useClickOutside
     await new Promise((r) => requestAnimationFrame(r));
 
-    // Click outside the element
-    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // Click on a sibling element (more realistic than clicking document directly)
+    const outsideEl = wrapper.find('[data-testid="outside"]');
+    (outsideEl.element as HTMLElement).click();
 
     expect(callback).toHaveBeenCalled();
 
@@ -121,6 +122,33 @@ describe("useClickOutside", () => {
     expect(callback).toHaveBeenCalledTimes(1);
 
     wrapper.unmount();
+  });
+
+  it("should NOT leak listeners on rapid mount/unmount", async () => {
+    // Tests the race condition: if component unmounts before rAF fires,
+    // the listener should NOT be added (and no memory leak).
+    const callback = vi.fn();
+    const TestComponent = defineComponent({
+      setup() {
+        const elementRef = ref<HTMLElement | null>(null);
+        useClickOutside(elementRef, callback);
+        return { elementRef };
+      },
+      template: '<div ref="elementRef">Panel</div>',
+    });
+
+    // Mount and immediately unmount (before rAF fires)
+    const wrapper = mount(TestComponent, { attachTo: document.body });
+    wrapper.unmount();
+
+    // Now wait for rAF to fire (if it wasn't cancelled, listener would be added)
+    await new Promise((r) => requestAnimationFrame(r));
+    await nextTick();
+
+    // Click should NOT trigger callback (listener should have been cancelled)
+    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(callback).not.toHaveBeenCalled();
   });
 
   it("should not call callback if ref is null", async () => {

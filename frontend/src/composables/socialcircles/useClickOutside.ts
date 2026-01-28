@@ -7,6 +7,8 @@
 import { onMounted, onUnmounted, type Ref } from "vue";
 
 export function useClickOutside(elementRef: Ref<HTMLElement | null>, callback: () => void): void {
+  let rafId: number | undefined;
+
   function handleClick(event: MouseEvent) {
     const el = elementRef.value;
     if (!el) return;
@@ -18,15 +20,20 @@ export function useClickOutside(elementRef: Ref<HTMLElement | null>, callback: (
   }
 
   onMounted(() => {
-    // Defer adding listener by one frame to avoid catching the click that opened the panel.
+    // Defer adding listener to avoid catching the click that opened the panel.
     // Without this, clicking a node to open the panel would immediately close it because
     // the same click event is still propagating when the listener is added.
-    requestAnimationFrame(() => {
+    // Note: rAF may not fire if tab is backgrounded before it runs - acceptable edge case.
+    rafId = requestAnimationFrame(() => {
       document.addEventListener("click", handleClick, true);
     });
   });
 
   onUnmounted(() => {
+    // Cancel pending rAF to prevent memory leak if unmounted before rAF fires
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+    }
     document.removeEventListener("click", handleClick, true);
   });
 }
