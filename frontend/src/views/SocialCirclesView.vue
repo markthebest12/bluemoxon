@@ -10,7 +10,12 @@
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
-import { useSocialCircles, useNetworkKeyboard } from "@/composables/socialcircles";
+import {
+  useSocialCircles,
+  useNetworkKeyboard,
+  usePathFinder,
+  useFindSimilar,
+} from "@/composables/socialcircles";
 import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
@@ -29,9 +34,28 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
+import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
+
+// Initialize path finder composable
+const pathFinder = usePathFinder(
+  computed(() => socialCircles.nodes.value as import("@/types/socialCircles").ApiNode[]),
+  computed(() => socialCircles.edges.value as import("@/types/socialCircles").ApiEdge[])
+);
+
+// Initialize find similar composable
+const findSimilar = useFindSimilar(
+  computed(() => socialCircles.nodes.value as import("@/types/socialCircles").ApiNode[]),
+  computed(() => socialCircles.edges.value as import("@/types/socialCircles").ApiEdge[])
+);
+
+// Path finder state for template
+const pathState = computed(() => ({
+  path: pathFinder.path.value,
+  isCalculating: pathFinder.isCalculating.value,
+}));
 
 // Destructure commonly used values
 const {
@@ -365,6 +389,23 @@ function handleRetry() {
   initialize().catch(console.error);
 }
 
+// Path finder handlers (W2-5)
+function handleFindPath(startId: string, endId: string) {
+  pathFinder.setStart(startId as NodeId);
+  pathFinder.setEnd(endId as NodeId);
+  pathFinder.findPath();
+}
+
+function handleClearPath() {
+  pathFinder.clear();
+}
+
+// Find similar handler (W2-6)
+function handleFindSimilar(nodeId: string) {
+  findSimilar.findSimilar(nodeId as NodeId);
+  showToastMessage(`Finding nodes similar to selected person...`);
+}
+
 // Lifecycle
 onMounted(() => {
   initialize().catch(console.error);
@@ -430,6 +471,15 @@ onUnmounted(() => {
           :filters="filterPills"
           @remove="removeFilter"
           @clear-all="resetFilters"
+        />
+
+        <!-- Path Finder Panel (W2-5) -->
+        <PathFinderPanel
+          :nodes="nodesForPanel"
+          :path="pathState.path"
+          :is-calculating="pathState.isCalculating"
+          @find-path="handleFindPath"
+          @clear="handleClearPath"
         />
       </aside>
 
@@ -497,6 +547,7 @@ onUnmounted(() => {
         @close="closePanel"
         @select-edge="handleSelectEdge"
         @view-profile="handleViewProfile"
+        @find-similar="handleFindSimilar"
       />
 
       <!-- Edge Sidebar (slides in from right when edge selected) -->
