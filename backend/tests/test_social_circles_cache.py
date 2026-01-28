@@ -122,8 +122,8 @@ class TestGetCacheKey:
         assert len(parts) == 3
         assert parts[0] == "social_circles"
         assert parts[1] == "graph"
-        # Hash should be 16 characters (truncated SHA256)
-        assert len(parts[2]) == 16
+        # Hash should be 32 characters (128 bits for collision resistance)
+        assert len(parts[2]) == 32
 
 
 class TestGetCachedGraphSync:
