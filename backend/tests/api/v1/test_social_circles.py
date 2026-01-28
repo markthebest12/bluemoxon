@@ -288,6 +288,38 @@ class TestSocialCirclesAuth:
         assert response.status_code == 200
 
 
+class TestBookIdsLimit:
+    """Tests for book_ids limiting per node."""
+
+    def test_book_ids_limited_per_node(self, client, db):
+        """Node book_ids should be limited to prevent response bloat."""
+        # Create prolific author with 50 books
+        author = Author(name="Prolific Author")
+        db.add(author)
+        db.flush()
+
+        # Create 50 books for this author
+        for i in range(50):
+            book = Book(title=f"Book {i}", author_id=author.id, status="ON_HAND")
+            db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles/")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find author node
+        author_nodes = [n for n in data["nodes"] if n["type"] == "author"]
+        assert len(author_nodes) == 1
+        author_node = author_nodes[0]
+
+        # book_ids should be limited (to 10)
+        assert len(author_node["book_ids"]) <= 10
+
+        # But book_count should reflect actual count
+        assert author_node["book_count"] == 50
+
+
 class TestMaxBooksQueryParam:
     """Tests for max_books query parameter."""
 

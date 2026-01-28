@@ -26,6 +26,10 @@ from app.schemas.social_circles import (
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+# Maximum book IDs to include per node to reduce response size
+# Frontend only displays first few anyway
+MAX_BOOK_IDS_PER_NODE = 10
+
 
 def get_era_from_year(year: int | None) -> Era:
     """Determine historical era from a year."""
@@ -122,7 +126,7 @@ def build_social_circles_graph(
             era=era,
             tier=author.tier,
             book_count=len(book_ids),
-            book_ids=book_ids,
+            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build publisher nodes
@@ -141,7 +145,7 @@ def build_social_circles_graph(
             type=NodeType.publisher,
             tier=publisher.tier,
             book_count=len(book_ids_set),
-            book_ids=list(book_ids_set),
+            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build binder nodes
@@ -161,7 +165,7 @@ def build_social_circles_graph(
                 type=NodeType.binder,
                 tier=binder.tier,
                 book_count=len(book_ids_set),
-                book_ids=list(book_ids_set),
+                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
             )
 
     # Build edges: Author -> Publisher
