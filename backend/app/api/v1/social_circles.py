@@ -2,13 +2,17 @@
 
 """Social Circles API endpoint."""
 
+import time
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.auth import require_viewer
 from app.db import get_db
 from app.schemas.social_circles import (
+    ConnectionType,
     Era,
+    NodeType,
     SocialCirclesResponse,
 )
 from app.services.social_circles import build_social_circles_graph
@@ -62,3 +66,75 @@ def get_social_circles(
         max_books=max_books,
         era_filter=era,
     )
+
+
+@router.get(
+    "/health",
+    summary="Social circles health check",
+    description="Validates data integrity and query performance for social circles.",
+)
+def social_circles_health(
+    db: Session = Depends(get_db),
+    _user_info=Depends(require_viewer),
+):
+    """Deep health check for social circles feature."""
+    start = time.monotonic()
+
+    try:
+        # Build graph to measure performance (use smaller limit for health check)
+        result = build_social_circles_graph(db, max_books=1000)
+        build_time = (time.monotonic() - start) * 1000
+
+        # Count nodes by type
+        node_counts = {
+            "authors": sum(1 for n in result.nodes if n.type == NodeType.author),
+            "publishers": sum(1 for n in result.nodes if n.type == NodeType.publisher),
+            "binders": sum(1 for n in result.nodes if n.type == NodeType.binder),
+        }
+
+        # Count edges by type
+        edge_counts = {
+            "publisher": sum(1 for e in result.edges if e.type == ConnectionType.publisher),
+            "shared_publisher": sum(
+                1 for e in result.edges if e.type == ConnectionType.shared_publisher
+            ),
+            "binder": sum(1 for e in result.edges if e.type == ConnectionType.binder),
+        }
+
+        # Determine health status
+        perf_healthy = build_time < 500  # Under 500ms threshold
+        data_healthy = node_counts["authors"] > 0 or node_counts["publishers"] > 0
+
+        if perf_healthy and data_healthy:
+            status = "healthy"
+        elif data_healthy:
+            status = "degraded"
+        else:
+            status = "unhealthy"
+
+        return {
+            "status": status,
+            "latency_ms": round(build_time, 2),
+            "checks": {
+                "node_counts": {
+                    "status": "healthy" if data_healthy else "unhealthy",
+                    **node_counts,
+                },
+                "edge_counts": {
+                    "status": "healthy",
+                    **edge_counts,
+                },
+                "query_performance": {
+                    "status": "healthy" if perf_healthy else "degraded",
+                    "build_time_ms": round(build_time, 2),
+                    "threshold_ms": 500,
+                },
+            },
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "latency_ms": round((time.monotonic() - start) * 1000, 2),
+            "checks": {},
+        }

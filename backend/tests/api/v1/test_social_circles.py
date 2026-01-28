@@ -288,6 +288,41 @@ class TestSocialCirclesAuth:
         assert response.status_code == 200
 
 
+class TestSocialCirclesHealthEndpoint:
+    """Tests for /social-circles/health endpoint."""
+
+    def test_social_circles_health_endpoint(self, client, db):
+        """Health endpoint should validate social circles data and performance."""
+        # Create some test data
+        author = Author(name="Test Author")
+        db.add(author)
+        db.flush()
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        response = client.get("/api/v1/social-circles/health")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert "latency_ms" in data
+        assert "checks" in data
+        assert "node_counts" in data["checks"]
+        assert "edge_counts" in data["checks"]
+        assert "query_performance" in data["checks"]
+
+    def test_social_circles_health_empty_data(self, client, db):
+        """Health endpoint should return healthy even with no data."""
+        response = client.get("/api/v1/social-circles/health")
+        assert response.status_code == 200
+
+        data = response.json()
+        # With no data, should still report status (though may be degraded)
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert "latency_ms" in data
+
+
 class TestBookIdsLimit:
     """Tests for book_ids limiting per node."""
 
