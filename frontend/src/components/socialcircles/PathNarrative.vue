@@ -117,14 +117,15 @@ function handleNodeClick(nodeId: string) {
 </script>
 
 <template>
-  <div v-if="path.length >= 2" class="path-narrative">
+  <div v-if="path.length >= 2" class="path-narrative" data-testid="path-narrative">
     <!-- Path chain visualization -->
-    <div class="path-narrative__chain">
+    <div class="path-narrative__chain" data-testid="path-narrative-chain">
       <template v-for="(step, index) in pathSteps" :key="step.nodeId">
         <!-- Node -->
         <button
           class="path-narrative__node"
           :class="`path-narrative__node--${step.node?.type || 'unknown'}`"
+          data-testid="path-narrative-node"
           @click="handleNodeClick(step.nodeId)"
         >
           <span class="path-narrative__node-name">{{ step.node?.name || "Unknown" }}</span>
@@ -142,7 +143,7 @@ function handleNodeClick(nodeId: string) {
     </div>
 
     <!-- Summary sentence -->
-    <p class="path-narrative__summary">
+    <p class="path-narrative__summary" data-testid="path-narrative-summary">
       <template v-if="startNode && endNode">
         <span class="path-narrative__summary-highlight">{{ startNode.name }}</span>
         is

@@ -175,9 +175,9 @@ function getNodeTypeIcon(type: string): string {
 </script>
 
 <template>
-  <aside class="pathfinder-panel">
+  <aside class="pathfinder-panel" data-testid="pathfinder-panel">
     <header class="pathfinder-panel__header">
-      <h2 class="pathfinder-panel__title">Degrees of Separation</h2>
+      <h2 class="pathfinder-panel__title" data-testid="pathfinder-title">Degrees of Separation</h2>
     </header>
 
     <div class="pathfinder-panel__content">
@@ -200,21 +200,26 @@ function getNodeTypeIcon(type: string): string {
             <ul
               v-if="showStartDropdown && filteredStartNodes.length > 0"
               class="pathfinder-panel__dropdown"
+              data-testid="pathfinder-start-dropdown"
             >
               <li
                 v-for="node in filteredStartNodes"
                 :key="node.id"
                 class="pathfinder-panel__dropdown-item"
                 :class="{ 'pathfinder-panel__dropdown-item--disabled': node.id === endNodeId }"
+                data-testid="pathfinder-dropdown-item"
                 @mousedown.prevent="node.id !== endNodeId && selectStartNode(node)"
               >
                 <span
                   class="pathfinder-panel__node-badge"
                   :class="`pathfinder-panel__node-badge--${node.type}`"
+                  :data-testid="`pathfinder-node-badge-${node.type}`"
                 >
                   {{ getNodeTypeIcon(node.type) }}
                 </span>
-                <span class="pathfinder-panel__node-name">{{ node.name }}</span>
+                <span class="pathfinder-panel__node-name" data-testid="pathfinder-node-name">{{
+                  node.name
+                }}</span>
               </li>
             </ul>
           </Transition>
@@ -243,21 +248,26 @@ function getNodeTypeIcon(type: string): string {
             <ul
               v-if="showEndDropdown && filteredEndNodes.length > 0"
               class="pathfinder-panel__dropdown"
+              data-testid="pathfinder-end-dropdown"
             >
               <li
                 v-for="node in filteredEndNodes"
                 :key="node.id"
                 class="pathfinder-panel__dropdown-item"
                 :class="{ 'pathfinder-panel__dropdown-item--disabled': node.id === startNodeId }"
+                data-testid="pathfinder-dropdown-item"
                 @mousedown.prevent="node.id !== startNodeId && selectEndNode(node)"
               >
                 <span
                   class="pathfinder-panel__node-badge"
                   :class="`pathfinder-panel__node-badge--${node.type}`"
+                  :data-testid="`pathfinder-node-badge-${node.type}`"
                 >
                   {{ getNodeTypeIcon(node.type) }}
                 </span>
-                <span class="pathfinder-panel__node-name">{{ node.name }}</span>
+                <span class="pathfinder-panel__node-name" data-testid="pathfinder-node-name">{{
+                  node.name
+                }}</span>
               </li>
             </ul>
           </Transition>

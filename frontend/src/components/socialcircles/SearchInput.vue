@@ -245,7 +245,7 @@ function isActiveItem(node: ApiNode): boolean {
 </script>
 
 <template>
-  <div ref="containerRef" class="search-input">
+  <div ref="containerRef" class="search-input" data-testid="search-input">
     <div class="search-input__wrapper">
       <svg class="search-input__icon" viewBox="0 0 24 24" aria-hidden="true">
         <path
@@ -268,7 +268,11 @@ function isActiveItem(node: ApiNode): boolean {
     </div>
 
     <Transition name="dropdown">
-      <div v-if="isOpen && (hasResults || showNoResults)" class="search-input__dropdown">
+      <div
+        v-if="isOpen && (hasResults || showNoResults)"
+        class="search-input__dropdown"
+        data-testid="search-dropdown"
+      >
         <!-- Grouped Results -->
         <template v-if="hasResults">
           <div v-for="group in groupedResults" :key="group.type" class="search-input__group">
@@ -282,6 +286,7 @@ function isActiveItem(node: ApiNode): boolean {
                 'search-input__item--active': isActiveItem(node),
                 [`search-input__item--${node.type}`]: true,
               }"
+              data-testid="search-item"
               @click="selectNode(node)"
               @mouseenter="activeIndex = getGlobalIndex(node)"
             >
@@ -295,7 +300,11 @@ function isActiveItem(node: ApiNode): boolean {
         </template>
 
         <!-- No Results -->
-        <div v-else-if="showNoResults" class="search-input__no-results">
+        <div
+          v-else-if="showNoResults"
+          class="search-input__no-results"
+          data-testid="search-no-results"
+        >
           No results for "{{ debouncedQuery }}"
         </div>
       </div>
