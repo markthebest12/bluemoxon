@@ -83,6 +83,7 @@ from app.services.scoring import (
     recalculate_discount_pct,
     recalculate_roi_pct,
 )
+from app.services.social_circles_cache import invalidate_cache as invalidate_social_circles_cache
 from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
 from app.services.tracking_poller import refresh_single_book_tracking
@@ -407,12 +408,20 @@ def list_books(
 
     query = db.query(Book)
 
+    # Track IDs truncation info
+    ids_truncated = False
+    ids_requested = None
+    ids_processed = None
+
     # Filter by IDs if provided (comma-separated list, max 100 IDs)
     if params.ids:
         try:
             id_list = [int(id_str.strip()) for id_str in params.ids.split(",") if id_str.strip()]
+            ids_requested = len(id_list)
             if len(id_list) > 100:
                 id_list = id_list[:100]  # Cap at 100 IDs to prevent abuse
+                ids_truncated = True
+            ids_processed = len(id_list)
             if id_list:
                 query = query.filter(Book.id.in_(id_list))
         except ValueError:
@@ -612,6 +621,9 @@ def list_books(
         page=params.page,
         per_page=params.per_page,
         pages=(total + params.per_page - 1) // params.per_page,
+        ids_truncated=ids_truncated,
+        ids_requested=ids_requested,
+        ids_processed=ids_processed,
     )
 
 
@@ -840,6 +852,10 @@ def create_book(
             # Log but don't fail book creation if job queuing fails
             logger.warning(f"Failed to queue eval runbook job for book {book.id}: {e}")
 
+    # Invalidate social circles cache if book is in owned status (appears in graph)
+    if book.status in [s.value for s in OWNED_STATUSES]:
+        invalidate_social_circles_cache()
+
     return _build_book_response(book, db)
 
 
@@ -923,6 +939,9 @@ def delete_book(
         if not book:
             raise HTTPException(status_code=404, detail="Book not found")
 
+        # Capture status before deletion for cache invalidation
+        was_owned = book.status in [s.value for s in OWNED_STATUSES]
+
         # Get all images for this book before deleting
         book_images = db.query(BookImage).filter(BookImage.book_id == book_id).all()
         logger.info("Deleting book %s with %d images", book_id, len(book_images))
@@ -977,6 +996,10 @@ def delete_book(
         db.commit()
         logger.info("Successfully deleted book %s", book_id)
 
+        # Invalidate social circles cache if book was in owned status
+        if was_owned:
+            invalidate_social_circles_cache()
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1006,9 +1029,19 @@ def update_book_status(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
+    # Capture old status for cache invalidation check
+    old_status = book.status
+    owned_status_values = [s.value for s in OWNED_STATUSES]
+
     book.status = status
     db.commit()
     db.refresh(book)
+
+    # Invalidate social circles cache if status changed to/from owned
+    old_was_owned = old_status in owned_status_values
+    new_is_owned = status in owned_status_values
+    if old_was_owned != new_is_owned:
+        invalidate_social_circles_cache()
 
     return _build_book_response(book, db)
 
@@ -1142,6 +1175,9 @@ def acquire_book(
 
     db.commit()
     db.refresh(book)
+
+    # Invalidate social circles cache (book entering owned status)
+    invalidate_social_circles_cache()
 
     return _build_book_response(book, db)
 
@@ -1417,6 +1453,7 @@ def bulk_update_status(
             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
         )
 
+    # Perform the update first
     updated = (
         db.query(Book)
         .filter(Book.id.in_(book_ids))
@@ -1426,6 +1463,12 @@ def bulk_update_status(
         )
     )
     db.commit()
+
+    # Invalidate social circles cache if any books were updated.
+    # We invalidate conservatively because we can't know pre-update status after commit.
+    # The cache has TTL so over-invalidation is acceptable for correctness.
+    if updated > 0:
+        invalidate_social_circles_cache()
 
     return {"message": f"Updated {updated} books", "status": status}
 

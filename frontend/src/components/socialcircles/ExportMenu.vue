@@ -3,12 +3,13 @@
  * ExportMenu - Export and share functionality.
  */
 
-import { ref, useTemplateRef } from "vue";
+import { ref, shallowRef } from "vue";
 import { onClickOutside } from "@vueuse/core";
 
+const menuRef = shallowRef<HTMLElement | null>(null);
 const isOpen = ref(false);
-const menuRef = useTemplateRef<HTMLElement>("menuRef");
 
+// Close menu when clicking outside
 onClickOutside(menuRef, () => {
   isOpen.value = false;
 });

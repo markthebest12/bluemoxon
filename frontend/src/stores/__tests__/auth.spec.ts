@@ -274,10 +274,42 @@ describe("Auth Store", () => {
 
       // User should still be set from Cognito (just without API profile data)
       expect(store.user).not.toBeNull();
-      // Issue #1414: MFA timeout = assume MFA is configured (Cognito enforces MFA)
-      // Timeouts are expected during cold starts and shouldn't penalize users
+      // Issue #1414: MFA timeout (not failure) should NOT force MFA setup
+      // User already authenticated via Cognito (which enforces MFA at sign-in)
       expect(store.mfaStep).toBe("none");
     }, 60000); // 60s timeout for all retries with per-attempt timeouts
+
+    it("allows auth to proceed when MFA check times out (Issue #1414)", async () => {
+      // Issue #1414: fetchMFAPreference timeout should NOT force mfa_setup_required
+      // If user authenticated via Cognito, they already passed MFA (if configured)
+      mockGetCurrentUser.mockResolvedValue({
+        username: "testuser",
+        userId: "123",
+        signInDetails: { loginId: "test@example.com" },
+      } as never);
+
+      // Profile succeeds - user is NOT mfa_exempt
+      mockApiGet.mockResolvedValue({
+        data: {
+          role: "editor",
+          mfa_exempt: false,
+        },
+      });
+
+      // MFA check hangs (times out after 5s)
+      mockFetchMFAPreference.mockImplementation(() => new Promise(() => {}));
+
+      const { useAuthStore } = await import("../auth");
+      const store = useAuthStore();
+
+      await store.checkAuth();
+
+      // Auth should succeed - user passed Cognito auth
+      expect(store.user).not.toBeNull();
+      expect(store.user?.role).toBe("editor");
+      // MFA timeout should NOT force setup - user already authenticated via MFA at sign-in
+      expect(store.mfaStep).toBe("none");
+    }, 10000);
   });
 
   describe("cold start UX - authInitializing", () => {
