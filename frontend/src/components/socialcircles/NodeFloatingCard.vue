@@ -137,6 +137,11 @@ function getConnectionIcon(type: ConnectionType): string {
   return icons[type] || "→";
 }
 
+// Handler: cast raw string to NodeId at handler level (#1436)
+function handleFindSimilar(nodeId: string) {
+  emit("find-similar", nodeId as NodeId);
+}
+
 // Global escape listener via composable
 useEscapeKey(() => emit("close"));
 
@@ -263,7 +268,7 @@ onUnmounted(() => {
         <div class="node-floating-card__footer-actions">
           <FindSimilarButton
             :node-id="node.id"
-            @find-similar="emit('find-similar', $event as NodeId)"
+            @find-similar="handleFindSimilar"
           />
           <button
             class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
