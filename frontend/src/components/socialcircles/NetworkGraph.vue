@@ -71,11 +71,13 @@ const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
 // so we cast the stylesheet to the expected type
 //
-// nodeSize values are pre-clamped by calculateNodeSize() in constants/socialCircles.ts.
-// Each node type has a base size (20-25px) scaled by sqrt(bookCount) with a per-type max
-// (55-65px). Input bookCount values outside [0, ~64] are effectively clamped to the
-// output range since the function uses Math.min with the configured max. This is the
-// JavaScript equivalent of Cytoscape's mapData(nodeSize, 20, 40, 44, 60) clamping.
+// nodeSize is pre-calculated by calculateNodeSize() in constants/socialCircles.ts:
+// - Uses sqrt(bookCount) scaling with diminishing returns (sqrt(1)=1, sqrt(4)=2, sqrt(64)=8)
+// - Formula: base + sqrt(max(bookCount, 1)) * perBook, clamped to max via Math.min
+// - Author: 20px base, 5px/√book, 60px max (reached at 64 books)
+// - Publisher: 25px base, 4px/√book, 65px max (reached at 100 books)
+// - Binder: 20px base, 5px/√book, 55px max (reached at 49 books)
+// - Negative/zero bookCount clamped to 1 via Math.max before sqrt
 function getCytoscapeStylesheet(): StylesheetStyle[] {
   return [
     {
