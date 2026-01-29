@@ -247,7 +247,9 @@ function isActiveItem(node: ApiNode): boolean {
         />
       </svg>
       <input
+        id="search-people"
         type="text"
+        name="search-people"
         class="search-input__field"
         :value="localQuery"
         :placeholder="placeholder"
