@@ -51,12 +51,12 @@ const filteredEndNodes = computed(() => filterNodesByQuery(props.nodes, endSearc
 const startResultsTruncated = computed(
   () =>
     filteredStartNodes.value.length >= MAX_FILTER_RESULTS &&
-    props.nodes.length > filteredStartNodes.value.length,
+    props.nodes.length > filteredStartNodes.value.length
 );
 const endResultsTruncated = computed(
   () =>
     filteredEndNodes.value.length >= MAX_FILTER_RESULTS &&
-    props.nodes.length > filteredEndNodes.value.length,
+    props.nodes.length > filteredEndNodes.value.length
 );
 
 // Get selected node objects
