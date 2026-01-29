@@ -93,7 +93,7 @@ app.add_middleware(
     allow_origins=origins,  # Controlled by CORS_ORIGINS env var in production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
 
 
