@@ -48,8 +48,16 @@ const filteredStartNodes = computed(() => filterNodesByQuery(props.nodes, startS
 const filteredEndNodes = computed(() => filterNodesByQuery(props.nodes, endSearchQuery.value));
 
 // Computed: Whether filtered results are truncated at the limit
-const startResultsTruncated = computed(() => filteredStartNodes.value.length >= MAX_FILTER_RESULTS);
-const endResultsTruncated = computed(() => filteredEndNodes.value.length >= MAX_FILTER_RESULTS);
+const startResultsTruncated = computed(
+  () =>
+    filteredStartNodes.value.length >= MAX_FILTER_RESULTS &&
+    props.nodes.length > filteredStartNodes.value.length,
+);
+const endResultsTruncated = computed(
+  () =>
+    filteredEndNodes.value.length >= MAX_FILTER_RESULTS &&
+    props.nodes.length > filteredEndNodes.value.length,
+);
 
 // Get selected node objects
 const startNode = computed(() => {
@@ -136,7 +144,7 @@ function handleEndInputFocus() {
 function isBlurWithinWrapper(event: FocusEvent): boolean {
   const relatedTarget = event.relatedTarget as HTMLElement | null;
   const wrapper = (event.target as HTMLElement)?.closest(".pathfinder-panel__input-wrapper");
-  return Boolean(wrapper && relatedTarget && wrapper.contains(relatedTarget));
+  return !!(wrapper && relatedTarget && wrapper.contains(relatedTarget));
 }
 
 function handleStartInputBlur(event: FocusEvent) {
@@ -217,7 +225,12 @@ function getNodeTypeIcon(type: string): string {
                 </span>
                 <span class="pathfinder-panel__node-name">{{ node.name }}</span>
               </li>
-              <li v-if="startResultsTruncated" class="pathfinder-panel__dropdown-hint">
+              <li
+                v-if="startResultsTruncated"
+                class="pathfinder-panel__dropdown-hint"
+                role="status"
+                aria-live="polite"
+              >
                 {{ MAX_FILTER_RESULTS }}+ results — refine your search
               </li>
             </ul>
@@ -263,7 +276,12 @@ function getNodeTypeIcon(type: string): string {
                 </span>
                 <span class="pathfinder-panel__node-name">{{ node.name }}</span>
               </li>
-              <li v-if="endResultsTruncated" class="pathfinder-panel__dropdown-hint">
+              <li
+                v-if="endResultsTruncated"
+                class="pathfinder-panel__dropdown-hint"
+                role="status"
+                aria-live="polite"
+              >
                 {{ MAX_FILTER_RESULTS }}+ results — refine your search
               </li>
             </ul>
