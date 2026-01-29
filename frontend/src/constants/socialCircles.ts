@@ -122,6 +122,13 @@ export function calculateEdgeWidth(strength: number): number {
 }
 
 // =============================================================================
+// Dropdown / Blur Timing
+// =============================================================================
+
+/** Delay before closing dropdown on blur, allowing click events to register. */
+export const BLUR_DROPDOWN_DELAY_MS = 150;
+
+// =============================================================================
 // Animation Timings
 // =============================================================================
 
