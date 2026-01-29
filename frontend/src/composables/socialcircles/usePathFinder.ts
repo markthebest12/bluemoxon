@@ -13,6 +13,9 @@ export const MAX_FILTER_RESULTS = 20;
 /**
  * Filter nodes by a search query string, returning at most MAX_FILTER_RESULTS.
  * When the query is empty, returns the first MAX_FILTER_RESULTS nodes.
+ *
+ * NOTE: This is a pure utility function (no Vue reactivity). It could be moved
+ * to utils/socialCircles/ in a future refactor.
  */
 export function filterNodesByQuery(nodes: ApiNode[], query: string): ApiNode[] {
   const normalised = query.toLowerCase().trim();
