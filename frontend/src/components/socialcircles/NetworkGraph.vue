@@ -18,6 +18,7 @@ import { useMediaQuery } from "@vueuse/core";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 import { useLayoutMode } from "@/composables/socialcircles";
 import LayoutSwitcher from "./LayoutSwitcher.vue";
+import MiniMap from "@/components/socialcircles/MiniMap.vue";
 import type { LayoutMode } from "@/types/socialCircles";
 
 // Props
@@ -323,6 +324,7 @@ defineExpose({
         @update:model-value="handleLayoutChange"
       />
     </div>
+    <MiniMap v-if="isInitialized" :cy="cy" class="mini-map-overlay" />
   </div>
 </template>
 
@@ -343,6 +345,13 @@ defineExpose({
 .network-graph__controls {
   position: absolute;
   top: 1rem;
+  left: 1rem;
+  z-index: 10;
+}
+
+.mini-map-overlay {
+  position: absolute;
+  bottom: 1rem;
   left: 1rem;
   z-index: 10;
 }

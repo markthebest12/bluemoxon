@@ -10,7 +10,14 @@
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
-import { useSocialCircles, useNetworkKeyboard, useMobile } from "@/composables/socialcircles";
+import {
+  useSocialCircles,
+  useNetworkKeyboard,
+  usePathFinder,
+  useFindSimilar,
+  useMobile,
+  type SimilarNode,
+} from "@/composables/socialcircles";
 import {
   DEFAULT_TIMELINE_STATE,
   type ConnectionType,
@@ -39,6 +46,7 @@ import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue"
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
 import SearchInput from "@/components/socialcircles/SearchInput.vue";
 import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
+import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
 import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
@@ -47,6 +55,16 @@ const socialCircles = useSocialCircles();
 
 // Mobile detection and filter panel state
 const { isMobile, isFiltersOpen, toggleFilters, closeFilters } = useMobile();
+
+// Typed refs for composables (avoids inline import casts)
+const typedNodes = computed(() => socialCircles.nodes.value as ApiNode[]);
+const typedEdges = computed(() => socialCircles.edges.value as ApiEdge[]);
+
+// Initialize path finder composable
+const pathFinder = usePathFinder(typedNodes, typedEdges);
+
+// Initialize find similar composable
+const findSimilar = useFindSimilar(typedNodes, typedEdges);
 
 // Destructure commonly used values
 const {
@@ -175,6 +193,18 @@ function handleSearchSelect(node: { id: string }) {
         duration: 300,
       });
     }
+  }
+}
+
+// Handle find similar action from context menu (W2-6)
+function handleFindSimilar(nodeId: NodeId) {
+  findSimilar.findSimilar(nodeId, 3);
+  const results = findSimilar.similarNodes.value;
+  if (results.length > 0) {
+    const names = results.map((n: SimilarNode) => n.node.name).join(", ");
+    showToastMessage(`Similar: ${names}`);
+  } else {
+    showToastMessage("No similar nodes found");
   }
 }
 
@@ -510,6 +540,15 @@ onUnmounted(() => {
           :is-collapsed="statsCollapsed"
           @toggle="statsCollapsed = !statsCollapsed"
         />
+
+        <!-- Path Finder Panel (W2-5) -->
+        <PathFinderPanel
+          :nodes="nodesForPanel"
+          :path="pathFinder.path.value"
+          :is-calculating="pathFinder.isCalculating.value"
+          @find-path="pathFinder.findPath"
+          @clear="pathFinder.clear"
+        />
       </aside>
 
       <!-- Graph Area -->
@@ -576,6 +615,7 @@ onUnmounted(() => {
         @close="closePanel"
         @select-edge="handleSelectEdge"
         @view-profile="handleViewProfile"
+        @find-similar="handleFindSimilar"
       />
 
       <!-- Edge Sidebar (slides in from right when edge selected) -->
