@@ -142,7 +142,7 @@ async function globalSetup(config: FullConfig) {
   await mkdir(authDir, { recursive: true });
 
   // Skip AWS auth setup when SKIP_AUTH_SETUP is set (local dev without AWS credentials)
-  if (process.env.SKIP_AUTH_SETUP) {
+  if (process.env.SKIP_AUTH_SETUP === "true" || process.env.SKIP_AUTH_SETUP === "1") {
     if (process.env.CI) {
       throw new Error("SKIP_AUTH_SETUP must not be set in CI — it disables all auth testing");
     }
