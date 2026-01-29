@@ -21,6 +21,11 @@ type MfaStep =
   | "new_password_required"
   | "mfa_setup_required";
 
+type MfaResult<T> =
+  | { status: "success"; value: T }
+  | { status: "timeout" }
+  | { status: "failed"; error: Error };
+
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
@@ -127,11 +132,6 @@ export const useAuthStore = defineStore("auth", () => {
       // Timeout wrapper to prevent hung promises (Issue 6)
       // Returns a typed MfaResult to distinguish success, timeout, and failure
       const MFA_TIMEOUT_MS = 5000;
-      type MfaResult<T> =
-        | { status: "success"; value: T }
-        | { status: "timeout" }
-        | { status: "failed"; error: Error };
-
       const withMfaTimeout = <T>(promise: Promise<T>): Promise<MfaResult<T>> => {
         let timeoutId: ReturnType<typeof setTimeout>;
         return Promise.race([

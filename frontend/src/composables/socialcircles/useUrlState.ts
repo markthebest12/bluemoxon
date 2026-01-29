@@ -5,7 +5,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import type { FilterState, NodeId, Era, ConnectionType } from "@/types/socialCircles";
-import { ANIMATION } from "@/constants/socialCircles";
+import { ALL_CONNECTION_TYPES, ANIMATION } from "@/constants/socialCircles";
 
 export function useUrlState() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export function useUrlState() {
     if (query.connections) {
       const types = String(query.connections).split(",") as ConnectionType[];
       filters.connectionTypes = types.filter((t) =>
-        ["publisher", "shared_publisher", "binder"].includes(t)
+        (ALL_CONNECTION_TYPES as readonly string[]).includes(t)
       );
     }
 
@@ -90,7 +90,7 @@ export function useUrlState() {
         if (!f.showBinders) query.binders = "false";
         if (f.tier1Only) query.tier1 = "true";
         if (f.searchQuery) query.search = f.searchQuery;
-        if (f.connectionTypes.length < 3) {
+        if (f.connectionTypes.length < ALL_CONNECTION_TYPES.length) {
           query.connections = f.connectionTypes.join(",");
         }
         if (f.eras.length > 0) {
@@ -106,10 +106,12 @@ export function useUrlState() {
         query.year = String(params.year);
       }
 
-      // Use history.replaceState to update URL without triggering router navigation
-      // This avoids the afterEach scroll-to-top behavior (#1406)
+      // Build URL with query params, using current path
       const searchParams = new URLSearchParams(query);
       const newUrl = `${window.location.pathname}${searchParams.toString() ? "?" + searchParams.toString() : ""}`;
+
+      // Use history.replaceState to update URL without triggering router navigation
+      // This avoids the afterEach scroll-to-top behavior
       window.history.replaceState(window.history.state, "", newUrl);
     }, ANIMATION.debounceUrl);
   }
