@@ -11,6 +11,7 @@ import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
 import {
+  useAnalytics,
   useSocialCircles,
   useNetworkKeyboard,
   usePathFinder,
@@ -52,6 +53,9 @@ import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
+
+// Initialize analytics tracking
+const analytics = useAnalytics();
 
 // Mobile detection and filter panel state
 const { isMobile, isFiltersOpen, toggleFilters, closeFilters } = useMobile();
@@ -183,6 +187,7 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
+  analytics.trackSearch(searchQuery.value, 1);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -313,11 +318,13 @@ async function handleExportPng() {
   } else {
     showToastMessage(result.error || "Export failed");
   }
+  analytics.trackExport("png");
 }
 
 function handleExportJson() {
   exportJson();
   showToastMessage("JSON exported successfully");
+  analytics.trackExport("json");
 }
 
 async function handleShare() {
@@ -330,6 +337,7 @@ async function handleShare() {
   } else if (result.error !== "Cancelled") {
     showToastMessage(result.error || "Share failed");
   }
+  analytics.trackExport("url");
 }
 
 // Provide context to child components
@@ -430,6 +438,8 @@ const filterPills = computed(() =>
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
     toggleSelectNode(nodeId);
+    const node = nodeMap.value.get(nodeId);
+    if (node) analytics.trackNodeSelect(node as ApiNode);
   } else {
     clearSelection();
   }
@@ -439,6 +449,8 @@ function handleNodeSelect(nodeId: string | null) {
 function handleEdgeSelect(edgeId: string | null) {
   if (edgeId) {
     toggleSelectEdge(edgeId);
+    const edge = edgeMap.value.get(edgeId);
+    if (edge) analytics.trackEdgeSelect(edge as ApiEdge);
   } else {
     clearSelection();
   }
