@@ -318,16 +318,27 @@ onUnmounted(() => {
       <!-- Footer (sticky) -->
       <footer class="edge-sidebar__footer">
         <button class="edge-sidebar__view-button" @click="emit('selectNode', sourceNode.id)">
-          View {{ sourceNode.type === "author" ? "Author" : sourceNode.type }}
+          View
+          {{
+            sourceNode.type === "author"
+              ? "Author"
+              : sourceNode.type === "publisher"
+                ? "Publisher"
+                : sourceNode.type === "binder"
+                  ? "Bindery"
+                  : sourceNode.type
+          }}
         </button>
         <button class="edge-sidebar__view-button" @click="emit('selectNode', targetNode.id)">
           View
           {{
-            targetNode.type === "publisher"
-              ? "Publisher"
-              : targetNode.type === "binder"
-                ? "Bindery"
-                : targetNode.type
+            targetNode.type === "author"
+              ? "Author"
+              : targetNode.type === "publisher"
+                ? "Publisher"
+                : targetNode.type === "binder"
+                  ? "Bindery"
+                  : targetNode.type
           }}
         </button>
       </footer>

@@ -7,6 +7,8 @@ import { useRouter, useRoute } from "vue-router";
 import type { FilterState, NodeId, Era, ConnectionType } from "@/types/socialCircles";
 import { ANIMATION } from "@/constants/socialCircles";
 
+const ALL_CONNECTION_TYPES: ConnectionType[] = ["publisher", "shared_publisher", "binder"];
+
 export function useUrlState() {
   const router = useRouter();
   const route = useRoute();
@@ -88,7 +90,7 @@ export function useUrlState() {
         if (!f.showBinders) query.binders = "false";
         if (f.tier1Only) query.tier1 = "true";
         if (f.searchQuery) query.search = f.searchQuery;
-        if (f.connectionTypes.length < 3) {
+        if (f.connectionTypes.length < ALL_CONNECTION_TYPES.length) {
           query.connections = f.connectionTypes.join(",");
         }
         if (f.eras.length > 0) {
@@ -104,7 +106,7 @@ export function useUrlState() {
         query.year = String(params.year);
       }
 
-      void router.replace({ query });
+      window.history.replaceState(null, "", "?" + new URLSearchParams(query).toString());
     }, ANIMATION.debounceUrl);
   }
 

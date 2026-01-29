@@ -125,12 +125,17 @@ export const useAuthStore = defineStore("auth", () => {
       };
 
       // Timeout wrapper to prevent hung promises (Issue 6)
+      // Fix: clear timer on resolution to prevent memory leak
       const AUTH_TIMEOUT_MS = 5000;
       const withTimeout = <T>(promise: Promise<T>, name: string): Promise<T | null> => {
+        let timerId: ReturnType<typeof setTimeout>;
         return Promise.race([
-          promise,
+          promise.then((result) => {
+            clearTimeout(timerId);
+            return result;
+          }),
           new Promise<null>((resolve) => {
-            setTimeout(() => {
+            timerId = setTimeout(() => {
               console.warn(`[Auth] ${name} timed out after ${AUTH_TIMEOUT_MS}ms`);
               resolve(null);
             }, AUTH_TIMEOUT_MS);
@@ -181,7 +186,7 @@ export const useAuthStore = defineStore("auth", () => {
         // User is explicitly MFA-exempt - no MFA required
         mfaStep.value = "none";
       } else if (mfaCheckFailed) {
-        // Issue 1: MFA check failed for non-exempt user - require setup for security
+        // Issue 1: MFA check threw an error for non-exempt user - require setup for security
         // Don't silently pass when we can't verify MFA status
         console.warn("[Auth] MFA check failed for non-exempt user, requiring MFA setup");
         mfaStep.value = "mfa_setup_required";
@@ -191,8 +196,11 @@ export const useAuthStore = defineStore("auth", () => {
           mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
         mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
       } else {
-        // MFA preference is null (timeout or other) - require setup for security
-        mfaStep.value = "mfa_setup_required";
+        // Issue #1414: MFA preference is null (timeout) - assume MFA configured (non-blocking).
+        // Timeout likely means network latency, not missing MFA. Requiring setup on timeout
+        // forces users through MFA re-enrollment unnecessarily.
+        console.warn("[Auth] MFA check timed out, assuming MFA configured");
+        mfaStep.value = "none";
       }
     } catch (e) {
       // Session check failed - clear user silently (no toast to avoid spam on page load)

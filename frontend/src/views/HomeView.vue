@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
+import { defineAsyncComponent, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useDashboardStore } from "@/stores/dashboard";
-import StatisticsDashboard from "@/components/dashboard/StatisticsDashboard.vue";
 import CollectionSpotlight from "@/components/dashboard/CollectionSpotlight.vue";
 import SocialCirclesCard from "@/components/dashboard/SocialCirclesCard.vue";
 import BaseTooltip from "@/components/BaseTooltip.vue";
 import { DASHBOARD_STAT_CARDS } from "@/constants";
+
+const StatisticsDashboard = defineAsyncComponent(
+  () => import("@/components/dashboard/StatisticsDashboard.vue")
+);
 
 const router = useRouter();
 

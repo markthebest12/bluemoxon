@@ -64,6 +64,7 @@ def build_social_circles_graph(
     # Fetch owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
     # Limit to 5000 to prevent OOM in Lambda (1GB memory limit)
     MAX_BOOKS = 5000
+    MAX_BOOK_IDS_PER_NODE = 10
     books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
     books = books_query.all()
 
@@ -121,7 +122,7 @@ def build_social_circles_graph(
             era=era,
             tier=author.tier,
             book_count=len(book_ids),
-            book_ids=book_ids,
+            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],
         )
 
     # Build publisher nodes
@@ -140,7 +141,7 @@ def build_social_circles_graph(
             type=NodeType.publisher,
             tier=publisher.tier,
             book_count=len(book_ids_set),
-            book_ids=list(book_ids_set),
+            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
         )
 
     # Build binder nodes
@@ -160,7 +161,7 @@ def build_social_circles_graph(
                 type=NodeType.binder,
                 tier=binder.tier,
                 book_count=len(book_ids_set),
-                book_ids=list(book_ids_set),
+                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
             )
 
     # Build edges: Author -> Publisher
@@ -202,8 +203,11 @@ def build_social_circles_graph(
 
         author_list = list(author_ids)
         # Limit authors to prevent combinatorial explosion
+        # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
-            author_list = author_list[:MAX_AUTHORS_PER_PUBLISHER]
+            author_list = sorted(author_list, key=lambda a: len(author_books[a]), reverse=True)[
+                :MAX_AUTHORS_PER_PUBLISHER
+            ]
 
         for i, author1_id in enumerate(author_list):
             author1_node_id = f"author:{author1_id}"
