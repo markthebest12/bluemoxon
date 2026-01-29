@@ -34,7 +34,12 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Immediate deprecation check in setup body
-if (import.meta.env.DEV && !hasWarned && props.currentYear !== undefined && props.modelValue === undefined) {
+if (
+  import.meta.env.DEV &&
+  !hasWarned &&
+  props.currentYear !== undefined &&
+  props.modelValue === undefined
+) {
   console.warn(
     "TimelineSlider: 'currentYear' prop is deprecated. Use v-model instead: <TimelineSlider v-model=\"year\" />"
   );
