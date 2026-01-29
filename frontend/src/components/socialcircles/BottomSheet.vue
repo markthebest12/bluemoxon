@@ -23,6 +23,7 @@ const touchStartY = ref(0);
 const touchCurrentY = ref(0);
 const isDragging = ref(false);
 const sheetTranslateY = ref(0);
+const contentRef = ref<HTMLElement | null>(null);
 
 const SWIPE_THRESHOLD = 100; // pixels to trigger close
 
@@ -43,7 +44,11 @@ function handleTouchMove(event: TouchEvent) {
   const deltaY = touchCurrentY.value - touchStartY.value;
 
   // Only allow dragging downward (positive deltaY)
-  if (deltaY > 0) {
+  // AND only when content is scrolled to top (scrollTop === 0)
+  // This prevents capturing scroll gestures when content is scrollable
+  const isContentAtTop = !contentRef.value || contentRef.value.scrollTop === 0;
+
+  if (deltaY > 0 && isContentAtTop) {
     sheetTranslateY.value = deltaY;
     // Prevent default to stop page scrolling while dragging
     event.preventDefault();
@@ -97,7 +102,7 @@ watch(
             <h3>{{ title }}</h3>
             <button class="bottom-sheet-close" aria-label="Close" @click="close">&times;</button>
           </div>
-          <div class="bottom-sheet-content">
+          <div ref="contentRef" class="bottom-sheet-content">
             <slot />
           </div>
         </div>

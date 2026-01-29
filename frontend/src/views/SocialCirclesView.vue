@@ -15,6 +15,7 @@ import {
   useNetworkKeyboard,
   usePathFinder,
   useFindSimilar,
+  useMobile,
   type SimilarNode,
 } from "@/composables/socialcircles";
 import {
@@ -46,9 +47,14 @@ import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcuts
 import SearchInput from "@/components/socialcircles/SearchInput.vue";
 import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
+import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
+import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
+
+// Mobile detection and filter panel state
+const { isMobile, isFiltersOpen, toggleFilters, closeFilters } = useMobile();
 
 // Typed refs for composables (avoids inline import casts)
 const typedNodes = computed(() => socialCircles.nodes.value as ApiNode[]);
@@ -508,8 +514,8 @@ onUnmounted(() => {
     <!-- Empty State -->
     <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
 
-    <!-- Main Content -->
-    <div v-else-if="showGraph" class="social-circles-content">
+    <!-- Main Content (Desktop) -->
+    <div v-else-if="showGraph && !isMobile" class="social-circles-content">
       <!-- Filter Panel (left sidebar) -->
       <aside class="filter-sidebar">
         <FilterPanel
@@ -636,6 +642,79 @@ onUnmounted(() => {
         :end-year="hoveredEdge?.end_year"
         :shared-book-count="hoveredEdge?.shared_book_ids?.length"
       />
+    </div>
+
+    <!-- Main Content (Mobile) -->
+    <div v-else-if="showGraph && isMobile" class="social-circles-content mobile-layout">
+      <!-- Graph Area (full width on mobile) -->
+      <main class="graph-area mobile-graph-area">
+        <!-- Active Filter Pills (above graph on mobile) -->
+        <div v-if="filterPills.length > 0" class="mobile-filter-pills">
+          <ActiveFilterPills
+            :filters="filterPills"
+            @remove="removeFilter"
+            @clear-all="resetFilters"
+          />
+        </div>
+
+        <!-- Graph viewport -->
+        <div class="graph-viewport mobile-graph-viewport">
+          <NetworkGraph
+            ref="networkGraphRef"
+            :elements="cytoscapeElements"
+            :selected-node="selectedNode"
+            :selected-edge="selectedEdge"
+            :highlighted-nodes="highlightedNodes"
+            :highlighted-edges="highlightedEdges"
+            class="mobile-network-graph"
+            @node-select="handleNodeSelect"
+            @edge-select="handleEdgeSelect"
+            @edge-hover="handleEdgeHover"
+            @viewport-change="handleViewportChange"
+          />
+
+          <!-- Zoom Controls -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="zoom-controls-container">
+            <ZoomControls
+              @zoom-in="handleZoomIn"
+              @zoom-out="handleZoomOut"
+              @fit="handleFitToView"
+            />
+          </div>
+
+          <!-- Legend -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
+            <NetworkLegend />
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-area mobile-timeline">
+          <TimelineSlider
+            :min-year="timelineState.minYear"
+            :max-year="timelineState.maxYear"
+            :current-year="timelineState.currentYear"
+            :mode="timelineState.mode"
+            :is-playing="timelineState.isPlaying"
+            @year-change="setYear"
+            @play="togglePlayback"
+            @pause="togglePlayback"
+          />
+        </div>
+      </main>
+
+      <!-- Mobile Filter FAB -->
+      <MobileFilterFab :active-filter-count="filterPills.length" @click="toggleFilters" />
+
+      <!-- Mobile Filter BottomSheet -->
+      <BottomSheet v-model="isFiltersOpen" title="Filters">
+        <FilterPanel
+          :filter-state="filterState"
+          class="mobile-filter-panel"
+          @update:filter="applyFilter"
+          @reset="closeFilters"
+        />
+      </BottomSheet>
     </div>
 
     <!-- Keyboard Shortcuts Modal -->
@@ -806,5 +885,61 @@ onUnmounted(() => {
 .toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(0.5rem);
+}
+
+/* Mobile-specific styles */
+.mobile-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-graph-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mobile-filter-pills {
+  padding: 0.5rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+}
+
+.mobile-graph-viewport {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.mobile-network-graph {
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-legend {
+  bottom: 1rem;
+  left: 1rem;
+  right: auto;
+}
+
+.mobile-timeline {
+  padding: 0.75rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-top: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
+}
+
+.mobile-filter-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Hide filter sidebar on mobile */
+@media (max-width: 767px) {
+  .filter-sidebar {
+    display: none;
+  }
 }
 </style>

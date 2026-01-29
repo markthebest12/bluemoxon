@@ -13,7 +13,8 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, shallowRef, onMounted, onUnmounted, watch } from "vue";
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from "vue";
+import { useMediaQuery } from "@vueuse/core";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 import { useLayoutMode } from "@/composables/socialcircles";
 import LayoutSwitcher from "./LayoutSwitcher.vue";
@@ -57,6 +58,11 @@ function handleLayoutChange(mode: LayoutMode) {
 const containerRef = ref<HTMLDivElement | null>(null);
 const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
+
+// Touch device detection for mobile-optimized interactions
+const isCoarsePointer = useMediaQuery("(pointer: coarse)");
+const isMobileViewport = useMediaQuery("(max-width: 767px)");
+const isTouchDevice = computed(() => isCoarsePointer.value || isMobileViewport.value);
 
 // Layout mode management
 const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
@@ -280,6 +286,17 @@ watch(
     }
   },
   { deep: true }
+);
+
+// Use immediate:true to apply correct styles if cy initializes after touch mode is detected
+watch(
+  isTouchDevice,
+  (_isTouch) => {
+    if (!cy.value) return;
+    // Update node sizes for touch targets (larger on touch devices)
+    cy.value.style().update();
+  },
+  { immediate: true }
 );
 
 // Expose methods for parent
