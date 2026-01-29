@@ -196,6 +196,13 @@ function handleSearchSelect(node: { id: string }) {
   }
 }
 
+// Handle find path between two nodes (W2-5)
+function handleFindPath(start: string, end: string) {
+  pathFinder.setStart(start as NodeId);
+  pathFinder.setEnd(end as NodeId);
+  pathFinder.findPath();
+}
+
 // Handle find similar action from context menu (W2-6)
 function handleFindSimilar(nodeId: NodeId) {
   findSimilar.findSimilar(nodeId, 3);
@@ -546,7 +553,7 @@ onUnmounted(() => {
           :nodes="nodesForPanel"
           :path="pathFinder.path.value"
           :is-calculating="pathFinder.isCalculating.value"
-          @find-path="pathFinder.findPath"
+          @find-path="handleFindPath"
           @clear="pathFinder.clear"
         />
       </aside>
