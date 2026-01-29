@@ -33,8 +33,9 @@ const graphBounds = ref({ x1: 0, y1: 0, x2: 0, y2: 0, w: 0, h: 0 });
 // Viewport rectangle position (relative to minimap)
 const viewportRect = ref({ x: 0, y: 0, width: 0, height: 0 });
 
-// Track event handler for cleanup
+// Track event handlers for cleanup
 let boundHandler: (() => void) | null = null;
+let layoutstopHandler: (() => void) | null = null;
 
 // Track setTimeout for cleanup on unmount
 let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -206,14 +207,17 @@ function setupEventListeners() {
     updateViewportRect();
   };
 
+  // Handler for layout completion
+  layoutstopHandler = () => {
+    drawMinimap();
+    updateViewportRect();
+  };
+
   // Listen to pan, zoom, and resize events
   cy.on("pan zoom resize", boundHandler);
 
   // Also listen to layout done to update minimap after layout changes
-  cy.on("layoutstop", () => {
-    drawMinimap();
-    updateViewportRect();
-  });
+  cy.on("layoutstop", layoutstopHandler);
 
   // Initial draw
   drawMinimap();
@@ -224,10 +228,15 @@ function setupEventListeners() {
  * Cleans up event listeners from the cytoscape instance.
  */
 function cleanupEventListeners() {
-  if (props.cy && boundHandler) {
-    props.cy.off("pan zoom resize", boundHandler);
-    props.cy.off("layoutstop");
-    boundHandler = null;
+  if (props.cy) {
+    if (boundHandler) {
+      props.cy.off("pan zoom resize", boundHandler);
+      boundHandler = null;
+    }
+    if (layoutstopHandler) {
+      props.cy.off("layoutstop", layoutstopHandler);
+      layoutstopHandler = null;
+    }
   }
 }
 
