@@ -15,7 +15,7 @@
 import { ref, computed, watch } from "vue";
 
 import type { ApiNode, NodeId } from "@/types/socialCircles";
-import { filterNodesByQuery } from "@/composables/socialcircles/usePathFinder";
+import { filterNodesByQuery } from "@/utils/socialCircles/filterUtils";
 
 interface Props {
   nodes: ApiNode[];
@@ -42,14 +42,10 @@ const endSearchQuery = ref("");
 const showStartDropdown = ref(false);
 const showEndDropdown = ref(false);
 
-// Computed: Filter nodes by search query (shared helper from usePathFinder)
-const filteredStartNodes = computed(() =>
-  filterNodesByQuery(props.nodes, startSearchQuery.value),
-);
+// Computed: Filter nodes by search query
+const filteredStartNodes = computed(() => filterNodesByQuery(props.nodes, startSearchQuery.value));
 
-const filteredEndNodes = computed(() =>
-  filterNodesByQuery(props.nodes, endSearchQuery.value),
-);
+const filteredEndNodes = computed(() => filterNodesByQuery(props.nodes, endSearchQuery.value));
 
 // Get selected node objects
 const startNode = computed(() => {
