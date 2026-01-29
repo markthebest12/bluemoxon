@@ -15,6 +15,7 @@ import {
   useNetworkKeyboard,
   usePathFinder,
   useFindSimilar,
+  type SimilarNode,
 } from "@/composables/socialcircles";
 import {
   DEFAULT_TIMELINE_STATE,
@@ -58,12 +59,6 @@ const pathFinder = usePathFinder(typedNodes, typedEdges);
 
 // Initialize find similar composable
 const findSimilar = useFindSimilar(typedNodes, typedEdges);
-
-// Path finder state for template
-const pathState = computed(() => ({
-  path: pathFinder.path.value,
-  isCalculating: pathFinder.isCalculating.value,
-}));
 
 // Destructure commonly used values
 const {
@@ -197,9 +192,10 @@ function handleSearchSelect(node: { id: string }) {
 
 // Handle find similar action from context menu (W2-6)
 function handleFindSimilar(nodeId: NodeId) {
-  const similarNodes = findSimilar.getSimilarNodes(nodeId, 3);
-  if (similarNodes.length > 0) {
-    const names = similarNodes.map((n) => n.name).join(", ");
+  findSimilar.findSimilar(nodeId, 3);
+  const results = findSimilar.similarNodes.value;
+  if (results.length > 0) {
+    const names = results.map((n: SimilarNode) => n.node.name).join(", ");
     showToastMessage(`Similar: ${names}`);
   } else {
     showToastMessage("No similar nodes found");
@@ -542,10 +538,10 @@ onUnmounted(() => {
         <!-- Path Finder Panel (W2-5) -->
         <PathFinderPanel
           :nodes="nodesForPanel"
-          :edges="edgesForPanel"
-          :path-state="pathState"
+          :path="pathFinder.path.value"
+          :is-calculating="pathFinder.isCalculating.value"
           @find-path="pathFinder.findPath"
-          @clear-path="pathFinder.clearPath"
+          @clear="pathFinder.clear"
         />
       </aside>
 
