@@ -7,8 +7,11 @@
  * Also maintains backwards compatibility with currentYear prop.
  */
 
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import TimelineMarkers from "@/components/socialcircles/TimelineMarkers.vue";
+
+// Module-level flag to prevent warning spam
+let hasWarned = false;
 
 interface Props {
   minYear?: number;
@@ -30,11 +33,13 @@ const props = withDefaults(defineProps<Props>(), {
   isPlaying: false,
 });
 
-onMounted(() => {
-  if (import.meta.env.DEV && props.currentYear !== undefined && props.modelValue === undefined) {
-    console.warn("[TimelineSlider] currentYear prop is deprecated. Use v-model instead.");
-  }
-});
+// Immediate deprecation check in setup body
+if (import.meta.env.DEV && !hasWarned && props.currentYear !== undefined && props.modelValue === undefined) {
+  console.warn(
+    "TimelineSlider: 'currentYear' prop is deprecated. Use v-model instead: <TimelineSlider v-model=\"year\" />"
+  );
+  hasWarned = true;
+}
 
 const emit = defineEmits<{
   /** v-model update event */
