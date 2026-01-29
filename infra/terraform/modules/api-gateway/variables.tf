@@ -38,7 +38,7 @@ variable "cors_expose_headers" {
   description = "Headers to expose in CORS response. Must match backend/app/main.py CORS_EXPOSE_HEADERS."
   # Order matches backend: X-App-Version, X-Environment, X-Cold-Start
   # Note: This only affects staging until prod API Gateway is managed by Terraform
-  default     = ["X-App-Version", "X-Environment", "X-Cold-Start"]
+  default = ["X-App-Version", "X-Environment", "X-Cold-Start"]
 }
 
 variable "cors_max_age" {
