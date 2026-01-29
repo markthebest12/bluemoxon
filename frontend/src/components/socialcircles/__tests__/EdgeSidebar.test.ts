@@ -11,7 +11,7 @@ vi.mock("vue-router", () => ({
 }));
 
 // Mock @vueuse/integrations/useFocusTrap
-vi.mock("@vueuse/integrations/useFocusTrap", () => ({
+vi.mock("@/composables/useFocusTrap", () => ({
   useFocusTrap: () => ({
     activate: vi.fn(),
     deactivate: vi.fn(),

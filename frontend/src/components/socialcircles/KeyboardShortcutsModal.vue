@@ -31,6 +31,7 @@ const SHORTCUTS = [
 ] as const;
 
 const modalRef = ref<HTMLElement | null>(null);
+// Local composable never auto-activates (no `immediate` option) — call activate() explicitly
 const { activate, deactivate } = useFocusTrap(modalRef);
 
 function handleBackdropClick(event: MouseEvent) {
@@ -61,7 +62,6 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
-  deactivate();
 });
 </script>
 
