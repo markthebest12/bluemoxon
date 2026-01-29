@@ -174,7 +174,7 @@ function showToastMessage(message: string) {
 const showKeyboardShortcuts = ref(false);
 
 // Search state — searchQuery is the two-way binding for SearchInput's :model-value.
-// It is also captured by preSelectSearchQuery for analytics tracking in handleSearchSelect.
+// preSelectSearchQuery separately tracks pre-selection typing for analytics (independent of searchQuery).
 const searchQuery = ref("");
 // Tracks the latest typed text before a search selection. Due to SearchInput's
 // 300ms debounce, the dropdown may show results for an older query if the user
