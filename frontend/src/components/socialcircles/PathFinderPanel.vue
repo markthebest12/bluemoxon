@@ -45,13 +45,27 @@ const showEndDropdown = ref(false);
 const filteredStartNodes = computed(() => {
   const query = startSearchQuery.value.toLowerCase().trim();
   if (!query) return props.nodes.slice(0, 20);
-  return props.nodes.filter((n) => n.name.toLowerCase().includes(query)).slice(0, 20);
+  const results: ApiNode[] = [];
+  for (const n of props.nodes) {
+    if (n.name.toLowerCase().includes(query)) {
+      results.push(n);
+      if (results.length >= 20) break;
+    }
+  }
+  return results;
 });
 
 const filteredEndNodes = computed(() => {
   const query = endSearchQuery.value.toLowerCase().trim();
   if (!query) return props.nodes.slice(0, 20);
-  return props.nodes.filter((n) => n.name.toLowerCase().includes(query)).slice(0, 20);
+  const results: ApiNode[] = [];
+  for (const n of props.nodes) {
+    if (n.name.toLowerCase().includes(query)) {
+      results.push(n);
+      if (results.length >= 20) break;
+    }
+  }
+  return results;
 });
 
 // Get selected node objects
