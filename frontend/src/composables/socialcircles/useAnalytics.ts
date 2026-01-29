@@ -55,7 +55,7 @@ function _createAnalytics() {
 
   /**
    * Track a generic analytics event.
-   * Non-blocking: errors are silently caught to prevent UI disruption.
+   * Non-blocking: Log errors in dev mode, silently ignore in production to prevent UI disruption.
    */
   function trackEvent(event: AnalyticsEvent): void {
     try {
@@ -64,7 +64,7 @@ function _createAnalytics() {
       }
       // Future: send to analytics service
       // analyticsService.track(event);
-    } catch (error) {
+    } catch (error: unknown) {
       if (isDev) {
         console.warn("[Analytics] Error tracking event:", error);
       }
