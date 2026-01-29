@@ -456,6 +456,67 @@ describe("TimelineMarkers - accessibility", () => {
 });
 
 // =============================================================================
+// Touch Tooltip Toggle
+// =============================================================================
+
+describe("TimelineMarkers - touch tooltip toggle", () => {
+  it("shows tooltip on first click and hides on second click (touch toggle)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Touch Event", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("click");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("click");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+
+  it("switches tooltip to different marker on click without dismiss", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [
+        { year: 1830, label: "First Event", type: "political" },
+        { year: 1870, label: "Second Event", type: "literary" },
+      ],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    await markers[0].trigger("click");
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("First Event");
+    await markers[1].trigger("click");
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("Second Event");
+  });
+});
+
+// =============================================================================
+// Rapid Hover Switch
+// =============================================================================
+
+describe("TimelineMarkers - rapid hover switch", () => {
+  it("shows only marker B tooltip when hovering A then immediately B (no mouseleave on A)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [
+        { year: 1830, label: "Marker A", type: "political" },
+        { year: 1870, label: "Marker B", type: "literary" },
+      ],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    await markers[0].trigger("mouseenter");
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("Marker A");
+
+    // Hover marker B without triggering mouseleave on A
+    await markers[1].trigger("mouseenter");
+    const tooltips = wrapper.findAll(".timeline-markers__tooltip");
+    expect(tooltips).toHaveLength(1);
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("Marker B");
+  });
+});
+
+// =============================================================================
 // Tooltip ID Uniqueness
 // =============================================================================
 

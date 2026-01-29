@@ -26,17 +26,27 @@ const props = withDefaults(defineProps<Props>(), {
   events: () => VICTORIAN_EVENTS,
 });
 
-// Track which marker is being hovered or focused (by key, not object reference)
+// Track which marker is being hovered or focused (by ID string)
 const hoveredEventKey = ref<string | null>(null);
 
-function getEventKey(event: HistoricalEvent): string {
-  return `${event.year}-${event.label}`;
+// Single identity function used for both v-for keys and tooltip DOM IDs
+function getEventId(event: HistoricalEvent): string {
+  const slugLabel = event.label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return `tooltip-${event.year}-${slugLabel}`;
 }
 
-// Filter events to only those within the visible range
-const visibleEvents = computed(() => {
+// Enriched event with precomputed _id to avoid repeated calls in template
+type EnrichedEvent = HistoricalEvent & { _id: string };
+
+// Filter events to only those within the visible range, with precomputed IDs
+const visibleEvents = computed<EnrichedEvent[]>(() => {
   if (props.maxYear < props.minYear) return [];
-  return props.events.filter((event) => event.year >= props.minYear && event.year <= props.maxYear);
+  return props.events
+    .filter((event) => event.year >= props.minYear && event.year <= props.maxYear)
+    .map((e) => ({ ...e, _id: getEventId(e) }));
 });
 
 // Calculate horizontal position percentage for an event
@@ -68,27 +78,27 @@ function getAriaLabel(event: HistoricalEvent): string {
   return `${event.year}: ${event.label} (${event.type})`;
 }
 
-// Generate unique tooltip ID for aria-describedby linkage
-function getTooltipId(event: HistoricalEvent): string {
-  const slugLabel = event.label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-  return `tooltip-${event.year}-${slugLabel}`;
-}
-
-function showTooltip(event: HistoricalEvent) {
-  hoveredEventKey.value = getEventKey(event);
+function showTooltip(id: string) {
+  hoveredEventKey.value = id;
 }
 
 function hideTooltip() {
   hoveredEventKey.value = null;
 }
 
-function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
+// Toggle tooltip on click (enables touch device dismissal)
+function handleClick(id: string) {
+  if (hoveredEventKey.value === id) {
+    hoveredEventKey.value = null;
+  } else {
+    hoveredEventKey.value = id;
+  }
+}
+
+function handleKeydown(e: KeyboardEvent, id: string) {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    showTooltip(event);
+    showTooltip(id);
   } else if (e.key === "Escape") {
     hideTooltip();
   }
@@ -99,19 +109,20 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   <div class="timeline-markers" role="list" aria-label="Historical timeline events">
     <div
       v-for="event in visibleEvents"
-      :key="`${event.year}-${event.label}`"
+      :key="event._id"
       class="timeline-markers__marker"
       :class="getEventTypeClass(event.type)"
       :style="{ left: `${getPositionPercent(event.year)}%` }"
       role="listitem"
       :aria-label="getAriaLabel(event)"
-      :aria-describedby="hoveredEventKey === getEventKey(event) ? getTooltipId(event) : undefined"
+      :aria-describedby="hoveredEventKey === event._id ? event._id : undefined"
       tabindex="0"
-      @mouseenter="showTooltip(event)"
+      @mouseenter="showTooltip(event._id)"
       @mouseleave="hideTooltip"
-      @focus="showTooltip(event)"
+      @focus="showTooltip(event._id)"
       @blur="hideTooltip"
-      @keydown="handleKeydown($event, event)"
+      @click="handleClick(event._id)"
+      @keydown="handleKeydown($event, event._id)"
     >
       <div class="timeline-markers__line" />
       <span class="timeline-markers__year">{{ event.year }}</span>
@@ -119,8 +130,8 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
       <!-- Tooltip -->
       <Transition name="marker-tooltip-fade">
         <div
-          v-if="hoveredEventKey === getEventKey(event)"
-          :id="getTooltipId(event)"
+          v-if="hoveredEventKey === event._id"
+          :id="event._id"
           class="timeline-markers__tooltip"
           :class="getTooltipAlignClass(event.year)"
           role="tooltip"
