@@ -38,7 +38,7 @@ async function collapseStatsPanel(statsPanel: Locator): Promise<void> {
 
 test.describe("Social Circles Statistics Panel", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/socialcircles");
+    await page.goto("/social-circles");
     await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
   });
 
