@@ -20,10 +20,37 @@ export interface AnalyticsEvent {
 export type ExportFormat = "png" | "json" | "url";
 
 // =============================================================================
+// Singleton instance cache
+// =============================================================================
+
+let _instance: ReturnType<typeof _createAnalytics> | null = null;
+
+/** Reset singleton for testing. Guarded to only run in test mode. */
+export function _resetAnalyticsForTesting(): void {
+  if (import.meta.env.MODE === "test") {
+    _instance = null;
+  }
+}
+
+// =============================================================================
 // Composable
 // =============================================================================
 
+/**
+ * Returns a singleton analytics instance. Multiple calls to useAnalytics()
+ * return the same object, preventing duplicate event tracking when the
+ * composable is used in more than one component.
+ */
 export function useAnalytics() {
+  if (!_instance) {
+    _instance = _createAnalytics();
+  }
+  return _instance;
+}
+
+function _createAnalytics() {
+  // Evaluated once at singleton creation time. This is correct for Vite where
+  // import.meta.env.DEV is a compile-time constant that never changes at runtime.
   const isDev = import.meta.env.DEV;
 
   /**
@@ -109,6 +136,29 @@ export function useAnalytics() {
   }
 
   /**
+   * Track when a specific filter is removed.
+   */
+  function trackFilterRemove(filter: string, previousValue: unknown): void {
+    trackEvent({
+      event: "filter_removed",
+      properties: {
+        filter,
+        previousValue,
+      },
+    });
+  }
+
+  /**
+   * Track when all filters are reset.
+   */
+  function trackFilterReset(): void {
+    trackEvent({
+      event: "filters_reset",
+      properties: {},
+    });
+  }
+
+  /**
    * Track when the graph is exported.
    */
   function trackExport(format: ExportFormat): void {
@@ -125,6 +175,8 @@ export function useAnalytics() {
     trackNodeSelect,
     trackEdgeSelect,
     trackFilterChange,
+    trackFilterRemove,
+    trackFilterReset,
     trackLayoutChange,
     trackSearch,
     trackExport,

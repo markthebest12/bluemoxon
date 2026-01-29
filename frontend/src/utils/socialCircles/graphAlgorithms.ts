@@ -47,6 +47,9 @@ export function findShortestPath(
   const queue: NodeId[] = [startId];
   visited.add(startId);
 
+  // Note: queue.shift() is O(n) per dequeue operation. For the current social
+  // circles use case (typically <1000 nodes), this is acceptable. For large
+  // graphs, a proper deque or ring buffer would reduce this to O(1).
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
 

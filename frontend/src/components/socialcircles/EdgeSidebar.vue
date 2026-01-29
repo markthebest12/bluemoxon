@@ -7,7 +7,7 @@
 
 import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { api } from "@/services/api";
 import type { ApiNode, ApiEdge, NodeId, ConnectionType, NodeType } from "@/types/socialCircles";
 import {
@@ -42,7 +42,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const sidebarRef = ref<HTMLElement | null>(null);
-const { activate, deactivate } = useFocusTrap(sidebarRef, { immediate: false });
+const { activate, deactivate } = useFocusTrap(sidebarRef);
 const isPinned = ref(false);
 
 // Close panel when clicking outside (#1407)

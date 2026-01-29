@@ -4,7 +4,7 @@ import NodeFloatingCard from "../NodeFloatingCard.vue";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, BookId } from "@/types/socialCircles";
 
 // Mock useFocusTrap
-vi.mock("@vueuse/integrations/useFocusTrap", () => ({
+vi.mock("@/composables/useFocusTrap", () => ({
   useFocusTrap: () => ({
     activate: vi.fn(),
     deactivate: vi.fn(),

@@ -15,6 +15,7 @@
 import { ref, computed, watch } from "vue";
 
 import type { ApiNode, NodeId } from "@/types/socialCircles";
+import { filterNodesByQuery } from "@/utils/socialCircles/filterUtils";
 
 interface Props {
   nodes: ApiNode[];
@@ -42,17 +43,9 @@ const showStartDropdown = ref(false);
 const showEndDropdown = ref(false);
 
 // Computed: Filter nodes by search query
-const filteredStartNodes = computed(() => {
-  const query = startSearchQuery.value.toLowerCase().trim();
-  if (!query) return props.nodes.slice(0, 20);
-  return props.nodes.filter((n) => n.name.toLowerCase().includes(query)).slice(0, 20);
-});
+const filteredStartNodes = computed(() => filterNodesByQuery(props.nodes, startSearchQuery.value));
 
-const filteredEndNodes = computed(() => {
-  const query = endSearchQuery.value.toLowerCase().trim();
-  if (!query) return props.nodes.slice(0, 20);
-  return props.nodes.filter((n) => n.name.toLowerCase().includes(query)).slice(0, 20);
-});
+const filteredEndNodes = computed(() => filterNodesByQuery(props.nodes, endSearchQuery.value));
 
 // Get selected node objects
 const startNode = computed(() => {

@@ -8,6 +8,7 @@
  */
 
 import { ref, computed, watch } from "vue";
+import TimelineMarkers from "@/components/socialcircles/TimelineMarkers.vue";
 
 interface Props {
   minYear?: number;
@@ -93,15 +94,18 @@ function handlePlay() {
 
     <div class="timeline-slider__track">
       <span class="timeline-slider__label">{{ minYear }}</span>
-      <input
-        v-model.number="localYear"
-        type="range"
-        :min="minYear"
-        :max="maxYear"
-        class="timeline-slider__input"
-        aria-label="Timeline year selector"
-        @change="updateYear(localYear)"
-      />
+      <div class="timeline-slider__input-wrapper">
+        <input
+          v-model.number="localYear"
+          type="range"
+          :min="minYear"
+          :max="maxYear"
+          class="timeline-slider__input"
+          aria-label="Timeline year selector"
+          @change="updateYear(localYear)"
+        />
+        <TimelineMarkers :min-year="minYear" :max-year="maxYear" />
+      </div>
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
 
@@ -161,8 +165,13 @@ function handlePlay() {
   gap: 1rem;
 }
 
-.timeline-slider__input {
+.timeline-slider__input-wrapper {
+  position: relative;
   flex: 1;
+}
+
+.timeline-slider__input {
+  width: 100%;
   height: 4px;
   -webkit-appearance: none;
   background: var(--color-victorian-paper-aged);

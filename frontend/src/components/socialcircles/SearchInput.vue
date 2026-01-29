@@ -1,4 +1,9 @@
 <!-- frontend/src/components/socialcircles/SearchInput.vue -->
+<script lang="ts">
+/** Maximum number of search results shown in the dropdown. */
+export const MAX_RESULTS = 10;
+</script>
+
 <script setup lang="ts">
 /**
  * SearchInput - Type-ahead search input for finding people in the graph.
@@ -24,10 +29,12 @@ interface Props {
   nodes: ApiNode[];
   modelValue: string;
   placeholder?: string;
+  id?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: "Search people...",
+  id: "search-people",
 });
 
 const emit = defineEmits<{
@@ -39,7 +46,7 @@ const emit = defineEmits<{
 // Constants
 // =============================================================================
 
-const MAX_RESULTS = 10;
+// MAX_RESULTS is exported from the companion <script> block above.
 const DEBOUNCE_MS = 300;
 
 const GROUP_LABELS: Record<NodeType, string> = {
@@ -247,10 +254,12 @@ function isActiveItem(node: ApiNode): boolean {
         />
       </svg>
       <input
+        :id="id"
         type="text"
         class="search-input__field"
         :value="localQuery"
         :placeholder="placeholder"
+        aria-label="Search people"
         autocomplete="off"
         @input="handleInput"
         @keydown="handleKeydown"

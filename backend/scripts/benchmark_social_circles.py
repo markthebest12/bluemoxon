@@ -2,14 +2,19 @@
 """Performance benchmark script for the social circles endpoint.
 
 This script measures response time metrics for the /api/v1/social-circles endpoint
-across different max_books parameter values.
+across different max_books parameter values. Supports concurrent request mode for
+realistic load testing with staggered request launches.
 
 Usage:
     python backend/scripts/benchmark_social_circles.py
     python backend/scripts/benchmark_social_circles.py --iterations 20 --env prod
+    python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
+    python backend/scripts/benchmark_social_circles.py --dry-run
+    python backend/scripts/benchmark_social_circles.py --env prod --confirm-production
 
 Output:
-    JSON with timing metrics (min, max, avg, p95, p99) for each max_books value.
+    JSON with timing metrics (min, max, avg, p95, p99) for each max_books value,
+    plus throughput metrics (total time, requests/second) in concurrent mode.
 """
 
 # ruff: noqa: T201
@@ -58,6 +63,9 @@ class BenchmarkResult:
     iterations: int
     metrics: TimingMetrics
     environment: str
+    concurrency: int = 1
+    total_time_ms: float = 0.0
+    requests_per_second: float = 0.0
     timestamp: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     )
@@ -137,6 +145,8 @@ async def run_benchmark(
     max_books: int,
     iterations: int,
     api_key: str,
+    concurrency: int = 1,
+    stagger_delay: float = 0.05,
 ) -> BenchmarkResult:
     """Run benchmark for a specific max_books value.
 
@@ -145,6 +155,8 @@ async def run_benchmark(
         max_books: The max_books parameter to test.
         iterations: Number of requests to make.
         api_key: API key for authentication.
+        concurrency: Number of concurrent requests (1 = sequential).
+        stagger_delay: Seconds between concurrent request launches.
 
     Returns:
         BenchmarkResult with timing metrics.
@@ -156,20 +168,62 @@ async def run_benchmark(
     timings: list[float] = []
     errors = 0
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for i in range(iterations):
-            elapsed_ms, success = await measure_request(client, url, headers, max_books)
+    wall_start = time.perf_counter()
+
+    if concurrency <= 1:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for i in range(iterations):
+                elapsed_ms, success = await measure_request(client, url, headers, max_books)
+                if success:
+                    timings.append(elapsed_ms)
+                else:
+                    errors += 1
+                print(
+                    f"  Iteration {i + 1}/{iterations}: "
+                    f"{elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
+                )
+    else:
+        semaphore = asyncio.Semaphore(concurrency)
+        results_list: list[tuple[int, float, bool]] = []
+
+        async def bounded_request(client: httpx.AsyncClient, index: int) -> tuple[int, float, bool]:
+            async with semaphore:
+                elapsed_ms, success = await measure_request(client, url, headers, max_books)
+                return index, elapsed_ms, success
+
+        stagger_ms = stagger_delay * 1000
+        print(
+            f"  Sending {iterations} requests with concurrency={concurrency} "
+            f"(stagger={stagger_ms:.0f}ms)..."
+        )
+        limits = httpx.Limits(max_connections=concurrency)
+        async with httpx.AsyncClient(timeout=60.0, limits=limits) as client:
+            tasks: list[asyncio.Task[tuple[int, float, bool]]] = []
+            for i in range(iterations):
+                task = asyncio.create_task(bounded_request(client, i))
+                tasks.append(task)
+                if i < iterations - 1:
+                    await asyncio.sleep(stagger_delay)
+            results_list = await asyncio.gather(*tasks)
+
+        results_list.sort(key=lambda x: x[0])
+        for index, elapsed_ms, success in results_list:
             if success:
                 timings.append(elapsed_ms)
             else:
                 errors += 1
-            # Progress indicator
             print(
-                f"  Iteration {i + 1}/{iterations}: {elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
+                f"  Request {index + 1}/{iterations}: "
+                f"{elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
             )
 
+    wall_end = time.perf_counter()
+    total_time_ms = (wall_end - wall_start) * 1000
+    successful_count = len(timings)
+    total_requests = successful_count + errors
+    requests_per_second = total_requests / (total_time_ms / 1000) if total_time_ms > 0 else 0
+
     if not timings:
-        # All requests failed
         metrics = TimingMetrics(
             min_ms=0,
             max_ms=0,
@@ -192,6 +246,9 @@ async def run_benchmark(
         iterations=iterations,
         metrics=metrics,
         environment=env,
+        concurrency=concurrency,
+        total_time_ms=round(total_time_ms, 2),
+        requests_per_second=round(requests_per_second, 2),
         errors=errors,
     )
 
@@ -220,6 +277,7 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
     """
     env = args.env
     iterations = args.iterations
+    concurrency = args.concurrent
     max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
 
     print(f"Loading API key for {env}...")
@@ -229,7 +287,9 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
         print(f"Error: {e}")
         sys.exit(1)
 
+    mode_label = f"concurrent (x{concurrency})" if concurrency > 1 else "sequential"
     print(f"Running benchmark against {ENVIRONMENTS[env]}")
+    print(f"Mode: {mode_label}")
     print(f"Iterations per test: {iterations}")
     print(f"Testing max_books values: {max_books_values}")
     print("-" * 60)
@@ -237,14 +297,28 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
     results = []
     for max_books in max_books_values:
         print(f"\nBenchmarking max_books={max_books}...")
-        result = await run_benchmark(env, max_books, iterations, api_key)
+        result = await run_benchmark(
+            env,
+            max_books,
+            iterations,
+            api_key,
+            concurrency=concurrency,
+            stagger_delay=args.stagger_ms / 1000,
+        )
         results.append(result_to_dict(result))
 
-        # Print summary for this run
         print(
             f"  Results: min={result.metrics.min_ms}ms, max={result.metrics.max_ms}ms, "
-            f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, p99={result.metrics.p99_ms}ms"
+            f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, "
+            f"p99={result.metrics.p99_ms}ms"
         )
+        if concurrency > 1:
+            print(
+                f"  Throughput: {result.total_time_ms:.0f}ms total, "
+                f"{result.requests_per_second:.1f} req/s"
+            )
+        else:
+            print(f"  Wall time: {result.total_time_ms:.0f}ms total")
         if result.errors > 0:
             print(f"  Errors: {result.errors}/{iterations}")
 
@@ -262,6 +336,11 @@ Examples:
   python backend/scripts/benchmark_social_circles.py --iterations 20
   python backend/scripts/benchmark_social_circles.py --env prod --iterations 5
   python backend/scripts/benchmark_social_circles.py --max-books 100 500
+  python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
+  python backend/scripts/benchmark_social_circles.py -c 10 --iterations 100
+  python backend/scripts/benchmark_social_circles.py --dry-run
+  python backend/scripts/benchmark_social_circles.py --dry-run --concurrent 10
+  python backend/scripts/benchmark_social_circles.py --env prod --confirm-production
         """,
     )
     parser.add_argument(
@@ -285,12 +364,90 @@ Examples:
         help=f"max_books values to test (default: {DEFAULT_MAX_BOOKS_VALUES})",
     )
     parser.add_argument(
+        "--concurrent",
+        "-c",
+        type=int,
+        default=1,
+        dest="concurrent",
+        help="Number of concurrent requests (default: 1 = sequential)",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         help="Output file path for JSON results (default: stdout)",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print benchmark configuration and exit without making requests",
+    )
+    parser.add_argument(
+        "--confirm-production",
+        action="store_true",
+        dest="confirm_production",
+        help="Skip the production safety confirmation prompt",
+    )
+    parser.add_argument(
+        "--stagger-ms",
+        type=int,
+        default=50,
+        dest="stagger_ms",
+        help="Delay between concurrent request launches in ms (default: 50)",
+    )
 
     args = parser.parse_args()
+
+    # Validate concurrency
+    if args.concurrent < 1:
+        parser.error("--concurrent must be at least 1")
+    if args.concurrent > 100:
+        print(
+            f"Warning: --concurrent {args.concurrent} exceeds httpx default pool size (100). "
+            "Capping at 100.",
+            file=sys.stderr,
+        )
+        args.concurrent = 100
+
+    # Resolve config values used in both dry-run and real runs
+    base_url = ENVIRONMENTS[args.env]
+    max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
+    mode_label = f"concurrent (x{args.concurrent})" if args.concurrent > 1 else "sequential"
+    is_production = args.env == "prod"
+
+    # Dry-run: print configuration and exit (before production gate since no requests are made)
+    if args.dry_run:
+        print("DRY RUN - No requests will be made")
+        print("-" * 60)
+        print(f"Environment:    {args.env}{' (PRODUCTION)' if is_production else ''}")
+        print(f"Base URL:       {base_url}")
+        print(f"Endpoint:       {ENDPOINT_PATH}")
+        print(f"Mode:           {mode_label}")
+        if args.concurrent > 1:
+            print(f"Stagger delay:  {args.stagger_ms}ms between launches")
+        print(f"Iterations:     {args.iterations}")
+        print(f"max_books:      {max_books_values}")
+        total_requests = args.iterations * len(max_books_values)
+        print(f"Total requests: {total_requests}")
+        if args.output:
+            print(f"Output file:    {args.output}")
+        print("-" * 60)
+        sys.exit(0)
+
+    # Production safety check (only for real runs, not dry-run)
+    if is_production and not args.confirm_production:
+        print("=" * 60)
+        print("WARNING: You are targeting PRODUCTION")
+        print(f"  URL: {base_url}")
+        print("=" * 60)
+        try:
+            answer = input("Type 'yes' to continue, anything else to abort: ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            sys.exit(1)
+        if answer.strip().lower() != "yes":
+            print("Aborted.")
+            sys.exit(1)
 
     # Run benchmarks
     results = asyncio.run(main_async(args))
