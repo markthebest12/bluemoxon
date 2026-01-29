@@ -188,7 +188,8 @@ async def run_benchmark(
                 return index, elapsed_ms, success
 
         print(f"  Sending {iterations} requests with concurrency={concurrency}...")
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        limits = httpx.Limits(max_connections=concurrency)
+        async with httpx.AsyncClient(timeout=60.0, limits=limits) as client:
             tasks = [bounded_request(client, i) for i in range(iterations)]
             results_list = list(await asyncio.gather(*tasks))
 
@@ -291,10 +292,13 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
             f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, "
             f"p99={result.metrics.p99_ms}ms"
         )
-        print(
-            f"  Throughput: {result.total_time_ms:.0f}ms total, "
-            f"{result.requests_per_second:.1f} req/s"
-        )
+        if concurrency > 1:
+            print(
+                f"  Throughput: {result.total_time_ms:.0f}ms total, "
+                f"{result.requests_per_second:.1f} req/s"
+            )
+        else:
+            print(f"  Wall time: {result.total_time_ms:.0f}ms total")
         if result.errors > 0:
             print(f"  Errors: {result.errors}/{iterations}")
 
@@ -351,6 +355,17 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Validate concurrency
+    if args.concurrent < 1:
+        parser.error("--concurrent must be at least 1")
+    if args.concurrent > 100:
+        print(
+            f"Warning: --concurrent {args.concurrent} exceeds httpx default pool size (100). "
+            "Capping at 100.",
+            file=sys.stderr,
+        )
+        args.concurrent = 100
 
     # Run benchmarks
     results = asyncio.run(main_async(args))
