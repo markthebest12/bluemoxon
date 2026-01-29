@@ -22,6 +22,8 @@ import {
 import {
   DEFAULT_TIMELINE_STATE,
   type ConnectionType,
+  type FilterState,
+  type LayoutMode,
   type NodeId,
   type EdgeId,
   type ApiNode,
@@ -45,7 +47,7 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
-import SearchInput from "@/components/socialcircles/SearchInput.vue";
+import SearchInput, { MAX_RESULTS } from "@/components/socialcircles/SearchInput.vue";
 import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
@@ -173,12 +175,36 @@ const showKeyboardShortcuts = ref(false);
 
 // Search state
 const searchQuery = ref("");
+// Tracks the latest typed text before a search selection. Due to SearchInput's
+// 300ms debounce, the dropdown may show results for an older query if the user
+// types fast and clicks a result before the debounce fires. In that case this
+// ref holds the most recent typed text, which is arguably the user's intent.
+const preSelectSearchQuery = ref("");
 
 // Stats panel collapsed state
 const statsCollapsed = ref(false);
 
+// Handle search query updates from typing (not from selection)
+function handleSearchQueryUpdate(value: string) {
+  searchQuery.value = value;
+  preSelectSearchQuery.value = value;
+}
+
 // Handle search result selection - center graph on selected node
 function handleSearchSelect(node: { id: string }) {
+  // Capture the pre-selection search query before selectNode triggers a v-model update
+  const query = preSelectSearchQuery.value.trim().toLowerCase();
+  // Cap at MAX_RESULTS to match the SearchInput dropdown limit.
+  // The user only ever sees up to MAX_RESULTS results, so analytics should reflect that.
+  const totalMatches = query
+    ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
+    : 0;
+  const resultCount = Math.min(totalMatches, MAX_RESULTS);
+
+  // Track search before the early return so every search selection is recorded,
+  // even when the node is not in the current filtered view.
+  analytics.trackSearch(preSelectSearchQuery.value, resultCount);
+
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
   if (!nodeExists) {
@@ -187,7 +213,6 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
-  analytics.trackSearch(searchQuery.value, 1);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -486,6 +511,37 @@ function handleViewportChange() {
   }
 }
 
+// Handle filter changes - delegates to orchestrator and tracks analytics
+function handleFilterChange(key: keyof FilterState, value: unknown) {
+  applyFilter(key, value);
+  analytics.trackFilterChange(key, value);
+}
+
+// Handle filter reset - clears all filters and tracks the reset event
+function handleFilterReset() {
+  resetFilters();
+  analytics.trackFilterReset();
+}
+
+// Handle individual filter removal - removes filter and tracks analytics
+function handleFilterRemove(key: string) {
+  // Capture the previous value before removal for analytics context
+  const previousValue = filterState.value[key as keyof FilterState] ?? null;
+  removeFilter(key);
+  analytics.trackFilterRemove(key, previousValue);
+}
+
+// Handle mobile filter reset - resets filters with analytics tracking AND closes the bottom sheet
+function handleMobileFilterReset() {
+  handleFilterReset();
+  closeFilters();
+}
+
+// Handle layout mode changes from NetworkGraph
+function handleLayoutChange(mode: LayoutMode) {
+  analytics.trackLayoutChange(mode);
+}
+
 // Handle retry after error
 function handleRetry() {
   initialize().catch(console.error);
@@ -512,7 +568,12 @@ onUnmounted(() => {
         </p>
       </div>
       <div class="header-center">
-        <SearchInput v-model="searchQuery" :nodes="nodesForSearch" @select="handleSearchSelect" />
+        <SearchInput
+          :model-value="searchQuery"
+          :nodes="nodesForSearch"
+          @update:model-value="handleSearchQueryUpdate"
+          @select="handleSearchSelect"
+        />
       </div>
       <div class="header-right">
         <ExportMenu
@@ -541,7 +602,7 @@ onUnmounted(() => {
     />
 
     <!-- Empty State -->
-    <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
+    <EmptyState v-else-if="showEmpty" @reset-filters="handleFilterReset" />
 
     <!-- Main Content (Desktop) -->
     <div v-else-if="showGraph && !isMobile" class="social-circles-content">
@@ -550,16 +611,16 @@ onUnmounted(() => {
         <FilterPanel
           :filter-state="filterState"
           :nodes="nodesForSearch"
-          @update:filter="applyFilter"
-          @reset="resetFilters"
+          @update:filter="handleFilterChange"
+          @reset="handleFilterReset"
         />
 
         <!-- Active Filter Pills -->
         <ActiveFilterPills
           v-if="filterPills.length > 0"
           :filters="filterPills"
-          @remove="removeFilter"
-          @clear-all="resetFilters"
+          @remove="handleFilterRemove"
+          @clear-all="handleFilterReset"
         />
 
         <!-- Statistics Panel -->
@@ -596,6 +657,7 @@ onUnmounted(() => {
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
           />
 
           <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
@@ -682,8 +744,8 @@ onUnmounted(() => {
         <div v-if="filterPills.length > 0" class="mobile-filter-pills">
           <ActiveFilterPills
             :filters="filterPills"
-            @remove="removeFilter"
-            @clear-all="resetFilters"
+            @remove="handleFilterRemove"
+            @clear-all="handleFilterReset"
           />
         </div>
 
@@ -701,6 +763,7 @@ onUnmounted(() => {
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
           />
 
           <!-- Zoom Controls -->
@@ -742,8 +805,8 @@ onUnmounted(() => {
           :filter-state="filterState"
           :nodes="nodesForSearch"
           class="mobile-filter-panel"
-          @update:filter="applyFilter"
-          @reset="closeFilters"
+          @update:filter="handleFilterChange"
+          @reset="handleMobileFilterReset"
         />
       </BottomSheet>
     </div>

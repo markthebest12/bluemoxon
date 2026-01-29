@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useAnalytics } from "../useAnalytics";
+import { useAnalytics, _resetAnalyticsForTesting } from "../useAnalytics";
 
 describe("useAnalytics", () => {
   beforeEach(() => {
+    _resetAnalyticsForTesting();
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
@@ -66,5 +67,33 @@ describe("useAnalytics", () => {
     const { trackExport } = useAnalytics();
     trackExport("png");
     expect(console.log).toHaveBeenCalledWith("[Analytics]", "graph_exported", { format: "png" });
+  });
+
+  it("trackFilterRemove creates correct event", () => {
+    const { trackFilterRemove } = useAnalytics();
+    trackFilterRemove("showAuthors", true);
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "filter_removed", {
+      filter: "showAuthors",
+      previousValue: true,
+    });
+  });
+
+  it("trackFilterReset creates correct event", () => {
+    const { trackFilterReset } = useAnalytics();
+    trackFilterReset();
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "filters_reset", {});
+  });
+
+  it("returns the same singleton instance across multiple calls", () => {
+    const instance1 = useAnalytics();
+    const instance2 = useAnalytics();
+    expect(instance1).toBe(instance2);
+  });
+
+  it("returns a fresh instance after reset", () => {
+    const instance1 = useAnalytics();
+    _resetAnalyticsForTesting();
+    const instance2 = useAnalytics();
+    expect(instance1).not.toBe(instance2);
   });
 });
