@@ -747,8 +747,8 @@ describe("calculateGraphStats", () => {
 
   it("calculates density for complete triangle", () => {
     // Triangle has 3 nodes and 3 edges
-    // Max possible edges = 3*2/2 = 3
-    // Density = 3/3 = 1 (fully connected)
+    // Max possible edges = N*(N-1)/2 = 3*2/2 = 3
+    // Density = 2*E/(N*(N-1)) = 2*3/(3*2) = 1 (fully connected)
     const triangleOnlyNodes = triangleNodes.slice(0, 3); // Remove isolated node
     const stats = calculateGraphStats(triangleOnlyNodes, triangleEdges);
 
@@ -759,8 +759,8 @@ describe("calculateGraphStats", () => {
     const stats = calculateGraphStats(starNodes, starEdges);
 
     // 5 nodes, 4 edges
-    // Max possible edges = 5*4/2 = 10
-    // Density = 4/10 = 0.4
+    // Max possible edges = N*(N-1)/2 = 5*4/2 = 10
+    // Density = 2*E/(N*(N-1)) = 2*4/(5*4) = 8/20 = 0.4
     expect(stats.density).toBe(0.4);
   });
 
@@ -768,8 +768,8 @@ describe("calculateGraphStats", () => {
     const stats = calculateGraphStats(linearNodes, linearEdges);
 
     // 4 nodes, 3 edges
-    // Max possible edges = 4*3/2 = 6
-    // Density = 3/6 = 0.5
+    // Max possible edges = N*(N-1)/2 = 4*3/2 = 6
+    // Density = 2*E/(N*(N-1)) = 2*3/(4*3) = 6/12 = 0.5
     expect(stats.density).toBe(0.5);
   });
 
@@ -781,7 +781,8 @@ describe("calculateGraphStats", () => {
     expect(stats.totalEdges).toBe(3);
     // Avg degree: (2+2+2+0)/4 = 1.5
     expect(stats.avgDegree).toBe(1.5);
-    // Max possible = 4*3/2 = 6, density = 3/6 = 0.5
+    // Max possible = N*(N-1)/2 = 4*3/2 = 6
+    // Density = 2*E/(N*(N-1)) = 2*3/(4*3) = 6/12 = 0.5
     expect(stats.density).toBe(0.5);
   });
 
@@ -800,7 +801,8 @@ describe("calculateGraphStats", () => {
     // Should be rounded to 2 decimal places
     expect(stats.avgDegree).toBe(0.67);
 
-    // Density = 1/3 = 0.333... rounded to 3 decimal places
+    // Max possible = N*(N-1)/2 = 3*2/2 = 3
+    // Density = 2*E/(N*(N-1)) = 2*1/(3*2) = 2/6 = 0.333... rounded to 3 decimal places
     expect(stats.density).toBe(0.333);
   });
 
@@ -812,7 +814,8 @@ describe("calculateGraphStats", () => {
     expect(stats.totalEdges).toBe(0);
     expect(stats.avgDegree).toBe(0);
     expect(stats.maxDegree).toBe(0);
-    // Max possible edges = 1*0/2 = 0, density = 0/0 which should be 0
+    // Max possible edges = N*(N-1)/2 = 1*0/2 = 0
+    // Density = 2*E/(N*(N-1)) = 0/0 which should be 0
     expect(stats.density).toBe(0);
   });
 });

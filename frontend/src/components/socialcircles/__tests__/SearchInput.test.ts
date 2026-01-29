@@ -46,7 +46,6 @@ describe("SearchInput", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    Element.prototype.scrollIntoView = vi.fn();
   });
 
   afterEach(() => {
@@ -149,16 +148,22 @@ describe("SearchInput", () => {
       await input.trigger("input");
       vi.advanceTimersByTime(100);
 
+      // Verify that no search has happened yet (dropdown not open)
+      expect(wrapper.find(".search-input__dropdown").exists()).toBe(false);
+
       await input.setValue("Ch");
       await input.trigger("input");
       vi.advanceTimersByTime(100);
+
+      // Still no search yet
+      expect(wrapper.find(".search-input__dropdown").exists()).toBe(false);
 
       await input.setValue("Cha");
       await input.trigger("input");
       vi.advanceTimersByTime(300);
       await wrapper.vm.$nextTick();
 
-      // Dropdown should be open with results matching "Cha"
+      // Now dropdown should be open with results matching "Cha"
       expect(wrapper.find(".search-input__dropdown").exists()).toBe(true);
       // "Charles Dickens", "Charlotte Bronte", "Chapman and Hall" all match "Cha"
       const items = wrapper.findAll(".search-input__item");
@@ -304,6 +309,13 @@ describe("SearchInput", () => {
   // =========================================================================
 
   describe("keyboard navigation", () => {
+    let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      scrollIntoViewMock = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewMock;
+    });
+
     async function openDropdown(w: VueWrapper) {
       const input = w.find("input.search-input__field");
       await input.setValue("C");
@@ -320,8 +332,9 @@ describe("SearchInput", () => {
       await input.trigger("keydown", { key: "ArrowDown" });
       await wrapper.vm.$nextTick();
 
-      const activeItems = wrapper.findAll(".search-input__item--active");
-      expect(activeItems.length).toBe(1);
+      // Verify that the first item is active
+      const items = wrapper.findAll(".search-input__item");
+      expect(items[0].classes()).toContain("search-input__item--active");
     });
 
     it("navigates up with ArrowUp after going down", async () => {
@@ -334,8 +347,9 @@ describe("SearchInput", () => {
       await input.trigger("keydown", { key: "ArrowUp" });
       await wrapper.vm.$nextTick();
 
-      const activeItems = wrapper.findAll(".search-input__item--active");
-      expect(activeItems.length).toBe(1);
+      // After Down-Down-Up, the first item should be active
+      const items = wrapper.findAll(".search-input__item");
+      expect(items[0].classes()).toContain("search-input__item--active");
     });
 
     it("does not go below last item with ArrowDown", async () => {
@@ -363,11 +377,16 @@ describe("SearchInput", () => {
 
       const input = wrapper.find("input.search-input__field");
       await input.trigger("keydown", { key: "ArrowDown" });
-      // Now at index 0, press up should stay at 0
-      await input.trigger("keydown", { key: "ArrowUp" });
       await wrapper.vm.$nextTick();
 
       const items = wrapper.findAll(".search-input__item");
+      // Verify we're at the first item
+      expect(items[0].classes()).toContain("search-input__item--active");
+
+      // Press up should stay at index 0
+      await input.trigger("keydown", { key: "ArrowUp" });
+      await wrapper.vm.$nextTick();
+
       expect(items[0].classes()).toContain("search-input__item--active");
     });
 
@@ -478,10 +497,18 @@ describe("SearchInput", () => {
       await wrapper.vm.$nextTick();
 
       const items = wrapper.findAll(".search-input__item");
+
+      // First activate item 0
+      await items[0].trigger("mouseenter");
+      await wrapper.vm.$nextTick();
+      expect(items[0].classes()).toContain("search-input__item--active");
+
+      // Then activate item 1 and verify item 0 is no longer active
       await items[1].trigger("mouseenter");
       await wrapper.vm.$nextTick();
 
       expect(items[1].classes()).toContain("search-input__item--active");
+      expect(items[0].classes()).not.toContain("search-input__item--active");
     });
   });
 
