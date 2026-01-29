@@ -24,15 +24,13 @@ interface Props {
   events?: HistoricalEvent[];
 }
 
-const VICTORIAN_EVENTS: HistoricalEvent[] = [
-  { year: 1837, label: "Victoria's Coronation", type: "political" },
-  { year: 1851, label: "Great Exhibition", type: "cultural" },
-  { year: 1859, label: "Origin of Species", type: "literary" },
-  { year: 1901, label: "Victoria Dies", type: "political" },
-];
-
 const props = withDefaults(defineProps<Props>(), {
-  events: () => VICTORIAN_EVENTS,
+  events: () => [
+    { year: 1837, label: "Victoria's Coronation", type: "political" as const },
+    { year: 1851, label: "Great Exhibition", type: "cultural" as const },
+    { year: 1859, label: "Origin of Species", type: "literary" as const },
+    { year: 1901, label: "Victoria Dies", type: "political" as const },
+  ],
 });
 
 // Track which marker is being hovered
