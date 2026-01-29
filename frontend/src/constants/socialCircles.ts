@@ -40,20 +40,6 @@ export const ALL_CONNECTION_TYPES = [
 ] as const satisfies readonly ConnectionType[];
 
 // =============================================================================
-// Connection Types
-// =============================================================================
-
-/**
- * All connection types for filter validation.
- * Type assertion ensures this array stays in sync with ConnectionType union.
- */
-export const ALL_CONNECTION_TYPES = [
-  "publisher",
-  "shared_publisher",
-  "binder",
-] as const satisfies readonly ConnectionType[];
-
-// =============================================================================
 // Victorian Color Palette
 // =============================================================================
 
