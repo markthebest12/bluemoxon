@@ -1909,3 +1909,46 @@ class TestTopBooks:
         top_book_ids = [book["id"] for book in response.json()]
 
         assert in_transit_book["id"] in top_book_ids, "IN_TRANSIT book should appear in spotlight"
+
+
+class TestIdsTruncation:
+    """Tests for IDs parameter truncation indicator."""
+
+    def test_ids_parameter_no_truncation(self, client):
+        """When IDs are under 100, no truncation indicator is returned."""
+        # Create 5 books
+        book_ids = []
+        for i in range(5):
+            response = client.post("/api/v1/books", json={"title": f"Book {i}"})
+            book_ids.append(response.json()["id"])
+
+        # Request with less than 100 IDs
+        ids_str = ",".join(str(bid) for bid in book_ids)
+        response = client.get(f"/api/v1/books?ids={ids_str}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should indicate no truncation
+        assert data.get("ids_truncated") is False
+        assert data.get("ids_requested") == 5
+        assert data.get("ids_processed") == 5
+
+    def test_ids_parameter_with_truncation(self, client):
+        """When IDs exceed 100, response should include truncation indicator."""
+        # Create 5 books
+        book_ids = []
+        for i in range(5):
+            response = client.post("/api/v1/books", json={"title": f"Book {i}"})
+            book_ids.append(response.json()["id"])
+
+        # Request with more than 100 IDs (simulate with repeated IDs)
+        ids_repeated = book_ids * 30  # 150 IDs
+        ids_str = ",".join(str(bid) for bid in ids_repeated)
+        response = client.get(f"/api/v1/books?ids={ids_str}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should indicate truncation
+        assert data.get("ids_truncated") is True
+        assert data.get("ids_requested") == 150
+        assert data.get("ids_processed") == 100

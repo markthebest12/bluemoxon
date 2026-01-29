@@ -411,13 +411,20 @@ export function useSocialCircles() {
   }
 
   // Sync state changes to URL (consolidated watcher for filters, selection, and timeline)
+  // URL updates are skipped during playback to avoid history spam.
+  //
+  // NOTE: Race condition on pause - if user scrubs within the 100ms debounce window after
+  // playback stops, the "paused" year update may be superseded by the scrubbed year.
+  // This is acceptable because the user's scrub action expresses their intended new state.
+  // The debounce exists to batch rapid changes (like scrubbing) into single URL updates.
   watch(
     () => ({
       filters: filters.filters.value,
       selectedNodeId: selection.selection.value.selectedNodeId,
       currentYear: timeline.timeline.value.currentYear,
+      isPlaying: timeline.timeline.value.isPlaying,
     }),
-    ({ filters: f, selectedNodeId, currentYear }) => {
+    ({ filters: f, selectedNodeId, currentYear, isPlaying }) => {
       if (urlState.isInitialized.value) {
         urlState.updateUrl({
           filters: {
@@ -431,6 +438,7 @@ export function useSocialCircles() {
           },
           selectedNode: selectedNodeId,
           year: currentYear,
+          isPlaying,
         });
       }
     },

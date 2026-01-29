@@ -32,6 +32,8 @@ export function buildAdjacencyList(edges: ApiEdge[]): Map<NodeId, Set<NodeId>> {
 /**
  * Find shortest path between two nodes using BFS.
  * Returns the path as array of node IDs, or null if no path exists.
+ *
+ * Uses parent pointer approach for O(n) memory instead of O(n²) from path copying.
  */
 export function findShortestPath(
   adjacency: Map<NodeId, Set<NodeId>>,
@@ -45,6 +47,9 @@ export function findShortestPath(
   const queue: NodeId[] = [startId];
   visited.add(startId);
 
+  // Note: queue.shift() is O(n) per dequeue operation. For the current social
+  // circles use case (typically <1000 nodes), this is acceptable. For large
+  // graphs, a proper deque or ring buffer would reduce this to O(1).
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
 
@@ -57,10 +62,10 @@ export function findShortestPath(
       parent.set(neighbor, nodeId);
 
       if (neighbor === endId) {
-        // Reconstruct path from parent pointers
+        // Reconstruct path from end to start using parent pointers
         const path: NodeId[] = [endId];
         let current = endId;
-        while (current !== startId) {
+        while (parent.has(current)) {
           current = parent.get(current)!;
           path.unshift(current);
         }

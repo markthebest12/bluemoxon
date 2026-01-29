@@ -22,6 +22,7 @@ export function useNetworkTimeline() {
   const progress = computed(() => {
     const t = timeline.value;
     const range = t.maxYear - t.minYear;
+    // Guard against division by zero when minYear === maxYear
     if (range === 0) return 100;
     return ((t.currentYear - t.minYear) / range) * 100;
   });
