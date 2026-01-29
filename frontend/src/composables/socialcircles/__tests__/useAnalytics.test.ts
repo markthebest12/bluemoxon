@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useAnalytics } from "../useAnalytics";
+import { useAnalytics, _resetAnalyticsForTesting } from "../useAnalytics";
 
 describe("useAnalytics", () => {
   beforeEach(() => {
+    _resetAnalyticsForTesting();
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
@@ -66,5 +67,18 @@ describe("useAnalytics", () => {
     const { trackExport } = useAnalytics();
     trackExport("png");
     expect(console.log).toHaveBeenCalledWith("[Analytics]", "graph_exported", { format: "png" });
+  });
+
+  it("returns the same singleton instance across multiple calls", () => {
+    const instance1 = useAnalytics();
+    const instance2 = useAnalytics();
+    expect(instance1).toBe(instance2);
+  });
+
+  it("returns a fresh instance after reset", () => {
+    const instance1 = useAnalytics();
+    _resetAnalyticsForTesting();
+    const instance2 = useAnalytics();
+    expect(instance1).not.toBe(instance2);
   });
 });

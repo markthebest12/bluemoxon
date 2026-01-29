@@ -22,6 +22,8 @@ import {
 import {
   DEFAULT_TIMELINE_STATE,
   type ConnectionType,
+  type FilterState,
+  type LayoutMode,
   type NodeId,
   type EdgeId,
   type ApiNode,
@@ -187,7 +189,11 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
-  analytics.trackSearch(searchQuery.value, 1);
+  const query = searchQuery.value.trim().toLowerCase();
+  const resultCount = query
+    ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
+    : 0;
+  analytics.trackSearch(searchQuery.value, resultCount);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -486,6 +492,17 @@ function handleViewportChange() {
   }
 }
 
+// Handle filter changes - delegates to orchestrator and tracks analytics
+function handleFilterChange(key: keyof FilterState, value: unknown) {
+  applyFilter(key, value);
+  analytics.trackFilterChange(key, value);
+}
+
+// Handle layout mode changes from NetworkGraph
+function handleLayoutChange(mode: LayoutMode) {
+  analytics.trackLayoutChange(mode);
+}
+
 // Handle retry after error
 function handleRetry() {
   initialize().catch(console.error);
@@ -550,7 +567,7 @@ onUnmounted(() => {
         <FilterPanel
           :filter-state="filterState"
           :nodes="nodesForSearch"
-          @update:filter="applyFilter"
+          @update:filter="handleFilterChange"
           @reset="resetFilters"
         />
 
@@ -596,6 +613,7 @@ onUnmounted(() => {
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
           />
 
           <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
@@ -701,6 +719,7 @@ onUnmounted(() => {
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
           />
 
           <!-- Zoom Controls -->
@@ -742,7 +761,7 @@ onUnmounted(() => {
           :filter-state="filterState"
           :nodes="nodesForSearch"
           class="mobile-filter-panel"
-          @update:filter="applyFilter"
+          @update:filter="handleFilterChange"
           @reset="closeFilters"
         />
       </BottomSheet>

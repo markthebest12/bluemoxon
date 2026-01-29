@@ -20,10 +20,33 @@ export interface AnalyticsEvent {
 export type ExportFormat = "png" | "json" | "url";
 
 // =============================================================================
+// Singleton instance cache
+// =============================================================================
+
+let _instance: ReturnType<typeof _createAnalytics> | null = null;
+
+/** Reset singleton for testing. Not intended for production use. */
+export function _resetAnalyticsForTesting(): void {
+  _instance = null;
+}
+
+// =============================================================================
 // Composable
 // =============================================================================
 
+/**
+ * Returns a singleton analytics instance. Multiple calls to useAnalytics()
+ * return the same object, preventing duplicate event tracking when the
+ * composable is used in more than one component.
+ */
 export function useAnalytics() {
+  if (!_instance) {
+    _instance = _createAnalytics();
+  }
+  return _instance;
+}
+
+function _createAnalytics() {
   const isDev = import.meta.env.DEV;
 
   /**
