@@ -180,7 +180,7 @@ export function isBinderNode(node: ApiNode): node is ApiNode & { type: "binder" 
 // =============================================================================
 
 /** Type of historical event displayed on the timeline */
-type HistoricalEventType = "political" | "literary" | "cultural";
+export type HistoricalEventType = "political" | "literary" | "cultural";
 
 /** A historical event marker on the timeline */
 export interface HistoricalEvent {

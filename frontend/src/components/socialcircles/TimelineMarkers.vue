@@ -26,18 +26,23 @@ const props = withDefaults(defineProps<Props>(), {
   events: () => VICTORIAN_EVENTS,
 });
 
-// Track which marker is being hovered or focused
-const hoveredEvent = ref<HistoricalEvent | null>(null);
+// Track which marker is being hovered or focused (by key, not object reference)
+const hoveredEventKey = ref<string | null>(null);
+
+function getEventKey(event: HistoricalEvent): string {
+  return `${event.year}-${event.label}`;
+}
 
 // Filter events to only those within the visible range
 const visibleEvents = computed(() => {
+  if (props.maxYear < props.minYear) return [];
   return props.events.filter((event) => event.year >= props.minYear && event.year <= props.maxYear);
 });
 
 // Calculate horizontal position percentage for an event
 function getPositionPercent(year: number): number {
   const range = props.maxYear - props.minYear;
-  if (range === 0) return 0;
+  if (range <= 0) return 0;
   return ((year - props.minYear) / range) * 100;
 }
 
@@ -65,31 +70,27 @@ function getAriaLabel(event: HistoricalEvent): string {
 
 // Generate unique tooltip ID for aria-describedby linkage
 function getTooltipId(event: HistoricalEvent): string {
-  return `tooltip-${event.year}-${event.type}`;
+  const slugLabel = event.label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return `tooltip-${event.year}-${slugLabel}`;
 }
 
-function handleMouseEnter(event: HistoricalEvent) {
-  hoveredEvent.value = event;
+function showTooltip(event: HistoricalEvent) {
+  hoveredEventKey.value = getEventKey(event);
 }
 
-function handleMouseLeave() {
-  hoveredEvent.value = null;
-}
-
-function handleFocus(event: HistoricalEvent) {
-  hoveredEvent.value = event;
-}
-
-function handleBlur() {
-  hoveredEvent.value = null;
+function hideTooltip() {
+  hoveredEventKey.value = null;
 }
 
 function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    hoveredEvent.value = event;
+    showTooltip(event);
   } else if (e.key === "Escape") {
-    hoveredEvent.value = null;
+    hideTooltip();
   }
 }
 </script>
@@ -104,12 +105,12 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
       :style="{ left: `${getPositionPercent(event.year)}%` }"
       role="listitem"
       :aria-label="getAriaLabel(event)"
-      :aria-describedby="hoveredEvent === event ? getTooltipId(event) : undefined"
+      :aria-describedby="hoveredEventKey === getEventKey(event) ? getTooltipId(event) : undefined"
       tabindex="0"
-      @mouseenter="handleMouseEnter(event)"
-      @mouseleave="handleMouseLeave"
-      @focus="handleFocus(event)"
-      @blur="handleBlur"
+      @mouseenter="showTooltip(event)"
+      @mouseleave="hideTooltip"
+      @focus="showTooltip(event)"
+      @blur="hideTooltip"
       @keydown="handleKeydown($event, event)"
     >
       <div class="timeline-markers__line" />
@@ -118,7 +119,7 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
       <!-- Tooltip -->
       <Transition name="marker-tooltip-fade">
         <div
-          v-if="hoveredEvent === event"
+          v-if="hoveredEventKey === getEventKey(event)"
           :id="getTooltipId(event)"
           class="timeline-markers__tooltip"
           :class="getTooltipAlignClass(event.year)"
@@ -148,32 +149,10 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   align-items: center;
   transform: translateX(-50%);
   cursor: pointer;
-  outline: none;
 }
 
-/* Focus styles for keyboard navigation - fallback for browsers without :focus-visible */
-.timeline-markers__marker:focus .timeline-markers__line {
-  height: 16px;
-  outline: 2px solid var(--color-victorian-hunter-600, #2f5a4b);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-.timeline-markers__marker:focus .timeline-markers__year {
-  font-weight: 600;
-}
-
-/* Override for browsers supporting :focus-visible (hides focus ring on click) */
-.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__line {
-  outline: none;
-  height: 12px;
-}
-
-.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__year {
-  font-weight: normal;
-}
-
-/* Enhanced styles when focus-visible is supported */
+/* Focus styles for keyboard navigation (combined :focus and :focus-visible) */
+.timeline-markers__marker:focus .timeline-markers__line,
 .timeline-markers__marker:focus-visible .timeline-markers__line {
   height: 16px;
   outline: 2px solid var(--color-victorian-hunter-600, #2f5a4b);
@@ -181,8 +160,23 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   border-radius: 2px;
 }
 
+.timeline-markers__marker:focus .timeline-markers__year,
 .timeline-markers__marker:focus-visible .timeline-markers__year {
   font-weight: 600;
+}
+
+/* Hide focus ring on mouse click for browsers supporting :focus-visible */
+.timeline-markers__marker:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__line {
+  outline: none;
+  height: 12px;
+}
+
+.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__year {
+  font-weight: normal;
 }
 
 .timeline-markers__line {
@@ -248,7 +242,8 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.1),
     0 1px 2px rgba(0, 0, 0, 0.06);
-  white-space: nowrap;
+  max-width: 200px;
+  white-space: normal;
   z-index: 10;
   font-family: Georgia, serif;
 }

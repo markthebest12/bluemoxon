@@ -131,6 +131,25 @@ describe("TimelineMarkers - division by zero", () => {
       })
     ).not.toThrow();
   });
+
+  it("returns empty markers when minYear > maxYear (inverted range)", () => {
+    const wrapper = mountMarkers({
+      minYear: 1900,
+      maxYear: 1800,
+      events: [{ year: 1850, label: "Inverted Range", type: "political" }],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(0);
+  });
+
+  it("positions marker at 0% when minYear > maxYear (inverted range guard)", () => {
+    const wrapper = mountMarkers({
+      minYear: 1900,
+      maxYear: 1800,
+      events: [],
+    });
+    expect(wrapper.findAll(".timeline-markers__marker")).toHaveLength(0);
+  });
 });
 
 // =============================================================================
@@ -315,6 +334,30 @@ describe("TimelineMarkers - tooltip edge clamping", () => {
     expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-left");
     expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-right");
   });
+
+  it("does not apply left-align at exactly 15% (boundary)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1815, label: "At 15%", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-left");
+  });
+
+  it("does not apply right-align at exactly 85% (boundary)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1885, label: "At 85%", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-right");
+  });
 });
 
 // =============================================================================
@@ -396,9 +439,9 @@ describe("TimelineMarkers - accessibility", () => {
     });
     const marker = wrapper.find(".timeline-markers__marker");
     await marker.trigger("mouseenter");
-    expect(marker.attributes("aria-describedby")).toBe("tooltip-1850-political");
+    expect(marker.attributes("aria-describedby")).toBe("tooltip-1850-described-event");
     const tooltip = wrapper.find(".timeline-markers__tooltip");
-    expect(tooltip.attributes("id")).toBe("tooltip-1850-political");
+    expect(tooltip.attributes("id")).toBe("tooltip-1850-described-event");
   });
 
   it("marker does not have aria-describedby when tooltip is hidden", () => {
@@ -409,6 +452,36 @@ describe("TimelineMarkers - accessibility", () => {
     });
     const marker = wrapper.find(".timeline-markers__marker");
     expect(marker.attributes("aria-describedby")).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// Tooltip ID Uniqueness
+// =============================================================================
+
+describe("TimelineMarkers - tooltip ID uniqueness", () => {
+  it("generates unique tooltip IDs for events with same year and type", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+        { year: 1851, label: "Crystal Palace Opens", type: "cultural" },
+      ],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    await markers[0].trigger("mouseenter");
+    const tooltip1 = wrapper.find(".timeline-markers__tooltip");
+    const id1 = tooltip1.attributes("id");
+
+    await markers[0].trigger("mouseleave");
+    await markers[1].trigger("mouseenter");
+    const tooltip2 = wrapper.find(".timeline-markers__tooltip");
+    const id2 = tooltip2.attributes("id");
+
+    expect(id1).not.toBe(id2);
+    expect(id1).toBe("tooltip-1851-great-exhibition");
+    expect(id2).toBe("tooltip-1851-crystal-palace-opens");
   });
 });
 
