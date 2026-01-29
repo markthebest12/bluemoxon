@@ -180,7 +180,7 @@ export function getEraFromYear(year: number): Era {
 // =============================================================================
 
 export const API = {
-  endpoint: "/social-circles", // Relative to api baseURL (/api/v1)
+  endpoint: "/social-circles/", // Relative to api baseURL (/api/v1) - trailing slash avoids 307 redirect
   cacheKey: "social-circles-data",
   cacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;

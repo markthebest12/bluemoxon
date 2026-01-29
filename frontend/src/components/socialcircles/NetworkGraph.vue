@@ -13,7 +13,7 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, shallowRef, onMounted, onUnmounted, watch } from "vue";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 
 // Props
@@ -44,7 +44,7 @@ const emit = defineEmits<{
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
-const cy = ref<Core | null>(null);
+const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
 
 // Victorian stylesheet
@@ -200,7 +200,7 @@ onUnmounted(() => {
 });
 
 // Track element IDs to avoid unnecessary re-layouts
-let lastElementIds: string[] = [];
+let lastElementIds: Set<string> = new Set();
 
 // Watch elements for filter changes - only re-layout if elements actually changed
 watch(
@@ -209,9 +209,9 @@ watch(
     if (!cy.value) return;
 
     // Check if element IDs changed (not just object references)
-    const newIds = newElements.map((e) => e.data?.id || "").sort();
+    const newIds = new Set(newElements.map((e) => e.data?.id).filter(Boolean) as string[]);
     const idsChanged =
-      newIds.length !== lastElementIds.length || newIds.some((id, i) => id !== lastElementIds[i]);
+      newIds.size !== lastElementIds.size || [...newIds].some((id) => !lastElementIds.has(id));
 
     if (!idsChanged) return; // Skip if same elements
 
@@ -223,7 +223,7 @@ watch(
     });
     cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
   },
-  { deep: true }
+  { deep: true, flush: "post" }
 );
 
 // Watch selection

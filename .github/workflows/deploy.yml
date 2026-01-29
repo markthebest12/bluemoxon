@@ -1438,7 +1438,7 @@ jobs:
           else
             echo "No backend deploy - checking basic API health..."
             for i in {1..20}; do
-              if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
+              if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
                 exit 0
               fi

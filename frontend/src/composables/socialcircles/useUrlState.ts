@@ -91,11 +91,13 @@ export function useUrlState() {
         query.selected = params.selectedNode;
       }
 
-      if (params.year) {
+      if (params.year != null) {
         query.year = String(params.year);
       }
 
-      void router.replace({ query });
+      const url = new URL(window.location.href);
+      url.search = new URLSearchParams(query).toString();
+      window.history.replaceState(history.state, "", url.toString());
     }, ANIMATION.debounceUrl);
   }
 

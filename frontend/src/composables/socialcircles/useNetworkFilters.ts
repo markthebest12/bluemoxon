@@ -50,7 +50,7 @@ export function useNetworkFilters() {
   }
 
   function setConnectionTypes(types: ConnectionType[]) {
-    filters.value.connectionTypes = types;
+    filters.value.connectionTypes = [...new Set(types)];
   }
 
   function toggleConnectionType(type: ConnectionType) {
