@@ -147,6 +147,31 @@ describe("buildAdjacencyList", () => {
     expect(adjacency.get(nodeId("author:1"))?.has(nodeId("author:2"))).toBe(true);
     expect(adjacency.get(nodeId("author:2"))?.has(nodeId("author:1"))).toBe(true);
   });
+
+  it("deduplicates when duplicate edges are provided", () => {
+    const edges = [
+      createTestEdge("author:1", "author:2"),
+      createTestEdge("author:1", "author:2"),
+    ];
+    const adjacency = buildAdjacencyList(edges);
+
+    // Sets prevent duplicates, so each neighbor set has size 1
+    expect(adjacency.get(nodeId("author:1"))?.size).toBe(1);
+    expect(adjacency.get(nodeId("author:2"))?.size).toBe(1);
+  });
+
+  it("handles mixed node types in edges", () => {
+    const edges = [
+      createTestEdge("author:1", "publisher:1"),
+      createTestEdge("publisher:1", "binder:1"),
+    ];
+    const adjacency = buildAdjacencyList(edges);
+
+    expect(adjacency.size).toBe(3);
+    expect(adjacency.get(nodeId("publisher:1"))?.size).toBe(2);
+    expect(adjacency.get(nodeId("publisher:1"))?.has(nodeId("author:1"))).toBe(true);
+    expect(adjacency.get(nodeId("publisher:1"))?.has(nodeId("binder:1"))).toBe(true);
+  });
 });
 
 // =============================================================================
@@ -220,6 +245,47 @@ describe("findShortestPath", () => {
 
     expect(path).toHaveLength(3);
     expect(path).toEqual([nodeId("author:2"), nodeId("author:1"), nodeId("author:3")]);
+  });
+
+  it("finds shortest path when multiple routes exist", () => {
+    // A--B--C--D and A--D (direct shortcut)
+    const edges = [
+      createTestEdge("author:1", "author:2"),
+      createTestEdge("author:2", "author:3"),
+      createTestEdge("author:3", "author:4"),
+      createTestEdge("author:1", "author:4"),
+    ];
+    const adjacency = buildAdjacencyList(edges);
+    const path = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:4"));
+
+    // Should find the direct 1-hop path, not the 3-hop path
+    expect(path).toEqual([nodeId("author:1"), nodeId("author:4")]);
+  });
+
+  it("returns symmetric path lengths (A->B same length as B->A)", () => {
+    const adjacency = buildAdjacencyList(linearEdges);
+    const forward = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:4"));
+    const backward = findShortestPath(adjacency, nodeId("author:4"), nodeId("author:1"));
+
+    expect(forward).not.toBeNull();
+    expect(backward).not.toBeNull();
+    expect(forward!.length).toBe(backward!.length);
+  });
+
+  it("handles longer chain (5 hops)", () => {
+    const edges = [
+      createTestEdge("author:1", "author:2"),
+      createTestEdge("author:2", "author:3"),
+      createTestEdge("author:3", "author:4"),
+      createTestEdge("author:4", "author:5"),
+      createTestEdge("author:5", "author:6"),
+    ];
+    const adjacency = buildAdjacencyList(edges);
+    const path = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:6"));
+
+    expect(path).toHaveLength(6);
+    expect(path![0]).toBe(nodeId("author:1"));
+    expect(path![5]).toBe(nodeId("author:6"));
   });
 });
 
@@ -316,6 +382,17 @@ describe("calculateDegreeCentrality", () => {
     expect(centrality.get(nodeId("author:3"))).toBe(2);
     expect(centrality.get(nodeId("author:4"))).toBe(0); // Isolated
   });
+
+  it("handles edges referencing nodes not in the nodes array", () => {
+    const nodes = [createTestNode("author:1", "Alice")];
+    const edges = [createTestEdge("author:1", "author:99")];
+    const centrality = calculateDegreeCentrality(nodes, edges);
+
+    // author:1 initialized from nodes and counted from edge
+    expect(centrality.get(nodeId("author:1"))).toBe(1);
+    // author:99 not in nodes but counted from edge
+    expect(centrality.get(nodeId("author:99"))).toBe(1);
+  });
 });
 
 // =============================================================================
@@ -363,6 +440,22 @@ describe("findHubs", () => {
     const isolatedHub = hubs.find((h) => h.node.name === "D");
     expect(isolatedHub).toBeDefined();
     expect(isolatedHub?.degree).toBe(0);
+  });
+
+  it("uses default limit of 10", () => {
+    const manyNodes: ApiNode[] = [];
+    const manyEdges: ApiEdge[] = [];
+    for (let i = 1; i <= 15; i++) {
+      manyNodes.push(createTestNode(`author:${i}`, `Author ${i}`));
+    }
+    // Connect author:1 to everyone else
+    for (let i = 2; i <= 15; i++) {
+      manyEdges.push(createTestEdge("author:1", `author:${i}`));
+    }
+
+    const hubs = findHubs(manyNodes, manyEdges);
+
+    expect(hubs).toHaveLength(10);
   });
 });
 
@@ -450,20 +543,68 @@ describe("findSimilarNodes", () => {
     // In star graph, spokes share no connections with each other
     // (they only connect to hub, not to each other)
     const adjacency = buildAdjacencyList(starEdges);
-    // Spoke B's only neighbor is Hub. Other spokes' only neighbor is also Hub.
-    // But spokes don't share Hub as a "shared neighbor" because they're not neighbors of each other
+    // Spoke B's only neighbor is Hub (author:1). C,D,E also have Hub as neighbor.
+    // So C,D,E share Hub with B - they have 1 shared connection each
     const similar = findSimilarNodes(adjacency, starNodes, nodeId("author:2"), 10);
 
-    // Only Hub shares connections with spoke B (the other spokes through hub)
-    // But Hub is B's neighbor, not a "similar" node
-    // Actually, C,D,E all have Hub as neighbor, and B also has Hub, so they share Hub
-    // Wait - the algorithm looks for shared neighbors, not direct connections
-    // B's neighbor is Hub (author:1). C,D,E neighbors are also Hub.
-    // So C,D,E share Hub with B - they have 1 shared connection each
     expect(similar.length).toBe(3); // C, D, E all share Hub with B
     similar.forEach((s) => {
       expect(s.sharedConnections).toBe(1);
     });
+  });
+
+  it("counts shared connections correctly across a richer graph", () => {
+    // A connects to P1 and P2
+    // B connects to P1 and P2 (2 shared with A)
+    // C connects to P1 only (1 shared with A)
+    const edges = [
+      createTestEdge("author:1", "publisher:1"),
+      createTestEdge("author:1", "publisher:2"),
+      createTestEdge("author:2", "publisher:1"),
+      createTestEdge("author:2", "publisher:2"),
+      createTestEdge("author:3", "publisher:1"),
+    ];
+    const nodes = [
+      createTestNode("author:1", "A"),
+      createTestNode("author:2", "B"),
+      createTestNode("author:3", "C"),
+      createTestNode("publisher:1", "P1", "publisher"),
+      createTestNode("publisher:2", "P2", "publisher"),
+    ];
+    const adjacency = buildAdjacencyList(edges);
+    const similar = findSimilarNodes(adjacency, nodes, nodeId("author:1"), 10);
+
+    // B shares P1 and P2 with A (2 shared)
+    const bResult = similar.find((s) => s.node.id === nodeId("author:2"));
+    expect(bResult).toBeDefined();
+    expect(bResult!.sharedConnections).toBe(2);
+
+    // C shares P1 with A (1 shared)
+    const cResult = similar.find((s) => s.node.id === nodeId("author:3"));
+    expect(cResult).toBeDefined();
+    expect(cResult!.sharedConnections).toBe(1);
+
+    // B should rank above C
+    const bIdx = similar.findIndex((s) => s.node.id === nodeId("author:2"));
+    const cIdx = similar.findIndex((s) => s.node.id === nodeId("author:3"));
+    expect(bIdx).toBeLessThan(cIdx);
+  });
+
+  it("uses default limit of 5", () => {
+    // Create a graph where target has many similar nodes
+    const edges: ApiEdge[] = [createTestEdge("author:1", "publisher:1")];
+    const nodes: ApiNode[] = [
+      createTestNode("author:1", "Target"),
+      createTestNode("publisher:1", "P1", "publisher"),
+    ];
+    for (let i = 2; i <= 10; i++) {
+      edges.push(createTestEdge(`author:${i}`, "publisher:1"));
+      nodes.push(createTestNode(`author:${i}`, `Author ${i}`));
+    }
+    const adjacency = buildAdjacencyList(edges);
+    const similar = findSimilarNodes(adjacency, nodes, nodeId("author:1"));
+
+    expect(similar).toHaveLength(5);
   });
 });
 
