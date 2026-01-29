@@ -136,34 +136,49 @@ function handleToggle() {
 </script>
 
 <template>
-  <div class="stats-panel" :class="{ 'stats-panel--collapsed': isCollapsed }">
+  <div
+    class="stats-panel"
+    :class="{ 'stats-panel--collapsed': isCollapsed }"
+    data-testid="stats-panel"
+  >
     <button
       type="button"
       class="stats-panel__toggle"
       :aria-expanded="!isCollapsed"
       aria-controls="stats-panel-content"
+      data-testid="stats-toggle"
       @click="handleToggle"
     >
-      <span class="stats-panel__toggle-icon">{{ isCollapsed ? "+" : "-" }}</span>
+      <span class="stats-panel__toggle-icon" data-testid="stats-toggle-icon">{{
+        isCollapsed ? "+" : "-"
+      }}</span>
       <span class="stats-panel__title">Network Statistics</span>
     </button>
 
     <Transition name="panel">
-      <div v-show="!isCollapsed" id="stats-panel-content" class="stats-panel__content">
+      <div
+        v-show="!isCollapsed"
+        id="stats-panel-content"
+        class="stats-panel__content"
+        data-testid="stats-content"
+      >
         <!-- Primary Stats Grid -->
-        <div class="stats-panel__grid">
+        <div class="stats-panel__grid" data-testid="stats-grid">
           <StatCard :value="totalNodes" label="Total Nodes" :sublabel="nodeCountSummary" />
           <StatCard :value="totalConnections" label="Connections" />
         </div>
 
         <!-- Secondary Stats Grid -->
-        <div class="stats-panel__grid stats-panel__grid--secondary">
+        <div
+          class="stats-panel__grid stats-panel__grid--secondary"
+          data-testid="stats-grid-secondary"
+        >
           <StatCard :value="`${networkDensity}%`" label="Network Density" />
           <StatCard :value="avgConnectionsPerNode" label="Avg. Connections" sublabel="per node" />
         </div>
 
         <!-- Notable Entities -->
-        <div class="stats-panel__notable">
+        <div class="stats-panel__notable" data-testid="stats-notable">
           <h3 class="stats-panel__section-title">Notable Entities</h3>
 
           <div v-if="mostConnectedAuthor" class="stats-panel__notable-item">
@@ -191,11 +206,17 @@ function handleToggle() {
         </div>
 
         <!-- Date Range from Meta -->
-        <div class="stats-panel__footer">
-          <span v-if="meta.date_range?.length === 2" class="stats-panel__meta">
+        <div class="stats-panel__footer" data-testid="stats-footer">
+          <span
+            v-if="meta.date_range?.length === 2"
+            class="stats-panel__meta"
+            data-testid="stats-meta"
+          >
             Collection: {{ meta.date_range[0] }} - {{ meta.date_range[1] }}
           </span>
-          <span class="stats-panel__meta">{{ meta.total_books }} total books</span>
+          <span class="stats-panel__meta" data-testid="stats-meta"
+            >{{ meta.total_books }} total books</span
+          >
         </div>
       </div>
     </Transition>

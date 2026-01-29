@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 
 /**
  * E3: Social Circles Statistics Panel E2E Tests
@@ -9,322 +9,236 @@ import { test, expect } from "@playwright/test";
  * - Panel collapses and expands
  */
 
+/**
+ * Helper: Expand the stats panel if it is collapsed.
+ * Replaces ~10 instances of duplicated expand/collapse boilerplate (#1449).
+ */
+async function expandStatsPanel(statsPanel: Locator): Promise<void> {
+  const isCollapsed = await statsPanel.evaluate((el) =>
+    el.classList.contains("stats-panel--collapsed")
+  );
+  if (isCollapsed) {
+    await statsPanel.getByTestId("stats-toggle").click();
+    await expect(statsPanel.getByTestId("stats-content")).toBeVisible();
+  }
+}
+
+/**
+ * Helper: Collapse the stats panel if it is expanded.
+ */
+async function collapseStatsPanel(statsPanel: Locator): Promise<void> {
+  const isCollapsed = await statsPanel.evaluate((el) =>
+    el.classList.contains("stats-panel--collapsed")
+  );
+  if (!isCollapsed) {
+    await statsPanel.getByTestId("stats-toggle").click();
+    await expect(statsPanel.getByTestId("stats-content")).not.toBeVisible();
+  }
+}
+
 test.describe("Social Circles Statistics Panel", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/socialcircles");
-    // Wait for the graph to be ready
-    await expect(page.locator(".network-graph")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
   });
 
   test("stats panel is visible", async ({ page }) => {
-    // Look for the stats panel component
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    const isVisible = await statsPanel.isVisible();
+    test.skip(!isVisible, "Stats panel not rendered in current view");
 
-    if (await statsPanel.isVisible()) {
-      await expect(statsPanel).toBeVisible();
+    await expect(statsPanel).toBeVisible();
 
-      // Should have a title
-      const title = statsPanel.locator(".stats-panel__title");
-      await expect(title).toContainText(/network statistics/i);
-    } else {
-      // Stats might be displayed elsewhere (e.g., in header or sidebar)
-      // Check for any statistics display
-      const statsText = page.getByText(/nodes|connections|total/i);
-      const count = await statsText.count();
-      expect(count).toBeGreaterThan(0);
-    }
+    const title = statsPanel.locator(".stats-panel__title");
+    await expect(title).toContainText(/network statistics/i);
   });
 
   test("stats panel displays node counts", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand panel if collapsed
-      const toggleButton = statsPanel.locator(".stats-panel__toggle");
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
+    await expandStatsPanel(statsPanel);
 
-      if (isCollapsed) {
-        await toggleButton.click();
-        await page.waitForTimeout(300);
-      }
+    const totalNodesLabel = statsPanel.getByText(/total nodes/i);
+    await expect(totalNodesLabel).toBeVisible();
 
-      // Should display total nodes
-      const totalNodesLabel = statsPanel.getByText(/total nodes/i);
-      await expect(totalNodesLabel).toBeVisible();
-
-      // Should display node breakdown (authors, publishers, binders)
-      const nodeBreakdown = statsPanel.locator(".stats-panel__grid");
-      await expect(nodeBreakdown).toBeVisible();
-    }
+    const nodeBreakdown = statsPanel.getByTestId("stats-grid");
+    await expect(nodeBreakdown).toBeVisible();
   });
 
   test("stats panel displays connection counts", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Should display connections count
-      const connectionsLabel = statsPanel.getByText(/connections/i);
-      await expect(connectionsLabel).toBeVisible();
-    }
+    const connectionsLabel = statsPanel.getByText(/connections/i);
+    await expect(connectionsLabel).toBeVisible();
   });
 
   test("stats panel shows network density", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Check for network density display
-      const densityLabel = statsPanel.getByText(/network density/i);
-      await expect(densityLabel).toBeVisible();
+    const densityLabel = statsPanel.getByText(/network density/i);
+    await expect(densityLabel).toBeVisible();
 
-      // Should show a percentage value
-      const percentageValue = statsPanel.getByText(/%/);
-      await expect(percentageValue).toBeVisible();
-    }
+    const percentageValue = statsPanel.getByText(/%/);
+    await expect(percentageValue).toBeVisible();
   });
 
   test("stats panel shows average connections per node", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Check for average connections display
-      const avgLabel = statsPanel.getByText(/avg.*connections|connections.*per.*node/i);
-      await expect(avgLabel).toBeVisible();
-    }
+    const avgLabel = statsPanel.getByText(/avg.*connections|connections.*per.*node/i);
+    await expect(avgLabel).toBeVisible();
   });
 
   test("stats panel shows notable entities", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Check for notable entities section
-      const notableSection = statsPanel.locator(".stats-panel__notable");
-      if (await notableSection.isVisible()) {
-        // Should have section title
-        const sectionTitle = notableSection.getByText(/notable entities/i);
-        await expect(sectionTitle).toBeVisible();
-      }
+    const notableSection = statsPanel.getByTestId("stats-notable");
+    if (await notableSection.isVisible()) {
+      const sectionTitle = notableSection.getByText(/notable entities/i);
+      await expect(sectionTitle).toBeVisible();
     }
   });
 
   test("stats panel collapses when toggle is clicked", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      const toggleButton = statsPanel.locator(".stats-panel__toggle");
-      const content = statsPanel.locator(".stats-panel__content");
+    const toggleButton = statsPanel.getByTestId("stats-toggle");
+    const content = statsPanel.getByTestId("stats-content");
 
-      // Get initial state
-      const initiallyCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
+    const initiallyCollapsed = await statsPanel.evaluate((el) =>
+      el.classList.contains("stats-panel--collapsed")
+    );
 
-      // Click toggle
-      await toggleButton.click();
-      await page.waitForTimeout(300);
+    await toggleButton.click();
 
-      // State should have changed
-      const nowCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      expect(nowCollapsed).toBe(!initiallyCollapsed);
-
-      // Content visibility should match state
-      if (nowCollapsed) {
-        await expect(content).not.toBeVisible();
-      } else {
-        await expect(content).toBeVisible();
-      }
+    if (initiallyCollapsed) {
+      await expect(content).toBeVisible();
+    } else {
+      await expect(content).not.toBeVisible();
     }
+
+    const nowCollapsed = await statsPanel.evaluate((el) =>
+      el.classList.contains("stats-panel--collapsed")
+    );
+    expect(nowCollapsed).toBe(!initiallyCollapsed);
   });
 
   test("stats panel expands when toggle is clicked on collapsed panel", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      const toggleButton = statsPanel.locator(".stats-panel__toggle");
+    const toggleButton = statsPanel.getByTestId("stats-toggle");
 
-      // First ensure it's collapsed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
+    await collapseStatsPanel(statsPanel);
 
-      if (!isCollapsed) {
-        // Collapse it first
-        await toggleButton.click();
-        await page.waitForTimeout(300);
-      }
+    await toggleButton.click();
+    await expect(statsPanel.getByTestId("stats-content")).toBeVisible();
 
-      // Now expand it
-      await toggleButton.click();
-      await page.waitForTimeout(300);
-
-      // Should be expanded
-      const isExpanded = await statsPanel.evaluate(
-        (el) => !el.classList.contains("stats-panel--collapsed")
-      );
-      expect(isExpanded).toBe(true);
-
-      // Content should be visible
-      const content = statsPanel.locator(".stats-panel__content");
-      await expect(content).toBeVisible();
-    }
+    const isExpanded = await statsPanel.evaluate(
+      (el) => !el.classList.contains("stats-panel--collapsed")
+    );
+    expect(isExpanded).toBe(true);
   });
 
   test("toggle button shows expand/collapse indicator", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      const toggleIcon = statsPanel.locator(".stats-panel__toggle-icon");
+    const toggleIcon = statsPanel.getByTestId("stats-toggle-icon");
+    test.skip(!(await toggleIcon.isVisible()), "Toggle icon not rendered");
 
-      if (await toggleIcon.isVisible()) {
-        // Check the icon content changes based on state
-        const isCollapsed = await statsPanel.evaluate((el) =>
-          el.classList.contains("stats-panel--collapsed")
-        );
+    const isCollapsed = await statsPanel.evaluate((el) =>
+      el.classList.contains("stats-panel--collapsed")
+    );
 
-        const iconText = await toggleIcon.textContent();
-        if (isCollapsed) {
-          expect(iconText).toBe("+");
-        } else {
-          expect(iconText).toBe("-");
-        }
-      }
+    const iconText = await toggleIcon.textContent();
+    if (isCollapsed) {
+      expect(iconText).toBe("+");
+    } else {
+      expect(iconText).toBe("-");
     }
   });
 
   test("toggle button has correct aria-expanded attribute", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      const toggleButton = statsPanel.locator(".stats-panel__toggle");
+    const toggleButton = statsPanel.getByTestId("stats-toggle");
 
-      // Check aria-expanded attribute
-      const ariaExpanded = await toggleButton.getAttribute("aria-expanded");
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
+    const ariaExpanded = await toggleButton.getAttribute("aria-expanded");
+    const isCollapsed = await statsPanel.evaluate((el) =>
+      el.classList.contains("stats-panel--collapsed")
+    );
 
-      expect(ariaExpanded).toBe(isCollapsed ? "false" : "true");
-    }
+    expect(ariaExpanded).toBe(isCollapsed ? "false" : "true");
   });
 
   test("stats update when filters are applied", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Ensure stats panel is expanded
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Apply a filter (e.g., toggle off a node type)
-      const filterPanel = page.locator(".filter-panel");
-      if (await filterPanel.isVisible()) {
-        // Toggle off publishers checkbox
-        const publishersCheckbox = filterPanel.locator('input[type="checkbox"]').nth(1);
-        if (await publishersCheckbox.isVisible()) {
-          await publishersCheckbox.click({ force: true });
-          await page.waitForTimeout(500);
+    // Capture initial stat values before filtering (#1451)
+    const statsGrid = statsPanel.getByTestId("stats-grid");
+    const initialStatsText = await statsGrid.textContent();
 
-          // Stats should have updated and panel should still be visible
-          await expect(statsPanel).toBeVisible();
+    // Apply a filter (toggle off a node type)
+    const filterPanel = page.getByTestId("filter-panel");
+    test.skip(!(await filterPanel.isVisible()), "Filter panel not rendered");
 
-          // Verify stats content is still present after filter
-          const updatedStats = await statsPanel.textContent();
-          expect(updatedStats).toBeTruthy();
-        }
-      }
-    }
+    const publishersCheckbox = filterPanel.locator('input[type="checkbox"]').nth(1);
+    await expect(publishersCheckbox).toBeVisible();
+    await publishersCheckbox.click({ force: true });
+
+    // Wait for stats to update by checking grid content changes
+    await expect(statsGrid).not.toHaveText(initialStatsText || "");
+
+    // Verify stats content changed after filter (#1451)
+    const updatedStatsText = await statsGrid.textContent();
+    expect(updatedStatsText).not.toBe(initialStatsText);
+    expect(updatedStatsText).toBeTruthy();
   });
 
   test("stats panel shows collection date range", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Check for date range or collection info in footer
-      const footer = statsPanel.locator(".stats-panel__footer");
-      if (await footer.isVisible()) {
-        // Should show some metadata about the collection
-        const metaText = footer.locator(".stats-panel__meta");
-        const count = await metaText.count();
-        expect(count).toBeGreaterThan(0);
-      }
+    const footer = statsPanel.getByTestId("stats-footer");
+    if (await footer.isVisible()) {
+      const metaText = footer.getByTestId("stats-meta");
+      const count = await metaText.count();
+      expect(count).toBeGreaterThan(0);
     }
   });
 
   test("stat cards display numeric values", async ({ page }) => {
-    const statsPanel = page.locator(".stats-panel");
+    const statsPanel = page.getByTestId("stats-panel");
+    test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    if (await statsPanel.isVisible()) {
-      // Expand if needed
-      const isCollapsed = await statsPanel.evaluate((el) =>
-        el.classList.contains("stats-panel--collapsed")
-      );
-      if (isCollapsed) {
-        await statsPanel.locator(".stats-panel__toggle").click();
-        await page.waitForTimeout(300);
-      }
+    await expandStatsPanel(statsPanel);
 
-      // Check for StatCard components with numeric values
-      const statCards = statsPanel.locator(".stats-panel__grid");
-      if (await statCards.isVisible()) {
-        // Should contain some numeric content
-        const statsContent = await statCards.textContent();
-        // Verify there are numbers displayed
-        const hasNumbers = /\d+/.test(statsContent || "");
-        expect(hasNumbers).toBe(true);
-      }
-    }
+    const statCards = statsPanel.getByTestId("stats-grid");
+    await expect(statCards).toBeVisible();
+
+    const statsContent = await statCards.textContent();
+    const hasNumbers = /\d+/.test(statsContent || "");
+    expect(hasNumbers).toBe(true);
   });
 });
