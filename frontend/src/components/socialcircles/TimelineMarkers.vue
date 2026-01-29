@@ -38,21 +38,45 @@ function getEventId(event: HistoricalEvent): string {
   return `tooltip-${event.year}-${slugLabel}`;
 }
 
-// Enriched event with precomputed _id to avoid repeated calls in template
-type EnrichedEvent = HistoricalEvent & { _id: string };
+// Enriched event with precomputed _id and label visibility flag
+type EnrichedEvent = HistoricalEvent & { _id: string; _showLabel: boolean };
+
+// Minimum percentage spacing between year labels to prevent overlap.
+// At 4%, labels need ~4% of the timeline width apart to both display.
+const MIN_LABEL_SPACING = 4;
+
+// Epsilon for floating point comparison tolerance
+const EPSILON = 0.001;
 
 // Filter events to only those within the visible range, with precomputed IDs
+// and label visibility flags to prevent overlapping year text.
 const visibleEvents = computed<EnrichedEvent[]>(() => {
   if (props.maxYear < props.minYear) return [];
-  return props.events
+  const filtered = props.events
     .filter((event) => event.year >= props.minYear && event.year <= props.maxYear)
-    .map((e) => ({ ...e, _id: getEventId(e) }));
+    .map((e) => ({ ...e, _id: getEventId(e), _showLabel: false }));
+
+  // Sort by year to evaluate label spacing left-to-right
+  filtered.sort((a, b) => a.year - b.year);
+
+  let lastShownPercent = -Infinity;
+  for (const event of filtered) {
+    const percent = getPositionPercent(event.year);
+    if (percent - lastShownPercent >= MIN_LABEL_SPACING - EPSILON) {
+      event._showLabel = true;
+      lastShownPercent = percent;
+    }
+  }
+
+  return filtered;
 });
 
 // Calculate horizontal position percentage for an event
 function getPositionPercent(year: number): number {
   const range = props.maxYear - props.minYear;
-  if (range <= 0) return 0;
+  // Edge case: when minYear === maxYear, all events map to same position (50%)
+  if (range === 0) return 50;
+  if (range < 0) return 0;
   return ((year - props.minYear) / range) * 100;
 }
 
@@ -125,7 +149,11 @@ function handleKeydown(e: KeyboardEvent, id: string) {
       @keydown="handleKeydown($event, event._id)"
     >
       <div class="timeline-markers__line" />
-      <span class="timeline-markers__year">{{ event.year }}</span>
+      <span
+        v-show="event._showLabel || hoveredEventKey === event._id"
+        class="timeline-markers__year"
+        >{{ event.year }}</span
+      >
 
       <!-- Tooltip -->
       <Transition name="marker-tooltip-fade">
