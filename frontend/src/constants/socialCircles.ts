@@ -1,5 +1,3 @@
-// frontend/src/constants/socialCircles.ts
-
 /**
  * Social Circles constants.
  * Visual encoding, animation timings, and configuration.
