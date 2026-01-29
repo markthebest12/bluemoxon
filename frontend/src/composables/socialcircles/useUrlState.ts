@@ -62,11 +62,22 @@ export function useUrlState() {
   }
 
   // Update URL from state (debounced)
+  // Skips URL updates during playback to avoid history spam
+  // Uses history.replaceState() instead of router.replace() to avoid triggering
+  // router's afterEach scroll behavior (#1406)
   function updateUrl(params: {
     filters?: FilterState;
     selectedNode?: NodeId | null;
     year?: number;
+    isPlaying?: boolean;
   }) {
+    // Skip URL updates during timeline playback to avoid history spam
+    // Clear any pending update to prevent it firing during playback
+    if (params.isPlaying) {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      return;
+    }
+
     if (updateTimeout) clearTimeout(updateTimeout);
 
     updateTimeout = setTimeout(() => {
@@ -91,11 +102,17 @@ export function useUrlState() {
         query.selected = params.selectedNode;
       }
 
-      if (params.year) {
+      if (params.year != null) {
         query.year = String(params.year);
       }
 
-      void router.replace({ query });
+      // Build URL with query params, using current path
+      const searchParams = new URLSearchParams(query);
+      const newUrl = `${window.location.pathname}${searchParams.toString() ? "?" + searchParams.toString() : ""}`;
+
+      // Use history.replaceState to update URL without triggering router navigation
+      // This avoids the afterEach scroll-to-top behavior
+      window.history.replaceState(window.history.state, "", newUrl);
     }, ANIMATION.debounceUrl);
   }
 
