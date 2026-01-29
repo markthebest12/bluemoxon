@@ -175,12 +175,25 @@ const showKeyboardShortcuts = ref(false);
 
 // Search state
 const searchQuery = ref("");
+const preSelectSearchQuery = ref("");
 
 // Stats panel collapsed state
 const statsCollapsed = ref(false);
 
+// Handle search query updates from typing (not from selection)
+function handleSearchQueryUpdate(value: string) {
+  searchQuery.value = value;
+  preSelectSearchQuery.value = value;
+}
+
 // Handle search result selection - center graph on selected node
 function handleSearchSelect(node: { id: string }) {
+  // Capture the pre-selection search query before selectNode triggers a v-model update
+  const query = preSelectSearchQuery.value.trim().toLowerCase();
+  const resultCount = query
+    ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
+    : 0;
+
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
   if (!nodeExists) {
@@ -189,11 +202,7 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
-  const query = searchQuery.value.trim().toLowerCase();
-  const resultCount = query
-    ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
-    : 0;
-  analytics.trackSearch(searchQuery.value, resultCount);
+  analytics.trackSearch(preSelectSearchQuery.value, resultCount);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -498,6 +507,18 @@ function handleFilterChange(key: keyof FilterState, value: unknown) {
   analytics.trackFilterChange(key, value);
 }
 
+// Handle filter reset - clears all filters and tracks the reset event
+function handleFilterReset() {
+  resetFilters();
+  analytics.trackFilterChange("reset", null);
+}
+
+// Handle individual filter removal - removes filter and tracks analytics
+function handleFilterRemove(key: string) {
+  removeFilter(key);
+  analytics.trackFilterChange(key, null);
+}
+
 // Handle layout mode changes from NetworkGraph
 function handleLayoutChange(mode: LayoutMode) {
   analytics.trackLayoutChange(mode);
@@ -529,7 +550,12 @@ onUnmounted(() => {
         </p>
       </div>
       <div class="header-center">
-        <SearchInput v-model="searchQuery" :nodes="nodesForSearch" @select="handleSearchSelect" />
+        <SearchInput
+          :model-value="searchQuery"
+          :nodes="nodesForSearch"
+          @update:model-value="handleSearchQueryUpdate"
+          @select="handleSearchSelect"
+        />
       </div>
       <div class="header-right">
         <ExportMenu
@@ -558,7 +584,7 @@ onUnmounted(() => {
     />
 
     <!-- Empty State -->
-    <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
+    <EmptyState v-else-if="showEmpty" @reset-filters="handleFilterReset" />
 
     <!-- Main Content (Desktop) -->
     <div v-else-if="showGraph && !isMobile" class="social-circles-content">
@@ -568,15 +594,15 @@ onUnmounted(() => {
           :filter-state="filterState"
           :nodes="nodesForSearch"
           @update:filter="handleFilterChange"
-          @reset="resetFilters"
+          @reset="handleFilterReset"
         />
 
         <!-- Active Filter Pills -->
         <ActiveFilterPills
           v-if="filterPills.length > 0"
           :filters="filterPills"
-          @remove="removeFilter"
-          @clear-all="resetFilters"
+          @remove="handleFilterRemove"
+          @clear-all="handleFilterReset"
         />
 
         <!-- Statistics Panel -->
@@ -700,8 +726,8 @@ onUnmounted(() => {
         <div v-if="filterPills.length > 0" class="mobile-filter-pills">
           <ActiveFilterPills
             :filters="filterPills"
-            @remove="removeFilter"
-            @clear-all="resetFilters"
+            @remove="handleFilterRemove"
+            @clear-all="handleFilterReset"
           />
         </div>
 
