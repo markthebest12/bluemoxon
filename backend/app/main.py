@@ -78,13 +78,14 @@ app = FastAPI(
     ],
 )
 
-# CORS headers - centralized configuration to avoid coupling with frontend code.
-# When adding custom headers to responses or requiring new request headers,
-# update these constants rather than searching for the middleware call.
+# CORS header configuration. Update these constants when adding new custom
+# headers to requests or responses. Note: API Gateway has its own CORS config
+# in infra/terraform/modules/api-gateway/ that must be kept in sync.
 
 # Headers the browser is allowed to send in cross-origin requests
 CORS_ALLOW_HEADERS: list[str] = [
     "Authorization",  # Cognito JWT bearer tokens for authenticated users
+    "Content-Type",  # Required for application/json POST/PUT/PATCH requests
     "X-API-Key",  # API key authentication for CLI/automation tools
 ]
 
