@@ -7,7 +7,7 @@
 
 import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import { api } from "@/services/api";
 import type { ApiNode, ApiEdge, NodeId, ConnectionType, NodeType } from "@/types/socialCircles";
 import {
@@ -16,6 +16,7 @@ import {
   calculateStrength,
 } from "@/utils/socialCircles/formatters";
 import { PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 
 /** Display labels for entity types */
@@ -41,8 +42,15 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const sidebarRef = ref<HTMLElement | null>(null);
-const { activate, deactivate } = useFocusTrap(sidebarRef, { immediate: false });
+const { activate, deactivate } = useFocusTrap(sidebarRef);
 const isPinned = ref(false);
+
+// Close panel when clicking outside (#1407)
+useClickOutside(sidebarRef, () => {
+  if (props.isOpen && !isPinned.value) {
+    emit("close");
+  }
+});
 
 // Source and target nodes
 const sourceNode = computed(() => {

@@ -6,7 +6,7 @@
  */
 
 import { ref, computed, watch, onUnmounted } from "vue";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from "@/types/socialCircles";
 import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
 import {
@@ -15,7 +15,9 @@ import {
   type Size,
 } from "@/utils/socialCircles/cardPositioning";
 import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
+import FindSimilarButton from "@/components/socialcircles/FindSimilarButton.vue";
 
 interface Props {
   node: ApiNode | null;
@@ -32,10 +34,18 @@ const emit = defineEmits<{
   close: [];
   selectEdge: [edgeId: EdgeId];
   viewProfile: [nodeId: NodeId];
+  "find-similar": [nodeId: NodeId];
 }>();
 
 const cardRef = ref<HTMLElement | null>(null);
-const { activate, deactivate } = useFocusTrap(cardRef, { immediate: false });
+const { activate, deactivate } = useFocusTrap(cardRef);
+
+// Close panel when clicking outside (#1407)
+useClickOutside(cardRef, () => {
+  if (props.isOpen) {
+    emit("close");
+  }
+});
 
 // Computed position
 const cardPosition = computed(() => {
@@ -250,14 +260,17 @@ onUnmounted(() => {
 
       <!-- Footer -->
       <footer class="node-floating-card__footer">
-        <button
-          class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
-          disabled
-          title="Entity profiles coming in a future update"
-        >
-          View Full Profile
-          <span class="node-floating-card__coming-soon">(Coming Soon)</span>
-        </button>
+        <div class="node-floating-card__footer-actions">
+          <FindSimilarButton :node-id="node.id" @find-similar="emit('find-similar', $event)" />
+          <button
+            class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
+            disabled
+            title="Entity profiles coming in a future update"
+          >
+            View Full Profile
+            <span class="node-floating-card__coming-soon">(Coming Soon)</span>
+          </button>
+        </div>
       </footer>
     </div>
   </Transition>
@@ -450,6 +463,12 @@ onUnmounted(() => {
 .node-floating-card__footer {
   padding: 12px 16px;
   border-top: 1px solid var(--color-border, #d4cfc4);
+}
+
+.node-floating-card__footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .node-floating-card__profile-button {

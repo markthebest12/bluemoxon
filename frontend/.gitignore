@@ -26,3 +26,6 @@ stats.html
 test-results/
 playwright-report/
 *.tsbuildinfo
+
+# E2E auth state (contains JWT tokens)
+.auth/
