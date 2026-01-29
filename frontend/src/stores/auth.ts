@@ -21,6 +21,11 @@ type MfaStep =
   | "new_password_required"
   | "mfa_setup_required";
 
+type MfaResult<T> =
+  | { status: "success"; value: T }
+  | { status: "timeout" }
+  | { status: "failed"; error: Error };
+
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
@@ -124,31 +129,30 @@ export const useAuthStore = defineStore("auth", () => {
         role: "viewer", // Default, will be updated from API
       };
 
-      // Track whether MFA check failed vs returned null result vs timed out
-      let mfaCheckFailed = false;
-      let mfaCheckTimedOut = false;
-
       // Timeout wrapper to prevent hung promises (Issue 6)
-      // Returns { value, timedOut } to distinguish timeout from null result
+      // Returns a typed MfaResult to distinguish success, timeout, and failure
       const MFA_TIMEOUT_MS = 5000;
-      const withMfaTimeout = <T>(
-        promise: Promise<T>
-      ): Promise<{ value: T | null; timedOut: boolean }> => {
+      const withMfaTimeout = <T>(promise: Promise<T>): Promise<MfaResult<T>> => {
         let timeoutId: ReturnType<typeof setTimeout>;
         return Promise.race([
-          promise.then((value) => {
-            clearTimeout(timeoutId);
-            return { value, timedOut: false };
-          }),
-          new Promise<{ value: null; timedOut: boolean }>((resolve) => {
+          promise
+            .then((value) => {
+              clearTimeout(timeoutId);
+              return { status: "success", value } as const;
+            })
+            .catch((e: unknown) => {
+              clearTimeout(timeoutId);
+              const error = e instanceof Error ? e : new Error(String(e));
+              return { status: "failed", error } as const;
+            }),
+          new Promise<MfaResult<T>>((resolve) => {
             timeoutId = setTimeout(() => {
               // Log at debug level - timeouts are expected during Cognito cold starts
               // and don't indicate a problem if user already authenticated via MFA
               console.debug(
                 `[Auth] fetchMFAPreference timed out after ${MFA_TIMEOUT_MS}ms (non-blocking)`
               );
-              mfaCheckTimedOut = true;
-              resolve({ value: null, timedOut: true });
+              resolve({ status: "timeout" } as const);
             }, MFA_TIMEOUT_MS);
           }),
         ]);
@@ -159,15 +163,8 @@ export const useAuthStore = defineStore("auth", () => {
       // whether to apply the MFA preference result
       const [userResult, mfaResult] = await Promise.all([
         fetchUserProfileWithRetry(),
-        withMfaTimeout(
-          fetchMFAPreference().catch((e) => {
-            console.warn("[Auth] Could not fetch MFA preference:", e);
-            mfaCheckFailed = true; // Track that check failed (Issue 1)
-            return null;
-          })
-        ),
+        withMfaTimeout(fetchMFAPreference()),
       ]);
-      const mfaPreference = mfaResult.value;
 
       // Issue 3: Check if logout happened during async operation
       if (!user.value) {
@@ -189,21 +186,26 @@ export const useAuthStore = defineStore("auth", () => {
         authError.value = true;
       }
 
-      // Apply MFA preference
+      // Apply MFA preference using typed result
       if (isMfaExempt) {
         // User is explicitly MFA-exempt - no MFA required
         mfaStep.value = "none";
-      } else if (mfaCheckFailed) {
+      } else if (mfaResult.status === "failed") {
         // Issue 1: MFA check failed for non-exempt user - require setup for security
         // Don't silently pass when we can't verify MFA status
         console.warn("[Auth] MFA check failed for non-exempt user, requiring MFA setup");
         mfaStep.value = "mfa_setup_required";
-      } else if (mfaPreference) {
+      } else if (mfaResult.status === "success") {
         // MFA check succeeded - check if TOTP is configured
-        const hasMfa =
-          mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
-        mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
-      } else if (mfaCheckTimedOut) {
+        if (mfaResult.value !== null && mfaResult.value !== undefined) {
+          const hasMfa =
+            mfaResult.value.preferred === "TOTP" || mfaResult.value.enabled?.includes("TOTP");
+          mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
+        } else {
+          // MFA preference returned null/undefined (success but no data) - require setup
+          mfaStep.value = "mfa_setup_required";
+        }
+      } else if (mfaResult.status === "timeout") {
         // Issue #1414: MFA check timed out but didn't fail - don't force MFA setup
         // If user already passed Cognito authentication, they already verified MFA
         // SECURITY DEPENDENCY: This assumes Cognito User Pool is configured to require MFA
@@ -213,8 +215,9 @@ export const useAuthStore = defineStore("auth", () => {
         console.debug("[Auth] MFA preference check timed out, assuming MFA is configured");
         mfaStep.value = "none";
       } else {
-        // MFA preference returned null (not timeout, not failure) - require setup
-        mfaStep.value = "mfa_setup_required";
+        // Exhaustive check - all MfaResult cases should be handled above
+        const _exhaustive: never = mfaResult;
+        throw new Error(`Unhandled MfaResult status: ${JSON.stringify(_exhaustive)}`);
       }
     } catch (e) {
       // Session check failed - clear user silently (no toast to avoid spam on page load)
