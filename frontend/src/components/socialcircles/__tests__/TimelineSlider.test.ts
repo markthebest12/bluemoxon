@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import TimelineSlider from "../TimelineSlider.vue";
 
@@ -50,6 +50,24 @@ describe("TimelineSlider", () => {
   });
 
   describe("backwards compatibility", () => {
+    it("should warn in dev mode when using currentYear without modelValue", () => {
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // In dev mode (import.meta.env.DEV is true during tests), mounting with currentYear should warn
+      mount(TimelineSlider, {
+        props: { currentYear: 1870, minYear: 1800, maxYear: 1900 },
+      });
+
+      // Verify warning was called with the correct message
+      if (import.meta.env.DEV) {
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "TimelineSlider: 'currentYear' prop is deprecated. Use v-model instead: <TimelineSlider v-model=\"year\" />"
+        );
+      }
+
+      consoleSpy.mockRestore();
+    });
+
     it("should support legacy currentYear prop", () => {
       const wrapper = mount(TimelineSlider, {
         props: { currentYear: 1870, minYear: 1800, maxYear: 1900 },
