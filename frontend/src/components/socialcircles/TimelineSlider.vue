@@ -8,6 +8,7 @@
  */
 
 import { ref, computed, watch } from "vue";
+import TimelineMarkers from "@/components/socialcircles/TimelineMarkers.vue";
 
 interface Props {
   minYear?: number;
@@ -104,6 +105,8 @@ function handlePlay() {
       />
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
+
+    <TimelineMarkers :min-year="minYear" :max-year="maxYear" />
 
     <div class="timeline-slider__current">
       {{ yearLabel }}
