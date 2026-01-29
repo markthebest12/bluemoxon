@@ -128,7 +128,7 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
 </script>
 
 <template>
-  <aside class="filter-panel">
+  <aside class="filter-panel" data-testid="filter-panel">
     <header class="filter-panel__header">
       <h2 class="filter-panel__title">Filters</h2>
       <button type="button" class="filter-panel__reset" @click="handleReset">Reset</button>

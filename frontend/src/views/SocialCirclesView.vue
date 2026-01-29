@@ -173,7 +173,8 @@ function showToastMessage(message: string) {
 // Keyboard shortcuts modal state
 const showKeyboardShortcuts = ref(false);
 
-// Search state
+// Search state — searchQuery is the two-way binding for SearchInput's :model-value.
+// preSelectSearchQuery separately tracks pre-selection typing for analytics (independent of searchQuery).
 const searchQuery = ref("");
 // Tracks the latest typed text before a search selection. Due to SearchInput's
 // 300ms debounce, the dropdown may show results for an older query if the user
@@ -261,7 +262,7 @@ useNetworkKeyboard({
   onHelp: () => {
     showKeyboardShortcuts.value = true;
   },
-  onCycleLayout: () => networkGraphRef.value?.cycleLayout(),
+  onCycleLayout: () => networkGraphRef.value?.cycleMode(),
 });
 
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
@@ -531,7 +532,9 @@ function handleFilterRemove(key: string) {
   analytics.trackFilterRemove(key, previousValue);
 }
 
-// Handle mobile filter reset - resets filters with analytics tracking AND closes the bottom sheet
+// Handle mobile filter reset - kept as a named function (not inlined) because it
+// combines two distinct concerns: resetting filter state (with analytics tracking)
+// AND closing the BottomSheet UI. A descriptive name makes the template readable.
 function handleMobileFilterReset() {
   handleFilterReset();
   closeFilters();
@@ -604,7 +607,13 @@ onUnmounted(() => {
     <!-- Empty State -->
     <EmptyState v-else-if="showEmpty" @reset-filters="handleFilterReset" />
 
-    <!-- Main Content (Desktop) -->
+    <!-- Main Content (Desktop)
+         NOTE (#1438): v-else-if is used (not v-show / CSS display:none) because both
+         desktop and mobile layouts contain a <NetworkGraph ref="networkGraphRef">.
+         Rendering both simultaneously would create duplicate Cytoscape instances and
+         a ref conflict, doubling memory usage. The trade-off is that resizing across
+         the mobile breakpoint unmounts/remounts, losing transient graph state (zoom,
+         pan). This is acceptable because breakpoint crossings are rare in practice. -->
     <div v-else-if="showGraph && !isMobile" class="social-circles-content">
       <!-- Filter Panel (left sidebar) -->
       <aside class="filter-sidebar">
@@ -1026,6 +1035,16 @@ onUnmounted(() => {
 }
 
 .mobile-filter-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Cross-component override: FilterPanel uses an internal .filter-panel__content
+   class with overflow-y:auto, which is correct for the fixed-height sidebar but
+   clips content inside the BottomSheet. :deep() pierces the scoped boundary to
+   remove the scroll constraint when FilterPanel is rendered in the mobile sheet.
+   Depends on: FilterPanel.vue .filter-panel__content (see that component's <style>). */
+.mobile-filter-panel :deep(.filter-panel__content) {
   max-height: none;
   overflow: visible;
 }

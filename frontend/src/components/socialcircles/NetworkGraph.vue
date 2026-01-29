@@ -70,6 +70,14 @@ const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
 // Victorian stylesheet
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
 // so we cast the stylesheet to the expected type
+//
+// nodeSize is pre-calculated by calculateNodeSize() in constants/socialCircles.ts:
+// - Uses sqrt(bookCount) scaling with diminishing returns (sqrt(1)=1, sqrt(4)=2, sqrt(64)=8)
+// - Formula: base + sqrt(max(bookCount, 1)) * perBook, clamped to max via Math.min
+// - Author: 20px base, 5px/√book, 60px max (reached at 64 books)
+// - Publisher: 25px base, 4px/√book, 65px max (reached at 100 books)
+// - Binder: 20px base, 5px/√book, 55px max (reached at 49 books)
+// - Negative/zero bookCount clamped to 1 via Math.max before sqrt
 function getCytoscapeStylesheet(): StylesheetStyle[] {
   return [
     {
@@ -310,13 +318,13 @@ defineExpose({
     if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
   },
   getZoom: () => cy.value?.zoom() ?? 1,
-  cycleLayout: cycleMode,
+  cycleMode,
 });
 </script>
 
 <template>
   <div class="network-graph-container">
-    <div ref="containerRef" class="network-graph" />
+    <div ref="containerRef" class="network-graph" data-testid="network-graph" />
     <div class="network-graph__controls">
       <LayoutSwitcher
         :model-value="currentMode"

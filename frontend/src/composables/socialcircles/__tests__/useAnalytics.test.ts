@@ -5,6 +5,7 @@ describe("useAnalytics", () => {
   beforeEach(() => {
     _resetAnalyticsForTesting();
     vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   it("trackEvent logs in dev mode", () => {
@@ -95,5 +96,25 @@ describe("useAnalytics", () => {
     _resetAnalyticsForTesting();
     const instance2 = useAnalytics();
     expect(instance1).not.toBe(instance2);
+  });
+
+  it("logs errors in dev mode and does not throw", () => {
+    // Mock console.log to throw an error
+    vi.spyOn(console, "log").mockImplementation(() => {
+      throw new Error("Test error");
+    });
+
+    const { trackEvent } = useAnalytics();
+
+    // Should not throw - the error should be caught
+    expect(() => {
+      trackEvent({ event: "test_event", properties: { foo: "bar" } });
+    }).not.toThrow();
+
+    // Should warn in dev mode
+    expect(console.warn).toHaveBeenCalledWith(
+      "[Analytics] Error tracking event:",
+      expect.any(Error)
+    );
   });
 });

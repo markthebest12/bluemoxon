@@ -51,7 +51,11 @@ function selectMode(mode: LayoutMode) {
 </script>
 
 <template>
-  <div class="layout-switcher" :class="{ 'layout-switcher--disabled': disabled }">
+  <div
+    class="layout-switcher"
+    :class="{ 'layout-switcher--disabled': disabled }"
+    data-testid="layout-switcher"
+  >
     <button
       v-for="mode in LAYOUT_MODES"
       :key="mode"
@@ -60,6 +64,7 @@ function selectMode(mode: LayoutMode) {
       :class="{ 'layout-switcher__btn--active': modelValue === mode }"
       :title="LAYOUT_DESCRIPTIONS[mode]"
       :disabled="disabled"
+      :data-testid="`layout-btn-${mode}`"
       @click="selectMode(mode)"
     >
       <span class="layout-switcher__icon">{{ LAYOUT_ICONS[mode] }}</span>
