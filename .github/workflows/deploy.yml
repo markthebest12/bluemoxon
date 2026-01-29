@@ -1437,7 +1437,7 @@ jobs:
             echo "::error::Expected version $EXPECTED_VERSION did not respond within 60 seconds"
             exit 1
           else
-            echo "No backend deploy - checking basic API health..."
+            echo "No backend deploy - checking API deep health..."
             for i in {1..20}; do
               if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
