@@ -7,6 +7,7 @@ import { defineComponent, nextTick, ref, type Ref } from "vue";
 // Mock useMediaQuery from @vueuse/core
 const mockIsMobile: Ref<boolean> = ref(false);
 const mockIsTablet: Ref<boolean> = ref(false);
+const mockIsCoarsePointer: Ref<boolean> = ref(false);
 
 vi.mock("@vueuse/core", () => ({
   useMediaQuery: vi.fn((query: string) => {
@@ -15,6 +16,9 @@ vi.mock("@vueuse/core", () => ({
     }
     if (query === "(min-width: 769px) and (max-width: 1024px)") {
       return mockIsTablet;
+    }
+    if (query === "(pointer: coarse)") {
+      return mockIsCoarsePointer;
     }
     return ref(false);
   }),
@@ -32,6 +36,7 @@ describe("useMobile", () => {
     // Reset mock values
     mockIsMobile.value = false;
     mockIsTablet.value = false;
+    mockIsCoarsePointer.value = false;
   });
 
   afterEach(() => {
@@ -168,7 +173,8 @@ describe("useMobile", () => {
   });
 
   it("detects touch capability via ontouchstart", async () => {
-    // Set ontouchstart before mounting
+    // Set ontouchstart and coarse pointer before mounting
+    mockIsCoarsePointer.value = true;
     Object.defineProperty(window, "ontouchstart", {
       value: () => {},
       configurable: true,
@@ -196,7 +202,8 @@ describe("useMobile", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).ontouchstart;
 
-    // Mock navigator with maxTouchPoints
+    // Mock navigator with maxTouchPoints and coarse pointer
+    mockIsCoarsePointer.value = true;
     Object.defineProperty(window, "navigator", {
       value: { ...originalNavigator, maxTouchPoints: 5 },
       configurable: true,
