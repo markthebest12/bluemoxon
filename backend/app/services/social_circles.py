@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime
+from itertools import combinations
 from typing import TYPE_CHECKING
 
 from app.enums import OWNED_STATUSES
@@ -203,9 +204,18 @@ def build_social_circles_graph(
             )
 
     # Build edges: Author <-> Author (shared publisher)
-    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n²) explosion
+    #
+    # Time complexity: O(P * C(min(A, K), 2)) where P = publishers, A = authors
+    # per publisher, K = MAX_AUTHORS_PER_PUBLISHER. With K=20, each publisher
+    # generates at most C(20, 2) = 190 pairs. The early-exit for single-author
+    # publishers avoids unnecessary work for the common case.
+    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n**2) explosion
 
     for publisher_id, author_ids in publisher_authors.items():
+        # Early exit: need at least 2 authors to form a pair
+        if len(author_ids) < 2:
+            continue
+
         publisher_node_id = f"publisher:{publisher_id}"
         if publisher_node_id not in nodes:
             continue
@@ -220,35 +230,31 @@ def build_social_circles_graph(
                 reverse=True,
             )[:MAX_AUTHORS_PER_PUBLISHER]
 
-        for i, author1_id in enumerate(author_list):
+        for author1_id, author2_id in combinations(author_list, 2):
             author1_node_id = f"author:{author1_id}"
-            if author1_node_id not in nodes:
+            author2_node_id = f"author:{author2_id}"
+            if author1_node_id not in nodes or author2_node_id not in nodes:
                 continue
 
-            for author2_id in author_list[i + 1 :]:
-                author2_node_id = f"author:{author2_id}"
-                if author2_node_id not in nodes:
-                    continue
+            # Ensure consistent edge ID ordering
+            source_id, target_id = (
+                (author1_node_id, author2_node_id)
+                if author1_node_id < author2_node_id
+                else (author2_node_id, author1_node_id)
+            )
 
-                # Ensure consistent edge ID ordering (use local vars to avoid corrupting loop)
-                source_id, target_id = (
-                    (author1_node_id, author2_node_id)
-                    if author1_node_id < author2_node_id
-                    else (author2_node_id, author1_node_id)
-                )
+            edge_id = f"e:{source_id}:{target_id}"
+            if edge_id in edges:
+                continue  # Already added from another publisher
 
-                edge_id = f"e:{source_id}:{target_id}"
-                if edge_id in edges:
-                    continue  # Already added from another publisher
-
-                edges[edge_id] = SocialCircleEdge(
-                    id=edge_id,
-                    source=source_id,
-                    target=target_id,
-                    type=ConnectionType.shared_publisher,
-                    strength=3,  # Lower strength for indirect connection
-                    evidence=f"Both published by {nodes[publisher_node_id].name}",
-                )
+            edges[edge_id] = SocialCircleEdge(
+                id=edge_id,
+                source=source_id,
+                target=target_id,
+                type=ConnectionType.shared_publisher,
+                strength=3,  # Lower strength for indirect connection
+                evidence=f"Both published by {nodes[publisher_node_id].name}",
+            )
 
     # Build edges: Author -> Binder
     if include_binders:
