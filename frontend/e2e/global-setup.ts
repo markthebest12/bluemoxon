@@ -125,11 +125,32 @@ async function authenticateUser(
   console.log(`Authenticated ${user.email} -> ${filePath}`);
 }
 
+async function writeEmptyAuthState(authDir: string, baseURL: string): Promise<void> {
+  const emptyState = { cookies: [], origins: [{ origin: baseURL, localStorage: [] }] };
+  await Promise.all(
+    TEST_USERS.map((user) => {
+      const filePath = join(authDir, user.storageFile);
+      return writeFile(filePath, JSON.stringify(emptyState, null, 2));
+    })
+  );
+}
+
 async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use?.baseURL || "https://staging.app.bluemoxon.com";
 
   const authDir = join(process.cwd(), ".auth");
   await mkdir(authDir, { recursive: true });
+
+  // Skip AWS auth setup when SKIP_AUTH_SETUP is set (local dev without AWS credentials)
+  if (process.env.SKIP_AUTH_SETUP) {
+    if (process.env.CI) {
+      throw new Error("SKIP_AUTH_SETUP must not be set in CI — it disables all auth testing");
+    }
+    console.warn("WARNING: SKIP_AUTH_SETUP is set. Auth state files will be empty.");
+    console.warn("WARNING: Tests requiring authentication WILL FAIL. This is for local dev only.");
+    await writeEmptyAuthState(authDir, baseURL);
+    return;
+  }
 
   const cognitoClient = new CognitoIdentityProviderClient({
     region: REGION,
