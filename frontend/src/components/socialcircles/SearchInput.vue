@@ -1,4 +1,9 @@
 <!-- frontend/src/components/socialcircles/SearchInput.vue -->
+<script lang="ts">
+/** Maximum number of search results shown in the dropdown. */
+export const MAX_RESULTS = 10;
+</script>
+
 <script setup lang="ts">
 /**
  * SearchInput - Type-ahead search input for finding people in the graph.
@@ -39,7 +44,7 @@ const emit = defineEmits<{
 // Constants
 // =============================================================================
 
-const MAX_RESULTS = 10;
+// MAX_RESULTS is exported from the companion <script> block above.
 const DEBOUNCE_MS = 300;
 
 const GROUP_LABELS: Record<NodeType, string> = {

@@ -47,7 +47,7 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
-import SearchInput from "@/components/socialcircles/SearchInput.vue";
+import SearchInput, { MAX_RESULTS } from "@/components/socialcircles/SearchInput.vue";
 import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
@@ -194,13 +194,16 @@ function handleSearchQueryUpdate(value: string) {
 function handleSearchSelect(node: { id: string }) {
   // Capture the pre-selection search query before selectNode triggers a v-model update
   const query = preSelectSearchQuery.value.trim().toLowerCase();
-  // Cap at 10 to match the SearchInput dropdown's MAX_RESULTS limit.
-  // The user only ever sees up to 10 results, so analytics should reflect that.
-  const SEARCH_DISPLAY_LIMIT = 10;
+  // Cap at MAX_RESULTS to match the SearchInput dropdown limit.
+  // The user only ever sees up to MAX_RESULTS results, so analytics should reflect that.
   const totalMatches = query
     ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
     : 0;
-  const resultCount = Math.min(totalMatches, SEARCH_DISPLAY_LIMIT);
+  const resultCount = Math.min(totalMatches, MAX_RESULTS);
+
+  // Track search before the early return so every search selection is recorded,
+  // even when the node is not in the current filtered view.
+  analytics.trackSearch(preSelectSearchQuery.value, resultCount);
 
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
@@ -210,7 +213,6 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
-  analytics.trackSearch(preSelectSearchQuery.value, resultCount);
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -518,7 +520,7 @@ function handleFilterChange(key: keyof FilterState, value: unknown) {
 // Handle filter reset - clears all filters and tracks the reset event
 function handleFilterReset() {
   resetFilters();
-  analytics.trackFilterChange("reset", null);
+  analytics.trackFilterReset();
 }
 
 // Handle individual filter removal - removes filter and tracks analytics
@@ -526,7 +528,7 @@ function handleFilterRemove(key: string) {
   // Capture the previous value before removal for analytics context
   const previousValue = filterState.value[key as keyof FilterState] ?? null;
   removeFilter(key);
-  analytics.trackFilterChange(key, { removed: previousValue });
+  analytics.trackFilterRemove(key, previousValue);
 }
 
 // Handle mobile filter reset - resets filters with analytics tracking AND closes the bottom sheet

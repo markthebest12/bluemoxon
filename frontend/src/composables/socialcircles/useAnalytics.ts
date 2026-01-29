@@ -49,6 +49,8 @@ export function useAnalytics() {
 }
 
 function _createAnalytics() {
+  // Evaluated once at singleton creation time. This is correct for Vite where
+  // import.meta.env.DEV is a compile-time constant that never changes at runtime.
   const isDev = import.meta.env.DEV;
 
   /**
@@ -134,6 +136,29 @@ function _createAnalytics() {
   }
 
   /**
+   * Track when a specific filter is removed.
+   */
+  function trackFilterRemove(filter: string, previousValue: unknown): void {
+    trackEvent({
+      event: "filter_removed",
+      properties: {
+        filter,
+        previousValue,
+      },
+    });
+  }
+
+  /**
+   * Track when all filters are reset.
+   */
+  function trackFilterReset(): void {
+    trackEvent({
+      event: "filters_reset",
+      properties: {},
+    });
+  }
+
+  /**
    * Track when the graph is exported.
    */
   function trackExport(format: ExportFormat): void {
@@ -150,6 +175,8 @@ function _createAnalytics() {
     trackNodeSelect,
     trackEdgeSelect,
     trackFilterChange,
+    trackFilterRemove,
+    trackFilterReset,
     trackLayoutChange,
     trackSearch,
     trackExport,
