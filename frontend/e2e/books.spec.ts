@@ -109,3 +109,121 @@ test.describe("Book Detail Page", () => {
     }
   });
 });
+
+test.describe("Book CRUD Navigation (Editor)", () => {
+  test.use({ storageState: ".auth/editor.json" });
+
+  test("navigates to create book form", async ({ page }) => {
+    await page.goto("/books/new");
+
+    // Should land on the create page with correct heading
+    await expect(page.getByRole("heading", { name: "Add New Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Back link should point to collection
+    const backLink = page.getByRole("link", { name: /Back to Collection/i });
+    await expect(backLink).toBeVisible();
+  });
+
+  test("create form displays all section headings", async ({ page }) => {
+    await page.goto("/books/new");
+
+    await expect(page.getByRole("heading", { name: "Add New Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify all form section headings are present
+    await expect(page.getByRole("heading", { name: "Basic Information" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Binding" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Condition" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Valuation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Acquisition" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Notes" })).toBeVisible();
+  });
+
+  test("create form has expected basic information fields", async ({ page }) => {
+    await page.goto("/books/new");
+
+    await expect(page.getByRole("heading", { name: "Add New Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Title input (required field)
+    await expect(page.getByPlaceholder("Book title")).toBeVisible();
+
+    // Author and Publisher dropdowns
+    await expect(page.getByText("-- Select Author --")).toBeVisible();
+    await expect(page.getByText("-- Select Publisher --")).toBeVisible();
+
+    // Publication Date
+    await expect(page.getByPlaceholder("e.g., 1867-1880 or 1851")).toBeVisible();
+
+    // Edition
+    await expect(page.getByPlaceholder("e.g., First Edition")).toBeVisible();
+
+    // Volumes (number input)
+    await expect(page.getByLabel("Volumes")).toBeVisible();
+  });
+
+  test("create form has action buttons", async ({ page }) => {
+    await page.goto("/books/new");
+
+    await expect(page.getByRole("heading", { name: "Add New Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Cancel and Create buttons
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Book" })).toBeVisible();
+  });
+
+  test("navigates to edit book form", async ({ page }) => {
+    await page.goto("/books/401/edit");
+
+    // Should land on the edit page with correct heading
+    await expect(page.getByRole("heading", { name: "Edit Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Back link should point to the book detail
+    const backLink = page.getByRole("link", { name: /Back to Book/i });
+    await expect(backLink).toBeVisible();
+  });
+
+  test("edit form shows Update button instead of Create", async ({ page }) => {
+    await page.goto("/books/401/edit");
+
+    await expect(page.getByRole("heading", { name: "Edit Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Should show Update Book, not Create Book
+    await expect(page.getByRole("button", { name: "Update Book" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+  });
+
+  test("cancel on create form returns to collection", async ({ page }) => {
+    await page.goto("/books/new");
+
+    await expect(page.getByRole("heading", { name: "Add New Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(page).toHaveURL(/\/books$/);
+  });
+
+  test("cancel on edit form returns to book detail", async ({ page }) => {
+    await page.goto("/books/401/edit");
+
+    await expect(page.getByRole("heading", { name: "Edit Book" })).toBeVisible({
+      timeout: 10000,
+    });
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(page).toHaveURL(/\/books\/401$/);
+  });
+});
