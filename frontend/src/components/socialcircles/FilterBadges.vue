@@ -4,7 +4,7 @@
  *
  * Two usage modes:
  * 1. Simple: Pass a `count` prop directly
- * 2. Computed: Pass `nodes` and `filterState` to compute counts internally
+ * 2. Computed: Pass `nodes` and `nodeType` to compute counts internally
  *
  * Badge displays a count number in a compact pill shape.
  * Dims when count is 0.
@@ -14,20 +14,12 @@ import { computed } from "vue";
 
 import type { ApiNode, NodeType } from "@/types/socialCircles";
 
-interface FilterState {
-  readonly showAuthors: boolean;
-  readonly showPublishers: boolean;
-  readonly showBinders: boolean;
-}
-
 interface Props {
   /** Direct count value (simple mode) */
   count?: number;
   /** Nodes array for computed counts */
   nodes?: ApiNode[];
-  /** Filter state for computed counts */
-  filterState?: FilterState;
-  /** Node type to count (required when using nodes/filterState) */
+  /** Node type to count (required when using nodes) */
   nodeType?: NodeType;
 }
 

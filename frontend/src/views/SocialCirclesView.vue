@@ -527,6 +527,7 @@ onUnmounted(() => {
       <aside class="filter-sidebar">
         <FilterPanel
           :filter-state="filterState"
+          :nodes="nodesForSearch"
           @update:filter="applyFilter"
           @reset="resetFilters"
         />
@@ -717,6 +718,7 @@ onUnmounted(() => {
       <BottomSheet v-model="isFiltersOpen" title="Filters">
         <FilterPanel
           :filter-state="filterState"
+          :nodes="nodesForSearch"
           class="mobile-filter-panel"
           @update:filter="applyFilter"
           @reset="closeFilters"
