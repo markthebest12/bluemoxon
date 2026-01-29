@@ -1453,10 +1453,16 @@ jobs:
       - name: Set test URLs
         id: urls
         run: |
-          # api_url from Terraform includes /api/v1 prefix.
+          # api_url from Terraform must end with /api/v1 prefix.
           # Derive api_base (domain only, no path) for cases that need it (e.g. image URLs).
           API_URL="${{ needs.configure.outputs.api_url }}"
+          if [[ ! "$API_URL" =~ /api/v1$ ]]; then
+            echo "::error::Terraform output 'api_url' must end with /api/v1 (got: $API_URL)"
+            exit 1
+          fi
+          echo "Deriving api_base from api_url: $API_URL"
           API_BASE=$(echo "$API_URL" | sed 's|/api/v1$||')
+          echo "Derived api_base: $API_BASE"
           echo "api_base=$API_BASE" >> $GITHUB_OUTPUT
           echo "app_url=${{ needs.configure.outputs.app_url }}" >> $GITHUB_OUTPUT
 
