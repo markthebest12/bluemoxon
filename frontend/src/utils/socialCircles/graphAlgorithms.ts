@@ -41,25 +41,33 @@ export function findShortestPath(
   if (startId === endId) return [startId];
 
   const visited = new Set<NodeId>();
-  const queue: { nodeId: NodeId; path: NodeId[] }[] = [{ nodeId: startId, path: [startId] }];
+  const parent = new Map<NodeId, NodeId>();
+  const queue: NodeId[] = [startId];
+  visited.add(startId);
 
   while (queue.length > 0) {
-    const { nodeId, path } = queue.shift()!;
-
-    if (visited.has(nodeId)) continue;
-    visited.add(nodeId);
+    const nodeId = queue.shift()!;
 
     const neighbors = adjacency.get(nodeId);
     if (!neighbors) continue;
 
     for (const neighbor of neighbors) {
+      if (visited.has(neighbor)) continue;
+      visited.add(neighbor);
+      parent.set(neighbor, nodeId);
+
       if (neighbor === endId) {
-        return [...path, neighbor];
+        // Reconstruct path from parent pointers
+        const path: NodeId[] = [endId];
+        let current = endId;
+        while (current !== startId) {
+          current = parent.get(current)!;
+          path.unshift(current);
+        }
+        return path;
       }
 
-      if (!visited.has(neighbor)) {
-        queue.push({ nodeId: neighbor, path: [...path, neighbor] });
-      }
+      queue.push(neighbor);
     }
   }
 

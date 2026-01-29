@@ -7,6 +7,7 @@
 
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { onClickOutside } from "@vueuse/core";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from "@/types/socialCircles";
 import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
 import {
@@ -35,6 +36,13 @@ const emit = defineEmits<{
 
 const cardRef = ref<HTMLElement | null>(null);
 const { activate, deactivate } = useFocusTrap(cardRef, { immediate: false });
+
+// Close panel when clicking outside (#1407)
+onClickOutside(cardRef, () => {
+  if (props.isOpen) {
+    emit("close");
+  }
+});
 
 // Computed position
 const cardPosition = computed(() => {

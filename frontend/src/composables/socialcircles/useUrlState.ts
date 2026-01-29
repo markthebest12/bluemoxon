@@ -91,7 +91,7 @@ export function useUrlState() {
         query.selected = params.selectedNode;
       }
 
-      if (params.year) {
+      if (params.year != null) {
         query.year = String(params.year);
       }
 

@@ -8,6 +8,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { onClickOutside } from "@vueuse/core";
 import { api } from "@/services/api";
 import type { ApiNode, ApiEdge, NodeId, ConnectionType } from "@/types/socialCircles";
 import {
@@ -35,6 +36,13 @@ const router = useRouter();
 const sidebarRef = ref<HTMLElement | null>(null);
 const { activate, deactivate } = useFocusTrap(sidebarRef, { immediate: false });
 const isPinned = ref(false);
+
+// Close panel when clicking outside (#1407)
+onClickOutside(sidebarRef, () => {
+  if (props.isOpen && !isPinned.value) {
+    emit("close");
+  }
+});
 
 // Source and target nodes
 const sourceNode = computed(() => {
