@@ -14,14 +14,16 @@ import { computed } from "vue";
 
 import type { ApiNode, NodeType } from "@/types/socialCircles";
 
-interface Props {
-  /** Direct count value (simple mode) */
-  count?: number;
-  /** Nodes array for computed counts */
-  nodes?: ApiNode[];
-  /** Node type to count (required when using nodes) */
-  nodeType?: NodeType;
-}
+/**
+ * Props use a discriminated union to enforce valid combinations:
+ * - Simple mode: pass `count` only (no nodes/nodeType)
+ * - Computed mode: pass `nodes` AND `nodeType` together (no count)
+ *
+ * The `never` types prevent mixing modes at the TypeScript level.
+ */
+type Props =
+  | { count: number; nodes?: never; nodeType?: never }
+  | { count?: never; nodes: ApiNode[]; nodeType: NodeType };
 
 const props = defineProps<Props>();
 
