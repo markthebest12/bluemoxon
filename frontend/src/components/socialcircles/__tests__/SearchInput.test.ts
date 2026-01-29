@@ -313,7 +313,8 @@ describe("SearchInput", () => {
 
     beforeEach(() => {
       scrollIntoViewMock = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewMock;
+      Element.prototype.scrollIntoView =
+        scrollIntoViewMock as typeof Element.prototype.scrollIntoView;
     });
 
     async function openDropdown(w: VueWrapper) {
