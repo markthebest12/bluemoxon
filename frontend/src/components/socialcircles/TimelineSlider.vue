@@ -7,7 +7,7 @@
  * Also maintains backwards compatibility with currentYear prop.
  */
 
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import TimelineMarkers from "@/components/socialcircles/TimelineMarkers.vue";
 
 interface Props {
@@ -28,6 +28,12 @@ const props = withDefaults(defineProps<Props>(), {
   currentYear: undefined,
   mode: "point",
   isPlaying: false,
+});
+
+onMounted(() => {
+  if (import.meta.env.DEV && props.currentYear !== undefined && props.modelValue === undefined) {
+    console.warn("[TimelineSlider] currentYear prop is deprecated. Use v-model instead.");
+  }
 });
 
 const emit = defineEmits<{
