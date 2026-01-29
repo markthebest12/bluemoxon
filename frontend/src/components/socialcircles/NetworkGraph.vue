@@ -324,7 +324,7 @@ defineExpose({
 
 <template>
   <div class="network-graph-container">
-    <div ref="containerRef" class="network-graph" />
+    <div ref="containerRef" class="network-graph" data-testid="network-graph" />
     <div class="network-graph__controls">
       <LayoutSwitcher
         :model-value="currentMode"
