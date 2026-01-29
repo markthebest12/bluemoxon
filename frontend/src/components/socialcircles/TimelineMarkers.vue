@@ -4,19 +4,17 @@
  *
  * Features:
  * - Markers positioned correctly along timeline based on year
- * - Tooltip shows event label on hover
+ * - Tooltip shows event label on hover or keyboard focus
  * - Only shows events within visible range [minYear, maxYear]
  * - Different colors/styles for event types (political, literary, cultural)
  * - Victorian styling for markers
+ * - Keyboard accessible (Tab, Enter/Space to activate)
+ * - Dynamic tooltip positioning to prevent edge clipping
  */
 
 import { computed, ref } from "vue";
-
-export interface HistoricalEvent {
-  year: number;
-  label: string;
-  type: "political" | "literary" | "cultural";
-}
+import type { HistoricalEvent } from "@/types/socialCircles";
+import { VICTORIAN_EVENTS } from "@/constants/socialCircles";
 
 interface Props {
   minYear: number;
@@ -25,15 +23,10 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  events: () => [
-    { year: 1837, label: "Victoria's Coronation", type: "political" as const },
-    { year: 1851, label: "Great Exhibition", type: "cultural" as const },
-    { year: 1859, label: "Origin of Species", type: "literary" as const },
-    { year: 1901, label: "Victoria Dies", type: "political" as const },
-  ],
+  events: () => VICTORIAN_EVENTS,
 });
 
-// Track which marker is being hovered
+// Track which marker is being hovered or focused
 const hoveredEvent = ref<HistoricalEvent | null>(null);
 
 // Filter events to only those within the visible range
@@ -48,9 +41,22 @@ function getPositionPercent(year: number): number {
   return ((year - props.minYear) / range) * 100;
 }
 
+// Determine tooltip alignment class based on marker position
+function getTooltipAlignClass(year: number): string {
+  const percent = getPositionPercent(year);
+  if (percent < 15) return "timeline-markers__tooltip--align-left";
+  if (percent > 85) return "timeline-markers__tooltip--align-right";
+  return "";
+}
+
 // Get color class based on event type
 function getEventTypeClass(type: HistoricalEvent["type"]): string {
   return `timeline-markers__marker--${type}`;
+}
+
+// Build aria-label for a marker
+function getAriaLabel(event: HistoricalEvent): string {
+  return `${event.year}: ${event.label} (${event.type})`;
 }
 
 function handleMouseEnter(event: HistoricalEvent) {
@@ -60,25 +66,56 @@ function handleMouseEnter(event: HistoricalEvent) {
 function handleMouseLeave() {
   hoveredEvent.value = null;
 }
+
+function handleFocus(event: HistoricalEvent) {
+  hoveredEvent.value = event;
+}
+
+function handleBlur() {
+  hoveredEvent.value = null;
+}
+
+function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    // Toggle tooltip on Enter/Space
+    if (hoveredEvent.value === event) {
+      hoveredEvent.value = null;
+    } else {
+      hoveredEvent.value = event;
+    }
+  }
+}
 </script>
 
 <template>
-  <div class="timeline-markers">
+  <div class="timeline-markers" role="list" aria-label="Historical timeline events">
     <div
       v-for="event in visibleEvents"
       :key="`${event.year}-${event.label}`"
       class="timeline-markers__marker"
       :class="getEventTypeClass(event.type)"
       :style="{ left: `${getPositionPercent(event.year)}%` }"
+      role="listitem"
+      :aria-label="getAriaLabel(event)"
+      tabindex="0"
       @mouseenter="handleMouseEnter(event)"
       @mouseleave="handleMouseLeave"
+      @focus="handleFocus(event)"
+      @blur="handleBlur"
+      @keydown="handleKeydown($event, event)"
     >
       <div class="timeline-markers__line" />
       <span class="timeline-markers__year">{{ event.year }}</span>
 
       <!-- Tooltip -->
       <Transition name="marker-tooltip-fade">
-        <div v-if="hoveredEvent === event" class="timeline-markers__tooltip">
+        <div
+          v-if="hoveredEvent === event"
+          class="timeline-markers__tooltip"
+          :class="getTooltipAlignClass(event.year)"
+          role="tooltip"
+        >
           <span class="timeline-markers__tooltip-type">{{ event.type }}</span>
           <span class="timeline-markers__tooltip-label">{{ event.label }}</span>
         </div>
@@ -103,6 +140,19 @@ function handleMouseLeave() {
   align-items: center;
   transform: translateX(-50%);
   cursor: pointer;
+  outline: none;
+}
+
+/* Focus styles for keyboard navigation */
+.timeline-markers__marker:focus-visible .timeline-markers__line {
+  height: 16px;
+  outline: 2px solid var(--color-victorian-hunter-600, #2f5a4b);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.timeline-markers__marker:focus-visible .timeline-markers__year {
+  font-weight: 600;
 }
 
 .timeline-markers__line {
@@ -173,6 +223,19 @@ function handleMouseLeave() {
   font-family: Georgia, serif;
 }
 
+/* Tooltip edge alignment: left edge */
+.timeline-markers__tooltip--align-left {
+  left: 0;
+  transform: translateX(0);
+}
+
+/* Tooltip edge alignment: right edge */
+.timeline-markers__tooltip--align-right {
+  left: auto;
+  right: 0;
+  transform: translateX(0);
+}
+
 .timeline-markers__tooltip::after {
   content: "";
   position: absolute;
@@ -191,6 +254,21 @@ function handleMouseLeave() {
   transform: translateX(-50%);
   border: 7px solid transparent;
   border-top-color: var(--color-victorian-paper-aged, #e8e4d9);
+}
+
+/* Adjust arrow position for left-aligned tooltips */
+.timeline-markers__tooltip--align-left::after,
+.timeline-markers__tooltip--align-left::before {
+  left: 12px;
+  transform: translateX(0);
+}
+
+/* Adjust arrow position for right-aligned tooltips */
+.timeline-markers__tooltip--align-right::after,
+.timeline-markers__tooltip--align-right::before {
+  left: auto;
+  right: 12px;
+  transform: translateX(0);
 }
 
 .timeline-markers__tooltip-type {
@@ -222,5 +300,17 @@ function handleMouseLeave() {
 .marker-tooltip-fade-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(4px);
+}
+
+/* Left-aligned fade animation */
+.timeline-markers__tooltip--align-left.marker-tooltip-fade-enter-from,
+.timeline-markers__tooltip--align-left.marker-tooltip-fade-leave-to {
+  transform: translateX(0) translateY(4px);
+}
+
+/* Right-aligned fade animation */
+.timeline-markers__tooltip--align-right.marker-tooltip-fade-enter-from,
+.timeline-markers__tooltip--align-right.marker-tooltip-fade-leave-to {
+  transform: translateX(0) translateY(4px);
 }
 </style>

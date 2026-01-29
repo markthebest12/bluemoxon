@@ -5,7 +5,25 @@
  * Visual encoding, animation timings, and configuration.
  */
 
-import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
+import type {
+  NodeType,
+  ConnectionType,
+  Era,
+  LayoutMode,
+  HistoricalEvent,
+} from "@/types/socialCircles";
+
+// =============================================================================
+// Historical Timeline Events
+// =============================================================================
+
+/** Default historical events displayed on the timeline */
+export const VICTORIAN_EVENTS: HistoricalEvent[] = [
+  { year: 1837, label: "Victoria's Coronation", type: "political" },
+  { year: 1851, label: "Great Exhibition", type: "cultural" },
+  { year: 1859, label: "Origin of Species", type: "literary" },
+  { year: 1901, label: "Victoria Dies", type: "political" },
+];
 
 // =============================================================================
 // Connection Types

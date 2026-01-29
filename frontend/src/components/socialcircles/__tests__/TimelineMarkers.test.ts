@@ -1,0 +1,403 @@
+import { describe, it, expect } from "vitest";
+import { mount } from "@vue/test-utils";
+import TimelineMarkers from "../TimelineMarkers.vue";
+import type { HistoricalEvent } from "@/types/socialCircles";
+import { VICTORIAN_EVENTS } from "@/constants/socialCircles";
+
+const testEvents: HistoricalEvent[] = [
+  { year: 1837, label: "Victoria's Coronation", type: "political" },
+  { year: 1851, label: "Great Exhibition", type: "cultural" },
+  { year: 1859, label: "Origin of Species", type: "literary" },
+  { year: 1901, label: "Victoria Dies", type: "political" },
+];
+
+function mountMarkers(props: { minYear: number; maxYear: number; events?: HistoricalEvent[] }) {
+  return mount(TimelineMarkers, { props });
+}
+
+// =============================================================================
+// Position Calculation
+// =============================================================================
+
+describe("TimelineMarkers - position calculation", () => {
+  it("positions a marker at 0% when year equals minYear", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1800, label: "Start", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("style")).toContain("left: 0%");
+  });
+
+  it("positions a marker at 100% when year equals maxYear", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1900, label: "End", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("style")).toContain("left: 100%");
+  });
+
+  it("positions a marker at 50% when year is midpoint", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Mid", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("style")).toContain("left: 50%");
+  });
+
+  it("calculates fractional percentages correctly", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1825, label: "Quarter", type: "literary" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("style")).toContain("left: 25%");
+  });
+});
+
+// =============================================================================
+// Range Filtering
+// =============================================================================
+
+describe("TimelineMarkers - range filtering", () => {
+  it("shows events within the visible range", () => {
+    const wrapper = mountMarkers({
+      minYear: 1840,
+      maxYear: 1870,
+      events: testEvents,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(2); // 1851 and 1859
+  });
+
+  it("hides events outside the visible range", () => {
+    const wrapper = mountMarkers({
+      minYear: 1860,
+      maxYear: 1890,
+      events: testEvents,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(0);
+  });
+
+  it("includes events at the range boundaries", () => {
+    const wrapper = mountMarkers({
+      minYear: 1837,
+      maxYear: 1901,
+      events: testEvents,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(4);
+  });
+
+  it("shows no markers when events array is empty", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// Division by Zero (minYear === maxYear)
+// =============================================================================
+
+describe("TimelineMarkers - division by zero", () => {
+  it("positions marker at 0% when minYear equals maxYear", () => {
+    const wrapper = mountMarkers({
+      minYear: 1850,
+      maxYear: 1850,
+      events: [{ year: 1850, label: "Same Year", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("style")).toContain("left: 0%");
+  });
+
+  it("does not throw when minYear equals maxYear", () => {
+    expect(() =>
+      mountMarkers({
+        minYear: 1850,
+        maxYear: 1850,
+        events: [{ year: 1850, label: "Same Year", type: "political" }],
+      })
+    ).not.toThrow();
+  });
+});
+
+// =============================================================================
+// Event Type Classes
+// =============================================================================
+
+describe("TimelineMarkers - event type classes", () => {
+  it("applies political class for political events", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1837, label: "Political Event", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.classes()).toContain("timeline-markers__marker--political");
+  });
+
+  it("applies literary class for literary events", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1859, label: "Literary Event", type: "literary" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.classes()).toContain("timeline-markers__marker--literary");
+  });
+
+  it("applies cultural class for cultural events", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1851, label: "Cultural Event", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.classes()).toContain("timeline-markers__marker--cultural");
+  });
+});
+
+// =============================================================================
+// Tooltip Display
+// =============================================================================
+
+describe("TimelineMarkers - tooltip rendering", () => {
+  it("does not show tooltip by default", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Test Event", type: "political" }],
+    });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+
+  it("shows tooltip on mouseenter", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Test Event", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("Test Event");
+    expect(wrapper.find(".timeline-markers__tooltip-type").text()).toBe("political");
+  });
+
+  it("hides tooltip on mouseleave", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Test Event", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("mouseleave");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+
+  it("shows tooltip on focus", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Focus Event", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("focus");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    expect(wrapper.find(".timeline-markers__tooltip-label").text()).toBe("Focus Event");
+  });
+
+  it("hides tooltip on blur", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Blur Event", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("focus");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("blur");
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+
+  it("toggles tooltip on Enter key", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Enter Event", type: "literary" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("keydown", { key: "Enter" });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("keydown", { key: "Enter" });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+
+  it("toggles tooltip on Space key", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Space Event", type: "literary" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("keydown", { key: " " });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("keydown", { key: " " });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+  });
+});
+
+// =============================================================================
+// Tooltip Edge Clamping
+// =============================================================================
+
+describe("TimelineMarkers - tooltip edge clamping", () => {
+  it("applies left-align class when marker is near left edge (<15%)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1810, label: "Left Edge", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.classes()).toContain("timeline-markers__tooltip--align-left");
+  });
+
+  it("applies right-align class when marker is near right edge (>85%)", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1890, label: "Right Edge", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.classes()).toContain("timeline-markers__tooltip--align-right");
+  });
+
+  it("does not apply edge class when marker is in the middle", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Center", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-left");
+    expect(tooltip.classes()).not.toContain("timeline-markers__tooltip--align-right");
+  });
+});
+
+// =============================================================================
+// Accessibility
+// =============================================================================
+
+describe("TimelineMarkers - accessibility", () => {
+  it("has role=list on the container", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: testEvents,
+    });
+    const container = wrapper.find(".timeline-markers");
+    expect(container.attributes("role")).toBe("list");
+  });
+
+  it("has role=listitem on each marker", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1950,
+      events: testEvents,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    markers.forEach((marker) => {
+      expect(marker.attributes("role")).toBe("listitem");
+    });
+  });
+
+  it("has tabindex=0 on each marker for keyboard navigation", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1950,
+      events: testEvents,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    markers.forEach((marker) => {
+      expect(marker.attributes("tabindex")).toBe("0");
+    });
+  });
+
+  it("has descriptive aria-label on each marker", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1950,
+      events: [{ year: 1851, label: "Great Exhibition", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("aria-label")).toBe("1851: Great Exhibition (cultural)");
+  });
+
+  it("tooltip has role=tooltip", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Tooltip Role", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.attributes("role")).toBe("tooltip");
+  });
+
+  it("container has aria-label", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [],
+    });
+    const container = wrapper.find(".timeline-markers");
+    expect(container.attributes("aria-label")).toBe("Historical timeline events");
+  });
+});
+
+// =============================================================================
+// Default Events
+// =============================================================================
+
+describe("TimelineMarkers - default events", () => {
+  it("uses VICTORIAN_EVENTS as default when no events prop is provided", () => {
+    const wrapper = mountMarkers({
+      minYear: 1780,
+      maxYear: 1920,
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    expect(markers).toHaveLength(VICTORIAN_EVENTS.length);
+  });
+
+  it("VICTORIAN_EVENTS contains expected historical events", () => {
+    expect(VICTORIAN_EVENTS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ year: 1837, type: "political" }),
+        expect.objectContaining({ year: 1851, type: "cultural" }),
+        expect.objectContaining({ year: 1859, type: "literary" }),
+        expect.objectContaining({ year: 1901, type: "political" }),
+      ])
+    );
+  });
+});

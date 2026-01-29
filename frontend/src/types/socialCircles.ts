@@ -176,6 +176,20 @@ export function isBinderNode(node: ApiNode): node is ApiNode & { type: "binder" 
 }
 
 // =============================================================================
+// Historical Event Types (Timeline Markers)
+// =============================================================================
+
+/** Type of historical event displayed on the timeline */
+export type HistoricalEventType = "political" | "literary" | "cultural";
+
+/** A historical event marker on the timeline */
+export interface HistoricalEvent {
+  year: number;
+  label: string;
+  type: HistoricalEventType;
+}
+
+// =============================================================================
 // Default Values
 // =============================================================================
 
