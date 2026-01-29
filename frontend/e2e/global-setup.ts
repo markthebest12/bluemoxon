@@ -5,14 +5,12 @@ import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import type { FullConfig } from "@playwright/test";
 
 const REGION = "us-west-2";
-const CLIENT_ID = "4bb77j6uskmjibq27i15ajfpqq";
+const CLIENT_ID = process.env.COGNITO_CLIENT_ID || "4bb77j6uskmjibq27i15ajfpqq";
+const SECRET_PREFIX = process.env.E2E_SECRET_PREFIX || "bluemoxon-staging";
 
 interface TestUser {
   email: string;
@@ -23,17 +21,17 @@ interface TestUser {
 const TEST_USERS: TestUser[] = [
   {
     email: "e2e-test-admin@bluemoxon.com",
-    secretName: "bluemoxon-staging/e2e-admin-password",
+    secretName: `${SECRET_PREFIX}/e2e-admin-password`,
     storageFile: "admin.json",
   },
   {
     email: "e2e-test-editor@bluemoxon.com",
-    secretName: "bluemoxon-staging/e2e-editor-password",
+    secretName: `${SECRET_PREFIX}/e2e-editor-password`,
     storageFile: "editor.json",
   },
   {
     email: "e2e-test-viewer@bluemoxon.com",
-    secretName: "bluemoxon-staging/e2e-viewer-password",
+    secretName: `${SECRET_PREFIX}/e2e-viewer-password`,
     storageFile: "viewer.json",
   },
 ];
@@ -48,10 +46,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(decoded);
 }
 
-async function getSecretValue(
-  client: SecretsManagerClient,
-  secretName: string,
-): Promise<string> {
+async function getSecretValue(client: SecretsManagerClient, secretName: string): Promise<string> {
   const command = new GetSecretValueCommand({ SecretId: secretName });
   const response = await client.send(command);
   if (!response.SecretString) {
@@ -65,7 +60,7 @@ async function authenticateUser(
   secretsClient: SecretsManagerClient,
   user: TestUser,
   authDir: string,
-  baseURL: string,
+  baseURL: string
 ): Promise<void> {
   const password = await getSecretValue(secretsClient, user.secretName);
 
@@ -82,18 +77,14 @@ async function authenticateUser(
   const result = response.AuthenticationResult;
 
   if (!result?.IdToken || !result.AccessToken || !result.RefreshToken) {
-    throw new Error(
-      `Authentication failed for ${user.email}: missing tokens in response`,
-    );
+    throw new Error(`Authentication failed for ${user.email}: missing tokens in response`);
   }
 
   const payload = decodeJwtPayload(result.IdToken);
   const sub = payload.sub as string;
 
   if (!sub) {
-    throw new Error(
-      `Could not extract sub from IdToken for ${user.email}`,
-    );
+    throw new Error(`Could not extract sub from IdToken for ${user.email}`);
   }
 
   const prefix = `CognitoIdentityServiceProvider.${CLIENT_ID}`;
@@ -135,9 +126,7 @@ async function authenticateUser(
 }
 
 async function globalSetup(config: FullConfig) {
-  const baseURL =
-    config.projects[0]?.use?.baseURL ||
-    "https://staging.app.bluemoxon.com";
+  const baseURL = config.projects[0]?.use?.baseURL || "https://staging.app.bluemoxon.com";
 
   const authDir = join(process.cwd(), ".auth");
   await mkdir(authDir, { recursive: true });
@@ -147,17 +136,31 @@ async function globalSetup(config: FullConfig) {
   });
   const secretsClient = new SecretsManagerClient({ region: REGION });
 
-  await Promise.all(
-    TEST_USERS.map((user) =>
-      authenticateUser(
-        cognitoClient,
-        secretsClient,
-        user,
-        authDir,
-        baseURL,
-      ),
-    ),
+  const results = await Promise.allSettled(
+    TEST_USERS.map((user) => authenticateUser(cognitoClient, secretsClient, user, authDir, baseURL))
   );
+
+  const failures: string[] = [];
+  const successes: string[] = [];
+  results.forEach((result, index) => {
+    const email = TEST_USERS[index].email;
+    if (result.status === "fulfilled") {
+      successes.push(email);
+    } else {
+      failures.push(`${email}: ${result.reason}`);
+    }
+  });
+
+  if (successes.length > 0) {
+    console.log(`Authenticated successfully: ${successes.join(", ")}`);
+  }
+
+  if (failures.length > 0) {
+    console.error(`Authentication failures:\n${failures.join("\n")}`);
+    throw new Error(
+      `Global setup failed: ${failures.length}/${results.length} users failed authentication`
+    );
+  }
 
   console.log("Global setup complete: all test users authenticated");
 }

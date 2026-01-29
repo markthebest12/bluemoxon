@@ -59,9 +59,10 @@ test.describe("Books Page", () => {
   });
 });
 
+// Book 401 (Cranford) is a stable test fixture that must exist in staging.
+// If this book is removed, these detail/edit tests will fail.
 test.describe("Book Detail Page", () => {
   test("displays book information", async ({ page }) => {
-    // Navigate to a known book (Cranford is book 401)
     await page.goto("/books/401");
 
     // Should show book title
@@ -110,6 +111,7 @@ test.describe("Book Detail Page", () => {
   });
 });
 
+// Uses book 401 (Cranford) as test fixture - see comment above Book Detail Page.
 test.describe("Book CRUD Navigation (Editor)", () => {
   test.use({ storageState: ".auth/editor.json" });
 

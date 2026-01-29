@@ -1866,11 +1866,8 @@ jobs:
         run: npx playwright test e2e/smoke.spec.ts --project=chromium
         env:
           BASE_URL: ${{ needs.configure.outputs.app_url }}
-          COGNITO_USER_POOL_ID: ${{ needs.configure.outputs.cognito_user_pool_id }}
           COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
-          COGNITO_DOMAIN: ${{ needs.configure.outputs.cognito_domain }}
-          COGNITO_TEST_USERNAME: ${{ secrets.COGNITO_TEST_USERNAME }}
-          COGNITO_TEST_PASSWORD: ${{ secrets.COGNITO_TEST_PASSWORD }}
+          E2E_SECRET_PREFIX: ${{ needs.configure.outputs.environment == 'production' && 'bluemoxon-prod' || 'bluemoxon-staging' }}
 
       - name: Upload test results
         if: failure()
