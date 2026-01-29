@@ -1436,9 +1436,9 @@ jobs:
             echo "::error::Expected version $EXPECTED_VERSION did not respond within 60 seconds"
             exit 1
           else
-            echo "No backend deploy - checking basic API health..."
+            echo "No backend deploy - checking API deep health..."
             for i in {1..20}; do
-              if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
+              if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
                 exit 0
               fi
@@ -1452,14 +1452,16 @@ jobs:
       - name: Set test URLs
         id: urls
         run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          if [[ "$ENV" == "production" ]]; then
-            echo "api_base=https://api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
-          else
-            echo "api_base=https://staging.api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          APP_URL="${{ needs.configure.outputs.app_url }}"
+
+          if [[ -z "$API_URL" || -z "$APP_URL" ]]; then
+            echo "::error::api_url or app_url not set in Terraform outputs"
+            exit 1
           fi
+
+          echo "api_base=$API_URL" >> $GITHUB_OUTPUT
+          echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
 
       - name: Check for partial deploy failures (atomicity)
         run: |

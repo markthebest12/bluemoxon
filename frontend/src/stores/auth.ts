@@ -127,10 +127,13 @@ export const useAuthStore = defineStore("auth", () => {
       // Timeout wrapper to prevent hung promises (Issue 6)
       const AUTH_TIMEOUT_MS = 5000;
       const withTimeout = <T>(promise: Promise<T>, name: string): Promise<T | null> => {
+        let timerId: ReturnType<typeof setTimeout> | undefined;
         return Promise.race([
-          promise,
+          promise.finally(() => {
+            if (timerId !== undefined) clearTimeout(timerId);
+          }),
           new Promise<null>((resolve) => {
-            setTimeout(() => {
+            timerId = setTimeout(() => {
               console.warn(`[Auth] ${name} timed out after ${AUTH_TIMEOUT_MS}ms`);
               resolve(null);
             }, AUTH_TIMEOUT_MS);

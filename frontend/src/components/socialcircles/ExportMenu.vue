@@ -4,8 +4,14 @@
  */
 
 import { ref } from "vue";
+import { onClickOutside } from "@vueuse/core";
 
 const isOpen = ref(false);
+const menuRef = ref<HTMLDivElement | null>(null);
+
+onClickOutside(menuRef, () => {
+  isOpen.value = false;
+});
 
 const emit = defineEmits<{
   "export-png": [];
@@ -33,7 +39,7 @@ function handleShare() {
 </script>
 
 <template>
-  <div class="export-menu">
+  <div ref="menuRef" class="export-menu">
     <button class="export-menu__trigger" @click="toggleMenu">Export ▾</button>
 
     <Transition name="fade">

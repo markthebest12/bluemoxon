@@ -416,23 +416,26 @@ export function useSocialCircles() {
       filters: filters.filters.value,
       selectedNodeId: selection.selection.value.selectedNodeId,
       currentYear: timeline.timeline.value.currentYear,
+      isPlaying: timeline.timeline.value.isPlaying,
     }),
-    ({ filters: f, selectedNodeId, currentYear }) => {
-      if (urlState.isInitialized.value) {
-        urlState.updateUrl({
-          filters: {
-            showAuthors: f.showAuthors,
-            showPublishers: f.showPublishers,
-            showBinders: f.showBinders,
-            connectionTypes: [...f.connectionTypes],
-            tier1Only: f.tier1Only,
-            eras: [...f.eras],
-            searchQuery: f.searchQuery,
-          },
-          selectedNode: selectedNodeId,
-          year: currentYear,
-        });
-      }
+    ({ filters: f, selectedNodeId, currentYear, isPlaying }) => {
+      if (!urlState.isInitialized.value) return;
+      // Skip URL updates during timeline playback to avoid history spam
+      if (isPlaying) return;
+
+      urlState.updateUrl({
+        filters: {
+          showAuthors: f.showAuthors,
+          showPublishers: f.showPublishers,
+          showBinders: f.showBinders,
+          connectionTypes: [...f.connectionTypes],
+          tier1Only: f.tier1Only,
+          eras: [...f.eras],
+          searchQuery: f.searchQuery,
+        },
+        selectedNode: selectedNodeId,
+        year: currentYear,
+      });
     },
     { deep: true }
   );

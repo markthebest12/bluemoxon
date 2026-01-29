@@ -13,7 +13,7 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, shallowRef, onMounted, onUnmounted, watch } from "vue";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
 
 // Props
@@ -44,7 +44,7 @@ const emit = defineEmits<{
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
-const cy = ref<Core | null>(null);
+const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
 
 // Victorian stylesheet
