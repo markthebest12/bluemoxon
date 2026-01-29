@@ -3,12 +3,14 @@
 
 This script measures response time metrics for the /api/v1/social-circles endpoint
 across different max_books parameter values. Supports concurrent request mode for
-realistic load testing.
+realistic load testing with staggered request launches.
 
 Usage:
     python backend/scripts/benchmark_social_circles.py
     python backend/scripts/benchmark_social_circles.py --iterations 20 --env prod
     python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
+    python backend/scripts/benchmark_social_circles.py --dry-run
+    python backend/scripts/benchmark_social_circles.py --env prod --yes-i-mean-production
 
 Output:
     JSON with timing metrics (min, max, avg, p95, p99) for each max_books value,
@@ -39,6 +41,9 @@ DEFAULT_MAX_BOOKS_VALUES = [100, 500, 1000, 5000]
 
 # Endpoint path
 ENDPOINT_PATH = "/api/v1/social-circles"
+
+# Stagger delay between concurrent request launches (seconds)
+CONCURRENT_STAGGER_DELAY = 0.05
 
 
 @dataclass
@@ -187,11 +192,20 @@ async def run_benchmark(
                 elapsed_ms, success = await measure_request(client, url, headers, max_books)
                 return index, elapsed_ms, success
 
-        print(f"  Sending {iterations} requests with concurrency={concurrency}...")
+        stagger_ms = CONCURRENT_STAGGER_DELAY * 1000
+        print(
+            f"  Sending {iterations} requests with concurrency={concurrency} "
+            f"(stagger={stagger_ms:.0f}ms)..."
+        )
         limits = httpx.Limits(max_connections=concurrency)
         async with httpx.AsyncClient(timeout=60.0, limits=limits) as client:
-            tasks = [bounded_request(client, i) for i in range(iterations)]
-            results_list = list(await asyncio.gather(*tasks))
+            tasks: list[asyncio.Task[tuple[int, float, bool]]] = []
+            for i in range(iterations):
+                task = asyncio.create_task(bounded_request(client, i))
+                tasks.append(task)
+                if i < iterations - 1:
+                    await asyncio.sleep(CONCURRENT_STAGGER_DELAY)
+            results_list = [await t for t in tasks]
 
         results_list.sort(key=lambda x: x[0])
         for index, elapsed_ms, success in results_list:
@@ -318,6 +332,9 @@ Examples:
   python backend/scripts/benchmark_social_circles.py --max-books 100 500
   python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
   python backend/scripts/benchmark_social_circles.py -c 10 --iterations 100
+  python backend/scripts/benchmark_social_circles.py --dry-run
+  python backend/scripts/benchmark_social_circles.py --dry-run --concurrent 10
+  python backend/scripts/benchmark_social_circles.py --env prod --yes-i-mean-production
         """,
     )
     parser.add_argument(
@@ -353,6 +370,18 @@ Examples:
         type=str,
         help="Output file path for JSON results (default: stdout)",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print benchmark configuration and exit without making requests",
+    )
+    parser.add_argument(
+        "--yes-i-mean-production",
+        action="store_true",
+        dest="yes_production",
+        help="Skip the production safety confirmation prompt",
+    )
 
     args = parser.parse_args()
 
@@ -366,6 +395,48 @@ Examples:
             file=sys.stderr,
         )
         args.concurrent = 100
+
+    # Production safety check
+    base_url = ENVIRONMENTS[args.env]
+    is_production = "api.bluemoxon.com" in base_url and "staging" not in base_url
+    if is_production and not args.yes_production:
+        print("=" * 60)
+        print("WARNING: You are targeting PRODUCTION")
+        print(f"  URL: {base_url}")
+        print("=" * 60)
+        if args.dry_run:
+            print("Aborting: use --yes-i-mean-production to target production.")
+            sys.exit(1)
+        try:
+            answer = input("Type 'yes' to continue, anything else to abort: ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            sys.exit(1)
+        if answer.strip().lower() != "yes":
+            print("Aborted.")
+            sys.exit(1)
+
+    # Dry-run: print configuration and exit
+    max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
+    mode_label = f"concurrent (x{args.concurrent})" if args.concurrent > 1 else "sequential"
+    if args.dry_run:
+        print("DRY RUN - No requests will be made")
+        print("-" * 60)
+        print(f"Environment:   {args.env}")
+        print(f"Base URL:      {base_url}")
+        print(f"Endpoint:      {ENDPOINT_PATH}")
+        print(f"Mode:          {mode_label}")
+        if args.concurrent > 1:
+            stagger_ms = CONCURRENT_STAGGER_DELAY * 1000
+            print(f"Stagger delay: {stagger_ms:.0f}ms between launches")
+        print(f"Iterations:    {args.iterations}")
+        print(f"max_books:     {max_books_values}")
+        total_requests = args.iterations * len(max_books_values)
+        print(f"Total requests:{total_requests}")
+        if args.output:
+            print(f"Output file:   {args.output}")
+        print("-" * 60)
+        sys.exit(0)
 
     # Run benchmarks
     results = asyncio.run(main_async(args))
