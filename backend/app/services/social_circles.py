@@ -56,6 +56,7 @@ def build_social_circles_graph(
     db: Session,
     include_binders: bool = True,
     min_book_count: int = 1,
+    max_books: int = 5000,
     era_filter: list[Era] | None = None,
 ) -> SocialCirclesResponse:
     """Build the social circles graph from book data.
@@ -64,6 +65,7 @@ def build_social_circles_graph(
         db: Database session
         include_binders: Whether to include binder nodes/edges
         min_book_count: Minimum books for an entity to be included
+        max_books: Maximum number of books to process (prevents OOM in Lambda)
         era_filter: Optional list of eras to filter by
 
     Returns:
@@ -72,13 +74,12 @@ def build_social_circles_graph(
     from app.models import Author, Binder, Book, Publisher
 
     # Fetch owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
-    # Limit to 5000 to prevent OOM in Lambda (1GB memory limit)
-    MAX_BOOKS = 5000
-    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
+    # Limit to max_books to prevent OOM in Lambda (1GB memory limit)
+    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(max_books)
     books = books_query.all()
 
     # Check if we hit the limit (truncation likely occurred)
-    truncated = len(books) == MAX_BOOKS
+    truncated = len(books) == max_books
 
     # Build node maps
     nodes: dict[str, SocialCircleNode] = {}

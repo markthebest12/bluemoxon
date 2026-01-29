@@ -10,8 +10,26 @@
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
-import { useSocialCircles } from "@/composables/socialcircles";
-import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
+import {
+  useAnalytics,
+  useSocialCircles,
+  useNetworkKeyboard,
+  usePathFinder,
+  useFindSimilar,
+  useMobile,
+  type SimilarNode,
+} from "@/composables/socialcircles";
+import {
+  DEFAULT_TIMELINE_STATE,
+  type ConnectionType,
+  type FilterState,
+  type LayoutMode,
+  type NodeId,
+  type EdgeId,
+  type ApiNode,
+  type ApiEdge,
+  type SocialCirclesMeta,
+} from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
 // Components
@@ -28,9 +46,31 @@ import ActiveFilterPills from "@/components/socialcircles/ActiveFilterPills.vue"
 import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
+import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
+import SearchInput, { MAX_RESULTS } from "@/components/socialcircles/SearchInput.vue";
+import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
+import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
+import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
+import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
+
+// Initialize analytics tracking
+const analytics = useAnalytics();
+
+// Mobile detection and filter panel state
+const { isMobile, isFiltersOpen, toggleFilters, closeFilters } = useMobile();
+
+// Typed refs for composables (avoids inline import casts)
+const typedNodes = computed(() => socialCircles.nodes.value as ApiNode[]);
+const typedEdges = computed(() => socialCircles.edges.value as ApiEdge[]);
+
+// Initialize path finder composable
+const pathFinder = usePathFinder(typedNodes, typedEdges);
+
+// Initialize find similar composable
+const findSimilar = useFindSimilar(typedNodes, typedEdges);
 
 // Destructure commonly used values
 const {
@@ -130,6 +170,101 @@ function showToastMessage(message: string) {
   }, 3000);
 }
 
+// Keyboard shortcuts modal state
+const showKeyboardShortcuts = ref(false);
+
+// Search state — searchQuery is the two-way binding for SearchInput's :model-value.
+// preSelectSearchQuery separately tracks pre-selection typing for analytics (independent of searchQuery).
+const searchQuery = ref("");
+// Tracks the latest typed text before a search selection. Due to SearchInput's
+// 300ms debounce, the dropdown may show results for an older query if the user
+// types fast and clicks a result before the debounce fires. In that case this
+// ref holds the most recent typed text, which is arguably the user's intent.
+const preSelectSearchQuery = ref("");
+
+// Stats panel collapsed state
+const statsCollapsed = ref(false);
+
+// Handle search query updates from typing (not from selection)
+function handleSearchQueryUpdate(value: string) {
+  searchQuery.value = value;
+  preSelectSearchQuery.value = value;
+}
+
+// Handle search result selection - center graph on selected node
+function handleSearchSelect(node: { id: string }) {
+  // Capture the pre-selection search query before selectNode triggers a v-model update
+  const query = preSelectSearchQuery.value.trim().toLowerCase();
+  // Cap at MAX_RESULTS to match the SearchInput dropdown limit.
+  // The user only ever sees up to MAX_RESULTS results, so analytics should reflect that.
+  const totalMatches = query
+    ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
+    : 0;
+  const resultCount = Math.min(totalMatches, MAX_RESULTS);
+
+  // Track search before the early return so every search selection is recorded,
+  // even when the node is not in the current filtered view.
+  analytics.trackSearch(preSelectSearchQuery.value, resultCount);
+
+  // Verify node exists in current filtered set before selecting
+  const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
+  if (!nodeExists) {
+    showToastMessage("Node not in current view");
+    return;
+  }
+
+  selectNode(node.id);
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (cy) {
+    const cyNode = cy.getElementById(node.id);
+    if (cyNode.length) {
+      cy.animate({
+        center: { eles: cyNode },
+        zoom: cy.zoom(),
+        duration: 300,
+      });
+    }
+  }
+}
+
+// Handle find path between two nodes (W2-5)
+function handleFindPath(start: string, end: string) {
+  pathFinder.setStart(start as NodeId);
+  pathFinder.setEnd(end as NodeId);
+  pathFinder.findPath();
+}
+
+// Handle find similar action from context menu (W2-6)
+function handleFindSimilar(nodeId: NodeId) {
+  findSimilar.findSimilar(nodeId, 3);
+  const results = findSimilar.similarNodes.value;
+  if (results.length > 0) {
+    const names = results.map((n: SimilarNode) => n.node.name).join(", ");
+    showToastMessage(`Similar: ${names}`);
+  } else {
+    showToastMessage("No similar nodes found");
+  }
+}
+
+// Wire up keyboard shortcuts
+useNetworkKeyboard({
+  onZoomIn: () => networkGraphRef.value?.zoomIn(),
+  onZoomOut: () => networkGraphRef.value?.zoomOut(),
+  onFit: () => networkGraphRef.value?.fitToView(),
+  onTogglePlay: togglePlayback,
+  onEscape: () => {
+    if (showKeyboardShortcuts.value) {
+      showKeyboardShortcuts.value = false;
+    } else {
+      closePanel();
+    }
+  },
+  onHelp: () => {
+    showKeyboardShortcuts.value = true;
+  },
+  onCycleLayout: () => networkGraphRef.value?.cycleMode(),
+});
+
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
 interface HoveredEdgeData {
   id: string;
@@ -206,14 +341,20 @@ async function handleExportPng() {
   const result = await exportPng();
   if (result.success) {
     showToastMessage("PNG exported successfully");
+    analytics.trackExport("png");
   } else {
     showToastMessage(result.error || "Export failed");
   }
 }
 
 function handleExportJson() {
-  exportJson();
-  showToastMessage("JSON exported successfully");
+  try {
+    exportJson();
+    showToastMessage("JSON exported successfully");
+    analytics.trackExport("json");
+  } catch {
+    showToastMessage("JSON export failed");
+  }
 }
 
 async function handleShare() {
@@ -223,6 +364,7 @@ async function handleShare() {
       showToastMessage("Link copied to clipboard");
     }
     // Native share doesn't need a toast - the OS handles it
+    analytics.trackExport("url");
   } else if (result.error !== "Cancelled") {
     showToastMessage(result.error || "Share failed");
   }
@@ -288,6 +430,28 @@ const edgesForPanel = computed((): ApiEdge[] => {
   return filteredEdges.value as ApiEdge[];
 });
 
+// Type-cast nodes for SearchInput (avoids readonly/mutable type conflicts)
+const nodesForSearch = computed((): ApiNode[] => {
+  return nodes.value as ApiNode[];
+});
+
+// Type-cast meta for StatsPanel (avoids null type conflict)
+// Uses DEFAULT_TIMELINE_STATE for consistent year defaults
+const metaForStats = computed((): SocialCirclesMeta => {
+  return (meta.value ?? {
+    total_books: 0,
+    total_authors: 0,
+    total_publishers: 0,
+    total_binders: 0,
+    date_range: [DEFAULT_TIMELINE_STATE.minYear, DEFAULT_TIMELINE_STATE.maxYear] as [
+      number,
+      number,
+    ],
+    generated_at: new Date().toISOString(),
+    truncated: false,
+  }) as SocialCirclesMeta;
+});
+
 // Cytoscape elements - computed to avoid re-layout on unrelated re-renders
 const cytoscapeElements = computed(() => getCytoscapeElements());
 
@@ -304,6 +468,11 @@ const filterPills = computed(() =>
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
     toggleSelectNode(nodeId);
+    // Only track if the panel was opened (not toggled closed)
+    if (isPanelOpen.value) {
+      const node = nodeMap.value.get(nodeId);
+      if (node) analytics.trackNodeSelect(node as ApiNode);
+    }
   } else {
     clearSelection();
   }
@@ -313,6 +482,11 @@ function handleNodeSelect(nodeId: string | null) {
 function handleEdgeSelect(edgeId: string | null) {
   if (edgeId) {
     toggleSelectEdge(edgeId);
+    // Only track if the panel was opened (not toggled closed)
+    if (isPanelOpen.value) {
+      const edge = edgeMap.value.get(edgeId);
+      if (edge) analytics.trackEdgeSelect(edge as ApiEdge);
+    }
   } else {
     clearSelection();
   }
@@ -336,6 +510,39 @@ function handleViewportChange() {
   if (isPanelOpen.value) {
     closePanel();
   }
+}
+
+// Handle filter changes - delegates to orchestrator and tracks analytics
+function handleFilterChange(key: keyof FilterState, value: unknown) {
+  applyFilter(key, value);
+  analytics.trackFilterChange(key, value);
+}
+
+// Handle filter reset - clears all filters and tracks the reset event
+function handleFilterReset() {
+  resetFilters();
+  analytics.trackFilterReset();
+}
+
+// Handle individual filter removal - removes filter and tracks analytics
+function handleFilterRemove(key: string) {
+  // Capture the previous value before removal for analytics context
+  const previousValue = filterState.value[key as keyof FilterState] ?? null;
+  removeFilter(key);
+  analytics.trackFilterRemove(key, previousValue);
+}
+
+// Handle mobile filter reset - kept as a named function (not inlined) because it
+// combines two distinct concerns: resetting filter state (with analytics tracking)
+// AND closing the BottomSheet UI. A descriptive name makes the template readable.
+function handleMobileFilterReset() {
+  handleFilterReset();
+  closeFilters();
+}
+
+// Handle layout mode changes from NetworkGraph
+function handleLayoutChange(mode: LayoutMode) {
+  analytics.trackLayoutChange(mode);
 }
 
 // Handle retry after error
@@ -362,6 +569,14 @@ onUnmounted(() => {
         <p class="text-sm text-victorian-ink-muted">
           Explore the connections between authors, publishers, and binders
         </p>
+      </div>
+      <div class="header-center">
+        <SearchInput
+          :model-value="searchQuery"
+          :nodes="nodesForSearch"
+          @update:model-value="handleSearchQueryUpdate"
+          @select="handleSearchSelect"
+        />
       </div>
       <div class="header-right">
         <ExportMenu
@@ -390,24 +605,49 @@ onUnmounted(() => {
     />
 
     <!-- Empty State -->
-    <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
+    <EmptyState v-else-if="showEmpty" @reset-filters="handleFilterReset" />
 
-    <!-- Main Content -->
-    <div v-else-if="showGraph" class="social-circles-content">
+    <!-- Main Content (Desktop)
+         NOTE (#1438): v-else-if is used (not v-show / CSS display:none) because both
+         desktop and mobile layouts contain a <NetworkGraph ref="networkGraphRef">.
+         Rendering both simultaneously would create duplicate Cytoscape instances and
+         a ref conflict, doubling memory usage. The trade-off is that resizing across
+         the mobile breakpoint unmounts/remounts, losing transient graph state (zoom,
+         pan). This is acceptable because breakpoint crossings are rare in practice. -->
+    <div v-else-if="showGraph && !isMobile" class="social-circles-content">
       <!-- Filter Panel (left sidebar) -->
       <aside class="filter-sidebar">
         <FilterPanel
           :filter-state="filterState"
-          @update:filter="applyFilter"
-          @reset="resetFilters"
+          :nodes="nodesForSearch"
+          @update:filter="handleFilterChange"
+          @reset="handleFilterReset"
         />
 
         <!-- Active Filter Pills -->
         <ActiveFilterPills
           v-if="filterPills.length > 0"
           :filters="filterPills"
-          @remove="removeFilter"
-          @clear-all="resetFilters"
+          @remove="handleFilterRemove"
+          @clear-all="handleFilterReset"
+        />
+
+        <!-- Statistics Panel -->
+        <StatsPanel
+          :nodes="nodesForPanel"
+          :edges="edgesForPanel"
+          :meta="metaForStats"
+          :is-collapsed="statsCollapsed"
+          @toggle="statsCollapsed = !statsCollapsed"
+        />
+
+        <!-- Path Finder Panel (W2-5) -->
+        <PathFinderPanel
+          :nodes="nodesForPanel"
+          :path="pathFinder.path.value"
+          :is-calculating="pathFinder.isCalculating.value"
+          @find-path="handleFindPath"
+          @clear="pathFinder.clear"
         />
       </aside>
 
@@ -426,6 +666,7 @@ onUnmounted(() => {
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
             @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
           />
 
           <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
@@ -475,6 +716,7 @@ onUnmounted(() => {
         @close="closePanel"
         @select-edge="handleSelectEdge"
         @view-profile="handleViewProfile"
+        @find-similar="handleFindSimilar"
       />
 
       <!-- Edge Sidebar (slides in from right when edge selected) -->
@@ -502,6 +744,87 @@ onUnmounted(() => {
         :shared-book-count="hoveredEdge?.shared_book_ids?.length"
       />
     </div>
+
+    <!-- Main Content (Mobile) -->
+    <div v-else-if="showGraph && isMobile" class="social-circles-content mobile-layout">
+      <!-- Graph Area (full width on mobile) -->
+      <main class="graph-area mobile-graph-area">
+        <!-- Active Filter Pills (above graph on mobile) -->
+        <div v-if="filterPills.length > 0" class="mobile-filter-pills">
+          <ActiveFilterPills
+            :filters="filterPills"
+            @remove="handleFilterRemove"
+            @clear-all="handleFilterReset"
+          />
+        </div>
+
+        <!-- Graph viewport -->
+        <div class="graph-viewport mobile-graph-viewport">
+          <NetworkGraph
+            ref="networkGraphRef"
+            :elements="cytoscapeElements"
+            :selected-node="selectedNode"
+            :selected-edge="selectedEdge"
+            :highlighted-nodes="highlightedNodes"
+            :highlighted-edges="highlightedEdges"
+            class="mobile-network-graph"
+            @node-select="handleNodeSelect"
+            @edge-select="handleEdgeSelect"
+            @edge-hover="handleEdgeHover"
+            @viewport-change="handleViewportChange"
+            @layout-change="handleLayoutChange"
+          />
+
+          <!-- Zoom Controls -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="zoom-controls-container">
+            <ZoomControls
+              @zoom-in="handleZoomIn"
+              @zoom-out="handleZoomOut"
+              @fit="handleFitToView"
+            />
+          </div>
+
+          <!-- Legend -->
+          <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
+            <NetworkLegend />
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-area mobile-timeline">
+          <TimelineSlider
+            :min-year="timelineState.minYear"
+            :max-year="timelineState.maxYear"
+            :current-year="timelineState.currentYear"
+            :mode="timelineState.mode"
+            :is-playing="timelineState.isPlaying"
+            @year-change="setYear"
+            @play="togglePlayback"
+            @pause="togglePlayback"
+          />
+        </div>
+      </main>
+
+      <!-- Mobile Filter FAB -->
+      <MobileFilterFab :active-filter-count="filterPills.length" @click="toggleFilters" />
+
+      <!-- Mobile Filter BottomSheet -->
+      <BottomSheet v-model="isFiltersOpen" title="Filters">
+        <FilterPanel
+          :filter-state="filterState"
+          :nodes="nodesForSearch"
+          class="mobile-filter-panel"
+          @update:filter="handleFilterChange"
+          @reset="handleMobileFilterReset"
+        />
+      </BottomSheet>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <KeyboardShortcutsModal
+      :is-open="showKeyboardShortcuts"
+      @close="showKeyboardShortcuts = false"
+    />
 
     <!-- Toast notification -->
     <Teleport to="body">
@@ -553,6 +876,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.header-center {
+  flex: 1;
+  max-width: 320px;
+  margin: 0 1rem;
 }
 
 .header-right {
@@ -659,5 +988,71 @@ onUnmounted(() => {
 .toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(0.5rem);
+}
+
+/* Mobile-specific styles */
+.mobile-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-graph-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mobile-filter-pills {
+  padding: 0.5rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+}
+
+.mobile-graph-viewport {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.mobile-network-graph {
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-legend {
+  bottom: 1rem;
+  left: 1rem;
+  right: auto;
+}
+
+.mobile-timeline {
+  padding: 0.75rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-top: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
+}
+
+.mobile-filter-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Cross-component override: FilterPanel uses an internal .filter-panel__content
+   class with overflow-y:auto, which is correct for the fixed-height sidebar but
+   clips content inside the BottomSheet. :deep() pierces the scoped boundary to
+   remove the scroll constraint when FilterPanel is rendered in the mobile sheet.
+   Depends on: FilterPanel.vue .filter-panel__content (see that component's <style>). */
+.mobile-filter-panel :deep(.filter-panel__content) {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Hide filter sidebar on mobile */
+@media (max-width: 767px) {
+  .filter-sidebar {
+    display: none;
+  }
 }
 </style>
