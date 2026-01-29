@@ -13,9 +13,12 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, onMounted, onUnmounted, watch, computed } from "vue";
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
+import { useLayoutMode } from "@/composables/socialcircles";
+import LayoutSwitcher from "./LayoutSwitcher.vue";
+import type { LayoutMode } from "@/types/socialCircles";
 
 // Props
 interface Props {
@@ -41,46 +44,49 @@ const emit = defineEmits<{
   "node-hover": [nodeId: string | null];
   "edge-hover": [edgeId: string | null, event: MouseEvent | null];
   "viewport-change": [];
+  "layout-change": [mode: LayoutMode];
 }>();
+
+// Handle layout mode change
+function handleLayoutChange(mode: LayoutMode) {
+  setMode(mode);
+  emit("layout-change", mode);
+}
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
-const cy = ref<Core | null>(null);
+const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
 
-// Touch detection for mobile-friendly node sizes
+// Touch device detection for mobile-optimized interactions
 const isCoarsePointer = useMediaQuery("(pointer: coarse)");
-const isMobileViewport = useMediaQuery("(max-width: 768px)");
+const isMobileViewport = useMediaQuery("(max-width: 767px)");
 const isTouchDevice = computed(() => isCoarsePointer.value || isMobileViewport.value);
 
-// Minimum touch target size per WCAG guidelines (44px)
-const MIN_TOUCH_TARGET = 44;
+// Layout mode management
+const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
 
 // Victorian stylesheet
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
 // so we cast the stylesheet to the expected type
-function getCytoscapeStylesheet(touchMode: boolean): StylesheetStyle[] {
-  // For touch devices, use minimum 44px touch targets per WCAG guidelines
-  const minNodeSize = touchMode ? MIN_TOUCH_TARGET : 20;
-
+function getCytoscapeStylesheet(): StylesheetStyle[] {
   return [
     {
       selector: "node",
       style: {
         "background-color": "data(nodeColor)",
         shape: "data(nodeShape)",
-        // Use larger of data size or minimum touch target
-        width: touchMode ? `mapData(nodeSize, 20, 40, ${minNodeSize}, 60)` : "data(nodeSize)",
-        height: touchMode ? `mapData(nodeSize, 20, 40, ${minNodeSize}, 60)` : "data(nodeSize)",
+        width: "data(nodeSize)",
+        height: "data(nodeSize)",
         label: "data(name)",
-        "font-size": touchMode ? "12px" : "10px",
+        "font-size": "10px",
         "font-family": "Georgia, serif",
         "text-valign": "bottom",
-        "text-margin-y": touchMode ? 8 : 5,
+        "text-margin-y": 5,
         color: "#3a3a38",
         "text-outline-width": 2,
         "text-outline-color": "#fdfcfa",
-        "border-width": touchMode ? 2 : 1,
+        "border-width": 1,
         "border-color": "#e8e4d9",
         "transition-property": "background-color, border-color, width, height",
         "transition-duration": "150ms",
@@ -92,8 +98,7 @@ function getCytoscapeStylesheet(touchMode: boolean): StylesheetStyle[] {
         "line-color": "data(edgeColor)",
         "line-style": "data(edgeStyle)",
         "line-opacity": "data(edgeOpacity)",
-        // Thicker edges on touch devices for easier tapping
-        width: touchMode ? "mapData(edgeWidth, 1, 4, 3, 6)" : "data(edgeWidth)",
+        width: "data(edgeWidth)",
         "curve-style": "bezier",
         "target-arrow-shape": "none",
         "transition-property": "line-color, width, line-opacity",
@@ -195,7 +200,7 @@ onMounted(async () => {
   cy.value = cytoscape({
     container: containerRef.value,
     elements: props.elements,
-    style: getCytoscapeStylesheet(isTouchDevice.value),
+    style: getCytoscapeStylesheet(),
     layout: LAYOUT_CONFIGS.force as LayoutOptions,
     minZoom: 0.3,
     maxZoom: 3,
@@ -282,13 +287,13 @@ watch(
   { deep: true }
 );
 
-// Watch for touch mode changes to update stylesheet (e.g., viewport resize)
 // Use immediate:true to apply correct styles if cy initializes after touch mode is detected
 watch(
   isTouchDevice,
-  (newTouchMode) => {
+  (_isTouch) => {
     if (!cy.value) return;
-    cy.value.style(getCytoscapeStylesheet(newTouchMode));
+    // Update node sizes for touch targets (larger on touch devices)
+    cy.value.style().update();
   },
   { immediate: true }
 );
@@ -304,18 +309,41 @@ defineExpose({
     if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
   },
   getZoom: () => cy.value?.zoom() ?? 1,
+  cycleLayout: cycleMode,
 });
 </script>
 
 <template>
-  <div ref="containerRef" class="network-graph" />
+  <div class="network-graph-container">
+    <div ref="containerRef" class="network-graph" />
+    <div class="network-graph__controls">
+      <LayoutSwitcher
+        :model-value="currentMode"
+        :disabled="isAnimating"
+        @update:model-value="handleLayoutChange"
+      />
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.network-graph-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .network-graph {
   width: 100%;
   height: 100%;
   min-height: 400px;
   background-color: var(--color-victorian-paper-cream, #f8f5f0);
+}
+
+.network-graph__controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
 }
 </style>

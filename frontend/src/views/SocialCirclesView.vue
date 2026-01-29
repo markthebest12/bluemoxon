@@ -11,7 +11,15 @@ import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
 // Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
 import { useSocialCircles, useNetworkKeyboard, useMobile } from "@/composables/socialcircles";
-import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
+import {
+  DEFAULT_TIMELINE_STATE,
+  type ConnectionType,
+  type NodeId,
+  type EdgeId,
+  type ApiNode,
+  type ApiEdge,
+  type SocialCirclesMeta,
+} from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
 // Components
@@ -29,6 +37,8 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
+import SearchInput from "@/components/socialcircles/SearchInput.vue";
+import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
 import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
 
@@ -139,6 +149,35 @@ function showToastMessage(message: string) {
 // Keyboard shortcuts modal state
 const showKeyboardShortcuts = ref(false);
 
+// Search state
+const searchQuery = ref("");
+
+// Stats panel collapsed state
+const statsCollapsed = ref(false);
+
+// Handle search result selection - center graph on selected node
+function handleSearchSelect(node: { id: string }) {
+  // Verify node exists in current filtered set before selecting
+  const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
+  if (!nodeExists) {
+    showToastMessage("Node not in current view");
+    return;
+  }
+
+  selectNode(node.id);
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (cy) {
+    const cyNode = cy.getElementById(node.id);
+    if (cyNode.length) {
+      cy.animate({
+        center: { eles: cyNode },
+        zoom: cy.zoom(),
+        duration: 300,
+      });
+    }
+  }
+}
+
 // Wire up keyboard shortcuts
 useNetworkKeyboard({
   onZoomIn: () => networkGraphRef.value?.zoomIn(),
@@ -155,6 +194,7 @@ useNetworkKeyboard({
   onHelp: () => {
     showKeyboardShortcuts.value = true;
   },
+  onCycleLayout: () => networkGraphRef.value?.cycleLayout(),
 });
 
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
@@ -315,6 +355,28 @@ const edgesForPanel = computed((): ApiEdge[] => {
   return filteredEdges.value as ApiEdge[];
 });
 
+// Type-cast nodes for SearchInput (avoids readonly/mutable type conflicts)
+const nodesForSearch = computed((): ApiNode[] => {
+  return nodes.value as ApiNode[];
+});
+
+// Type-cast meta for StatsPanel (avoids null type conflict)
+// Uses DEFAULT_TIMELINE_STATE for consistent year defaults
+const metaForStats = computed((): SocialCirclesMeta => {
+  return (meta.value ?? {
+    total_books: 0,
+    total_authors: 0,
+    total_publishers: 0,
+    total_binders: 0,
+    date_range: [DEFAULT_TIMELINE_STATE.minYear, DEFAULT_TIMELINE_STATE.maxYear] as [
+      number,
+      number,
+    ],
+    generated_at: new Date().toISOString(),
+    truncated: false,
+  }) as SocialCirclesMeta;
+});
+
 // Cytoscape elements - computed to avoid re-layout on unrelated re-renders
 const cytoscapeElements = computed(() => getCytoscapeElements());
 
@@ -370,12 +432,6 @@ function handleRetry() {
   initialize().catch(console.error);
 }
 
-// Mobile-specific filter reset that also closes the bottom sheet
-function handleMobileFilterReset() {
-  resetFilters();
-  closeFilters();
-}
-
 // Lifecycle
 onMounted(() => {
   initialize().catch(console.error);
@@ -395,6 +451,9 @@ onUnmounted(() => {
         <p class="text-sm text-victorian-ink-muted">
           Explore the connections between authors, publishers, and binders
         </p>
+      </div>
+      <div class="header-center">
+        <SearchInput v-model="searchQuery" :nodes="nodesForSearch" @select="handleSearchSelect" />
       </div>
       <div class="header-right">
         <ExportMenu
@@ -425,7 +484,7 @@ onUnmounted(() => {
     <!-- Empty State -->
     <EmptyState v-else-if="showEmpty" @reset-filters="resetFilters" />
 
-    <!-- Main Content - Desktop Layout -->
+    <!-- Main Content (Desktop) -->
     <div v-else-if="showGraph && !isMobile" class="social-circles-content">
       <!-- Filter Panel (left sidebar) -->
       <aside class="filter-sidebar">
@@ -441,6 +500,15 @@ onUnmounted(() => {
           :filters="filterPills"
           @remove="removeFilter"
           @clear-all="resetFilters"
+        />
+
+        <!-- Statistics Panel -->
+        <StatsPanel
+          :nodes="nodesForPanel"
+          :edges="edgesForPanel"
+          :meta="metaForStats"
+          :is-collapsed="statsCollapsed"
+          @toggle="statsCollapsed = !statsCollapsed"
         />
       </aside>
 
@@ -536,7 +604,7 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Main Content - Mobile Layout -->
+    <!-- Main Content (Mobile) -->
     <div v-else-if="showGraph && isMobile" class="social-circles-content mobile-layout">
       <!-- Graph Area (full width on mobile) -->
       <main class="graph-area mobile-graph-area">
@@ -565,7 +633,7 @@ onUnmounted(() => {
             @viewport-change="handleViewportChange"
           />
 
-          <!-- Zoom Controls (top-right of graph) - hide when detail panel or filters open -->
+          <!-- Zoom Controls -->
           <div v-show="!showDetailPanel && !isFiltersOpen" class="zoom-controls-container">
             <ZoomControls
               @zoom-in="handleZoomIn"
@@ -574,13 +642,13 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- Legend (bottom-left on mobile to avoid FAB) -->
+          <!-- Legend -->
           <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
             <NetworkLegend />
           </div>
         </div>
 
-        <!-- Timeline (below graph) -->
+        <!-- Timeline -->
         <div class="timeline-area mobile-timeline">
           <TimelineSlider
             :min-year="timelineState.minYear"
@@ -589,11 +657,6 @@ onUnmounted(() => {
             :mode="timelineState.mode"
             :is-playing="timelineState.isPlaying"
             @year-change="setYear"
-            @mode-change="
-              () => {
-                /* TODO: wire mode change */
-              }
-            "
             @play="togglePlayback"
             @pause="togglePlayback"
           />
@@ -609,33 +672,9 @@ onUnmounted(() => {
           :filter-state="filterState"
           class="mobile-filter-panel"
           @update:filter="applyFilter"
-          @reset="handleMobileFilterReset"
+          @reset="closeFilters"
         />
       </BottomSheet>
-
-      <!-- Node Floating Card (positioned differently on mobile) -->
-      <NodeFloatingCard
-        v-if="isNodeSelected && isPanelOpen"
-        :node="selectedNodeForCard"
-        :node-position="cardPosition"
-        :viewport-size="viewport"
-        :edges="edgesForPanel"
-        :nodes="nodesForPanel"
-        :is-open="isPanelOpen"
-        @close="closePanel"
-        @select-edge="handleSelectEdge"
-        @view-profile="handleViewProfile"
-      />
-
-      <!-- Edge Sidebar (slides in from right when edge selected) -->
-      <EdgeSidebar
-        v-if="isEdgeSelected && isPanelOpen"
-        :edge="selectedEdgeForSidebar"
-        :nodes="nodesForPanel"
-        :is-open="isPanelOpen"
-        @close="closePanel"
-        @select-node="(nodeId: NodeId) => selectNode(nodeId as string)"
-      />
     </div>
 
     <!-- Keyboard Shortcuts Modal -->
@@ -694,6 +733,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.header-center {
+  flex: 1;
+  max-width: 320px;
+  margin: 0 1rem;
 }
 
 .header-right {
@@ -761,81 +806,16 @@ onUnmounted(() => {
   }
 }
 
-/* Mobile Layout Styles */
-.mobile-layout {
-  flex-direction: column;
-}
-
-.mobile-graph-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Allow flex shrinking */
-}
-
-.mobile-filter-pills {
-  padding: 0.5rem 1rem;
-  background-color: var(--color-victorian-paper-white, #fdfcfa);
-  border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
-  flex-shrink: 0;
-}
-
-.mobile-graph-viewport {
-  flex: 1;
-  min-height: 300px;
-  /* Note: Safe area for top (notch) is handled by .social-circles-header */
-}
-
-/* Touch-friendly node sizes handled via Cytoscape but we ensure minimum touch targets */
-.mobile-network-graph {
-  /* Minimum height for usable touch interaction */
-  min-height: 350px;
-}
-
-/* Move legend to bottom-left on mobile to avoid FAB overlap */
-.mobile-legend {
-  right: auto;
-  left: 1rem;
-  bottom: 1rem;
-}
-
-.mobile-timeline {
-  /* Safe area handling for iOS home indicator */
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
-}
-
-/* Filter panel styling when inside BottomSheet */
-.mobile-filter-panel {
-  width: 100%;
-  border-right: none;
-  background: transparent;
-}
-
-/* Ensure mobile filter panel content scrolls properly */
-.mobile-filter-panel :deep(.filter-panel__content) {
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-/* Hide filter sidebar completely on mobile - we use BottomSheet instead */
 @media (max-width: 768px) {
-  .social-circles-header {
-    padding: 0.5rem 1rem;
-    /* Safe area for iOS notch */
-    padding-top: calc(0.5rem + env(safe-area-inset-top, 0));
+  .social-circles-content {
+    flex-direction: column;
   }
 
-  .social-circles-header .header-left h1 {
-    font-size: 1.25rem;
-  }
-
-  .social-circles-header .header-left p {
-    display: none; /* Hide subtitle on mobile to save space */
-  }
-
-  .truncation-warning {
-    padding: 0.375rem 1rem;
-    font-size: 0.75rem;
+  .filter-sidebar {
+    width: 100%;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
   }
 }
 
@@ -865,5 +845,61 @@ onUnmounted(() => {
 .toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(0.5rem);
+}
+
+/* Mobile-specific styles */
+.mobile-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-graph-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mobile-filter-pills {
+  padding: 0.5rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+}
+
+.mobile-graph-viewport {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.mobile-network-graph {
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-legend {
+  bottom: 1rem;
+  left: 1rem;
+  right: auto;
+}
+
+.mobile-timeline {
+  padding: 0.75rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border-top: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
+}
+
+.mobile-filter-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Hide filter sidebar on mobile */
+@media (max-width: 767px) {
+  .filter-sidebar {
+    display: none;
+  }
 }
 </style>
