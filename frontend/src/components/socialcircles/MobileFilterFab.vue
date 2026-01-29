@@ -22,9 +22,7 @@ const badgeLabel = computed(() => {
 const ariaLabel = computed(() => {
   if (!props.activeFilterCount) return "Filters";
   const count =
-    props.activeFilterCount > MAX_BADGE_DISPLAY
-      ? `${MAX_BADGE_DISPLAY}+`
-      : props.activeFilterCount;
+    props.activeFilterCount > MAX_BADGE_DISPLAY ? `${MAX_BADGE_DISPLAY}+` : props.activeFilterCount;
   return `Filters (${count} active)`;
 });
 </script>
