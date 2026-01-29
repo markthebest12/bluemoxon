@@ -322,9 +322,13 @@ async function handleExportPng() {
 }
 
 function handleExportJson() {
-  exportJson();
-  showToastMessage("JSON exported successfully");
-  analytics.trackExport("json");
+  try {
+    exportJson();
+    showToastMessage("JSON exported successfully");
+    analytics.trackExport("json");
+  } catch {
+    showToastMessage("JSON export failed");
+  }
 }
 
 async function handleShare() {
@@ -438,8 +442,8 @@ const filterPills = computed(() =>
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
     toggleSelectNode(nodeId);
-    // Only track if the node is actually selected (not toggled closed)
-    if (selectedNode.value?.id === nodeId) {
+    // Only track if the panel was opened (not toggled closed)
+    if (isPanelOpen.value) {
       const node = nodeMap.value.get(nodeId);
       if (node) analytics.trackNodeSelect(node as ApiNode);
     }
@@ -452,8 +456,8 @@ function handleNodeSelect(nodeId: string | null) {
 function handleEdgeSelect(edgeId: string | null) {
   if (edgeId) {
     toggleSelectEdge(edgeId);
-    // Only track if the edge is actually selected (not toggled closed)
-    if (selectedEdge.value?.id === edgeId) {
+    // Only track if the panel was opened (not toggled closed)
+    if (isPanelOpen.value) {
       const edge = edgeMap.value.get(edgeId);
       if (edge) analytics.trackEdgeSelect(edge as ApiEdge);
     }
