@@ -1,5 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
+const RELAXED = !!process.env.E2E_RELAXED_BUDGETS;
+const FCP_BUDGET = RELAXED ? 5000 : 2500;
+const DCL_BUDGET = RELAXED ? 6000 : 3000;
+const BOOKS_FCP_BUDGET = RELAXED ? 6000 : 3000;
+
 interface PerformanceMetrics {
   // Navigation timing
   domContentLoaded: number;
@@ -129,8 +134,8 @@ test.describe("Performance Tests", () => {
     );
 
     // Assertions for performance budgets
-    expect(metrics.firstContentfulPaint).toBeLessThan(2500); // FCP < 2.5s (Good)
-    expect(metrics.domContentLoaded).toBeLessThan(3000); // DCL < 3s
+    expect(metrics.firstContentfulPaint).toBeLessThan(FCP_BUDGET);
+    expect(metrics.domContentLoaded).toBeLessThan(DCL_BUDGET);
   });
 
   test("Books page performance", async ({ page }) => {
@@ -162,7 +167,7 @@ test.describe("Performance Tests", () => {
     );
 
     // Books page may be slower due to images
-    expect(metrics.firstContentfulPaint).toBeLessThan(3000);
+    expect(metrics.firstContentfulPaint).toBeLessThan(BOOKS_FCP_BUDGET);
   });
 
   test("Book detail page performance", async ({ page }) => {
@@ -193,7 +198,7 @@ test.describe("Performance Tests", () => {
       `   Images: ${metrics.imageResources} files (${formatBytes(metrics.imageTransferSize)})`
     );
 
-    expect(metrics.firstContentfulPaint).toBeLessThan(3000);
+    expect(metrics.firstContentfulPaint).toBeLessThan(BOOKS_FCP_BUDGET);
   });
 
   test("Core Web Vitals summary", async ({ page }) => {

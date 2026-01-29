@@ -3,11 +3,11 @@
  * ExportMenu - Export and share functionality.
  */
 
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { onClickOutside } from "@vueuse/core";
 
+const menuRef = shallowRef<HTMLElement | null>(null);
 const isOpen = ref(false);
-const menuRef = ref<HTMLElement | null>(null);
 
 onClickOutside(menuRef, () => {
   isOpen.value = false;

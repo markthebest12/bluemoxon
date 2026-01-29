@@ -124,6 +124,7 @@ jobs:
       s3_frontend_bucket: ${{ steps.config.outputs.s3_frontend_bucket }}
       s3_artifacts_bucket: ${{ steps.config.outputs.s3_artifacts_bucket }}
       cloudfront_distribution_id: ${{ steps.config.outputs.cloudfront_distribution_id }}
+      # api_url includes the /api/v1 path prefix (e.g. https://staging.api.bluemoxon.com/api/v1)
       api_url: ${{ steps.config.outputs.api_url }}
       app_url: ${{ steps.config.outputs.app_url }}
       cognito_user_pool_id: ${{ steps.config.outputs.cognito_user_pool_id }}
@@ -1438,7 +1439,7 @@ jobs:
           else
             echo "No backend deploy - checking basic API health..."
             for i in {1..20}; do
-              if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
+              if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
                 exit 0
               fi
@@ -1452,14 +1453,18 @@ jobs:
       - name: Set test URLs
         id: urls
         run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          if [[ "$ENV" == "production" ]]; then
-            echo "api_base=https://api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
-          else
-            echo "api_base=https://staging.api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
+          # api_url from Terraform must end with /api/v1 prefix.
+          # Derive api_base (domain only, no path) for cases that need it (e.g. image URLs).
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          if [[ ! "$API_URL" =~ /api/v1$ ]]; then
+            echo "::error::Terraform output 'api_url' must end with /api/v1 (got: $API_URL)"
+            exit 1
           fi
+          echo "Deriving api_base from api_url: $API_URL"
+          API_BASE=$(echo "$API_URL" | sed 's|/api/v1$||')
+          echo "Derived api_base: $API_BASE"
+          echo "api_base=$API_BASE" >> $GITHUB_OUTPUT
+          echo "app_url=${{ needs.configure.outputs.app_url }}" >> $GITHUB_OUTPUT
 
       - name: Check for partial deploy failures (atomicity)
         run: |
@@ -1500,8 +1505,8 @@ jobs:
 
       - name: Test API liveness
         run: |
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/health")
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          response=$(curl -s -w "\n%{http_code}" "${API_URL}/health/deep")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then
@@ -1513,11 +1518,11 @@ jobs:
       - name: Validate version and environment
         if: needs.deploy-api-lambda.result == 'success'
         run: |
-          API_BASE="${{ steps.urls.outputs.api_base }}"
+          API_URL="${{ needs.configure.outputs.api_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
           EXPECTED_ENV="${{ needs.configure.outputs.environment }}"
 
-          response=$(curl -s "${API_BASE}/api/v1/health/version")
+          response=$(curl -s "${API_URL}/health/version")
           ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
           ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
 
@@ -1553,8 +1558,8 @@ jobs:
 
       - name: Test API deep health check
         run: |
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/api/v1/health/deep")
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          response=$(curl -s -w "\n%{http_code}" "${API_URL}/health/deep")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
@@ -1576,8 +1581,8 @@ jobs:
         env:
           BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" "${API_BASE}/api/v1/books?per_page=1")
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" "${API_URL}/books?per_page=1")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then
@@ -1648,10 +1653,11 @@ jobs:
         env:
           BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
+          API_URL="${{ needs.configure.outputs.api_url }}"
           API_BASE="${{ steps.urls.outputs.api_base }}"
           ENV="${{ needs.configure.outputs.environment }}"
 
-          book_response=$(curl -s -H "X-API-Key: ${BMX_API_KEY}" "${API_BASE}/api/v1/books?has_images=true&per_page=1")
+          book_response=$(curl -s -H "X-API-Key: ${BMX_API_KEY}" "${API_URL}/books?has_images=true&per_page=1")
           total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
 
           if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
@@ -1761,7 +1767,7 @@ jobs:
         run: |
           ENV="${{ needs.configure.outputs.environment }}"
           APP_URL="${{ steps.urls.outputs.app_url }}"
-          API_BASE="${{ steps.urls.outputs.api_base }}"
+          API_URL="${{ needs.configure.outputs.api_url }}"
           VERSION="${{ needs.generate-version.outputs.version }}"
           DRIFT_STATUS="${{ needs.configure.outputs.drift_detected }}"
           SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
@@ -1782,7 +1788,7 @@ jobs:
           echo "App Version: $VERSION"
           echo "URLs:"
           echo "  App: $APP_URL"
-          echo "  API: $API_BASE"
+          echo "  API: $API_URL"
           echo ""
           echo "Lambda Versions:"
           echo "  API: v${{ needs.deploy-api-lambda.outputs.lambda_version }}"
@@ -1819,3 +1825,56 @@ jobs:
 
           git push origin "$VERSION"
           echo "Release tag created: $VERSION"
+
+  # ============================================
+  # Post-Deploy E2E Smoke Tests
+  # ============================================
+  # Runs Playwright smoke suite against the deployed frontend
+  # to verify key routes load correctly with Cognito auth.
+  # Only runs when frontend was actually deployed (skipped otherwise).
+
+  e2e-smoke:
+    name: E2E Smoke (${{ needs.configure.outputs.environment }})
+    needs: [deploy-frontend, configure]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: E2E smoke test
+        working-directory: frontend
+        run: npx playwright test e2e/smoke.spec.ts --project=chromium
+        env:
+          BASE_URL: ${{ needs.configure.outputs.app_url }}
+          COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
+          E2E_SECRET_PREFIX: ${{ needs.configure.outputs.environment == 'production' && 'bluemoxon-prod' || 'bluemoxon-staging' }}
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-smoke-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7

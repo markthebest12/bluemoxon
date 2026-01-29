@@ -21,6 +21,11 @@ type MfaStep =
   | "new_password_required"
   | "mfa_setup_required";
 
+type MfaResult<T> =
+  | { status: "success"; value: T }
+  | { status: "timeout" }
+  | { status: "failed"; error: Error };
+
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
@@ -125,40 +130,40 @@ export const useAuthStore = defineStore("auth", () => {
       };
 
       // Timeout wrapper to prevent hung promises (Issue 6)
-      // Fix: clear timer on resolution to prevent memory leak
-      const AUTH_TIMEOUT_MS = 5000;
-      const withTimeout = <T>(promise: Promise<T>, name: string): Promise<T | null> => {
-        let timerId: ReturnType<typeof setTimeout>;
+      // Returns a typed MfaResult to distinguish success, timeout, and failure
+      const MFA_TIMEOUT_MS = 5000;
+      const withMfaTimeout = <T>(promise: Promise<T>): Promise<MfaResult<T>> => {
+        let timeoutId: ReturnType<typeof setTimeout>;
         return Promise.race([
-          promise.then((result) => {
-            clearTimeout(timerId);
-            return result;
-          }),
-          new Promise<null>((resolve) => {
-            timerId = setTimeout(() => {
-              console.warn(`[Auth] ${name} timed out after ${AUTH_TIMEOUT_MS}ms`);
-              resolve(null);
-            }, AUTH_TIMEOUT_MS);
+          promise
+            .then((value) => {
+              clearTimeout(timeoutId);
+              return { status: "success", value } as const;
+            })
+            .catch((e: unknown) => {
+              clearTimeout(timeoutId);
+              const error = e instanceof Error ? e : new Error(String(e));
+              return { status: "failed", error } as const;
+            }),
+          new Promise<MfaResult<T>>((resolve) => {
+            timeoutId = setTimeout(() => {
+              // Log at debug level - timeouts are expected during Cognito cold starts
+              // and don't indicate a problem if user already authenticated via MFA
+              console.debug(
+                `[Auth] fetchMFAPreference timed out after ${MFA_TIMEOUT_MS}ms (non-blocking)`
+              );
+              resolve({ status: "timeout" } as const);
+            }, MFA_TIMEOUT_MS);
           }),
         ]);
       };
 
-      // Track whether MFA check failed vs returned null result
-      let mfaCheckFailed = false;
-
       // Fetch user profile (with retry for cold start) and MFA preference in parallel
       // Both calls are independent - we'll use mfa_exempt from profile to decide
       // whether to apply the MFA preference result
-      const [userResult, mfaPreference] = await Promise.all([
+      const [userResult, mfaResult] = await Promise.all([
         fetchUserProfileWithRetry(),
-        withTimeout(
-          fetchMFAPreference().catch((e) => {
-            console.warn("Could not fetch MFA preference:", e);
-            mfaCheckFailed = true; // Track that check failed (Issue 1)
-            return null;
-          }),
-          "fetchMFAPreference"
-        ),
+        withMfaTimeout(fetchMFAPreference()),
       ]);
 
       // Issue 3: Check if logout happened during async operation
@@ -181,26 +186,38 @@ export const useAuthStore = defineStore("auth", () => {
         authError.value = true;
       }
 
-      // Apply MFA preference
+      // Apply MFA preference using typed result
       if (isMfaExempt) {
         // User is explicitly MFA-exempt - no MFA required
         mfaStep.value = "none";
-      } else if (mfaCheckFailed) {
-        // Issue 1: MFA check threw an error for non-exempt user - require setup for security
+      } else if (mfaResult.status === "failed") {
+        // Issue 1: MFA check failed for non-exempt user - require setup for security
         // Don't silently pass when we can't verify MFA status
         console.warn("[Auth] MFA check failed for non-exempt user, requiring MFA setup");
         mfaStep.value = "mfa_setup_required";
-      } else if (mfaPreference) {
+      } else if (mfaResult.status === "success") {
         // MFA check succeeded - check if TOTP is configured
-        const hasMfa =
-          mfaPreference.preferred === "TOTP" || mfaPreference.enabled?.includes("TOTP");
-        mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
-      } else {
-        // Issue #1414: MFA preference is null (timeout) - assume MFA configured (non-blocking).
-        // Timeout likely means network latency, not missing MFA. Requiring setup on timeout
-        // forces users through MFA re-enrollment unnecessarily.
-        console.warn("[Auth] MFA check timed out, assuming MFA configured");
+        if (mfaResult.value !== null && mfaResult.value !== undefined) {
+          const hasMfa =
+            mfaResult.value.preferred === "TOTP" || mfaResult.value.enabled?.includes("TOTP");
+          mfaStep.value = hasMfa ? "none" : "mfa_setup_required";
+        } else {
+          // MFA preference returned null/undefined (success but no data) - require setup
+          mfaStep.value = "mfa_setup_required";
+        }
+      } else if (mfaResult.status === "timeout") {
+        // Issue #1414: MFA check timed out but didn't fail - don't force MFA setup
+        // If user already passed Cognito authentication, they already verified MFA
+        // SECURITY DEPENDENCY: This assumes Cognito User Pool is configured to require MFA
+        // for all non-exempt users. If Cognito MFA enforcement is disabled, users without
+        // MFA could bypass this check. Verify Cognito config if changing MFA requirements.
+        // Timeouts are expected during Cognito cold starts and shouldn't penalize users
+        console.debug("[Auth] MFA preference check timed out, assuming MFA is configured");
         mfaStep.value = "none";
+      } else {
+        // Exhaustive check - all MfaResult cases should be handled above
+        const _exhaustive: never = mfaResult;
+        throw new Error(`Unhandled MfaResult status: ${JSON.stringify(_exhaustive)}`);
       }
     } catch (e) {
       // Session check failed - clear user silently (no toast to avoid spam on page load)

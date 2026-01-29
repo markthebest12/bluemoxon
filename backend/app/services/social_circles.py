@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime
+from itertools import combinations
 from typing import TYPE_CHECKING
 
 from app.enums import OWNED_STATUSES
@@ -25,6 +26,15 @@ from app.schemas.social_circles import (
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+# Maximum book IDs to include per node to reduce response size
+# Frontend only displays first few anyway
+MAX_BOOK_IDS_PER_NODE = 10
+
+# Default date range for Victorian collection when no node years available.
+# These values are reasonable defaults for a Victorian book collection.
+# Could be moved to settings if configurability is needed.
+DEFAULT_DATE_RANGE = (1800, 1900)
 
 
 def get_era_from_year(year: int | None) -> Era:
@@ -46,6 +56,7 @@ def build_social_circles_graph(
     db: Session,
     include_binders: bool = True,
     min_book_count: int = 1,
+    max_books: int = 5000,
     era_filter: list[Era] | None = None,
 ) -> SocialCirclesResponse:
     """Build the social circles graph from book data.
@@ -54,6 +65,7 @@ def build_social_circles_graph(
         db: Database session
         include_binders: Whether to include binder nodes/edges
         min_book_count: Minimum books for an entity to be included
+        max_books: Maximum number of books to process (prevents OOM in Lambda)
         era_filter: Optional list of eras to filter by
 
     Returns:
@@ -62,14 +74,12 @@ def build_social_circles_graph(
     from app.models import Author, Binder, Book, Publisher
 
     # Fetch owned books (IN_TRANSIT, ON_HAND) - excludes REMOVED, EVALUATING
-    # Limit to 5000 to prevent OOM in Lambda (1GB memory limit)
-    MAX_BOOKS = 5000
-    MAX_BOOK_IDS_PER_NODE = 10
-    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(MAX_BOOKS)
+    # Limit to max_books to prevent OOM in Lambda (1GB memory limit)
+    books_query = db.query(Book).filter(Book.status.in_(OWNED_STATUSES)).limit(max_books)
     books = books_query.all()
 
     # Check if we hit the limit (truncation likely occurred)
-    truncated = len(books) == MAX_BOOKS
+    truncated = len(books) == max_books
 
     # Build node maps
     nodes: dict[str, SocialCircleNode] = {}
@@ -122,7 +132,7 @@ def build_social_circles_graph(
             era=era,
             tier=author.tier,
             book_count=len(book_ids),
-            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],
+            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build publisher nodes
@@ -141,7 +151,7 @@ def build_social_circles_graph(
             type=NodeType.publisher,
             tier=publisher.tier,
             book_count=len(book_ids_set),
-            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
+            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
 
     # Build binder nodes
@@ -161,7 +171,7 @@ def build_social_circles_graph(
                 type=NodeType.binder,
                 tier=binder.tier,
                 book_count=len(book_ids_set),
-                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
+                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
             )
 
     # Build edges: Author -> Publisher
@@ -194,9 +204,18 @@ def build_social_circles_graph(
             )
 
     # Build edges: Author <-> Author (shared publisher)
-    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n²) explosion
+    #
+    # Time complexity: O(P * C(min(A, K), 2)) where P = publishers, A = authors
+    # per publisher, K = MAX_AUTHORS_PER_PUBLISHER. With K=20, each publisher
+    # generates at most C(20, 2) = 190 pairs. The early-exit for single-author
+    # publishers avoids unnecessary work for the common case.
+    MAX_AUTHORS_PER_PUBLISHER = 20  # Cap per-publisher pairs at C(20, 2) = 190 max
 
     for publisher_id, author_ids in publisher_authors.items():
+        # Early exit: need at least 2 authors to form a pair
+        if len(author_ids) < 2:
+            continue
+
         publisher_node_id = f"publisher:{publisher_id}"
         if publisher_node_id not in nodes:
             continue
@@ -205,39 +224,37 @@ def build_social_circles_graph(
         # Limit authors to prevent combinatorial explosion
         # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
-            author_list = sorted(author_list, key=lambda a: len(author_books[a]), reverse=True)[
-                :MAX_AUTHORS_PER_PUBLISHER
-            ]
+            author_list = sorted(
+                author_list,
+                key=lambda a: len(author_books[a]),
+                reverse=True,
+            )[:MAX_AUTHORS_PER_PUBLISHER]
 
-        for i, author1_id in enumerate(author_list):
+        for author1_id, author2_id in combinations(author_list, 2):
             author1_node_id = f"author:{author1_id}"
-            if author1_node_id not in nodes:
+            author2_node_id = f"author:{author2_id}"
+            if author1_node_id not in nodes or author2_node_id not in nodes:
                 continue
 
-            for author2_id in author_list[i + 1 :]:
-                author2_node_id = f"author:{author2_id}"
-                if author2_node_id not in nodes:
-                    continue
+            # Ensure consistent edge ID ordering
+            source_id, target_id = (
+                (author1_node_id, author2_node_id)
+                if author1_node_id < author2_node_id
+                else (author2_node_id, author1_node_id)
+            )
 
-                # Ensure consistent edge ID ordering (use local vars to avoid corrupting loop)
-                source_id, target_id = (
-                    (author1_node_id, author2_node_id)
-                    if author1_node_id < author2_node_id
-                    else (author2_node_id, author1_node_id)
-                )
+            edge_id = f"e:{source_id}:{target_id}"
+            if edge_id in edges:
+                continue  # Already added from another publisher
 
-                edge_id = f"e:{source_id}:{target_id}"
-                if edge_id in edges:
-                    continue  # Already added from another publisher
-
-                edges[edge_id] = SocialCircleEdge(
-                    id=edge_id,
-                    source=source_id,
-                    target=target_id,
-                    type=ConnectionType.shared_publisher,
-                    strength=3,  # Lower strength for indirect connection
-                    evidence=f"Both published by {nodes[publisher_node_id].name}",
-                )
+            edges[edge_id] = SocialCircleEdge(
+                id=edge_id,
+                source=source_id,
+                target=target_id,
+                type=ConnectionType.shared_publisher,
+                strength=3,  # Lower strength for indirect connection
+                evidence=f"Both published by {nodes[publisher_node_id].name}",
+            )
 
     # Build edges: Author -> Binder
     if include_binders:
@@ -275,7 +292,10 @@ def build_social_circles_graph(
         if node.death_year:
             years.append(node.death_year)
 
-    date_range = (min(years) if years else 1800, max(years) if years else 1900)
+    date_range = (
+        min(years) if years else DEFAULT_DATE_RANGE[0],
+        max(years) if years else DEFAULT_DATE_RANGE[1],
+    )
 
     # Build metadata
     meta = SocialCirclesMeta(

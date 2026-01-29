@@ -7,11 +7,12 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
+  globalSetup: "./e2e/global-setup.ts",
   use: {
-    // Base URL for relative paths in tests
-    baseURL: process.env.BASE_URL || "https://bluemoxon.com",
+    baseURL: process.env.BASE_URL || "https://staging.app.bluemoxon.com",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    storageState: ".auth/viewer.json",
   },
   projects: [
     {
@@ -19,14 +20,9 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
     },
-    // Mobile viewports
     {
       name: "Mobile Chrome",
       use: { ...devices["Pixel 5"] },

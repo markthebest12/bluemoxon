@@ -408,12 +408,20 @@ def list_books(
 
     query = db.query(Book)
 
+    # Track IDs truncation info
+    ids_truncated = False
+    ids_requested = None
+    ids_processed = None
+
     # Filter by IDs if provided (comma-separated list, max 100 IDs)
     if params.ids:
         try:
             id_list = [int(id_str.strip()) for id_str in params.ids.split(",") if id_str.strip()]
+            ids_requested = len(id_list)
             if len(id_list) > 100:
                 id_list = id_list[:100]  # Cap at 100 IDs to prevent abuse
+                ids_truncated = True
+            ids_processed = len(id_list)
             if id_list:
                 query = query.filter(Book.id.in_(id_list))
         except ValueError:
@@ -613,6 +621,9 @@ def list_books(
         page=params.page,
         per_page=params.per_page,
         pages=(total + params.per_page - 1) // params.per_page,
+        ids_truncated=ids_truncated,
+        ids_requested=ids_requested,
+        ids_processed=ids_processed,
     )
 
 
@@ -1442,6 +1453,7 @@ def bulk_update_status(
             detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
         )
 
+    # Perform the update first
     updated = (
         db.query(Book)
         .filter(Book.id.in_(book_ids))

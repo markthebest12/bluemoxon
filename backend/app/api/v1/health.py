@@ -1090,6 +1090,15 @@ async def normalize_condition_grades(
 Run pending database migrations. This endpoint allows running migrations
 from the Lambda which has VPC access to Aurora.
 
+**Transaction Handling:**
+- All migrations run within a single transaction
+- If any migration fails, remaining migrations are skipped
+- Commit happens at the end if all succeed
+- Migrations are idempotent (IF NOT EXISTS) so safe to re-run
+
+**Note:** Individual migration failures don't roll back previous steps,
+but since migrations are idempotent, re-running is safe.
+
 Migrations run in order:
 1. e44df6ab5669 - Add acquisition columns (source_url, source_item_id, etc.)
 2. f85b7f976c08 - Add scoring fields

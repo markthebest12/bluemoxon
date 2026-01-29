@@ -5,7 +5,39 @@
  * Visual encoding, animation timings, and configuration.
  */
 
-import type { NodeType, ConnectionType, Era, LayoutMode } from "@/types/socialCircles";
+import type {
+  NodeType,
+  ConnectionType,
+  Era,
+  LayoutMode,
+  HistoricalEvent,
+} from "@/types/socialCircles";
+
+// =============================================================================
+// Historical Timeline Events
+// =============================================================================
+
+/** Default historical events displayed on the timeline */
+export const VICTORIAN_EVENTS = [
+  { year: 1837, label: "Victoria's Coronation", type: "political" },
+  { year: 1851, label: "Great Exhibition", type: "cultural" },
+  { year: 1859, label: "Origin of Species", type: "literary" },
+  { year: 1901, label: "Victoria Dies", type: "political" },
+] as const satisfies readonly HistoricalEvent[];
+
+// =============================================================================
+// Connection Types
+// =============================================================================
+
+/**
+ * All connection types for filter validation.
+ * Type assertion ensures this array stays in sync with ConnectionType union.
+ */
+export const ALL_CONNECTION_TYPES = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+] as const satisfies readonly ConnectionType[];
 
 // =============================================================================
 // Victorian Color Palette
@@ -181,7 +213,7 @@ export function getEraFromYear(year: number): Era {
 // =============================================================================
 
 export const API = {
-  endpoint: "/social-circles", // Relative to api baseURL (/api/v1)
+  endpoint: "/social-circles/", // Trailing slash required to avoid 307 redirect
   cacheKey: "social-circles-data",
   cacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
@@ -203,6 +235,7 @@ export const KEYBOARD_SHORTCUTS = {
   nextNode: ["ArrowRight"],
   prevNode: ["ArrowLeft"],
   openDetails: ["Enter"],
+  cycleLayout: ["l", "L"],
 } as const;
 
 // =============================================================================

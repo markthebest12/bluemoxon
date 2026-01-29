@@ -52,6 +52,7 @@ export function useNetworkFilters() {
   }
 
   function setConnectionTypes(types: ConnectionType[]) {
+    // Deduplicate connection types to prevent unexpected filter counts
     filters.value.connectionTypes = [...new Set(types)];
   }
 

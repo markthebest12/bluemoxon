@@ -8,6 +8,10 @@
  */
 
 import { ref, computed, watch } from "vue";
+import TimelineMarkers from "@/components/socialcircles/TimelineMarkers.vue";
+
+// Module-level flag to prevent warning spam
+let hasWarned = false;
 
 interface Props {
   minYear?: number;
@@ -28,6 +32,19 @@ const props = withDefaults(defineProps<Props>(), {
   mode: "point",
   isPlaying: false,
 });
+
+// Immediate deprecation check in setup body
+if (
+  import.meta.env.DEV &&
+  !hasWarned &&
+  props.currentYear !== undefined &&
+  props.modelValue === undefined
+) {
+  console.warn(
+    "TimelineSlider: 'currentYear' prop is deprecated. Use v-model instead: <TimelineSlider v-model=\"year\" />"
+  );
+  hasWarned = true;
+}
 
 const emit = defineEmits<{
   /** v-model update event */
@@ -93,15 +110,18 @@ function handlePlay() {
 
     <div class="timeline-slider__track">
       <span class="timeline-slider__label">{{ minYear }}</span>
-      <input
-        v-model.number="localYear"
-        type="range"
-        :min="minYear"
-        :max="maxYear"
-        class="timeline-slider__input"
-        aria-label="Timeline year selector"
-        @change="updateYear(localYear)"
-      />
+      <div class="timeline-slider__input-wrapper">
+        <input
+          v-model.number="localYear"
+          type="range"
+          :min="minYear"
+          :max="maxYear"
+          class="timeline-slider__input"
+          aria-label="Timeline year selector"
+          @change="updateYear(localYear)"
+        />
+        <TimelineMarkers :min-year="minYear" :max-year="maxYear" />
+      </div>
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
 
@@ -161,8 +181,13 @@ function handlePlay() {
   gap: 1rem;
 }
 
-.timeline-slider__input {
+.timeline-slider__input-wrapper {
+  position: relative;
   flex: 1;
+}
+
+.timeline-slider__input {
+  width: 100%;
   height: 4px;
   -webkit-appearance: none;
   background: var(--color-victorian-paper-aged);
