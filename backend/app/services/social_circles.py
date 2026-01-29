@@ -1,5 +1,3 @@
-# backend/app/services/social_circles.py
-
 """Social Circles business logic.
 
 Infers connections between authors, publishers, and binders from the books table.
