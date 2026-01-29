@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime
+from itertools import combinations
 from typing import TYPE_CHECKING
 
 from app.enums import OWNED_STATUSES
@@ -98,6 +99,9 @@ def build_social_circles_graph(
                 author_binders[book.author_id].add(book.binder_id)
                 binder_books[book.binder_id].add(book.id)
 
+    # Limit book_ids per node to prevent large payloads
+    MAX_BOOK_IDS_PER_NODE = 10
+
     # Build author nodes
     authors = db.query(Author).filter(Author.id.in_(list(author_books.keys()))).all()
 
@@ -121,7 +125,7 @@ def build_social_circles_graph(
             era=era,
             tier=author.tier,
             book_count=len(book_ids),
-            book_ids=book_ids,
+            book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],
         )
 
     # Build publisher nodes
@@ -140,7 +144,7 @@ def build_social_circles_graph(
             type=NodeType.publisher,
             tier=publisher.tier,
             book_count=len(book_ids_set),
-            book_ids=list(book_ids_set),
+            book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
         )
 
     # Build binder nodes
@@ -160,7 +164,7 @@ def build_social_circles_graph(
                 type=NodeType.binder,
                 tier=binder.tier,
                 book_count=len(book_ids_set),
-                book_ids=list(book_ids_set),
+                book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],
             )
 
     # Build edges: Author -> Publisher
@@ -193,47 +197,57 @@ def build_social_circles_graph(
             )
 
     # Build edges: Author <-> Author (shared publisher)
-    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n²) explosion
+    #
+    # Time complexity: O(P * C(min(A, K), 2)) where P = publishers, A = authors
+    # per publisher, K = MAX_AUTHORS_PER_PUBLISHER. With K=20, each publisher
+    # generates at most C(20, 2) = 190 pairs. The early-exit for single-author
+    # publishers avoids unnecessary work for the common case.
+    MAX_AUTHORS_PER_PUBLISHER = 20  # Cap per-publisher pairs at C(20, 2) = 190 max
 
     for publisher_id, author_ids in publisher_authors.items():
+        # Early exit: need at least 2 authors to form a pair
+        if len(author_ids) < 2:
+            continue
+
         publisher_node_id = f"publisher:{publisher_id}"
         if publisher_node_id not in nodes:
             continue
 
         author_list = list(author_ids)
         # Limit authors to prevent combinatorial explosion
+        # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
-            author_list = author_list[:MAX_AUTHORS_PER_PUBLISHER]
+            author_list = sorted(
+                author_list,
+                key=lambda a: len(author_books[a]),
+                reverse=True,
+            )[:MAX_AUTHORS_PER_PUBLISHER]
 
-        for i, author1_id in enumerate(author_list):
+        for author1_id, author2_id in combinations(author_list, 2):
             author1_node_id = f"author:{author1_id}"
-            if author1_node_id not in nodes:
+            author2_node_id = f"author:{author2_id}"
+            if author1_node_id not in nodes or author2_node_id not in nodes:
                 continue
 
-            for author2_id in author_list[i + 1 :]:
-                author2_node_id = f"author:{author2_id}"
-                if author2_node_id not in nodes:
-                    continue
+            # Ensure consistent edge ID ordering
+            source_id, target_id = (
+                (author1_node_id, author2_node_id)
+                if author1_node_id < author2_node_id
+                else (author2_node_id, author1_node_id)
+            )
 
-                # Ensure consistent edge ID ordering (use local vars to avoid corrupting loop)
-                source_id, target_id = (
-                    (author1_node_id, author2_node_id)
-                    if author1_node_id < author2_node_id
-                    else (author2_node_id, author1_node_id)
-                )
+            edge_id = f"e:{source_id}:{target_id}"
+            if edge_id in edges:
+                continue  # Already added from another publisher
 
-                edge_id = f"e:{source_id}:{target_id}"
-                if edge_id in edges:
-                    continue  # Already added from another publisher
-
-                edges[edge_id] = SocialCircleEdge(
-                    id=edge_id,
-                    source=source_id,
-                    target=target_id,
-                    type=ConnectionType.shared_publisher,
-                    strength=3,  # Lower strength for indirect connection
-                    evidence=f"Both published by {nodes[publisher_node_id].name}",
-                )
+            edges[edge_id] = SocialCircleEdge(
+                id=edge_id,
+                source=source_id,
+                target=target_id,
+                type=ConnectionType.shared_publisher,
+                strength=3,  # Lower strength for indirect connection
+                evidence=f"Both published by {nodes[publisher_node_id].name}",
+            )
 
     # Build edges: Author -> Binder
     if include_binders:

@@ -274,8 +274,9 @@ describe("Auth Store", () => {
 
       // User should still be set from Cognito (just without API profile data)
       expect(store.user).not.toBeNull();
-      // MFA should require setup since both calls failed (security)
-      expect(store.mfaStep).toBe("mfa_setup_required");
+      // Issue #1414: MFA timeout = assume MFA is configured (don't block users)
+      // If user already passed Cognito authentication, they already verified MFA
+      expect(store.mfaStep).toBe("none");
     }, 60000); // 60s timeout for all retries with per-attempt timeouts
   });
 

@@ -1452,14 +1452,18 @@ jobs:
       - name: Set test URLs
         id: urls
         run: |
-          ENV="${{ needs.configure.outputs.environment }}"
-          if [[ "$ENV" == "production" ]]; then
-            echo "api_base=https://api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://app.bluemoxon.com" >> $GITHUB_OUTPUT
-          else
-            echo "api_base=https://staging.api.bluemoxon.com" >> $GITHUB_OUTPUT
-            echo "app_url=https://staging.app.bluemoxon.com" >> $GITHUB_OUTPUT
+          # api_url from Terraform must end with /api/v1 prefix.
+          # Derive api_base (domain only, no path) for cases that need it (e.g. image URLs).
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          if [[ ! "$API_URL" =~ /api/v1$ ]]; then
+            echo "::error::Terraform output 'api_url' must end with /api/v1 (got: $API_URL)"
+            exit 1
           fi
+          echo "Deriving api_base from api_url: $API_URL"
+          API_BASE=$(echo "$API_URL" | sed 's|/api/v1$||')
+          echo "Derived api_base: $API_BASE"
+          echo "api_base=$API_BASE" >> $GITHUB_OUTPUT
+          echo "app_url=${{ needs.configure.outputs.app_url }}" >> $GITHUB_OUTPUT
 
       - name: Check for partial deploy failures (atomicity)
         run: |
@@ -1500,8 +1504,8 @@ jobs:
 
       - name: Test API liveness
         run: |
-          API_BASE="${{ steps.urls.outputs.api_base }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_BASE}/health")
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          response=$(curl -s -w "\n%{http_code}" "${API_URL}/health/deep")
           http_code=$(echo "$response" | tail -n1)
 
           if [[ "$http_code" != "200" ]]; then

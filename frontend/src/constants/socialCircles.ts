@@ -32,6 +32,13 @@ export const NODE_COLORS: Record<string, string> = {
   "binder:default": "#722f37", // burgundy
 };
 
+/** All connection types (canonical list used for filter defaults and URL encoding) */
+export const ALL_CONNECTION_TYPES = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+] as const satisfies readonly ConnectionType[];
+
 /** Edge colors by connection type (hex values - Cytoscape doesn't support CSS variables) */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
   publisher: "#c9a227", // gold
@@ -101,7 +108,7 @@ export const ANIMATION = {
   panelSlide: 300,
   layoutReflow: 800,
   debounceFilter: 100,
-  debounceUrl: 300,
+  debounceUrl: 100,
 } as const;
 
 // =============================================================================
