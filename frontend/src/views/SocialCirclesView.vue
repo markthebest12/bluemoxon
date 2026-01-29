@@ -315,10 +315,10 @@ async function handleExportPng() {
   const result = await exportPng();
   if (result.success) {
     showToastMessage("PNG exported successfully");
+    analytics.trackExport("png");
   } else {
     showToastMessage(result.error || "Export failed");
   }
-  analytics.trackExport("png");
 }
 
 function handleExportJson() {
@@ -334,10 +334,10 @@ async function handleShare() {
       showToastMessage("Link copied to clipboard");
     }
     // Native share doesn't need a toast - the OS handles it
+    analytics.trackExport("url");
   } else if (result.error !== "Cancelled") {
     showToastMessage(result.error || "Share failed");
   }
-  analytics.trackExport("url");
 }
 
 // Provide context to child components
@@ -438,8 +438,11 @@ const filterPills = computed(() =>
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
     toggleSelectNode(nodeId);
-    const node = nodeMap.value.get(nodeId);
-    if (node) analytics.trackNodeSelect(node as ApiNode);
+    // Only track if the node is actually selected (not toggled closed)
+    if (selectedNode.value?.id === nodeId) {
+      const node = nodeMap.value.get(nodeId);
+      if (node) analytics.trackNodeSelect(node as ApiNode);
+    }
   } else {
     clearSelection();
   }
@@ -449,8 +452,11 @@ function handleNodeSelect(nodeId: string | null) {
 function handleEdgeSelect(edgeId: string | null) {
   if (edgeId) {
     toggleSelectEdge(edgeId);
-    const edge = edgeMap.value.get(edgeId);
-    if (edge) analytics.trackEdgeSelect(edge as ApiEdge);
+    // Only track if the edge is actually selected (not toggled closed)
+    if (selectedEdge.value?.id === edgeId) {
+      const edge = edgeMap.value.get(edgeId);
+      if (edge) analytics.trackEdgeSelect(edge as ApiEdge);
+    }
   } else {
     clearSelection();
   }
