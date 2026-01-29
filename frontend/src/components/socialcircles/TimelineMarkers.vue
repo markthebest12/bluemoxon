@@ -45,6 +45,9 @@ type EnrichedEvent = HistoricalEvent & { _id: string; _showLabel: boolean };
 // At 4%, labels need ~4% of the timeline width apart to both display.
 const MIN_LABEL_SPACING = 4;
 
+// Epsilon for floating point comparison tolerance
+const EPSILON = 0.001;
+
 // Filter events to only those within the visible range, with precomputed IDs
 // and label visibility flags to prevent overlapping year text.
 const visibleEvents = computed<EnrichedEvent[]>(() => {
@@ -54,24 +57,26 @@ const visibleEvents = computed<EnrichedEvent[]>(() => {
     .map((e) => ({ ...e, _id: getEventId(e), _showLabel: false }));
 
   // Sort by year to evaluate label spacing left-to-right
-  const sorted = [...filtered].sort((a, b) => a.year - b.year);
+  filtered.sort((a, b) => a.year - b.year);
 
   let lastShownPercent = -Infinity;
-  for (const event of sorted) {
+  for (const event of filtered) {
     const percent = getPositionPercent(event.year);
-    if (percent - lastShownPercent >= MIN_LABEL_SPACING) {
+    if (percent - lastShownPercent >= MIN_LABEL_SPACING - EPSILON) {
       event._showLabel = true;
       lastShownPercent = percent;
     }
   }
 
-  return sorted;
+  return filtered;
 });
 
 // Calculate horizontal position percentage for an event
 function getPositionPercent(year: number): number {
   const range = props.maxYear - props.minYear;
-  if (range <= 0) return 0;
+  // Edge case: when minYear === maxYear, all events map to same position (50%)
+  if (range === 0) return 50;
+  if (range < 0) return 0;
   return ((year - props.minYear) / range) * 100;
 }
 
@@ -145,7 +150,7 @@ function handleKeydown(e: KeyboardEvent, id: string) {
     >
       <div class="timeline-markers__line" />
       <span
-        v-if="event._showLabel || hoveredEventKey === event._id"
+        v-show="event._showLabel || hoveredEventKey === event._id"
         class="timeline-markers__year"
         >{{ event.year }}</span
       >

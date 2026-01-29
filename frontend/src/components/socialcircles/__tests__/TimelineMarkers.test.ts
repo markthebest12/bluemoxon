@@ -112,14 +112,14 @@ describe("TimelineMarkers - range filtering", () => {
 // =============================================================================
 
 describe("TimelineMarkers - division by zero", () => {
-  it("positions marker at 0% when minYear equals maxYear", () => {
+  it("positions marker at 50% when minYear equals maxYear (edge case)", () => {
     const wrapper = mountMarkers({
       minYear: 1850,
       maxYear: 1850,
       events: [{ year: 1850, label: "Same Year", type: "political" }],
     });
     const marker = wrapper.find(".timeline-markers__marker");
-    expect(marker.attributes("style")).toContain("left: 0%");
+    expect(marker.attributes("style")).toContain("left: 50%");
   });
 
   it("does not throw when minYear equals maxYear", () => {
@@ -607,8 +607,11 @@ describe("TimelineMarkers - year label overlap prevention", () => {
       ],
     });
     const yearLabels = wrapper.findAll(".timeline-markers__year");
-    // Only the first label (1837) should show; 1851 and 1859 are too close
-    expect(yearLabels).toHaveLength(1);
+    // All labels exist in DOM (v-show), but only first is visible
+    expect(yearLabels).toHaveLength(3);
+    expect(yearLabels[0].isVisible()).toBe(true);
+    expect(yearLabels[1].isVisible()).toBe(false);
+    expect(yearLabels[2].isVisible()).toBe(false);
     expect(yearLabels[0].text()).toBe("1837");
   });
 
@@ -637,14 +640,18 @@ describe("TimelineMarkers - year label overlap prevention", () => {
         { year: 1851, label: "Great Exhibition", type: "cultural" },
       ],
     });
-    // Initially, only 1837 label shows (1851 is within 4% so hidden)
-    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+    let yearLabels = wrapper.findAll(".timeline-markers__year");
+    // Initially, only 1837 label is visible (1851 is within 4% so hidden)
+    expect(yearLabels).toHaveLength(2);
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+    expect(yearLabels[1].attributes("style") || "").toContain("display: none");
 
     // Hover the second marker (1851) to reveal its label
     const markers = wrapper.findAll(".timeline-markers__marker");
     await markers[1].trigger("mouseenter");
-    const yearLabels = wrapper.findAll(".timeline-markers__year");
-    expect(yearLabels).toHaveLength(2);
+    yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+    expect(yearLabels[1].attributes("style") || "").not.toContain("display: none");
     expect(yearLabels[1].text()).toBe("1851");
   });
 
@@ -657,12 +664,16 @@ describe("TimelineMarkers - year label overlap prevention", () => {
         { year: 1851, label: "Great Exhibition", type: "cultural" },
       ],
     });
-    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+    let yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(2);
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+    expect(yearLabels[1].attributes("style") || "").toContain("display: none");
 
     const markers = wrapper.findAll(".timeline-markers__marker");
     await markers[1].trigger("focus");
-    const yearLabels = wrapper.findAll(".timeline-markers__year");
-    expect(yearLabels).toHaveLength(2);
+    yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+    expect(yearLabels[1].attributes("style") || "").not.toContain("display: none");
   });
 
   it("shows all labels on narrow range where spacing exceeds threshold", () => {
@@ -690,7 +701,10 @@ describe("TimelineMarkers - year label overlap prevention", () => {
       ],
     });
     const yearLabels = wrapper.findAll(".timeline-markers__year");
-    expect(yearLabels).toHaveLength(1);
+    expect(yearLabels).toHaveLength(3);
+    expect(yearLabels[0].isVisible()).toBe(true);
+    expect(yearLabels[1].isVisible()).toBe(false);
+    expect(yearLabels[2].isVisible()).toBe(false);
     expect(yearLabels[0].text()).toBe("1850");
   });
 
@@ -722,13 +736,19 @@ describe("TimelineMarkers - year label overlap prevention", () => {
       ],
     });
     const markers = wrapper.findAll(".timeline-markers__marker");
+    let yearLabels = wrapper.findAll(".timeline-markers__year");
+
+    // Initially, second label is hidden
+    expect(yearLabels[1].attributes("style")).toContain("display: none");
 
     // Click to show
     await markers[1].trigger("click");
-    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(2);
+    yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels[1].attributes("style")).not.toContain("display: none");
 
     // Click again to dismiss
     await markers[1].trigger("click");
-    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+    yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels[1].attributes("style")).toContain("display: none");
   });
 });
