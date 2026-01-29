@@ -7,6 +7,26 @@ import { ref, computed, type Ref } from "vue";
 import type { ApiNode, ApiEdge, NodeId } from "@/types/socialCircles";
 import { buildAdjacencyList, findShortestPath } from "@/utils/socialCircles/graphAlgorithms";
 
+/** Maximum number of results returned by node filter functions. */
+export const MAX_FILTER_RESULTS = 20;
+
+/**
+ * Filter nodes by a search query string, returning at most MAX_FILTER_RESULTS.
+ * When the query is empty, returns the first MAX_FILTER_RESULTS nodes.
+ */
+export function filterNodesByQuery(nodes: ApiNode[], query: string): ApiNode[] {
+  const normalised = query.toLowerCase().trim();
+  if (!normalised) return nodes.slice(0, MAX_FILTER_RESULTS);
+  const results: ApiNode[] = [];
+  for (const n of nodes) {
+    if (n.name.toLowerCase().includes(normalised)) {
+      results.push(n);
+      if (results.length >= MAX_FILTER_RESULTS) break;
+    }
+  }
+  return results;
+}
+
 export function usePathFinder(nodes: Ref<ApiNode[]>, edges: Ref<ApiEdge[]>) {
   const startNodeId = ref<NodeId | null>(null);
   const endNodeId = ref<NodeId | null>(null);
