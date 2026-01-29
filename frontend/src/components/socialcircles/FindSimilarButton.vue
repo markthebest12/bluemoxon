@@ -3,8 +3,10 @@
  * FindSimilarButton - Button to find nodes with similar connections.
  */
 
+import type { NodeId } from "@/types/socialCircles";
+
 interface Props {
-  nodeId: string;
+  nodeId: NodeId;
   disabled?: boolean;
 }
 
@@ -13,7 +15,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 defineEmits<{
-  "find-similar": [nodeId: string];
+  "find-similar": [nodeId: NodeId];
 }>();
 </script>
 

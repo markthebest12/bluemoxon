@@ -261,10 +261,7 @@ onUnmounted(() => {
       <!-- Footer -->
       <footer class="node-floating-card__footer">
         <div class="node-floating-card__footer-actions">
-          <FindSimilarButton
-            :node-id="node.id"
-            @find-similar="emit('find-similar', $event as NodeId)"
-          />
+          <FindSimilarButton :node-id="node.id" @find-similar="emit('find-similar', $event)" />
           <button
             class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
             disabled
