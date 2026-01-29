@@ -64,8 +64,10 @@ function _createAnalytics() {
       }
       // Future: send to analytics service
       // analyticsService.track(event);
-    } catch {
-      // Silently ignore errors to prevent UI disruption
+    } catch (error) {
+      if (isDev) {
+        console.warn("[Analytics] Error tracking event:", error);
+      }
     }
   }
 
