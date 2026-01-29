@@ -2,14 +2,17 @@
 """Performance benchmark script for the social circles endpoint.
 
 This script measures response time metrics for the /api/v1/social-circles endpoint
-across different max_books parameter values.
+across different max_books parameter values. Supports concurrent request mode for
+realistic load testing.
 
 Usage:
     python backend/scripts/benchmark_social_circles.py
     python backend/scripts/benchmark_social_circles.py --iterations 20 --env prod
+    python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
 
 Output:
-    JSON with timing metrics (min, max, avg, p95, p99) for each max_books value.
+    JSON with timing metrics (min, max, avg, p95, p99) for each max_books value,
+    plus throughput metrics (total time, requests/second) in concurrent mode.
 """
 
 # ruff: noqa: T201
@@ -58,6 +61,9 @@ class BenchmarkResult:
     iterations: int
     metrics: TimingMetrics
     environment: str
+    concurrency: int = 1
+    total_time_ms: float = 0.0
+    requests_per_second: float = 0.0
     timestamp: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     )
@@ -137,6 +143,7 @@ async def run_benchmark(
     max_books: int,
     iterations: int,
     api_key: str,
+    concurrency: int = 1,
 ) -> BenchmarkResult:
     """Run benchmark for a specific max_books value.
 
@@ -145,6 +152,7 @@ async def run_benchmark(
         max_books: The max_books parameter to test.
         iterations: Number of requests to make.
         api_key: API key for authentication.
+        concurrency: Number of concurrent requests (1 = sequential).
 
     Returns:
         BenchmarkResult with timing metrics.
@@ -156,20 +164,53 @@ async def run_benchmark(
     timings: list[float] = []
     errors = 0
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for i in range(iterations):
-            elapsed_ms, success = await measure_request(client, url, headers, max_books)
+    wall_start = time.perf_counter()
+
+    if concurrency <= 1:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for i in range(iterations):
+                elapsed_ms, success = await measure_request(client, url, headers, max_books)
+                if success:
+                    timings.append(elapsed_ms)
+                else:
+                    errors += 1
+                print(
+                    f"  Iteration {i + 1}/{iterations}: "
+                    f"{elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
+                )
+    else:
+        semaphore = asyncio.Semaphore(concurrency)
+        results_list: list[tuple[int, float, bool]] = []
+
+        async def bounded_request(client: httpx.AsyncClient, index: int) -> tuple[int, float, bool]:
+            async with semaphore:
+                elapsed_ms, success = await measure_request(client, url, headers, max_books)
+                return index, elapsed_ms, success
+
+        print(f"  Sending {iterations} requests with concurrency={concurrency}...")
+        limits = httpx.Limits(max_connections=concurrency)
+        async with httpx.AsyncClient(timeout=60.0, limits=limits) as client:
+            tasks = [bounded_request(client, i) for i in range(iterations)]
+            results_list = list(await asyncio.gather(*tasks))
+
+        results_list.sort(key=lambda x: x[0])
+        for index, elapsed_ms, success in results_list:
             if success:
                 timings.append(elapsed_ms)
             else:
                 errors += 1
-            # Progress indicator
             print(
-                f"  Iteration {i + 1}/{iterations}: {elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
+                f"  Request {index + 1}/{iterations}: "
+                f"{elapsed_ms:.1f}ms {'OK' if success else 'FAILED'}"
             )
 
+    wall_end = time.perf_counter()
+    total_time_ms = (wall_end - wall_start) * 1000
+    successful_count = len(timings)
+    total_requests = successful_count + errors
+    requests_per_second = total_requests / (total_time_ms / 1000) if total_time_ms > 0 else 0
+
     if not timings:
-        # All requests failed
         metrics = TimingMetrics(
             min_ms=0,
             max_ms=0,
@@ -192,6 +233,9 @@ async def run_benchmark(
         iterations=iterations,
         metrics=metrics,
         environment=env,
+        concurrency=concurrency,
+        total_time_ms=round(total_time_ms, 2),
+        requests_per_second=round(requests_per_second, 2),
         errors=errors,
     )
 
@@ -220,6 +264,7 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
     """
     env = args.env
     iterations = args.iterations
+    concurrency = args.concurrent
     max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
 
     print(f"Loading API key for {env}...")
@@ -229,7 +274,9 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
         print(f"Error: {e}")
         sys.exit(1)
 
+    mode_label = f"concurrent (x{concurrency})" if concurrency > 1 else "sequential"
     print(f"Running benchmark against {ENVIRONMENTS[env]}")
+    print(f"Mode: {mode_label}")
     print(f"Iterations per test: {iterations}")
     print(f"Testing max_books values: {max_books_values}")
     print("-" * 60)
@@ -237,14 +284,21 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
     results = []
     for max_books in max_books_values:
         print(f"\nBenchmarking max_books={max_books}...")
-        result = await run_benchmark(env, max_books, iterations, api_key)
+        result = await run_benchmark(env, max_books, iterations, api_key, concurrency=concurrency)
         results.append(result_to_dict(result))
 
-        # Print summary for this run
         print(
             f"  Results: min={result.metrics.min_ms}ms, max={result.metrics.max_ms}ms, "
-            f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, p99={result.metrics.p99_ms}ms"
+            f"avg={result.metrics.avg_ms}ms, p95={result.metrics.p95_ms}ms, "
+            f"p99={result.metrics.p99_ms}ms"
         )
+        if concurrency > 1:
+            print(
+                f"  Throughput: {result.total_time_ms:.0f}ms total, "
+                f"{result.requests_per_second:.1f} req/s"
+            )
+        else:
+            print(f"  Wall time: {result.total_time_ms:.0f}ms total")
         if result.errors > 0:
             print(f"  Errors: {result.errors}/{iterations}")
 
@@ -262,6 +316,8 @@ Examples:
   python backend/scripts/benchmark_social_circles.py --iterations 20
   python backend/scripts/benchmark_social_circles.py --env prod --iterations 5
   python backend/scripts/benchmark_social_circles.py --max-books 100 500
+  python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
+  python backend/scripts/benchmark_social_circles.py -c 10 --iterations 100
         """,
     )
     parser.add_argument(
@@ -285,12 +341,31 @@ Examples:
         help=f"max_books values to test (default: {DEFAULT_MAX_BOOKS_VALUES})",
     )
     parser.add_argument(
+        "--concurrent",
+        "-c",
+        type=int,
+        default=1,
+        dest="concurrent",
+        help="Number of concurrent requests (default: 1 = sequential)",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         help="Output file path for JSON results (default: stdout)",
     )
 
     args = parser.parse_args()
+
+    # Validate concurrency
+    if args.concurrent < 1:
+        parser.error("--concurrent must be at least 1")
+    if args.concurrent > 100:
+        print(
+            f"Warning: --concurrent {args.concurrent} exceeds httpx default pool size (100). "
+            "Capping at 100.",
+            file=sys.stderr,
+        )
+        args.concurrent = 100
 
     # Run benchmarks
     results = asyncio.run(main_async(args))
