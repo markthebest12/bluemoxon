@@ -109,6 +109,9 @@ def build_social_circles_graph(
                 author_binders[book.author_id].add(book.binder_id)
                 binder_books[book.binder_id].add(book.id)
 
+    # Limit book IDs per node to control response size
+    MAX_BOOK_IDS_PER_NODE = 10
+
     # Build author nodes
     authors = db.query(Author).filter(Author.id.in_(list(author_books.keys()))).all()
 
@@ -220,7 +223,12 @@ def build_social_circles_graph(
         if publisher_node_id not in nodes:
             continue
 
-        author_list = list(author_ids)
+        # Sort by book count descending for deterministic truncation
+        author_list = sorted(
+            author_ids,
+            key=lambda aid: len(author_books.get(aid, [])),
+            reverse=True,
+        )
         # Limit authors to prevent combinatorial explosion
         # Sort by book count descending for deterministic, meaningful truncation
         if len(author_list) > MAX_AUTHORS_PER_PUBLISHER:
