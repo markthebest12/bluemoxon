@@ -4,6 +4,7 @@
  */
 
 import { ref, watch, onUnmounted, type Ref } from "vue";
+import type { Core as CytoscapeCore } from "cytoscape";
 
 interface Bounds {
   x: number;
@@ -12,11 +13,7 @@ interface Bounds {
   h: number;
 }
 
-// Cytoscape instance type (using any to avoid tight coupling to cytoscape types)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CytoscapeInstance = any;
-
-export function useMiniMap(cy: Ref<CytoscapeInstance | null>) {
+export function useMiniMap(cy: Ref<CytoscapeCore | null>) {
   const isVisible = ref(true);
   const viewportBounds = ref<Bounds | null>(null);
   const graphBounds = ref<Bounds | null>(null);
