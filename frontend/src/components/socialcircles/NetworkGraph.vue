@@ -13,8 +13,13 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, shallowRef, onMounted, onUnmounted, watch } from "vue";
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from "vue";
+import { useMediaQuery } from "@vueuse/core";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
+import { useLayoutMode } from "@/composables/socialcircles";
+import LayoutSwitcher from "./LayoutSwitcher.vue";
+import MiniMap from "@/components/socialcircles/MiniMap.vue";
+import type { LayoutMode } from "@/types/socialCircles";
 
 // Props
 interface Props {
@@ -40,16 +45,39 @@ const emit = defineEmits<{
   "node-hover": [nodeId: string | null];
   "edge-hover": [edgeId: string | null, event: MouseEvent | null];
   "viewport-change": [];
+  "layout-change": [mode: LayoutMode];
 }>();
+
+// Handle layout mode change
+function handleLayoutChange(mode: LayoutMode) {
+  setMode(mode);
+  emit("layout-change", mode);
+}
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
 const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
 
+// Touch device detection for mobile-optimized interactions
+const isCoarsePointer = useMediaQuery("(pointer: coarse)");
+const isMobileViewport = useMediaQuery("(max-width: 767px)");
+const isTouchDevice = computed(() => isCoarsePointer.value || isMobileViewport.value);
+
+// Layout mode management
+const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
+
 // Victorian stylesheet
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
 // so we cast the stylesheet to the expected type
+//
+// nodeSize is pre-calculated by calculateNodeSize() in constants/socialCircles.ts:
+// - Uses sqrt(bookCount) scaling with diminishing returns (sqrt(1)=1, sqrt(4)=2, sqrt(64)=8)
+// - Formula: base + sqrt(max(bookCount, 1)) * perBook, clamped to max via Math.min
+// - Author: 20px base, 5px/√book, 60px max (reached at 64 books)
+// - Publisher: 25px base, 4px/√book, 65px max (reached at 100 books)
+// - Binder: 20px base, 5px/√book, 55px max (reached at 49 books)
+// - Negative/zero bookCount clamped to 1 via Math.max before sqrt
 function getCytoscapeStylesheet(): StylesheetStyle[] {
   return [
     {
@@ -268,6 +296,17 @@ watch(
   { deep: true }
 );
 
+// Use immediate:true to apply correct styles if cy initializes after touch mode is detected
+watch(
+  isTouchDevice,
+  (_isTouch) => {
+    if (!cy.value) return;
+    // Update node sizes for touch targets (larger on touch devices)
+    cy.value.style().update();
+  },
+  { immediate: true }
+);
+
 // Expose methods for parent
 defineExpose({
   getCytoscape: () => cy.value,
@@ -279,18 +318,49 @@ defineExpose({
     if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
   },
   getZoom: () => cy.value?.zoom() ?? 1,
+  cycleMode,
 });
 </script>
 
 <template>
-  <div ref="containerRef" class="network-graph" />
+  <div class="network-graph-container">
+    <div ref="containerRef" class="network-graph" data-testid="network-graph" />
+    <div class="network-graph__controls">
+      <LayoutSwitcher
+        :model-value="currentMode"
+        :disabled="isAnimating"
+        @update:model-value="handleLayoutChange"
+      />
+    </div>
+    <MiniMap v-if="isInitialized" :cy="cy" class="mini-map-overlay" />
+  </div>
 </template>
 
 <style scoped>
+.network-graph-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .network-graph {
   width: 100%;
   height: 100%;
   min-height: 400px;
   background-color: var(--color-victorian-paper-cream, #f8f5f0);
+}
+
+.network-graph__controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+}
+
+.mini-map-overlay {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 10;
 }
 </style>

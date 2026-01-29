@@ -13,7 +13,8 @@
 
 import { ref, watch } from "vue";
 
-import type { ConnectionType, Era } from "@/types/socialCircles";
+import FilterBadges from "@/components/socialcircles/FilterBadges.vue";
+import type { ApiNode, ConnectionType, Era } from "@/types/socialCircles";
 
 // Connection type display info
 const CONNECTION_INFO: Record<ConnectionType, { label: string; color: string }> = {
@@ -43,6 +44,7 @@ interface Props {
     readonly eras: readonly Era[];
     readonly searchQuery: string;
   };
+  nodes?: ApiNode[];
 }
 
 const props = defineProps<Props>();
@@ -126,7 +128,7 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
 </script>
 
 <template>
-  <aside class="filter-panel">
+  <aside class="filter-panel" data-testid="filter-panel">
     <header class="filter-panel__header">
       <h2 class="filter-panel__title">Filters</h2>
       <button type="button" class="filter-panel__reset" @click="handleReset">Reset</button>
@@ -153,6 +155,12 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
           <input type="checkbox" :checked="props.filterState.showAuthors" />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--author" />
           <span>Authors</span>
+          <FilterBadges
+            v-if="props.nodes"
+            :nodes="props.nodes"
+            :filter-state="props.filterState"
+            node-type="author"
+          />
         </label>
         <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showPublishers')">
           <input type="checkbox" :checked="props.filterState.showPublishers" />
@@ -160,11 +168,23 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
             class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--publisher"
           />
           <span>Publishers</span>
+          <FilterBadges
+            v-if="props.nodes"
+            :nodes="props.nodes"
+            :filter-state="props.filterState"
+            node-type="publisher"
+          />
         </label>
         <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showBinders')">
           <input type="checkbox" :checked="props.filterState.showBinders" />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--binder" />
           <span>Binders</span>
+          <FilterBadges
+            v-if="props.nodes"
+            :nodes="props.nodes"
+            :filter-state="props.filterState"
+            node-type="binder"
+          />
         </label>
       </section>
 
@@ -222,6 +242,14 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+/* When used in mobile BottomSheet, remove fixed width and border */
+.filter-panel:where(.mobile-filter-panel) {
+  width: 100%;
+  border-right: none;
+  background: transparent;
+  height: auto;
 }
 
 .filter-panel__header {
@@ -296,6 +324,10 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
   font-size: 0.875rem;
   cursor: pointer;
   padding: 0.25rem 0;
+}
+
+.filter-panel__checkbox input[type="checkbox"] {
+  accent-color: var(--color-victorian-hunter-600, #2f5a4b);
 }
 
 .filter-panel__checkbox-indicator {

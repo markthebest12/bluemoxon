@@ -78,6 +78,24 @@ app = FastAPI(
     ],
 )
 
+# CORS header configuration. Update these constants when adding new custom
+# headers to requests or responses. Note: API Gateway has its own CORS config
+# in infra/terraform/modules/api-gateway/ that must be kept in sync.
+
+# Headers the browser is allowed to send in cross-origin requests
+CORS_ALLOW_HEADERS: list[str] = [
+    "Authorization",  # Cognito JWT bearer tokens for authenticated users
+    "Content-Type",  # Required for application/json POST/PUT/PATCH requests
+    "X-API-Key",  # API key authentication for CLI/automation tools
+]
+
+# Headers the browser is allowed to read from cross-origin responses
+CORS_EXPOSE_HEADERS: list[str] = [
+    "X-App-Version",  # Deployed version string (set by add_version_headers middleware)
+    "X-Environment",  # Current environment name (set by add_version_headers middleware)
+    "X-Cold-Start",  # Lambda cold start indicator (set by cold_start_middleware)
+]
+
 # CORS middleware - production uses specific origins via CORS_ORIGINS env var
 # Default "*" is for local development only
 if settings.cors_origins == "*":
@@ -93,8 +111,8 @@ app.add_middleware(
     allow_origins=origins,  # Controlled by CORS_ORIGINS env var in production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
-    expose_headers=["X-App-Version", "X-Environment", "X-Cold-Start"],
+    allow_headers=CORS_ALLOW_HEADERS,
+    expose_headers=CORS_EXPOSE_HEADERS,
 )
 
 

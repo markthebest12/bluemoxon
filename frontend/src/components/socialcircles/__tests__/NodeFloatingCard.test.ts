@@ -4,7 +4,7 @@ import NodeFloatingCard from "../NodeFloatingCard.vue";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, BookId } from "@/types/socialCircles";
 
 // Mock useFocusTrap
-vi.mock("@vueuse/integrations/useFocusTrap", () => ({
+vi.mock("@/composables/useFocusTrap", () => ({
   useFocusTrap: () => ({
     activate: vi.fn(),
     deactivate: vi.fn(),
@@ -250,13 +250,17 @@ describe("NodeFloatingCard", () => {
       expect(wrapper.emitted("selectEdge")![0]).toEqual([mockEdge.id]);
     });
 
-    it("emits viewProfile when profile button clicked", async () => {
+    it("has disabled profile button with Coming Soon indicator", async () => {
       wrapper = mount(NodeFloatingCard, { props: defaultProps });
 
-      await wrapper.find(".node-floating-card__profile-button").trigger("click");
+      const profileButton = wrapper.find(".node-floating-card__profile-button");
+      expect(profileButton.attributes("disabled")).toBeDefined();
+      expect(profileButton.text()).toContain("Coming Soon");
+      expect(profileButton.attributes("title")).toBe("Entity profiles coming in a future update");
 
-      expect(wrapper.emitted("viewProfile")).toBeTruthy();
-      expect(wrapper.emitted("viewProfile")![0]).toEqual([mockAuthor.id]);
+      // Should not emit viewProfile when disabled button is clicked
+      await profileButton.trigger("click");
+      expect(wrapper.emitted("viewProfile")).toBeFalsy();
     });
 
     it('emits viewProfile when "view more" link clicked', async () => {

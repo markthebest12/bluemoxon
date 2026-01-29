@@ -80,10 +80,10 @@ export default [
 
   // Type-aware linting for src/ TypeScript files (#625)
   // These rules require type information from tsconfig
-  // Excludes test files (__tests__) which aren't in tsconfig.app.json
+  // Excludes test files (__tests__ and test/) which aren't in tsconfig.app.json
   {
     files: ["src/**/*.ts"],
-    ignores: ["src/**/__tests__/**"],
+    ignores: ["src/**/__tests__/**", "src/test/**"],
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.app.json",
@@ -111,6 +111,14 @@ export default [
     },
     rules: {
       ...typeAwareRules,
+    },
+  },
+
+  // Test files - allow multiple components per file (needed for test fixtures)
+  {
+    files: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    rules: {
+      "vue/one-component-per-file": "off",
     },
   },
 

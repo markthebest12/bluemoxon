@@ -5,8 +5,8 @@
  * Smart positioned, shows first 5 connections, links to edge details.
  */
 
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { ref, computed, watch, onUnmounted } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, ConnectionType } from "@/types/socialCircles";
 import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
 import {
@@ -15,6 +15,9 @@ import {
   type Size,
 } from "@/utils/socialCircles/cardPositioning";
 import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
+import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
+import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
+import FindSimilarButton from "@/components/socialcircles/FindSimilarButton.vue";
 
 interface Props {
   node: ApiNode | null;
@@ -31,10 +34,18 @@ const emit = defineEmits<{
   close: [];
   selectEdge: [edgeId: EdgeId];
   viewProfile: [nodeId: NodeId];
+  "find-similar": [nodeId: NodeId];
 }>();
 
 const cardRef = ref<HTMLElement | null>(null);
-const { activate, deactivate } = useFocusTrap(cardRef, { immediate: false });
+const { activate, deactivate } = useFocusTrap(cardRef);
+
+// Close panel when clicking outside (#1407)
+useClickOutside(cardRef, () => {
+  if (props.isOpen) {
+    emit("close");
+  }
+});
 
 // Computed position
 const cardPosition = computed(() => {
@@ -126,12 +137,8 @@ function getConnectionIcon(type: ConnectionType): string {
   return icons[type] || "→";
 }
 
-// Keyboard handling
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    emit("close");
-  }
-}
+// Global escape listener via composable
+useEscapeKey(() => emit("close"));
 
 // Focus trap management with timeout cleanup
 let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -153,13 +160,7 @@ watch(
   }
 );
 
-// Global escape listener
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
-
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
   if (focusTrapTimeout !== undefined) {
     clearTimeout(focusTrapTimeout);
   }
@@ -259,9 +260,17 @@ onUnmounted(() => {
 
       <!-- Footer -->
       <footer class="node-floating-card__footer">
-        <button class="node-floating-card__profile-button" @click="emit('viewProfile', node.id)">
-          View Full Profile →
-        </button>
+        <div class="node-floating-card__footer-actions">
+          <FindSimilarButton :node-id="node.id" @find-similar="emit('find-similar', $event)" />
+          <button
+            class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
+            disabled
+            title="Entity profiles coming in a future update"
+          >
+            View Full Profile
+            <span class="node-floating-card__coming-soon">(Coming Soon)</span>
+          </button>
+        </div>
       </footer>
     </div>
   </Transition>
@@ -456,6 +465,12 @@ onUnmounted(() => {
   border-top: 1px solid var(--color-border, #d4cfc4);
 }
 
+.node-floating-card__footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .node-floating-card__profile-button {
   width: 100%;
   padding: 10px 16px;
@@ -474,6 +489,24 @@ onUnmounted(() => {
 .node-floating-card__profile-button:hover {
   background: var(--color-hover, #8b4513);
   transform: translateY(-1px);
+}
+
+.node-floating-card__profile-button--disabled {
+  background: var(--color-text-muted, #8b8579);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.node-floating-card__profile-button--disabled:hover {
+  background: var(--color-text-muted, #8b8579);
+  transform: none;
+}
+
+.node-floating-card__coming-soon {
+  font-size: 0.75rem;
+  font-weight: normal;
+  opacity: 0.8;
+  margin-left: 4px;
 }
 
 /* Transitions */
