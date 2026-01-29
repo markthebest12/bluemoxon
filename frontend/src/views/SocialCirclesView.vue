@@ -212,8 +212,13 @@ async function handleExportPng() {
 }
 
 function handleExportJson() {
-  exportJson();
-  showToastMessage("JSON exported successfully");
+  try {
+    exportJson();
+    showToastMessage("JSON exported successfully");
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Export failed";
+    showToastMessage(message);
+  }
 }
 
 async function handleShare() {

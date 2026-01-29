@@ -203,9 +203,18 @@ def build_social_circles_graph(
             )
 
     # Build edges: Author <-> Author (shared publisher)
-    MAX_AUTHORS_PER_PUBLISHER = 20  # Limit to prevent O(n²) explosion
+    #
+    # Time complexity: O(P * C(min(A, K), 2)) where P = publishers, A = authors
+    # per publisher, K = MAX_AUTHORS_PER_PUBLISHER. With K=20, each publisher
+    # generates at most C(20, 2) = 190 pairs. The early-exit for single-author
+    # publishers avoids unnecessary work for the common case.
+    MAX_AUTHORS_PER_PUBLISHER = 20  # Cap per-publisher pairs at C(20, 2) = 190 max
 
     for publisher_id, author_ids in publisher_authors.items():
+        # Early exit: need at least 2 authors to form a pair
+        if len(author_ids) < 2:
+            continue
+
         publisher_node_id = f"publisher:{publisher_id}"
         if publisher_node_id not in nodes:
             continue
