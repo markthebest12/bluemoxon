@@ -492,3 +492,46 @@ class TestCacheConstants:
         """Cache key prefix has expected format."""
         assert ":" in CACHE_KEY_PREFIX
         assert CACHE_KEY_PREFIX == "social_circles:graph"
+
+
+class TestMaxCacheSizeBytesLimit:
+    """Tests for MAX_CACHE_SIZE_BYTES limit enforcement."""
+
+    def test_response_exceeding_max_size_is_not_cached(self):
+        """Response serialized to more than MAX_CACHE_SIZE_BYTES is not stored in Redis."""
+        mock_client = MagicMock()
+        test_response = _create_test_response()
+
+        # Patch json.dumps to return a string larger than the 10 MB limit
+        oversized_payload = "x" * (MAX_CACHE_SIZE_BYTES + 1)
+        with patch("app.services.social_circles_cache.json.dumps", return_value=oversized_payload):
+            _set_cached_graph_sync(mock_client, "test:key", test_response)
+
+        mock_client.setex.assert_not_called()
+
+    def test_response_within_max_size_is_cached(self):
+        """Response serialized to exactly MAX_CACHE_SIZE_BYTES is stored in Redis."""
+        mock_client = MagicMock()
+        test_response = _create_test_response()
+
+        # Patch json.dumps to return a string exactly at the limit (not exceeding)
+        at_limit_payload = "x" * MAX_CACHE_SIZE_BYTES
+        with patch("app.services.social_circles_cache.json.dumps", return_value=at_limit_payload):
+            _set_cached_graph_sync(mock_client, "test:key", test_response)
+
+        mock_client.setex.assert_called_once_with("test:key", CACHE_TTL_SECONDS, at_limit_payload)
+
+    @pytest.mark.asyncio
+    async def test_async_set_skips_oversized_response(self):
+        """Async set_cached_graph skips caching when response exceeds MAX_CACHE_SIZE_BYTES."""
+        mock_client = MagicMock()
+        test_response = _create_test_response()
+
+        oversized_payload = "x" * (MAX_CACHE_SIZE_BYTES + 1)
+        with (
+            patch("app.services.social_circles_cache.get_redis", return_value=mock_client),
+            patch("app.services.social_circles_cache.json.dumps", return_value=oversized_payload),
+        ):
+            await set_cached_graph("test:key", test_response)
+
+        mock_client.setex.assert_not_called()
