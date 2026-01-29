@@ -173,6 +173,8 @@ describe("buildAdjacencyList", () => {
     expect(adjacency.get(nodeId("publisher:1"))?.has(nodeId("binder:1"))).toBe(true);
   });
 
+  // Self-loops cannot be produced by the backend (which uses itertools.combinations),
+  // but the frontend should handle them gracefully as defensive programming.
   it("handles self-loop edge (node connected to itself)", () => {
     const edges = [
       createTestEdge("author:1", "author:1"),
@@ -301,43 +303,29 @@ describe("findShortestPath", () => {
     expect(path![5]).toBe(nodeId("author:6"));
   });
 
-  // Note: BFS uses queue.shift() which is O(n) per dequeue operation. For the
-  // current social circles use case (typically <1000 nodes), this is acceptable.
-  // For large graphs, a proper deque or ring buffer would reduce this to O(1).
-  it("does not loop infinitely when graph contains self-loop edges", () => {
+  // Self-loops cannot be produced by the backend (which uses itertools.combinations),
+  // but the frontend should handle them gracefully as defensive programming.
+  it("handles self-loops on start, intermediate, and end nodes", () => {
     const edges = [
-      createTestEdge("author:1", "author:1"), // self-loop
+      createTestEdge("author:1", "author:1"), // self-loop on start
       createTestEdge("author:1", "author:2"),
-      createTestEdge("author:2", "author:2"), // another self-loop
+      createTestEdge("author:2", "author:2"), // self-loop on intermediate
       createTestEdge("author:2", "author:3"),
+      createTestEdge("author:3", "author:3"), // self-loop on end
     ];
     const adjacency = buildAdjacencyList(edges);
 
     // BFS visited set prevents revisiting nodes, so self-loops are safe
     const path = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:3"));
     expect(path).toEqual([nodeId("author:1"), nodeId("author:2"), nodeId("author:3")]);
-  });
 
-  it("handles self-loop on start node", () => {
-    const edges = [
-      createTestEdge("author:1", "author:1"), // self-loop on start
-      createTestEdge("author:1", "author:2"),
-    ];
-    const adjacency = buildAdjacencyList(edges);
-    const path = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:2"));
+    // Self-loop on start does not prevent finding a direct neighbor
+    const startPath = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:2"));
+    expect(startPath).toEqual([nodeId("author:1"), nodeId("author:2")]);
 
-    expect(path).toEqual([nodeId("author:1"), nodeId("author:2")]);
-  });
-
-  it("handles self-loop on end node", () => {
-    const edges = [
-      createTestEdge("author:1", "author:2"),
-      createTestEdge("author:2", "author:2"), // self-loop on end
-    ];
-    const adjacency = buildAdjacencyList(edges);
-    const path = findShortestPath(adjacency, nodeId("author:1"), nodeId("author:2"));
-
-    expect(path).toEqual([nodeId("author:1"), nodeId("author:2")]);
+    // Self-loop on end does not prevent being found
+    const endPath = findShortestPath(adjacency, nodeId("author:2"), nodeId("author:3"));
+    expect(endPath).toEqual([nodeId("author:2"), nodeId("author:3")]);
   });
 });
 
@@ -659,10 +647,10 @@ describe("findSimilarNodes", () => {
     expect(similar).toHaveLength(5);
   });
 
-  it("returns all tied nodes when scores are equal", () => {
+  it("truncates tied nodes when limit is less than tied count", () => {
     // Target (A) connects to Hub. B, C, D also connect to Hub.
     // B, C, D each share exactly 1 connection with A (the Hub).
-    // All three should appear with equal sharedConnections.
+    // With limit=2, only 2 of the 3 tied nodes should be returned.
     const edges = [
       createTestEdge("author:1", "publisher:1"), // A-Hub
       createTestEdge("author:2", "publisher:1"), // B-Hub
@@ -677,16 +665,19 @@ describe("findSimilarNodes", () => {
       createTestNode("publisher:1", "Hub", "publisher"),
     ];
     const adjacency = buildAdjacencyList(edges);
-    const similar = findSimilarNodes(adjacency, nodes, nodeId("author:1"), 10);
+    const similar = findSimilarNodes(adjacency, nodes, nodeId("author:1"), 2);
 
-    // B, C, and D all share 1 connection (Hub) with A
-    const tiedNodes = similar.filter((s) => s.sharedConnections === 1);
-    expect(tiedNodes).toHaveLength(3);
-
-    const tiedNames = tiedNodes.map((s) => s.node.name).sort();
-    expect(tiedNames).toEqual(["B", "C", "D"]);
+    // 3 nodes are tied but limit=2, so only 2 should be returned
+    expect(similar).toHaveLength(2);
+    // All returned nodes should still have 1 shared connection
+    similar.forEach((s) => {
+      expect(s.sharedConnections).toBe(1);
+    });
   });
 
+  // Unique scenario vs the rich-graph test: verifies that tied nodes at a
+  // higher rank (B,C with 2 shared) are all placed above a lower-ranked node
+  // (D with 1 shared). The rich-graph test has no ties among its results.
   it("preserves correct ranking when some nodes tie and others differ", () => {
     // A connects to P1 and P2
     // B connects to P1 and P2 (2 shared with A)
