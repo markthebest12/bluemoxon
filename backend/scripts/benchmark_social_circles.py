@@ -10,7 +10,7 @@ Usage:
     python backend/scripts/benchmark_social_circles.py --iterations 20 --env prod
     python backend/scripts/benchmark_social_circles.py --concurrent 5 --iterations 50
     python backend/scripts/benchmark_social_circles.py --dry-run
-    python backend/scripts/benchmark_social_circles.py --env prod --yes-i-mean-production
+    python backend/scripts/benchmark_social_circles.py --env prod --confirm-production
 
 Output:
     JSON with timing metrics (min, max, avg, p95, p99) for each max_books value,
@@ -41,9 +41,6 @@ DEFAULT_MAX_BOOKS_VALUES = [100, 500, 1000, 5000]
 
 # Endpoint path
 ENDPOINT_PATH = "/api/v1/social-circles"
-
-# Stagger delay between concurrent request launches (seconds)
-CONCURRENT_STAGGER_DELAY = 0.05
 
 
 @dataclass
@@ -149,6 +146,7 @@ async def run_benchmark(
     iterations: int,
     api_key: str,
     concurrency: int = 1,
+    stagger_delay: float = 0.05,
 ) -> BenchmarkResult:
     """Run benchmark for a specific max_books value.
 
@@ -158,6 +156,7 @@ async def run_benchmark(
         iterations: Number of requests to make.
         api_key: API key for authentication.
         concurrency: Number of concurrent requests (1 = sequential).
+        stagger_delay: Seconds between concurrent request launches.
 
     Returns:
         BenchmarkResult with timing metrics.
@@ -192,7 +191,7 @@ async def run_benchmark(
                 elapsed_ms, success = await measure_request(client, url, headers, max_books)
                 return index, elapsed_ms, success
 
-        stagger_ms = CONCURRENT_STAGGER_DELAY * 1000
+        stagger_ms = stagger_delay * 1000
         print(
             f"  Sending {iterations} requests with concurrency={concurrency} "
             f"(stagger={stagger_ms:.0f}ms)..."
@@ -204,8 +203,8 @@ async def run_benchmark(
                 task = asyncio.create_task(bounded_request(client, i))
                 tasks.append(task)
                 if i < iterations - 1:
-                    await asyncio.sleep(CONCURRENT_STAGGER_DELAY)
-            results_list = [await t for t in tasks]
+                    await asyncio.sleep(stagger_delay)
+            results_list = await asyncio.gather(*tasks)
 
         results_list.sort(key=lambda x: x[0])
         for index, elapsed_ms, success in results_list:
@@ -298,7 +297,14 @@ async def main_async(args: argparse.Namespace) -> list[dict]:
     results = []
     for max_books in max_books_values:
         print(f"\nBenchmarking max_books={max_books}...")
-        result = await run_benchmark(env, max_books, iterations, api_key, concurrency=concurrency)
+        result = await run_benchmark(
+            env,
+            max_books,
+            iterations,
+            api_key,
+            concurrency=concurrency,
+            stagger_delay=args.stagger_ms / 1000,
+        )
         results.append(result_to_dict(result))
 
         print(
@@ -334,7 +340,7 @@ Examples:
   python backend/scripts/benchmark_social_circles.py -c 10 --iterations 100
   python backend/scripts/benchmark_social_circles.py --dry-run
   python backend/scripts/benchmark_social_circles.py --dry-run --concurrent 10
-  python backend/scripts/benchmark_social_circles.py --env prod --yes-i-mean-production
+  python backend/scripts/benchmark_social_circles.py --env prod --confirm-production
         """,
     )
     parser.add_argument(
@@ -377,10 +383,17 @@ Examples:
         help="Print benchmark configuration and exit without making requests",
     )
     parser.add_argument(
-        "--yes-i-mean-production",
+        "--confirm-production",
         action="store_true",
-        dest="yes_production",
+        dest="confirm_production",
         help="Skip the production safety confirmation prompt",
+    )
+    parser.add_argument(
+        "--stagger-ms",
+        type=int,
+        default=50,
+        dest="stagger_ms",
+        help="Delay between concurrent request launches in ms (default: 50)",
     )
 
     args = parser.parse_args()
@@ -396,17 +409,37 @@ Examples:
         )
         args.concurrent = 100
 
-    # Production safety check
+    # Resolve config values used in both dry-run and real runs
     base_url = ENVIRONMENTS[args.env]
-    is_production = "api.bluemoxon.com" in base_url and "staging" not in base_url
-    if is_production and not args.yes_production:
+    max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
+    mode_label = f"concurrent (x{args.concurrent})" if args.concurrent > 1 else "sequential"
+    is_production = args.env == "prod"
+
+    # Dry-run: print configuration and exit (before production gate since no requests are made)
+    if args.dry_run:
+        print("DRY RUN - No requests will be made")
+        print("-" * 60)
+        print(f"Environment:    {args.env}{' (PRODUCTION)' if is_production else ''}")
+        print(f"Base URL:       {base_url}")
+        print(f"Endpoint:       {ENDPOINT_PATH}")
+        print(f"Mode:           {mode_label}")
+        if args.concurrent > 1:
+            print(f"Stagger delay:  {args.stagger_ms}ms between launches")
+        print(f"Iterations:     {args.iterations}")
+        print(f"max_books:      {max_books_values}")
+        total_requests = args.iterations * len(max_books_values)
+        print(f"Total requests: {total_requests}")
+        if args.output:
+            print(f"Output file:    {args.output}")
+        print("-" * 60)
+        sys.exit(0)
+
+    # Production safety check (only for real runs, not dry-run)
+    if is_production and not args.confirm_production:
         print("=" * 60)
         print("WARNING: You are targeting PRODUCTION")
         print(f"  URL: {base_url}")
         print("=" * 60)
-        if args.dry_run:
-            print("Aborting: use --yes-i-mean-production to target production.")
-            sys.exit(1)
         try:
             answer = input("Type 'yes' to continue, anything else to abort: ")
         except (EOFError, KeyboardInterrupt):
@@ -415,28 +448,6 @@ Examples:
         if answer.strip().lower() != "yes":
             print("Aborted.")
             sys.exit(1)
-
-    # Dry-run: print configuration and exit
-    max_books_values = args.max_books if args.max_books else DEFAULT_MAX_BOOKS_VALUES
-    mode_label = f"concurrent (x{args.concurrent})" if args.concurrent > 1 else "sequential"
-    if args.dry_run:
-        print("DRY RUN - No requests will be made")
-        print("-" * 60)
-        print(f"Environment:   {args.env}")
-        print(f"Base URL:      {base_url}")
-        print(f"Endpoint:      {ENDPOINT_PATH}")
-        print(f"Mode:          {mode_label}")
-        if args.concurrent > 1:
-            stagger_ms = CONCURRENT_STAGGER_DELAY * 1000
-            print(f"Stagger delay: {stagger_ms:.0f}ms between launches")
-        print(f"Iterations:    {args.iterations}")
-        print(f"max_books:     {max_books_values}")
-        total_requests = args.iterations * len(max_books_values)
-        print(f"Total requests:{total_requests}")
-        if args.output:
-            print(f"Output file:   {args.output}")
-        print("-" * 60)
-        sys.exit(0)
 
     # Run benchmarks
     results = asyncio.run(main_async(args))
