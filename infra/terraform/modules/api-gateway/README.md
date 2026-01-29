@@ -40,7 +40,7 @@ module "api_gateway" {
 | cors_allowed_headers | Allowed headers for CORS | `list(string)` | `["*"]` | no |
 | cors_allowed_methods | Allowed methods for CORS | `list(string)` | `["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]` | no |
 | cors_allowed_origins | Allowed origins for CORS | `list(string)` | `["*"]` | no |
-| cors_expose_headers | Headers to expose in CORS response | `list(string)` | `["x-app-version", "x-environment"]` | no |
+| cors_expose_headers | Headers to expose in CORS response | `list(string)` | `["X-App-Version", "X-Environment", "X-Cold-Start"]` | no |
 | cors_max_age | Max age for CORS preflight cache | `number` | `3600` | no |
 | domain_name | Custom domain name for the API | `string` | `null` | no |
 | lambda_function_name | Lambda function name for permission | `string` | n/a | yes |
