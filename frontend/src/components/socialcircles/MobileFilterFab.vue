@@ -1,13 +1,24 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
+const MAX_BADGE_DISPLAY = 99;
+
 interface Props {
   activeFilterCount?: number;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 defineEmits<{
   (e: "click"): void;
 }>();
+
+const badgeLabel = computed(() => {
+  if (!props.activeFilterCount) return "";
+  return props.activeFilterCount > MAX_BADGE_DISPLAY
+    ? `${MAX_BADGE_DISPLAY}+`
+    : `${props.activeFilterCount}`;
+});
 </script>
 
 <template>
@@ -15,7 +26,7 @@ defineEmits<{
     <svg class="filter-icon" viewBox="0 0 24 24" width="24" height="24">
       <path d="M3 4h18v2H3V4zm3 7h12v2H6v-2zm3 7h6v2H9v-2z" fill="currentColor" />
     </svg>
-    <span v-if="activeFilterCount" class="badge">{{ activeFilterCount }}</span>
+    <span v-if="activeFilterCount" class="badge">{{ badgeLabel }}</span>
   </button>
 </template>
 
