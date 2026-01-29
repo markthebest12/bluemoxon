@@ -3,7 +3,7 @@
  * Provides viewport tracking, panning, and visibility toggle.
  */
 
-import { ref, watch, onUnmounted, type Ref } from "vue";
+import { ref, watch, onUnmounted, type Ref, type ShallowRef } from "vue";
 import type { Core as CytoscapeCore } from "cytoscape";
 
 interface Bounds {
@@ -13,7 +13,7 @@ interface Bounds {
   h: number;
 }
 
-export function useMiniMap(cy: Ref<CytoscapeCore | null>) {
+export function useMiniMap(cy: Ref<CytoscapeCore | null> | ShallowRef<CytoscapeCore | null>) {
   const isVisible = ref(true);
   const viewportBounds = ref<Bounds | null>(null);
   const graphBounds = ref<Bounds | null>(null);
