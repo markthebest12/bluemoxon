@@ -11,7 +11,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Social Circles Layout Switching", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/socialcircles");
+    await page.goto("/social-circles");
     await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
   });
 

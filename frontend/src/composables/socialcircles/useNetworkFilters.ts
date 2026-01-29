@@ -6,6 +6,8 @@ import { ref, computed, readonly } from "vue";
 import type { FilterState, ConnectionType, Era } from "@/types/socialCircles";
 import { DEFAULT_FILTER_STATE } from "@/types/socialCircles";
 
+const ALL_CONNECTION_TYPES: ConnectionType[] = ["publisher", "shared_publisher", "binder"];
+
 export function useNetworkFilters() {
   const filters = ref<FilterState>({ ...DEFAULT_FILTER_STATE });
 
@@ -16,7 +18,7 @@ export function useNetworkFilters() {
       !f.showAuthors ||
       !f.showPublishers ||
       !f.showBinders ||
-      f.connectionTypes.length < 3 ||
+      f.connectionTypes.length < ALL_CONNECTION_TYPES.length ||
       f.tier1Only ||
       f.eras.length > 0 ||
       f.searchQuery !== ""
@@ -29,7 +31,7 @@ export function useNetworkFilters() {
     if (!f.showAuthors) count++;
     if (!f.showPublishers) count++;
     if (!f.showBinders) count++;
-    if (f.connectionTypes.length < 3) count++;
+    if (f.connectionTypes.length < ALL_CONNECTION_TYPES.length) count++;
     if (f.tier1Only) count++;
     if (f.eras.length > 0) count += f.eras.length;
     if (f.searchQuery) count++;

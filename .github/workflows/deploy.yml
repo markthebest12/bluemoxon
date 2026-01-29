@@ -1437,7 +1437,7 @@ jobs:
             echo "::error::Expected version $EXPECTED_VERSION did not respond within 60 seconds"
             exit 1
           else
-            echo "No backend deploy - checking basic API health..."
+            echo "No backend deploy - checking API deep health..."
             for i in {1..20}; do
               if curl -sf "${API_URL}/health/deep" > /dev/null 2>&1; then
                 echo "API ready after $((i * 3)) seconds"
@@ -1825,3 +1825,56 @@ jobs:
 
           git push origin "$VERSION"
           echo "Release tag created: $VERSION"
+
+  # ============================================
+  # Post-Deploy E2E Smoke Tests
+  # ============================================
+  # Runs Playwright smoke suite against the deployed frontend
+  # to verify key routes load correctly with Cognito auth.
+  # Only runs when frontend was actually deployed (skipped otherwise).
+
+  e2e-smoke:
+    name: E2E Smoke (${{ needs.configure.outputs.environment }})
+    needs: [deploy-frontend, configure]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ needs.configure.outputs.environment == 'production' && secrets.AWS_DEPLOY_ROLE_ARN || secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: E2E smoke test
+        working-directory: frontend
+        run: npx playwright test e2e/smoke.spec.ts --project=chromium
+        env:
+          BASE_URL: ${{ needs.configure.outputs.app_url }}
+          COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
+          E2E_SECRET_PREFIX: ${{ needs.configure.outputs.environment == 'production' && 'bluemoxon-prod' || 'bluemoxon-staging' }}
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-smoke-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
