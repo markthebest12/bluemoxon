@@ -6,8 +6,9 @@
  * Active mode is visually highlighted. Tooltips show layout descriptions.
  */
 
-const LAYOUT_MODES = ["force", "circle", "grid", "hierarchical"] as const;
-type LayoutMode = (typeof LAYOUT_MODES)[number];
+import type { LayoutMode } from "@/types/socialCircles";
+
+const LAYOUT_MODES: readonly LayoutMode[] = ["force", "circle", "grid", "hierarchical"];
 
 const LAYOUT_LABELS: Record<LayoutMode, string> = {
   force: "Force",

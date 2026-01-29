@@ -16,7 +16,15 @@ import {
   usePathFinder,
   useFindSimilar,
 } from "@/composables/socialcircles";
-import type { ConnectionType, NodeId, EdgeId, ApiNode, ApiEdge } from "@/types/socialCircles";
+import {
+  DEFAULT_TIMELINE_STATE,
+  type ConnectionType,
+  type NodeId,
+  type EdgeId,
+  type ApiNode,
+  type ApiEdge,
+  type SocialCirclesMeta,
+} from "@/types/socialCircles";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
 // Components
@@ -34,6 +42,8 @@ import NetworkLegend from "@/components/socialcircles/NetworkLegend.vue";
 import ExportMenu from "@/components/socialcircles/ExportMenu.vue";
 import ConnectionTooltip from "@/components/socialcircles/ConnectionTooltip.vue";
 import KeyboardShortcutsModal from "@/components/socialcircles/KeyboardShortcutsModal.vue";
+import SearchInput from "@/components/socialcircles/SearchInput.vue";
+import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 
 // Initialize the main orchestrator composable
@@ -156,6 +166,46 @@ function showToastMessage(message: string) {
 // Keyboard shortcuts modal state
 const showKeyboardShortcuts = ref(false);
 
+// Search state
+const searchQuery = ref("");
+
+// Stats panel collapsed state
+const statsCollapsed = ref(false);
+
+// Handle search result selection - center graph on selected node
+function handleSearchSelect(node: { id: string }) {
+  // Verify node exists in current filtered set before selecting
+  const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
+  if (!nodeExists) {
+    showToastMessage("Node not in current view");
+    return;
+  }
+
+  selectNode(node.id);
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (cy) {
+    const cyNode = cy.getElementById(node.id);
+    if (cyNode.length) {
+      cy.animate({
+        center: { eles: cyNode },
+        zoom: cy.zoom(),
+        duration: 300,
+      });
+    }
+  }
+}
+
+// Handle find similar action from context menu (W2-6)
+function handleFindSimilar(nodeId: NodeId) {
+  const similarNodes = findSimilar.getSimilarNodes(nodeId, 3);
+  if (similarNodes.length > 0) {
+    const names = similarNodes.map((n) => n.name).join(", ");
+    showToastMessage(`Similar: ${names}`);
+  } else {
+    showToastMessage("No similar nodes found");
+  }
+}
+
 // Wire up keyboard shortcuts
 useNetworkKeyboard({
   onZoomIn: () => networkGraphRef.value?.zoomIn(),
@@ -172,6 +222,7 @@ useNetworkKeyboard({
   onHelp: () => {
     showKeyboardShortcuts.value = true;
   },
+  onCycleLayout: () => networkGraphRef.value?.cycleLayout(),
 });
 
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
@@ -332,6 +383,28 @@ const edgesForPanel = computed((): ApiEdge[] => {
   return filteredEdges.value as ApiEdge[];
 });
 
+// Type-cast nodes for SearchInput (avoids readonly/mutable type conflicts)
+const nodesForSearch = computed((): ApiNode[] => {
+  return nodes.value as ApiNode[];
+});
+
+// Type-cast meta for StatsPanel (avoids null type conflict)
+// Uses DEFAULT_TIMELINE_STATE for consistent year defaults
+const metaForStats = computed((): SocialCirclesMeta => {
+  return (meta.value ?? {
+    total_books: 0,
+    total_authors: 0,
+    total_publishers: 0,
+    total_binders: 0,
+    date_range: [DEFAULT_TIMELINE_STATE.minYear, DEFAULT_TIMELINE_STATE.maxYear] as [
+      number,
+      number,
+    ],
+    generated_at: new Date().toISOString(),
+    truncated: false,
+  }) as SocialCirclesMeta;
+});
+
 // Cytoscape elements - computed to avoid re-layout on unrelated re-renders
 const cytoscapeElements = computed(() => getCytoscapeElements());
 
@@ -387,34 +460,6 @@ function handleRetry() {
   initialize().catch(console.error);
 }
 
-// Path finder handlers (W2-5)
-function handleFindPath(startId: string, endId: string) {
-  pathFinder.setStart(startId as NodeId);
-  pathFinder.setEnd(endId as NodeId);
-  pathFinder.findPath();
-}
-
-function handleClearPath() {
-  pathFinder.clear();
-}
-
-// Find similar handler (W2-6)
-function handleFindSimilar(nodeId: string) {
-  findSimilar.findSimilar(nodeId as NodeId);
-  const count = findSimilar.similarNodes.value.length;
-  if (count > 0) {
-    // Show top 3 similar node names in toast
-    const topNames = findSimilar.similarNodes.value
-      .slice(0, 3)
-      .map((s) => s.node.name)
-      .join(", ");
-    const suffix = count > 3 ? ` and ${count - 3} more` : "";
-    showToastMessage(`Similar: ${topNames}${suffix}`);
-  } else {
-    showToastMessage(`No similar nodes found`);
-  }
-}
-
 // Lifecycle
 onMounted(() => {
   initialize().catch(console.error);
@@ -434,6 +479,9 @@ onUnmounted(() => {
         <p class="text-sm text-victorian-ink-muted">
           Explore the connections between authors, publishers, and binders
         </p>
+      </div>
+      <div class="header-center">
+        <SearchInput v-model="searchQuery" :nodes="nodesForSearch" @select="handleSearchSelect" />
       </div>
       <div class="header-right">
         <ExportMenu
@@ -482,13 +530,22 @@ onUnmounted(() => {
           @clear-all="resetFilters"
         />
 
+        <!-- Statistics Panel -->
+        <StatsPanel
+          :nodes="nodesForPanel"
+          :edges="edgesForPanel"
+          :meta="metaForStats"
+          :is-collapsed="statsCollapsed"
+          @toggle="statsCollapsed = !statsCollapsed"
+        />
+
         <!-- Path Finder Panel (W2-5) -->
         <PathFinderPanel
           :nodes="nodesForPanel"
-          :path="pathState.path"
-          :is-calculating="pathState.isCalculating"
-          @find-path="handleFindPath"
-          @clear="handleClearPath"
+          :edges="edgesForPanel"
+          :path-state="pathState"
+          @find-path="pathFinder.findPath"
+          @clear-path="pathFinder.clearPath"
         />
       </aside>
 
@@ -641,6 +698,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.header-center {
+  flex: 1;
+  max-width: 320px;
+  margin: 0 1rem;
 }
 
 .header-right {

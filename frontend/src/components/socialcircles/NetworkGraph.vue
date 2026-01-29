@@ -13,9 +13,12 @@ import type {
   LayoutOptions,
 } from "cytoscape";
 // Cytoscape library is dynamically imported in onMounted for code splitting
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, shallowRef, onMounted, onUnmounted, watch } from "vue";
 import { LAYOUT_CONFIGS } from "@/constants/socialCircles";
+import { useLayoutMode } from "@/composables/socialcircles";
+import LayoutSwitcher from "./LayoutSwitcher.vue";
 import MiniMap from "@/components/socialcircles/MiniMap.vue";
+import type { LayoutMode } from "@/types/socialCircles";
 
 // Props
 interface Props {
@@ -41,12 +44,22 @@ const emit = defineEmits<{
   "node-hover": [nodeId: string | null];
   "edge-hover": [edgeId: string | null, event: MouseEvent | null];
   "viewport-change": [];
+  "layout-change": [mode: LayoutMode];
 }>();
+
+// Handle layout mode change
+function handleLayoutChange(mode: LayoutMode) {
+  setMode(mode);
+  emit("layout-change", mode);
+}
 
 // Refs
 const containerRef = ref<HTMLDivElement | null>(null);
-const cy = ref<Core | null>(null);
+const cy = shallowRef<Core | null>(null);
 const isInitialized = ref(false);
+
+// Layout mode management
+const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
 
 // Victorian stylesheet
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
@@ -280,19 +293,26 @@ defineExpose({
     if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
   },
   getZoom: () => cy.value?.zoom() ?? 1,
+  cycleLayout: cycleMode,
 });
 </script>
 
 <template>
-  <div class="network-graph-wrapper">
+  <div class="network-graph-container">
     <div ref="containerRef" class="network-graph" />
-    <!-- MiniMap overlay (W2-7) -->
+    <div class="network-graph__controls">
+      <LayoutSwitcher
+        :model-value="currentMode"
+        :disabled="isAnimating"
+        @update:model-value="handleLayoutChange"
+      />
+    </div>
     <MiniMap v-if="isInitialized" :cy="cy" class="mini-map-overlay" />
   </div>
 </template>
 
 <style scoped>
-.network-graph-wrapper {
+.network-graph-container {
   position: relative;
   width: 100%;
   height: 100%;
@@ -303,6 +323,13 @@ defineExpose({
   height: 100%;
   min-height: 400px;
   background-color: var(--color-victorian-paper-cream, #f8f5f0);
+}
+
+.network-graph__controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
 }
 
 .mini-map-overlay {

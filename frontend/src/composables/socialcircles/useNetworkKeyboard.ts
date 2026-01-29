@@ -18,6 +18,7 @@ export interface KeyboardHandlers {
   onNextNode?: () => void;
   onPrevNode?: () => void;
   onOpenDetails?: () => void;
+  onCycleLayout?: () => void;
 }
 
 export function useNetworkKeyboard(handlers: KeyboardHandlers) {
@@ -100,6 +101,13 @@ export function useNetworkKeyboard(handlers: KeyboardHandlers) {
     if (matches(shortcuts.help, key) && handlers.onHelp) {
       event.preventDefault();
       handlers.onHelp();
+      return;
+    }
+
+    // Layout cycling
+    if (matches(shortcuts.cycleLayout, key) && handlers.onCycleLayout) {
+      event.preventDefault();
+      handlers.onCycleLayout();
       return;
     }
   }
