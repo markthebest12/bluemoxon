@@ -30,6 +30,7 @@ import {
   type ApiEdge,
   type SocialCirclesMeta,
 } from "@/types/socialCircles";
+import type { Mutable } from "@/types/utils";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
 
 // Components
@@ -265,18 +266,10 @@ useNetworkKeyboard({
   onCycleLayout: () => networkGraphRef.value?.cycleMode(),
 });
 
-// Tooltip state for edge hover - store only the data we need, not the readonly ref
-interface HoveredEdgeData {
-  id: string;
-  source: string;
-  target: string;
-  type: ConnectionType;
-  strength: number;
-  evidence?: string;
-  shared_book_ids?: number[];
-  start_year?: number;
-  end_year?: number;
-}
+// Tooltip state for edge hover
+// Use Mutable<ApiEdge> because edges from the composable are readonly refs,
+// but we need a mutable copy for the tooltip's reactive state
+type HoveredEdgeData = Mutable<ApiEdge>;
 const hoveredEdge = ref<HoveredEdgeData | null>(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 
