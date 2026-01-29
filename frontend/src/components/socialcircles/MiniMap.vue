@@ -7,7 +7,7 @@
  */
 
 import type { Core } from "cytoscape";
-import { ref, watch, onUnmounted, computed } from "vue";
+import { ref, shallowRef, watch, onUnmounted, computed } from "vue";
 
 interface Props {
   cy?: Core | null;
@@ -33,12 +33,12 @@ const graphBounds = ref({ x1: 0, y1: 0, x2: 0, y2: 0, w: 0, h: 0 });
 // Viewport rectangle position (relative to minimap)
 const viewportRect = ref({ x: 0, y: 0, width: 0, height: 0 });
 
-// Track event handlers for cleanup
-let boundHandler: (() => void) | null = null;
-let layoutstopHandler: (() => void) | null = null;
+// Track event handlers for cleanup (shallowRef ensures per-instance state)
+const boundHandler = shallowRef<(() => void) | null>(null);
+const layoutstopHandler = shallowRef<(() => void) | null>(null);
 
-// Track setTimeout for cleanup on unmount
-let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
+// Track setTimeout for cleanup on unmount (shallowRef ensures per-instance state)
+const initTimeoutId = shallowRef<ReturnType<typeof setTimeout> | null>(null);
 
 // Computed style for viewport indicator
 const viewportStyle = computed(() => ({
@@ -203,21 +203,21 @@ function setupEventListeners() {
   cleanupEventListeners();
 
   // Handler for viewport changes
-  boundHandler = () => {
+  boundHandler.value = () => {
     updateViewportRect();
   };
 
   // Handler for layout completion
-  layoutstopHandler = () => {
+  layoutstopHandler.value = () => {
     drawMinimap();
     updateViewportRect();
   };
 
   // Listen to pan, zoom, and resize events
-  cy.on("pan zoom resize", boundHandler);
+  cy.on("pan zoom resize", boundHandler.value);
 
   // Also listen to layout done to update minimap after layout changes
-  cy.on("layoutstop", layoutstopHandler);
+  cy.on("layoutstop", layoutstopHandler.value);
 
   // Initial draw
   drawMinimap();
@@ -229,13 +229,13 @@ function setupEventListeners() {
  */
 function cleanupEventListeners() {
   if (props.cy) {
-    if (boundHandler) {
-      props.cy.off("pan zoom resize", boundHandler);
-      boundHandler = null;
+    if (boundHandler.value) {
+      props.cy.off("pan zoom resize", boundHandler.value);
+      boundHandler.value = null;
     }
-    if (layoutstopHandler) {
-      props.cy.off("layoutstop", layoutstopHandler);
-      layoutstopHandler = null;
+    if (layoutstopHandler.value) {
+      props.cy.off("layoutstop", layoutstopHandler.value);
+      layoutstopHandler.value = null;
     }
   }
 }
@@ -245,15 +245,15 @@ watch(
   () => props.cy,
   (newCy) => {
     // Always clear pending init timeout first to prevent queue buildup on rapid prop changes
-    if (initTimeoutId !== null) {
-      clearTimeout(initTimeoutId);
-      initTimeoutId = null;
+    if (initTimeoutId.value !== null) {
+      clearTimeout(initTimeoutId.value);
+      initTimeoutId.value = null;
     }
 
     if (newCy) {
       // Wait a tick for cytoscape to be fully initialized
-      initTimeoutId = setTimeout(() => {
-        initTimeoutId = null;
+      initTimeoutId.value = setTimeout(() => {
+        initTimeoutId.value = null;
         setupEventListeners();
       }, 100);
     } else {
@@ -266,9 +266,9 @@ watch(
 // Cleanup on unmount
 onUnmounted(() => {
   // Clear pending init timeout
-  if (initTimeoutId !== null) {
-    clearTimeout(initTimeoutId);
-    initTimeoutId = null;
+  if (initTimeoutId.value !== null) {
+    clearTimeout(initTimeoutId.value);
+    initTimeoutId.value = null;
   }
   cleanupEventListeners();
 });
