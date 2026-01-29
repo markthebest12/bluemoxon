@@ -70,6 +70,12 @@ const { currentMode, isAnimating, setMode, cycleMode } = useLayoutMode(cy);
 // Victorian stylesheet
 // Note: Cytoscape's types don't properly support "data(...)" dynamic values,
 // so we cast the stylesheet to the expected type
+//
+// nodeSize values are pre-clamped by calculateNodeSize() in constants/socialCircles.ts.
+// Each node type has a base size (20-25px) scaled by sqrt(bookCount) with a per-type max
+// (55-65px). Input bookCount values outside [0, ~64] are effectively clamped to the
+// output range since the function uses Math.min with the configured max. This is the
+// JavaScript equivalent of Cytoscape's mapData(nodeSize, 20, 40, 44, 60) clamping.
 function getCytoscapeStylesheet(): StylesheetStyle[] {
   return [
     {
@@ -310,7 +316,7 @@ defineExpose({
     if (cy.value) cy.value.zoom(cy.value.zoom() / 1.2);
   },
   getZoom: () => cy.value?.zoom() ?? 1,
-  cycleLayout: cycleMode,
+  cycleMode,
 });
 </script>
 

@@ -261,7 +261,7 @@ useNetworkKeyboard({
   onHelp: () => {
     showKeyboardShortcuts.value = true;
   },
-  onCycleLayout: () => networkGraphRef.value?.cycleLayout(),
+  onCycleLayout: () => networkGraphRef.value?.cycleMode(),
 });
 
 // Tooltip state for edge hover - store only the data we need, not the readonly ref
