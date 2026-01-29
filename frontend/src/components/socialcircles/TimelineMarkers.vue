@@ -91,10 +91,11 @@ function handleMouseLeave() {
 
 <style scoped>
 .timeline-markers {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   height: 32px;
-  margin-top: 0.25rem;
 }
 
 .timeline-markers__marker {
@@ -110,6 +111,7 @@ function handleMouseLeave() {
   width: 2px;
   height: 12px;
   border-radius: 1px;
+  transition: height 150ms ease;
 }
 
 .timeline-markers__year {
