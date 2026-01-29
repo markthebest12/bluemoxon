@@ -19,7 +19,7 @@ import { VICTORIAN_EVENTS } from "@/constants/socialCircles";
 interface Props {
   minYear: number;
   maxYear: number;
-  events?: HistoricalEvent[];
+  events?: readonly HistoricalEvent[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,11 +41,15 @@ function getPositionPercent(year: number): number {
   return ((year - props.minYear) / range) * 100;
 }
 
+// Tooltip alignment thresholds (percentage of timeline width)
+const TOOLTIP_EDGE_THRESHOLD_LEFT = 15;
+const TOOLTIP_EDGE_THRESHOLD_RIGHT = 85;
+
 // Determine tooltip alignment class based on marker position
 function getTooltipAlignClass(year: number): string {
   const percent = getPositionPercent(year);
-  if (percent < 15) return "timeline-markers__tooltip--align-left";
-  if (percent > 85) return "timeline-markers__tooltip--align-right";
+  if (percent < TOOLTIP_EDGE_THRESHOLD_LEFT) return "timeline-markers__tooltip--align-left";
+  if (percent > TOOLTIP_EDGE_THRESHOLD_RIGHT) return "timeline-markers__tooltip--align-right";
   return "";
 }
 
@@ -57,6 +61,11 @@ function getEventTypeClass(type: HistoricalEvent["type"]): string {
 // Build aria-label for a marker
 function getAriaLabel(event: HistoricalEvent): string {
   return `${event.year}: ${event.label} (${event.type})`;
+}
+
+// Generate unique tooltip ID for aria-describedby linkage
+function getTooltipId(event: HistoricalEvent): string {
+  return `tooltip-${event.year}-${event.type}`;
 }
 
 function handleMouseEnter(event: HistoricalEvent) {
@@ -78,12 +87,9 @@ function handleBlur() {
 function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    // Toggle tooltip on Enter/Space
-    if (hoveredEvent.value === event) {
-      hoveredEvent.value = null;
-    } else {
-      hoveredEvent.value = event;
-    }
+    hoveredEvent.value = event;
+  } else if (e.key === "Escape") {
+    hoveredEvent.value = null;
   }
 }
 </script>
@@ -98,6 +104,7 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
       :style="{ left: `${getPositionPercent(event.year)}%` }"
       role="listitem"
       :aria-label="getAriaLabel(event)"
+      :aria-describedby="hoveredEvent === event ? getTooltipId(event) : undefined"
       tabindex="0"
       @mouseenter="handleMouseEnter(event)"
       @mouseleave="handleMouseLeave"
@@ -112,6 +119,7 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
       <Transition name="marker-tooltip-fade">
         <div
           v-if="hoveredEvent === event"
+          :id="getTooltipId(event)"
           class="timeline-markers__tooltip"
           :class="getTooltipAlignClass(event.year)"
           role="tooltip"
@@ -143,7 +151,29 @@ function handleKeydown(e: KeyboardEvent, event: HistoricalEvent) {
   outline: none;
 }
 
-/* Focus styles for keyboard navigation */
+/* Focus styles for keyboard navigation - fallback for browsers without :focus-visible */
+.timeline-markers__marker:focus .timeline-markers__line {
+  height: 16px;
+  outline: 2px solid var(--color-victorian-hunter-600, #2f5a4b);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.timeline-markers__marker:focus .timeline-markers__year {
+  font-weight: 600;
+}
+
+/* Override for browsers supporting :focus-visible (hides focus ring on click) */
+.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__line {
+  outline: none;
+  height: 12px;
+}
+
+.timeline-markers__marker:focus:not(:focus-visible) .timeline-markers__year {
+  font-weight: normal;
+}
+
+/* Enhanced styles when focus-visible is supported */
 .timeline-markers__marker:focus-visible .timeline-markers__line {
   height: 16px;
   outline: 2px solid var(--color-victorian-hunter-600, #2f5a4b);

@@ -234,7 +234,7 @@ describe("TimelineMarkers - tooltip rendering", () => {
     expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
   });
 
-  it("toggles tooltip on Enter key", async () => {
+  it("shows tooltip on Enter key (does not toggle off)", async () => {
     const wrapper = mountMarkers({
       minYear: 1800,
       maxYear: 1900,
@@ -244,10 +244,10 @@ describe("TimelineMarkers - tooltip rendering", () => {
     await marker.trigger("keydown", { key: "Enter" });
     expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
     await marker.trigger("keydown", { key: "Enter" });
-    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
   });
 
-  it("toggles tooltip on Space key", async () => {
+  it("shows tooltip on Space key (does not toggle off)", async () => {
     const wrapper = mountMarkers({
       minYear: 1800,
       maxYear: 1900,
@@ -257,6 +257,19 @@ describe("TimelineMarkers - tooltip rendering", () => {
     await marker.trigger("keydown", { key: " " });
     expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
     await marker.trigger("keydown", { key: " " });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+  });
+
+  it("dismisses tooltip on Escape key", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Escape Event", type: "literary" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("keydown", { key: "Enter" });
+    expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(true);
+    await marker.trigger("keydown", { key: "Escape" });
     expect(wrapper.find(".timeline-markers__tooltip").exists()).toBe(false);
   });
 });
@@ -373,6 +386,29 @@ describe("TimelineMarkers - accessibility", () => {
     });
     const container = wrapper.find(".timeline-markers");
     expect(container.attributes("aria-label")).toBe("Historical timeline events");
+  });
+
+  it("marker has aria-describedby pointing to tooltip when tooltip is visible", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Described Event", type: "political" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    await marker.trigger("mouseenter");
+    expect(marker.attributes("aria-describedby")).toBe("tooltip-1850-political");
+    const tooltip = wrapper.find(".timeline-markers__tooltip");
+    expect(tooltip.attributes("id")).toBe("tooltip-1850-political");
+  });
+
+  it("marker does not have aria-describedby when tooltip is hidden", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [{ year: 1850, label: "Hidden Tooltip", type: "cultural" }],
+    });
+    const marker = wrapper.find(".timeline-markers__marker");
+    expect(marker.attributes("aria-describedby")).toBeUndefined();
   });
 });
 

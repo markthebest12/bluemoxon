@@ -18,12 +18,12 @@ import type {
 // =============================================================================
 
 /** Default historical events displayed on the timeline */
-export const VICTORIAN_EVENTS: HistoricalEvent[] = [
+export const VICTORIAN_EVENTS: readonly HistoricalEvent[] = Object.freeze([
   { year: 1837, label: "Victoria's Coronation", type: "political" },
   { year: 1851, label: "Great Exhibition", type: "cultural" },
   { year: 1859, label: "Origin of Species", type: "literary" },
   { year: 1901, label: "Victoria Dies", type: "political" },
-];
+] as const);
 
 // =============================================================================
 // Connection Types
