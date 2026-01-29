@@ -6,7 +6,7 @@
  * Closes on Esc key or backdrop click.
  */
 
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { ref, watch, onUnmounted } from "vue";
 import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
 
 interface Props {
@@ -50,16 +50,14 @@ watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
+      window.addEventListener("keydown", handleKeydown);
       activate();
     } else {
+      window.removeEventListener("keydown", handleKeydown);
       deactivate();
     }
   }
 );
-
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
