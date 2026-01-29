@@ -9,7 +9,6 @@ import { onClickOutside } from "@vueuse/core";
 const menuRef = shallowRef<HTMLElement | null>(null);
 const isOpen = ref(false);
 
-// Close menu when clicking outside
 onClickOutside(menuRef, () => {
   isOpen.value = false;
 });

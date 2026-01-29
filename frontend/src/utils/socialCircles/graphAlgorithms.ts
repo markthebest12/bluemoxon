@@ -30,8 +30,8 @@ export function buildAdjacencyList(edges: ApiEdge[]): Map<NodeId, Set<NodeId>> {
 }
 
 /**
- * Find shortest path between two nodes using BFS with parent-pointer reconstruction.
- * Uses O(n) parent map instead of O(n^2) path-copying per queue entry.
+ * Find shortest path between two nodes using BFS with parent pointers.
+ * Uses O(n) memory via parent-pointer reconstruction instead of O(n^2) path copying.
  * Returns the path as array of node IDs, or null if no path exists.
  *
  * Uses parent pointer approach for O(n) memory instead of O(n²) from path copying.
