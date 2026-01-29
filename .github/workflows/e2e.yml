@@ -1,0 +1,229 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [staging, main]
+    paths:
+      - "frontend/src/**"
+      - "frontend/e2e/**"
+      - "frontend/playwright.config.ts"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  BASE_URL: https://staging.app.bluemoxon.com
+  NODE_VERSION: "20"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      socialcircles: ${{ steps.filter.outputs.socialcircles }}
+      books: ${{ steps.filter.outputs.books }}
+      auth: ${{ steps.filter.outputs.auth }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      admin: ${{ steps.filter.outputs.admin }}
+      profile: ${{ steps.filter.outputs.profile }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            socialcircles:
+              - 'frontend/src/components/socialcircles/**'
+              - 'frontend/src/views/SocialCirclesView.vue'
+              - 'frontend/e2e/socialcircles-*.spec.ts'
+            books:
+              - 'frontend/src/views/Books*.vue'
+              - 'frontend/src/views/BookCreate*.vue'
+              - 'frontend/src/views/BookEdit*.vue'
+              - 'frontend/src/views/BookDetail*.vue'
+              - 'frontend/src/components/book-detail/**'
+              - 'frontend/src/components/books/**'
+              - 'frontend/e2e/books.spec.ts'
+            auth:
+              - 'frontend/src/stores/auth.*'
+              - 'frontend/src/router/**'
+              - 'frontend/src/views/LoginView.vue'
+              - 'frontend/e2e/auth.spec.ts'
+            dashboard:
+              - 'frontend/src/views/HomeView.vue'
+              - 'frontend/src/components/dashboard/**'
+              - 'frontend/e2e/home.spec.ts'
+            admin:
+              - 'frontend/src/views/Admin*.vue'
+              - 'frontend/src/components/admin/**'
+              - 'frontend/e2e/admin.spec.ts'
+            profile:
+              - 'frontend/src/views/ProfileView.vue'
+              - 'frontend/e2e/profile.spec.ts'
+
+  smoke:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright browsers
+        run: cd frontend && npx playwright install --with-deps chromium webkit
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Run smoke tests
+        run: cd frontend && npx playwright test e2e/smoke.spec.ts
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+
+  social-circles:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.socialcircles == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium webkit
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run social circles tests
+        run: cd frontend && npx playwright test e2e/socialcircles-*.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-circles-test-results
+          path: frontend/test-results/
+
+  books:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.books == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium webkit
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run books tests
+        run: cd frontend && npx playwright test e2e/books.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: books-test-results
+          path: frontend/test-results/
+
+  auth:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium webkit
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run auth tests
+        run: cd frontend && npx playwright test e2e/auth.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-test-results
+          path: frontend/test-results/
+
+  dashboard:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium webkit
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run dashboard tests
+        run: cd frontend && npx playwright test e2e/home.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-results
+          path: frontend/test-results/
+
+  performance:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run performance tests (relaxed budgets)
+        run: cd frontend && E2E_RELAXED_BUDGETS=true npx playwright test e2e/performance.spec.ts --project=chromium
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: frontend/test-results/
