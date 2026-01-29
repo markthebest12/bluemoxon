@@ -57,6 +57,8 @@ test.describe("Social Circles Layout Switching", () => {
     expect(buttonCount).toBeGreaterThanOrEqual(2);
 
     // Find the current active button
+    // Note: Using CSS class selector for active state is intentional - we're testing
+    // that the component applies the correct class, not just finding a specific button
     const activeButton = layoutSwitcher.locator(".layout-switcher__btn--active");
     const initialActiveText = await activeButton.textContent();
 
@@ -112,10 +114,12 @@ test.describe("Social Circles Layout Switching", () => {
     const nonActiveCount = await nonActiveButton.count();
     expect(nonActiveCount).toBeGreaterThan(0);
 
-    await nonActiveButton.first().click();
+    // Cache button reference before clicking to avoid stale element
+    const btnToClick = nonActiveButton.first();
+    await btnToClick.click();
 
     // Wait for the clicked button to become active
-    await expect(nonActiveButton.first()).toHaveClass(/layout-switcher__btn--active/);
+    await expect(btnToClick).toHaveClass(/layout-switcher__btn--active/);
 
     // Graph should still be visible after layout change
     await expect(page.getByTestId("network-graph")).toBeVisible();

@@ -19,7 +19,7 @@ async function expandStatsPanel(statsPanel: Locator): Promise<void> {
   );
   if (isCollapsed) {
     await statsPanel.getByTestId("stats-toggle").click();
-    await expect(statsPanel.getByTestId("stats-content")).toBeVisible();
+    await expect(statsPanel.getByTestId("stats-content")).toBeVisible({ timeout: 3000 });
   }
 }
 
@@ -32,7 +32,7 @@ async function collapseStatsPanel(statsPanel: Locator): Promise<void> {
   );
   if (!isCollapsed) {
     await statsPanel.getByTestId("stats-toggle").click();
-    await expect(statsPanel.getByTestId("stats-content")).not.toBeVisible();
+    await expect(statsPanel.getByTestId("stats-content")).not.toBeVisible({ timeout: 3000 });
   }
 }
 
@@ -159,7 +159,8 @@ test.describe("Social Circles Statistics Panel", () => {
     test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
     const toggleIcon = statsPanel.getByTestId("stats-toggle-icon");
-    test.skip(!(await toggleIcon.isVisible()), "Toggle icon not rendered");
+    // If toggle icon isn't visible, test should fail (testing toggle behavior)
+    await expect(toggleIcon).toBeVisible();
 
     const isCollapsed = await statsPanel.evaluate((el) =>
       el.classList.contains("stats-panel--collapsed")
@@ -205,8 +206,12 @@ test.describe("Social Circles Statistics Panel", () => {
     await expect(publishersCheckbox).toBeVisible();
     await publishersCheckbox.click({ force: true });
 
-    // Wait for stats to update by checking grid content changes
-    await expect(statsGrid).not.toHaveText(initialStatsText || "");
+    // Wait for stats to update by polling for new content (#1451 race condition fix)
+    await expect(async () => {
+      const currentStatsText = await statsGrid.textContent();
+      expect(currentStatsText).not.toBe(initialStatsText);
+      expect(currentStatsText).toBeTruthy();
+    }).toPass({ timeout: 5000 });
 
     // Verify stats content changed after filter (#1451)
     const updatedStatsText = await statsGrid.textContent();

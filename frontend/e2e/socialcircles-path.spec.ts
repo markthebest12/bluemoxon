@@ -271,7 +271,7 @@ test.describe("Social Circles Path Finder", () => {
     if (badgeCount > 0) {
       const badge = badges.first();
       const testId = await badge.getAttribute("data-testid");
-      expect(testId).toMatch(/pathfinder-node-badge--(author|publisher|binder)/);
+      expect(testId).toMatch(/pathfinder-node-badge-(author|publisher|binder)/);
     }
   });
 });
