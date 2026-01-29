@@ -24,10 +24,12 @@ interface Props {
   nodes: ApiNode[];
   modelValue: string;
   placeholder?: string;
+  id?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: "Search people...",
+  id: "search-people",
 });
 
 const emit = defineEmits<{
@@ -247,12 +249,12 @@ function isActiveItem(node: ApiNode): boolean {
         />
       </svg>
       <input
-        id="search-people"
+        :id="id"
         type="text"
-        name="search-people"
         class="search-input__field"
         :value="localQuery"
         :placeholder="placeholder"
+        aria-label="Search people"
         autocomplete="off"
         @input="handleInput"
         @keydown="handleKeydown"
