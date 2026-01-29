@@ -571,3 +571,164 @@ describe("TimelineMarkers - default events", () => {
     );
   });
 });
+
+// =============================================================================
+// Year Label Overlap Prevention
+// =============================================================================
+
+describe("TimelineMarkers - year label overlap prevention", () => {
+  it("shows all year labels when markers are well-spaced", () => {
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [
+        { year: 1810, label: "Event A", type: "political" },
+        { year: 1850, label: "Event B", type: "cultural" },
+        { year: 1890, label: "Event C", type: "literary" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(3);
+  });
+
+  it("hides some year labels when markers cluster together on wide range", () => {
+    // Range 1265-1967 = 702 years. Events at 1837,1851,1859 are:
+    // 1837: (1837-1265)/702 = 81.48%
+    // 1851: (1851-1265)/702 = 83.48%
+    // 1859: (1859-1265)/702 = 84.62%
+    // Spacing: 1837->1851 is ~2%, 1851->1859 is ~1.14% -- both under 4%
+    const wrapper = mountMarkers({
+      minYear: 1265,
+      maxYear: 1967,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+        { year: 1859, label: "Origin of Species", type: "literary" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    // Only the first label (1837) should show; 1851 and 1859 are too close
+    expect(yearLabels).toHaveLength(1);
+    expect(yearLabels[0].text()).toBe("1837");
+  });
+
+  it("still renders all marker lines even when labels are hidden", () => {
+    const wrapper = mountMarkers({
+      minYear: 1265,
+      maxYear: 1967,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+        { year: 1859, label: "Origin of Species", type: "literary" },
+      ],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    const lines = wrapper.findAll(".timeline-markers__line");
+    expect(markers).toHaveLength(3);
+    expect(lines).toHaveLength(3);
+  });
+
+  it("reveals hidden year label on hover", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1265,
+      maxYear: 1967,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+      ],
+    });
+    // Initially, only 1837 label shows (1851 is within 4% so hidden)
+    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+
+    // Hover the second marker (1851) to reveal its label
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    await markers[1].trigger("mouseenter");
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(2);
+    expect(yearLabels[1].text()).toBe("1851");
+  });
+
+  it("reveals hidden year label on focus", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1265,
+      maxYear: 1967,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+      ],
+    });
+    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+
+    const markers = wrapper.findAll(".timeline-markers__marker");
+    await markers[1].trigger("focus");
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(2);
+  });
+
+  it("shows all labels on narrow range where spacing exceeds threshold", () => {
+    // Range 1837-1901 = 64 years. Events at 1837,1851,1859,1901:
+    // 1837: 0%, 1851: 21.87%, 1859: 34.37%, 1901: 100%
+    // All spacings exceed 4%
+    const wrapper = mountMarkers({
+      minYear: 1837,
+      maxYear: 1901,
+      events: testEvents,
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(4);
+  });
+
+  it("shows first label even when all events are clustered", () => {
+    // All 3 events within ~1% of each other on a 1000-year range
+    const wrapper = mountMarkers({
+      minYear: 1000,
+      maxYear: 2000,
+      events: [
+        { year: 1850, label: "Event A", type: "political" },
+        { year: 1851, label: "Event B", type: "cultural" },
+        { year: 1852, label: "Event C", type: "literary" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(1);
+    expect(yearLabels[0].text()).toBe("1850");
+  });
+
+  it("preserves marker order by year (sorted left-to-right)", () => {
+    // Pass events out of order to verify sorting
+    const wrapper = mountMarkers({
+      minYear: 1800,
+      maxYear: 1900,
+      events: [
+        { year: 1870, label: "Middle", type: "cultural" },
+        { year: 1810, label: "Start", type: "political" },
+        { year: 1890, label: "End", type: "literary" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(3);
+    expect(yearLabels[0].text()).toBe("1810");
+    expect(yearLabels[1].text()).toBe("1870");
+    expect(yearLabels[2].text()).toBe("1890");
+  });
+
+  it("hides year label on click toggle for hidden-label marker", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1265,
+      maxYear: 1967,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+      ],
+    });
+    const markers = wrapper.findAll(".timeline-markers__marker");
+
+    // Click to show
+    await markers[1].trigger("click");
+    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(2);
+
+    // Click again to dismiss
+    await markers[1].trigger("click");
+    expect(wrapper.findAll(".timeline-markers__year")).toHaveLength(1);
+  });
+});
