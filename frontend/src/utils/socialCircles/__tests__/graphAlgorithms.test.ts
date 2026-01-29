@@ -149,10 +149,7 @@ describe("buildAdjacencyList", () => {
   });
 
   it("deduplicates when duplicate edges are provided", () => {
-    const edges = [
-      createTestEdge("author:1", "author:2"),
-      createTestEdge("author:1", "author:2"),
-    ];
+    const edges = [createTestEdge("author:1", "author:2"), createTestEdge("author:1", "author:2")];
     const adjacency = buildAdjacencyList(edges);
 
     // Sets prevent duplicates, so each neighbor set has size 1
@@ -176,10 +173,7 @@ describe("buildAdjacencyList", () => {
   // Self-loops cannot be produced by the backend (which uses itertools.combinations),
   // but the frontend should handle them gracefully as defensive programming.
   it("handles self-loop edge (node connected to itself)", () => {
-    const edges = [
-      createTestEdge("author:1", "author:1"),
-      createTestEdge("author:1", "author:2"),
-    ];
+    const edges = [createTestEdge("author:1", "author:1"), createTestEdge("author:1", "author:2")];
     const adjacency = buildAdjacencyList(edges);
 
     // Self-loop means the node appears in its own neighbor set
