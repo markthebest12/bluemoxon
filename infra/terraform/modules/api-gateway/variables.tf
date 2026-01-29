@@ -36,7 +36,7 @@ variable "cors_allowed_origins" {
 variable "cors_expose_headers" {
   type        = list(string)
   description = "Headers to expose in CORS response"
-  default     = ["x-app-version", "x-environment"]
+  default     = ["x-app-version", "x-cold-start", "x-environment"]
 }
 
 variable "cors_max_age" {
