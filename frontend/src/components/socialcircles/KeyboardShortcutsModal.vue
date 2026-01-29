@@ -7,7 +7,7 @@
  */
 
 import { ref, watch, onUnmounted } from "vue";
-import { useFocusTrap } from "@vueuse/integrations/useFocusTrap";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 
 interface Props {
   isOpen: boolean;
@@ -31,7 +31,8 @@ const SHORTCUTS = [
 ] as const;
 
 const modalRef = ref<HTMLElement | null>(null);
-const { activate, deactivate } = useFocusTrap(modalRef, { immediate: false });
+// Local composable never auto-activates (no `immediate` option) — call activate() explicitly
+const { activate, deactivate } = useFocusTrap(modalRef);
 
 function handleBackdropClick(event: MouseEvent) {
   if (event.target === event.currentTarget) {
@@ -61,7 +62,6 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
-  deactivate();
 });
 </script>
 
