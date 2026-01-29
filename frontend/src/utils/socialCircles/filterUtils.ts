@@ -15,12 +15,12 @@ export const MAX_FILTER_RESULTS = 20;
 export function filterNodesByQuery(nodes: ApiNode[], query: string): ApiNode[] {
   if (!query) return nodes.slice(0, MAX_FILTER_RESULTS);
 
-  const normalised = query.toLowerCase().trim();
+  const normalised = query.trim().toLowerCase();
   if (!normalised) return nodes.slice(0, MAX_FILTER_RESULTS);
 
   const results: ApiNode[] = [];
   for (const n of nodes) {
-    if (n.name.toLowerCase().includes(normalised)) {
+    if (n.name?.toLowerCase().includes(normalised)) {
       results.push(n);
       if (results.length >= MAX_FILTER_RESULTS) break;
     }

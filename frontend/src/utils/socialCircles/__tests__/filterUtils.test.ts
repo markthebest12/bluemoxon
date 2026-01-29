@@ -109,4 +109,20 @@ describe("filterNodesByQuery", () => {
     expect(result).toHaveLength(MAX_FILTER_RESULTS);
     expect(result[0].name).toBe("Author 1");
   });
+
+  it("does not crash when a node has null or undefined name", () => {
+    const nodes = [
+      makeNode(1, "Charles Dickens"),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { ...makeNode(2, "placeholder"), name: null as any },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { ...makeNode(3, "placeholder"), name: undefined as any },
+      makeNode(4, "Jane Austen"),
+    ];
+
+    const result = filterNodesByQuery(nodes, "charles");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("Charles Dickens");
+  });
 });
