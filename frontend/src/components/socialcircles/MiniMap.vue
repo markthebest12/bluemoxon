@@ -180,10 +180,7 @@ function handleMinimapClick(event: MouseEvent) {
   const graphX = (clickX - offsetX) / scale + graphBounds.value.x1;
   const graphY = (clickY - offsetY) / scale + graphBounds.value.y1;
 
-  // Center the view on the clicked point
-  cy.center({ eles: cy.nodes(), x: graphX, y: graphY } as unknown as undefined);
-
-  // Alternative: pan to position (keeps zoom level)
+  // Pan to position (keeps zoom level)
   const currentZoom = cy.zoom();
   const containerWidth = cy.container()?.clientWidth || 0;
   const containerHeight = cy.container()?.clientHeight || 0;
@@ -301,9 +298,7 @@ function toggleVisibility() {
 
 <style scoped>
 .minimap {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
+  /* Position controlled by parent container via .mini-map-overlay class */
   background: var(--color-victorian-paper-white, #fdfcfa);
   border: 1px solid var(--color-victorian-paper-aged, #e8e1d5);
   border-radius: 4px;

@@ -224,6 +224,14 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
   height: 100%;
 }
 
+/* When used in mobile BottomSheet, remove fixed width and border */
+.filter-panel:where(.mobile-filter-panel) {
+  width: 100%;
+  border-right: none;
+  background: transparent;
+  height: auto;
+}
+
 .filter-panel__header {
   display: flex;
   justify-content: space-between;

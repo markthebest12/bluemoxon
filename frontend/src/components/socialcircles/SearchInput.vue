@@ -107,6 +107,9 @@ const filteredNodes = computed<ApiNode[]>(() => {
   const query = debouncedQuery.value.trim().toLowerCase();
   if (!query) return [];
 
+  // Note: Slice is applied BEFORE grouping to limit total results.
+  // This may result in uneven group representation (e.g., 8 authors, 2 publishers).
+  // Trade-off: Predictable total count vs. balanced group representation.
   return props.nodes
     .filter((node) => node.name.toLowerCase().includes(query))
     .slice(0, MAX_RESULTS);
