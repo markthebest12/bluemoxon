@@ -175,6 +175,10 @@ const showKeyboardShortcuts = ref(false);
 
 // Search state
 const searchQuery = ref("");
+// Tracks the latest typed text before a search selection. Due to SearchInput's
+// 300ms debounce, the dropdown may show results for an older query if the user
+// types fast and clicks a result before the debounce fires. In that case this
+// ref holds the most recent typed text, which is arguably the user's intent.
 const preSelectSearchQuery = ref("");
 
 // Stats panel collapsed state
@@ -190,9 +194,13 @@ function handleSearchQueryUpdate(value: string) {
 function handleSearchSelect(node: { id: string }) {
   // Capture the pre-selection search query before selectNode triggers a v-model update
   const query = preSelectSearchQuery.value.trim().toLowerCase();
-  const resultCount = query
+  // Cap at 10 to match the SearchInput dropdown's MAX_RESULTS limit.
+  // The user only ever sees up to 10 results, so analytics should reflect that.
+  const SEARCH_DISPLAY_LIMIT = 10;
+  const totalMatches = query
     ? nodes.value.filter((n) => n.name.toLowerCase().includes(query)).length
     : 0;
+  const resultCount = Math.min(totalMatches, SEARCH_DISPLAY_LIMIT);
 
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
@@ -515,8 +523,16 @@ function handleFilterReset() {
 
 // Handle individual filter removal - removes filter and tracks analytics
 function handleFilterRemove(key: string) {
+  // Capture the previous value before removal for analytics context
+  const previousValue = filterState.value[key as keyof FilterState] ?? null;
   removeFilter(key);
-  analytics.trackFilterChange(key, null);
+  analytics.trackFilterChange(key, { removed: previousValue });
+}
+
+// Handle mobile filter reset - resets filters with analytics tracking AND closes the bottom sheet
+function handleMobileFilterReset() {
+  handleFilterReset();
+  closeFilters();
 }
 
 // Handle layout mode changes from NetworkGraph
@@ -788,7 +804,7 @@ onUnmounted(() => {
           :nodes="nodesForSearch"
           class="mobile-filter-panel"
           @update:filter="handleFilterChange"
-          @reset="closeFilters"
+          @reset="handleMobileFilterReset"
         />
       </BottomSheet>
     </div>

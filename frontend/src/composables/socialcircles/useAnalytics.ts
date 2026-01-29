@@ -25,9 +25,11 @@ export type ExportFormat = "png" | "json" | "url";
 
 let _instance: ReturnType<typeof _createAnalytics> | null = null;
 
-/** Reset singleton for testing. Not intended for production use. */
+/** Reset singleton for testing. Guarded to only run in test mode. */
 export function _resetAnalyticsForTesting(): void {
-  _instance = null;
+  if (import.meta.env.MODE === "test") {
+    _instance = null;
+  }
 }
 
 // =============================================================================
