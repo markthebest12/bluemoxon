@@ -15,7 +15,7 @@
 import { ref, computed, watch } from "vue";
 
 import type { ApiNode, NodeId } from "@/types/socialCircles";
-import { filterNodesByQuery } from "@/utils/socialCircles/filterUtils";
+import { filterNodesByQuery, MAX_FILTER_RESULTS } from "@/utils/socialCircles/filterUtils";
 
 interface Props {
   nodes: ApiNode[];
@@ -46,6 +46,10 @@ const showEndDropdown = ref(false);
 const filteredStartNodes = computed(() => filterNodesByQuery(props.nodes, startSearchQuery.value));
 
 const filteredEndNodes = computed(() => filterNodesByQuery(props.nodes, endSearchQuery.value));
+
+// Computed: Whether filtered results are truncated at the limit
+const startResultsTruncated = computed(() => filteredStartNodes.value.length >= MAX_FILTER_RESULTS);
+const endResultsTruncated = computed(() => filteredEndNodes.value.length >= MAX_FILTER_RESULTS);
 
 // Get selected node objects
 const startNode = computed(() => {
@@ -128,26 +132,23 @@ function handleEndInputFocus() {
   showEndDropdown.value = true;
 }
 
-function handleStartInputBlur(event: FocusEvent) {
-  // Check if focus moved to an element within the dropdown
+/** Returns true when the blur target is still inside the input wrapper. */
+function isBlurWithinWrapper(event: FocusEvent): boolean {
   const relatedTarget = event.relatedTarget as HTMLElement | null;
   const wrapper = (event.target as HTMLElement)?.closest(".pathfinder-panel__input-wrapper");
-  if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
-    // Focus moved within wrapper (e.g., to dropdown item), keep open
-    return;
+  return Boolean(wrapper && relatedTarget && wrapper.contains(relatedTarget));
+}
+
+function handleStartInputBlur(event: FocusEvent) {
+  if (!isBlurWithinWrapper(event)) {
+    showStartDropdown.value = false;
   }
-  showStartDropdown.value = false;
 }
 
 function handleEndInputBlur(event: FocusEvent) {
-  // Check if focus moved to an element within the dropdown
-  const relatedTarget = event.relatedTarget as HTMLElement | null;
-  const wrapper = (event.target as HTMLElement)?.closest(".pathfinder-panel__input-wrapper");
-  if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
-    // Focus moved within wrapper (e.g., to dropdown item), keep open
-    return;
+  if (!isBlurWithinWrapper(event)) {
+    showEndDropdown.value = false;
   }
-  showEndDropdown.value = false;
 }
 
 // Clear selection when search query changes (user is typing new search)
@@ -216,6 +217,9 @@ function getNodeTypeIcon(type: string): string {
                 </span>
                 <span class="pathfinder-panel__node-name">{{ node.name }}</span>
               </li>
+              <li v-if="startResultsTruncated" class="pathfinder-panel__dropdown-hint">
+                {{ MAX_FILTER_RESULTS }}+ results — refine your search
+              </li>
             </ul>
           </Transition>
         </div>
@@ -258,6 +262,9 @@ function getNodeTypeIcon(type: string): string {
                   {{ getNodeTypeIcon(node.type) }}
                 </span>
                 <span class="pathfinder-panel__node-name">{{ node.name }}</span>
+              </li>
+              <li v-if="endResultsTruncated" class="pathfinder-panel__dropdown-hint">
+                {{ MAX_FILTER_RESULTS }}+ results — refine your search
               </li>
             </ul>
           </Transition>
@@ -428,6 +435,15 @@ function getNodeTypeIcon(type: string): string {
 .pathfinder-panel__dropdown-item--disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.pathfinder-panel__dropdown-hint {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-victorian-ink-muted, #5c5c58);
+  text-align: center;
+  border-top: 1px solid var(--color-victorian-paper-aged, #e8e1d5);
 }
 
 .pathfinder-panel__node-badge {
