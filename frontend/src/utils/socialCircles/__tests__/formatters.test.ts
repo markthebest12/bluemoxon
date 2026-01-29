@@ -28,6 +28,25 @@ describe("formatTier", () => {
     expect(result.label).toBe("Unranked");
     expect(result.stars).toBe(0);
   });
+
+  it("returns Unranked for unknown tier strings", () => {
+    // Documents fallback behavior for unrecognized tier values
+    expect(formatTier("TIER_4")).toEqual({
+      label: "Unranked",
+      stars: 0,
+      tooltip: "Unranked",
+    });
+    expect(formatTier("INVALID")).toEqual({
+      label: "Unranked",
+      stars: 0,
+      tooltip: "Unranked",
+    });
+    expect(formatTier("")).toEqual({
+      label: "Unranked",
+      stars: 0,
+      tooltip: "Unranked",
+    });
+  });
 });
 
 describe("calculateStrength", () => {
