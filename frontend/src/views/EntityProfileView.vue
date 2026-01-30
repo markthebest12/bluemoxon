@@ -9,6 +9,7 @@ import EntityBooks from "@/components/entityprofile/EntityBooks.vue";
 import CollectionStats from "@/components/entityprofile/CollectionStats.vue";
 import ProfileSkeleton from "@/components/entityprofile/ProfileSkeleton.vue";
 import StaleProfileBanner from "@/components/entityprofile/StaleProfileBanner.vue";
+import EgoNetwork from "@/components/entityprofile/EgoNetwork.vue";
 
 const props = defineProps<{
   type: string;
@@ -19,6 +20,7 @@ const route = useRoute();
 const {
   entity,
   profile,
+  connections,
   keyConnections,
   otherConnections,
   books,
@@ -70,7 +72,13 @@ watch(
 
       <ProfileHero :entity="entity" :profile="profile" />
 
-      <!-- TODO Task 16: EgoNetwork component goes here -->
+      <EgoNetwork
+        v-if="connections.length > 0"
+        :entity-id="entity.id"
+        :entity-type="entity.type"
+        :entity-name="entity.name"
+        :connections="connections"
+      />
 
       <div class="entity-profile-view__content">
         <div class="entity-profile-view__left">
