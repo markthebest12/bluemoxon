@@ -45,6 +45,16 @@ export function useEntityProfile() {
     }
   }
 
+  async function regenerateProfile(entityType: string, entityId: number | string): Promise<void> {
+    try {
+      await api.post(`/entity/${entityType}/${entityId}/profile/regenerate`);
+      // Refetch after regeneration
+      await fetchProfile(entityType, entityId);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Regeneration failed";
+    }
+  }
+
   return {
     profileData,
     loadingState,
@@ -59,5 +69,6 @@ export function useEntityProfile() {
     books,
     stats,
     fetchProfile,
+    regenerateProfile,
   };
 }

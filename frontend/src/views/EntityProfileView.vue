@@ -27,6 +27,7 @@ const {
   hasError,
   error,
   fetchProfile,
+  regenerateProfile,
 } = useEntityProfile();
 
 onMounted(() => {
@@ -64,6 +65,7 @@ watch(
         v-if="profile?.is_stale"
         :entity-type="entity.type"
         :entity-id="entity.id"
+        @regenerate="regenerateProfile(entity.type, entity.id)"
       />
 
       <ProfileHero :entity="entity" :profile="profile" />
