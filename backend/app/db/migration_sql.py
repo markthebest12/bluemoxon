@@ -643,6 +643,15 @@ MIGRATION_E5F6G7H8I9J0_SQL = [
     END $$""",
 ]
 
+MIGRATION_F6G7H8I9J0K1_SQL = [
+    """ALTER TABLE entity_profiles
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()""",
+    """ALTER TABLE entity_profiles
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()""",
+    """UPDATE entity_profiles SET created_at = generated_at, updated_at = generated_at
+    WHERE created_at = updated_at""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -874,5 +883,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "e5f6g7h8i9j0",
         "name": "add_entity_profiles_table",
         "sql_statements": MIGRATION_E5F6G7H8I9J0_SQL,
+    },
+    {
+        "id": "f6g7h8i9j0k1",
+        "name": "add_timestamps_to_entity_profiles",
+        "sql_statements": MIGRATION_F6G7H8I9J0K1_SQL,
     },
 ]
