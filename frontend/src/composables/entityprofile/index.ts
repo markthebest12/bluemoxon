@@ -1,0 +1,1 @@
+export { useEntityProfile } from "./useEntityProfile";
