@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_viewer
 from app.db import get_db
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
-from app.services.entity_profile import get_entity_profile
+from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
 
 router = APIRouter()
 
@@ -30,3 +30,19 @@ def get_profile(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
         )
     return result
+
+
+@router.post(
+    "/{entity_type}/{entity_id}/profile/regenerate",
+    summary="Regenerate entity profile",
+    description="Triggers regeneration of AI-generated profile content.",
+)
+def regenerate_profile(
+    entity_type: EntityType = Path(...),
+    entity_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    user_info=Depends(require_viewer),
+):
+    """Regenerate AI profile content."""
+    generate_and_cache_profile(db, entity_type.value, entity_id, user_info["user_id"])
+    return {"status": "regenerated"}
