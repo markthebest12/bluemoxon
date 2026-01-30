@@ -37,10 +37,7 @@ def upgrade() -> None:
         ),
     )
     # Backfill both timestamps from generated_at for existing rows
-    op.execute(
-        "UPDATE entity_profiles SET created_at = generated_at, updated_at = generated_at"
-        " WHERE generated_at IS NOT NULL"
-    )
+    op.execute("UPDATE entity_profiles SET created_at = generated_at, updated_at = generated_at")
 
 
 def downgrade() -> None:
