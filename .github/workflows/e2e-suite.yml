@@ -1,0 +1,77 @@
+name: E2E Suite
+
+on:
+  workflow_call:
+    inputs:
+      suite-name:
+        required: true
+        type: string
+        description: "Test suite name (used for artifact naming)"
+      test-pattern:
+        required: true
+        type: string
+        description: "Playwright test glob pattern (e.g. e2e/smoke.spec.ts)"
+      browsers:
+        required: false
+        type: string
+        default: "chromium webkit"
+        description: "Playwright browsers to install"
+      playwright-args:
+        required: false
+        type: string
+        default: ""
+        description: "Extra Playwright CLI arguments"
+      relaxed-budgets:
+        required: false
+        type: boolean
+        default: false
+        description: "Enable relaxed performance budgets (for performance suite)"
+      timeout:
+        required: false
+        type: number
+        default: 15
+        description: "Job timeout in minutes"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout }}
+    env:
+      BASE_URL: https://staging.app.bluemoxon.com
+      NODE_VERSION: "20"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright browsers
+        run: cd frontend && npx playwright install --with-deps ${{ inputs.browsers }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Run ${{ inputs.suite-name }} tests
+        run: cd frontend && npx playwright test ${{ inputs.test-pattern }} ${{ inputs.playwright-args }}
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          E2E_RELAXED_BUDGETS: ${{ inputs.relaxed-budgets && 'true' || '' }}
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ inputs.suite-name }}-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
