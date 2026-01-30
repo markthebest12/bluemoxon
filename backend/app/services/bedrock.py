@@ -34,7 +34,7 @@ settings = get_settings()
 MODEL_IDS = {
     "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude 4.5 Sonnet
     "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",  # Claude 4.5 Opus
-    "haiku": "anthropic.claude-3-haiku-20240307-v1:0",  # Claude 3 Haiku
+    "haiku": "anthropic.claude-3-5-haiku-20241022-v1:0",  # Claude 3.5 Haiku
 }
 
 # Model usage descriptions for admin dashboard
