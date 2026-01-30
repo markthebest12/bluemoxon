@@ -1,5 +1,7 @@
 """Tests for entity profile endpoint."""
 
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -7,6 +9,7 @@ from app.auth import CurrentUser, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, Publisher
+from app.models.entity_profile import EntityProfile
 from app.models.user import User
 
 
@@ -199,3 +202,41 @@ class TestEntityProfileEndpoint:
         """Endpoint requires authentication."""
         response = unauthenticated_client.get("/api/v1/entity/author/1/profile")
         assert response.status_code == 401
+
+
+class TestEntityProfileTimestamps:
+    """Tests for #1554: EntityProfile has TimestampMixin."""
+
+    def test_entity_profile_has_created_at(self, db):
+        """EntityProfile model has created_at as timezone-aware datetime."""
+        user = User(cognito_sub="test-ts", email="ts@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=1,
+            owner_id=user.id,
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+        assert isinstance(profile.created_at, datetime)
+
+    def test_entity_profile_has_updated_at(self, db):
+        """EntityProfile model has updated_at from TimestampMixin."""
+        user = User(cognito_sub="test-ts2", email="ts2@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=2,
+            owner_id=user.id,
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+        assert isinstance(profile.updated_at, datetime)

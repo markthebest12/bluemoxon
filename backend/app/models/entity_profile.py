@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base
+from app.models.base import Base, TimestampMixin
 
 
-class EntityProfile(Base):
+class EntityProfile(TimestampMixin, Base):
     """Cached AI-generated profile for an entity (author, publisher, binder)."""
 
     __tablename__ = "entity_profiles"
