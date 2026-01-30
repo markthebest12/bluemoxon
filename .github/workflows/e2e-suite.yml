@@ -53,7 +53,9 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps ${{ inputs.browsers }}
+        run: cd frontend && npx playwright install --with-deps "$E2E_BROWSERS"
+        env:
+          E2E_BROWSERS: ${{ inputs.browsers }}
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -62,10 +64,12 @@ jobs:
           aws-region: us-west-2
 
       - name: Run ${{ inputs.suite-name }} tests
-        run: cd frontend && npx playwright test ${{ inputs.test-pattern }} ${{ inputs.playwright-args }}
+        run: cd frontend && npx playwright test $E2E_TEST_PATTERN $E2E_PLAYWRIGHT_ARGS
         env:
           BASE_URL: ${{ env.BASE_URL }}
           E2E_RELAXED_BUDGETS: ${{ inputs.relaxed-budgets && 'true' || '' }}
+          E2E_TEST_PATTERN: ${{ inputs.test-pattern }}
+          E2E_PLAYWRIGHT_ARGS: ${{ inputs.playwright-args }}
 
       - name: Upload test results
         if: failure()
