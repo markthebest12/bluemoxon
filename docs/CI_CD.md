@@ -176,7 +176,7 @@ flowchart TB
 
     subgraph "Stage 6: Validate"
         SM[smoke-test<br/>Health, API, Frontend,<br/>Version checks]
-        TAG[tag-release<br/>v{date}-{sha}]
+        TAG[tag-release<br/>v#123;date#125;-#123;sha#125;]
     end
 
     CI --> CHG & CFG
