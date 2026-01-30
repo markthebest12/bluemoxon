@@ -1,5 +1,6 @@
 """Tests for entity profile endpoint."""
 
+import time
 from datetime import datetime
 
 import pytest
@@ -240,3 +241,29 @@ class TestEntityProfileTimestamps:
         db.refresh(profile)
 
         assert isinstance(profile.updated_at, datetime)
+
+    def test_updated_at_changes_on_modification(self, db):
+        """updated_at advances when the profile is modified."""
+        user = User(cognito_sub="test-ts3", email="ts3@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=3,
+            owner_id=user.id,
+            bio_summary="Original bio",
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+        original_updated = profile.updated_at
+
+        time.sleep(0.01)
+        profile.bio_summary = "Updated bio"
+        db.commit()
+        db.refresh(profile)
+
+        assert profile.updated_at >= original_updated
+        assert profile.bio_summary == "Updated bio"

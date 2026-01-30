@@ -1,6 +1,18 @@
 import { getErrorMessage } from "@/types/errors";
 import { useToast } from "@/composables/useToast";
 
+/**
+ * Check if an error is a request cancellation (AbortController).
+ * Works with native fetch AbortError, axios CanceledError, and ERR_CANCELED code.
+ */
+export function isAbortError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === "AbortError") return true;
+  if (error.name === "CanceledError" || (error as { code?: string }).code === "ERR_CANCELED")
+    return true;
+  return false;
+}
+
 type ErrorCallback = (message: string) => void;
 type SuccessCallback = (message: string) => void;
 

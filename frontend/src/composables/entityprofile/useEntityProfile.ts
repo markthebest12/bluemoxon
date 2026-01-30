@@ -6,6 +6,7 @@
 import { computed, ref, shallowRef } from "vue";
 import { api } from "@/services/api";
 import type { EntityProfileResponse, ProfileConnection } from "@/types/entityProfile";
+import { isAbortError } from "@/utils/errorHandler";
 
 export type LoadingState = "idle" | "loading" | "loaded" | "error";
 
@@ -47,7 +48,7 @@ export function useEntityProfile() {
       profileData.value = response.data;
       loadingState.value = "loaded";
     } catch (e) {
-      if (e instanceof Error && e.name === "CanceledError") {
+      if (isAbortError(e)) {
         return;
       }
       error.value = e instanceof Error ? e.message : "Unknown error";

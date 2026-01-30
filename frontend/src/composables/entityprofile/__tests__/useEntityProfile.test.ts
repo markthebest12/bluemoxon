@@ -59,14 +59,26 @@ describe("useEntityProfile", () => {
       expect(signals[1].aborted).toBe(false);
     });
 
-    it("does not set error state when request is aborted", async () => {
+    it("does not set error state when axios CanceledError is thrown", async () => {
       const abortError = new Error("canceled");
       abortError.name = "CanceledError";
 
       vi.mocked(api.get).mockRejectedValueOnce(abortError);
 
       const { fetchProfile, loadingState, error } = useEntityProfile();
+      await fetchProfile("author", 1);
 
+      expect(loadingState.value).not.toBe("error");
+      expect(error.value).toBeNull();
+    });
+
+    it("does not set error state when native AbortError is thrown", async () => {
+      const abortError = new Error("The operation was aborted");
+      abortError.name = "AbortError";
+
+      vi.mocked(api.get).mockRejectedValueOnce(abortError);
+
+      const { fetchProfile, loadingState, error } = useEntityProfile();
       await fetchProfile("author", 1);
 
       expect(loadingState.value).not.toBe("error");
