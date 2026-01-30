@@ -5,14 +5,12 @@ import logging
 import os
 import re
 
-from anthropic import Anthropic
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-3-5-haiku-20241022"
 
-# Module-level client singleton (reused across calls)
-_client: Anthropic | None = None
+# Module-level client singleton (reused across calls, lazy-imported)
+_client = None
 
 
 def _get_model() -> str:
@@ -20,10 +18,12 @@ def _get_model() -> str:
     return os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
 
 
-def _get_client() -> Anthropic:
+def _get_client():
     """Get or create Anthropic client. API key from ANTHROPIC_API_KEY env var."""
     global _client  # noqa: PLW0603
     if _client is None:
+        from anthropic import Anthropic
+
         _client = Anthropic()
     return _client
 
