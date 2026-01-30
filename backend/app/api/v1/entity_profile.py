@@ -1,14 +1,59 @@
 """Entity profile API endpoints."""
 
+import logging
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
-from app.auth import require_viewer
+from app.auth import require_admin, require_viewer
 from app.db import get_db
+from app.models.author import Author
+from app.models.binder import Binder
+from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
 
+logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 10
+
 router = APIRouter()
+
+
+@router.post(
+    "/profiles/generate-all",
+    summary="Generate all entity profiles",
+    description="Admin-only: generates AI profiles for all entities in batches.",
+)
+def generate_all_profiles(
+    db: Session = Depends(get_db),
+    user_info=Depends(require_admin),
+):
+    """Batch generate profiles for all entities."""
+    results = {"total": 0, "succeeded": 0, "failed": 0}
+
+    entities = []
+    for entity_type, model in [("author", Author), ("publisher", Publisher), ("binder", Binder)]:
+        for entity in db.query(model).all():
+            entities.append((entity_type, entity.id))
+
+    results["total"] = len(entities)
+
+    for i in range(0, len(entities), BATCH_SIZE):
+        batch = entities[i : i + BATCH_SIZE]
+        for entity_type, entity_id in batch:
+            try:
+                generate_and_cache_profile(db, entity_type, entity_id, user_info["user_id"])
+                results["succeeded"] += 1
+            except Exception:
+                logger.exception("Failed to generate profile for %s:%s", entity_type, entity_id)
+                results["failed"] += 1
+
+        if i + BATCH_SIZE < len(entities):
+            time.sleep(1)
+
+    return results
 
 
 @router.get(
