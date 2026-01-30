@@ -106,7 +106,16 @@ If the entity is obscure, provide what is known and note the obscurity."""
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = _strip_markdown_fences(response.content[0].text)
-        return json.loads(text)
+        result = json.loads(text)
+        # Validate expected shape — must have biography string and personal_stories list
+        if not isinstance(result, dict):
+            logger.warning("LLM returned non-dict for %s %s: %s", entity_type, name, type(result))
+            return {"biography": None, "personal_stories": []}
+        if "biography" not in result:
+            result["biography"] = None
+        if not isinstance(result.get("personal_stories"), list):
+            result["personal_stories"] = []
+        return result
     except Exception:
         logger.exception("Failed to generate bio for %s %s", entity_type, name)
         return {"biography": None, "personal_stories": []}
@@ -194,7 +203,13 @@ Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style":
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = _strip_markdown_fences(response.content[0].text)
-        return json.loads(text)
+        result = json.loads(text)
+        if not isinstance(result, dict) or "summary" not in result:
+            logger.warning("LLM returned invalid shape for %s-%s", entity1_name, entity2_name)
+            return None
+        if not isinstance(result.get("details"), list):
+            result["details"] = []
+        return result
     except Exception:
         logger.exception(
             "Failed to generate relationship story for %s-%s",

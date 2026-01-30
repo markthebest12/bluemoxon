@@ -97,5 +97,10 @@ def regenerate_profile(
     current_user=Depends(require_editor),
 ):
     """Regenerate AI profile content. Requires editor role due to API cost."""
-    generate_and_cache_profile(db, entity_type.value, entity_id, current_user.db_user.id)
+    try:
+        generate_and_cache_profile(db, entity_type.value, entity_id, current_user.db_user.id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
+        ) from exc
     return {"status": "regenerated"}

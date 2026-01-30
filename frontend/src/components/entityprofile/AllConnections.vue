@@ -21,7 +21,7 @@ defineProps<{
       >
         <span class="all-connections__name">{{ conn.entity.name }}</span>
         <span class="all-connections__detail">
-          {{ conn.connection_type.replace("_", " ") }} &middot;
+          {{ conn.connection_type.replace(/_/g, " ") }} &middot;
           {{ conn.shared_book_count }}
           {{ conn.shared_book_count === 1 ? "book" : "books" }}
         </span>

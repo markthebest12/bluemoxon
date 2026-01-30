@@ -25,7 +25,7 @@ defineProps<{
           >
             {{ conn.entity.name }}
           </router-link>
-          <span class="key-connections__type">{{ conn.connection_type.replace("_", " ") }}</span>
+          <span class="key-connections__type">{{ conn.connection_type.replace(/_/g, " ") }}</span>
         </div>
         <p v-if="conn.narrative" class="key-connections__narrative">
           {{ conn.narrative }}
