@@ -262,14 +262,12 @@ onUnmounted(() => {
       <footer class="node-floating-card__footer">
         <div class="node-floating-card__footer-actions">
           <FindSimilarButton :node-id="node.id" @find-similar="emit('find-similar', $event)" />
-          <button
-            class="node-floating-card__profile-button node-floating-card__profile-button--disabled"
-            disabled
-            title="Entity profiles coming in a future update"
+          <router-link
+            :to="{ name: 'entity-profile', params: { type: node.type, id: node.entity_id } }"
+            class="node-floating-card__profile-button"
           >
             View Full Profile
-            <span class="node-floating-card__coming-soon">(Coming Soon)</span>
-          </button>
+          </router-link>
         </div>
       </footer>
     </div>
@@ -472,6 +470,7 @@ onUnmounted(() => {
 }
 
 .node-floating-card__profile-button {
+  display: block;
   width: 100%;
   padding: 10px 16px;
   background: var(--color-accent-gold, #b8860b);
@@ -480,7 +479,10 @@ onUnmounted(() => {
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
+  box-sizing: border-box;
   transition:
     background 150ms ease-out,
     transform 150ms ease-out;
@@ -489,24 +491,6 @@ onUnmounted(() => {
 .node-floating-card__profile-button:hover {
   background: var(--color-hover, #8b4513);
   transform: translateY(-1px);
-}
-
-.node-floating-card__profile-button--disabled {
-  background: var(--color-text-muted, #8b8579);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.node-floating-card__profile-button--disabled:hover {
-  background: var(--color-text-muted, #8b8579);
-  transform: none;
-}
-
-.node-floating-card__coming-soon {
-  font-size: 0.75rem;
-  font-weight: normal;
-  opacity: 0.8;
-  margin-left: 4px;
 }
 
 /* Transitions */

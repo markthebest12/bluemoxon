@@ -618,6 +618,31 @@ CLEANUP_ORPHANS_SQL = [
 #
 # CRITICAL: IDs must be unique! Duplicate IDs cause silent failures.
 # See test_migration_ids_are_unique() for CI enforcement.
+# Migration SQL for e5f6g7h8i9j0_add_entity_profiles_table
+# Creates entity_profiles table for caching AI-generated biographical content
+MIGRATION_E5F6G7H8I9J0_SQL = [
+    """CREATE TABLE IF NOT EXISTS entity_profiles (
+        id SERIAL PRIMARY KEY,
+        entity_type VARCHAR(20) NOT NULL,
+        entity_id INTEGER NOT NULL,
+        bio_summary TEXT,
+        personal_stories JSON,
+        connection_narratives JSON,
+        generated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        model_version VARCHAR(100),
+        owner_id INTEGER NOT NULL REFERENCES users(id)
+    )""",
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_entity_profile'
+        ) THEN
+            ALTER TABLE entity_profiles
+            ADD CONSTRAINT uq_entity_profile UNIQUE (entity_type, entity_id, owner_id);
+        END IF;
+    END $$""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -844,5 +869,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "z2345678ghij",
         "name": "add_fk_indexes_for_eager_loading",
         "sql_statements": MIGRATION_Z2345678GHIJ_SQL,
+    },
+    {
+        "id": "e5f6g7h8i9j0",
+        "name": "add_entity_profiles_table",
+        "sql_statements": MIGRATION_E5F6G7H8I9J0_SQL,
     },
 ]

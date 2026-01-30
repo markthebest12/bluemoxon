@@ -97,6 +97,13 @@ const router = createRouter({
       component: () => import("@/views/SocialCirclesView.vue"),
       meta: { requiresAuth: true },
     },
+    {
+      path: "/entity/:type/:id",
+      name: "entity-profile",
+      component: () => import("@/views/EntityProfileView.vue"),
+      meta: { requiresAuth: true },
+      props: true,
+    },
   ],
 });
 
