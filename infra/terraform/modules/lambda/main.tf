@@ -233,6 +233,16 @@ resource "aws_iam_role_policy" "bedrock_access" {
         Effect   = "Allow"
         Action   = "bedrock:ListFoundationModels"
         Resource = "*"
+      },
+      {
+        # Required for Claude 3.5 Haiku model access verification at runtime
+        # Without these, InvokeModel fails with AccessDeniedException
+        Effect = "Allow"
+        Action = [
+          "aws-marketplace:ViewSubscriptions",
+          "aws-marketplace:Subscribe"
+        ]
+        Resource = "*"
       }
     ]
   })
