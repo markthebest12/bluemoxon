@@ -16,10 +16,6 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  BASE_URL: https://staging.app.bluemoxon.com
-  NODE_VERSION: "20"
-
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -68,221 +64,73 @@ jobs:
 
   smoke:
     needs: detect-changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: cd frontend && npm ci
-
-      - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps chromium webkit
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: Run smoke tests
-        run: cd frontend && npx playwright test e2e/smoke.spec.ts
-        env:
-          BASE_URL: ${{ env.BASE_URL }}
-
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: smoke-test-results
-          path: |
-            frontend/test-results/
-            frontend/playwright-report/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: smoke
+      test-pattern: "e2e/smoke.spec.ts"
 
   social-circles:
     needs: detect-changes
     if: needs.detect-changes.outputs.socialcircles == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run social circles tests
-        run: cd frontend && npx playwright test e2e/socialcircles-*.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: social-circles-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: social-circles
+      test-pattern: "e2e/socialcircles-*.spec.ts"
 
   books:
     needs: detect-changes
     if: needs.detect-changes.outputs.books == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run books tests
-        run: cd frontend && npx playwright test e2e/books.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: books-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: books
+      test-pattern: "e2e/books.spec.ts"
 
   auth:
     needs: detect-changes
     if: needs.detect-changes.outputs.auth == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run auth tests
-        run: cd frontend && npx playwright test e2e/auth.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: auth-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: auth
+      test-pattern: "e2e/auth.spec.ts"
 
   dashboard:
     needs: detect-changes
     if: needs.detect-changes.outputs.dashboard == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run dashboard tests
-        run: cd frontend && npx playwright test e2e/home.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: dashboard-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: dashboard
+      test-pattern: "e2e/home.spec.ts"
 
   admin:
     needs: detect-changes
     if: needs.detect-changes.outputs.admin == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run admin tests
-        run: cd frontend && npx playwright test e2e/admin.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: admin-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: admin
+      test-pattern: "e2e/admin.spec.ts"
 
   profile:
     needs: detect-changes
     if: needs.detect-changes.outputs.profile == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium webkit
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run profile tests
-        run: cd frontend && npx playwright test e2e/profile.spec.ts
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: profile-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: profile
+      test-pattern: "e2e/profile.spec.ts"
 
   performance:
     needs: detect-changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: cd frontend && npm ci
-      - run: cd frontend && npx playwright install --with-deps chromium
-      - uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-west-2
-      - name: Run performance tests (relaxed budgets)
-        run: cd frontend && E2E_RELAXED_BUDGETS=true npx playwright test e2e/performance.spec.ts --project=chromium
-      - if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: performance-test-results
-          path: frontend/test-results/
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: performance
+      test-pattern: "e2e/performance.spec.ts"
+      browsers: "chromium"
+      playwright-args: "--project=chromium --workers=1"
+      relaxed-budgets: true
