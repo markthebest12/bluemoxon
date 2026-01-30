@@ -3,24 +3,43 @@
 import json
 import logging
 import os
+import random
 import re
+import time
 
-from app.services.bedrock import get_bedrock_client, get_model_id
+from botocore.exceptions import ClientError
+
+from app.services.bedrock import MODEL_IDS, get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "haiku"
 
+MAX_RETRIES = 3
+BASE_DELAY = 2.0
+
 
 def _get_model_id() -> str:
     """Get Bedrock model ID from env var, falling back to default."""
     model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+    if model_name not in MODEL_IDS:
+        logger.warning(
+            "ENTITY_PROFILE_MODEL=%s not in MODEL_IDS, falling back to default (%s)",
+            model_name,
+            DEFAULT_MODEL,
+        )
+        model_name = DEFAULT_MODEL
     return get_model_id(model_name)
 
 
 def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str:
-    """Invoke Bedrock Claude and return response text."""
+    """Invoke Bedrock Claude with retry/backoff and return response text.
+
+    Retries on ThrottlingException with exponential backoff matching
+    the pattern in bedrock.invoke_bedrock().
+    """
     client = get_bedrock_client()
+    model_id = _get_model_id()
     body = json.dumps(
         {
             "anthropic_version": "bedrock-2023-05-31",
@@ -29,14 +48,36 @@ def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str
             "messages": [{"role": "user", "content": user_prompt}],
         }
     )
-    response = client.invoke_model(
-        modelId=_get_model_id(),
-        body=body,
-        contentType="application/json",
-        accept="application/json",
-    )
-    response_body = json.loads(response["body"].read())
-    return response_body["content"][0]["text"]
+
+    last_error = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            if attempt > 0:
+                delay = BASE_DELAY * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                logger.info("Bedrock profile retry %d/%d after %.1fs", attempt, MAX_RETRIES, delay)
+                time.sleep(delay)
+
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+            response_body = json.loads(response["body"].read())
+            content = response_body.get("content")
+            if not content:
+                raise ValueError("Empty content in Bedrock response")
+            return content[0]["text"]
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException" and attempt < MAX_RETRIES:
+                logger.warning("Bedrock throttled (attempt %d/%d)", attempt + 1, MAX_RETRIES + 1)
+                last_error = e
+                continue
+            raise
+
+    raise last_error  # type: ignore[misc]
 
 
 def _strip_markdown_fences(text: str) -> str:
