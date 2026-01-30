@@ -1,7 +1,8 @@
 # Entity Profiles - Design Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Created:** 2026-01-29
+**Updated:** 2026-01-29
 **Status:** Design Complete - Ready for Implementation
 
 ## Overview
@@ -21,10 +22,13 @@ The floating card teases with 5 connections and a "View Full Profile (Coming Soo
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Navigation | Full page (`/entity/:type/:id`) | Deep-linkable, rich layout, scrollable, SEO-friendly |
-| AI Model | Claude Haiku | Fast, cheap (~$0.10 for entire collection), good enough for bios |
+| AI Model | Configurable (start Haiku, may upgrade Sonnet) | Model via env var, ~$0.20 Haiku / ~$3 Sonnet for full collection |
 | Cache Strategy | DB table + lazy generation | Persistent, survives deploys, no Redis dependency |
 | Ego Network | Reuse Cytoscape.js | Consistent visual language, existing infrastructure |
 | Graph Layout | Concentric | Entity at center, connections in ring. Clear for small graphs |
+| Gossip Storage | Two-tier (personal + relationship) | Personal stories on entity, relationship stories on connections |
+| Gossip Authoring | AI-generated (Claude Haiku) | Same model generates bios, stories, and narratives |
+| Narrative Triggers | Rule-based classification | Cross-era bridges, social circles, hubs, influence chains |
 
 ---
 
@@ -129,6 +133,7 @@ Examples:
 | Era | Computed from birth_year | Reuse `getEraFromYear` |
 | Dates | Entity table | `birth_year - death_year` (authors) or `founded_year - closed_year` (publishers/binders) |
 | Bio summary | AI-generated | 2-3 sentences, cached in `entity_profiles` table |
+| Personal stories | AI-generated | Biographical "gossip" facts (Tier 1), displayed below bio |
 
 **Type-specific hero content:**
 
@@ -242,24 +247,139 @@ Summary statistics for the user's books by this entity.
 
 ---
 
+## Two-Tier Gossip Model
+
+Biographical "gossip" (personal history, anecdotes, relationships) is stored in two tiers, scoped to where the story belongs.
+
+### Tier 1: Personal Stories (Entity-Scoped)
+
+Stories about the individual that don't require another entity. Stored on `entity_profiles`.
+
+```typescript
+interface BiographicalFact {
+  text: string                                              // The story
+  year?: number                                             // When it happened
+  significance: 'revelation' | 'notable' | 'context'       // Impact level
+  tone: 'dramatic' | 'scandalous' | 'tragic' | 'intellectual' | 'triumphant'
+  displayIn: Array<'hero-bio' | 'timeline' | 'hover-tooltip'>
+}
+```
+
+**Examples:**
+- EBB: "Her domineering father forbade all of his children from marrying" (context, dramatic, hero-bio)
+- Byron: "Scandalous affairs and rumored incest forced him to flee England in 1816" (revelation, scandalous, hero-bio + timeline)
+
+### Tier 2: Relationship Stories (Connection-Scoped)
+
+Stories that require both entities in a connection. Stored on `social_circle_edges`.
+
+```typescript
+interface RelationshipNarrative {
+  summary: string                                           // One-liner for card display
+  details: BiographicalFact[]                               // Full story facts
+  narrativeStyle: 'prose-paragraph' | 'bullet-facts' | 'timeline-events'
+}
+```
+
+**Examples:**
+- EBB + Robert Browning: "Secret courtship and dramatic elopement to Italy" with 4 detail facts covering the 574 letters, secret wedding, and flight to Italy
+- Dickens + Collins: "Collaborator and friend who pioneered the sensation novel"
+
+### Correct Duplication
+
+The same underlying event can appear in both tiers with different framing:
+- **Tier 1 (EBB's personal story):** "Her tyrannical father forbade marriage" — personal context
+- **Tier 2 (EBB-Browning connection):** "Secret wedding to escape her father" — relationship drama
+
+This is intentional. Personal context stands alone; relationship drama needs both people.
+
+### Display Mapping
+
+| Content Type | Stored On | Display Location | Example |
+|-------------|-----------|------------------|---------|
+| Bio summary | entity_profiles | Hero section | "Leading Victorian poet..." |
+| Personal stories | entity_profiles.personal_stories | Hero bio, tooltips, timeline | "Tyrannical father forbade marriage" |
+| Relationship stories | social_circle_edges.relationship_story | Connection detail panel | "574 letters, secret wedding, elopement" |
+| Connection narrative | entity_profiles.connection_narratives | Key connections section | "Published 7 works with Chapman & Hall" |
+
+---
+
+## Revelation Triggers (Narrative Classification)
+
+Not all connections deserve narrative prose. A rules engine classifies each connection to determine display treatment.
+
+### Trigger Hierarchy (Highest Impact First)
+
+**1. Cross-Era Bridges** — Connections spanning 40+ years across eras
+
+> "John Murray published Lord Byron's Romantic poetry (1812-1824) and Charles Darwin's scientific works (1839-1882) — 70 years bridging poetry and science!"
+
+Trigger: `timeSpan >= 40 && differentEras` → Full prose narrative
+
+**2. Social Circles / Personal Relationships** — Known personal connections
+
+> "Charlotte Bronte and Elizabeth Gaskell were personal friends. After Bronte's death in 1855, Gaskell wrote her definitive biography."
+
+Trigger: Connection has `relationship_story` with details → Prose paragraph with "View full story"
+
+**3. Hub Figures** — Entities connecting 5+ others across diverse types
+
+> "Smith, Elder published 8 authors in your collection — the Bronte sisters, Thackeray, Browning, Ruskin, Trollope, and Gaskell."
+
+Trigger: `connectionCount >= 5 && diverseGenres` → Publisher dominance narrative
+
+**4. Collaborators / Influence Chains** — Mentorship and intellectual influence
+
+> "Thomas Carlyle's social criticism profoundly influenced John Ruskin's later works on art and society."
+
+Trigger: Connection type is `collaborator` or `mentor` → Influence narrative
+
+### Structured Cards (No Narrative)
+
+Connections that don't hit any trigger get a structured card instead of prose:
+
+- Simple publisher relationships (< 3 works, no social relationship)
+- Single-work connections
+- Binderies (unless high count or notable)
+
+### Template Types
+
+Each trigger maps to a typed narrative template:
+
+| Trigger | Template | Key Fields |
+|---------|----------|------------|
+| Cross-Era Bridge | `CrossEraBridge` | intermediary, person1 (era, years), person2 (era, years), timeSpan |
+| Social Hub | `SocialHub` | person, connections[], era, note |
+| Publisher Dominance | `PublisherDominance` | publisher, authorCount, authors[], significance |
+| Influence Chain | `InfluenceChain` | mentor, mentee, relationship, details |
+
+The AI generates content using the appropriate template based on classification. Templates guide the prompt, not the output format.
+
+---
+
 ## AI Enrichment Architecture
 
-### Database Table
+### Database Schema
 
 ```sql
 CREATE TABLE entity_profiles (
     id SERIAL PRIMARY KEY,
-    entity_type VARCHAR(20) NOT NULL,  -- 'author', 'publisher', 'binder'
+    entity_type VARCHAR(20) NOT NULL,       -- 'author', 'publisher', 'binder'
     entity_id INTEGER NOT NULL,
-    bio_summary TEXT,                   -- 2-3 sentence biography
-    connection_narratives JSONB,        -- {"author:42:publisher:7": "Published 7 works..."}
+    bio_summary TEXT,                        -- 2-3 sentence biography
+    personal_stories JSONB DEFAULT '[]',     -- BiographicalFact[] (Tier 1 gossip)
+    connection_narratives JSONB,             -- {"author:42:publisher:7": "Published 7 works..."}
     generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    model_version VARCHAR(100),         -- e.g., 'claude-3-5-haiku-20241022'
+    model_version VARCHAR(100),              -- e.g., 'claude-3-5-haiku-20241022'
     owner_id INTEGER NOT NULL REFERENCES users(id),
     UNIQUE(entity_type, entity_id, owner_id)
 );
 
 CREATE INDEX idx_entity_profiles_lookup ON entity_profiles(entity_type, entity_id, owner_id);
+
+-- Tier 2 gossip: relationship stories on edges
+ALTER TABLE social_circle_edges
+    ADD COLUMN relationship_story JSONB;     -- RelationshipNarrative (Tier 2 gossip)
 ```
 
 **Owner-scoped:** Each user gets their own profiles because connection narratives reference their specific collection.
@@ -305,13 +425,15 @@ A profile is stale when the user's collection has changed in a way that affects 
 
 ### Claude API Integration
 
-**Model:** `claude-3-5-haiku-20241022` (fast, cheap)
+**Model:** Configurable — start with `claude-3-5-haiku-20241022`, upgrade to Sonnet if quality insufficient. Model name stored in backend config (env var `ENTITY_PROFILE_MODEL`), not hardcoded.
 
 **Prompts:**
 
-Bio summary:
+Bio summary + personal stories (single call):
 ```
-You are a reference librarian specializing in Victorian-era literature and publishing.
+You are a reference librarian and literary historian specializing in Victorian-era
+literature and publishing. You have deep knowledge of personal histories, scandals,
+relationships, and anecdotes of the period.
 
 Given this entity from a rare book collection:
   Name: {name}
@@ -319,10 +441,22 @@ Given this entity from a rare book collection:
   {dates_line}
   Books in collection: {book_list}
 
-Write a 2-3 sentence biographical summary. Focus on their significance
-in Victorian literary/publishing history. Be factual and concise.
-Do not speculate beyond what is commonly known about this figure.
-If the entity is obscure, say so briefly.
+Provide:
+
+1. BIOGRAPHY: A 2-3 sentence biographical summary focusing on their significance
+   in Victorian literary/publishing history.
+
+2. PERSONAL_STORIES: An array of biographical facts — the "gossip" that makes this
+   figure come alive. Include personal drama, scandals, tragedies, triumphs, and
+   notable anecdotes. Each fact should have:
+   - text: The story (1-2 sentences)
+   - year: When it happened (if known)
+   - significance: "revelation" (surprising/impactful), "notable" (interesting), or "context" (background)
+   - tone: "dramatic", "scandalous", "tragic", "intellectual", or "triumphant"
+
+Return JSON: {"biography": "...", "personal_stories": [...]}
+Be factual. Draw from commonly known historical record.
+If the entity is obscure, provide what is known and note the obscurity.
 ```
 
 Connection narrative:
@@ -338,11 +472,39 @@ Focus on why this connection matters in Victorian publishing history.
 Be factual and concise.
 ```
 
-**Cost estimate:**
-- ~200 tokens input, ~100 tokens output per bio
-- ~150 tokens input, ~50 tokens output per connection narrative
-- ~100 entities × 1 bio + ~5 narratives each = ~600 API calls
-- Haiku: ~$0.15 total for full collection
+Relationship story (for high-impact connections):
+```
+You are a literary historian with deep knowledge of Victorian-era personal relationships.
+
+Given this connection between two entities in a rare book collection:
+  Entity 1: {entity1_name} ({entity1_type}, {entity1_dates})
+  Entity 2: {entity2_name} ({entity2_type}, {entity2_dates})
+  Connection type: {connection_type}
+  Shared works: {book_titles}
+  Narrative trigger: {trigger_type}
+
+Provide the relationship story:
+
+1. SUMMARY: One-line summary of the relationship (for card display)
+
+2. DETAILS: Array of biographical facts about this specific relationship.
+   Each fact: {text, year?, significance, tone}
+   Focus on personal anecdotes, dramatic events, and the human story.
+
+3. NARRATIVE_STYLE: "prose-paragraph" for dramatic stories, "bullet-facts" for
+   factual relationships, "timeline-events" for long-spanning connections.
+
+Return JSON: {"summary": "...", "details": [...], "narrative_style": "..."}
+Be factual. Draw from commonly known historical record.
+```
+
+**Cost estimate (Haiku):**
+- Bio + personal stories: ~300 tokens input, ~300 tokens output per entity
+- Connection narrative: ~150 tokens input, ~50 tokens output
+- Relationship story: ~250 tokens input, ~400 tokens output (high-impact only)
+- ~100 entities × 1 bio + ~5 narratives + ~1 relationship story = ~700 API calls
+- Haiku: ~$0.20 total for full collection
+- Sonnet: ~$3.00 total (if upgrade needed)
 
 ### Error Handling
 
@@ -375,8 +537,18 @@ Response:
   },
   "profile": {
     "bio_summary": "The most celebrated novelist of the Victorian era...",
+    "personal_stories": [
+      {
+        "text": "His childhood experience working in a blacking factory...",
+        "year": 1824,
+        "significance": "revelation",
+        "tone": "tragic",
+        "display_in": ["hero-bio", "timeline"]
+      }
+    ],
     "is_stale": false,
-    "generated_at": "2026-01-29T10:30:00Z"
+    "generated_at": "2026-01-29T10:30:00Z",
+    "model_version": "claude-3-5-haiku-20241022"
   },
   "connections": [
     {
@@ -392,7 +564,37 @@ Response:
         {"id": 101, "title": "The Pickwick Papers", "year": 1837}
       ],
       "narrative": "Published 7 works with Chapman & Hall, his primary publisher from 1836-1844.",
-      "is_key": true
+      "narrative_trigger": "hub_figure",
+      "is_key": true,
+      "relationship_story": null
+    },
+    {
+      "entity": {
+        "id": 99,
+        "type": "author",
+        "name": "Wilkie Collins"
+      },
+      "connection_type": "shared_publisher",
+      "strength": 5,
+      "shared_book_count": 3,
+      "shared_books": [
+        {"id": 205, "title": "The Moonstone", "year": 1868}
+      ],
+      "narrative": "Collaborator and friend who pioneered the sensation novel.",
+      "narrative_trigger": "social_circle",
+      "is_key": true,
+      "relationship_story": {
+        "summary": "Literary collaborators and close friends for two decades",
+        "details": [
+          {
+            "text": "Collins and Dickens first met in 1851...",
+            "year": 1851,
+            "significance": "notable",
+            "tone": "intellectual"
+          }
+        ],
+        "narrative_style": "prose-paragraph"
+      }
     }
   ],
   "books": [
@@ -523,19 +725,22 @@ alembic revision --autogenerate -m "Add entity_profiles table"
 7. EgoNetwork with concentric layout
 
 ### Phase 2: AI Enrichment
-8. Claude API integration in backend service
-9. Bio summary generation + caching
+8. Claude API integration in backend service (configurable model via `ENTITY_PROFILE_MODEL` env var)
+9. Bio summary + personal stories generation (single call, Tier 1 gossip)
 10. Connection narrative generation + caching
-11. KeyConnections component with narratives
-12. Staleness detection + "Regenerate" button
-13. Batch generation endpoint + admin UI
+11. Revelation trigger classification engine (cross-era, social circle, hub, influence)
+12. Relationship story generation for high-impact connections (Tier 2 gossip)
+13. KeyConnections component with narratives + "View full story" for relationship stories
+14. Staleness detection + "Regenerate" button
+15. Batch generation endpoint + admin UI
 
 ### Phase 3: Polish
-14. Publication timeline visualization
-15. Mobile optimization
-16. Loading skeletons
-17. E2E tests
-18. Analytics tracking
+16. Publication timeline visualization
+17. Mobile optimization
+18. Loading skeletons
+19. Connection detail panel for relationship stories (full gossip display)
+20. E2E tests
+21. Analytics tracking
 
 ---
 
