@@ -10,6 +10,7 @@ from app.models.binder import Binder
 from app.models.book import Book
 from app.models.carrier_circuit import CarrierCircuit
 from app.models.cleanup_job import CleanupJob
+from app.models.entity_profile import EntityProfile
 from app.models.eval_runbook import EvalPriceHistory, EvalRunbook
 from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
@@ -26,6 +27,7 @@ __all__ = [
     "Base",
     "CarrierCircuit",
     "CleanupJob",
+    "EntityProfile",
     "Notification",
     "Publisher",
     "PublisherAlias",
