@@ -7,6 +7,7 @@ import KeyConnections from "@/components/entityprofile/KeyConnections.vue";
 import AllConnections from "@/components/entityprofile/AllConnections.vue";
 import EntityBooks from "@/components/entityprofile/EntityBooks.vue";
 import CollectionStats from "@/components/entityprofile/CollectionStats.vue";
+import PublicationTimeline from "@/components/entityprofile/PublicationTimeline.vue";
 import ProfileSkeleton from "@/components/entityprofile/ProfileSkeleton.vue";
 import StaleProfileBanner from "@/components/entityprofile/StaleProfileBanner.vue";
 
@@ -78,6 +79,7 @@ watch(
 
         <div class="entity-profile-view__right">
           <EntityBooks :books="books" />
+          <PublicationTimeline :books="books" />
           <CollectionStats v-if="stats" :stats="stats" />
         </div>
       </div>
