@@ -4,6 +4,13 @@ import type { ProfileStats } from "@/types/entityProfile";
 defineProps<{
   stats: ProfileStats;
 }>();
+
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
 </script>
 
 <template>
@@ -16,7 +23,7 @@ defineProps<{
       </div>
       <div v-if="stats.total_estimated_value" class="collection-stats__item">
         <dt>Estimated Value</dt>
-        <dd>${{ stats.total_estimated_value.toLocaleString() }}</dd>
+        <dd>{{ currencyFormatter.format(stats.total_estimated_value) }}</dd>
       </div>
       <div v-if="stats.first_editions > 0" class="collection-stats__item">
         <dt>First Editions</dt>

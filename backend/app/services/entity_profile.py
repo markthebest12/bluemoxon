@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
@@ -24,6 +24,7 @@ from app.schemas.entity_profile import (
     ProfileStats,
 )
 from app.services.ai_profile_generator import (
+    DEFAULT_MODEL,
     generate_bio_and_stories,
     generate_connection_narrative,
 )
@@ -204,15 +205,23 @@ def _build_connections(
     # Sort by strength descending
     connections.sort(key=lambda c: c.strength, reverse=True)
 
-    # Mark top 5 as key connections (with type diversity)
+    # Mark top 5 as key connections (prefer type diversity, then fill by strength)
     seen_types: set[str] = set()
     key_count = 0
+    # First pass: prefer diverse types for first 3 slots
+    for conn in connections:
+        if key_count >= 3:
+            break
+        if conn.connection_type not in seen_types:
+            conn.is_key = True
+            seen_types.add(conn.connection_type)
+            key_count += 1
+    # Second pass: fill remaining slots (up to 5) by strength regardless of type
     for conn in connections:
         if key_count >= 5:
             break
-        if conn.connection_type not in seen_types or key_count < 3:
+        if not conn.is_key:
             conn.is_key = True
-            seen_types.add(conn.connection_type)
             key_count += 1
 
     return connections
@@ -268,6 +277,7 @@ def generate_and_cache_profile(
     entity_type: str,
     entity_id: int,
     owner_id: int,
+    max_narratives: int | None = None,
 ) -> EntityProfile:
     """Generate AI profile and cache in DB."""
     entity = _get_entity(db, entity_type, entity_id)
@@ -294,7 +304,8 @@ def generate_and_cache_profile(
     node_map = {n.id: n for n in graph.nodes}
 
     narratives: dict[str, str] = {}
-    for edge in connected_edges:
+    edges_to_narrate = connected_edges[:max_narratives] if max_narratives else connected_edges
+    for edge in edges_to_narrate:
         other_id = edge.target if edge.source == node_id else edge.source
         other_node = node_map.get(other_id)
         if not other_node:
@@ -313,7 +324,7 @@ def generate_and_cache_profile(
         if narrative:
             narratives[f"{node_id}:{other_id}"] = narrative
 
-    model_version = os.environ.get("ENTITY_PROFILE_MODEL", "claude-3-5-haiku-20241022")
+    model_version = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
 
     # Upsert profile
     existing = (
@@ -330,7 +341,7 @@ def generate_and_cache_profile(
         existing.bio_summary = bio_data.get("biography")
         existing.personal_stories = bio_data.get("personal_stories", [])
         existing.connection_narratives = narratives
-        existing.generated_at = datetime.utcnow()
+        existing.generated_at = datetime.now(UTC)
         existing.model_version = model_version
         profile = existing
     else:

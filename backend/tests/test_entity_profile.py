@@ -3,24 +3,26 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth import require_viewer
+from app.auth import CurrentUser, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, Publisher
-
-
-def _mock_viewer_dict():
-    """Return a dict-based mock for require_viewer.
-
-    The entity profile endpoint accesses user_info["user_id"],
-    so the mock must support dict subscript access.
-    """
-    return {"user_id": 1, "role": "editor", "email": "test@example.com"}
+from app.models.user import User
 
 
 @pytest.fixture(scope="function")
 def profile_client(db):
-    """Test client with dict-based auth override for entity profile endpoint."""
+    """Test client with a real User record for entity profile endpoints."""
+    user = User(cognito_sub="test-viewer-ep", email="ep@example.com", role="viewer")
+    db.add(user)
+    db.flush()
+
+    mock_user = CurrentUser(
+        cognito_sub=user.cognito_sub,
+        email=user.email,
+        role=user.role,
+        db_user=user,
+    )
 
     def override_get_db():
         try:
@@ -29,7 +31,7 @@ def profile_client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[require_viewer] = _mock_viewer_dict
+    app.dependency_overrides[require_viewer] = lambda: mock_user
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

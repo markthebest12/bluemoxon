@@ -8,6 +8,7 @@ const props = defineProps<{
 
 const hoveredBook = ref<ProfileBook | null>(null);
 const tooltipX = ref(0);
+const trackRef = ref<HTMLElement | null>(null);
 
 const booksWithYears = computed(() => props.books.filter((b) => b.year != null));
 
@@ -27,13 +28,22 @@ function getPosition(year: number): number {
   return ((year - min) / (max - min)) * 100;
 }
 
+function getVerticalOffset(book: ProfileBook, index: number): number {
+  if (!book.year) return 0;
+  const sameYearBefore = booksWithYears.value
+    .slice(0, index)
+    .filter((b) => b.year === book.year).length;
+  return sameYearBefore * 14;
+}
+
 function handleHover(book: ProfileBook, event: MouseEvent) {
   hoveredBook.value = book;
   const target = event.currentTarget as HTMLElement;
   const rect = target.getBoundingClientRect();
-  const parent = target.parentElement?.getBoundingClientRect();
+  const parent = trackRef.value?.getBoundingClientRect();
   if (parent) {
-    tooltipX.value = rect.left - parent.left + rect.width / 2;
+    const rawX = rect.left - parent.left + rect.width / 2;
+    tooltipX.value = Math.max(60, Math.min(rawX, parent.width - 60));
   }
 }
 
@@ -46,12 +56,15 @@ function handleLeave() {
   <section v-if="booksWithYears.length > 0" class="publication-timeline">
     <h2 class="publication-timeline__title">Publication Timeline</h2>
     <div class="publication-timeline__chart">
-      <div class="publication-timeline__track">
+      <div ref="trackRef" class="publication-timeline__track">
         <div
-          v-for="book in booksWithYears"
+          v-for="(book, idx) in booksWithYears"
           :key="book.id"
           class="publication-timeline__dot"
-          :style="{ left: getPosition(book.year as number) + '%' }"
+          :style="{
+            left: getPosition(book.year as number) + '%',
+            top: `calc(50% - 6px - ${getVerticalOffset(book, idx)}px)`,
+          }"
           @mouseenter="handleHover(book, $event)"
           @mouseleave="handleLeave"
         />

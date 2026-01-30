@@ -1,8 +1,5 @@
 """Narrative trigger classification for entity connections."""
 
-
-ERA_ORDER = ["pre_romantic", "romantic", "victorian", "edwardian", "post_1910"]
-
 # Minimum time span in years to qualify as cross-era bridge
 CROSS_ERA_THRESHOLD = 40
 

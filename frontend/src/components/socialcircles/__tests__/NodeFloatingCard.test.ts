@@ -9,7 +9,7 @@ const router = createRouter({
   routes: [
     { path: "/", component: { template: "<div />" } },
     {
-      path: "/entities/:type/:id",
+      path: "/entity/:type/:id",
       name: "entity-profile",
       component: { template: "<div />" },
     },
@@ -277,7 +277,7 @@ describe("NodeFloatingCard", () => {
 
       const profileLink = wrapper.find(".node-floating-card__profile-button");
       expect(profileLink.text()).toContain("View Full Profile");
-      expect(profileLink.attributes("href")).toBe("/entities/author/1");
+      expect(profileLink.attributes("href")).toBe("/entity/author/1");
     });
 
     it('emits viewProfile when "view more" link clicked', async () => {

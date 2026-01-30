@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, shallowRef } from "vue";
+import { onMounted, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import cytoscape from "cytoscape";
 import type { ProfileConnection } from "@/types/entityProfile";
 
@@ -126,6 +126,77 @@ onMounted(() => {
     boxSelectionEnabled: false,
   });
 });
+
+watch(
+  () => [props.entityId, props.connections],
+  () => {
+    if (!containerRef.value) return;
+    cy.value?.destroy();
+    cy.value = cytoscape({
+      container: containerRef.value,
+      elements: buildElements() as cytoscape.ElementDefinition[],
+      style: [
+        {
+          selector: "node",
+          style: {
+            label: "data(label)",
+            "text-valign": "bottom",
+            "text-halign": "center",
+            "font-size": "10px",
+            "text-margin-y": 6,
+            "background-color": "#8b8579",
+            width: 24,
+            height: 24,
+            "text-max-width": "80px",
+            "text-wrap": "ellipsis",
+          },
+        },
+        {
+          selector: "node[?isCenter]",
+          style: {
+            "background-color": "#b8860b",
+            "border-width": 3,
+            "border-color": "#8b6914",
+            width: 40,
+            height: 40,
+            "font-size": "12px",
+            "font-weight": "bold",
+          },
+        },
+        {
+          selector: "node[?isKey]",
+          style: {
+            "background-color": "#a0522d",
+            width: 30,
+            height: 30,
+          },
+        },
+        {
+          selector: "edge",
+          style: {
+            width: 1,
+            "line-color": "#e8e4de",
+            "curve-style": "bezier",
+            opacity: 0.6,
+          },
+        },
+      ],
+      layout: {
+        name: "concentric",
+        concentric: (node: cytoscape.NodeSingular) => {
+          return node.data("isCenter") ? 2 : 1;
+        },
+        levelWidth: () => 1,
+        minNodeSpacing: 40,
+        padding: 20,
+        animate: false,
+      },
+      userZoomingEnabled: false,
+      userPanningEnabled: false,
+      boxSelectionEnabled: false,
+    });
+  }
+);
 
 onBeforeUnmount(() => {
   cy.value?.destroy();

@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
-
 defineProps<{
   entityType: string;
   entityId: number;
+  regenerating: boolean;
 }>();
 
 const emit = defineEmits<{
   regenerate: [];
 }>();
-
-const regenerating = ref(false);
-
-function handleRegenerate() {
-  regenerating.value = true;
-  emit("regenerate");
-}
 </script>
 
 <template>
@@ -23,7 +15,7 @@ function handleRegenerate() {
     <span class="stale-banner__text"
       >Profile may be outdated. Your collection has changed since this was generated.</span
     >
-    <button class="stale-banner__button" :disabled="regenerating" @click="handleRegenerate">
+    <button class="stale-banner__button" :disabled="regenerating" @click="emit('regenerate')">
       {{ regenerating ? "Regenerating..." : "Regenerate" }}
     </button>
   </div>

@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
-from app.auth import require_admin, require_viewer
+from app.auth import require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.models.author import Author
 from app.models.binder import Binder
@@ -28,9 +28,15 @@ router = APIRouter()
 )
 def generate_all_profiles(
     db: Session = Depends(get_db),
-    user_info=Depends(require_admin),
+    current_user=Depends(require_admin),
 ):
-    """Batch generate profiles for all entities."""
+    """Batch generate profiles for all entities.
+
+    Note: This endpoint may exceed API Gateway's 29s timeout for large collections.
+    For large batches, invoke the Lambda directly or use the CLI.
+    Connection narratives are capped at MAX_NARRATIVES_PER_ENTITY per entity to
+    limit API call volume.
+    """
     results = {"total": 0, "succeeded": 0, "failed": 0}
 
     entities = []
@@ -44,7 +50,9 @@ def generate_all_profiles(
         batch = entities[i : i + BATCH_SIZE]
         for entity_type, entity_id in batch:
             try:
-                generate_and_cache_profile(db, entity_type, entity_id, user_info["user_id"])
+                generate_and_cache_profile(
+                    db, entity_type, entity_id, current_user.db_user.id, max_narratives=3
+                )
                 results["succeeded"] += 1
             except Exception:
                 logger.exception("Failed to generate profile for %s:%s", entity_type, entity_id)
@@ -66,10 +74,10 @@ def get_profile(
     entity_type: EntityType = Path(..., description="Entity type: author, publisher, or binder"),
     entity_id: int = Path(..., ge=1, description="Entity database ID"),
     db: Session = Depends(get_db),
-    user_info=Depends(require_viewer),
+    current_user=Depends(require_viewer),
 ) -> EntityProfileResponse:
     """Get entity profile with AI-generated content if available."""
-    result = get_entity_profile(db, entity_type.value, entity_id, user_info["user_id"])
+    result = get_entity_profile(db, entity_type.value, entity_id, current_user.db_user.id)
     if not result:
         raise HTTPException(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
@@ -86,8 +94,8 @@ def regenerate_profile(
     entity_type: EntityType = Path(...),
     entity_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
-    user_info=Depends(require_viewer),
+    current_user=Depends(require_editor),
 ):
-    """Regenerate AI profile content."""
-    generate_and_cache_profile(db, entity_type.value, entity_id, user_info["user_id"])
+    """Regenerate AI profile content. Requires editor role due to API cost."""
+    generate_and_cache_profile(db, entity_type.value, entity_id, current_user.db_user.id)
     return {"status": "regenerated"}

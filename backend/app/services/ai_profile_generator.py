@@ -3,12 +3,16 @@
 import json
 import logging
 import os
+import re
 
 from anthropic import Anthropic
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-3-5-haiku-20241022"
+
+# Module-level client singleton (reused across calls)
+_client: Anthropic | None = None
 
 
 def _get_model() -> str:
@@ -17,8 +21,37 @@ def _get_model() -> str:
 
 
 def _get_client() -> Anthropic:
-    """Create Anthropic client. API key from ANTHROPIC_API_KEY env var."""
-    return Anthropic()
+    """Get or create Anthropic client. API key from ANTHROPIC_API_KEY env var."""
+    global _client  # noqa: PLW0603
+    if _client is None:
+        _client = Anthropic()
+    return _client
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Strip markdown code fences from LLM output before JSON parsing."""
+    stripped = re.sub(r"^```(?:json)?\s*\n?", "", text.strip())
+    stripped = re.sub(r"\n?```\s*$", "", stripped)
+    return stripped.strip()
+
+
+_BIO_SYSTEM_PROMPT = (
+    "You are a reference librarian and literary historian specializing in Victorian-era "
+    "literature and publishing. You have deep knowledge of personal histories, scandals, "
+    "relationships, and anecdotes of the period. "
+    "Return ONLY valid JSON. Be factual. Draw from commonly known historical record."
+)
+
+_CONNECTION_SYSTEM_PROMPT = (
+    "You are a reference librarian specializing in Victorian-era publishing networks. "
+    "Focus on why connections matter in Victorian publishing history. "
+    "Be factual and concise."
+)
+
+_RELATIONSHIP_SYSTEM_PROMPT = (
+    "You are a literary historian with deep knowledge of Victorian-era personal relationships. "
+    "Be factual. Draw from commonly known historical record. Return ONLY valid JSON."
+)
 
 
 def generate_bio_and_stories(
@@ -41,11 +74,7 @@ def generate_bio_and_stories(
 
     book_list = ", ".join(book_titles) if book_titles else "None in collection"
 
-    prompt = f"""You are a reference librarian and literary historian specializing in Victorian-era \
-literature and publishing. You have deep knowledge of personal histories, scandals, relationships, \
-and anecdotes of the period.
-
-Given this entity from a rare book collection:
+    user_prompt = f"""Given this entity from a rare book collection:
   Name: {name}
   Type: {entity_type}
   {dates_line}
@@ -66,7 +95,6 @@ should have:
    - tone: "dramatic", "scandalous", "tragic", "intellectual", or "triumphant"
 
 Return ONLY valid JSON: {{"biography": "...", "personal_stories": [...]}}
-Be factual. Draw from commonly known historical record.
 If the entity is obscure, provide what is known and note the obscurity."""
 
     try:
@@ -74,9 +102,10 @@ If the entity is obscure, provide what is known and note the obscurity."""
         response = client.messages.create(
             model=_get_model(),
             max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+            system=_BIO_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        text = response.content[0].text
+        text = _strip_markdown_fences(response.content[0].text)
         return json.loads(text)
     except Exception:
         logger.exception("Failed to generate bio for %s %s", entity_type, name)
@@ -97,22 +126,20 @@ def generate_connection_narrative(
     """
     books_str = ", ".join(shared_book_titles) if shared_book_titles else "various works"
 
-    prompt = f"""You are a reference librarian specializing in Victorian-era publishing networks.
-
-Describe this connection in one sentence for a rare book collector:
+    user_prompt = f"""Describe this connection in one sentence for a rare book collector:
   {entity1_name} ({entity1_type}) connected to {entity2_name} ({entity2_type})
   Connection: {connection_type}
   Shared works: {books_str}
 
-Focus on why this connection matters in Victorian publishing history.
-Be factual and concise. Return ONLY the single sentence, no quotes."""
+Return ONLY the single sentence, no quotes."""
 
     try:
         client = _get_client()
         response = client.messages.create(
             model=_get_model(),
             max_tokens=200,
-            messages=[{"role": "user", "content": prompt}],
+            system=_CONNECTION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
         )
         return response.content[0].text.strip()
     except Exception:
@@ -137,10 +164,7 @@ def generate_relationship_story(
     """
     books_str = ", ".join(shared_book_titles) if shared_book_titles else "various works"
 
-    prompt = f"""You are a literary historian with deep knowledge of Victorian-era personal \
-relationships.
-
-Given this connection between two entities in a rare book collection:
+    user_prompt = f"""Given this connection between two entities in a rare book collection:
   Entity 1: {entity1_name} ({entity1_type}, {entity1_dates})
   Entity 2: {entity2_name} ({entity2_type}, {entity2_dates})
   Connection type: {connection_type}
@@ -159,17 +183,17 @@ Provide the relationship story:
 3. NARRATIVE_STYLE: "prose-paragraph" for dramatic stories, "bullet-facts" for factual \
 relationships, "timeline-events" for long-spanning connections.
 
-Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}
-Be factual. Draw from commonly known historical record."""
+Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}"""
 
     try:
         client = _get_client()
         response = client.messages.create(
             model=_get_model(),
             max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+            system=_RELATIONSHIP_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        text = response.content[0].text
+        text = _strip_markdown_fences(response.content[0].text)
         return json.loads(text)
     except Exception:
         logger.exception(

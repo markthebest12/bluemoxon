@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEntityProfile } from "@/composables/entityprofile";
 import ProfileHero from "@/components/entityprofile/ProfileHero.vue";
@@ -32,6 +32,18 @@ const {
   fetchProfile,
   regenerateProfile,
 } = useEntityProfile();
+
+const isRegenerating = ref(false);
+
+async function handleRegenerate() {
+  if (!entity.value) return;
+  isRegenerating.value = true;
+  try {
+    await regenerateProfile(entity.value.type, entity.value.id);
+  } finally {
+    isRegenerating.value = false;
+  }
+}
 
 onMounted(() => {
   void fetchProfile(props.type, props.id);
@@ -68,7 +80,8 @@ watch(
         v-if="profile?.is_stale"
         :entity-type="entity.type"
         :entity-id="entity.id"
-        @regenerate="regenerateProfile(entity.type, entity.id)"
+        :regenerating="isRegenerating"
+        @regenerate="handleRegenerate"
       />
 
       <ProfileHero :entity="entity" :profile="profile" />

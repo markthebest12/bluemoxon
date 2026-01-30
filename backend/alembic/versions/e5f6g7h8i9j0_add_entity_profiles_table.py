@@ -36,13 +36,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("entity_type", "entity_id", "owner_id", name="uq_entity_profile"),
     )
-    op.create_index(
-        "idx_entity_profiles_lookup",
-        "entity_profiles",
-        ["entity_type", "entity_id", "owner_id"],
-    )
 
 
 def downgrade() -> None:
-    op.drop_index("idx_entity_profiles_lookup", table_name="entity_profiles")
     op.drop_table("entity_profiles")
