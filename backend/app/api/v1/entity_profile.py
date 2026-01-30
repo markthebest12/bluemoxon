@@ -37,6 +37,9 @@ def generate_all_profiles(
     Connection narratives are capped at MAX_NARRATIVES_PER_ENTITY per entity to
     limit API call volume.
     """
+    if not current_user.db_user:
+        raise HTTPException(status_code=403, detail="API key auth requires linked database user")
+
     results = {"total": 0, "succeeded": 0, "failed": 0}
 
     entities = []
@@ -77,6 +80,8 @@ def get_profile(
     current_user=Depends(require_viewer),
 ) -> EntityProfileResponse:
     """Get entity profile with AI-generated content if available."""
+    if not current_user.db_user:
+        raise HTTPException(status_code=403, detail="API key auth requires linked database user")
     result = get_entity_profile(db, entity_type.value, entity_id, current_user.db_user.id)
     if not result:
         raise HTTPException(
@@ -97,6 +102,8 @@ def regenerate_profile(
     current_user=Depends(require_editor),
 ):
     """Regenerate AI profile content. Requires editor role due to API cost."""
+    if not current_user.db_user:
+        raise HTTPException(status_code=403, detail="API key auth requires linked database user")
     try:
         generate_and_cache_profile(db, entity_type.value, entity_id, current_user.db_user.id)
     except ValueError as exc:
