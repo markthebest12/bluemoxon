@@ -82,7 +82,7 @@ async def extract_with_llm(text: str) -> dict:
     """
     client = get_bedrock_client()
     response = client.invoke_model(
-        modelId="anthropic.claude-3-haiku-20240307-v1:0",
+        modelId="anthropic.claude-3-5-haiku-20241022-v1:0",
         body=json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",

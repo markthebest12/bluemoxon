@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -24,7 +23,7 @@ from app.schemas.entity_profile import (
     ProfileStats,
 )
 from app.services.ai_profile_generator import (
-    DEFAULT_MODEL,
+    _get_model_id,
     generate_bio_and_stories,
     generate_connection_narrative,
 )
@@ -324,7 +323,7 @@ def generate_and_cache_profile(
         if narrative:
             narratives[f"{node_id}:{other_id}"] = narrative
 
-    model_version = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+    model_version = _get_model_id()
 
     # Upsert profile
     existing = (

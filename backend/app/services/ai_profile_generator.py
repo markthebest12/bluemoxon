@@ -1,31 +1,83 @@
-"""AI profile generation via Claude API."""
+"""AI profile generation via AWS Bedrock Claude API."""
 
 import json
 import logging
 import os
+import random
 import re
+import time
+
+from botocore.exceptions import ClientError
+
+from app.services.bedrock import MODEL_IDS, get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-3-5-haiku-20241022"
+DEFAULT_MODEL = "haiku"
 
-# Module-level client singleton (reused across calls, lazy-imported)
-_client = None
-
-
-def _get_model() -> str:
-    """Get model from env var, falling back to default."""
-    return os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+MAX_RETRIES = 3
+BASE_DELAY = 2.0
 
 
-def _get_client():
-    """Get or create Anthropic client. API key from ANTHROPIC_API_KEY env var."""
-    global _client  # noqa: PLW0603
-    if _client is None:
-        from anthropic import Anthropic
+def _get_model_id() -> str:
+    """Get Bedrock model ID from env var, falling back to default."""
+    model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+    if model_name not in MODEL_IDS:
+        logger.warning(
+            "ENTITY_PROFILE_MODEL=%s not in MODEL_IDS, falling back to default (%s)",
+            model_name,
+            DEFAULT_MODEL,
+        )
+        model_name = DEFAULT_MODEL
+    return get_model_id(model_name)
 
-        _client = Anthropic()
-    return _client
+
+def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str:
+    """Invoke Bedrock Claude with retry/backoff and return response text.
+
+    Retries on ThrottlingException with exponential backoff matching
+    the pattern in bedrock.invoke_bedrock().
+    """
+    client = get_bedrock_client()
+    model_id = _get_model_id()
+    body = json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_prompt}],
+        }
+    )
+
+    last_error = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            if attempt > 0:
+                delay = BASE_DELAY * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                logger.info("Bedrock profile retry %d/%d after %.1fs", attempt, MAX_RETRIES, delay)
+                time.sleep(delay)
+
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+            response_body = json.loads(response["body"].read())
+            content = response_body.get("content")
+            if not content:
+                raise ValueError("Empty content in Bedrock response")
+            return content[0]["text"]
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException" and attempt < MAX_RETRIES:
+                logger.warning("Bedrock throttled (attempt %d/%d)", attempt + 1, MAX_RETRIES + 1)
+                last_error = e
+                continue
+            raise
+
+    raise last_error  # type: ignore[misc]
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -98,14 +150,8 @@ Return ONLY valid JSON: {{"biography": "...", "personal_stories": [...]}}
 If the entity is obscure, provide what is known and note the obscurity."""
 
     try:
-        client = _get_client()
-        response = client.messages.create(
-            model=_get_model(),
-            max_tokens=1024,
-            system=_BIO_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        text = _strip_markdown_fences(response.content[0].text)
+        raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
+        text = _strip_markdown_fences(raw)
         result = json.loads(text)
         # Validate expected shape — must have biography string and personal_stories list
         if not isinstance(result, dict):
@@ -143,14 +189,7 @@ def generate_connection_narrative(
 Return ONLY the single sentence, no quotes."""
 
     try:
-        client = _get_client()
-        response = client.messages.create(
-            model=_get_model(),
-            max_tokens=200,
-            system=_CONNECTION_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        return response.content[0].text.strip()
+        return _invoke(_CONNECTION_SYSTEM_PROMPT, user_prompt, max_tokens=200).strip()
     except Exception:
         logger.exception("Failed to generate narrative for %s-%s", entity1_name, entity2_name)
         return None
@@ -195,14 +234,8 @@ relationships, "timeline-events" for long-spanning connections.
 Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}"""
 
     try:
-        client = _get_client()
-        response = client.messages.create(
-            model=_get_model(),
-            max_tokens=1024,
-            system=_RELATIONSHIP_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        text = _strip_markdown_fences(response.content[0].text)
+        raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
+        text = _strip_markdown_fences(raw)
         result = json.loads(text)
         if not isinstance(result, dict) or "summary" not in result:
             logger.warning("LLM returned invalid shape for %s-%s", entity1_name, entity2_name)
