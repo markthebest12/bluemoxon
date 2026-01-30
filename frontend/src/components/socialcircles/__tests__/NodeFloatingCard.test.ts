@@ -1,7 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, VueWrapper } from "@vue/test-utils";
+import { createRouter, createMemoryHistory } from "vue-router";
 import NodeFloatingCard from "../NodeFloatingCard.vue";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, BookId } from "@/types/socialCircles";
+
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [
+    { path: "/", component: { template: "<div />" } },
+    {
+      path: "/entities/:type/:id",
+      name: "entity-profile",
+      component: { template: "<div />" },
+    },
+  ],
+});
 
 // Mock useFocusTrap
 vi.mock("@/composables/useFocusTrap", () => ({
@@ -72,6 +85,8 @@ const defaultProps = {
   isOpen: true,
 };
 
+const globalPlugins = { plugins: [router] };
+
 describe("NodeFloatingCard", () => {
   let wrapper: VueWrapper;
 
@@ -88,7 +103,7 @@ describe("NodeFloatingCard", () => {
 
   describe("rendering", () => {
     it("renders author card with correct data", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       expect(wrapper.text()).toContain("Charles Dickens");
       expect(wrapper.text()).toContain("12 books");
@@ -99,6 +114,7 @@ describe("NodeFloatingCard", () => {
     it("renders publisher card with type-specific styling", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, node: mockPublisher },
+        global: globalPlugins,
       });
 
       expect(wrapper.find(".node-floating-card--publisher").exists()).toBe(true);
@@ -108,6 +124,7 @@ describe("NodeFloatingCard", () => {
     it("renders binder card with type-specific styling", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, node: mockBinder },
+        global: globalPlugins,
       });
 
       expect(wrapper.find(".node-floating-card--binder").exists()).toBe(true);
@@ -117,6 +134,7 @@ describe("NodeFloatingCard", () => {
     it("does not render when isOpen is false", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, isOpen: false },
+        global: globalPlugins,
       });
 
       expect(wrapper.find(".node-floating-card").exists()).toBe(false);
@@ -125,6 +143,7 @@ describe("NodeFloatingCard", () => {
     it("does not render when node is null", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, node: null },
+        global: globalPlugins,
       });
 
       expect(wrapper.find(".node-floating-card").exists()).toBe(false);
@@ -133,13 +152,14 @@ describe("NodeFloatingCard", () => {
     it("does not render when nodePosition is null", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, nodePosition: null },
+        global: globalPlugins,
       });
 
       expect(wrapper.find(".node-floating-card").exists()).toBe(false);
     });
 
     it("renders tier display with correct stars", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const tierDisplay = wrapper.find(".node-floating-card__tier");
       expect(tierDisplay.exists()).toBe(true);
@@ -148,7 +168,7 @@ describe("NodeFloatingCard", () => {
     });
 
     it("renders era with underscores replaced by spaces", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       expect(wrapper.text()).toContain("victorian");
     });
@@ -156,7 +176,7 @@ describe("NodeFloatingCard", () => {
 
   describe("connections", () => {
     it("displays connections list", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       expect(wrapper.text()).toContain("Connections");
       expect(wrapper.text()).toContain("Chapman & Hall");
@@ -164,7 +184,7 @@ describe("NodeFloatingCard", () => {
     });
 
     it("displays total connections count", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       expect(wrapper.text()).toContain("2 connections");
     });
@@ -197,6 +217,7 @@ describe("NodeFloatingCard", () => {
           edges: manyEdges,
           nodes: manyNodes,
         },
+        global: globalPlugins,
       });
 
       const connectionItems = wrapper.findAll(".node-floating-card__connection-item");
@@ -208,13 +229,14 @@ describe("NodeFloatingCard", () => {
     it("shows empty state when no connections exist", () => {
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, edges: [] },
+        global: globalPlugins,
       });
 
       expect(wrapper.text()).toContain("No connections found");
     });
 
     it("renders correct connection icon for publisher type", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const icons = wrapper.findAll(".node-floating-card__connection-icon");
       // First connection is publisher type
@@ -222,7 +244,7 @@ describe("NodeFloatingCard", () => {
     });
 
     it("renders correct connection icon for binder type", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const icons = wrapper.findAll(".node-floating-card__connection-icon");
       // Second connection is binder type
@@ -232,7 +254,7 @@ describe("NodeFloatingCard", () => {
 
   describe("events", () => {
     it("emits close when X button clicked", async () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       await wrapper.find(".node-floating-card__close").trigger("click");
 
@@ -241,7 +263,7 @@ describe("NodeFloatingCard", () => {
     });
 
     it("emits selectEdge when connection button clicked", async () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const connectionButtons = wrapper.findAll(".node-floating-card__connection-button");
       await connectionButtons[0].trigger("click");
@@ -250,17 +272,12 @@ describe("NodeFloatingCard", () => {
       expect(wrapper.emitted("selectEdge")![0]).toEqual([mockEdge.id]);
     });
 
-    it("has disabled profile button with Coming Soon indicator", async () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+    it("renders View Full Profile as a router-link to entity profile", () => {
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
-      const profileButton = wrapper.find(".node-floating-card__profile-button");
-      expect(profileButton.attributes("disabled")).toBeDefined();
-      expect(profileButton.text()).toContain("Coming Soon");
-      expect(profileButton.attributes("title")).toBe("Entity profiles coming in a future update");
-
-      // Should not emit viewProfile when disabled button is clicked
-      await profileButton.trigger("click");
-      expect(wrapper.emitted("viewProfile")).toBeFalsy();
+      const profileLink = wrapper.find(".node-floating-card__profile-button");
+      expect(profileLink.text()).toContain("View Full Profile");
+      expect(profileLink.attributes("href")).toBe("/entities/author/1");
     });
 
     it('emits viewProfile when "view more" link clicked', async () => {
@@ -287,6 +304,7 @@ describe("NodeFloatingCard", () => {
 
       wrapper = mount(NodeFloatingCard, {
         props: { ...defaultProps, edges: manyEdges, nodes: manyNodes },
+        global: globalPlugins,
       });
 
       await wrapper.find(".node-floating-card__more-link").trigger("click");
@@ -297,20 +315,20 @@ describe("NodeFloatingCard", () => {
 
   describe("keyboard handling", () => {
     it("adds keydown listener on mount", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       expect(window.addEventListener).toHaveBeenCalledWith("keydown", expect.any(Function));
     });
 
     it("removes keydown listener on unmount", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
       wrapper.unmount();
 
       expect(window.removeEventListener).toHaveBeenCalledWith("keydown", expect.any(Function));
     });
 
     it("emits close on Escape key", async () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       // Simulate Escape key press
       const event = new KeyboardEvent("keydown", { key: "Escape" });
@@ -325,7 +343,7 @@ describe("NodeFloatingCard", () => {
 
   describe("accessibility", () => {
     it("has correct dialog role and aria attributes", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const card = wrapper.find(".node-floating-card");
       expect(card.attributes("role")).toBe("dialog");
@@ -334,14 +352,14 @@ describe("NodeFloatingCard", () => {
     });
 
     it("close button has aria-label", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const closeButton = wrapper.find(".node-floating-card__close");
       expect(closeButton.attributes("aria-label")).toBe("Close");
     });
 
     it("has screen reader text for tier", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const srOnly = wrapper.find(".node-floating-card__tier .sr-only");
       expect(srOnly.exists()).toBe(true);
@@ -349,7 +367,7 @@ describe("NodeFloatingCard", () => {
     });
 
     it("close button meets minimum touch target size", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const closeButton = wrapper.find(".node-floating-card__close");
       // Check that min-width and min-height classes are applied via CSS
@@ -365,6 +383,7 @@ describe("NodeFloatingCard", () => {
           ...defaultProps,
           nodePosition: { x: 200, y: 150 },
         },
+        global: globalPlugins,
       });
 
       const card = wrapper.find(".node-floating-card");
@@ -381,6 +400,7 @@ describe("NodeFloatingCard", () => {
           ...defaultProps,
           nodePosition: { x: 100, y: 100 },
         },
+        global: globalPlugins,
       });
 
       const initialStyle = wrapper.find(".node-floating-card").attributes("style");
@@ -396,7 +416,7 @@ describe("NodeFloatingCard", () => {
 
   describe("image handling", () => {
     it("renders placeholder image with correct src", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const img = wrapper.find(".node-floating-card__image");
       expect(img.exists()).toBe(true);
@@ -404,14 +424,14 @@ describe("NodeFloatingCard", () => {
     });
 
     it("has lazy loading attribute", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const img = wrapper.find(".node-floating-card__image");
       expect(img.attributes("loading")).toBe("lazy");
     });
 
     it("has alt text for image", () => {
-      wrapper = mount(NodeFloatingCard, { props: defaultProps });
+      wrapper = mount(NodeFloatingCard, { props: defaultProps, global: globalPlugins });
 
       const img = wrapper.find(".node-floating-card__image");
       expect(img.attributes("alt")).toBe("Portrait of Charles Dickens");
