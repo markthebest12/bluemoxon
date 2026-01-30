@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
@@ -20,6 +22,10 @@ from app.schemas.entity_profile import (
     ProfileData,
     ProfileEntity,
     ProfileStats,
+)
+from app.services.ai_profile_generator import (
+    generate_bio_and_stories,
+    generate_connection_narrative,
 )
 from app.services.social_circles import build_social_circles_graph
 
@@ -255,3 +261,89 @@ def get_entity_profile(
         books=_build_profile_books(books),
         stats=_build_stats(books),
     )
+
+
+def generate_and_cache_profile(
+    db: Session,
+    entity_type: str,
+    entity_id: int,
+    owner_id: int,
+) -> EntityProfile:
+    """Generate AI profile and cache in DB."""
+    entity = _get_entity(db, entity_type, entity_id)
+    if not entity:
+        raise ValueError(f"Entity {entity_type}:{entity_id} not found")
+
+    books = _get_entity_books(db, entity_type, entity_id)
+    book_titles = [b.title for b in books]
+
+    # Generate bio + personal stories
+    bio_data = generate_bio_and_stories(
+        name=entity.name,
+        entity_type=entity_type,
+        birth_year=getattr(entity, "birth_year", None),
+        death_year=getattr(entity, "death_year", None),
+        founded_year=getattr(entity, "founded_year", None),
+        book_titles=book_titles,
+    )
+
+    # Generate connection narratives
+    node_id = f"{entity_type}:{entity_id}"
+    graph = build_social_circles_graph(db)
+    connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
+    node_map = {n.id: n for n in graph.nodes}
+
+    narratives: dict[str, str] = {}
+    for edge in connected_edges:
+        other_id = edge.target if edge.source == node_id else edge.source
+        other_node = node_map.get(other_id)
+        if not other_node:
+            continue
+
+        narrative = generate_connection_narrative(
+            entity1_name=entity.name,
+            entity1_type=entity_type,
+            entity2_name=other_node.name,
+            entity2_type=other_node.type.value
+            if hasattr(other_node.type, "value")
+            else other_node.type,
+            connection_type=edge.type.value if hasattr(edge.type, "value") else edge.type,
+            shared_book_titles=[b.title for b in books if b.id in (edge.shared_book_ids or [])],
+        )
+        if narrative:
+            narratives[f"{node_id}:{other_id}"] = narrative
+
+    model_version = os.environ.get("ENTITY_PROFILE_MODEL", "claude-3-5-haiku-20241022")
+
+    # Upsert profile
+    existing = (
+        db.query(EntityProfile)
+        .filter(
+            EntityProfile.entity_type == entity_type,
+            EntityProfile.entity_id == entity_id,
+            EntityProfile.owner_id == owner_id,
+        )
+        .first()
+    )
+
+    if existing:
+        existing.bio_summary = bio_data.get("biography")
+        existing.personal_stories = bio_data.get("personal_stories", [])
+        existing.connection_narratives = narratives
+        existing.generated_at = datetime.utcnow()
+        existing.model_version = model_version
+        profile = existing
+    else:
+        profile = EntityProfile(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            bio_summary=bio_data.get("biography"),
+            personal_stories=bio_data.get("personal_stories", []),
+            connection_narratives=narratives,
+            model_version=model_version,
+            owner_id=owner_id,
+        )
+        db.add(profile)
+
+    db.commit()
+    return profile
