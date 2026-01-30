@@ -187,7 +187,9 @@ class TestGenerateConnectionNarrative:
         from app.services.ai_profile_generator import generate_connection_narrative
 
         mock_invoke.return_value = "  A narrative sentence.  "
-        result = generate_connection_narrative("A", "author", "B", "publisher", "publisher", ["Book1"])
+        result = generate_connection_narrative(
+            "A", "author", "B", "publisher", "publisher", ["Book1"]
+        )
         assert result == "A narrative sentence."
 
     @patch("app.services.ai_profile_generator._invoke")
