@@ -24,7 +24,10 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
     <p class="gossip-panel__summary">{{ narrative.summary }}</p>
 
     <!-- Prose paragraph mode -->
-    <div v-if="narrative.narrative_style === 'prose-paragraph' && narrative.details?.length" class="gossip-panel__prose">
+    <div
+      v-if="narrative.narrative_style === 'prose-paragraph' && narrative.details?.length"
+      class="gossip-panel__prose"
+    >
       <p
         v-for="(fact, i) in narrative.details"
         :key="i"
@@ -37,7 +40,10 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
     </div>
 
     <!-- Bullet facts mode -->
-    <ul v-else-if="narrative.narrative_style === 'bullet-facts' && narrative.details?.length" class="gossip-panel__bullets">
+    <ul
+      v-else-if="narrative.narrative_style === 'bullet-facts' && narrative.details?.length"
+      class="gossip-panel__bullets"
+    >
       <li
         v-for="(fact, i) in narrative.details"
         :key="i"
