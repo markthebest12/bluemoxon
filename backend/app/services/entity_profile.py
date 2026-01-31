@@ -25,6 +25,7 @@ from app.schemas.entity_profile import (
     ProfileStats,
     RelationshipNarrative,
 )
+from app.schemas.social_circles import SocialCirclesResponse
 from app.services.ai_profile_generator import (
     _get_model_id,
     generate_bio_and_stories,
@@ -32,7 +33,7 @@ from app.services.ai_profile_generator import (
     generate_relationship_story,
 )
 from app.services.narrative_classifier import classify_connection
-from app.services.social_circles import build_social_circles_graph
+from app.services.social_circles_cache import get_or_build_graph
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,7 @@ def _build_connections(
     entity_type: str,
     entity_id: int,
     profile: EntityProfile | None,
+    graph: SocialCirclesResponse | None = None,
 ) -> list[ProfileConnection]:
     """Build connection list from social circles graph.
 
@@ -190,7 +192,8 @@ def _build_connections(
     - cached relationship_story from profile (#1553)
     """
     node_id = f"{entity_type}:{entity_id}"
-    graph = build_social_circles_graph(db)
+    if graph is None:
+        graph = get_or_build_graph(db)
 
     # Find edges connected to this entity
     connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
@@ -356,7 +359,8 @@ def get_entity_profile(
         model_version=cached.model_version if cached else None,
     )
 
-    connections = _build_connections(db, entity_type, entity_id, cached)
+    graph = get_or_build_graph(db)
+    connections = _build_connections(db, entity_type, entity_id, cached, graph=graph)
 
     return EntityProfileResponse(
         entity=_build_profile_entity(entity, entity_type),
@@ -373,6 +377,7 @@ def generate_and_cache_profile(
     entity_id: int,
     owner_id: int,
     max_narratives: int | None = None,
+    graph: SocialCirclesResponse | None = None,
 ) -> EntityProfile:
     """Generate AI profile and cache in DB."""
     entity = _get_entity(db, entity_type, entity_id)
@@ -394,7 +399,8 @@ def generate_and_cache_profile(
 
     # Generate connection narratives using trigger-based selection (#1553)
     node_id = f"{entity_type}:{entity_id}"
-    graph = build_social_circles_graph(db)
+    if graph is None:
+        graph = get_or_build_graph(db)
     connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
     node_map = {n.id: n for n in graph.nodes}
     source_node = node_map.get(node_id)

@@ -13,6 +13,7 @@ from app.models.binder import Binder
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
+from app.services.social_circles_cache import get_or_build_graph
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,10 @@ def regenerate_profile(
     if not current_user.db_user:
         raise HTTPException(status_code=403, detail="API key auth requires linked database user")
     try:
-        generate_and_cache_profile(db, entity_type.value, entity_id, current_user.db_user.id)
+        graph = get_or_build_graph(db)
+        generate_and_cache_profile(
+            db, entity_type.value, entity_id, current_user.db_user.id, graph=graph
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
