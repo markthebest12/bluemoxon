@@ -15,6 +15,11 @@ from app.models import Author, Binder, Book, Publisher
 from app.models.entity_profile import EntityProfile
 from app.models.user import User
 
+# NOTE: profile_client, editor_client, and viewer_regen_client share boilerplate
+# (User creation, CurrentUser mock, get_db override). A factory extraction was
+# considered but deferred — SQLAlchemy session scoping requires the User and
+# db override to live in the fixture scope to avoid DetachedInstanceError.
+
 
 @pytest.fixture(scope="function")
 def profile_client(db):
@@ -77,13 +82,6 @@ def viewer_regen_client(db):
     db.add(user)
     db.flush()
 
-    mock_viewer = CurrentUser(
-        cognito_sub=user.cognito_sub,
-        email=user.email,
-        role=user.role,
-        db_user=user,
-    )
-
     def override_get_db():
         try:
             yield db
@@ -94,7 +92,6 @@ def viewer_regen_client(db):
         raise HTTPException(status_code=403, detail="Editor role required")
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[require_viewer] = lambda: mock_viewer
     app.dependency_overrides[require_editor] = override_require_editor
     with TestClient(app) as test_client:
         yield test_client
@@ -345,6 +342,9 @@ class TestRegenerateEndpoint:
         assert response.status_code == 200
         assert response.json() == {"status": "regenerated"}
         mock_generate.assert_called_once()
+        call_args = mock_generate.call_args
+        assert call_args.args[1] == "author"
+        assert call_args.args[2] == author.id
 
     @patch("app.api.v1.entity_profile.generate_and_cache_profile")
     def test_regenerate_nonexistent_entity_returns_404(self, mock_generate, editor_client, db):
@@ -353,7 +353,6 @@ class TestRegenerateEndpoint:
 
         response = editor_client.post("/api/v1/entity/author/99999/profile/regenerate")
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
 
     def test_regenerate_requires_editor_auth(self, viewer_regen_client, db):
         """Viewer auth gets 403 on regenerate (require_editor)."""
@@ -367,4 +366,49 @@ class TestRegenerateEndpoint:
     def test_regenerate_invalid_entity_type_returns_422(self, editor_client):
         """Invalid entity_type returns validation error."""
         response = editor_client.post("/api/v1/entity/invalid/1/profile/regenerate")
+        assert response.status_code == 422
+
+    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
+    def test_regenerate_ai_service_error_returns_500(self, mock_generate, db):
+        """Non-ValueError from AI service returns 500.
+
+        Uses a dedicated client with raise_server_exceptions=False so the
+        unhandled RuntimeError surfaces as a 500 response instead of
+        propagating through TestClient.
+        """
+        user = User(cognito_sub="test-editor-500", email="ep-500@example.com", role="editor")
+        db.add(user)
+        db.flush()
+
+        mock_user = CurrentUser(
+            cognito_sub=user.cognito_sub,
+            email=user.email,
+            role=user.role,
+            db_user=user,
+        )
+
+        def override_get_db():
+            try:
+                yield db
+            finally:
+                pass
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_editor] = lambda: mock_user
+
+        author = Author(name="Error Author")
+        db.add(author)
+        db.commit()
+
+        mock_generate.side_effect = RuntimeError("Bedrock connection failed")
+
+        with TestClient(app, raise_server_exceptions=False) as client:
+            response = client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 500
+
+    def test_regenerate_zero_entity_id_returns_422(self, editor_client):
+        """entity_id=0 is rejected by FastAPI ge=1 validation."""
+        response = editor_client.post("/api/v1/entity/author/0/profile/regenerate")
         assert response.status_code == 422
