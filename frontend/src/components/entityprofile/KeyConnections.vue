@@ -178,4 +178,15 @@ function isExpanded(conn: ProfileConnection): boolean {
 .key-connections__story-toggle:hover {
   background: color-mix(in srgb, var(--color-accent-gold, #b8860b) 10%, transparent);
 }
+
+@media (max-width: 768px) {
+  .key-connections__card {
+    padding: 12px;
+  }
+
+  .key-connections__story-toggle {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
 </style>
