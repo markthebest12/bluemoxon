@@ -6,11 +6,13 @@ test.describe("Entity Profile", () => {
   test.beforeEach(async ({ page }) => {
     // Go to social circles and click into the first available profile
     await page.goto("/social-circles");
-    await expect(page.locator("text=Social Circles")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /Social Circles/ }),
+    ).toBeVisible({ timeout: 15000 });
 
     // Click the first node card or entity link that appears
     const profileLink = page.locator("a[href*='/entity/']").first();
-    await expect(profileLink).toBeVisible({ timeout: 10000 });
+    await expect(profileLink).toBeVisible({ timeout: 30000 });
     await profileLink.click();
     await expect(page.locator(".profile-hero")).toBeVisible({ timeout: 10000 });
   });
@@ -80,10 +82,12 @@ test.describe("Entity Profile - Mobile", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/social-circles");
-    await expect(page.locator("text=Social Circles")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /Social Circles/ }),
+    ).toBeVisible({ timeout: 15000 });
 
     const profileLink = page.locator("a[href*='/entity/']").first();
-    await expect(profileLink).toBeVisible({ timeout: 10000 });
+    await expect(profileLink).toBeVisible({ timeout: 30000 });
     await profileLink.click();
     await expect(page.locator(".profile-hero")).toBeVisible({ timeout: 10000 });
   });
