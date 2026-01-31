@@ -57,6 +57,9 @@ def generate_all_profiles(
         for entity in db.query(model).all():
             entities.append((entity_type, entity.id))
 
+    if not entities:
+        return {"job_id": None, "total_entities": 0, "status": "empty"}
+
     # Create job record
     job = ProfileGenerationJob(
         owner_id=current_user.db_user.id,
@@ -76,12 +79,23 @@ def generate_all_profiles(
         }
         for entity_type, entity_id in entities
     ]
-    send_profile_generation_jobs(messages)
+    try:
+        send_profile_generation_jobs(messages)
+    except Exception as exc:
+        logger.exception("Failed to enqueue profile generation messages for job %s", job.id)
+        job.status = "failed"
+        db.commit()
+        raise HTTPException(
+            status_code=500, detail="Failed to enqueue generation messages"
+        ) from exc
+
+    job.status = "in_progress"
+    db.commit()
 
     return {
         "job_id": job.id,
         "total_entities": len(entities),
-        "status": "pending",
+        "status": "in_progress",
     }
 
 

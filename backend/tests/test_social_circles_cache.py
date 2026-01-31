@@ -173,6 +173,102 @@ class TestInvalidateCache:
         mock_redis.return_value = None
         assert invalidate_cache() == 0
 
+    @patch("app.services.social_circles_cache.get_redis")
+    def test_deletes_matching_keys(self, mock_redis):
+        """Invalidation deletes matching keys and returns count."""
+        from app.services.social_circles_cache import invalidate_cache
+
+        client = MagicMock()
+        client.scan_iter.return_value = iter(
+            ["social_circles:graph:abc", "social_circles:graph:def"]
+        )
+        client.delete.return_value = 2
+        mock_redis.return_value = client
+
+        assert invalidate_cache() == 2
+        client.delete.assert_called_once()
+
+
+class TestInvalidateCacheSync:
+    """Tests for _invalidate_cache_sync."""
+
+    def test_returns_zero_when_no_keys(self):
+        """Returns 0 when no matching keys exist."""
+        from app.services.social_circles_cache import _invalidate_cache_sync
+
+        client = MagicMock()
+        client.scan_iter.return_value = iter([])
+        assert _invalidate_cache_sync(client) == 0
+        client.delete.assert_not_called()
+
+    def test_handles_redis_error(self):
+        """Returns 0 on Redis error."""
+        from app.services.social_circles_cache import _invalidate_cache_sync
+
+        client = MagicMock()
+        client.scan_iter.side_effect = Exception("Connection refused")
+        assert _invalidate_cache_sync(client) == 0
+
+
+class TestInvalidateCacheAsync:
+    """Tests for invalidate_cache_async."""
+
+    @pytest.mark.asyncio
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_no_redis_returns_zero(self, mock_redis):
+        """No Redis client returns 0."""
+        from app.services.social_circles_cache import invalidate_cache_async
+
+        mock_redis.return_value = None
+        assert await invalidate_cache_async() == 0
+
+    @pytest.mark.asyncio
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_deletes_and_returns_count(self, mock_redis):
+        """Deletes matching keys and returns count."""
+        from app.services.social_circles_cache import invalidate_cache_async
+
+        client = MagicMock()
+        client.scan_iter.return_value = iter(["social_circles:graph:abc"])
+        client.delete.return_value = 1
+        mock_redis.return_value = client
+
+        assert await invalidate_cache_async() == 1
+
+
+class TestCacheRoundTrip:
+    """Tests for serialization round-trip integrity."""
+
+    def test_sync_roundtrip_preserves_data(self):
+        """Data stored and retrieved via sync functions is identical."""
+        from app.services.social_circles_cache import _get_cached_graph_sync, _set_cached_graph_sync
+
+        client = MagicMock()
+        response = MagicMock()
+        response.model_dump.return_value = {
+            "nodes": [],
+            "edges": [],
+            "meta": {
+                "total_books": 5,
+                "total_authors": 3,
+                "total_publishers": 1,
+                "total_binders": 0,
+                "date_range": [1800, 1900],
+                "truncated": False,
+                "generated_at": "2026-01-01T00:00:00",
+            },
+        }
+
+        _set_cached_graph_sync(client, "test:key", response)
+
+        stored_data = client.setex.call_args[0][2]
+        client.get.return_value = stored_data
+        retrieved, is_hit = _get_cached_graph_sync(client, "test:key")
+
+        assert is_hit is True
+        assert retrieved is not None
+        assert retrieved.meta.total_books == 5
+
 
 class TestGetOrBuildGraph:
     """Tests for sync cache wrapper (#1549)."""

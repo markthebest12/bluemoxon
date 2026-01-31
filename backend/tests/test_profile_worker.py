@@ -1,8 +1,9 @@
 """Tests for profile generation worker handler."""
 
+import json
 from unittest.mock import MagicMock, patch
 
-from app.services.profile_worker import handle_profile_generation_message
+from app.services.profile_worker import handle_profile_generation_message, handler
 
 
 class TestProfileWorker:
@@ -45,7 +46,9 @@ class TestProfileWorker:
 
         handle_profile_generation_message(message, db)
 
-        mock_update.assert_called_once_with(db, "test-job-1", success=False)
+        mock_update.assert_called_once_with(
+            db, "test-job-1", success=False, error="author:1: Bedrock error"
+        )
 
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker._check_staleness")
@@ -67,3 +70,66 @@ class TestProfileWorker:
 
         mock_gen.assert_not_called()
         mock_update.assert_called_once_with(db, "test-job-1", success=True)
+
+
+class TestProfileWorkerHandler:
+    """Tests for Lambda handler entry point."""
+
+    @patch("app.services.profile_worker.SessionLocal")
+    @patch("app.services.profile_worker.handle_profile_generation_message")
+    def test_handler_processes_sqs_records(self, mock_handle, mock_session):
+        """Handler iterates SQS records and calls handle per message."""
+        mock_db = MagicMock()
+        mock_session.return_value = mock_db
+
+        event = {
+            "Records": [
+                {
+                    "messageId": "msg-1",
+                    "body": json.dumps(
+                        {
+                            "job_id": "j1",
+                            "entity_type": "author",
+                            "entity_id": 1,
+                            "owner_id": 1,
+                        }
+                    ),
+                },
+            ]
+        }
+
+        result = handler(event, None)
+
+        assert result == {"batchItemFailures": []}
+        mock_handle.assert_called_once()
+        mock_db.close.assert_called_once()
+
+    @patch("app.services.profile_worker.SessionLocal")
+    @patch("app.services.profile_worker.handle_profile_generation_message")
+    def test_handler_reports_failures(self, mock_handle, mock_session):
+        """Handler reports failed messages in batchItemFailures."""
+        mock_session.return_value = MagicMock()
+        mock_handle.side_effect = Exception("DB error")
+
+        event = {
+            "Records": [
+                {
+                    "messageId": "msg-1",
+                    "body": json.dumps(
+                        {"job_id": "j1", "entity_type": "author", "entity_id": 1, "owner_id": 1}
+                    ),
+                },
+            ]
+        }
+
+        result = handler(event, None)
+
+        assert result == {"batchItemFailures": [{"itemIdentifier": "msg-1"}]}
+
+    def test_handler_version_check(self):
+        """Version check payload returns version info."""
+        result = handler({"version": True}, None)
+
+        assert result["statusCode"] == 200
+        body = json.loads(result["body"])
+        assert body["worker"] == "profile-generation"

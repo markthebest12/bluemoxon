@@ -1169,9 +1169,20 @@ class TestGenerateAllAsync:
         assert response.status_code == 200
         data = response.json()
         assert "job_id" in data
-        assert data["status"] == "pending"
+        assert data["status"] == "in_progress"
         assert data["total_entities"] >= 1
         mock_send.assert_called_once()
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_generate_all_empty_returns_no_job(self, mock_send, admin_client, db):
+        """POST /generate-all with no entities returns empty status."""
+        response = admin_client.post("/api/v1/entity/profiles/generate-all")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "empty"
+        assert data["total_entities"] == 0
+        assert data["job_id"] is None
+        mock_send.assert_not_called()
 
     @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
     def test_generate_all_returns_existing_job(self, mock_send, admin_client, db):

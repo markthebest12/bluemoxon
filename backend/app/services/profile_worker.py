@@ -43,14 +43,19 @@ def _check_staleness(db: Session, entity_type: str, entity_id: int, owner_id: in
     return check_stale(db, profile, entity_type, entity_id)
 
 
-def _update_job_progress(db: Session, job_id: str, success: bool) -> None:
+def _update_job_progress(db: Session, job_id: str, success: bool, error: str | None = None) -> None:
     """Atomically update job progress and check for completion."""
     column = "succeeded" if success else "failed"
-    stmt = f"UPDATE profile_generation_jobs SET {column} = {column} + 1 WHERE id = :job_id"  # noqa: S608
+    stmt = f"UPDATE profile_generation_jobs SET {column} = {column} + 1, updated_at = NOW() WHERE id = :job_id"  # noqa: S608  # nosec B608
     db.execute(
         text(stmt),
         {"job_id": job_id},
     )
+    if error:
+        job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
+        if job:
+            existing = job.error_log or ""
+            job.error_log = (existing + "\n" + error).strip()
     db.commit()
 
     # Check completion
@@ -96,9 +101,9 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
         logger.info("Generated profile for %s:%s", entity_type, entity_id)
         _update_job_progress(db, job_id, success=True)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to generate profile for %s:%s", entity_type, entity_id)
-        _update_job_progress(db, job_id, success=False)
+        _update_job_progress(db, job_id, success=False, error=f"{entity_type}:{entity_id}: {exc}")
 
 
 def handler(event: dict, context) -> dict:
