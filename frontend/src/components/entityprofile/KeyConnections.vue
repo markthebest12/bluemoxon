@@ -1,9 +1,28 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
+import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 
 defineProps<{
   connections: ProfileConnection[];
 }>();
+
+const expandedCards = ref(new Set<string>());
+
+function toggleCard(conn: ProfileConnection) {
+  const key = `${conn.entity.type}:${conn.entity.id}`;
+  if (expandedCards.value.has(key)) {
+    expandedCards.value.delete(key);
+  } else {
+    expandedCards.value.add(key);
+  }
+  // Trigger reactivity on Set mutation
+  expandedCards.value = new Set(expandedCards.value);
+}
+
+function isExpanded(conn: ProfileConnection): boolean {
+  return expandedCards.value.has(`${conn.entity.type}:${conn.entity.id}`);
+}
 </script>
 
 <template>
@@ -50,6 +69,18 @@ defineProps<{
             </span>
           </span>
         </div>
+        <button
+          v-if="conn.relationship_story"
+          class="key-connections__story-toggle"
+          @click="toggleCard(conn)"
+        >
+          {{ isExpanded(conn) ? "Hide story" : "View full story" }}
+        </button>
+        <ConnectionGossipPanel
+          v-if="conn.relationship_story && isExpanded(conn)"
+          :narrative="conn.relationship_story"
+          :trigger="conn.narrative_trigger"
+        />
       </div>
     </div>
   </section>
@@ -135,5 +166,22 @@ defineProps<{
 
 .key-connections__strength .--empty {
   opacity: 0.3;
+}
+
+.key-connections__story-toggle {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--color-accent-gold, #b8860b);
+  background: none;
+  border: 1px solid var(--color-accent-gold, #b8860b);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.key-connections__story-toggle:hover {
+  background: color-mix(in srgb, var(--color-accent-gold, #b8860b) 10%, transparent);
 }
 </style>
