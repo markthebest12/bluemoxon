@@ -1,18 +1,8 @@
 # BlueMoxon (bmx) Project Instructions
 
-## Bash Command Formatting
-
-**CRITICAL: NEVER use complex shell syntax.** These cause permission prompts:
-
-- `#` comments, `\` continuations, `$(...)` substitution
-- `||` or `&&` chaining - make separate Bash tool calls instead
-- `!` in strings - use `@`, `#`, `$` instead
-
-Use the command description field for comments. Keep commands single-line.
-
 ## BMX API Calls
 
-Use `bmx-api` for all BlueMoxon API calls (no permission prompts):
+Use `bmx-api` for all BlueMoxon API calls:
 
 ```bash
 bmx-api GET /books                    # List books (staging default)
@@ -139,7 +129,7 @@ See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for details.
 | Rule | Reason |
 |------|--------|
 | Never deploy frontend locally | Causes auth outages - use CI/CD |
-| Use `.tmp/` not `/tmp` | Avoids permission prompts |
+| Use `.tmp/` not `/tmp` | Keeps temp files with project context |
 | Deferred work → GitHub issue | Comments get lost |
 | After merge conflicts → run ruff | Catches duplicate definitions |
 
