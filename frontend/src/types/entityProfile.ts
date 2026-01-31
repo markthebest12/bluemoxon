@@ -59,7 +59,7 @@ export interface ProfileConnection {
   connection_type: string;
   strength: number;
   shared_book_count: number;
-  shared_books: Array<{ id: number; title: string; year?: number }>;
+  shared_books: ProfileBook[];
   narrative: string | null;
   narrative_trigger: NarrativeTrigger;
   is_key: boolean;
