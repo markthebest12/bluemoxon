@@ -2,11 +2,13 @@
 
 import time
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.auth import CurrentUser, require_viewer
+from app.auth import CurrentUser, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, Publisher
@@ -36,6 +38,64 @@ def profile_client(db):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[require_viewer] = lambda: mock_user
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def editor_client(db):
+    """Test client with editor auth and a real User record for regenerate endpoint."""
+    user = User(cognito_sub="test-editor-ep", email="ep-editor@example.com", role="editor")
+    db.add(user)
+    db.flush()
+
+    mock_user = CurrentUser(
+        cognito_sub=user.cognito_sub,
+        email=user.email,
+        role=user.role,
+        db_user=user,
+    )
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_editor] = lambda: mock_user
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def viewer_regen_client(db):
+    """Client with viewer auth that raises 403 on require_editor."""
+    user = User(cognito_sub="test-viewer-regen", email="viewer-regen@example.com", role="viewer")
+    db.add(user)
+    db.flush()
+
+    mock_viewer = CurrentUser(
+        cognito_sub=user.cognito_sub,
+        email=user.email,
+        role=user.role,
+        db_user=user,
+    )
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    def override_require_editor():
+        raise HTTPException(status_code=403, detail="Editor role required")
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_viewer] = lambda: mock_viewer
+    app.dependency_overrides[require_editor] = override_require_editor
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -267,3 +327,44 @@ class TestEntityProfileTimestamps:
 
         assert profile.updated_at >= original_updated
         assert profile.bio_summary == "Updated bio"
+
+
+class TestRegenerateEndpoint:
+    """Tests for POST /api/v1/entity/{entity_type}/{entity_id}/profile/regenerate (#1557)."""
+
+    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
+    def test_regenerate_returns_200(self, mock_generate, editor_client, db):
+        """Regenerate succeeds with mocked AI service."""
+        author = Author(name="Test Author")
+        db.add(author)
+        db.commit()
+
+        mock_generate.return_value = MagicMock(spec=EntityProfile)
+
+        response = editor_client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
+        assert response.status_code == 200
+        assert response.json() == {"status": "regenerated"}
+        mock_generate.assert_called_once()
+
+    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
+    def test_regenerate_nonexistent_entity_returns_404(self, mock_generate, editor_client, db):
+        """Regenerating profile for nonexistent entity returns 404."""
+        mock_generate.side_effect = ValueError("Entity not found")
+
+        response = editor_client.post("/api/v1/entity/author/99999/profile/regenerate")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_regenerate_requires_editor_auth(self, viewer_regen_client, db):
+        """Viewer auth gets 403 on regenerate (require_editor)."""
+        author = Author(name="Auth Test Author")
+        db.add(author)
+        db.commit()
+
+        response = viewer_regen_client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
+        assert response.status_code == 403
+
+    def test_regenerate_invalid_entity_type_returns_422(self, editor_client):
+        """Invalid entity_type returns validation error."""
+        response = editor_client.post("/api/v1/entity/invalid/1/profile/regenerate")
+        assert response.status_code == 422
