@@ -69,4 +69,10 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   font-weight: 600;
   margin: 0;
 }
+
+@media (max-width: 480px) {
+  .collection-stats__grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
