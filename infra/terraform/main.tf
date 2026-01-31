@@ -409,10 +409,10 @@ module "lambda" {
       # Cleanup function naming - separate from BMX_ENVIRONMENT to handle prod naming mismatch
       BMX_CLEANUP_ENVIRONMENT = coalesce(var.cleanup_environment_override, var.environment)
       # Worker queue names (URLs constructed at runtime)
-      BMX_ANALYSIS_QUEUE_NAME         = "${local.name_prefix}-analysis-jobs"
-      BMX_EVAL_RUNBOOK_QUEUE_NAME     = "${local.name_prefix}-eval-runbook-jobs"
-      BMX_IMAGE_PROCESSING_QUEUE_NAME      = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
-      BMX_PROFILE_GENERATION_QUEUE_NAME    = local.profile_worker_enabled ? module.profile_worker[0].queue_name : ""
+      BMX_ANALYSIS_QUEUE_NAME           = "${local.name_prefix}-analysis-jobs"
+      BMX_EVAL_RUNBOOK_QUEUE_NAME       = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_IMAGE_PROCESSING_QUEUE_NAME   = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
+      BMX_PROFILE_GENERATION_QUEUE_NAME = local.profile_worker_enabled ? module.profile_worker[0].queue_name : ""
       # Entity validation (#967, #969)
       BMX_ENTITY_VALIDATION_MODE           = var.entity_validation_mode
       BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
