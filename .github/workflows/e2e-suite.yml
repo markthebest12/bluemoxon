@@ -53,7 +53,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps "$E2E_BROWSERS"
+        run: cd frontend && npx playwright install --with-deps $E2E_BROWSERS
         env:
           E2E_BROWSERS: ${{ inputs.browsers }}
 
