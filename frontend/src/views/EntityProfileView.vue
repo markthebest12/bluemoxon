@@ -11,6 +11,8 @@ import PublicationTimeline from "@/components/entityprofile/PublicationTimeline.
 import ProfileSkeleton from "@/components/entityprofile/ProfileSkeleton.vue";
 import StaleProfileBanner from "@/components/entityprofile/StaleProfileBanner.vue";
 import EgoNetwork from "@/components/entityprofile/EgoNetwork.vue";
+import ConnectionSummary from "@/components/entityprofile/ConnectionSummary.vue";
+import { useMediaQuery } from "@/composables/entityprofile/useMediaQuery";
 
 const props = defineProps<{
   type: string;
@@ -33,6 +35,7 @@ const {
   regenerateProfile,
 } = useEntityProfile();
 
+const isMobile = useMediaQuery("(max-width: 767px)");
 const isRegenerating = ref(false);
 
 async function handleRegenerate() {
@@ -87,10 +90,14 @@ watch(
       <ProfileHero :entity="entity" :profile="profile" />
 
       <EgoNetwork
-        v-if="connections.length > 0"
+        v-if="connections.length > 0 && !isMobile"
         :entity-id="entity.id"
         :entity-type="entity.type"
         :entity-name="entity.name"
+        :connections="connections"
+      />
+      <ConnectionSummary
+        v-if="connections.length > 0 && isMobile"
         :connections="connections"
       />
 
@@ -154,6 +161,17 @@ watch(
 @media (max-width: 1024px) {
   .entity-profile-view__content {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .entity-profile-view {
+    padding: 16px;
+  }
+
+  .entity-profile-view__back {
+    font-size: 16px;
+    padding: 8px 0;
   }
 }
 </style>
