@@ -22,6 +22,7 @@ class EntityProfile(TimestampMixin, Base):
     bio_summary: Mapped[str | None] = mapped_column(Text)
     personal_stories: Mapped[list | None] = mapped_column(JSON, default=list)
     connection_narratives: Mapped[dict | None] = mapped_column(JSON)
+    relationship_stories: Mapped[dict | None] = mapped_column(JSON)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )

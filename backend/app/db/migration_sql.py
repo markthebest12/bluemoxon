@@ -652,6 +652,10 @@ MIGRATION_F6G7H8I9J0K1_SQL = [
     WHERE created_at = updated_at""",
 ]
 
+MIGRATION_G7H8I9J0K1L2_SQL = [
+    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS relationship_stories JSON",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -888,5 +892,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "f6g7h8i9j0k1",
         "name": "add_timestamps_to_entity_profiles",
         "sql_statements": MIGRATION_F6G7H8I9J0K1_SQL,
+    },
+    {
+        "id": "g7h8i9j0k1l2",
+        "name": "add_relationship_stories_to_entity_profiles",
+        "sql_statements": MIGRATION_G7H8I9J0K1L2_SQL,
     },
 ]
