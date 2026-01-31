@@ -37,6 +37,9 @@ enable_github_oidc                 = true
 enable_github_oidc_drift_detection = true # Read-only permissions for pre-deploy drift check
 enable_github_oidc_bedrock_tests   = true # Bedrock access for garbage detection integration tests
 
+# Profile worker - async entity profile generation with Bedrock
+enable_profile_worker = true
+
 # Tracking worker - hourly sync of shipments and inventory updates
 enable_tracking_worker       = true
 tracking_schedule_expression = "rate(1 hour)"
