@@ -1,7 +1,7 @@
 """Tests for entity profile endpoint."""
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +12,7 @@ from app.main import app
 from app.models import Author, Binder, Book, Publisher
 from app.models.entity_profile import EntityProfile
 from app.models.user import User
+from app.services.entity_profile import _ENTITY_FK_MAP, _check_staleness, _get_entity_books
 
 
 @pytest.fixture(scope="function")
@@ -267,3 +268,91 @@ class TestEntityProfileTimestamps:
 
         assert profile.updated_at >= original_updated
         assert profile.bio_summary == "Updated bio"
+
+
+class TestEntityFKMap:
+    """Tests for _ENTITY_FK_MAP and its usage in _get_entity_books / _check_staleness."""
+
+    def test_fk_map_contains_author(self):
+        """_ENTITY_FK_MAP maps 'author' to Book.author_id."""
+        assert "author" in _ENTITY_FK_MAP
+        assert _ENTITY_FK_MAP["author"].key == "author_id"
+
+    def test_fk_map_contains_publisher(self):
+        """_ENTITY_FK_MAP maps 'publisher' to Book.publisher_id."""
+        assert "publisher" in _ENTITY_FK_MAP
+        assert _ENTITY_FK_MAP["publisher"].key == "publisher_id"
+
+    def test_fk_map_contains_binder(self):
+        """_ENTITY_FK_MAP maps 'binder' to Book.binder_id."""
+        assert "binder" in _ENTITY_FK_MAP
+        assert _ENTITY_FK_MAP["binder"].key == "binder_id"
+
+    def test_fk_map_unknown_type_not_present(self):
+        """Unknown entity types are not in _ENTITY_FK_MAP."""
+        assert "unknown" not in _ENTITY_FK_MAP
+
+    def test_get_entity_books_unknown_type_returns_empty(self, db):
+        """_get_entity_books returns [] for unknown entity type."""
+        result = _get_entity_books(db, "unknown", 1)
+        assert result == []
+
+    def test_get_entity_books_author(self, db):
+        """_get_entity_books filters by author_id for 'author' type."""
+        author = Author(name="Test FK Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="FK Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        result = _get_entity_books(db, "author", author.id)
+        assert len(result) == 1
+        assert result[0].title == "FK Test Book"
+
+    def test_get_entity_books_publisher(self, db):
+        """_get_entity_books filters by publisher_id for 'publisher' type."""
+        publisher = Publisher(name="Test FK Publisher")
+        db.add(publisher)
+        db.flush()
+
+        book = Book(title="FK Pub Book", publisher_id=publisher.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        result = _get_entity_books(db, "publisher", publisher.id)
+        assert len(result) == 1
+        assert result[0].title == "FK Pub Book"
+
+    def test_get_entity_books_binder(self, db):
+        """_get_entity_books filters by binder_id for 'binder' type."""
+        binder = Binder(name="Test FK Binder")
+        db.add(binder)
+        db.flush()
+
+        book = Book(title="FK Binder Book", binder_id=binder.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        result = _get_entity_books(db, "binder", binder.id)
+        assert len(result) == 1
+        assert result[0].title == "FK Binder Book"
+
+    def test_check_staleness_unknown_type_returns_false(self, db):
+        """_check_staleness returns False for unknown entity type."""
+        user = User(cognito_sub="test-fk-stale", email="fk-stale@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="unknown",
+            entity_id=1,
+            owner_id=user.id,
+            generated_at=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+        db.add(profile)
+        db.commit()
+
+        result = _check_staleness(db, profile, "unknown", 1)
+        assert result is False

@@ -40,6 +40,13 @@ _MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
     "binder": Binder,
 }
 
+# Map entity type strings to their Book FK columns.
+_ENTITY_FK_MAP = {
+    "author": Book.author_id,
+    "publisher": Book.publisher_id,
+    "binder": Book.binder_id,
+}
+
 
 def _get_entity(
     db: Session, entity_type: str, entity_id: int
@@ -53,15 +60,10 @@ def _get_entity(
 
 def _get_entity_books(db: Session, entity_type: str, entity_id: int) -> list[Book]:
     """Fetch owned books for an entity."""
-    filters = [Book.status.in_(OWNED_STATUSES)]
-    if entity_type == "author":
-        filters.append(Book.author_id == entity_id)
-    elif entity_type == "publisher":
-        filters.append(Book.publisher_id == entity_id)
-    elif entity_type == "binder":
-        filters.append(Book.binder_id == entity_id)
-    else:
+    fk_column = _ENTITY_FK_MAP.get(entity_type)
+    if fk_column is None:
         return []
+    filters = [Book.status.in_(OWNED_STATUSES), fk_column == entity_id]
     return db.query(Book).filter(*filters).order_by(Book.year_start.asc()).all()
 
 
@@ -120,16 +122,11 @@ def _check_staleness(
     if not profile or not profile.generated_at:
         return False
 
-    filters = [Book.status.in_(OWNED_STATUSES)]
-    if entity_type == "author":
-        filters.append(Book.author_id == entity_id)
-    elif entity_type == "publisher":
-        filters.append(Book.publisher_id == entity_id)
-    elif entity_type == "binder":
-        filters.append(Book.binder_id == entity_id)
-    else:
+    fk_column = _ENTITY_FK_MAP.get(entity_type)
+    if fk_column is None:
         return False
 
+    filters = [Book.status.in_(OWNED_STATUSES), fk_column == entity_id]
     latest_update = db.query(func.max(Book.updated_at)).filter(*filters).scalar()
     if latest_update and latest_update > profile.generated_at:
         return True
