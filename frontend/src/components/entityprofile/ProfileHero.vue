@@ -112,4 +112,18 @@ const heroStories = computed(() => {
   font-weight: 600;
   margin-right: 8px;
 }
+
+@media (max-width: 768px) {
+  .profile-hero {
+    padding: 20px;
+  }
+
+  .profile-hero__name {
+    font-size: 22px;
+  }
+
+  .profile-hero__bio {
+    font-size: 15px;
+  }
+}
 </style>
