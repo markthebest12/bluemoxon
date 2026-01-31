@@ -8,11 +8,12 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.auth import CurrentUser, require_editor, require_viewer
+from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, Publisher
 from app.models.entity_profile import EntityProfile
+from app.models.profile_generation_job import ProfileGenerationJob
 from app.models.user import User
 from app.services.entity_profile import (
     _build_connections,
@@ -594,7 +595,7 @@ def _make_graph_edge(
 class TestBuildConnectionsClassifier:
     """Tests for _build_connections narrative_trigger population (#1553)."""
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection")
     def test_populates_narrative_trigger(self, mock_classify, mock_graph, db):
         """Each connection gets a narrative_trigger from classify_connection."""
@@ -621,7 +622,7 @@ class TestBuildConnectionsClassifier:
         assert call_kwargs.kwargs["source_era"] == "victorian"
         assert call_kwargs.kwargs["target_era"] == "romantic"
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection")
     def test_no_trigger_when_classifier_returns_none(self, mock_classify, mock_graph, db):
         """narrative_trigger is None when classifier returns None."""
@@ -642,7 +643,7 @@ class TestBuildConnectionsClassifier:
         assert len(connections) == 1
         assert connections[0].narrative_trigger is None
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection")
     def test_source_connection_count_passed_to_classifier(self, mock_classify, mock_graph, db):
         """source_connection_count equals total edges for the source entity."""
@@ -664,7 +665,7 @@ class TestBuildConnectionsClassifier:
         for call in mock_classify.call_args_list:
             assert call.kwargs["source_connection_count"] == 6
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection")
     def test_cached_relationship_story_sets_has_relationship_story(
         self, mock_classify, mock_graph, db
@@ -701,7 +702,7 @@ class TestBuildConnectionsClassifier:
 class TestBuildConnectionsSharedBooks:
     """Tests for _build_connections shared_books population (#1556)."""
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_populates_shared_books(self, _mock_classify, mock_graph, db):
         """shared_books contains ProfileBook objects for shared_book_ids."""
@@ -745,7 +746,7 @@ class TestBuildConnectionsSharedBooks:
         assert sb.edition == "First"
         assert sb.condition == "FINE"
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_shared_books_capped_at_5(self, _mock_classify, mock_graph, db):
         """shared_books is capped at 5 per connection."""
@@ -785,7 +786,7 @@ class TestBuildConnectionsSharedBooks:
 
         assert len(connections[0].shared_books) == 5
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_empty_shared_book_ids(self, _mock_classify, mock_graph, db):
         """shared_books is empty when edge has no shared_book_ids."""
@@ -803,7 +804,7 @@ class TestBuildConnectionsSharedBooks:
         assert connections[0].shared_books == []
         assert connections[0].shared_book_count == 0
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_shared_books_bulk_query_efficiency(self, _mock_classify, mock_graph, db):
         """Shared books across multiple edges are fetched in a single query."""
@@ -841,7 +842,7 @@ class TestBuildConnectionsSharedBooks:
 class TestBuildConnectionsRelationshipStory:
     """Tests for _build_connections relationship_story from cached profile (#1553)."""
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value="cross_era_bridge")
     def test_cached_relationship_story_populated(self, _mock_classify, mock_graph, db):
         """relationship_story is populated from cached profile data."""
@@ -887,7 +888,7 @@ class TestBuildConnectionsRelationshipStory:
         )
         assert connections[0].relationship_story.narrative_style == "prose-paragraph"
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_no_relationship_story_when_not_cached(self, _mock_classify, mock_graph, db):
         """relationship_story is None when no cached story exists."""
@@ -908,7 +909,7 @@ class TestBuildConnectionsRelationshipStory:
 class TestGenerateAndCacheProfileTriggers:
     """Tests for generate_and_cache_profile trigger-based narrative selection (#1553)."""
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
@@ -955,7 +956,7 @@ class TestGenerateAndCacheProfileTriggers:
             == "Cross-era partnership"
         )
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
@@ -991,7 +992,7 @@ class TestGenerateAndCacheProfileTriggers:
         mock_story.assert_not_called()
         assert f"author:{author.id}:publisher:2" in result.connection_narratives
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
@@ -1027,7 +1028,7 @@ class TestGenerateAndCacheProfileTriggers:
         assert result.connection_narratives == {}
         assert result.relationship_stories == {}
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
@@ -1064,7 +1065,7 @@ class TestGenerateAndCacheProfileTriggers:
 
         assert mock_narrative.call_count == 2
 
-    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
@@ -1125,3 +1126,88 @@ class TestGenerateAndCacheProfileTriggers:
         # Existing story is preserved (merged, not overwritten)
         assert "author:1:binder:99" in result.relationship_stories
         assert result.relationship_stories["author:1:binder:99"]["summary"] == "Existing story"
+
+
+@pytest.fixture(scope="function")
+def admin_client(db):
+    """Test client with admin role and real db_user for generate-all endpoints."""
+    user = User(cognito_sub="test-admin-ep", email="admin-ep@example.com", role="admin")
+    db.add(user)
+    db.flush()
+
+    mock_user = CurrentUser(
+        cognito_sub=user.cognito_sub,
+        email=user.email,
+        role=user.role,
+        db_user=user,
+    )
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_admin] = lambda: mock_user
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+class TestGenerateAllAsync:
+    """Tests for async batch generation endpoint (#1550)."""
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_generate_all_returns_job_id(self, mock_send, admin_client, db):
+        """POST /generate-all returns job_id and enqueues messages."""
+        author = Author(name="Batch Author")
+        db.add(author)
+        db.commit()
+
+        response = admin_client.post("/api/v1/entity/profiles/generate-all")
+        assert response.status_code == 200
+        data = response.json()
+        assert "job_id" in data
+        assert data["status"] == "pending"
+        assert data["total_entities"] >= 1
+        mock_send.assert_called_once()
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_generate_all_returns_existing_job(self, mock_send, admin_client, db):
+        """Returns existing job if one is already in progress."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(owner_id=user.id, status="in_progress", total_entities=5)
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post("/api/v1/entity/profiles/generate-all")
+        data = response.json()
+        assert data["job_id"] == job.id
+        assert data["status"] == "in_progress"
+        mock_send.assert_not_called()
+
+
+class TestGenerateAllStatus:
+    """Tests for batch generation status endpoint (#1550)."""
+
+    def test_status_returns_job_progress(self, admin_client, db):
+        """GET status returns job progress."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id, status="in_progress", total_entities=10, succeeded=7, failed=1
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.get(f"/api/v1/entity/profiles/generate-all/status/{job.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entities"] == 10
+        assert data["succeeded"] == 7
+        assert data["failed"] == 1
+
+    def test_status_404_for_unknown_job(self, admin_client):
+        """GET status returns 404 for unknown job."""
+        response = admin_client.get("/api/v1/entity/profiles/generate-all/status/nonexistent-id")
+        assert response.status_code == 404
