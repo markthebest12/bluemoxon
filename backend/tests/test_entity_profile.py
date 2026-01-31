@@ -1,7 +1,7 @@
 """Tests for entity profile endpoint."""
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +14,7 @@ from app.main import app
 from app.models import Author, Binder, Book, Publisher
 from app.models.entity_profile import EntityProfile
 from app.models.user import User
+from app.services.entity_profile import _check_staleness, _get_entity_books
 
 # NOTE: profile_client, editor_client, and viewer_regen_client share boilerplate
 # (User creation, CurrentUser mock, get_db override). A factory extraction was
@@ -412,3 +413,125 @@ class TestRegenerateEndpoint:
         """entity_id=0 is rejected by FastAPI ge=1 validation."""
         response = editor_client.post("/api/v1/entity/author/0/profile/regenerate")
         assert response.status_code == 422
+
+
+class TestEntityFKMap:
+    """Tests for _get_entity_books and _check_staleness behaviour."""
+
+    def test_get_entity_books_unknown_type_returns_empty(self, db):
+        """_get_entity_books returns [] for unknown entity type."""
+        result = _get_entity_books(db, "unknown", 1)
+        assert result == []
+
+    @pytest.mark.parametrize(
+        ("entity_type", "model_cls", "fk_field", "book_title"),
+        [
+            ("author", Author, "author_id", "FK Author Book"),
+            ("publisher", Publisher, "publisher_id", "FK Publisher Book"),
+            ("binder", Binder, "binder_id", "FK Binder Book"),
+        ],
+    )
+    def test_get_entity_books_by_type(self, db, entity_type, model_cls, fk_field, book_title):
+        """_get_entity_books returns books for each entity type."""
+        entity = model_cls(name=f"Test FK {entity_type.title()}")
+        db.add(entity)
+        db.flush()
+
+        book = Book(title=book_title, status="ON_HAND", **{fk_field: entity.id})
+        db.add(book)
+        db.commit()
+
+        result = _get_entity_books(db, entity_type, entity.id)
+        assert len(result) == 1
+        assert result[0].title == book_title
+
+    def test_get_entity_books_excludes_non_owned_statuses(self, db):
+        """_get_entity_books excludes books with non-owned statuses like SOLD."""
+        author = Author(name="Status Filter Author")
+        db.add(author)
+        db.flush()
+
+        book_owned = Book(title="Owned Book", author_id=author.id, status="ON_HAND")
+        book_sold = Book(title="Sold Book", author_id=author.id, status="SOLD")
+        db.add_all([book_owned, book_sold])
+        db.commit()
+
+        result = _get_entity_books(db, "author", author.id)
+        assert len(result) == 1
+        assert result[0].title == "Owned Book"
+
+    def test_check_staleness_unknown_type_returns_false(self, db):
+        """_check_staleness returns False for unknown entity type."""
+        user = User(cognito_sub="test-fk-stale", email="fk-stale@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="unknown",
+            entity_id=1,
+            owner_id=user.id,
+            generated_at=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+        db.add(profile)
+        db.commit()
+
+        result = _check_staleness(db, profile, "unknown", 1)
+        assert result is False
+
+    def test_check_staleness_returns_true_when_book_updated_after_profile(self, db):
+        """_check_staleness returns True when a book was updated after generated_at."""
+        user = User(cognito_sub="test-stale-true", email="stale-true@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        author = Author(name="Stale Author")
+        db.add(author)
+        db.flush()
+
+        old_time = datetime.now(UTC) - timedelta(hours=2)
+        book = Book(title="Stale Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user.id,
+            generated_at=old_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        db.query(Book).filter(Book.id == book.id).update({"updated_at": datetime.now(UTC)})
+        db.commit()
+        db.refresh(profile)
+
+        result = _check_staleness(db, profile, "author", author.id)
+        assert result is True
+
+    def test_check_staleness_returns_false_when_profile_is_fresh(self, db):
+        """_check_staleness returns False when generated_at is after book updates."""
+        user = User(cognito_sub="test-stale-false", email="stale-false@example.com", role="viewer")
+        db.add(user)
+        db.flush()
+
+        author = Author(name="Fresh Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Fresh Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        future_time = datetime.now(UTC) + timedelta(hours=1)
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user.id,
+            generated_at=future_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        result = _check_staleness(db, profile, "author", author.id)
+        assert result is False
