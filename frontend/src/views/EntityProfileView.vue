@@ -12,7 +12,7 @@ import ProfileSkeleton from "@/components/entityprofile/ProfileSkeleton.vue";
 import StaleProfileBanner from "@/components/entityprofile/StaleProfileBanner.vue";
 import EgoNetwork from "@/components/entityprofile/EgoNetwork.vue";
 import ConnectionSummary from "@/components/entityprofile/ConnectionSummary.vue";
-import { useMediaQuery } from "@/composables/entityprofile/useMediaQuery";
+import { useMediaQuery } from "@vueuse/core";
 
 const props = defineProps<{
   type: string;
@@ -35,7 +35,7 @@ const {
   regenerateProfile,
 } = useEntityProfile();
 
-const isMobile = useMediaQuery("(max-width: 767px)");
+const isMobile = useMediaQuery("(max-width: 768px)");
 const isRegenerating = ref(false);
 
 async function handleRegenerate() {

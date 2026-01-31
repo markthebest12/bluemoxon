@@ -1,11 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import ConnectionSummary from "../ConnectionSummary.vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 
+let nextId = 1;
 function makeConn(name: string, isKey: boolean): ProfileConnection {
   return {
-    entity: { id: 1, type: "author", name },
+    entity: { id: nextId++, type: "author", name },
     connection_type: "associate",
     strength: 5,
     shared_book_count: 1,
@@ -18,6 +19,9 @@ function makeConn(name: string, isKey: boolean): ProfileConnection {
 }
 
 describe("ConnectionSummary", () => {
+  beforeEach(() => {
+    nextId = 1;
+  });
   it("renders total connection count", () => {
     const conns = [makeConn("Alice", true), makeConn("Bob", true), makeConn("Carol", false)];
     const wrapper = mount(ConnectionSummary, { props: { connections: conns } });

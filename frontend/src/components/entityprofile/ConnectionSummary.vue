@@ -14,6 +14,7 @@ const keyNames = computed(() =>
 
 const displayNames = computed(() => keyNames.value.slice(0, MAX_NAMES));
 
+// Total connections minus displayed key names = unnamed connections ("and N others")
 const remaining = computed(() => props.connections.length - displayNames.value.length);
 </script>
 
