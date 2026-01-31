@@ -409,9 +409,10 @@ module "lambda" {
       # Cleanup function naming - separate from BMX_ENVIRONMENT to handle prod naming mismatch
       BMX_CLEANUP_ENVIRONMENT = coalesce(var.cleanup_environment_override, var.environment)
       # Worker queue names (URLs constructed at runtime)
-      BMX_ANALYSIS_QUEUE_NAME         = "${local.name_prefix}-analysis-jobs"
-      BMX_EVAL_RUNBOOK_QUEUE_NAME     = "${local.name_prefix}-eval-runbook-jobs"
-      BMX_IMAGE_PROCESSING_QUEUE_NAME = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
+      BMX_ANALYSIS_QUEUE_NAME           = "${local.name_prefix}-analysis-jobs"
+      BMX_EVAL_RUNBOOK_QUEUE_NAME       = "${local.name_prefix}-eval-runbook-jobs"
+      BMX_IMAGE_PROCESSING_QUEUE_NAME   = local.image_processor_enabled ? module.image_processor[0].queue_name : ""
+      BMX_PROFILE_GENERATION_QUEUE_NAME = local.profile_worker_enabled ? module.profile_worker[0].queue_name : ""
       # Entity validation (#967, #969)
       BMX_ENTITY_VALIDATION_MODE           = var.entity_validation_mode
       BMX_ENTITY_MATCH_THRESHOLD_PUBLISHER = tostring(var.entity_match_threshold_publisher)
@@ -623,6 +624,73 @@ module "eval_runbook_worker" {
 
   # Lambda invoke permissions (e.g., scraper Lambda for eBay FMV lookup)
   lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
+
+  # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
+  api_lambda_role_name = local.api_lambda_role_name
+
+  # Environment variables
+  environment_variables = merge(
+    {
+      IMAGES_CDN_DOMAIN = var.enable_cloudfront ? module.images_cdn[0].distribution_domain_name : ""
+      IMAGES_BUCKET     = module.images_bucket.bucket_name
+    },
+    # Database secret ARN (use module output for staging, explicit ARN for prod)
+    var.enable_database ? {
+      DATABASE_SECRET_ARN = module.database_secret[0].arn
+      } : (var.database_secret_arn != null ? {
+        DATABASE_SECRET_ARN = var.database_secret_arn
+    } : {})
+  )
+
+  tags = local.common_tags
+}
+
+# =============================================================================
+# Profile Worker (async entity profile generation with SQS)
+# =============================================================================
+# Can be enabled independently of main Lambda using enable_profile_worker.
+# When enable_lambda=false, uses external_lambda_role_name and
+# external_lambda_security_group_id for permissions and VPC config.
+
+module "profile_worker" {
+  count  = local.profile_worker_enabled ? 1 : 0
+  source = "./modules/profile-worker"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+
+  s3_bucket = module.artifacts_bucket.bucket_id
+  s3_key    = local.lambda_s3_key
+  runtime   = var.lambda_runtime
+
+  # Match API Lambda timeout + buffer for SQS visibility
+  timeout              = 600
+  visibility_timeout   = 660
+  memory_size          = 256
+  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
+
+  # VPC configuration - use external security group if Lambda is managed externally
+  subnet_ids         = var.private_subnet_ids
+  security_group_ids = local.lambda_security_group_id != null ? [local.lambda_security_group_id] : []
+
+  # Secrets Manager access - use prod secret ARN pattern for external Lambda
+  secrets_arns = var.enable_database ? [
+    "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/database*"
+    ] : (
+    # For prod with external Lambda, use the secret ARN pattern directly
+    local.is_prod ? [
+      "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:bluemoxon/db-credentials*"
+    ] : []
+  )
+
+  # S3 bucket access
+  s3_bucket_arns = [module.images_bucket.bucket_arn]
+
+  # Bedrock model access (wildcards to cover all versions)
+  bedrock_model_ids = [
+    "anthropic.claude-sonnet-4-5-*",
+    "anthropic.claude-opus-4-5-*"
+  ]
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
   api_lambda_role_name = local.api_lambda_role_name

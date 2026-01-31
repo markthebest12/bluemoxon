@@ -204,6 +204,25 @@ output "eval_runbook_dlq_url" {
 }
 
 # =============================================================================
+# Profile Worker Outputs
+# =============================================================================
+
+output "profile_worker_function_name" {
+  description = "Profile worker Lambda function name"
+  value       = local.profile_worker_enabled ? module.profile_worker[0].function_name : null
+}
+
+output "profile_queue_url" {
+  description = "SQS queue URL for profile generation jobs"
+  value       = local.profile_worker_enabled ? module.profile_worker[0].queue_url : null
+}
+
+output "profile_dlq_url" {
+  description = "SQS dead letter queue URL for failed profile generation jobs"
+  value       = local.profile_worker_enabled ? module.profile_worker[0].dlq_url : null
+}
+
+# =============================================================================
 # Tracking Worker Outputs
 # =============================================================================
 

@@ -767,6 +767,12 @@ variable "enable_elasticache" {
   default     = false
 }
 
+variable "enable_profile_worker" {
+  type        = bool
+  description = "Enable profile worker Lambda + SQS for async entity profile generation"
+  default     = null # Defaults to enable_lambda value when null
+}
+
 variable "enable_image_processor" {
   type        = bool
   description = "Enable image processor Lambda + SQS for background image processing"

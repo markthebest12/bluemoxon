@@ -113,6 +113,7 @@ jobs:
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
       eval_runbook_worker_function_name: ${{ steps.config.outputs.eval_runbook_worker_function_name }}
+      profile_worker_function_name: ${{ steps.config.outputs.profile_worker_function_name }}
       cleanup_function_name: ${{ steps.config.outputs.cleanup_function_name }}
       retry_queue_failed_function_name: ${{ steps.config.outputs.retry_queue_failed_function_name }}
       tracking_dispatcher_function_name: ${{ steps.config.outputs.tracking_dispatcher_function_name }}
@@ -337,6 +338,7 @@ jobs:
           echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
           echo "worker_function_name=$(terraform output -raw analysis_worker_function_name)" >> $GITHUB_OUTPUT
           echo "eval_runbook_worker_function_name=$(terraform output -raw eval_runbook_worker_function_name)" >> $GITHUB_OUTPUT
+          echo "profile_worker_function_name=$(terraform output -raw profile_worker_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
           echo "cleanup_function_name=$(terraform output -raw cleanup_lambda_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "retry_queue_failed_function_name=$(terraform output -raw retry_queue_failed_function_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
@@ -963,6 +965,8 @@ jobs:
             display_name: Tracking Dispatcher
           - name: tracking-worker
             display_name: Tracking Worker
+          - name: profile-worker
+            display_name: Profile Worker
       fail-fast: false
 
     steps:
@@ -987,6 +991,9 @@ jobs:
               ;;
             tracking-worker)
               FN="${{ needs.configure.outputs.tracking_worker_function_name }}"
+              ;;
+            profile-worker)
+              FN="${{ needs.configure.outputs.profile_worker_function_name }}"
               ;;
             *)
               echo "::error::Unknown matrix name: ${{ matrix.name }}"
