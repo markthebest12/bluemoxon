@@ -59,20 +59,6 @@ class ProfileData(BaseModel):
     model_version: str | None = None
 
 
-class ProfileConnection(BaseModel):
-    """A connection to another entity."""
-
-    entity: ProfileEntity
-    connection_type: str
-    strength: int
-    shared_book_count: int
-    shared_books: list[dict] = Field(default_factory=list)
-    narrative: str | None = None
-    narrative_trigger: str | None = None
-    is_key: bool = False
-    relationship_story: RelationshipNarrative | None = None
-
-
 class ProfileBook(BaseModel):
     """A book in the entity's collection."""
 
@@ -81,6 +67,20 @@ class ProfileBook(BaseModel):
     year: int | None = None
     condition: str | None = None
     edition: str | None = None
+
+
+class ProfileConnection(BaseModel):
+    """A connection to another entity."""
+
+    entity: ProfileEntity
+    connection_type: str
+    strength: int
+    shared_book_count: int
+    shared_books: list[ProfileBook] = Field(default_factory=list)
+    narrative: str | None = None
+    narrative_trigger: str | None = None
+    is_key: bool = False
+    relationship_story: RelationshipNarrative | None = None
 
 
 class ProfileStats(BaseModel):

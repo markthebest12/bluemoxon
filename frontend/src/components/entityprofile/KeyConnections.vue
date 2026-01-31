@@ -30,6 +30,11 @@ defineProps<{
         <p v-if="conn.narrative" class="key-connections__narrative">
           {{ conn.narrative }}
         </p>
+        <ul v-if="conn.shared_books.length" class="key-connections__books">
+          <li v-for="book in conn.shared_books" :key="book.id">
+            {{ book.title }}<span v-if="book.year"> ({{ book.year }})</span>
+          </li>
+        </ul>
         <div class="key-connections__meta">
           <span
             >{{ conn.shared_book_count }}
@@ -97,6 +102,24 @@ defineProps<{
   line-height: 1.5;
   font-style: italic;
   margin: 8px 0;
+}
+
+.key-connections__books {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.key-connections__books li {
+  padding: 2px 0;
+  color: var(--color-text-muted, #8b8579);
+}
+
+.key-connections__books li::before {
+  content: "\2022";
+  color: var(--color-accent-gold, #b8860b);
+  margin-right: 6px;
 }
 
 .key-connections__meta {
