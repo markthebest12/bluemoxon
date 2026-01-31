@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { ProfileEntity, ProfileData } from "@/types/entityProfile";
 import { formatTier } from "@/utils/socialCircles/formatters";
-import { getToneStyle } from "@/composables/entityprofile/useToneStyle";
+import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
 
 const props = defineProps<{
   entity: ProfileEntity;

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 
-defineProps<{
+const props = defineProps<{
   connections: ProfileConnection[];
 }>();
 
 const expandedCards = ref<Record<string, boolean>>({});
+
+// Reset expanded state when connections change (navigating between profiles)
+watch(toRef(props, "connections"), () => {
+  expandedCards.value = {};
+});
 
 function toggleCard(conn: ProfileConnection) {
   const key = `${conn.entity.type}:${conn.entity.id}`;
@@ -66,6 +71,7 @@ function isExpanded(conn: ProfileConnection): boolean {
         <button
           v-if="conn.relationship_story"
           class="key-connections__story-toggle"
+          :aria-expanded="isExpanded(conn)"
           @click="toggleCard(conn)"
         >
           {{ isExpanded(conn) ? "Hide story" : "View full story" }}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getToneStyle } from "../useToneStyle";
+import { getToneStyle } from "../getToneStyle";
 import type { Tone } from "@/types/entityProfile";
 
 describe("getToneStyle", () => {

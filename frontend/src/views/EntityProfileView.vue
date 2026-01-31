@@ -36,6 +36,7 @@ const {
 } = useEntityProfile();
 
 const isMobile = useMediaQuery("(max-width: 768px)");
+const isMounted = ref(false);
 const isRegenerating = ref(false);
 
 async function handleRegenerate() {
@@ -49,6 +50,7 @@ async function handleRegenerate() {
 }
 
 onMounted(() => {
+  isMounted.value = true;
   void fetchProfile(props.type, props.id);
 });
 
@@ -90,14 +92,14 @@ watch(
       <ProfileHero :entity="entity" :profile="profile" />
 
       <EgoNetwork
-        v-if="connections.length > 0 && !isMobile"
+        v-if="isMounted && connections.length > 0 && !isMobile"
         :entity-id="entity.id"
         :entity-type="entity.type"
         :entity-name="entity.name"
         :connections="connections"
       />
       <ConnectionSummary
-        v-if="connections.length > 0 && isMobile"
+        v-if="isMounted && connections.length > 0 && isMobile"
         :connections="connections"
       />
 

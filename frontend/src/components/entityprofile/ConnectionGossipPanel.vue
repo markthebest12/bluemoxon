@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RelationshipNarrative, NarrativeTrigger } from "@/types/entityProfile";
-import { getToneStyle } from "@/composables/entityprofile/useToneStyle";
+import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
 
 defineProps<{
   narrative: RelationshipNarrative;
