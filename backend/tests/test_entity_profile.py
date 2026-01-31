@@ -1063,3 +1063,65 @@ class TestGenerateAndCacheProfileTriggers:
         generate_and_cache_profile(db, "author", author.id, user.id, max_narratives=2)
 
         assert mock_narrative.call_count == 2
+
+    @patch("app.services.entity_profile.build_social_circles_graph")
+    @patch("app.services.entity_profile.generate_bio_and_stories")
+    @patch("app.services.entity_profile.classify_connection")
+    @patch("app.services.entity_profile.generate_relationship_story")
+    @patch("app.services.entity_profile.generate_connection_narrative")
+    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    def test_regeneration_preserves_existing_relationship_stories(
+        self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
+    ):
+        """Regeneration merges new stories into existing ones instead of replacing."""
+        user = User(cognito_sub="test-gen-merge", email="gen-merge@example.com", role="editor")
+        db.add(user)
+        db.flush()
+        author = Author(name="Merge Author")
+        db.add(author)
+        db.flush()
+
+        # Pre-existing profile with an externally-populated story
+        existing_profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user.id,
+            bio_summary="Old bio",
+            relationship_stories={
+                "author:1:binder:99": {
+                    "summary": "Existing story",
+                    "details": [],
+                    "narrative_style": "prose-paragraph",
+                }
+            },
+        )
+        db.add(existing_profile)
+        db.commit()
+
+        mock_bio.return_value = {"biography": "New bio", "personal_stories": []}
+        mock_classify.return_value = "cross_era_bridge"
+        mock_story.return_value = {
+            "summary": "New cross-era story",
+            "details": [],
+            "narrative_style": "prose-paragraph",
+        }
+
+        source = _make_graph_node(
+            "author:1", author.id, "Merge Author", era="victorian", birth_year=1809
+        )
+        target = _make_graph_node(
+            "publisher:2", 2, "Pub", node_type="publisher", era="romantic", founded_year=1768
+        )
+        edge = _make_graph_edge("author:1", "publisher:2")
+        graph = MagicMock()
+        graph.nodes = [source, target]
+        graph.edges = [edge]
+        mock_graph.return_value = graph
+
+        result = generate_and_cache_profile(db, "author", author.id, user.id)
+
+        # New story is present
+        assert f"author:{author.id}:publisher:2" in result.relationship_stories
+        # Existing story is preserved (merged, not overwritten)
+        assert "author:1:binder:99" in result.relationship_stories
+        assert result.relationship_stories["author:1:binder:99"]["summary"] == "Existing story"

@@ -269,7 +269,9 @@ def _build_connections(
             try:
                 relationship_story = RelationshipNarrative(**cached_story_data)
             except Exception:
-                logger.warning("Invalid cached relationship story for %s", narrative_key)
+                logger.warning(
+                    "Invalid cached relationship story for %s", narrative_key, exc_info=True
+                )
 
         connections.append(
             ProfileConnection(
@@ -414,7 +416,8 @@ def generate_and_cache_profile(
         other_type_str = (
             other_node.type.value if hasattr(other_node.type, "value") else str(other_node.type)
         )
-        shared_titles = [b.title for b in books if b.id in (edge.shared_book_ids or [])]
+        shared_ids_set = set(edge.shared_book_ids) if edge.shared_book_ids else set()
+        shared_titles = [b.title for b in books if b.id in shared_ids_set]
         key = f"{node_id}:{other_id}"
 
         # Classify to decide what AI content to generate
@@ -480,7 +483,11 @@ def generate_and_cache_profile(
         existing.bio_summary = bio_data.get("biography")
         existing.personal_stories = bio_data.get("personal_stories", [])
         existing.connection_narratives = narratives
-        existing.relationship_stories = rel_stories
+        # Merge new stories into existing ones to preserve externally-populated
+        # stories (e.g. social_circle) that the classifier cannot regenerate.
+        merged_stories = dict(existing.relationship_stories or {})
+        merged_stories.update(rel_stories)
+        existing.relationship_stories = merged_stories
         existing.generated_at = datetime.now(UTC)
         existing.model_version = model_version
         profile = existing
