@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.enums import OWNED_STATUSES
 from app.models.author import Author
@@ -41,11 +42,15 @@ _MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
 }
 
 # Map entity type strings to their Book FK columns.
-_ENTITY_FK_MAP = {
+_ENTITY_FK_MAP: dict[str, InstrumentedAttribute] = {
     "author": Book.author_id,
     "publisher": Book.publisher_id,
     "binder": Book.binder_id,
 }
+
+assert _MODEL_MAP.keys() == _ENTITY_FK_MAP.keys(), (
+    "_MODEL_MAP and _ENTITY_FK_MAP must have identical keys"
+)
 
 
 def _get_entity(
