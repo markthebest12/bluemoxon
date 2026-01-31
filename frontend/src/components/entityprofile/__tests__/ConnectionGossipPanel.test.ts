@@ -122,4 +122,17 @@ describe("ConnectionGossipPanel", () => {
     const text = wrapper.text();
     expect(text.indexOf("1840")).toBeLessThan(text.indexOf("1852"));
   });
+
+  it("handles empty details gracefully", () => {
+    const emptyNarrative: RelationshipNarrative = {
+      summary: "A brief connection.",
+      details: [],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative: emptyNarrative, trigger: null },
+    });
+    expect(wrapper.text()).toContain("A brief connection.");
+    expect(wrapper.find(".gossip-panel__prose").exists()).toBe(false);
+  });
 });

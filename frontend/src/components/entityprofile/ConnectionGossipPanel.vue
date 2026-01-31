@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { RelationshipNarrative, NarrativeTrigger } from "@/types/entityProfile";
-import { useToneStyle } from "@/composables/entityprofile/useToneStyle";
+import { getToneStyle } from "@/composables/entityprofile/useToneStyle";
 
-const props = defineProps<{
+defineProps<{
   narrative: RelationshipNarrative;
   trigger: NarrativeTrigger;
 }>();
 
-const TRIGGER_LABELS: Record<string, string> = {
+const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
   cross_era_bridge: "Cross-Era Bridge",
   social_circle: "Social Circle",
   hub_figure: "Hub Figure",
@@ -24,12 +24,12 @@ const TRIGGER_LABELS: Record<string, string> = {
     <p class="gossip-panel__summary">{{ narrative.summary }}</p>
 
     <!-- Prose paragraph mode -->
-    <div v-if="narrative.narrative_style === 'prose-paragraph'" class="gossip-panel__prose">
+    <div v-if="narrative.narrative_style === 'prose-paragraph' && narrative.details?.length" class="gossip-panel__prose">
       <p
         v-for="(fact, i) in narrative.details"
         :key="i"
         class="gossip-panel__fact"
-        :style="{ borderLeftColor: useToneStyle(fact.tone).color }"
+        :style="{ borderLeftColor: getToneStyle(fact.tone).color }"
       >
         <span v-if="fact.year" class="gossip-panel__year">{{ fact.year }}</span>
         {{ fact.text }}
@@ -37,11 +37,11 @@ const TRIGGER_LABELS: Record<string, string> = {
     </div>
 
     <!-- Bullet facts mode -->
-    <ul v-else-if="narrative.narrative_style === 'bullet-facts'" class="gossip-panel__bullets">
+    <ul v-else-if="narrative.narrative_style === 'bullet-facts' && narrative.details?.length" class="gossip-panel__bullets">
       <li
         v-for="(fact, i) in narrative.details"
         :key="i"
-        :style="{ borderLeftColor: useToneStyle(fact.tone).color }"
+        :style="{ borderLeftColor: getToneStyle(fact.tone).color }"
       >
         <span v-if="fact.year" class="gossip-panel__year">{{ fact.year }}</span>
         {{ fact.text }}
@@ -49,12 +49,12 @@ const TRIGGER_LABELS: Record<string, string> = {
     </ul>
 
     <!-- Timeline events mode -->
-    <div v-else class="gossip-panel__timeline">
+    <div v-else-if="narrative.details?.length" class="gossip-panel__timeline">
       <div
         v-for="(fact, i) in narrative.details"
         :key="i"
         class="gossip-panel__event"
-        :style="{ borderLeftColor: useToneStyle(fact.tone).color }"
+        :style="{ borderLeftColor: getToneStyle(fact.tone).color }"
       >
         <span v-if="fact.year" class="gossip-panel__year gossip-panel__year--badge">
           {{ fact.year }}

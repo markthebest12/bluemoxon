@@ -15,7 +15,7 @@ const TONE_COLORS: Record<string, string> = {
 
 const FALLBACK_COLOR = "#b8860b";
 
-export function useToneStyle(tone: Tone): ToneStyle {
+export function getToneStyle(tone: Tone): ToneStyle {
   return {
     className: `tone--${tone}`,
     color: TONE_COLORS[tone] ?? FALLBACK_COLOR,

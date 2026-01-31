@@ -7,21 +7,15 @@ defineProps<{
   connections: ProfileConnection[];
 }>();
 
-const expandedCards = ref(new Set<string>());
+const expandedCards = ref<Record<string, boolean>>({});
 
 function toggleCard(conn: ProfileConnection) {
   const key = `${conn.entity.type}:${conn.entity.id}`;
-  if (expandedCards.value.has(key)) {
-    expandedCards.value.delete(key);
-  } else {
-    expandedCards.value.add(key);
-  }
-  // Trigger reactivity on Set mutation
-  expandedCards.value = new Set(expandedCards.value);
+  expandedCards.value[key] = !expandedCards.value[key];
 }
 
 function isExpanded(conn: ProfileConnection): boolean {
-  return expandedCards.value.has(`${conn.entity.type}:${conn.entity.id}`);
+  return !!expandedCards.value[`${conn.entity.type}:${conn.entity.id}`];
 }
 </script>
 
