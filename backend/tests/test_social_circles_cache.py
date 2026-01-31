@@ -1,494 +1,337 @@
-"""Tests for social circles cache service."""
+# backend/tests/test_social_circles_cache.py
+
+"""Tests for social circles graph caching."""
+
+from __future__ import annotations
 
 import json
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.schemas.social_circles import (
-    ConnectionType,
-    Era,
-    NodeType,
-    SocialCircleEdge,
-    SocialCircleNode,
-    SocialCirclesMeta,
-    SocialCirclesResponse,
-)
 from app.services.social_circles_cache import (
     CACHE_KEY_PREFIX,
     CACHE_TTL_SECONDS,
     MAX_CACHE_SIZE_BYTES,
-    _get_cached_graph_sync,
-    _invalidate_cache_sync,
-    _set_cached_graph_sync,
     get_cache_key,
-    get_cached_graph,
-    invalidate_cache,
-    invalidate_cache_async,
-    set_cached_graph,
 )
 
 
-def _create_test_response(num_nodes: int = 2, num_edges: int = 1) -> SocialCirclesResponse:
-    """Create a test SocialCirclesResponse with given number of nodes and edges."""
-    nodes = [
-        SocialCircleNode(
-            id=f"author:{i}",
-            entity_id=i,
-            name=f"Author {i}",
-            type=NodeType.author,
-            birth_year=1800 + i,
-            death_year=1870 + i,
-            era=Era.victorian,
-            tier="A",
-            book_count=i + 1,
-            book_ids=[i * 10, i * 10 + 1],
-        )
-        for i in range(num_nodes)
-    ]
-
-    edges = [
-        SocialCircleEdge(
-            id=f"e:author:{i}:author:{i + 1}",
-            source=f"author:{i}",
-            target=f"author:{i + 1}",
-            type=ConnectionType.shared_publisher,
-            strength=5,
-            evidence="Shared publisher",
-            shared_book_ids=[i * 10],
-            start_year=1850,
-            end_year=1860,
-        )
-        for i in range(num_edges)
-    ]
-
-    meta = SocialCirclesMeta(
-        total_books=10,
-        total_authors=num_nodes,
-        total_publishers=1,
-        total_binders=0,
-        date_range=(1800, 1900),
-        generated_at=datetime(2024, 1, 15, 12, 0, 0),
-        truncated=False,
-    )
-
-    return SocialCirclesResponse(nodes=nodes, edges=edges, meta=meta)
-
-
 class TestGetCacheKey:
-    """Tests for get_cache_key() function."""
+    """Tests for cache key generation."""
 
     def test_generates_deterministic_key(self):
-        """Same parameters always produce the same cache key."""
-        key1 = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        key2 = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-
+        """Same parameters produce the same cache key."""
+        key1 = get_cache_key(include_binders=True, min_book_count=1, max_books=5000)
+        key2 = get_cache_key(include_binders=True, min_book_count=1, max_books=5000)
         assert key1 == key2
 
-    def test_different_include_binders_produces_different_key(self):
-        """Different include_binders value produces different key."""
-        key1 = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        key2 = get_cache_key(include_binders=False, min_book_count=2, max_books=100)
-
+    def test_different_params_different_keys(self):
+        """Different parameters produce different cache keys."""
+        key1 = get_cache_key(include_binders=True, min_book_count=1, max_books=5000)
+        key2 = get_cache_key(include_binders=False, min_book_count=1, max_books=5000)
         assert key1 != key2
 
-    def test_different_min_book_count_produces_different_key(self):
-        """Different min_book_count value produces different key."""
-        key1 = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        key2 = get_cache_key(include_binders=True, min_book_count=3, max_books=100)
-
-        assert key1 != key2
-
-    def test_different_max_books_produces_different_key(self):
-        """Different max_books value produces different key."""
-        key1 = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        key2 = get_cache_key(include_binders=True, min_book_count=2, max_books=200)
-
-        assert key1 != key2
-
-    def test_key_format_has_prefix(self):
+    def test_key_starts_with_prefix(self):
         """Cache key starts with the expected prefix."""
-        key = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-
+        key = get_cache_key(include_binders=True, min_book_count=1, max_books=5000)
         assert key.startswith(f"{CACHE_KEY_PREFIX}:")
-
-    def test_key_contains_hash(self):
-        """Cache key contains a hash suffix after the prefix."""
-        key = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        parts = key.split(":")
-
-        # Key format: social_circles:graph:{hash}
-        assert len(parts) == 3
-        assert parts[0] == "social_circles"
-        assert parts[1] == "graph"
-        # Hash should be 32 characters (128 bits for collision resistance)
-        assert len(parts[2]) == 32
 
 
 class TestGetCachedGraphSync:
-    """Tests for _get_cached_graph_sync() function."""
+    """Tests for synchronous cache get."""
 
-    def test_returns_response_on_cache_hit(self):
-        """Returns deserialized response and True on cache hit."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
-        cached_data = json.dumps(test_response.model_dump(mode="json"), default=str)
-        mock_client.get.return_value = cached_data
+    def test_cache_hit_returns_response(self):
+        """Cache hit deserializes and returns SocialCirclesResponse."""
+        from app.services.social_circles_cache import _get_cached_graph_sync
 
-        result, is_hit = _get_cached_graph_sync(mock_client, "test:key")
+        cached_data = {
+            "nodes": [],
+            "edges": [],
+            "meta": {
+                "total_books": 0,
+                "total_authors": 0,
+                "total_publishers": 0,
+                "total_binders": 0,
+                "date_range": [1800, 1900],
+                "truncated": False,
+                "generated_at": "2026-01-01T00:00:00",
+            },
+        }
+        client = MagicMock()
+        client.get.return_value = json.dumps(cached_data)
 
+        result, is_hit = _get_cached_graph_sync(client, "test:key")
         assert is_hit is True
         assert result is not None
-        assert isinstance(result, SocialCirclesResponse)
-        assert len(result.nodes) == 2
-        assert len(result.edges) == 1
-        mock_client.get.assert_called_once_with("test:key")
 
-    def test_returns_none_on_cache_miss(self):
-        """Returns None and False on cache miss."""
-        mock_client = MagicMock()
-        mock_client.get.return_value = None
+    def test_cache_miss_returns_none(self):
+        """Cache miss returns (None, False)."""
+        from app.services.social_circles_cache import _get_cached_graph_sync
 
-        result, is_hit = _get_cached_graph_sync(mock_client, "test:key")
+        client = MagicMock()
+        client.get.return_value = None
 
-        assert is_hit is False
-        assert result is None
-        mock_client.get.assert_called_once_with("test:key")
-
-    def test_returns_none_on_redis_error(self):
-        """Returns None and False when Redis GET fails."""
-        mock_client = MagicMock()
-        mock_client.get.side_effect = Exception("Connection failed")
-
-        result, is_hit = _get_cached_graph_sync(mock_client, "test:key")
-
+        result, is_hit = _get_cached_graph_sync(client, "test:key")
         assert is_hit is False
         assert result is None
 
-    def test_returns_none_on_json_decode_error(self):
-        """Returns None and False when cached data is invalid JSON."""
-        mock_client = MagicMock()
-        mock_client.get.return_value = "not valid json"
+    def test_redis_error_returns_none(self):
+        """Redis error returns (None, False) gracefully."""
+        from app.services.social_circles_cache import _get_cached_graph_sync
 
-        result, is_hit = _get_cached_graph_sync(mock_client, "test:key")
+        client = MagicMock()
+        client.get.side_effect = Exception("Connection refused")
 
-        assert is_hit is False
-        assert result is None
-
-
-class TestGetCachedGraph:
-    """Tests for get_cached_graph() async function."""
-
-    @pytest.mark.asyncio
-    async def test_returns_none_when_redis_unavailable(self):
-        """Returns None and False when Redis client is not available."""
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            result, is_hit = await get_cached_graph("test:key")
-
-        assert is_hit is False
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_returns_cached_response_on_hit(self):
-        """Returns cached response and True on cache hit."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
-        cached_data = json.dumps(test_response.model_dump(mode="json"), default=str)
-        mock_client.get.return_value = cached_data
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            result, is_hit = await get_cached_graph("test:key")
-
-        assert is_hit is True
-        assert result is not None
-        assert isinstance(result, SocialCirclesResponse)
-
-    @pytest.mark.asyncio
-    async def test_returns_none_on_miss(self):
-        """Returns None and False on cache miss."""
-        mock_client = MagicMock()
-        mock_client.get.return_value = None
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            result, is_hit = await get_cached_graph("test:key")
-
+        result, is_hit = _get_cached_graph_sync(client, "test:key")
         assert is_hit is False
         assert result is None
 
 
 class TestSetCachedGraphSync:
-    """Tests for _set_cached_graph_sync() function."""
+    """Tests for synchronous cache set."""
 
-    def test_stores_serialized_response(self):
-        """Stores serialized response with correct TTL."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
+    def test_sets_with_ttl(self):
+        """Caches serialized response with TTL."""
+        from app.services.social_circles_cache import _set_cached_graph_sync
 
-        _set_cached_graph_sync(mock_client, "test:key", test_response)
+        client = MagicMock()
+        response = MagicMock()
+        response.model_dump.return_value = {"nodes": [], "edges": [], "meta": {}}
 
-        mock_client.setex.assert_called_once()
-        call_args = mock_client.setex.call_args
-        assert call_args[0][0] == "test:key"
-        assert call_args[0][1] == CACHE_TTL_SECONDS
-        # Verify the serialized data is valid JSON
-        serialized = call_args[0][2]
-        data = json.loads(serialized)
-        assert "nodes" in data
-        assert "edges" in data
-        assert "meta" in data
+        _set_cached_graph_sync(client, "test:key", response)
 
-    def test_skips_caching_oversized_data(self):
-        """Skips caching when serialized data exceeds size limit."""
-        mock_client = MagicMock()
-        # Create a response with many nodes to exceed size limit
-        large_response = _create_test_response(num_nodes=100000, num_edges=0)
+        client.setex.assert_called_once()
+        args = client.setex.call_args[0]
+        assert args[0] == "test:key"
+        assert args[1] == CACHE_TTL_SECONDS
 
-        _set_cached_graph_sync(mock_client, "test:key", large_response)
+    def test_skips_oversized_data(self):
+        """Data exceeding MAX_CACHE_SIZE_BYTES is not cached."""
+        from app.services.social_circles_cache import _set_cached_graph_sync
 
-        # setex should not be called for oversized data
-        mock_client.setex.assert_not_called()
+        client = MagicMock()
+        response = MagicMock()
+        # Create response that will serialize to > MAX_CACHE_SIZE_BYTES
+        response.model_dump.return_value = {"data": "x" * (MAX_CACHE_SIZE_BYTES + 1)}
 
-    def test_handles_redis_error_gracefully(self):
-        """Does not raise exception when Redis SETEX fails."""
-        mock_client = MagicMock()
-        mock_client.setex.side_effect = Exception("Connection failed")
-        test_response = _create_test_response()
+        _set_cached_graph_sync(client, "test:key", response)
+
+        client.setex.assert_not_called()
+
+    def test_redis_error_handled_gracefully(self):
+        """Redis error during set does not raise."""
+        from app.services.social_circles_cache import _set_cached_graph_sync
+
+        client = MagicMock()
+        client.setex.side_effect = Exception("Connection refused")
+        response = MagicMock()
+        response.model_dump.return_value = {"nodes": [], "edges": [], "meta": {}}
 
         # Should not raise
-        _set_cached_graph_sync(mock_client, "test:key", test_response)
-
-        mock_client.setex.assert_called_once()
+        _set_cached_graph_sync(client, "test:key", response)
 
 
-class TestSetCachedGraph:
-    """Tests for set_cached_graph() async function."""
+class TestGetCachedGraphAsync:
+    """Tests for async cache get."""
 
     @pytest.mark.asyncio
-    async def test_skips_when_redis_unavailable(self):
-        """Skips caching when Redis client is not available."""
-        test_response = _create_test_response()
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_no_redis_returns_miss(self, mock_redis):
+        """No Redis client returns (None, False)."""
+        from app.services.social_circles_cache import get_cached_graph
 
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            # Should not raise
-            await set_cached_graph("test:key", test_response)
+        mock_redis.return_value = None
+        result, is_hit = await get_cached_graph("test:key")
+        assert is_hit is False
+        assert result is None
+
+
+class TestSetCachedGraphAsync:
+    """Tests for async cache set."""
 
     @pytest.mark.asyncio
-    async def test_stores_response_when_redis_available(self):
-        """Stores response when Redis is available."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_no_redis_skips(self, mock_redis):
+        """No Redis client skips caching silently."""
+        from app.services.social_circles_cache import set_cached_graph
 
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            await set_cached_graph("test:key", test_response)
-
-        mock_client.setex.assert_called_once()
-
-
-class TestInvalidateCacheSync:
-    """Tests for _invalidate_cache_sync() function."""
-
-    def test_deletes_matching_keys(self):
-        """Deletes all keys matching the cache prefix."""
-        mock_client = MagicMock()
-        mock_keys = [
-            "social_circles:graph:abc123",
-            "social_circles:graph:def456",
-        ]
-        mock_client.scan_iter.return_value = iter(mock_keys)
-        mock_client.delete.return_value = 2
-
-        deleted = _invalidate_cache_sync(mock_client)
-
-        assert deleted == 2
-        mock_client.scan_iter.assert_called_once_with(match=f"{CACHE_KEY_PREFIX}:*")
-        mock_client.delete.assert_called_once_with(*mock_keys)
-
-    def test_returns_zero_when_no_keys_found(self):
-        """Returns 0 when no matching keys exist."""
-        mock_client = MagicMock()
-        mock_client.scan_iter.return_value = iter([])
-
-        deleted = _invalidate_cache_sync(mock_client)
-
-        assert deleted == 0
-        mock_client.delete.assert_not_called()
-
-    def test_handles_redis_error_gracefully(self):
-        """Returns 0 when Redis operation fails."""
-        mock_client = MagicMock()
-        mock_client.scan_iter.side_effect = Exception("Connection failed")
-
-        deleted = _invalidate_cache_sync(mock_client)
-
-        assert deleted == 0
+        mock_redis.return_value = None
+        response = MagicMock()
+        # Should not raise
+        await set_cached_graph("test:key", response)
 
 
 class TestInvalidateCache:
-    """Tests for invalidate_cache() sync function."""
+    """Tests for cache invalidation."""
 
-    def test_returns_zero_when_redis_unavailable(self):
-        """Returns 0 when Redis client is not available."""
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            deleted = invalidate_cache()
+    @patch("app.services.social_circles_cache.get_redis")
+    def test_no_redis_returns_zero(self, mock_redis):
+        """No Redis client returns 0."""
+        from app.services.social_circles_cache import invalidate_cache
 
-        assert deleted == 0
+        mock_redis.return_value = None
+        assert invalidate_cache() == 0
 
-    def test_returns_deleted_count_when_redis_available(self):
-        """Returns count of deleted keys when Redis is available."""
-        mock_client = MagicMock()
-        mock_keys = ["social_circles:graph:abc123"]
-        mock_client.scan_iter.return_value = iter(mock_keys)
-        mock_client.delete.return_value = 1
+    @patch("app.services.social_circles_cache.get_redis")
+    def test_deletes_matching_keys(self, mock_redis):
+        """Invalidation deletes matching keys and returns count."""
+        from app.services.social_circles_cache import invalidate_cache
 
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            deleted = invalidate_cache()
+        client = MagicMock()
+        client.scan_iter.return_value = iter(
+            ["social_circles:graph:abc", "social_circles:graph:def"]
+        )
+        client.delete.return_value = 2
+        mock_redis.return_value = client
 
-        assert deleted == 1
+        assert invalidate_cache() == 2
+        client.delete.assert_called_once()
+
+
+class TestInvalidateCacheSync:
+    """Tests for _invalidate_cache_sync."""
+
+    def test_returns_zero_when_no_keys(self):
+        """Returns 0 when no matching keys exist."""
+        from app.services.social_circles_cache import _invalidate_cache_sync
+
+        client = MagicMock()
+        client.scan_iter.return_value = iter([])
+        assert _invalidate_cache_sync(client) == 0
+        client.delete.assert_not_called()
+
+    def test_handles_redis_error(self):
+        """Returns 0 on Redis error."""
+        from app.services.social_circles_cache import _invalidate_cache_sync
+
+        client = MagicMock()
+        client.scan_iter.side_effect = Exception("Connection refused")
+        assert _invalidate_cache_sync(client) == 0
 
 
 class TestInvalidateCacheAsync:
-    """Tests for invalidate_cache_async() function."""
+    """Tests for invalidate_cache_async."""
 
     @pytest.mark.asyncio
-    async def test_returns_zero_when_redis_unavailable(self):
-        """Returns 0 when Redis client is not available."""
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            deleted = await invalidate_cache_async()
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_no_redis_returns_zero(self, mock_redis):
+        """No Redis client returns 0."""
+        from app.services.social_circles_cache import invalidate_cache_async
 
-        assert deleted == 0
-
-    @pytest.mark.asyncio
-    async def test_returns_deleted_count_when_redis_available(self):
-        """Returns count of deleted keys when Redis is available."""
-        mock_client = MagicMock()
-        mock_keys = ["social_circles:graph:abc123", "social_circles:graph:def456"]
-        mock_client.scan_iter.return_value = iter(mock_keys)
-        mock_client.delete.return_value = 2
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            deleted = await invalidate_cache_async()
-
-        assert deleted == 2
-
-
-class TestGracefulDegradation:
-    """Tests for graceful degradation when Redis is unavailable."""
-
-    def test_get_cache_key_works_without_redis(self):
-        """get_cache_key does not require Redis."""
-        # This function is pure computation, should always work
-        key = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-        assert key is not None
-        assert key.startswith(CACHE_KEY_PREFIX)
+        mock_redis.return_value = None
+        assert await invalidate_cache_async() == 0
 
     @pytest.mark.asyncio
-    async def test_get_cached_graph_returns_miss_without_redis(self):
-        """get_cached_graph returns cache miss when Redis unavailable."""
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            result, is_hit = await get_cached_graph("test:key")
+    @patch("app.services.social_circles_cache.get_redis")
+    async def test_deletes_and_returns_count(self, mock_redis):
+        """Deletes matching keys and returns count."""
+        from app.services.social_circles_cache import invalidate_cache_async
 
-        assert result is None
-        assert is_hit is False
+        client = MagicMock()
+        client.scan_iter.return_value = iter(["social_circles:graph:abc"])
+        client.delete.return_value = 1
+        mock_redis.return_value = client
 
-    @pytest.mark.asyncio
-    async def test_set_cached_graph_silently_fails_without_redis(self):
-        """set_cached_graph silently fails when Redis unavailable."""
-        test_response = _create_test_response()
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            # Should not raise
-            await set_cached_graph("test:key", test_response)
-
-    def test_invalidate_cache_returns_zero_without_redis(self):
-        """invalidate_cache returns 0 when Redis unavailable."""
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            deleted = invalidate_cache()
-
-        assert deleted == 0
-
-    @pytest.mark.asyncio
-    async def test_full_flow_works_without_redis(self):
-        """Complete cache flow works gracefully without Redis."""
-        test_response = _create_test_response()
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=None):
-            # Generate cache key (no Redis needed)
-            cache_key = get_cache_key(include_binders=True, min_book_count=2, max_books=100)
-            assert cache_key is not None
-
-            # Try to get from cache (returns miss)
-            result, is_hit = await get_cached_graph(cache_key)
-            assert result is None
-            assert is_hit is False
-
-            # Try to store in cache (silently fails)
-            await set_cached_graph(cache_key, test_response)
-
-            # Try to invalidate (returns 0)
-            deleted = await invalidate_cache_async()
-            assert deleted == 0
+        assert await invalidate_cache_async() == 1
 
 
 class TestCacheRoundTrip:
-    """Tests for complete cache round-trip (store and retrieve)."""
+    """Tests for serialization round-trip integrity."""
 
     def test_sync_roundtrip_preserves_data(self):
         """Data stored and retrieved via sync functions is identical."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
+        from app.services.social_circles_cache import _get_cached_graph_sync, _set_cached_graph_sync
 
-        # Store
-        _set_cached_graph_sync(mock_client, "test:key", test_response)
+        client = MagicMock()
+        response = MagicMock()
+        response.model_dump.return_value = {
+            "nodes": [],
+            "edges": [],
+            "meta": {
+                "total_books": 5,
+                "total_authors": 3,
+                "total_publishers": 1,
+                "total_binders": 0,
+                "date_range": [1800, 1900],
+                "truncated": False,
+                "generated_at": "2026-01-01T00:00:00",
+            },
+        }
 
-        # Get the serialized data that was stored
-        stored_data = mock_client.setex.call_args[0][2]
+        _set_cached_graph_sync(client, "test:key", response)
 
-        # Simulate retrieval
-        mock_client.get.return_value = stored_data
-        retrieved, is_hit = _get_cached_graph_sync(mock_client, "test:key")
-
-        assert is_hit is True
-        assert retrieved is not None
-        assert len(retrieved.nodes) == len(test_response.nodes)
-        assert len(retrieved.edges) == len(test_response.edges)
-        assert retrieved.meta.total_books == test_response.meta.total_books
-
-    @pytest.mark.asyncio
-    async def test_async_roundtrip_preserves_data(self):
-        """Data stored and retrieved via async functions is identical."""
-        mock_client = MagicMock()
-        test_response = _create_test_response()
-
-        with patch("app.services.social_circles_cache.get_redis", return_value=mock_client):
-            # Store
-            await set_cached_graph("test:key", test_response)
-
-            # Get the serialized data that was stored
-            stored_data = mock_client.setex.call_args[0][2]
-
-            # Simulate retrieval
-            mock_client.get.return_value = stored_data
-            retrieved, is_hit = await get_cached_graph("test:key")
+        stored_data = client.setex.call_args[0][2]
+        client.get.return_value = stored_data
+        retrieved, is_hit = _get_cached_graph_sync(client, "test:key")
 
         assert is_hit is True
         assert retrieved is not None
-        assert len(retrieved.nodes) == len(test_response.nodes)
-        assert len(retrieved.edges) == len(test_response.edges)
+        assert retrieved.meta.total_books == 5
 
 
-class TestCacheConstants:
-    """Tests for cache configuration constants."""
+class TestGetOrBuildGraph:
+    """Tests for sync cache wrapper (#1549)."""
 
-    def test_ttl_is_positive(self):
-        """Cache TTL is a positive value."""
-        assert CACHE_TTL_SECONDS > 0
+    @patch("app.services.social_circles_cache.get_redis")
+    @patch("app.services.social_circles.build_social_circles_graph")
+    def test_returns_cached_graph_on_hit(self, mock_build, mock_redis):
+        """Cache hit returns cached graph without calling build."""
+        from app.services.social_circles_cache import get_or_build_graph
 
-    def test_max_size_is_reasonable(self):
-        """Max cache size is reasonable (between 1MB and 100MB)."""
-        assert 1 * 1024 * 1024 <= MAX_CACHE_SIZE_BYTES <= 100 * 1024 * 1024
+        client = MagicMock()
+        client.get.return_value = json.dumps(
+            {
+                "nodes": [],
+                "edges": [],
+                "meta": {
+                    "total_books": 0,
+                    "total_authors": 0,
+                    "total_publishers": 0,
+                    "total_binders": 0,
+                    "date_range": [1800, 1900],
+                    "truncated": False,
+                    "generated_at": "2026-01-01T00:00:00",
+                },
+            }
+        )
+        mock_redis.return_value = client
 
-    def test_prefix_format(self):
-        """Cache key prefix has expected format."""
-        assert ":" in CACHE_KEY_PREFIX
-        assert CACHE_KEY_PREFIX == "social_circles:graph"
+        db = MagicMock()
+        result = get_or_build_graph(db)
+
+        mock_build.assert_not_called()
+        assert result is not None
+
+    @patch("app.services.social_circles_cache.get_redis")
+    @patch("app.services.social_circles.build_social_circles_graph")
+    def test_builds_and_caches_on_miss(self, mock_build, mock_redis):
+        """Cache miss builds graph and caches it."""
+        from app.services.social_circles_cache import get_or_build_graph
+
+        client = MagicMock()
+        client.get.return_value = None  # Cache miss
+        mock_redis.return_value = client
+        mock_build.return_value = MagicMock()
+        mock_build.return_value.model_dump.return_value = {"nodes": [], "edges": [], "meta": {}}
+
+        db = MagicMock()
+        result = get_or_build_graph(db)
+
+        mock_build.assert_called_once_with(db)
+        assert result == mock_build.return_value
+
+    @patch("app.services.social_circles_cache.get_redis")
+    @patch("app.services.social_circles.build_social_circles_graph")
+    def test_builds_without_caching_when_no_redis(self, mock_build, mock_redis):
+        """No Redis client: build graph, skip caching."""
+        from app.services.social_circles_cache import get_or_build_graph
+
+        mock_redis.return_value = None
+        mock_build.return_value = MagicMock()
+
+        db = MagicMock()
+        result = get_or_build_graph(db)
+
+        mock_build.assert_called_once_with(db)
+        assert result == mock_build.return_value

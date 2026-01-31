@@ -16,6 +16,7 @@ from app.models.eval_runbook_job import EvalRunbookJob
 from app.models.image import BookImage
 from app.models.image_processing_job import ImageProcessingJob
 from app.models.notification import Notification
+from app.models.profile_generation_job import ProfileGenerationJob
 from app.models.publisher import Publisher
 from app.models.publisher_alias import PublisherAlias
 from app.models.user import User
@@ -40,5 +41,6 @@ __all__ = [
     "EvalRunbook",
     "EvalRunbookJob",
     "ImageProcessingJob",
+    "ProfileGenerationJob",
     "User",
 ]

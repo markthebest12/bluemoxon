@@ -22,6 +22,7 @@ from app.schemas.social_circles import SocialCirclesResponse
 
 if TYPE_CHECKING:
     from redis import Redis
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,36 @@ def get_cache_key(include_binders: bool, min_book_count: int, max_books: int) ->
     # Use 32 chars (128 bits) for sufficient collision resistance
     params_hash = hashlib.sha256(params_str.encode()).hexdigest()[:32]
     return f"{CACHE_KEY_PREFIX}:{params_hash}"
+
+
+def get_or_build_graph(db: Session) -> SocialCirclesResponse:
+    """Get social circles graph from cache or build it.
+
+    Sync wrapper for use in entity_profile service. Checks Redis first,
+    builds on miss and caches. Degrades gracefully if Redis unavailable.
+
+    Args:
+        db: Database session for building the graph on cache miss.
+
+    Returns:
+        SocialCirclesResponse with all nodes and edges.
+    """
+    from app.services.social_circles import build_social_circles_graph
+
+    cache_key = get_cache_key(include_binders=True, min_book_count=1, max_books=5000)
+    client = get_redis()
+
+    if client:
+        cached, is_hit = _get_cached_graph_sync(client, cache_key)
+        if is_hit and cached:
+            return cached
+
+    graph = build_social_circles_graph(db)
+
+    if client:
+        _set_cached_graph_sync(client, cache_key, graph)
+
+    return graph
 
 
 def _get_cached_graph_sync(

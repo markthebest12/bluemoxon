@@ -184,6 +184,14 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Profile generation worker queue
+    profile_generation_queue_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "BMX_PROFILE_GENERATION_QUEUE_NAME", "PROFILE_GENERATION_QUEUE_NAME"
+        ),
+    )
+
     # Notifications
     notification_from_email: str | None = Field(
         default=None,

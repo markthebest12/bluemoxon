@@ -656,6 +656,23 @@ MIGRATION_G7H8I9J0K1L2_SQL = [
     "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS relationship_stories JSON",
 ]
 
+# Migration SQL for h8i9j0k1l2m3_add_profile_generation_jobs
+MIGRATION_H8I9J0K1L2M3_SQL = [
+    """CREATE TABLE IF NOT EXISTS profile_generation_jobs (
+        id VARCHAR(36) PRIMARY KEY,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        owner_id INTEGER NOT NULL REFERENCES users(id),
+        total_entities INTEGER NOT NULL DEFAULT 0,
+        succeeded INTEGER NOT NULL DEFAULT 0,
+        failed INTEGER NOT NULL DEFAULT 0,
+        error_log TEXT,
+        completed_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_profile_generation_jobs_status ON profile_generation_jobs (status)",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -897,5 +914,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "g7h8i9j0k1l2",
         "name": "add_relationship_stories_to_entity_profiles",
         "sql_statements": MIGRATION_G7H8I9J0K1L2_SQL,
+    },
+    {
+        "id": "h8i9j0k1l2m3",
+        "name": "add_profile_generation_jobs",
+        "sql_statements": MIGRATION_H8I9J0K1L2M3_SQL,
     },
 ]

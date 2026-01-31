@@ -111,3 +111,37 @@ def send_eval_runbook_job(job_id: str, book_id: int) -> None:
     )
 
     logger.info(f"Eval runbook job sent, MessageId: {response['MessageId']}")
+
+
+def get_profile_generation_queue_url() -> str:
+    """Get the profile generation jobs queue URL."""
+    queue_name = settings.profile_generation_queue_name
+    if not queue_name:
+        raise ValueError("PROFILE_GENERATION_QUEUE_NAME environment variable not set")
+    return _get_queue_url(queue_name)
+
+
+def send_profile_generation_jobs(messages: list[dict]) -> None:
+    """Send profile generation job messages to SQS in batches.
+
+    Args:
+        messages: List of dicts with keys: job_id, entity_type, entity_id, owner_id
+    """
+    sqs = get_sqs_client()
+    queue_url = get_profile_generation_queue_url()
+
+    for i in range(0, len(messages), 10):
+        batch = messages[i : i + 10]
+        entries = [
+            {
+                "Id": str(idx),
+                "MessageBody": json.dumps(msg),
+            }
+            for idx, msg in enumerate(batch)
+        ]
+
+        response = sqs.send_message_batch(QueueUrl=queue_url, Entries=entries)
+
+        failed = response.get("Failed", [])
+        if failed:
+            logger.error("Failed to send %d profile generation messages: %s", len(failed), failed)
