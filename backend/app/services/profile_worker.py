@@ -7,7 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import text
+from sqlalchemy import update
 
 from app.db import SessionLocal
 from app.models.entity_profile import EntityProfile
@@ -45,11 +45,15 @@ def _check_staleness(db: Session, entity_type: str, entity_id: int, owner_id: in
 
 def _update_job_progress(db: Session, job_id: str, success: bool, error: str | None = None) -> None:
     """Atomically update job progress and check for completion."""
-    column = "succeeded" if success else "failed"
-    stmt = f"UPDATE profile_generation_jobs SET {column} = {column} + 1, updated_at = NOW() WHERE id = :job_id"  # noqa: S608  # nosec B608
+    increment = {
+        ProfileGenerationJob.updated_at: datetime.now(UTC),
+    }
+    if success:
+        increment[ProfileGenerationJob.succeeded] = ProfileGenerationJob.succeeded + 1
+    else:
+        increment[ProfileGenerationJob.failed] = ProfileGenerationJob.failed + 1
     db.execute(
-        text(stmt),
-        {"job_id": job_id},
+        update(ProfileGenerationJob).where(ProfileGenerationJob.id == job_id).values(**increment)
     )
     if error:
         job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
