@@ -220,7 +220,10 @@ function handleSearchSelect(node: { id: string }) {
       // If still not visible after expand, escalate to full view
       if (!filteredNodes.value.some((n) => n.id === node.id)) {
         hubMode.showMore();
-        hubMode.showMore(); // Jump to full if needed
+        // Only escalate to full if node still not visible after first expansion
+        if (!filteredNodes.value.some((n) => n.id === node.id)) {
+          hubMode.showMore();
+        }
       }
     }
   }
