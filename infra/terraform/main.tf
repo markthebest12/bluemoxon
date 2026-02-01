@@ -548,10 +548,11 @@ module "analysis_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access (wildcards to cover all versions)
+  # Bedrock model access — keep in sync with backend/app/services/bedrock.py MODEL_IDS
   bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-*",
-    "anthropic.claude-opus-4-5-*"
+    "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-opus-4-5-20251101-v1:0",
   ]
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
@@ -686,10 +687,11 @@ module "profile_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access (wildcards to cover all versions)
+  # Bedrock model access — keep in sync with backend/app/services/bedrock.py MODEL_IDS
   bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-*",
-    "anthropic.claude-opus-4-5-*"
+    "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-opus-4-5-20251101-v1:0",
   ]
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
