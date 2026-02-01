@@ -324,12 +324,34 @@ onUnmounted(() => {
 
       <!-- Footer (sticky) -->
       <footer class="edge-sidebar__footer">
-        <button class="edge-sidebar__view-button" @click="emit('selectNode', sourceNode.id)">
-          View {{ TYPE_LABELS[sourceNode.type] || sourceNode.type }}
-        </button>
-        <button class="edge-sidebar__view-button" @click="emit('selectNode', targetNode.id)">
-          View {{ TYPE_LABELS[targetNode.type] || targetNode.type }}
-        </button>
+        <div class="edge-sidebar__footer-group">
+          <button class="edge-sidebar__view-button" @click="emit('selectNode', sourceNode.id)">
+            View {{ TYPE_LABELS[sourceNode.type] || sourceNode.type }}
+          </button>
+          <router-link
+            :to="{
+              name: 'entity-profile',
+              params: { type: sourceNode.type, id: String(sourceNode.entity_id) },
+            }"
+            class="edge-sidebar__profile-link"
+          >
+            Profile &rarr;
+          </router-link>
+        </div>
+        <div class="edge-sidebar__footer-group">
+          <button class="edge-sidebar__view-button" @click="emit('selectNode', targetNode.id)">
+            View {{ TYPE_LABELS[targetNode.type] || targetNode.type }}
+          </button>
+          <router-link
+            :to="{
+              name: 'entity-profile',
+              params: { type: targetNode.type, id: String(targetNode.entity_id) },
+            }"
+            class="edge-sidebar__profile-link"
+          >
+            Profile &rarr;
+          </router-link>
+        </div>
       </footer>
     </aside>
   </Transition>
@@ -652,6 +674,22 @@ onUnmounted(() => {
 .sidebar-enter-from,
 .sidebar-leave-to {
   transform: translateX(100%);
+}
+
+.edge-sidebar__footer-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edge-sidebar__profile-link {
+  color: var(--color-accent-gold, #b8860b);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.edge-sidebar__profile-link:hover {
+  text-decoration: underline;
 }
 
 /* Mobile: full width */
