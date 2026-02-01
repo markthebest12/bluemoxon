@@ -814,6 +814,18 @@ onUnmounted(() => {
           <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
             <NetworkLegend />
           </div>
+
+          <!-- Show More Button (bottom-left of graph) -->
+          <div
+            v-show="!showDetailPanel && !isFiltersOpen"
+            class="show-more-container mobile-show-more"
+          >
+            <ShowMoreButton
+              :status-text="hubMode.statusText.value"
+              :is-fully-expanded="hubMode.isFullyExpanded.value"
+              @show-more="hubMode.showMore"
+            />
+          </div>
         </div>
 
         <!-- Timeline -->
@@ -966,6 +978,11 @@ onUnmounted(() => {
   bottom: 1rem;
   left: 1rem;
   z-index: 10;
+}
+
+.mobile-show-more {
+  bottom: 0.5rem;
+  left: 0.5rem;
 }
 
 .timeline-area {
