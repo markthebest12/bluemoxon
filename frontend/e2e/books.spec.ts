@@ -13,9 +13,10 @@ test.describe("Books Page", () => {
   });
 
   test("shows book count", async ({ page }) => {
-    // Book count badge displays count + "books" label
-    await expect(page.locator(".book-count-badge")).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('[data-testid="books-label"]').first()).toBeVisible();
+    // Book count badge is always visible; "books" label is hidden on mobile (< sm breakpoint)
+    const badge = page.locator(".book-count-badge");
+    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge.locator(".font-medium")).toContainText(/\d/);
   });
 
   test("has search functionality", async ({ page }) => {
@@ -165,8 +166,8 @@ test.describe("Book CRUD Navigation (Editor)", () => {
     // Edition
     await expect(page.getByPlaceholder("e.g., First Edition")).toBeVisible();
 
-    // Volumes (number input)
-    await expect(page.getByLabel("Volumes")).toBeVisible();
+    // Volumes (number input — label/input not formally associated, use input type)
+    await expect(page.locator('input[type="number"]').first()).toBeVisible();
   });
 
   test("create form has action buttons", async ({ page }) => {

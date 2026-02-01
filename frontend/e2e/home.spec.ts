@@ -59,10 +59,10 @@ test.describe("Statistics Dashboard", () => {
       timeout: 10000,
     });
 
-    // Check that the stat cards are present (they should show numbers or loading state)
-    await expect(page.locator("text=On Hand")).toBeVisible();
-    await expect(page.locator("text=Volumes")).toBeVisible();
-    await expect(page.locator("text=Est. Value")).toBeVisible();
-    await expect(page.locator("text=Premium")).toBeVisible();
+    // Check stat card headings (exact: true avoids matching chart titles and tooltips)
+    await expect(page.getByRole("heading", { name: "On Hand", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Volumes", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Est. Value", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Premium", exact: true })).toBeVisible();
   });
 });

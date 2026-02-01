@@ -16,10 +16,13 @@ const ENV_DEFAULTS = {
 } as const;
 
 function resolveEnvConfig(baseURL: string) {
-  const isProd =
-    baseURL === "https://app.bluemoxon.com" || baseURL === "https://api.bluemoxon.com";
-  const defaults = isProd ? ENV_DEFAULTS.production : ENV_DEFAULTS.staging;
+  // Detect production by hostname; staging is the default fallback
+  const hostname = new URL(baseURL).hostname;
+  const isProd = hostname === "app.bluemoxon.com" || hostname === "api.bluemoxon.com";
+  const env = isProd ? "production" : "staging";
+  const defaults = ENV_DEFAULTS[env];
   return {
+    env,
     clientId: process.env.COGNITO_CLIENT_ID || defaults.clientId,
     secretPrefix: process.env.E2E_SECRET_PREFIX || defaults.secretPrefix,
   };
@@ -157,10 +160,10 @@ async function writeEmptyAuthState(
 
 async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use?.baseURL || "https://staging.app.bluemoxon.com";
-  const { clientId, secretPrefix } = resolveEnvConfig(baseURL);
+  const { env, clientId, secretPrefix } = resolveEnvConfig(baseURL);
   const testUsers = getTestUsers(secretPrefix);
 
-  console.log(`E2E env: ${baseURL.includes("staging") || baseURL.includes("localhost") ? "staging" : "production"} (prefix=${secretPrefix})`);
+  console.log(`E2E env: ${env} (prefix=${secretPrefix})`);
 
   const authDir = join(process.cwd(), ".auth");
   await mkdir(authDir, { recursive: true });
