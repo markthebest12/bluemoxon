@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRouter } from "vue-router";
 import cytoscape from "cytoscape";
 import type { ProfileConnection } from "@/types/entityProfile";
+import { entityProfileRoute } from "@/utils/routes";
 
 const props = defineProps<{
   entityId: number;
@@ -142,10 +143,7 @@ function initCytoscape() {
     const entityType = node.data("entityType") as string | undefined;
     const entityId = node.data("entityId") as number | undefined;
     if (entityType && entityId && entityId !== props.entityId) {
-      void router.push({
-        name: "entity-profile",
-        params: { type: entityType, id: String(entityId) },
-      });
+      void router.push(entityProfileRoute(entityType, entityId));
     }
   });
 

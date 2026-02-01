@@ -20,12 +20,14 @@ describe("PublicationTimeline", () => {
       props: { books: mockBooks },
     });
 
+    // dots[0] corresponds to mockBooks[0] (id 57) because booksWithYears
+    // preserves input order (filter only, no sort).
     const dots = wrapper.findAll(".publication-timeline__dot");
     expect(dots.length).toBeGreaterThan(0);
     await dots[0].trigger("click");
     expect(mockRouter.push).toHaveBeenCalledWith({
       name: "book-detail",
-      params: { id: expect.any(Number) },
+      params: { id: "57" },
     });
   });
 
