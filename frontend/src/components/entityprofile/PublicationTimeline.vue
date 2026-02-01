@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { ProfileBook } from "@/types/entityProfile";
+import { bookDetailRoute } from "@/utils/routes";
 
 const props = defineProps<{
   books: ProfileBook[];
@@ -54,7 +55,7 @@ function handleLeave() {
 }
 
 function navigateToBook(bookId: number) {
-  void router.push({ name: "book-detail", params: { id: bookId } });
+  void router.push(bookDetailRoute(bookId));
 }
 </script>
 

@@ -18,6 +18,7 @@ import {
 import { PANEL_ANIMATION } from "@/constants/socialCircles";
 import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
+import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
 
 /** Display labels for entity types */
 const TYPE_LABELS: Record<NodeType, string> = {
@@ -174,7 +175,7 @@ function retryFetch() {
 
 // Navigate to book
 function viewBook(bookId: number) {
-  void router.push({ name: "book-detail", params: { id: bookId } });
+  void router.push(bookDetailRoute(bookId));
 }
 
 // Entity images
@@ -329,10 +330,7 @@ onUnmounted(() => {
             View {{ TYPE_LABELS[sourceNode.type] || sourceNode.type }}
           </button>
           <router-link
-            :to="{
-              name: 'entity-profile',
-              params: { type: sourceNode.type, id: String(sourceNode.entity_id) },
-            }"
+            :to="entityProfileRoute(sourceNode.type, sourceNode.entity_id)"
             class="edge-sidebar__profile-link"
           >
             Profile &rarr;
@@ -343,10 +341,7 @@ onUnmounted(() => {
             View {{ TYPE_LABELS[targetNode.type] || targetNode.type }}
           </button>
           <router-link
-            :to="{
-              name: 'entity-profile',
-              params: { type: targetNode.type, id: String(targetNode.entity_id) },
-            }"
+            :to="entityProfileRoute(targetNode.type, targetNode.entity_id)"
             class="edge-sidebar__profile-link"
           >
             Profile &rarr;

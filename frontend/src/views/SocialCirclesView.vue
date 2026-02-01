@@ -32,6 +32,7 @@ import {
 } from "@/types/socialCircles";
 import type { Mutable } from "@/types/utils";
 import type { Position } from "@/utils/socialCircles/cardPositioning";
+import { entityProfileRoute } from "@/utils/routes";
 
 // Components
 import NetworkGraph from "@/components/socialcircles/NetworkGraph.vue";
@@ -494,10 +495,7 @@ function handleSelectEdge(edgeId: EdgeId) {
 function handleViewProfile(nodeId: NodeId) {
   const node = nodeMap.value.get(nodeId);
   if (node?.entity_id && node?.type) {
-    void router.push({
-      name: "entity-profile",
-      params: { type: node.type, id: String(node.entity_id) },
-    });
+    void router.push(entityProfileRoute(node.type, node.entity_id));
   } else {
     console.warn(`[SocialCircles] Cannot navigate to profile for node ${nodeId}`);
   }

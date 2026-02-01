@@ -237,6 +237,10 @@ function handleToggle() {
 }
 
 .stats-panel__toggle {
+  /* Lift toggle above adjacent sidebar content (ActiveFilterPills, PathFinderPanel)
+     that can intercept pointer events when panels overlap (#1644). */
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;

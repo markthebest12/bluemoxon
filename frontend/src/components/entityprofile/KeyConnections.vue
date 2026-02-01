@@ -2,6 +2,7 @@
 import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
+import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
 
 const props = defineProps<{
   connections: ProfileConnection[];
@@ -35,10 +36,7 @@ function isExpanded(conn: ProfileConnection): boolean {
       >
         <div class="key-connections__header">
           <router-link
-            :to="{
-              name: 'entity-profile',
-              params: { type: conn.entity.type, id: conn.entity.id },
-            }"
+            :to="entityProfileRoute(conn.entity.type, conn.entity.id)"
             class="key-connections__name"
           >
             {{ conn.entity.name }}
@@ -50,10 +48,7 @@ function isExpanded(conn: ProfileConnection): boolean {
         </p>
         <ul v-if="conn.shared_books.length" class="key-connections__books">
           <li v-for="book in conn.shared_books" :key="book.id">
-            <router-link
-              :to="{ name: 'book-detail', params: { id: book.id } }"
-              class="key-connections__book-link"
-            >
+            <router-link :to="bookDetailRoute(book.id)" class="key-connections__book-link">
               {{ book.title }}
             </router-link>
             <span v-if="book.year"> ({{ book.year }})</span>

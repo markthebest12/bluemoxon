@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProfileConnection } from "@/types/entityProfile";
+import { entityProfileRoute } from "@/utils/routes";
 
 defineProps<{
   connections: ProfileConnection[];
@@ -13,10 +14,7 @@ defineProps<{
       <router-link
         v-for="conn in connections"
         :key="`${conn.entity.type}:${conn.entity.id}`"
-        :to="{
-          name: 'entity-profile',
-          params: { type: conn.entity.type, id: conn.entity.id },
-        }"
+        :to="entityProfileRoute(conn.entity.type, conn.entity.id)"
         class="all-connections__card"
       >
         <span class="all-connections__name">{{ conn.entity.name }}</span>

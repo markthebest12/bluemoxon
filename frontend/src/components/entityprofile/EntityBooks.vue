@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import type { ProfileBook } from "@/types/entityProfile";
 import { formatConditionGrade } from "@/utils/format";
+import { bookDetailRoute } from "@/utils/routes";
 
 const props = defineProps<{
   books: ProfileBook[];
@@ -25,7 +26,7 @@ const visibleBooks = computed(() => {
       <router-link
         v-for="book in visibleBooks"
         :key="book.id"
-        :to="{ name: 'book-detail', params: { id: book.id } }"
+        :to="bookDetailRoute(book.id)"
         class="entity-books__card"
       >
         <span class="entity-books__book-title">{{ book.title }}</span>

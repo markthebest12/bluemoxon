@@ -18,6 +18,7 @@ import { PANEL_DIMENSIONS, PANEL_ANIMATION } from "@/constants/socialCircles";
 import { useClickOutside } from "@/composables/socialcircles/useClickOutside";
 import { useEscapeKey } from "@/composables/socialcircles/useEscapeKey";
 import FindSimilarButton from "@/components/socialcircles/FindSimilarButton.vue";
+import { entityProfileRoute } from "@/utils/routes";
 
 interface Props {
   node: ApiNode | null;
@@ -263,7 +264,7 @@ onUnmounted(() => {
         <div class="node-floating-card__footer-actions">
           <FindSimilarButton :node-id="node.id" @find-similar="emit('find-similar', $event)" />
           <router-link
-            :to="{ name: 'entity-profile', params: { type: node.type, id: node.entity_id } }"
+            :to="entityProfileRoute(node.type, node.entity_id)"
             class="node-floating-card__profile-button"
           >
             View Full Profile
