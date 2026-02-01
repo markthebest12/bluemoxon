@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { ProfileBook } from "@/types/entityProfile";
+import { formatConditionGrade } from "@/utils/format";
 
 const props = defineProps<{
   books: ProfileBook[];
@@ -30,7 +31,9 @@ const visibleBooks = computed(() => {
         <span class="entity-books__book-title">{{ book.title }}</span>
         <div class="entity-books__book-meta">
           <span v-if="book.year">{{ book.year }}</span>
-          <span v-if="book.condition" class="entity-books__condition">{{ book.condition }}</span>
+          <span v-if="book.condition" class="entity-books__condition">{{
+            formatConditionGrade(book.condition)
+          }}</span>
           <span v-if="book.edition" class="entity-books__edition">{{ book.edition }}</span>
         </div>
       </router-link>
