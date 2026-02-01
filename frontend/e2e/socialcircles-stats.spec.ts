@@ -34,7 +34,10 @@ async function expandStatsPanel(statsPanel: Locator): Promise<void> {
   );
   if (isCollapsed) {
     await clickStatsToggle(statsPanel);
-    await expect(statsPanel.getByTestId("stats-content")).toBeVisible({ timeout: 3000 });
+    // Assert on class state (synchronous with Vue reactivity) rather than
+    // visibility (depends on CSS transitionend). WebKit does not reliably
+    // fire transitionend for transitions triggered by synthetic dispatchEvent.
+    await expect(statsPanel).not.toHaveClass(/stats-panel--collapsed/, { timeout: 3000 });
   }
 }
 
@@ -47,7 +50,8 @@ async function collapseStatsPanel(statsPanel: Locator): Promise<void> {
   );
   if (!isCollapsed) {
     await clickStatsToggle(statsPanel);
-    await expect(statsPanel.getByTestId("stats-content")).not.toBeVisible({ timeout: 3000 });
+    // Assert on class state — see expandStatsPanel comment re: WebKit.
+    await expect(statsPanel).toHaveClass(/stats-panel--collapsed/, { timeout: 3000 });
   }
 }
 
@@ -93,9 +97,7 @@ test.describe("Social Circles Statistics Panel", () => {
 
     // Scope to primary stats-grid to avoid matching "Avg. Connections" and
     // notable entity "(N connections)" which cause a strict-mode violation.
-    const connectionsLabel = statsPanel
-      .getByTestId("stats-grid")
-      .getByText("Connections");
+    const connectionsLabel = statsPanel.getByTestId("stats-grid").getByText("Connections");
     await expect(connectionsLabel).toBeVisible();
   });
 

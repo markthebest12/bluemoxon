@@ -30,6 +30,10 @@ test.describe("Smoke: Viewer routes", () => {
   for (const route of [...adminRoutes, ...editorRoutes]) {
     test(`viewer redirected from ${route.name} (${route.path})`, async ({ page }) => {
       await page.goto(route.path);
+      // 15s timeout for production cold starts: the auth guard redirect waits
+      // for the Vue app to boot + Cognito token check before client-side routing
+      // to "/". Route-load tests above use page.goto() which has its own 30s
+      // navigation timeout and are unaffected.
       await expect(page).toHaveURL("/", { timeout: 15_000 });
     });
   }

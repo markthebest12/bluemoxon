@@ -6,8 +6,9 @@ vi.mock("vue-router", () => ({
   useRouter: () => mockRouter,
 }));
 
-// Mock cytoscape — jsdom has no layout engine so we simulate the API
-let tapHandler: ((evt: { target: { data: (key: string) => unknown } }) => void) | null = null;
+// Mock cytoscape — jsdom has no layout engine so we simulate the API.
+// Each test captures its own tapHandler via the shared mock.
+const tapHandlers: Array<(evt: { target: { data: (key: string) => unknown } }) => void> = [];
 
 vi.mock("cytoscape", () => ({
   default: vi.fn(() => ({
@@ -18,7 +19,9 @@ vi.mock("cytoscape", () => ({
         handler?: (...args: unknown[]) => void
       ) => {
         if (event === "tap" && typeof handler === "function") {
-          tapHandler = handler as typeof tapHandler;
+          tapHandlers.push(
+            handler as (evt: { target: { data: (key: string) => unknown } }) => void
+          );
         }
       }
     ),
@@ -44,10 +47,24 @@ const connections: ProfileConnection[] = [
   },
 ];
 
+function lastTapHandler() {
+  return tapHandlers[tapHandlers.length - 1] ?? null;
+}
+
+function simulateTap(data: Record<string, unknown>) {
+  const handler = lastTapHandler();
+  expect(handler).not.toBeNull();
+  handler!({
+    target: {
+      data: (key: string) => data[key],
+    },
+  });
+}
+
 describe("EgoNetwork", () => {
   beforeEach(() => {
     mockRouter.push.mockClear();
-    tapHandler = null;
+    tapHandlers.length = 0;
   });
 
   it("navigates to entity profile when a non-center node is tapped", () => {
@@ -61,20 +78,7 @@ describe("EgoNetwork", () => {
       attachTo: document.createElement("div"),
     });
 
-    expect(tapHandler).not.toBeNull();
-
-    // Simulate tapping a connected node (not the center)
-    tapHandler!({
-      target: {
-        data: (key: string) => {
-          const nodeData: Record<string, unknown> = {
-            entityType: "author",
-            entityId: 31,
-          };
-          return nodeData[key];
-        },
-      },
-    });
+    simulateTap({ entityType: "author", entityId: 31 });
 
     expect(mockRouter.push).toHaveBeenCalledWith({
       name: "entity-profile",
@@ -83,6 +87,8 @@ describe("EgoNetwork", () => {
   });
 
   it("does not navigate when the center node is tapped", () => {
+    // Center node has no entityType/entityId in its data (see EgoNetwork.vue buildElements).
+    // The tap handler short-circuits on `entityType &&` being undefined.
     mount(EgoNetwork, {
       props: {
         entityId: 10,
@@ -93,20 +99,25 @@ describe("EgoNetwork", () => {
       attachTo: document.createElement("div"),
     });
 
-    expect(tapHandler).not.toBeNull();
+    simulateTap({ isCenter: true, type: "author" });
 
-    // Simulate tapping the center node (entityId matches props.entityId)
-    tapHandler!({
-      target: {
-        data: (key: string) => {
-          const nodeData: Record<string, unknown> = {
-            entityType: "author",
-            entityId: 10,
-          };
-          return nodeData[key];
-        },
+    expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+
+  it("does not navigate when tapped node has same entityId as center", () => {
+    // Tests the `entityId !== props.entityId` guard for a non-center node
+    // that happens to share the same ID as the center entity.
+    mount(EgoNetwork, {
+      props: {
+        entityId: 10,
+        entityType: "author",
+        entityName: "Robert Browning",
+        connections,
       },
+      attachTo: document.createElement("div"),
     });
+
+    simulateTap({ entityType: "author", entityId: 10 });
 
     expect(mockRouter.push).not.toHaveBeenCalled();
   });
