@@ -9,8 +9,24 @@ import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-sec
 import type { FullConfig } from "@playwright/test";
 
 const REGION = "us-west-2";
-const CLIENT_ID = process.env.COGNITO_CLIENT_ID || "4bb77j6uskmjibq27i15ajfpqq";
-const SECRET_PREFIX = process.env.E2E_SECRET_PREFIX || "bluemoxon-staging";
+
+const ENV_DEFAULTS = {
+  staging: { clientId: "4bb77j6uskmjibq27i15ajfpqq", secretPrefix: "bluemoxon-staging" },
+  production: { clientId: "3ndaok3psd2ncqfjrdb57825he", secretPrefix: "bluemoxon-prod" },
+} as const;
+
+function resolveEnvConfig(baseURL: string) {
+  // Detect production by hostname; staging is the default fallback
+  const hostname = new URL(baseURL).hostname;
+  const isProd = hostname === "app.bluemoxon.com" || hostname === "api.bluemoxon.com";
+  const env = isProd ? "production" : "staging";
+  const defaults = ENV_DEFAULTS[env];
+  return {
+    env,
+    clientId: process.env.COGNITO_CLIENT_ID || defaults.clientId,
+    secretPrefix: process.env.E2E_SECRET_PREFIX || defaults.secretPrefix,
+  };
+}
 
 interface TestUser {
   email: string;
@@ -18,23 +34,25 @@ interface TestUser {
   storageFile: string;
 }
 
-const TEST_USERS: TestUser[] = [
-  {
-    email: "e2e-test-admin@bluemoxon.com",
-    secretName: `${SECRET_PREFIX}/e2e-admin-password`,
-    storageFile: "admin.json",
-  },
-  {
-    email: "e2e-test-editor@bluemoxon.com",
-    secretName: `${SECRET_PREFIX}/e2e-editor-password`,
-    storageFile: "editor.json",
-  },
-  {
-    email: "e2e-test-viewer@bluemoxon.com",
-    secretName: `${SECRET_PREFIX}/e2e-viewer-password`,
-    storageFile: "viewer.json",
-  },
-];
+function getTestUsers(secretPrefix: string): TestUser[] {
+  return [
+    {
+      email: "e2e-test-admin@bluemoxon.com",
+      secretName: `${secretPrefix}/e2e-admin-password`,
+      storageFile: "admin.json",
+    },
+    {
+      email: "e2e-test-editor@bluemoxon.com",
+      secretName: `${secretPrefix}/e2e-editor-password`,
+      storageFile: "editor.json",
+    },
+    {
+      email: "e2e-test-viewer@bluemoxon.com",
+      secretName: `${secretPrefix}/e2e-viewer-password`,
+      storageFile: "viewer.json",
+    },
+  ];
+}
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split(".");
@@ -60,13 +78,14 @@ async function authenticateUser(
   secretsClient: SecretsManagerClient,
   user: TestUser,
   authDir: string,
-  baseURL: string
+  baseURL: string,
+  clientId: string
 ): Promise<void> {
   const password = await getSecretValue(secretsClient, user.secretName);
 
   const command = new InitiateAuthCommand({
     AuthFlow: "USER_PASSWORD_AUTH",
-    ClientId: CLIENT_ID,
+    ClientId: clientId,
     AuthParameters: {
       USERNAME: user.email,
       PASSWORD: password,
@@ -87,7 +106,7 @@ async function authenticateUser(
     throw new Error(`Could not extract sub from IdToken for ${user.email}`);
   }
 
-  const prefix = `CognitoIdentityServiceProvider.${CLIENT_ID}`;
+  const prefix = `CognitoIdentityServiceProvider.${clientId}`;
 
   const storageState = {
     cookies: [],
@@ -125,10 +144,14 @@ async function authenticateUser(
   console.log(`Authenticated ${user.email} -> ${filePath}`);
 }
 
-async function writeEmptyAuthState(authDir: string, baseURL: string): Promise<void> {
+async function writeEmptyAuthState(
+  authDir: string,
+  baseURL: string,
+  testUsers: TestUser[]
+): Promise<void> {
   const emptyState = { cookies: [], origins: [{ origin: baseURL, localStorage: [] }] };
   await Promise.all(
-    TEST_USERS.map((user) => {
+    testUsers.map((user) => {
       const filePath = join(authDir, user.storageFile);
       return writeFile(filePath, JSON.stringify(emptyState, null, 2));
     })
@@ -137,6 +160,10 @@ async function writeEmptyAuthState(authDir: string, baseURL: string): Promise<vo
 
 async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use?.baseURL || "https://staging.app.bluemoxon.com";
+  const { env, clientId, secretPrefix } = resolveEnvConfig(baseURL);
+  const testUsers = getTestUsers(secretPrefix);
+
+  console.log(`E2E env: ${env} (prefix=${secretPrefix})`);
 
   const authDir = join(process.cwd(), ".auth");
   await mkdir(authDir, { recursive: true });
@@ -148,7 +175,7 @@ async function globalSetup(config: FullConfig) {
     }
     console.warn("WARNING: SKIP_AUTH_SETUP is set. Auth state files will be empty.");
     console.warn("WARNING: Tests requiring authentication WILL FAIL. This is for local dev only.");
-    await writeEmptyAuthState(authDir, baseURL);
+    await writeEmptyAuthState(authDir, baseURL, testUsers);
     return;
   }
 
@@ -158,13 +185,15 @@ async function globalSetup(config: FullConfig) {
   const secretsClient = new SecretsManagerClient({ region: REGION });
 
   const results = await Promise.allSettled(
-    TEST_USERS.map((user) => authenticateUser(cognitoClient, secretsClient, user, authDir, baseURL))
+    testUsers.map((user) =>
+      authenticateUser(cognitoClient, secretsClient, user, authDir, baseURL, clientId)
+    )
   );
 
   const failures: string[] = [];
   const successes: string[] = [];
   results.forEach((result, index) => {
-    const email = TEST_USERS[index].email;
+    const email = testUsers[index].email;
     if (result.status === "fulfilled") {
       successes.push(email);
     } else {
