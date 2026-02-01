@@ -1,6 +1,7 @@
 """Entity profile API endpoints."""
 
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
@@ -96,6 +97,42 @@ def generate_all_profiles(
         "job_id": job.id,
         "total_entities": len(entities),
         "status": "in_progress",
+    }
+
+
+@router.post(
+    "/profiles/generate-all/{job_id}/cancel",
+    summary="Cancel a profile generation job",
+    description="Admin-only: cancel an in-progress or pending profile generation job.",
+)
+def cancel_generation_job(
+    job_id: str = Path(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """Cancel a stale or stuck profile generation job.
+
+    Marks the job as 'cancelled' with a completed_at timestamp so that
+    generate-all can create a new job.
+    """
+    job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    if job.status not in ("pending", "in_progress"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job {job_id} is already {job.status} and cannot be cancelled",
+        )
+
+    job.status = "cancelled"
+    job.completed_at = datetime.now(UTC)
+    db.commit()
+
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "completed_at": job.completed_at.isoformat(),
     }
 
 
