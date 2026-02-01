@@ -62,9 +62,13 @@ def _update_job_progress(db: Session, job_id: str, success: bool, error: str | N
             job.error_log = (existing + "\n" + error).strip()
     db.commit()
 
-    # Check completion
+    # Check completion (skip if job was cancelled by admin)
     job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
-    if job and (job.succeeded + job.failed) >= job.total_entities:
+    if (
+        job
+        and job.status not in ("cancelled", "completed")
+        and (job.succeeded + job.failed) >= job.total_entities
+    ):
         job.status = "completed"
         job.completed_at = datetime.now(UTC)
         db.commit()

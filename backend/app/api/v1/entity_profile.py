@@ -115,6 +115,9 @@ def cancel_generation_job(
     Marks the job as 'cancelled' with a completed_at timestamp so that
     generate-all can create a new job.
     """
+    if not current_user.db_user:
+        raise HTTPException(status_code=403, detail="API key auth requires linked database user")
+
     job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")

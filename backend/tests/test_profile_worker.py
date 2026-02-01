@@ -1,9 +1,16 @@
 """Tests for profile generation worker handler."""
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from app.services.profile_worker import handle_profile_generation_message, handler
+from app.models.profile_generation_job import ProfileGenerationJob
+from app.models.user import User
+from app.services.profile_worker import (
+    _update_job_progress,
+    handle_profile_generation_message,
+    handler,
+)
 
 
 class TestProfileWorker:
@@ -70,6 +77,56 @@ class TestProfileWorker:
 
         mock_gen.assert_not_called()
         mock_update.assert_called_once_with(db, "test-job-1", success=True)
+
+
+class TestUpdateJobProgress:
+    """Tests for _update_job_progress respecting cancelled status."""
+
+    def test_cancelled_job_not_overwritten_to_completed(self, db):
+        """A cancelled job stays cancelled even after all entities processed."""
+        user = User(cognito_sub="test-worker-user", email="worker@example.com", role="admin")
+        db.add(user)
+        db.flush()
+
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status="cancelled",
+            total_entities=2,
+            succeeded=1,
+            failed=0,
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        # This would bring succeeded+failed to total_entities
+        _update_job_progress(db, job.id, success=True)
+
+        db.refresh(job)
+        assert job.status == "cancelled"  # NOT overwritten to "completed"
+        assert job.succeeded == 2
+
+    def test_normal_job_completes_when_all_processed(self, db):
+        """A normal in-progress job transitions to completed."""
+        user = User(cognito_sub="test-worker-user2", email="worker2@example.com", role="admin")
+        db.add(user)
+        db.flush()
+
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status="in_progress",
+            total_entities=2,
+            succeeded=1,
+            failed=0,
+        )
+        db.add(job)
+        db.commit()
+
+        _update_job_progress(db, job.id, success=True)
+
+        db.refresh(job)
+        assert job.status == "completed"
+        assert job.completed_at is not None
 
 
 class TestProfileWorkerHandler:

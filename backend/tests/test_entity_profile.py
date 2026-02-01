@@ -1316,3 +1316,23 @@ class TestCancelJob:
         data = gen_resp.json()
         assert data["job_id"] != job.id
         assert data["status"] == "in_progress"
+
+    def test_cancel_failed_job_returns_409(self, admin_client, db):
+        """POST cancel on failed job returns 409 Conflict."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status="failed",
+            total_entities=10,
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 409
+
+    def test_cancel_requires_admin_auth(self, viewer_client, db):
+        """Viewer auth gets 403 on cancel endpoint (require_admin)."""
+        response = viewer_client.post("/api/v1/entity/profiles/generate-all/some-job-id/cancel")
+        assert response.status_code == 403
