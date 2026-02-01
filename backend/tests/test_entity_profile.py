@@ -13,7 +13,7 @@ from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, Publisher
 from app.models.entity_profile import EntityProfile
-from app.models.profile_generation_job import ProfileGenerationJob
+from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
 from app.services.entity_profile import (
     _build_connections,
@@ -1169,7 +1169,7 @@ class TestGenerateAllAsync:
         assert response.status_code == 200
         data = response.json()
         assert "job_id" in data
-        assert data["status"] == "in_progress"
+        assert data["status"] == JobStatus.IN_PROGRESS
         assert data["total_entities"] >= 1
         mock_send.assert_called_once()
 
@@ -1188,14 +1188,14 @@ class TestGenerateAllAsync:
     def test_generate_all_returns_existing_job(self, mock_send, admin_client, db):
         """Returns existing job if one is already in progress."""
         user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
-        job = ProfileGenerationJob(owner_id=user.id, status="in_progress", total_entities=5)
+        job = ProfileGenerationJob(owner_id=user.id, status=JobStatus.IN_PROGRESS, total_entities=5)
         db.add(job)
         db.commit()
 
         response = admin_client.post("/api/v1/entity/profiles/generate-all")
         data = response.json()
         assert data["job_id"] == job.id
-        assert data["status"] == "in_progress"
+        assert data["status"] == JobStatus.IN_PROGRESS
         mock_send.assert_not_called()
 
 
@@ -1206,7 +1206,7 @@ class TestGenerateAllStatus:
         """GET status returns job progress."""
         user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
         job = ProfileGenerationJob(
-            owner_id=user.id, status="in_progress", total_entities=10, succeeded=7, failed=1
+            owner_id=user.id, status=JobStatus.IN_PROGRESS, total_entities=10, succeeded=7, failed=1
         )
         db.add(job)
         db.commit()
@@ -1222,3 +1222,123 @@ class TestGenerateAllStatus:
         """GET status returns 404 for unknown job."""
         response = admin_client.get("/api/v1/entity/profiles/generate-all/status/nonexistent-id")
         assert response.status_code == 404
+
+
+class TestCancelJob:
+    """Tests for cancel profile generation job endpoint (#1611)."""
+
+    def test_cancel_in_progress_job(self, admin_client, db):
+        """POST cancel marks in-progress job as cancelled."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status=JobStatus.IN_PROGRESS,
+            total_entities=264,
+            succeeded=10,
+            failed=2,
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == job.id
+        assert data["status"] == JobStatus.CANCELLED
+        assert data["completed_at"] is not None
+
+        # Verify DB state
+        db.refresh(job)
+        assert job.status == JobStatus.CANCELLED
+        assert job.completed_at is not None
+
+    def test_cancel_pending_job(self, admin_client, db):
+        """POST cancel marks pending job as cancelled."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(owner_id=user.id, status=JobStatus.PENDING, total_entities=100)
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == JobStatus.CANCELLED
+
+    def test_cancel_completed_job_returns_409(self, admin_client, db):
+        """POST cancel on completed job returns 409 Conflict."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status=JobStatus.COMPLETED,
+            total_entities=10,
+            succeeded=10,
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 409
+
+    def test_cancel_already_cancelled_job_returns_409(self, admin_client, db):
+        """POST cancel on already-cancelled job returns 409 Conflict."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status=JobStatus.CANCELLED,
+            total_entities=10,
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 409
+
+    def test_cancel_nonexistent_job_returns_404(self, admin_client):
+        """POST cancel on non-existent job returns 404."""
+        response = admin_client.post("/api/v1/entity/profiles/generate-all/nonexistent-id/cancel")
+        assert response.status_code == 404
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_cancelled_job_unblocks_new_generate_all(self, mock_send, admin_client, db):
+        """After cancelling a job, generate-all creates a new one."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id, status=JobStatus.IN_PROGRESS, total_entities=264
+        )
+        db.add(job)
+        author = Author(name="Cancel Test Author")
+        db.add(author)
+        db.commit()
+
+        # Cancel the stale job
+        cancel_resp = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert cancel_resp.status_code == 200
+
+        # Now generate-all should create a new job
+        gen_resp = admin_client.post("/api/v1/entity/profiles/generate-all")
+        assert gen_resp.status_code == 200
+        data = gen_resp.json()
+        assert data["job_id"] != job.id
+        assert data["status"] == JobStatus.IN_PROGRESS
+
+    def test_cancel_failed_job_returns_409(self, admin_client, db):
+        """POST cancel on failed job returns 409 Conflict."""
+        user = db.query(User).filter(User.cognito_sub == "test-admin-ep").first()
+        job = ProfileGenerationJob(
+            owner_id=user.id,
+            status=JobStatus.FAILED,
+            total_entities=10,
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+        response = admin_client.post(f"/api/v1/entity/profiles/generate-all/{job.id}/cancel")
+        assert response.status_code == 409
+
+    def test_cancel_requires_admin_auth(self, viewer_client, db):
+        """Viewer auth gets 403 on cancel endpoint (require_admin)."""
+        response = viewer_client.post("/api/v1/entity/profiles/generate-all/some-job-id/cancel")
+        assert response.status_code == 403
