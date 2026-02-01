@@ -264,7 +264,7 @@ export function useSocialCircles() {
   // Get Cytoscape elements for rendering
   function getCytoscapeElements() {
     const m = meta.value;
-    return transformToCytoscapeElements({
+    const elements = transformToCytoscapeElements({
       nodes: [...filteredNodes.value] as ApiNode[],
       edges: [...filteredEdges.value] as ApiEdge[],
       meta: {
@@ -277,6 +277,19 @@ export function useSocialCircles() {
         truncated: m?.truncated ?? false,
       },
     });
+
+    // Inject hub mode badge data into node elements (#1655)
+    for (const el of elements) {
+      if (el.group === "nodes" && el.data?.id) {
+        const hidden = hubMode.isFullyExpanded.value
+          ? 0
+          : hubMode.hiddenNeighborCount(el.data.id as NodeId);
+        el.data.hiddenCount = hidden;
+        el.data.label = hidden > 0 ? `${el.data.name}  +${hidden}` : el.data.name;
+      }
+    }
+
+    return elements;
   }
 
   // Export functions
