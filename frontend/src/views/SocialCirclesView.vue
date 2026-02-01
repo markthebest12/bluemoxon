@@ -9,7 +9,7 @@
 
 import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import { useWindowSize } from "@vueuse/core";
-// Note: useRouter from "vue-router" will be needed when entity-detail route is implemented
+import { useRouter } from "vue-router";
 import {
   useAnalytics,
   useSocialCircles,
@@ -131,7 +131,7 @@ const {
   cleanup,
 } = socialCircles;
 
-// Note: useRouter() will be needed when entity-detail route is implemented
+const router = useRouter();
 
 // Viewport tracking for smart card positioning
 const { width: viewportWidth, height: viewportHeight } = useWindowSize();
@@ -491,11 +491,16 @@ function handleSelectEdge(edgeId: EdgeId) {
 }
 
 // Handle view profile navigation
-// Note: entity-detail route doesn't exist yet - feature planned for future
-function handleViewProfile(_nodeId: NodeId) {
-  // TODO: Navigate to entity detail page when route exists
-  // void router.push({ name: "entity-detail", params: { id: nodeId } });
-  showToastMessage("Entity profiles coming soon");
+function handleViewProfile(nodeId: NodeId) {
+  const node = nodeMap.value.get(nodeId);
+  if (node?.entity_id && node?.type) {
+    void router.push({
+      name: "entity-profile",
+      params: { type: node.type, id: String(node.entity_id) },
+    });
+  } else {
+    console.warn(`[SocialCircles] Cannot navigate to profile for node ${nodeId}`);
+  }
 }
 
 // Handle viewport changes (pan/zoom) - close floating card since position becomes stale

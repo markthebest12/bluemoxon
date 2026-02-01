@@ -58,6 +58,10 @@ const mockEdge: ApiEdge = {
 
 const mockNodes: ApiNode[] = [mockAuthor, mockPublisher];
 
+const defaultGlobal = {
+  stubs: { RouterLink: true },
+};
+
 describe("EdgeSidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,6 +74,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -86,6 +91,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: false,
       },
+      global: defaultGlobal,
     });
 
     expect(wrapper.find(".edge-sidebar").exists()).toBe(false);
@@ -98,6 +104,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     expect(wrapper.find(".edge-sidebar").exists()).toBe(false);
@@ -110,6 +117,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -124,6 +132,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -141,6 +150,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -155,6 +165,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -170,6 +181,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -188,6 +200,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -206,6 +219,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -227,6 +241,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -246,6 +261,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -260,6 +276,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -274,6 +291,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -295,6 +313,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     // Should show loading skeleton
@@ -314,6 +333,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -334,6 +354,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -348,6 +369,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -362,6 +384,7 @@ describe("EdgeSidebar", () => {
         nodes: mockNodes,
         isOpen: true,
       },
+      global: defaultGlobal,
     });
 
     await flushPromises();
@@ -370,5 +393,21 @@ describe("EdgeSidebar", () => {
     expect(viewButtons.length).toBe(2);
     expect(viewButtons[0].text()).toContain("View");
     expect(viewButtons[1].text()).toContain("View");
+  });
+
+  it("renders profile links for source and target nodes", async () => {
+    const wrapper = mount(EdgeSidebar, {
+      props: {
+        edge: mockEdge,
+        nodes: mockNodes,
+        isOpen: true,
+      },
+      global: defaultGlobal,
+    });
+
+    await flushPromises();
+
+    const links = wrapper.findAll(".edge-sidebar__profile-link");
+    expect(links).toHaveLength(2);
   });
 });
