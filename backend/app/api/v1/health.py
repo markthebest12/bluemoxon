@@ -181,6 +181,7 @@ def check_sqs() -> dict[str, Any]:
         "analysis": settings.analysis_queue_name,
         "eval_runbook": settings.eval_runbook_queue_name,
         "image_processing": settings.image_processing_queue_name,
+        "profile_generation": settings.profile_generation_queue_name,
     }
 
     # Filter to only configured queues
@@ -660,7 +661,7 @@ async def readiness(db: Session = Depends(get_db)):
 Comprehensive health check that validates all system dependencies:
 - **Database**: PostgreSQL connectivity and query execution
 - **S3**: Images bucket accessibility
-- **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing)
+- **SQS**: Worker queue accessibility (analysis, eval_runbook, image_processing, profile_generation)
 - **Cognito**: User pool availability (if configured)
 - **Bedrock**: AI model service availability
 - **Redis**: Cache connectivity (if configured)

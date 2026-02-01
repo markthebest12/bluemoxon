@@ -1252,3 +1252,65 @@ class TestCheckLambdas:
         assert result["status"] == "healthy", (
             "Overall status should be 'healthy' when all Lambdas are 'skipped'"
         )
+
+
+class TestCheckSqsProfileGeneration:
+    """Tests for profile generation queue in SQS health check."""
+
+    def test_check_sqs_includes_profile_generation_queue(self, monkeypatch):
+        """check_sqs should include profile_generation when configured."""
+        from app.api.v1 import health
+        from app.api.v1.health import check_sqs
+
+        monkeypatch.setattr(
+            health.settings, "profile_generation_queue_name", "test-profile-gen-queue"
+        )
+        monkeypatch.setattr(health.settings, "analysis_queue_name", None)
+        monkeypatch.setattr(health.settings, "eval_runbook_queue_name", None)
+        monkeypatch.setattr(health.settings, "image_processing_queue_name", None)
+
+        # Mock boto3 SQS client
+        import unittest.mock as mock
+
+        mock_sqs = mock.MagicMock()
+        mock_sqs.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-profile-gen-queue"
+        }
+        mock_sqs.get_queue_attributes.return_value = {
+            "Attributes": {"ApproximateNumberOfMessages": "5"}
+        }
+        monkeypatch.setattr("app.api.v1.health.boto3.client", lambda *a, **kw: mock_sqs)
+
+        result = check_sqs()
+
+        assert result["status"] == "healthy"
+        assert "profile_generation" in result["queues"]
+        assert result["queues"]["profile_generation"]["status"] == "healthy"
+        assert result["queues"]["profile_generation"]["messages"] == 5
+
+    def test_check_sqs_excludes_unconfigured_profile_generation(self, monkeypatch):
+        """check_sqs should exclude profile_generation when not configured."""
+        from app.api.v1 import health
+        from app.api.v1.health import check_sqs
+
+        monkeypatch.setattr(health.settings, "profile_generation_queue_name", None)
+        monkeypatch.setattr(health.settings, "analysis_queue_name", "test-analysis-queue")
+        monkeypatch.setattr(health.settings, "eval_runbook_queue_name", None)
+        monkeypatch.setattr(health.settings, "image_processing_queue_name", None)
+
+        import unittest.mock as mock
+
+        mock_sqs = mock.MagicMock()
+        mock_sqs.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-analysis-queue"
+        }
+        mock_sqs.get_queue_attributes.return_value = {
+            "Attributes": {"ApproximateNumberOfMessages": "0"}
+        }
+        monkeypatch.setattr("app.api.v1.health.boto3.client", lambda *a, **kw: mock_sqs)
+
+        result = check_sqs()
+
+        assert result["status"] == "healthy"
+        assert "profile_generation" not in result["queues"]
+        assert "analysis" in result["queues"]
