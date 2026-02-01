@@ -8,14 +8,14 @@ test.describe("Home Page", () => {
 
   test("displays hero section with collection stats", async ({ page }) => {
     await page.goto("/");
-    // Check for collection stats in hero area
-    await expect(page.locator("text=Victorian Book Collection")).toBeVisible();
+    // Check for dashboard heading
+    await expect(page.locator("text=Collection Dashboard")).toBeVisible();
   });
 
   test("has navigation links", async ({ page }) => {
     await page.goto("/");
     // Check for main nav links
-    await expect(page.getByRole("link", { name: /Books/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Collection/i })).toBeVisible();
   });
 
   test("browse collection button navigates to books", async ({ page }) => {
@@ -44,8 +44,8 @@ test.describe("Statistics Dashboard", () => {
       timeout: 10000,
     });
 
-    // Verify chart section headers are present
-    await expect(page.locator("text=Premium Bindings")).toBeVisible();
+    // Verify chart section headers are present (use heading role to avoid tooltip match)
+    await expect(page.getByRole("heading", { name: "Premium Bindings" })).toBeVisible();
     await expect(page.locator("text=Books by Era")).toBeVisible();
     await expect(page.locator("text=Top Authors")).toBeVisible();
     await expect(page.locator("text=Top Tier 1 Publishers")).toBeVisible();
@@ -60,9 +60,9 @@ test.describe("Statistics Dashboard", () => {
     });
 
     // Check that the stat cards are present (they should show numbers or loading state)
-    await expect(page.locator("text=Collections")).toBeVisible();
+    await expect(page.locator("text=On Hand")).toBeVisible();
     await expect(page.locator("text=Volumes")).toBeVisible();
-    await expect(page.locator("text=Value")).toBeVisible();
+    await expect(page.locator("text=Est. Value")).toBeVisible();
     await expect(page.locator("text=Premium")).toBeVisible();
   });
 });
