@@ -64,12 +64,14 @@ jobs:
           aws-region: us-west-2
 
       - name: Run ${{ inputs.suite-name }} tests
-        run: cd frontend && npx playwright test $E2E_TEST_PATTERN $E2E_PLAYWRIGHT_ARGS
+        id: e2e
+        run: cd frontend && npx playwright test $E2E_TEST_PATTERN --reporter=html,json $E2E_PLAYWRIGHT_ARGS
         env:
           BASE_URL: ${{ env.BASE_URL }}
           E2E_RELAXED_BUDGETS: ${{ inputs.relaxed-budgets && 'true' || '' }}
           E2E_TEST_PATTERN: ${{ inputs.test-pattern }}
           E2E_PLAYWRIGHT_ARGS: ${{ inputs.playwright-args }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
 
       - name: Upload test results
         if: failure()
@@ -79,3 +81,84 @@ jobs:
           path: |
             frontend/test-results/
             frontend/playwright-report/
+
+      - name: Triage failures and create issues
+        if: failure() && steps.e2e.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUITE_NAME: ${{ inputs.suite-name }}
+        run: |
+          cd frontend
+          if [ ! -f test-results/results.json ]; then
+            echo "No JSON results found — skipping triage"
+            exit 0
+          fi
+
+          # Extract failed tests grouped by spec file
+          jq -r '
+            [.suites[]?.suites[]?.specs[]? | select(.tests[]?.results[]?.status == "unexpected") |
+              {
+                file: .file,
+                line: .line,
+                title: .title,
+                error: (.tests[0].results[] | select(.status == "unexpected") | .error.message // "unknown error" | split("\n")[0])
+              }
+            ] | group_by(.file) | .[] |
+            {
+              file: .[0].file,
+              failures: [.[] | "\(.title) (line \(.line)): \(.error)"],
+              count: length
+            }
+          ' test-results/results.json > /tmp/failures.json 2>/dev/null || true
+
+          if [ ! -s /tmp/failures.json ]; then
+            echo "Could not parse failures — skipping issue creation"
+            exit 0
+          fi
+
+          # Create one issue per spec file with failures
+          while IFS= read -r group; do
+            FILE=$(echo "$group" | jq -r '.file')
+            COUNT=$(echo "$group" | jq -r '.count')
+            FAILURES=$(echo "$group" | jq -r '.failures | map("- " + .) | join("\n")')
+
+            # Classify severity based on error patterns
+            SEVERITY="Medium"
+            if echo "$FAILURES" | grep -qi "strict mode"; then
+              SEVERITY="High"
+            elif echo "$FAILURES" | grep -qi "intercept\|obscured"; then
+              SEVERITY="Medium"
+            elif echo "$FAILURES" | grep -qi "timeout\|animation\|flak"; then
+              SEVERITY="Low"
+            fi
+
+            # Check for existing open issue for this file to avoid duplicates
+            EXISTING=$(gh issue list --state open --search "E2E: ${FILE}" --json number --jq '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then
+              echo "Issue #${EXISTING} already open for ${FILE} — skipping"
+              continue
+            fi
+
+            gh issue create \
+              --title "E2E: ${FILE} — ${COUNT} failure(s) in ${SUITE_NAME} suite" \
+              --label "bug" \
+              --body "## E2E Test Failures
+
+          **Suite:** ${SUITE_NAME}
+          **File:** \`frontend/e2e/${FILE}\`
+          **Failures:** ${COUNT}
+          **Severity:** ${SEVERITY}
+          **Run:** [${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})
+
+          ### Failed Tests
+
+          ${FAILURES}
+
+          ### Next Steps
+
+          1. Download test artifacts from the CI run above
+          2. Review Playwright traces and screenshots
+          3. Fix the root cause (not \`force: true\`)"
+
+            echo "Created issue for ${FILE}"
+          done < <(jq -c '.' /tmp/failures.json)

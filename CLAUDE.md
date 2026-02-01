@@ -124,6 +124,17 @@ terraform apply -var-file=envs/staging.tfvars
 
 See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for details.
 
+## Code Review Before Promotion
+
+Before promoting staging to main, run **both** review types (belt and suspenders):
+
+| Skill | Focus | Question |
+|-------|-------|----------|
+| `superpowers:requesting-code-review` | Plan compliance | "Does this do what it should?" |
+| `review-changes` | Implementation flaws | "What's wrong with how I did it?" |
+
+Prod is high-stakes — double coverage is justified. Fix all findings before merging.
+
 ## Key Constraints
 
 | Rule | Reason |

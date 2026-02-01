@@ -1869,12 +1869,14 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: E2E smoke test
+        id: e2e-smoke
         working-directory: frontend
-        run: npx playwright test e2e/smoke.spec.ts --project=chromium
+        run: npx playwright test e2e/smoke.spec.ts --project=chromium --reporter=html,json
         env:
           BASE_URL: ${{ needs.configure.outputs.app_url }}
           COGNITO_CLIENT_ID: ${{ needs.configure.outputs.cognito_client_id }}
           E2E_SECRET_PREFIX: ${{ needs.configure.outputs.environment == 'production' && 'bluemoxon-prod' || 'bluemoxon-staging' }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
 
       - name: Upload test results
         if: failure()
@@ -1885,3 +1887,73 @@ jobs:
             frontend/test-results/
             frontend/playwright-report/
           retention-days: 7
+
+      - name: Triage failures and create issues
+        if: failure() && steps.e2e-smoke.outcome == 'failure'
+        working-directory: frontend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_ENV: ${{ needs.configure.outputs.environment }}
+        run: |
+          if [ ! -f test-results/results.json ]; then
+            echo "No JSON results found — skipping triage"
+            exit 0
+          fi
+
+          jq -r '
+            [.suites[]?.suites[]?.specs[]? | select(.tests[]?.results[]?.status == "unexpected") |
+              {
+                file: .file,
+                line: .line,
+                title: .title,
+                error: (.tests[0].results[] | select(.status == "unexpected") | .error.message // "unknown error" | split("\n")[0])
+              }
+            ] | group_by(.file) | .[] |
+            {
+              file: .[0].file,
+              failures: [.[] | "\(.title) (line \(.line)): \(.error)"],
+              count: length
+            }
+          ' test-results/results.json > /tmp/failures.json 2>/dev/null || true
+
+          if [ ! -s /tmp/failures.json ]; then
+            echo "Could not parse failures — skipping issue creation"
+            exit 0
+          fi
+
+          while IFS= read -r group; do
+            FILE=$(echo "$group" | jq -r '.file')
+            COUNT=$(echo "$group" | jq -r '.count')
+            FAILURES=$(echo "$group" | jq -r '.failures | map("- " + .) | join("\n")')
+
+            SEVERITY="High"
+
+            EXISTING=$(gh issue list --state open --search "E2E: ${FILE}" --json number --jq '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then
+              echo "Issue #${EXISTING} already open for ${FILE} — skipping"
+              continue
+            fi
+
+            gh issue create \
+              --title "E2E: ${FILE} — ${COUNT} failure(s) on ${DEPLOY_ENV} deploy" \
+              --label "bug" \
+              --body "## Post-Deploy E2E Failures
+
+          **Environment:** ${DEPLOY_ENV}
+          **File:** \`frontend/e2e/${FILE}\`
+          **Failures:** ${COUNT}
+          **Severity:** ${SEVERITY} (post-deploy failures are always high priority)
+          **Run:** [${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})
+
+          ### Failed Tests
+
+          ${FAILURES}
+
+          ### Next Steps
+
+          1. Check if this is a deployment regression vs test flakiness
+          2. Download test artifacts from the CI run above
+          3. Fix immediately if blocking production"
+
+            echo "Created issue for ${FILE}"
+          done < <(jq -c '.' /tmp/failures.json)
