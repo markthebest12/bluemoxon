@@ -89,7 +89,7 @@ watch(
         @regenerate="handleRegenerate"
       />
 
-      <ProfileHero :entity="entity" :profile="profile" />
+      <ProfileHero :entity="entity" :profile="profile" :connections="connections" />
 
       <EgoNetwork
         v-if="isMounted && connections.length > 0 && !isMobile"
