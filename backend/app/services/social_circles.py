@@ -34,6 +34,25 @@ MAX_BOOK_IDS_PER_NODE = 10
 # Could be moved to settings if configurability is needed.
 DEFAULT_DATE_RANGE = (1800, 1900)
 
+# Reasonable year bounds for clamping outliers in date range calculation.
+# Authors with birth/death years outside this range are likely data errors.
+REASONABLE_MIN_YEAR = 1700
+# Static upper bound — intentionally not dynamic. This Victorian-era collection
+# has no living subjects, so a fixed ceiling avoids unnecessary complexity.
+REASONABLE_MAX_YEAR = 2025
+
+
+def _compute_date_range(years: list[int]) -> tuple[int, int]:
+    """Compute date range from years, filtering outliers outside reasonable bounds."""
+    if not years:
+        return DEFAULT_DATE_RANGE
+
+    reasonable = [y for y in years if REASONABLE_MIN_YEAR <= y <= REASONABLE_MAX_YEAR]
+    if not reasonable:
+        return DEFAULT_DATE_RANGE
+
+    return (min(reasonable), max(reasonable))
+
 
 def get_era_from_year(year: int | None) -> Era:
     """Determine historical era from a year."""
@@ -290,18 +309,15 @@ def build_social_circles_graph(
                     shared_book_ids=shared_books,
                 )
 
-    # Calculate date range
-    years = []
+    # Calculate date range (with outlier filtering)
+    years: list[int] = []
     for node in nodes.values():
         if node.birth_year:
             years.append(node.birth_year)
         if node.death_year:
             years.append(node.death_year)
 
-    date_range = (
-        min(years) if years else DEFAULT_DATE_RANGE[0],
-        max(years) if years else DEFAULT_DATE_RANGE[1],
-    )
+    date_range = _compute_date_range(years)
 
     # Build metadata
     meta = SocialCirclesMeta(

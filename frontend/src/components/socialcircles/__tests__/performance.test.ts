@@ -17,7 +17,10 @@ import type { ApiNode, ApiEdge, NodeId, EdgeId, BookId } from "@/types/socialCir
 // Create a mock router for EdgeSidebar tests
 const mockRouter = createRouter({
   history: createWebHistory(),
-  routes: [{ path: "/", component: { template: "<div />" } }],
+  routes: [
+    { path: "/", component: { template: "<div />" } },
+    { path: "/entity/:type/:id", name: "entity-profile", component: { template: "<div />" } },
+  ],
 });
 
 // Mock useFocusTrap

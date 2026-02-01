@@ -133,6 +133,15 @@ layer(utilities);
   --color-status-info-solid: #3a6b5c;
   --color-status-info-solid-text: #ffffff;
   --color-status-info-accent: #2f5a4b;
+
+  /* ============================================
+     TONE TOKENS - Entity profile narrative tones
+     ============================================ */
+  --color-tone-dramatic: #c0392b;
+  --color-tone-scandalous: #e74c3c;
+  --color-tone-tragic: #7f8c8d;
+  --color-tone-intellectual: #2c3e50;
+  --color-tone-triumphant: #d4a017;
 }
 
 /* ============================================
@@ -205,6 +214,13 @@ layer(utilities);
   --color-status-info-solid: var(--color-victorian-gold);
   --color-status-info-solid-text: #1a1a18;
   --color-status-info-accent: var(--color-victorian-gold-light);
+
+  /* Tone tokens - brighter variants for dark backgrounds */
+  --color-tone-dramatic: #e74c3c;
+  --color-tone-scandalous: #ff6b6b;
+  --color-tone-tragic: #b0b8bf;
+  --color-tone-intellectual: #7f9cb8;
+  --color-tone-triumphant: #f0c040;
 
   /* Background overrides - Victorian paper colors */
   .bg-victorian-paper-white {

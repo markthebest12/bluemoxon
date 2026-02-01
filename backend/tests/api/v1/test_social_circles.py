@@ -667,3 +667,51 @@ class TestTruncationBehavior:
         data = response.json()
         assert data["meta"]["total_books"] == 2
         assert data["meta"]["truncated"] is False
+
+
+class TestDateRangeClamping:
+    """Tests for date range calculation with outlier filtering."""
+
+    def test_normal_years_unchanged(self):
+        """Victorian-era years should produce a tight range."""
+        from app.services.social_circles import _compute_date_range
+
+        years = [1810, 1820, 1830, 1840, 1850, 1860, 1870, 1880, 1890, 1900]
+        result = _compute_date_range(years)
+        assert result == (1810, 1900)
+
+    def test_outlier_year_excluded(self):
+        """A single extreme outlier (1265) should be excluded."""
+        from app.services.social_circles import _compute_date_range
+
+        years = [1265, 1810, 1820, 1830, 1840, 1850, 1860, 1870, 1880, 1900, 1967]
+        result = _compute_date_range(years)
+        assert result == (1810, 1967)
+
+    def test_empty_years_returns_default(self):
+        """Empty years list returns DEFAULT_DATE_RANGE."""
+        from app.services.social_circles import DEFAULT_DATE_RANGE, _compute_date_range
+
+        result = _compute_date_range([])
+        assert result == DEFAULT_DATE_RANGE
+
+    def test_single_year(self):
+        """A single year should work without error."""
+        from app.services.social_circles import _compute_date_range
+
+        result = _compute_date_range([1850])
+        assert result == (1850, 1850)
+
+    def test_boundary_years_included(self):
+        """Years exactly at boundaries should be included."""
+        from app.services.social_circles import _compute_date_range
+
+        result = _compute_date_range([1700, 2025])
+        assert result == (1700, 2025)
+
+    def test_all_outliers_returns_default(self):
+        """If ALL years are outside reasonable bounds, return default."""
+        from app.services.social_circles import DEFAULT_DATE_RANGE, _compute_date_range
+
+        result = _compute_date_range([500, 600, 700])
+        assert result == DEFAULT_DATE_RANGE
