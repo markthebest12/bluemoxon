@@ -43,4 +43,28 @@ describe("EntityBooks", () => {
     });
     expect(wrapper.text()).toContain("Show all 10 books");
   });
+
+  it("formats raw condition enum values as human-readable text", () => {
+    const rawBooks: ProfileBook[] = [
+      { id: 1, title: "Aurora Leigh", year: 1856, condition: "NEAR_FINE", edition: "First" },
+      { id: 2, title: "Sonnets", year: 1850, condition: "VERY_GOOD" },
+    ];
+    const wrapper = mount(EntityBooks, {
+      props: { books: rawBooks },
+      global: { stubs: { "router-link": { template: "<a><slot /></a>" } } },
+    });
+    expect(wrapper.text()).toContain("Near Fine");
+    expect(wrapper.text()).not.toContain("NEAR_FINE");
+    expect(wrapper.text()).toContain("Very Good");
+    expect(wrapper.text()).not.toContain("VERY_GOOD");
+  });
+
+  it("handles null condition gracefully", () => {
+    const wrapper = mount(EntityBooks, {
+      props: { books: [{ id: 3, title: "Poems", year: 1844 }] },
+      global: { stubs: { "router-link": { template: "<a><slot /></a>" } } },
+    });
+    expect(wrapper.text()).not.toContain("null");
+    expect(wrapper.text()).not.toContain("undefined");
+  });
 });
