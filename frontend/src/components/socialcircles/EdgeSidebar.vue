@@ -684,7 +684,7 @@ onUnmounted(() => {
 
 .edge-sidebar__profile-link {
   color: var(--color-accent-gold, #b8860b);
-  font-size: 13px;
+  font-size: 0.8125rem;
   text-decoration: none;
 }
 

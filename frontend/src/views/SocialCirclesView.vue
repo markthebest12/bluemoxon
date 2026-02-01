@@ -498,6 +498,8 @@ function handleViewProfile(nodeId: NodeId) {
       name: "entity-profile",
       params: { type: node.type, id: String(node.entity_id) },
     });
+  } else {
+    console.warn(`[SocialCircles] Cannot navigate to profile for node ${nodeId}`);
   }
 }
 
