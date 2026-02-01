@@ -97,4 +97,38 @@ describe("KeyConnections", () => {
     expect(wrapper.text()).toContain("A dramatic literary friendship.");
     expect(wrapper.text()).toContain("exchanged passionate letters");
   });
+
+  it("renders shared books as links to book detail", () => {
+    const wrapper = mount(KeyConnections, {
+      props: {
+        connections: [
+          {
+            entity: { id: 31, type: "author", name: "EBB" },
+            connection_type: "shared_publisher",
+            strength: 5,
+            shared_book_count: 1,
+            shared_books: [{ id: 57, title: "Poetical Works", year: 1904 }],
+            narrative: null,
+            narrative_trigger: null,
+            is_key: true,
+            relationship_story: null,
+          },
+        ],
+      },
+      global: {
+        stubs: {
+          "router-link": {
+            template: '<a :data-to="JSON.stringify(to)"><slot /></a>',
+            props: ["to"],
+          },
+        },
+      },
+    });
+
+    const bookLinks = wrapper.findAll(".key-connections__book-link");
+    expect(bookLinks.length).toBe(1);
+    const to = JSON.parse(bookLinks[0].attributes("data-to")!);
+    expect(to.name).toBe("book-detail");
+    expect(to.params.id).toBe(57);
+  });
 });

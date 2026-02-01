@@ -50,7 +50,13 @@ function isExpanded(conn: ProfileConnection): boolean {
         </p>
         <ul v-if="conn.shared_books.length" class="key-connections__books">
           <li v-for="book in conn.shared_books" :key="book.id">
-            {{ book.title }}<span v-if="book.year"> ({{ book.year }})</span>
+            <router-link
+              :to="{ name: 'book-detail', params: { id: book.id } }"
+              class="key-connections__book-link"
+            >
+              {{ book.title }}
+            </router-link>
+            <span v-if="book.year"> ({{ book.year }})</span>
           </li>
         </ul>
         <div class="key-connections__meta">
@@ -183,6 +189,15 @@ function isExpanded(conn: ProfileConnection): boolean {
 
 .key-connections__story-toggle:hover {
   background: color-mix(in srgb, var(--color-accent-gold, #b8860b) 10%, transparent);
+}
+
+.key-connections__book-link {
+  color: var(--color-accent-gold, #b8860b);
+  text-decoration: none;
+}
+
+.key-connections__book-link:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {
