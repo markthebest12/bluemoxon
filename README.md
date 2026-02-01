@@ -38,32 +38,32 @@ BlueMoxon is a web application for managing a Victorian book collection with:
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="800">
+  <img src="https://bluemoxon.com/screenshots/dashboard.png" alt="Dashboard" width="800">
   <br><em>Dashboard with collection analytics and quick stats</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/collection.png" alt="Collection" width="800">
+  <img src="https://bluemoxon.com/screenshots/collection.png" alt="Collection" width="800">
   <br><em>Browse and search the book collection</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/book-detail.png" alt="Book Detail" width="800">
+  <img src="https://bluemoxon.com/screenshots/book-detail.png" alt="Book Detail" width="800">
   <br><em>Detailed book view with images, valuation, and metadata</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" alt="Analysis Editor" width="800">
+  <img src="https://bluemoxon.com/screenshots/editor.png" alt="Analysis Editor" width="800">
   <br><em>Markdown analysis editor with live preview</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/admin.png" alt="Admin Panel" width="800">
+  <img src="https://bluemoxon.com/screenshots/admin.png" alt="Admin Panel" width="800">
   <br><em>User management with role assignment and MFA status</em>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/reports.png" alt="Reports" width="800">
+  <img src="https://bluemoxon.com/screenshots/reports.png" alt="Reports" width="800">
   <br><em>Insurance valuation report with collection summary</em>
 </p>
 

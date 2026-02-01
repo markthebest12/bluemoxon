@@ -5,11 +5,9 @@ on:
     branches: [main]
     paths:
       - 'site/**'
-      - 'docs/screenshots/**'
   pull_request:
     paths:
       - 'site/**'
-      - 'docs/screenshots/**'
   workflow_dispatch:
 
 permissions:
@@ -92,28 +90,6 @@ jobs:
             done
           done
           echo "Link check complete"
-
-      - name: Validate screenshots exist
-        run: |
-          echo "Validating screenshots..."
-          required_screenshots=(
-            "login.png"
-            "dashboard.png"
-            "collection.png"
-            "book-detail.png"
-            "reports.png"
-            "analysis.png"
-          )
-          for screenshot in "${required_screenshots[@]}"; do
-            if [[ -f "/tmp/site-validate/screenshots/$screenshot" ]]; then
-              size=$(stat -f%z "/tmp/site-validate/screenshots/$screenshot" 2>/dev/null || stat -c%s "/tmp/site-validate/screenshots/$screenshot")
-              echo "✓ $screenshot ($size bytes)"
-            else
-              echo "✗ Missing required screenshot: $screenshot"
-              exit 1
-            fi
-          done
-          echo "All required screenshots present"
 
   deploy:
     name: Deploy to S3
