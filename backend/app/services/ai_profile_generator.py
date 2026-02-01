@@ -103,6 +103,28 @@ Connection list (ONLY use markers for entities in this list — never invent IDs
 {conn_lines}"""
 
 
+_ENTITY_MARKER_RE = re.compile(r"\{\{entity:(\w+):(\d+)\|([^}]+)\}\}")
+
+
+def strip_invalid_markers(text: str, valid_entity_ids: set[str]) -> str:
+    """Strip entity markers whose IDs are not in the valid set.
+
+    Valid markers are preserved. Invalid markers are replaced with just
+    the display name (graceful degradation).
+    """
+
+    def _replace(match: re.Match) -> str:
+        entity_type = match.group(1)
+        entity_id = match.group(2)
+        display_name = match.group(3)
+        key = f"{entity_type}:{entity_id}"
+        if key in valid_entity_ids:
+            return match.group(0)  # preserve valid marker
+        return display_name  # strip to plain text
+
+    return _ENTITY_MARKER_RE.sub(_replace, text)
+
+
 _BIO_SYSTEM_PROMPT = (
     "You are a reference librarian and literary historian specializing in Victorian-era "
     "literature and publishing. You have deep knowledge of personal histories, scandals, "
