@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       socialcircles: ${{ steps.filter.outputs.socialcircles }}
+      entityprofile: ${{ steps.filter.outputs.entityprofile }}
       books: ${{ steps.filter.outputs.books }}
       auth: ${{ steps.filter.outputs.auth }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
@@ -37,6 +38,11 @@ jobs:
               - 'frontend/src/components/socialcircles/**'
               - 'frontend/src/views/SocialCirclesView.vue'
               - 'frontend/e2e/socialcircles-*.spec.ts'
+            entityprofile:
+              - 'frontend/src/components/entityprofile/**'
+              - 'frontend/src/views/EntityProfileView.vue'
+              - 'frontend/src/composables/entityprofile/**'
+              - 'frontend/e2e/entity-profile.spec.ts'
             books:
               - 'frontend/src/views/Books*.vue'
               - 'frontend/src/views/BookCreate*.vue'
@@ -78,6 +84,15 @@ jobs:
     with:
       suite-name: social-circles
       test-pattern: "e2e/socialcircles-*.spec.ts"
+
+  entity-profile:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.entityprofile == 'true'
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: entity-profile
+      test-pattern: "e2e/entity-profile.spec.ts"
 
   books:
     needs: detect-changes

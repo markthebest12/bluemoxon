@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { useRouter } from "vue-router";
 import cytoscape from "cytoscape";
 import type { ProfileConnection } from "@/types/entityProfile";
 
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const containerRef = ref<HTMLElement | null>(null);
 const cy = shallowRef<cytoscape.Core | null>(null);
+const router = useRouter();
 
 // Local element type avoids conflict with the Social Circles module augmentation
 // in cytoscape.d.ts which narrows NodeDataDefinition to branded NodeId/EdgeId types.
@@ -43,6 +45,8 @@ function buildElements(): EgoElement[] {
         label: conn.entity.name,
         isCenter: false,
         type: conn.entity.type,
+        entityType: conn.entity.type,
+        entityId: conn.entity.id,
         isKey: conn.is_key,
       },
     });
@@ -111,6 +115,12 @@ function initCytoscape() {
           opacity: 0.6,
         },
       },
+      {
+        selector: "node[!isCenter]:active",
+        style: {
+          "overlay-opacity": 0.1,
+        },
+      },
     ],
     layout: {
       name: "concentric",
@@ -125,6 +135,29 @@ function initCytoscape() {
     userZoomingEnabled: false,
     userPanningEnabled: false,
     boxSelectionEnabled: false,
+  });
+
+  cy.value.on("tap", "node", (evt) => {
+    const node = evt.target;
+    const entityType = node.data("entityType") as string | undefined;
+    const entityId = node.data("entityId") as number | undefined;
+    if (entityType && entityId && entityId !== props.entityId) {
+      void router.push({
+        name: "entity-profile",
+        params: { type: entityType, id: String(entityId) },
+      });
+    }
+  });
+
+  cy.value.on("mouseover", "node[!isCenter]", () => {
+    if (containerRef.value) {
+      containerRef.value.style.cursor = "pointer";
+    }
+  });
+  cy.value.on("mouseout", "node[!isCenter]", () => {
+    if (containerRef.value) {
+      containerRef.value.style.cursor = "default";
+    }
   });
 }
 

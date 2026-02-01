@@ -53,7 +53,7 @@ test.describe("Social Circles Path Finder", () => {
     const pathFinderPanel = page.getByTestId("pathfinder-panel");
     test.skip(!(await pathFinderPanel.isVisible()), "Path finder panel not rendered");
 
-    const toLabel = pathFinderPanel.getByText(/^to$/i);
+    const toLabel = pathFinderPanel.getByLabel("To");
     await expect(toLabel).toBeVisible();
 
     const endInput = pathFinderPanel.locator("#end-person");
