@@ -98,6 +98,16 @@ locals {
     coalesce(var.external_lambda_security_group_id, try(module.lambda[0].security_group_id, null))
   ) : var.external_lambda_security_group_id
 
+  # Bedrock model IDs — single source of truth for all worker IAM policies.
+  # Must stay in sync with backend/app/services/bedrock.py MODEL_IDS.
+  # Haiku uses foundation model ARN (anthropic.*); Sonnet/Opus use inference
+  # profile ARNs (us.anthropic.*) at runtime but are listed here for auditability.
+  bedrock_model_ids = [
+    "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-opus-4-5-20251101-v1:0",
+  ]
+
   # Profile worker enabled - defaults to enable_lambda if not explicitly set
   # Handles async entity profile generation with Bedrock
   profile_worker_enabled = coalesce(var.enable_profile_worker, var.enable_lambda)

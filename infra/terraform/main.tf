@@ -364,14 +364,8 @@ module "lambda" {
     var.cognito_user_pool_arn_external != null ? [var.cognito_user_pool_arn_external] : []
   )
 
-  # Bedrock model access for AI-powered features
-  # - Haiku 3.5: fast, cheap extraction for listing/order parsing
-  # - Sonnet/Opus: complex analysis generation
-  bedrock_model_ids = [
-    "anthropic.claude-3-5-haiku-20241022-v1:0",
-    "anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "anthropic.claude-opus-4-5-20251101-v1:0"
-  ]
+  # Bedrock model access — uses shared list from locals.tf
+  bedrock_model_ids = local.bedrock_model_ids
 
   # Lambda invoke permissions (e.g., scraper Lambda for eBay listing scraping)
   # When scraper is Terraform-managed, scraper module creates the invoke policy
@@ -548,11 +542,8 @@ module "analysis_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access (wildcards to cover all versions)
-  bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-*",
-    "anthropic.claude-opus-4-5-*"
-  ]
+  # Bedrock model access — uses shared list from locals.tf
+  bedrock_model_ids = local.bedrock_model_ids
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
   api_lambda_role_name = local.api_lambda_role_name
@@ -615,12 +606,8 @@ module "eval_runbook_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access (wildcards to cover all versions)
-  # Uses Haiku for fast attribute extraction in eval runbook
-  bedrock_model_ids = [
-    "anthropic.claude-3-5-haiku-*",
-    "anthropic.claude-sonnet-4-5-*"
-  ]
+  # Bedrock model access — uses shared list from locals.tf
+  bedrock_model_ids = local.bedrock_model_ids
 
   # Lambda invoke permissions (e.g., scraper Lambda for eBay FMV lookup)
   lambda_invoke_arns = local.scraper_lambda_arn != null ? [local.scraper_lambda_arn] : []
@@ -667,7 +654,7 @@ module "profile_worker" {
   timeout              = 600
   visibility_timeout   = 660
   memory_size          = 256
-  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
+  reserved_concurrency = 5 # Limit parallel Bedrock calls to avoid rate limiting
 
   # VPC configuration - use external security group if Lambda is managed externally
   subnet_ids         = var.private_subnet_ids
@@ -686,11 +673,8 @@ module "profile_worker" {
   # S3 bucket access
   s3_bucket_arns = [module.images_bucket.bucket_arn]
 
-  # Bedrock model access (wildcards to cover all versions)
-  bedrock_model_ids = [
-    "anthropic.claude-sonnet-4-5-*",
-    "anthropic.claude-opus-4-5-*"
-  ]
+  # Bedrock model access — uses shared list from locals.tf
+  bedrock_model_ids = local.bedrock_model_ids
 
   # Allow API Lambda to send messages to SQS - use external role if Lambda disabled
   api_lambda_role_name = local.api_lambda_role_name
