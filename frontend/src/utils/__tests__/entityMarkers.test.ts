@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseEntityMarkers, type Segment } from "@/utils/entityMarkers";
+import { parseEntityMarkers } from "@/utils/entityMarkers";
 
 describe("parseEntityMarkers", () => {
   it("returns single text segment for plain text", () => {
@@ -8,9 +8,7 @@ describe("parseEntityMarkers", () => {
   });
 
   it("parses a single marker", () => {
-    const result = parseEntityMarkers(
-      "Met {{entity:author:32|Robert Browning}} at a salon.",
-    );
+    const result = parseEntityMarkers("Met {{entity:author:32|Robert Browning}} at a salon.");
     expect(result).toEqual([
       { type: "text", content: "Met " },
       {
@@ -25,7 +23,7 @@ describe("parseEntityMarkers", () => {
 
   it("parses multiple markers", () => {
     const result = parseEntityMarkers(
-      "{{entity:author:32|Robert Browning}} published with {{entity:publisher:7|Chapman & Hall}}.",
+      "{{entity:author:32|Robert Browning}} published with {{entity:publisher:7|Chapman & Hall}}."
     );
     expect(result).toHaveLength(4);
     expect(result[0]).toEqual({
@@ -49,9 +47,7 @@ describe("parseEntityMarkers", () => {
   });
 
   it("handles adjacent markers with no text between", () => {
-    const result = parseEntityMarkers(
-      "{{entity:author:1|Alice}}{{entity:author:2|Bob}}",
-    );
+    const result = parseEntityMarkers("{{entity:author:1|Alice}}{{entity:author:2|Bob}}");
     expect(result).toEqual([
       { type: "link", entityType: "author", entityId: 1, displayName: "Alice" },
       { type: "link", entityType: "author", entityId: 2, displayName: "Bob" },
@@ -59,18 +55,12 @@ describe("parseEntityMarkers", () => {
   });
 
   it("handles malformed markers as plain text", () => {
-    const result = parseEntityMarkers(
-      "Text with {{entity:broken marker here.",
-    );
-    expect(result).toEqual([
-      { type: "text", content: "Text with {{entity:broken marker here." },
-    ]);
+    const result = parseEntityMarkers("Text with {{entity:broken marker here.");
+    expect(result).toEqual([{ type: "text", content: "Text with {{entity:broken marker here." }]);
   });
 
   it("handles marker with special characters in display name", () => {
-    const result = parseEntityMarkers(
-      "Published by {{entity:publisher:7|Smith, Elder & Co.}}.",
-    );
+    const result = parseEntityMarkers("Published by {{entity:publisher:7|Smith, Elder & Co.}}.");
     expect(result[1]).toEqual({
       type: "link",
       entityType: "publisher",
@@ -80,12 +70,8 @@ describe("parseEntityMarkers", () => {
   });
 
   it("filters empty text segments between adjacent markers", () => {
-    const result = parseEntityMarkers(
-      "{{entity:author:1|A}}{{entity:author:2|B}}",
-    );
+    const result = parseEntityMarkers("{{entity:author:1|A}}{{entity:author:2|B}}");
     // Should not have empty text segments between markers
-    expect(result.every((s) => s.type === "link" || s.content !== "")).toBe(
-      true,
-    );
+    expect(result.every((s) => s.type === "link" || s.content !== "")).toBe(true);
   });
 });
