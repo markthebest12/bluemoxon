@@ -11,6 +11,11 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Social Circles Layout Switching", () => {
   test.beforeEach(async ({ page }) => {
+    // Layout switcher is hidden on mobile viewports (<768px) — skip rather
+    // than fail, since the social-circles graph is a desktop feature.
+    const viewport = page.viewportSize();
+    test.skip(!!viewport && viewport.width <= 768, "Layout switcher requires desktop viewport");
+
     await page.goto("/social-circles");
     await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
   });
