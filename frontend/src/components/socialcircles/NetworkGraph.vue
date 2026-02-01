@@ -87,7 +87,7 @@ function getCytoscapeStylesheet(): StylesheetStyle[] {
         shape: "data(nodeShape)",
         width: "data(nodeSize)",
         height: "data(nodeSize)",
-        label: "data(name)",
+        label: "data(label)",
         "font-size": "10px",
         "font-family": "Georgia, serif",
         "text-valign": "bottom",
@@ -99,6 +99,14 @@ function getCytoscapeStylesheet(): StylesheetStyle[] {
         "border-color": "#e8e4d9",
         "transition-property": "background-color, border-color, width, height",
         "transition-duration": "150ms",
+      },
+    },
+    {
+      selector: "node[hiddenCount > 0]",
+      style: {
+        "font-size": "9px",
+        "text-wrap": "wrap" as never,
+        "text-max-width": "100px" as never,
       },
     },
     {
