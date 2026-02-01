@@ -66,6 +66,9 @@ _HIGH_IMPACT_TRIGGERS = frozenset({"cross_era_bridge", "social_circle"})
 # Maximum shared books to include per connection.
 _MAX_SHARED_BOOKS_PER_CONNECTION = 5
 
+# Maximum connections to include in AI prompts to control token cost (#1654).
+_MAX_PROMPT_CONNECTIONS = 15
+
 
 def _get_entity(
     db: Session, entity_type: str, entity_id: int
@@ -393,6 +396,7 @@ def generate_and_cache_profile(
     if graph is None:
         graph = get_or_build_graph(db)
     connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
+    connected_edges = sorted(connected_edges, key=lambda e: e.strength, reverse=True)
     node_map = {n.id: n for n in graph.nodes}
     source_node = node_map.get(node_id)
     source_connection_count = len(connected_edges)
@@ -412,6 +416,9 @@ def generate_and_cache_profile(
             )
     valid_entity_ids = {f"{c['entity_type']}:{c['entity_id']}" for c in connection_list}
 
+    # Cap connections in AI prompts to control token cost (#1654)
+    prompt_connections = connection_list[:_MAX_PROMPT_CONNECTIONS]
+
     # Generate bio + personal stories
     bio_data = generate_bio_and_stories(
         name=entity.name,
@@ -420,7 +427,7 @@ def generate_and_cache_profile(
         death_year=getattr(entity, "death_year", None),
         founded_year=getattr(entity, "founded_year", None),
         book_titles=book_titles,
-        connections=connection_list,
+        connections=prompt_connections,
     )
 
     # Validate cross-link markers in bio and stories
@@ -477,7 +484,7 @@ def generate_and_cache_profile(
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
                 trigger_type=trigger,
-                connections=connection_list,
+                connections=prompt_connections,
             )
             if story:
                 # Validate markers in story text
@@ -499,7 +506,7 @@ def generate_and_cache_profile(
                 entity2_type=other_type_str,
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
-                connections=connection_list,
+                connections=prompt_connections,
             )
             if narrative:
                 narratives[key] = strip_invalid_markers(narrative, valid_entity_ids)
