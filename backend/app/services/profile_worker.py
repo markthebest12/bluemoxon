@@ -53,7 +53,7 @@ def _update_job_progress(db: Session, job_id: str, success: bool, error: str | N
     else:
         increment[ProfileGenerationJob.failed] = ProfileGenerationJob.failed + 1
     db.execute(
-        update(ProfileGenerationJob).where(ProfileGenerationJob.id == job_id).values(**increment)
+        update(ProfileGenerationJob).where(ProfileGenerationJob.id == job_id).values(increment)
     )
     if error:
         job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
