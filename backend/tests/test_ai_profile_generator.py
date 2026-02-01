@@ -14,6 +14,7 @@ from app.services.ai_profile_generator import (
     generate_bio_and_stories,
     generate_connection_narrative,
     generate_relationship_story,
+    strip_invalid_markers,
 )
 
 
@@ -417,3 +418,118 @@ class TestGenerateRelationshipStory:
         )
         prompt_arg = mock_invoke.call_args.args[1]  # args[1] is user_prompt
         assert "various works" in prompt_arg
+
+
+class TestGenerateBioWithConnections:
+    """Tests for bio generation with entity cross-link markers."""
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_connections_included_in_prompt(self, mock_invoke):
+        mock_invoke.return_value = '{"biography": "Bio.", "personal_stories": []}'
+        connections = [
+            {"entity_type": "author", "entity_id": 32, "name": "Robert Browning"},
+            {"entity_type": "publisher", "entity_id": 7, "name": "Chapman & Hall"},
+        ]
+        generate_bio_and_stories(
+            "Elizabeth Barrett Browning",
+            "author",
+            birth_year=1806,
+            death_year=1861,
+            connections=connections,
+        )
+        prompt_arg = mock_invoke.call_args.args[1]
+        assert "author:32" in prompt_arg
+        assert "Robert Browning" in prompt_arg
+        assert "publisher:7" in prompt_arg
+        assert "{{entity:" in prompt_arg  # marker format in instructions
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_no_connections_omits_marker_instructions(self, mock_invoke):
+        mock_invoke.return_value = '{"biography": "Bio.", "personal_stories": []}'
+        generate_bio_and_stories("Test", "author")
+        prompt_arg = mock_invoke.call_args.args[1]
+        assert "{{entity:" not in prompt_arg
+
+
+class TestGenerateNarrativeWithConnections:
+    """Tests for connection narrative with entity cross-link markers."""
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_connections_included_in_narrative_prompt(self, mock_invoke):
+        mock_invoke.return_value = "A narrative about {{entity:author:32|Robert Browning}}."
+        connections = [
+            {"entity_type": "author", "entity_id": 32, "name": "Robert Browning"},
+        ]
+        generate_connection_narrative(
+            "EBB",
+            "author",
+            "Robert Browning",
+            "author",
+            "shared_publisher",
+            ["Sonnets"],
+            connections=connections,
+        )
+        prompt_arg = mock_invoke.call_args.args[1]
+        assert "author:32" in prompt_arg
+
+
+class TestGenerateRelationshipStoryWithConnections:
+    """Tests for relationship story with entity cross-link markers."""
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_connections_included_in_story_prompt(self, mock_invoke):
+        mock_invoke.return_value = json.dumps(
+            {
+                "summary": "A story about {{entity:publisher:7|Chapman & Hall}}.",
+                "details": [],
+                "narrative_style": "prose-paragraph",
+            }
+        )
+        connections = [
+            {"entity_type": "publisher", "entity_id": 7, "name": "Chapman & Hall"},
+        ]
+        generate_relationship_story(
+            "Dickens",
+            "author",
+            "1812-1870",
+            "Chapman & Hall",
+            "publisher",
+            "1830-1900",
+            "publisher",
+            ["Pickwick Papers"],
+            "hub_figure",
+            connections=connections,
+        )
+        prompt_arg = mock_invoke.call_args.args[1]
+        assert "publisher:7" in prompt_arg
+
+
+class TestStripInvalidMarkers:
+    """Tests for stripping hallucinated entity markers."""
+
+    def test_valid_markers_preserved(self):
+        text = "Met {{entity:author:32|Robert Browning}} at a salon."
+        valid_ids = {"author:32"}
+        assert strip_invalid_markers(text, valid_ids) == text
+
+    def test_invalid_markers_stripped_to_display_name(self):
+        text = "Met {{entity:author:999|Fake Person}} at a salon."
+        valid_ids = {"author:32"}
+        assert strip_invalid_markers(text, valid_ids) == "Met Fake Person at a salon."
+
+    def test_mixed_valid_and_invalid(self):
+        text = "{{entity:author:32|Robert}} met {{entity:author:999|Fake}}."
+        valid_ids = {"author:32"}
+        assert strip_invalid_markers(text, valid_ids) == "{{entity:author:32|Robert}} met Fake."
+
+    def test_no_markers_unchanged(self):
+        text = "Plain text with no markers."
+        assert strip_invalid_markers(text, set()) == text
+
+    def test_empty_text(self):
+        assert strip_invalid_markers("", set()) == ""
+
+    def test_multiple_markers_same_entity(self):
+        text = "{{entity:author:32|RB}} and {{entity:author:32|Robert Browning}}."
+        valid_ids = {"author:32"}
+        assert strip_invalid_markers(text, valid_ids) == text
