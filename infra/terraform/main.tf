@@ -667,7 +667,7 @@ module "profile_worker" {
   timeout              = 600
   visibility_timeout   = 660
   memory_size          = 256
-  reserved_concurrency = -1 # No reservation (account has low concurrency limit)
+  reserved_concurrency = 5 # Limit parallel Bedrock calls to avoid rate limiting
 
   # VPC configuration - use external security group if Lambda is managed externally
   subnet_ids         = var.private_subnet_ids
