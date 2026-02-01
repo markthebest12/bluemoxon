@@ -54,6 +54,7 @@ import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
 import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
+import ShowMoreButton from "@/components/socialcircles/ShowMoreButton.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
@@ -132,6 +133,8 @@ const {
   cleanup,
 } = socialCircles;
 
+const { hubMode } = socialCircles;
+
 const router = useRouter();
 
 // Viewport tracking for smart card positioning
@@ -207,6 +210,20 @@ function handleSearchSelect(node: { id: string }) {
   // Track search before the early return so every search selection is recorded,
   // even when the node is not in the current filtered view.
   analytics.trackSearch(preSelectSearchQuery.value, resultCount);
+
+  // Auto-reveal searched node if not in current hub view
+  if (!hubMode.isFullyExpanded.value) {
+    const nodeInFiltered = filteredNodes.value.some((n) => n.id === node.id);
+    if (!nodeInFiltered) {
+      // Try expanding the node's neighborhood into the hub view
+      hubMode.expandNode(node.id as NodeId);
+      // If still not visible after expand, escalate to full view
+      if (!filteredNodes.value.some((n) => n.id === node.id)) {
+        hubMode.showMore();
+        hubMode.showMore(); // Jump to full if needed
+      }
+    }
+  }
 
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
@@ -461,6 +478,10 @@ const filterPills = computed(() =>
 // Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
+    // Expand hub neighborhood on node click for progressive disclosure
+    if (!hubMode.isFullyExpanded.value) {
+      hubMode.expandNode(nodeId as NodeId);
+    }
     toggleSelectNode(nodeId);
     // Only track if the panel was opened (not toggled closed)
     if (isPanelOpen.value) {
@@ -678,6 +699,15 @@ onUnmounted(() => {
           <div v-show="!showDetailPanel" class="legend-container">
             <NetworkLegend />
           </div>
+
+          <!-- Show More Button (bottom-left of graph) -->
+          <div v-show="!showDetailPanel" class="show-more-container">
+            <ShowMoreButton
+              :status-text="hubMode.statusText.value"
+              :is-fully-expanded="hubMode.isFullyExpanded.value"
+              @show-more="hubMode.showMore"
+            />
+          </div>
         </div>
 
         <!-- Timeline (below graph) -->
@@ -783,6 +813,18 @@ onUnmounted(() => {
           <!-- Legend -->
           <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
             <NetworkLegend />
+          </div>
+
+          <!-- Show More Button (bottom-left of graph) -->
+          <div
+            v-show="!showDetailPanel && !isFiltersOpen"
+            class="show-more-container mobile-show-more"
+          >
+            <ShowMoreButton
+              :status-text="hubMode.statusText.value"
+              :is-fully-expanded="hubMode.isFullyExpanded.value"
+              @show-more="hubMode.showMore"
+            />
           </div>
         </div>
 
@@ -929,6 +971,18 @@ onUnmounted(() => {
   bottom: 1rem;
   right: 1rem;
   z-index: 10;
+}
+
+.show-more-container {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 10;
+}
+
+.mobile-show-more {
+  bottom: 0.5rem;
+  left: 0.5rem;
 }
 
 .timeline-area {
