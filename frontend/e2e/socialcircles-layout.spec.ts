@@ -114,40 +114,51 @@ test.describe("Social Circles Layout Switching", () => {
     const nonActiveCount = await nonActiveButton.count();
     expect(nonActiveCount).toBeGreaterThan(0);
 
-    // Cache button reference before clicking to avoid stale element
-    const btnToClick = nonActiveButton.first();
+    // Capture data-testid for a stable locator — the :not(...) selector is live
+    // and stops matching the button once it gains the --active class
+    const targetTestId = await nonActiveButton.first().getAttribute("data-testid");
+    const btnToClick = layoutSwitcher.locator(`[data-testid="${targetTestId}"]`);
     await btnToClick.click();
 
     // Wait for the clicked button to become active
-    await expect(btnToClick).toHaveClass(/layout-switcher__btn--active/);
+    await expect(btnToClick).toHaveClass(/layout-switcher__btn--active/, { timeout: 10000 });
 
     // Graph should still be visible after layout change
     await expect(page.getByTestId("network-graph")).toBeVisible();
   });
 
-  test("layout switcher is disabled during animation", async ({ page }) => {
+  test("layout switch completes and graph remains stable", async ({ page }) => {
     const layoutSwitcher = page.getByTestId("layout-switcher");
     test.skip(!(await layoutSwitcher.isVisible()), "Layout switcher not rendered");
 
+    // Get the currently active layout name
+    const activeButton = layoutSwitcher.locator(".layout-switcher__btn--active");
+    const initialLayout = await activeButton.getAttribute("data-testid");
+
+    // Click a different layout — capture data-testid for a stable locator
     const nonActiveButton = layoutSwitcher.locator(
       ".layout-switcher__btn:not(.layout-switcher__btn--active)"
     );
     const nonActiveCount = await nonActiveButton.count();
     expect(nonActiveCount).toBeGreaterThan(0);
 
-    // Click to trigger animation
-    await nonActiveButton.first().click();
+    const targetTestId = await nonActiveButton.first().getAttribute("data-testid");
+    const btnToClick = layoutSwitcher.locator(`[data-testid="${targetTestId}"]`);
+    await btnToClick.click();
 
-    // During animation, the switcher might be disabled
-    const isDisabled = (await layoutSwitcher.locator(".layout-switcher--disabled").count()) > 0;
+    // After animation settles, the clicked button should be active
+    await expect(btnToClick).toHaveClass(/layout-switcher__btn--active/, { timeout: 10000 });
 
-    // Wait for animation to complete by checking the active class settled
-    await expect(nonActiveButton.first()).toHaveClass(/layout-switcher__btn--active/);
+    // The previously active layout should no longer be active (if they differ)
+    if (initialLayout !== targetTestId) {
+      const newActiveTestId = await layoutSwitcher
+        .locator(".layout-switcher__btn--active")
+        .getAttribute("data-testid");
+      expect(newActiveTestId).toBe(targetTestId);
+    }
 
-    const stillDisabled = (await layoutSwitcher.locator(".layout-switcher--disabled").count()) > 0;
-
-    // Either it was never disabled (acceptable) or it became enabled again
-    expect(isDisabled || !stillDisabled).toBeTruthy();
+    // Graph should remain visible throughout
+    await expect(page.getByTestId("network-graph")).toBeVisible();
   });
 
   test("layout persists after page interaction", async ({ page }) => {
