@@ -54,7 +54,7 @@ function handleLeave() {
 }
 
 function navigateToBook(bookId: number) {
-  void router.push({ name: "book-detail", params: { id: bookId } });
+  void router.push({ name: "book-detail", params: { id: String(bookId) } });
 }
 </script>
 

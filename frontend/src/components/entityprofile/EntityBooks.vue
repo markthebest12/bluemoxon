@@ -25,7 +25,7 @@ const visibleBooks = computed(() => {
       <router-link
         v-for="book in visibleBooks"
         :key="book.id"
-        :to="{ name: 'book-detail', params: { id: book.id } }"
+        :to="{ name: 'book-detail', params: { id: String(book.id) } }"
         class="entity-books__card"
       >
         <span class="entity-books__book-title">{{ book.title }}</span>

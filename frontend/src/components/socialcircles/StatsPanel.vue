@@ -237,6 +237,8 @@ function handleToggle() {
 }
 
 .stats-panel__toggle {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;

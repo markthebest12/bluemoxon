@@ -37,7 +37,7 @@ function isExpanded(conn: ProfileConnection): boolean {
           <router-link
             :to="{
               name: 'entity-profile',
-              params: { type: conn.entity.type, id: conn.entity.id },
+              params: { type: conn.entity.type, id: String(conn.entity.id) },
             }"
             class="key-connections__name"
           >
@@ -51,7 +51,7 @@ function isExpanded(conn: ProfileConnection): boolean {
         <ul v-if="conn.shared_books.length" class="key-connections__books">
           <li v-for="book in conn.shared_books" :key="book.id">
             <router-link
-              :to="{ name: 'book-detail', params: { id: book.id } }"
+              :to="{ name: 'book-detail', params: { id: String(book.id) } }"
               class="key-connections__book-link"
             >
               {{ book.title }}

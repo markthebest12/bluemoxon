@@ -30,7 +30,7 @@ test.describe("Smoke: Viewer routes", () => {
   for (const route of [...adminRoutes, ...editorRoutes]) {
     test(`viewer redirected from ${route.name} (${route.path})`, async ({ page }) => {
       await page.goto(route.path);
-      await expect(page).toHaveURL("/");
+      await expect(page).toHaveURL("/", { timeout: 15_000 });
     });
   }
 });

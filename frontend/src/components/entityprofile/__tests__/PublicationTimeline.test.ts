@@ -25,7 +25,7 @@ describe("PublicationTimeline", () => {
     await dots[0].trigger("click");
     expect(mockRouter.push).toHaveBeenCalledWith({
       name: "book-detail",
-      params: { id: expect.any(Number) },
+      params: { id: "57" },
     });
   });
 

@@ -129,6 +129,6 @@ describe("KeyConnections", () => {
     expect(bookLinks.length).toBe(1);
     const to = JSON.parse(bookLinks[0].attributes("data-to")!);
     expect(to.name).toBe("book-detail");
-    expect(to.params.id).toBe(57);
+    expect(to.params.id).toBe("57");
   });
 });
