@@ -9,18 +9,13 @@ describe("getToneStyle", () => {
     for (const tone of ALL_TONES) {
       const style = getToneStyle(tone);
       expect(style.className).toBe(`tone--${tone}`);
-      expect(style.color).toBeTruthy();
+      expect(style.color).toBe(`var(--color-tone-${tone})`);
     }
-  });
-
-  it("returns distinct colors for each tone", () => {
-    const colors = ALL_TONES.map((t) => getToneStyle(t).color);
-    expect(new Set(colors).size).toBe(ALL_TONES.length);
   });
 
   it("returns fallback for unknown tone", () => {
     const style = getToneStyle("unknown" as Tone);
     expect(style.className).toBe("tone--unknown");
-    expect(style.color).toBeTruthy();
+    expect(style.color).toBe("var(--color-tone-unknown, #b8860b)");
   });
 });

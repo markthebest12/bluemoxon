@@ -5,19 +5,15 @@ export interface ToneStyle {
   color: string;
 }
 
-const TONE_COLORS: Record<string, string> = {
-  dramatic: "#c0392b",
-  scandalous: "#e74c3c",
-  tragic: "#7f8c8d",
-  intellectual: "#2c3e50",
-  triumphant: "#d4a017",
-};
+// Keep in sync with Tone type (types/entityProfile.ts) and --color-tone-* in main.css
+const KNOWN_TONES = new Set(["dramatic", "scandalous", "tragic", "intellectual", "triumphant"]);
 
 const FALLBACK_COLOR = "#b8860b";
 
 export function getToneStyle(tone: Tone): ToneStyle {
+  const isKnown = KNOWN_TONES.has(tone);
   return {
     className: `tone--${tone}`,
-    color: TONE_COLORS[tone] ?? FALLBACK_COLOR,
+    color: isKnown ? `var(--color-tone-${tone})` : `var(--color-tone-${tone}, ${FALLBACK_COLOR})`,
   };
 }
