@@ -8,13 +8,15 @@ test.describe("Books Page", () => {
   test("displays book list", async ({ page }) => {
     // Wait for books to load
     await expect(
-      page.locator('[data-testid="book-card"], .book-card, article').first()
+      page.locator(".card.card-interactive").first()
     ).toBeVisible({ timeout: 10000 });
   });
 
   test("shows book count", async ({ page }) => {
-    // Should display total count somewhere
-    await expect(page.getByText(/\d+ books?/i)).toBeVisible({ timeout: 10000 });
+    // Book count badge is always visible; "books" label is hidden on mobile (< sm breakpoint)
+    const badge = page.locator(".book-count-badge");
+    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge.locator(".font-medium")).toContainText(/\d/);
   });
 
   test("has search functionality", async ({ page }) => {
@@ -28,15 +30,13 @@ test.describe("Books Page", () => {
   });
 
   test("has filter controls", async ({ page }) => {
-    // Check for filter/sort controls
-    const filterButton = page.getByRole("button", { name: /filter|sort/i });
-    const filterSelect = page.locator("select");
-    expect((await filterButton.count()) > 0 || (await filterSelect.count()) > 0).toBeTruthy();
+    // Check for filter toggle button
+    await expect(page.locator('[data-testid="filter-toggle"]')).toBeVisible();
   });
 
   test("clicking book navigates to detail", async ({ page }) => {
     // Wait for first book card
-    const firstBook = page.locator('[data-testid="book-card"], .book-card, article').first();
+    const firstBook = page.locator(".card.card-interactive").first();
     await expect(firstBook).toBeVisible({ timeout: 10000 });
 
     // Click on the book (or its link)
@@ -154,9 +154,11 @@ test.describe("Book CRUD Navigation (Editor)", () => {
     // Title input (required field)
     await expect(page.getByPlaceholder("Book title")).toBeVisible();
 
-    // Author and Publisher dropdowns
-    await expect(page.getByText("-- Select Author --")).toBeVisible();
-    await expect(page.getByText("-- Select Publisher --")).toBeVisible();
+    // Author and Publisher dropdowns (native selects with default option)
+    await expect(page.locator("select").filter({ hasText: "-- Select Author --" })).toBeVisible();
+    await expect(
+      page.locator("select").filter({ hasText: "-- Select Publisher --" })
+    ).toBeVisible();
 
     // Publication Date
     await expect(page.getByPlaceholder("e.g., 1867-1880 or 1851")).toBeVisible();
@@ -164,8 +166,8 @@ test.describe("Book CRUD Navigation (Editor)", () => {
     // Edition
     await expect(page.getByPlaceholder("e.g., First Edition")).toBeVisible();
 
-    // Volumes (number input)
-    await expect(page.getByLabel("Volumes")).toBeVisible();
+    // Volumes (number input — label/input not formally associated, use input type)
+    await expect(page.locator('input[type="number"]').first()).toBeVisible();
   });
 
   test("create form has action buttons", async ({ page }) => {
