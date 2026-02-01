@@ -279,11 +279,11 @@ export function useSocialCircles() {
     });
 
     // Inject hub mode badge data into node elements (#1655)
+    // Uses pre-computed O(E) map instead of per-node O(E) calls
+    const hiddenCounts = hubMode.hiddenNeighborCounts.value;
     for (const el of elements) {
       if (el.group === "nodes" && el.data?.id) {
-        const hidden = hubMode.isFullyExpanded.value
-          ? 0
-          : hubMode.hiddenNeighborCount(el.data.id as NodeId);
+        const hidden = hiddenCounts.get(el.data.id as NodeId) ?? 0;
         el.data.hiddenCount = hidden;
         el.data.label = hidden > 0 ? `${el.data.name}  +${hidden}` : el.data.name;
       }
@@ -553,6 +553,7 @@ export function useSocialCircles() {
       expandMore: hubMode.expandMore,
       showMore: hubMode.showMore,
       hiddenNeighborCount: hubMode.hiddenNeighborCount,
+      hiddenNeighborCounts: hubMode.hiddenNeighborCounts,
       isExpanded: hubMode.isExpanded,
       hubLevel: hubMode.hubLevel,
     },

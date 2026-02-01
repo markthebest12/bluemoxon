@@ -142,6 +142,24 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
       .filter((id) => !visibleNodeIds.value.has(id)).length;
   }
 
+  // Pre-computed map of hidden neighbor counts for all visible nodes — O(E) single pass
+  const hiddenNeighborCounts = computed(() => {
+    const counts = new Map<NodeId, number>();
+    if (hubLevel.value === "full") return counts;
+    const visible = visibleNodeIds.value;
+    for (const edge of allEdges.value) {
+      const srcVisible = visible.has(edge.source);
+      const tgtVisible = visible.has(edge.target);
+      if (srcVisible && !tgtVisible) {
+        counts.set(edge.source, (counts.get(edge.source) ?? 0) + 1);
+      }
+      if (tgtVisible && !srcVisible) {
+        counts.set(edge.target, (counts.get(edge.target) ?? 0) + 1);
+      }
+    }
+    return counts;
+  });
+
   function isExpanded(nodeId: NodeId): boolean {
     return expandedNodes.value.has(nodeId);
   }
@@ -187,6 +205,7 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     expandMore,
     showMore,
     hiddenNeighborCount,
+    hiddenNeighborCounts,
     isExpanded,
   };
 }
