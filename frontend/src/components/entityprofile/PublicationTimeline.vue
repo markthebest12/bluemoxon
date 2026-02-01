@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import type { ProfileBook } from "@/types/entityProfile";
 
 const props = defineProps<{
@@ -9,6 +10,7 @@ const props = defineProps<{
 const hoveredBook = ref<ProfileBook | null>(null);
 const tooltipX = ref(0);
 const trackRef = ref<HTMLElement | null>(null);
+const router = useRouter();
 
 const booksWithYears = computed(() => props.books.filter((b) => b.year != null));
 
@@ -50,6 +52,10 @@ function handleHover(book: ProfileBook, event: MouseEvent) {
 function handleLeave() {
   hoveredBook.value = null;
 }
+
+function navigateToBook(bookId: number) {
+  void router.push({ name: "book-detail", params: { id: bookId } });
+}
 </script>
 
 <template>
@@ -67,6 +73,7 @@ function handleLeave() {
           }"
           @mouseenter="handleHover(book, $event)"
           @mouseleave="handleLeave"
+          @click="navigateToBook(book.id)"
         />
       </div>
       <div class="publication-timeline__labels">
