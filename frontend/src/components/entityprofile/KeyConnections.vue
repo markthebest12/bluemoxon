@@ -1,9 +1,27 @@
 <script setup lang="ts">
+import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
+import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 
-defineProps<{
+const props = defineProps<{
   connections: ProfileConnection[];
 }>();
+
+const expandedCards = ref<Record<string, boolean>>({});
+
+// Reset expanded state when connections change (navigating between profiles)
+watch(toRef(props, "connections"), () => {
+  expandedCards.value = {};
+});
+
+function toggleCard(conn: ProfileConnection) {
+  const key = `${conn.entity.type}:${conn.entity.id}`;
+  expandedCards.value[key] = !expandedCards.value[key];
+}
+
+function isExpanded(conn: ProfileConnection): boolean {
+  return !!expandedCards.value[`${conn.entity.type}:${conn.entity.id}`];
+}
 </script>
 
 <template>
@@ -50,6 +68,19 @@ defineProps<{
             </span>
           </span>
         </div>
+        <button
+          v-if="conn.relationship_story"
+          class="key-connections__story-toggle"
+          :aria-expanded="isExpanded(conn)"
+          @click="toggleCard(conn)"
+        >
+          {{ isExpanded(conn) ? "Hide story" : "View full story" }}
+        </button>
+        <ConnectionGossipPanel
+          v-if="conn.relationship_story && isExpanded(conn)"
+          :narrative="conn.relationship_story"
+          :trigger="conn.narrative_trigger"
+        />
       </div>
     </div>
   </section>
@@ -135,5 +166,33 @@ defineProps<{
 
 .key-connections__strength .--empty {
   opacity: 0.3;
+}
+
+.key-connections__story-toggle {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--color-accent-gold, #b8860b);
+  background: none;
+  border: 1px solid var(--color-accent-gold, #b8860b);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.key-connections__story-toggle:hover {
+  background: color-mix(in srgb, var(--color-accent-gold, #b8860b) 10%, transparent);
+}
+
+@media (max-width: 768px) {
+  .key-connections__card {
+    padding: 12px;
+  }
+
+  .key-connections__story-toggle {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
 }
 </style>

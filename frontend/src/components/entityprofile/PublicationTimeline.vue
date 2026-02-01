@@ -139,4 +139,11 @@ function handleLeave() {
   white-space: nowrap;
   pointer-events: none;
 }
+
+@media (max-width: 768px) {
+  .publication-timeline__dot {
+    width: 16px;
+    height: 16px;
+  }
+}
 </style>

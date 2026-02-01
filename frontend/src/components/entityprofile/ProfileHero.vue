@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { ProfileEntity, ProfileData } from "@/types/entityProfile";
 import { formatTier } from "@/utils/socialCircles/formatters";
+import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
 
 const props = defineProps<{
   entity: ProfileEntity;
@@ -48,7 +49,7 @@ const heroStories = computed(() => {
           v-for="(story, i) in heroStories"
           :key="i"
           class="profile-hero__story"
-          :class="`--${story.tone}`"
+          :style="{ borderLeftColor: getToneStyle(story.tone).color }"
         >
           <span v-if="story.year" class="profile-hero__story-year">{{ story.year }}</span>
           {{ story.text }}
@@ -110,5 +111,19 @@ const heroStories = computed(() => {
 .profile-hero__story-year {
   font-weight: 600;
   margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .profile-hero {
+    padding: 20px;
+  }
+
+  .profile-hero__name {
+    font-size: 22px;
+  }
+
+  .profile-hero__bio {
+    font-size: 15px;
+  }
 }
 </style>
