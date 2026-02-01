@@ -3,12 +3,13 @@
  * Combines all social circles composables into a single interface.
  */
 
-import { computed, watch, shallowRef } from "vue";
+import { computed, watch, shallowRef, type Ref } from "vue";
 import { useNetworkData } from "./useNetworkData";
 import { useNetworkFilters } from "./useNetworkFilters";
 import { useNetworkSelection } from "./useNetworkSelection";
 import { useNetworkTimeline } from "./useNetworkTimeline";
 import { useUrlState } from "./useUrlState";
+import { useHubMode } from "./useHubMode";
 import { transformToCytoscapeElements } from "@/utils/socialCircles/dataTransformers";
 import type {
   ApiNode,
@@ -41,8 +42,14 @@ export function useSocialCircles() {
   const edges = computed(() => networkData.data.value?.edges ?? []);
   const meta = computed(() => networkData.data.value?.meta ?? null);
 
-  // Computed: filtered nodes based on current filter state
-  const filteredNodes = computed(() => {
+  // Hub mode for progressive disclosure
+  const hubMode = useHubMode(
+    nodes as unknown as Ref<ApiNode[]>,
+    edges as unknown as Ref<ApiEdge[]>
+  );
+
+  // Stage 1: Apply user filters (type, era, search, timeline)
+  const filterPassedNodes = computed(() => {
     const nodeList = nodes.value;
     if (!nodeList.length) return [];
 
@@ -80,6 +87,14 @@ export function useSocialCircles() {
 
       return true;
     });
+  });
+
+  // Stage 2: Apply hub mode on top of filter results
+  const filteredNodes = computed(() => {
+    const filtered = filterPassedNodes.value;
+    if (hubMode.isFullyExpanded.value) return filtered;
+    const visibleIds = hubMode.visibleNodeIds.value;
+    return filtered.filter((n) => visibleIds.has(n.id));
   });
 
   // Computed: filtered edges (edges where both source and target are in filteredNodes)
@@ -375,6 +390,9 @@ export function useSocialCircles() {
     // Fetch data
     await networkData.fetchData();
 
+    // Initialize hub mode (progressive disclosure)
+    hubMode.initializeHubs();
+
     // Set up selection data
     if (networkData.data.value) {
       selection.setNodesAndEdges(
@@ -513,6 +531,18 @@ export function useSocialCircles() {
     exportPng,
     exportJson,
     shareUrl,
+
+    // Hub mode
+    hubMode: {
+      statusText: hubMode.statusText,
+      isFullyExpanded: hubMode.isFullyExpanded,
+      expandNode: hubMode.expandNode,
+      expandMore: hubMode.expandMore,
+      showMore: hubMode.showMore,
+      hiddenNeighborCount: hubMode.hiddenNeighborCount,
+      isExpanded: hubMode.isExpanded,
+      hubLevel: hubMode.hubLevel,
+    },
 
     // Lifecycle
     initialize,

@@ -69,7 +69,7 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     // Second pass: fill remaining slots from any type (by edge count)
     if (selected.size < count) {
       const allSorted = [...allNodes.value].sort(
-        (a, b) => (edgeCounts.get(b.id) ?? 0) - (edgeCounts.get(a.id) ?? 0),
+        (a, b) => (edgeCounts.get(b.id) ?? 0) - (edgeCounts.get(a.id) ?? 0)
       );
       for (const node of allSorted) {
         if (selected.size >= count) break;
@@ -99,14 +99,12 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
   });
 
   // Visible nodes and edges
-  const visibleNodes = computed(() =>
-    allNodes.value.filter((n) => visibleNodeIds.value.has(n.id)),
-  );
+  const visibleNodes = computed(() => allNodes.value.filter((n) => visibleNodeIds.value.has(n.id)));
 
   const visibleEdges = computed(() =>
     allEdges.value.filter(
-      (e) => visibleNodeIds.value.has(e.source) && visibleNodeIds.value.has(e.target),
-    ),
+      (e) => visibleNodeIds.value.has(e.source) && visibleNodeIds.value.has(e.target)
+    )
   );
 
   // Expand a node's neighborhood

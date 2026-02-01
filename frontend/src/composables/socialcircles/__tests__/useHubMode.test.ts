@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useHubMode } from "../useHubMode";
 import type { ApiNode, ApiEdge, NodeId, EdgeId, BookId } from "@/types/socialCircles";
 
-function makeNode(id: string, type: "author" | "publisher" | "binder", edgeCount = 0): ApiNode {
+function makeNode(id: string, type: "author" | "publisher" | "binder", _edgeCount = 0): ApiNode {
   return {
     id: id as NodeId,
     entity_id: parseInt(id.split(":")[1]),
@@ -35,8 +35,8 @@ describe("useHubMode", () => {
     const edges = ref<ApiEdge[]>(
       // Give each node varying edge counts by creating edges
       Array.from({ length: 20 }, (_, i) =>
-        makeEdge(`author:${i}`, `publisher:${i % 10}`, 10 - (i % 10)),
-      ),
+        makeEdge(`author:${i}`, `publisher:${i % 10}`, 10 - (i % 10))
+      )
     );
 
     const hub = useHubMode(nodes, edges);
@@ -52,17 +52,13 @@ describe("useHubMode", () => {
   it("expands a node adding up to 10 neighbors", () => {
     const hub_node = makeNode("author:0", "author");
     // 25 publisher neighbors — enough that some stay hidden at compact level
-    const neighbors = Array.from({ length: 25 }, (_, i) =>
-      makeNode(`publisher:${i}`, "publisher"),
-    );
+    const neighbors = Array.from({ length: 25 }, (_, i) => makeNode(`publisher:${i}`, "publisher"));
     // Extra authors to fill hub slots
     const extraAuthors = Array.from({ length: 20 }, (_, i) =>
-      makeNode(`author:${i + 1}`, "author"),
+      makeNode(`author:${i + 1}`, "author")
     );
     const nodes = ref<ApiNode[]>([hub_node, ...neighbors, ...extraAuthors]);
-    const edges = ref<ApiEdge[]>(
-      neighbors.map((n, i) => makeEdge("author:0", n.id, 25 - i)),
-    );
+    const edges = ref<ApiEdge[]>(neighbors.map((n, i) => makeEdge("author:0", n.id, 25 - i)));
 
     const hub = useHubMode(nodes, edges);
     // Start with hub visible
@@ -81,17 +77,13 @@ describe("useHubMode", () => {
   it("reports remaining hidden neighbors count", () => {
     const hub_node = makeNode("author:0", "author");
     // 25 publisher neighbors so some remain hidden after hub selection + expand
-    const neighbors = Array.from({ length: 25 }, (_, i) =>
-      makeNode(`publisher:${i}`, "publisher"),
-    );
+    const neighbors = Array.from({ length: 25 }, (_, i) => makeNode(`publisher:${i}`, "publisher"));
     // 20 extra authors to fill hub slots (so not all publishers become hubs)
     const extraAuthors = Array.from({ length: 20 }, (_, i) =>
-      makeNode(`author:${i + 1}`, "author"),
+      makeNode(`author:${i + 1}`, "author")
     );
     const nodes = ref<ApiNode[]>([hub_node, ...neighbors, ...extraAuthors]);
-    const edges = ref<ApiEdge[]>(
-      neighbors.map((n, i) => makeEdge("author:0", n.id, 25 - i)),
-    );
+    const edges = ref<ApiEdge[]>(neighbors.map((n, i) => makeEdge("author:0", n.id, 25 - i)));
 
     const hub = useHubMode(nodes, edges);
     hub.initializeHubs();
@@ -109,7 +101,7 @@ describe("useHubMode", () => {
 
   it("transitions hub levels: compact → medium → full", () => {
     const nodes = ref<ApiNode[]>(
-      Array.from({ length: 100 }, (_, i) => makeNode(`author:${i}`, "author")),
+      Array.from({ length: 100 }, (_, i) => makeNode(`author:${i}`, "author"))
     );
     const edges = ref<ApiEdge[]>([]);
 
