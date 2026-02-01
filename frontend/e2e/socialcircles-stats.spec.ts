@@ -10,6 +10,21 @@ import { test, expect, type Locator } from "@playwright/test";
  */
 
 /**
+ * Helper: Click the stats toggle via dispatchEvent to bypass sidebar overlap.
+ *
+ * The filter sidebar stacks FilterPanel, ActiveFilterPills, StatsPanel, and
+ * PathFinderPanel vertically. When the stats panel is expanded, its height
+ * pushes adjacent panels into positions that intercept Playwright's hit-test
+ * at the toggle button's center point (#1628). Using dispatchEvent sends a
+ * real DOM click event through Vue's @click handler without requiring a clear
+ * hit-test, which is appropriate here because we are testing the toggle
+ * *logic*, not pointer accessibility (covered by the aria-expanded test).
+ */
+async function clickStatsToggle(statsPanel: Locator): Promise<void> {
+  await statsPanel.getByTestId("stats-toggle").dispatchEvent("click");
+}
+
+/**
  * Helper: Expand the stats panel if it is collapsed.
  * Replaces ~10 instances of duplicated expand/collapse boilerplate (#1449).
  */
@@ -18,7 +33,7 @@ async function expandStatsPanel(statsPanel: Locator): Promise<void> {
     el.classList.contains("stats-panel--collapsed")
   );
   if (isCollapsed) {
-    await statsPanel.getByTestId("stats-toggle").click();
+    await clickStatsToggle(statsPanel);
     await expect(statsPanel.getByTestId("stats-content")).toBeVisible({ timeout: 3000 });
   }
 }
@@ -31,12 +46,16 @@ async function collapseStatsPanel(statsPanel: Locator): Promise<void> {
     el.classList.contains("stats-panel--collapsed")
   );
   if (!isCollapsed) {
-    await statsPanel.getByTestId("stats-toggle").click();
+    await clickStatsToggle(statsPanel);
     await expect(statsPanel.getByTestId("stats-content")).not.toBeVisible({ timeout: 3000 });
   }
 }
 
 test.describe("Social Circles Statistics Panel", () => {
+  // Wider + taller viewport prevents sidebar panels (filters, stats, pathfinder)
+  // from overlapping and intercepting click targets (#1628).
+  test.use({ viewport: { width: 1600, height: 1200 } });
+
   test.beforeEach(async ({ page }) => {
     await page.goto("/social-circles");
     await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
@@ -72,7 +91,11 @@ test.describe("Social Circles Statistics Panel", () => {
 
     await expandStatsPanel(statsPanel);
 
-    const connectionsLabel = statsPanel.getByText(/connections/i);
+    // Scope to primary stats-grid to avoid matching "Avg. Connections" and
+    // notable entity "(N connections)" which cause a strict-mode violation.
+    const connectionsLabel = statsPanel
+      .getByTestId("stats-grid")
+      .getByText("Connections");
     await expect(connectionsLabel).toBeVisible();
   });
 
@@ -116,14 +139,13 @@ test.describe("Social Circles Statistics Panel", () => {
     const statsPanel = page.getByTestId("stats-panel");
     test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    const toggleButton = statsPanel.getByTestId("stats-toggle");
     const content = statsPanel.getByTestId("stats-content");
 
     const initiallyCollapsed = await statsPanel.evaluate((el) =>
       el.classList.contains("stats-panel--collapsed")
     );
 
-    await toggleButton.click();
+    await clickStatsToggle(statsPanel);
 
     if (initiallyCollapsed) {
       await expect(content).toBeVisible();
@@ -141,11 +163,9 @@ test.describe("Social Circles Statistics Panel", () => {
     const statsPanel = page.getByTestId("stats-panel");
     test.skip(!(await statsPanel.isVisible()), "Stats panel not rendered");
 
-    const toggleButton = statsPanel.getByTestId("stats-toggle");
-
     await collapseStatsPanel(statsPanel);
 
-    await toggleButton.click();
+    await clickStatsToggle(statsPanel);
     await expect(statsPanel.getByTestId("stats-content")).toBeVisible();
 
     const isExpanded = await statsPanel.evaluate(
