@@ -42,7 +42,7 @@ module "eval_runbook_worker" {
 
   secrets_arns     = [module.secrets.database_secret_arn]
   s3_bucket_arns   = [module.s3.images_bucket_arn]
-  bedrock_model_ids = ["anthropic.claude-3-5-sonnet-20241022-v2:0"]
+  bedrock_model_ids = local.bedrock_model_ids  # defined in locals.tf
 
   api_lambda_role_name = module.lambda.execution_role_name
 }
