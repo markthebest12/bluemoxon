@@ -116,7 +116,7 @@ function initCytoscape() {
         },
       },
       {
-        selector: "node:active",
+        selector: "node[!isCenter]:active",
         style: {
           "overlay-opacity": 0.1,
         },
@@ -149,12 +149,12 @@ function initCytoscape() {
     }
   });
 
-  cy.value.on("mouseover", "node", () => {
+  cy.value.on("mouseover", "node[!isCenter]", () => {
     if (containerRef.value) {
       containerRef.value.style.cursor = "pointer";
     }
   });
-  cy.value.on("mouseout", "node", () => {
+  cy.value.on("mouseout", "node[!isCenter]", () => {
     if (containerRef.value) {
       containerRef.value.style.cursor = "default";
     }
