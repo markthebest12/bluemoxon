@@ -11,7 +11,7 @@ from sqlalchemy import update
 
 from app.db import SessionLocal
 from app.models.entity_profile import EntityProfile
-from app.models.profile_generation_job import ProfileGenerationJob
+from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.services.entity_profile import generate_and_cache_profile
 from app.services.social_circles_cache import get_or_build_graph
 
@@ -62,14 +62,14 @@ def _update_job_progress(db: Session, job_id: str, success: bool, error: str | N
             job.error_log = (existing + "\n" + error).strip()
     db.commit()
 
-    # Check completion (skip if job was cancelled by admin)
+    # Check completion (skip if job was cancelled by admin or already completed)
     job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
     if (
         job
-        and job.status not in ("cancelled", "completed")
+        and job.status not in JobStatus.TERMINAL
         and (job.succeeded + job.failed) >= job.total_entities
     ):
-        job.status = "completed"
+        job.status = JobStatus.COMPLETED
         job.completed_at = datetime.now(UTC)
         db.commit()
 

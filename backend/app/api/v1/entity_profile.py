@@ -4,13 +4,14 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.auth import require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.models.author import Author
 from app.models.binder import Binder
-from app.models.profile_generation_job import ProfileGenerationJob
+from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
@@ -42,7 +43,7 @@ def generate_all_profiles(
     # Check for existing in-progress job
     existing = (
         db.query(ProfileGenerationJob)
-        .filter(ProfileGenerationJob.status.in_(["pending", "in_progress"]))
+        .filter(ProfileGenerationJob.status.in_(JobStatus.ACTIVE))
         .first()
     )
     if existing:
@@ -64,7 +65,7 @@ def generate_all_profiles(
     # Create job record
     job = ProfileGenerationJob(
         owner_id=current_user.db_user.id,
-        status="pending",
+        status=JobStatus.PENDING,
         total_entities=len(entities),
     )
     db.add(job)
@@ -84,19 +85,19 @@ def generate_all_profiles(
         send_profile_generation_jobs(messages)
     except Exception as exc:
         logger.exception("Failed to enqueue profile generation messages for job %s", job.id)
-        job.status = "failed"
+        job.status = JobStatus.FAILED
         db.commit()
         raise HTTPException(
             status_code=500, detail="Failed to enqueue generation messages"
         ) from exc
 
-    job.status = "in_progress"
+    job.status = JobStatus.IN_PROGRESS
     db.commit()
 
     return {
         "job_id": job.id,
         "total_entities": len(entities),
-        "status": "in_progress",
+        "status": JobStatus.IN_PROGRESS,
     }
 
 
@@ -118,24 +119,32 @@ def cancel_generation_job(
     if not current_user.db_user:
         raise HTTPException(status_code=403, detail="API key auth requires linked database user")
 
-    job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    # Atomic UPDATE avoids TOCTOU race between status check and write
+    now = datetime.now(UTC)
+    result = db.execute(
+        update(ProfileGenerationJob)
+        .where(
+            ProfileGenerationJob.id == job_id,
+            ProfileGenerationJob.status.in_(JobStatus.ACTIVE),
+        )
+        .values(status=JobStatus.CANCELLED, completed_at=now)
+    )
+    db.commit()
 
-    if job.status not in ("pending", "in_progress"):
+    if result.rowcount == 0:
+        # Distinguish 404 (not found) from 409 (exists but terminal)
+        job = db.query(ProfileGenerationJob).filter(ProfileGenerationJob.id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
         raise HTTPException(
             status_code=409,
             detail=f"Job {job_id} is already {job.status} and cannot be cancelled",
         )
 
-    job.status = "cancelled"
-    job.completed_at = datetime.now(UTC)
-    db.commit()
-
     return {
-        "job_id": job.id,
-        "status": job.status,
-        "completed_at": job.completed_at.isoformat(),
+        "job_id": job_id,
+        "status": JobStatus.CANCELLED,
+        "completed_at": now.isoformat(),
     }
 
 

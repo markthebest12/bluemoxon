@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from app.models.profile_generation_job import ProfileGenerationJob
+from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
 from app.services.profile_worker import (
     _update_job_progress,
@@ -90,7 +90,7 @@ class TestUpdateJobProgress:
 
         job = ProfileGenerationJob(
             owner_id=user.id,
-            status="cancelled",
+            status=JobStatus.CANCELLED,
             total_entities=2,
             succeeded=1,
             failed=0,
@@ -103,7 +103,7 @@ class TestUpdateJobProgress:
         _update_job_progress(db, job.id, success=True)
 
         db.refresh(job)
-        assert job.status == "cancelled"  # NOT overwritten to "completed"
+        assert job.status == JobStatus.CANCELLED  # NOT overwritten to "completed"
         assert job.succeeded == 2
 
     def test_normal_job_completes_when_all_processed(self, db):
@@ -114,7 +114,7 @@ class TestUpdateJobProgress:
 
         job = ProfileGenerationJob(
             owner_id=user.id,
-            status="in_progress",
+            status=JobStatus.IN_PROGRESS,
             total_entities=2,
             succeeded=1,
             failed=0,
@@ -125,7 +125,7 @@ class TestUpdateJobProgress:
         _update_job_progress(db, job.id, success=True)
 
         db.refresh(job)
-        assert job.status == "completed"
+        assert job.status == JobStatus.COMPLETED
         assert job.completed_at is not None
 
 
