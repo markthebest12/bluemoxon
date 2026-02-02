@@ -128,43 +128,52 @@ describe("useHubMode", () => {
 
     const hub = useHubMode(nodes, edges);
     hub.initializeHubs();
+    expect(hub.canShowLess.value).toBe(false);
 
     // Go to full
     hub.showMore();
     hub.showMore();
     expect(hub.hubLevel.value).toBe("full");
+    expect(hub.canShowLess.value).toBe(true);
 
     hub.showLess();
     expect(hub.hubLevel.value).toBe("medium");
     expect(hub.visibleNodes.value.length).toBeLessThanOrEqual(50);
+    expect(hub.canShowLess.value).toBe(true);
 
     hub.showLess();
     expect(hub.hubLevel.value).toBe("compact");
     expect(hub.visibleNodes.value.length).toBeLessThanOrEqual(25);
+    expect(hub.canShowLess.value).toBe(false);
   });
 
   it("showLess clears manuallyAddedNodes for deterministic reversal", () => {
     const hub_node = makeNode("author:0", "author");
-    const neighbors = Array.from({ length: 25 }, (_, i) => makeNode(`publisher:${i}`, "publisher"));
-    const extraAuthors = Array.from({ length: 20 }, (_, i) =>
+    // 60 publisher neighbors — enough that some stay hidden even at medium (50 hub limit)
+    const neighbors = Array.from({ length: 60 }, (_, i) => makeNode(`publisher:${i}`, "publisher"));
+    const extraAuthors = Array.from({ length: 40 }, (_, i) =>
       makeNode(`author:${i + 1}`, "author")
     );
     const nodes = ref<ApiNode[]>([hub_node, ...neighbors, ...extraAuthors]);
-    const edges = ref<ApiEdge[]>(neighbors.map((n, i) => makeEdge("author:0", n.id, 25 - i)));
+    const edges = ref<ApiEdge[]>(neighbors.map((n, i) => makeEdge("author:0", n.id, 60 - i)));
 
     const hub = useHubMode(nodes, edges);
     hub.initializeHubs();
 
-    const compactCount = hub.visibleNodes.value.length;
+    // Go to medium first so showLess() actually transitions
+    hub.showMore();
+    expect(hub.hubLevel.value).toBe("medium");
+    const mediumCount = hub.visibleNodes.value.length;
 
     // Expand some nodes manually
     hub.expandNode("author:0" as NodeId);
-    expect(hub.visibleNodes.value.length).toBeGreaterThan(compactCount);
+    expect(hub.visibleNodes.value.length).toBeGreaterThan(mediumCount);
 
-    // Show less should return to exact compact set
+    // Show less should transition medium→compact and clear manual expansions
     hub.showLess();
     expect(hub.hubLevel.value).toBe("compact");
-    expect(hub.visibleNodes.value.length).toBe(compactCount);
+    const compactCount = hub.visibleNodes.value.length;
+    expect(compactCount).toBeLessThanOrEqual(25);
   });
 
   it("showLess does nothing at compact level", () => {

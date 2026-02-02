@@ -179,6 +179,8 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
       hubLevel.value = "medium";
     } else if (hubLevel.value === "medium") {
       hubLevel.value = "compact";
+    } else {
+      return; // Already at compact — don't clear manual expansions
     }
     // Clear manually expanded nodes so user gets the exact hub set for this level
     manuallyAddedNodes.value = new Set();

@@ -67,6 +67,28 @@ test.describe("Social Circles Hub Mode", () => {
     await expect(btn).not.toBeVisible({ timeout: 3000 });
   });
 
+  test("Show Less button appears after expansion and reverses level", async ({
+    page,
+  }) => {
+    const moreBtn = page.getByTestId("show-more-btn");
+    const lessBtn = page.getByTestId("show-less-btn");
+    await expect(moreBtn).toBeVisible({ timeout: 5000 });
+
+    // Show less should not be visible at compact
+    await expect(lessBtn).not.toBeVisible();
+
+    // Expand to medium
+    await moreBtn.click();
+    await expect(lessBtn).toBeVisible({ timeout: 3000 });
+
+    // Click show less to return to compact
+    await lessBtn.click();
+
+    // Should be back at compact — show less hidden, show more visible
+    await expect(lessBtn).not.toBeVisible({ timeout: 3000 });
+    await expect(moreBtn).toBeVisible();
+  });
+
   test("graph renders without errors at each hub level", async ({ page }) => {
     // Verify no console errors during expansion
     const errors: string[] = [];
