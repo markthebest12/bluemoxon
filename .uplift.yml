@@ -1,0 +1,20 @@
+bumps:
+  - file: backend/pyproject.toml
+    regex:
+      - pattern: 'version\s*=\s*".*"'
+        semver: true
+
+changelog:
+  include:
+    - feat
+    - fix
+    - perf
+    - refactor
+
+commitAuthor:
+  name: uplift-bot
+  email: uplift-bot@users.noreply.github.com
+
+commitMessage: 'ci(release): v${VERSION}'
+
+annotatedTags: true

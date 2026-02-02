@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Skip if this is an Uplift release commit
+    if: "!startsWith(github.event.head_commit.message, 'ci(release):')"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT }}
+
+      - name: Release
+        uses: gembaadvantage/uplift-action@0d28005618a55f97d0bb9253329383720d3e9031 # v2
+        with:
+          args: release
+          version: 'v2.26.0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}

@@ -96,7 +96,7 @@ bluemoxon/
 
 **AWS Resources:** Lambda API, S3 + CloudFront (frontend/images), RDS PostgreSQL, Cognito
 
-**Version:** Auto-generated at deploy: `YYYY.MM.DD-<short-sha>`. Check via `X-App-Version` header or `/api/v1/health/version`.
+**Version:** Semantic versioning via [Uplift](https://upliftci.dev/). Production deploys trigger on tag push (`v*`). Check via `/api/v1/health/version`.
 
 ## Infrastructure (Terraform)
 

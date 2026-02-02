@@ -3,11 +3,13 @@ import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
+import { APP_VERSION } from "@/config";
 
 const router = useRouter();
 const authStore = useAuthStore();
 const showDropdown = ref(false);
 const mobileMenuOpen = ref(false);
+const appVersion = APP_VERSION;
 
 // Show first name if available, otherwise fall back to email
 const displayName = computed(() => {
@@ -48,6 +50,9 @@ function closeMobileMenu() {
         <RouterLink to="/" class="flex items-center">
           <img src="/bluemoxon-classic-logo.png" alt="BlueMoxon" class="!h-14 w-auto" />
         </RouterLink>
+        <span class="text-xs text-victorian-paper-cream/40 hidden md:inline ml-2 self-center"
+          >v{{ appVersion }}</span
+        >
 
         <!-- Desktop Navigation Links -->
         <div class="hidden md:flex items-center gap-6">
@@ -270,6 +275,10 @@ function closeMobileMenu() {
             Sign In
           </RouterLink>
         </template>
+        <span
+          class="block text-xs text-victorian-paper-cream/30 text-center pt-3 border-t border-victorian-hunter-700 mt-1"
+          >v{{ appVersion }}</span
+        >
       </div>
     </div>
 
