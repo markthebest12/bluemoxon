@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import ProfileHero from "../ProfileHero.vue";
-import type { ProfileEntity, ProfileData, ProfileConnection } from "@/types/entityProfile";
+import type { ProfileEntity, ProfileData } from "@/types/entityProfile";
+import { mockCrossLinkConnections } from "./crossLinkFixtures";
 
 const mockAuthor: ProfileEntity = {
   id: 31,
@@ -29,35 +30,15 @@ const mockProfile: ProfileData = {
   model_version: "claude-3-5-haiku-20241022",
 };
 
-const mockConnections: ProfileConnection[] = [
-  {
-    entity: { id: 32, type: "author", name: "Robert Browning" },
-    connection_type: "shared_publisher",
-    strength: 5,
-    shared_book_count: 2,
-    shared_books: [],
-    narrative: null,
-    narrative_trigger: null,
-    is_key: true,
-    relationship_story: null,
-  },
-  {
-    entity: { id: 7, type: "publisher", name: "Smith, Elder & Co." },
-    connection_type: "publisher",
-    strength: 3,
-    shared_book_count: 4,
-    shared_books: [],
-    narrative: null,
-    narrative_trigger: null,
-    is_key: false,
-    relationship_story: null,
-  },
-];
+const mockConnections = mockCrossLinkConnections;
 
 describe("ProfileHero", () => {
+  const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+
   it("renders entity name", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("Elizabeth Barrett Browning");
   });
@@ -65,6 +46,7 @@ describe("ProfileHero", () => {
   it("renders tier label from formatTier", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("Premier");
   });
@@ -72,6 +54,7 @@ describe("ProfileHero", () => {
   it("renders date range for authors", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("1806");
     expect(wrapper.text()).toContain("1861");
@@ -80,6 +63,7 @@ describe("ProfileHero", () => {
   it("renders bio summary", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("One of the most prominent Victorian poets.");
   });
@@ -87,6 +71,7 @@ describe("ProfileHero", () => {
   it("renders personal stories filtered to hero-bio", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("domineering father");
   });
@@ -94,6 +79,7 @@ describe("ProfileHero", () => {
   it("shows placeholder when no bio", () => {
     const wrapper = mount(ProfileHero, {
       props: { entity: mockAuthor, profile: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("not yet generated");
   });
@@ -108,6 +94,7 @@ describe("ProfileHero", () => {
     };
     const wrapper = mount(ProfileHero, {
       props: { entity: publisher, profile: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("Est. 1816");
   });
@@ -268,6 +255,36 @@ describe("ProfileHero cross-link integration", () => {
 
     // Marker text should still appear, but as plain text (no link)
     expect(wrapper.text()).toContain("Robert Browning");
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(0);
+  });
+
+  it("excludes cross-linked stories not in hero-bio display_in", () => {
+    const profileWithNonHeroStory: ProfileData = {
+      ...mockProfile,
+      bio_summary: "A prominent poet.",
+      personal_stories: [
+        {
+          text: "Met {{entity:author:32|Robert Browning}} at a literary gathering.",
+          year: 1845,
+          significance: "notable",
+          tone: "dramatic",
+          display_in: ["connection-detail"],
+        },
+      ],
+    };
+    const wrapper = mount(ProfileHero, {
+      props: {
+        entity: mockAuthor,
+        profile: profileWithNonHeroStory,
+        connections: mockConnections,
+      },
+      global: globalStubs,
+    });
+
+    // Story text should not appear in hero section (wrong display_in)
+    expect(wrapper.text()).not.toContain("literary gathering");
+    // Only the bio_summary link-free text should render, no router-links
     const links = wrapper.findAllComponents(RouterLinkStub);
     expect(links).toHaveLength(0);
   });

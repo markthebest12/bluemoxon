@@ -1,21 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import EntityLinkedText from "../EntityLinkedText.vue";
-import type { ProfileConnection } from "@/types/entityProfile";
+import { mockCrossLinkConnections } from "./crossLinkFixtures";
 
-const mockConnections: ProfileConnection[] = [
-  {
-    entity: { id: 32, type: "author", name: "Robert Browning" },
-    connection_type: "shared_publisher",
-    strength: 5,
-    shared_book_count: 2,
-    shared_books: [],
-    narrative: null,
-    narrative_trigger: null,
-    is_key: true,
-    relationship_story: null,
-  },
-];
+const mockConnections = mockCrossLinkConnections.slice(0, 1);
 
 describe("EntityLinkedText", () => {
   it("renders plain text when no markers", () => {
