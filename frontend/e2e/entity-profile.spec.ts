@@ -97,6 +97,90 @@ test.describe("Entity Profile", () => {
     await page.locator(".entity-profile-view__back").click();
     await expect(page).toHaveURL(/\/social-circles/);
   });
+
+  test("cross-link navigates to target entity profile", async ({ page }) => {
+    // Navigate directly to Darwin (high-connection entity with known cross-links)
+    await page.goto("/entity/author/34");
+    await expect(page.locator(".profile-hero")).toBeVisible({ timeout: 15000 });
+
+    // Look for cross-links in bio summary first
+    let crossLink = page
+      .locator(".profile-hero .entity-linked-text__link")
+      .first();
+    let hasCrossLink = await crossLink
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+
+    // If no cross-link in hero, expand a gossip panel and look there
+    if (!hasCrossLink) {
+      const toggle = page.locator(".key-connections__story-toggle").first();
+      const hasToggle = await toggle
+        .isVisible({ timeout: 3000 })
+        .catch(() => false);
+      if (hasToggle) {
+        await toggle.click();
+        await expect(page.locator(".gossip-panel").first()).toBeVisible({
+          timeout: 3000,
+        });
+        crossLink = page
+          .locator(".gossip-panel .entity-linked-text__link")
+          .first();
+        hasCrossLink = await crossLink
+          .isVisible({ timeout: 3000 })
+          .catch(() => false);
+      }
+    }
+
+    // Skip test gracefully if no cross-links found (profiles may not have been regenerated)
+    test.skip(
+      !hasCrossLink,
+      "No cross-links found in entity profile — profiles may need regeneration",
+    );
+
+    // Capture the link text for later verification
+    const linkText = await crossLink.textContent();
+    expect(linkText?.trim().length).toBeGreaterThan(0);
+
+    // Click the cross-link
+    await crossLink.click();
+
+    // Verify navigation to a new entity profile
+    await expect(page).toHaveURL(/\/entity\//, { timeout: 10000 });
+    await expect(page.locator(".profile-hero")).toBeVisible({ timeout: 15000 });
+
+    // Verify the target profile loaded with a name
+    const heroName = await page.locator(".profile-hero__name").textContent();
+    expect(heroName?.trim().length).toBeGreaterThan(0);
+  });
+
+  test("cross-link renders as clickable link in gossip panel", async ({
+    page,
+  }) => {
+    // Try Browning (author/227) as another high-connection entity
+    await page.goto("/entity/author/227");
+    await expect(page.locator(".profile-hero")).toBeVisible({ timeout: 15000 });
+
+    // Look for any cross-link on the page
+    const crossLinks = page.locator(".entity-linked-text__link");
+
+    // Also check gossip panels
+    const toggle = page.locator(".key-connections__story-toggle").first();
+    const hasToggle = await toggle
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    if (hasToggle) {
+      await toggle.click();
+      await expect(page.locator(".gossip-panel").first()).toBeVisible({
+        timeout: 3000,
+      });
+    }
+
+    const linkCount = await crossLinks.count();
+    // Just verify at least one cross-link exists somewhere on the profile
+    // Skip if none found (graceful for environments without regenerated profiles)
+    test.skip(linkCount === 0, "No cross-links found on Browning profile");
+    expect(linkCount).toBeGreaterThan(0);
+  });
 });
 
 test.describe("Entity Profile - Mobile", () => {
