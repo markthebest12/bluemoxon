@@ -318,7 +318,7 @@ watch(
 // Expose methods for parent
 defineExpose({
   getCytoscape: () => cy.value,
-  fitToView: () => cy.value?.fit(undefined, 80),
+  fitToView: () => cy.value?.fit(undefined, 50),
   zoomIn: () => {
     if (cy.value) cy.value.zoom(cy.value.zoom() * 1.2);
   },
