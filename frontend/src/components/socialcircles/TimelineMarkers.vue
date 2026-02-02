@@ -42,8 +42,8 @@ function getEventId(event: HistoricalEvent): string {
 type EnrichedEvent = HistoricalEvent & { _id: string; _showLabel: boolean };
 
 // Minimum percentage spacing between year labels to prevent overlap.
-// At 4%, labels need ~4% of the timeline width apart to both display.
-const MIN_LABEL_SPACING = 4;
+// At 8%, labels need ~8% of the timeline width apart to both display.
+const MIN_LABEL_SPACING = 8;
 
 // Epsilon for floating point comparison tolerance
 const EPSILON = 0.001;
