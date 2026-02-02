@@ -124,18 +124,24 @@ function initCytoscape() {
       },
     ],
     layout: {
-      name: "concentric",
-      concentric: (node: cytoscape.NodeSingular) => {
-        return node.data("isCenter") ? 2 : 1;
-      },
-      levelWidth: () => 1,
-      minNodeSpacing: 40,
-      padding: 20,
+      name: "cose",
+      fit: true,
+      padding: 10,
+      nodeRepulsion: 8000,
+      idealEdgeLength: 80,
+      edgeElasticity: 100,
+      gravity: 0.5,
+      numIter: 500,
       animate: false,
     },
     userZoomingEnabled: false,
     userPanningEnabled: false,
     boxSelectionEnabled: false,
+  });
+
+  // Fit graph to container after layout completes
+  cy.value.on("layoutstop", () => {
+    cy.value?.fit(undefined, 5);
   });
 
   cy.value.on("tap", "node", (evt) => {
@@ -183,7 +189,7 @@ onBeforeUnmount(() => {
 
 .ego-network__canvas {
   width: 100%;
-  height: 300px;
+  height: 350px;
   background: var(--color-surface, #faf8f5);
   border-radius: 8px;
   border: 1px solid var(--color-border, #e8e4de);
