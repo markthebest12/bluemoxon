@@ -25,7 +25,7 @@ const TYPE_RATIOS: Record<string, number> = {
 
 const EXPAND_BATCH_SIZE = 10;
 
-export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
+export function useHubMode(allNodes: Ref<readonly ApiNode[]>, allEdges: Ref<readonly ApiEdge[]>) {
   const hubLevel = ref<HubLevel>("compact");
   const expandedNodes = ref(new Set<NodeId>());
   const manuallyAddedNodes = ref(new Set<NodeId>());
@@ -40,7 +40,8 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     return counts;
   });
 
-  // Select top N hubs with type diversity
+  // Select top N hubs with type diversity.
+  // Note: O(n log n) sort inside computed — acceptable for ~300 node dataset.
   function selectHubs(count: number): Set<NodeId> {
     const byType = new Map<string, ApiNode[]>();
     for (const node of allNodes.value) {
@@ -129,11 +130,6 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     expandedNodes.value = new Set(expandedNodes.value);
   }
 
-  // Expand next batch for a node ("+N more")
-  function expandMore(nodeId: NodeId) {
-    expandNode(nodeId);
-  }
-
   // Count hidden neighbors for "+N more" badge
   function hiddenNeighborCount(nodeId: NodeId): number {
     return allEdges.value
@@ -219,7 +215,6 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     // Actions
     initializeHubs,
     expandNode,
-    expandMore,
     showMore,
     showLess,
     hiddenNeighborCount,
