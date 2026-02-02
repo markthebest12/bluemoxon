@@ -142,6 +142,7 @@ export const ANIMATION = {
 export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
   force: {
     name: "cose",
+    animate: false, // Compute synchronously — prevents click-during-animation bug (#1665)
     idealEdgeLength: 100, // Target length for edges in pixels
     nodeOverlap: 20, // Padding to prevent node overlap
     refresh: 20, // Frames between layout updates during animation
