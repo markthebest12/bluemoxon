@@ -31,6 +31,7 @@ settings = get_settings()
 # Model ID mapping - use inference profile IDs for Claude models
 # Claude 4.5 Sonnet tested working 2025-12-12 (~23s for Napoleon analysis)
 # GitHub #178 resolved - was provisioning delay after Marketplace approval
+# NOTE: These IDs must match infra/terraform/locals.tf:bedrock_model_ids for IAM access
 MODEL_IDS = {
     "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude 4.5 Sonnet
     "opus": "us.anthropic.claude-opus-4-5-20251101-v1:0",  # Claude 4.5 Opus

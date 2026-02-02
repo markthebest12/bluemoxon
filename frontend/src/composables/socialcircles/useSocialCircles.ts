@@ -43,9 +43,11 @@ export function useSocialCircles() {
   const meta = computed(() => networkData.data.value?.meta ?? null);
 
   // Hub mode for progressive disclosure
+  // ComputedRef wraps values in DeepReadonly, but useHubMode only reads —
+  // double cast needed because ApiNode.book_ids (BookId[]) becomes readonly BookId[]
   const hubMode = useHubMode(
-    nodes as unknown as Ref<ApiNode[]>,
-    edges as unknown as Ref<ApiEdge[]>
+    nodes as unknown as Ref<readonly ApiNode[]>,
+    edges as unknown as Ref<readonly ApiEdge[]>
   );
 
   // Stage 1: Apply user filters (type, era, search, timeline)
@@ -493,6 +495,7 @@ export function useSocialCircles() {
     // Data
     nodes,
     edges,
+    filterPassedNodes,
     filteredNodes,
     filteredEdges,
     meta,
@@ -551,7 +554,6 @@ export function useSocialCircles() {
       isFullyExpanded: hubMode.isFullyExpanded,
       canShowLess: hubMode.canShowLess,
       expandNode: hubMode.expandNode,
-      expandMore: hubMode.expandMore,
       showMore: hubMode.showMore,
       showLess: hubMode.showLess,
       hiddenNeighborCount: hubMode.hiddenNeighborCount,

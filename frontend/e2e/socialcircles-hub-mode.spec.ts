@@ -38,11 +38,11 @@ test.describe("Social Circles Hub Mode", () => {
     // Click to expand (compact → medium)
     await btn.click();
 
-    // Either button text changed (expanded to medium) or button disappeared (small dataset)
-    try {
+    // After click: either text changes (dataset > 50) or button disappears (small dataset fully expanded)
+    const stillVisible = await btn.isVisible().catch(() => false);
+    if (stillVisible) {
       await expect(btn).not.toHaveText(initialText!, { timeout: 3000 });
-    } catch {
-      // Button may have disappeared entirely if dataset < 50 nodes
+    } else {
       await expect(btn).not.toBeVisible({ timeout: 1000 });
     }
   });
@@ -54,13 +54,10 @@ test.describe("Social Circles Hub Mode", () => {
     // First click: compact → medium
     await btn.click();
 
-    // Wait for text change or button to disappear
-    try {
-      // If button still visible, click again to go to full
-      await expect(btn).toBeVisible({ timeout: 1000 });
+    // If button still visible after first click, click again to go to full
+    const stillVisibleAfterFirst = await btn.isVisible().catch(() => false);
+    if (stillVisibleAfterFirst) {
       await btn.click();
-    } catch {
-      // Button already gone after first click (small dataset) — that's valid
     }
 
     // After all clicks, button should not be visible (fully expanded)
@@ -97,18 +94,14 @@ test.describe("Social Circles Hub Mode", () => {
     const btn = page.getByTestId("show-more-btn");
     await expect(btn).toBeVisible({ timeout: 5000 });
 
-    // Expand through levels
-    const initialText = await btn.textContent();
+    // Expand through all levels
     await btn.click();
 
-    // Wait for expansion to complete (text change or button disappears)
-    try {
-      await expect(btn).not.toHaveText(initialText!, { timeout: 3000 });
-      // If still visible, click again
+    // If button still visible after first click, click again to reach full
+    const stillVisible = await btn.isVisible().catch(() => false);
+    if (stillVisible) {
       await btn.click();
       await expect(btn).not.toBeVisible({ timeout: 3000 });
-    } catch {
-      // Button disappeared after first click — expansion complete
     }
 
     // No JS errors during expansion
