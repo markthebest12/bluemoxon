@@ -262,9 +262,7 @@ watch(
 
     // Cache current positions before removing elements
     if (cy.value.nodes().length > 0) {
-      positionCache = new Map(
-        cy.value.nodes().map((n) => [n.id(), { ...n.position() }])
-      );
+      positionCache = new Map(cy.value.nodes().map((n) => [n.id(), { ...n.position() }]));
     }
 
     // Use preserved positions when parent signals hub-level decrease
@@ -284,7 +282,7 @@ watch(
           name: "preset",
           positions: (node: { id: () => string }) => positionCache.get(node.id()),
           fit: true,
-          padding: (LAYOUT_CONFIGS.force as Record<string, unknown>).padding as number ?? 80,
+          padding: ((LAYOUT_CONFIGS.force as Record<string, unknown>).padding as number) ?? 80,
         } as LayoutOptions)
         .run();
     } else {
