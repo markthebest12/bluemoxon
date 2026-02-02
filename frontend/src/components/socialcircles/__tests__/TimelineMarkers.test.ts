@@ -773,27 +773,6 @@ describe("TimelineMarkers - year label overlap prevention", () => {
     expect(yearLabels[0].attributes("style") || "").toContain("display: none");
   });
 
-  it("DEBUG: check reactive visibility", async () => {
-    const wrapper = mountMarkers({
-      minYear: 1837,
-      maxYear: 1901,
-      sliderYear: 1837,
-      events: [{ year: 1870, label: "Education Act", type: "cultural" }],
-    });
-    let yearLabels = wrapper.findAll(".timeline-markers__year");
-    console.log(
-      `BEFORE: style="${yearLabels[0].attributes("style")}" isVisible=${yearLabels[0].isVisible()} html="${yearLabels[0].element.outerHTML}"`
-    );
-
-    await wrapper.setProps({ sliderYear: 1869 });
-    await nextTick();
-    yearLabels = wrapper.findAll(".timeline-markers__year");
-    console.log(
-      `AFTER: style="${yearLabels[0].attributes("style")}" isVisible=${yearLabels[0].isVisible()} html="${yearLabels[0].element.outerHTML}"`
-    );
-    expect(true).toBe(true);
-  });
-
   it("slider-hidden marker does not affect marker-to-marker spacing", () => {
     // Range 1700-1900 = 200 years.
     // 1750: 25%, 1755: 27.5%, 1800: 50%
