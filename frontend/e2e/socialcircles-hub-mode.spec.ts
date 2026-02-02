@@ -10,10 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Social Circles Hub Mode", () => {
   test.beforeEach(async ({ page }) => {
     const viewport = page.viewportSize();
-    test.skip(
-      !!viewport && viewport.width <= 768,
-      "Hub mode controls require desktop viewport",
-    );
+    test.skip(!!viewport && viewport.width <= 768, "Hub mode controls require desktop viewport");
 
     await page.goto("/social-circles");
     await expect(page.getByTestId("network-graph")).toBeVisible({
@@ -64,9 +61,7 @@ test.describe("Social Circles Hub Mode", () => {
     await expect(btn).not.toBeVisible({ timeout: 3000 });
   });
 
-  test("Show Less button appears after expansion and reverses level", async ({
-    page,
-  }) => {
+  test("Show Less button appears after expansion and reverses level", async ({ page }) => {
     const moreBtn = page.getByTestId("show-more-btn");
     const lessBtn = page.getByTestId("show-less-btn");
     await expect(moreBtn).toBeVisible({ timeout: 5000 });
@@ -111,10 +106,7 @@ test.describe("Social Circles Hub Mode", () => {
   test("search auto-reveal works with hub mode", async ({ page }) => {
     // Find the search input
     const searchInput = page.getByTestId("search-input");
-    test.skip(
-      !(await searchInput.isVisible()),
-      "SearchInput component not rendered",
-    );
+    test.skip(!(await searchInput.isVisible()), "SearchInput component not rendered");
 
     const inputField = searchInput.locator("input");
     await inputField.fill("Charles");
@@ -137,33 +129,53 @@ test.describe("Social Circles Hub Mode", () => {
     expect(toastVisible).toBe(false);
   });
 
-  test("nodes display +N more badge labels at compact level", async ({
-    page,
-  }) => {
-    // Wait for graph to render and COSE layout to settle
-    await page.waitForTimeout(2000);
+  /**
+   * Wait for the Cytoscape layout to finish animating and have nodes rendered.
+   * Accesses Cytoscape via its internal _cyreg property (set at core/index.mjs:43).
+   * This is NOT a public Cytoscape API — if a Cytoscape upgrade breaks it,
+   * update this helper and the inline evaluate calls below.
+   * Note: _cyreg access is repeated in page.evaluate() calls because
+   * Playwright serializes evaluate functions to the browser context.
+   */
+  async function waitForLayoutSettled(page: import("@playwright/test").Page) {
+    await page.waitForFunction(
+      () => {
+        const container = document.querySelector(
+          "[data-testid='network-graph']"
+        ) as HTMLElement | null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cy = (container as any)?._cyreg?.cy;
+        return cy && cy.nodes().length > 0 && !cy.animated();
+      },
+      { timeout: 10000 }
+    );
+  }
 
-    // Access Cytoscape instance via internal _cyreg on the container element
+  test("nodes display +N more badge labels at compact level", async ({ page }) => {
+    await waitForLayoutSettled(page);
+
     const badgeNodes = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
       if (!cy) return [];
-      return cy
-        .nodes()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((n: any) => {
-          const label: string = n.data("label") || "";
-          return label.includes("+");
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((n: any) => ({
-          id: n.id(),
-          label: n.data("label") as string,
-          hiddenCount: n.data("hiddenCount") as number,
-        }));
+      return (
+        cy
+          .nodes()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((n: any) => {
+            const label: string = n.data("label") || "";
+            return label.includes("+");
+          })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((n: any) => ({
+            id: n.id(),
+            label: n.data("label") as string,
+            hiddenCount: n.data("hiddenCount") as number,
+          }))
+      );
     });
 
     // At compact level (25 nodes out of 200+), many nodes should have badges
@@ -177,27 +189,25 @@ test.describe("Social Circles Hub Mode", () => {
   });
 
   test("expand all to full removes badge labels", async ({ page }) => {
-    // Wait for graph to render and layout to settle
-    await page.waitForTimeout(2000);
+    await waitForLayoutSettled(page);
 
     // Verify badges exist at compact level before expanding
     const hasBadgesInitially = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
       if (!cy) return false;
-      return cy
-        .nodes()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .some((n: any) => (n.data("hiddenCount") || 0) > 0);
+      return (
+        cy
+          .nodes()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .some((n: any) => (n.data("hiddenCount") || 0) > 0)
+      );
     });
 
-    test.skip(
-      !hasBadgesInitially,
-      "No badge nodes at compact level — dataset may be small",
-    );
+    test.skip(!hasBadgesInitially, "No badge nodes at compact level — dataset may be small");
 
     // Expand to full by clicking Show More (up to twice: compact → medium → full)
     const btn = page.getByTestId("show-more-btn");
@@ -208,35 +218,34 @@ test.describe("Social Circles Hub Mode", () => {
     }
 
     // Wait for layout to settle after full expansion
-    await page.waitForTimeout(2000);
+    await waitForLayoutSettled(page);
 
     // At full level, no nodes should have hidden counts
     const badgeCountAfter = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
       if (!cy) return 0;
-      return cy
-        .nodes()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((n: any) => (n.data("hiddenCount") || 0) > 0).length;
+      return (
+        cy
+          .nodes()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((n: any) => (n.data("hiddenCount") || 0) > 0).length
+      );
     });
 
     expect(badgeCountAfter).toBe(0);
   });
 
-  test("clicking a node with hidden neighbors expands its neighborhood", async ({
-    page,
-  }) => {
-    // Wait for graph to render and layout to settle
-    await page.waitForTimeout(2000);
+  test("clicking a node with hidden neighbors expands its neighborhood", async ({ page }) => {
+    await waitForLayoutSettled(page);
 
-    // Find a node with hidden neighbors using Cytoscape API
+    // Find a node with hidden neighbors (skip for small datasets)
     const targetNode = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
@@ -247,47 +256,50 @@ test.describe("Social Circles Hub Mode", () => {
         .filter((n: any) => (n.data("hiddenCount") || 0) > 0)
         .first();
       if (node.length === 0) return null;
-      const pos = node.renderedPosition();
-      return {
-        id: node.id() as string,
-        hiddenCount: node.data("hiddenCount") as number,
-        x: pos.x as number,
-        y: pos.y as number,
-      };
+      return { id: node.id() as string };
     });
 
-    test.skip(
-      !targetNode,
-      "No nodes with hidden neighbors found at compact level",
-    );
+    test.skip(!targetNode, "No nodes with hidden neighbors found at compact level");
 
     // Get initial node count
     const initialCount = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
       return cy ? (cy.nodes().length as number) : 0;
     });
 
-    // Click the node at its rendered position within the graph viewport
+    // Read rendered position immediately before clicking to avoid stale coordinates
     const graphEl = page.getByTestId("network-graph");
     const graphBox = await graphEl.boundingBox();
-    if (graphBox && targetNode) {
-      await page.mouse.click(
-        graphBox.x + targetNode.x,
-        graphBox.y + targetNode.y,
-      );
-    }
+    expect(graphBox).toBeTruthy();
 
-    // Wait for expansion animation and layout to settle
-    await page.waitForTimeout(1500);
+    const nodePos = await page.evaluate((nodeId: string) => {
+      const container = document.querySelector(
+        "[data-testid='network-graph']"
+      ) as HTMLElement | null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cy = (container as any)?._cyreg?.cy;
+      if (!cy) return null;
+      const node = cy.getElementById(nodeId);
+      if (!node || node.length === 0) return null;
+      const pos = node.renderedPosition();
+      return { x: pos.x as number, y: pos.y as number };
+    }, targetNode!.id);
+
+    expect(nodePos).toBeTruthy();
+
+    await page.mouse.click(graphBox!.x + nodePos!.x, graphBox!.y + nodePos!.y);
+
+    // Wait for expansion and layout to settle
+    await waitForLayoutSettled(page);
 
     // Node count should have increased (hidden neighbors were added)
     const afterCount = await page.evaluate(() => {
       const container = document.querySelector(
-        "[data-testid='network-graph']",
+        "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
