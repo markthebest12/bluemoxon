@@ -481,10 +481,6 @@ const filterPills = computed(() =>
 // Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
-    // Expand hub neighborhood on node click for progressive disclosure
-    if (!hubMode.isFullyExpanded.value) {
-      hubMode.expandNode(nodeId as NodeId);
-    }
     toggleSelectNode(nodeId);
     // Only track if the panel was opened (not toggled closed)
     if (isPanelOpen.value) {
@@ -708,7 +704,9 @@ onUnmounted(() => {
             <ShowMoreButton
               :status-text="hubMode.statusText.value"
               :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
+              @show-less="hubMode.showLess"
             />
           </div>
         </div>
@@ -826,7 +824,9 @@ onUnmounted(() => {
             <ShowMoreButton
               :status-text="hubMode.statusText.value"
               :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
+              @show-less="hubMode.showLess"
             />
           </div>
         </div>

@@ -549,9 +549,11 @@ export function useSocialCircles() {
     hubMode: {
       statusText: hubMode.statusText,
       isFullyExpanded: hubMode.isFullyExpanded,
+      canShowLess: hubMode.canShowLess,
       expandNode: hubMode.expandNode,
       expandMore: hubMode.expandMore,
       showMore: hubMode.showMore,
+      showLess: hubMode.showLess,
       hiddenNeighborCount: hubMode.hiddenNeighborCount,
       hiddenNeighborCounts: hubMode.hiddenNeighborCounts,
       isExpanded: hubMode.isExpanded,

@@ -120,6 +120,76 @@ describe("useHubMode", () => {
     expect(hub.visibleNodes.value.length).toBe(100);
   });
 
+  it("transitions hub levels backwards: full → medium → compact", () => {
+    const nodes = ref<ApiNode[]>(
+      Array.from({ length: 100 }, (_, i) => makeNode(`author:${i}`, "author"))
+    );
+    const edges = ref<ApiEdge[]>([]);
+
+    const hub = useHubMode(nodes, edges);
+    hub.initializeHubs();
+    expect(hub.canShowLess.value).toBe(false);
+
+    // Go to full
+    hub.showMore();
+    hub.showMore();
+    expect(hub.hubLevel.value).toBe("full");
+    expect(hub.canShowLess.value).toBe(true);
+
+    hub.showLess();
+    expect(hub.hubLevel.value).toBe("medium");
+    expect(hub.visibleNodes.value.length).toBeLessThanOrEqual(50);
+    expect(hub.canShowLess.value).toBe(true);
+
+    hub.showLess();
+    expect(hub.hubLevel.value).toBe("compact");
+    expect(hub.visibleNodes.value.length).toBeLessThanOrEqual(25);
+    expect(hub.canShowLess.value).toBe(false);
+  });
+
+  it("showLess clears manuallyAddedNodes for deterministic reversal", () => {
+    const hub_node = makeNode("author:0", "author");
+    // 60 publisher neighbors — enough that some stay hidden even at medium (50 hub limit)
+    const neighbors = Array.from({ length: 60 }, (_, i) => makeNode(`publisher:${i}`, "publisher"));
+    const extraAuthors = Array.from({ length: 40 }, (_, i) =>
+      makeNode(`author:${i + 1}`, "author")
+    );
+    const nodes = ref<ApiNode[]>([hub_node, ...neighbors, ...extraAuthors]);
+    const edges = ref<ApiEdge[]>(neighbors.map((n, i) => makeEdge("author:0", n.id, 60 - i)));
+
+    const hub = useHubMode(nodes, edges);
+    hub.initializeHubs();
+
+    // Go to medium first so showLess() actually transitions
+    hub.showMore();
+    expect(hub.hubLevel.value).toBe("medium");
+    const mediumCount = hub.visibleNodes.value.length;
+
+    // Expand some nodes manually
+    hub.expandNode("author:0" as NodeId);
+    expect(hub.visibleNodes.value.length).toBeGreaterThan(mediumCount);
+
+    // Show less should transition medium→compact and clear manual expansions
+    hub.showLess();
+    expect(hub.hubLevel.value).toBe("compact");
+    const compactCount = hub.visibleNodes.value.length;
+    expect(compactCount).toBeLessThanOrEqual(25);
+  });
+
+  it("showLess does nothing at compact level", () => {
+    const nodes = ref<ApiNode[]>(
+      Array.from({ length: 100 }, (_, i) => makeNode(`author:${i}`, "author"))
+    );
+    const edges = ref<ApiEdge[]>([]);
+
+    const hub = useHubMode(nodes, edges);
+    hub.initializeHubs();
+
+    expect(hub.hubLevel.value).toBe("compact");
+    hub.showLess();
+    expect(hub.hubLevel.value).toBe("compact");
+  });
+
   it("does not duplicate already-visible nodes on expand", () => {
     const nodes = ref<ApiNode[]>([
       makeNode("author:0", "author"),
