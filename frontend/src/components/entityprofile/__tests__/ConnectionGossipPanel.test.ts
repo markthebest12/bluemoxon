@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import ConnectionGossipPanel from "../ConnectionGossipPanel.vue";
 import type { RelationshipNarrative, NarrativeTrigger } from "@/types/entityProfile";
+import { mockCrossLinkConnections } from "./crossLinkFixtures";
+
+const gossipConnections = mockCrossLinkConnections;
 
 const proseNarrative: RelationshipNarrative = {
   summary: "A dramatic literary friendship.",
@@ -59,9 +62,12 @@ const timelineNarrative: RelationshipNarrative = {
 };
 
 describe("ConnectionGossipPanel", () => {
+  const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+
   it("renders summary text", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("A dramatic literary friendship.");
   });
@@ -69,6 +75,7 @@ describe("ConnectionGossipPanel", () => {
   it("renders detail facts", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("exchanged passionate letters");
   });
@@ -76,6 +83,7 @@ describe("ConnectionGossipPanel", () => {
   it("renders year badge on dated facts", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("1845");
   });
@@ -83,6 +91,7 @@ describe("ConnectionGossipPanel", () => {
   it("renders trigger badge when present", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: "cross_era_bridge" as NarrativeTrigger },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("Cross-Era Bridge");
   });
@@ -90,6 +99,7 @@ describe("ConnectionGossipPanel", () => {
   it("does not render trigger badge when null", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.find(".gossip-panel__trigger").exists()).toBe(false);
   });
@@ -97,6 +107,7 @@ describe("ConnectionGossipPanel", () => {
   it("applies prose-paragraph render mode", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: proseNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.find(".gossip-panel--prose-paragraph").exists()).toBe(true);
   });
@@ -104,6 +115,7 @@ describe("ConnectionGossipPanel", () => {
   it("applies bullet-facts render mode", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: bulletNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.find(".gossip-panel--bullet-facts").exists()).toBe(true);
   });
@@ -111,6 +123,7 @@ describe("ConnectionGossipPanel", () => {
   it("applies timeline-events render mode", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: timelineNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.find(".gossip-panel--timeline-events").exists()).toBe(true);
   });
@@ -118,6 +131,7 @@ describe("ConnectionGossipPanel", () => {
   it("renders timeline years in order", () => {
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: timelineNarrative, trigger: null },
+      global: globalStubs,
     });
     const text = wrapper.text();
     expect(text.indexOf("1840")).toBeLessThan(text.indexOf("1852"));
@@ -131,8 +145,201 @@ describe("ConnectionGossipPanel", () => {
     };
     const wrapper = mount(ConnectionGossipPanel, {
       props: { narrative: emptyNarrative, trigger: null },
+      global: globalStubs,
     });
     expect(wrapper.text()).toContain("A brief connection.");
     expect(wrapper.find(".gossip-panel__prose").exists()).toBe(false);
+  });
+});
+
+describe("ConnectionGossipPanel cross-link integration", () => {
+  const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+
+  it("renders cross-link in summary as a router-link", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "A dramatic friendship with {{entity:author:32|Robert Browning}}.",
+      details: [],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(1);
+    expect(links[0].text()).toBe("Robert Browning");
+  });
+
+  it("renders cross-link in summary with correct route params", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "Both published with {{entity:publisher:7|Smith, Elder & Co.}}.",
+      details: [],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const link = wrapper.findComponent(RouterLinkStub);
+    expect(link.props("to")).toEqual({
+      name: "entity-profile",
+      params: { type: "publisher", id: "7" },
+    });
+  });
+
+  it("renders cross-links in prose-paragraph detail facts", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "A literary partnership.",
+      details: [
+        {
+          text: "Met {{entity:author:32|Robert Browning}} at a London salon.",
+          year: 1845,
+          significance: "revelation",
+          tone: "dramatic",
+          display_in: ["connection-detail"],
+        },
+      ],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(1);
+    expect(links[0].text()).toBe("Robert Browning");
+  });
+
+  it("renders cross-links in bullet-facts detail items", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "Shared publishing connections.",
+      details: [
+        {
+          text: "Both worked with {{entity:publisher:7|Smith, Elder & Co.}} on first editions.",
+          year: 1847,
+          significance: "context",
+          tone: "intellectual",
+          display_in: ["connection-detail"],
+        },
+      ],
+      narrative_style: "bullet-facts",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(1);
+    expect(links[0].text()).toBe("Smith, Elder & Co.");
+  });
+
+  it("renders cross-links in timeline-events detail items", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "A timeline of influence.",
+      details: [
+        {
+          text: "First meeting with {{entity:author:32|Robert Browning}} at a literary gathering.",
+          year: 1840,
+          significance: "notable",
+          tone: "triumphant",
+          display_in: ["connection-detail"],
+        },
+      ],
+      narrative_style: "timeline-events",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(1);
+    expect(links[0].text()).toBe("Robert Browning");
+  });
+
+  it("renders multiple cross-links across summary and details", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "A connection between {{entity:author:32|Robert Browning}} and their publisher.",
+      details: [
+        {
+          text: "Both published through {{entity:publisher:7|Smith, Elder & Co.}} in the 1840s.",
+          year: 1847,
+          significance: "context",
+          tone: "intellectual",
+          display_in: ["connection-detail"],
+        },
+      ],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(2);
+    expect(links[0].text()).toBe("Robert Browning");
+    expect(links[1].text()).toBe("Smith, Elder & Co.");
+  });
+
+  it("renders stale marker as plain text when connection is missing", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "Influenced by {{entity:author:999|Percy Shelley}} in early work.",
+      details: [],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    expect(wrapper.text()).toContain("Percy Shelley");
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(0);
+  });
+
+  it("does not render cross-links when connections prop is omitted", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "A friendship with {{entity:author:32|Robert Browning}}.",
+      details: [],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null },
+      global: globalStubs,
+    });
+
+    expect(wrapper.text()).toContain("Robert Browning");
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links).toHaveLength(0);
+  });
+
+  it("preserves surrounding text around cross-links in details", () => {
+    const narrative: RelationshipNarrative = {
+      summary: "Literary partners.",
+      details: [
+        {
+          text: "She eloped with {{entity:author:32|Robert Browning}} to Florence in 1846.",
+          year: 1846,
+          significance: "revelation",
+          tone: "dramatic",
+          display_in: ["connection-detail"],
+        },
+      ],
+      narrative_style: "prose-paragraph",
+    };
+    const wrapper = mount(ConnectionGossipPanel, {
+      props: { narrative, trigger: null, connections: gossipConnections },
+      global: globalStubs,
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("She eloped with");
+    expect(text).toContain("Robert Browning");
+    expect(text).toContain("to Florence in 1846.");
   });
 });
