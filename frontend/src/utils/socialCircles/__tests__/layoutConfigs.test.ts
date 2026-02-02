@@ -124,10 +124,10 @@ describe("layoutConfigs", () => {
       );
 
       it.each(["force", "circle", "grid", "hierarchical"] as LayoutMode[])(
-        "%s layout has padding of 80",
+        "%s layout has padding of 30",
         (mode) => {
           const config = getLayoutConfig(mode);
-          expect(config.padding).toBe(80);
+          expect(config.padding).toBe(30);
         }
       );
 

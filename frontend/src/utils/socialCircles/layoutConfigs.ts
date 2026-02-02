@@ -17,7 +17,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
         nodeOverlap: 20,
         refresh: 20,
         fit: true,
-        padding: 80,
+        padding: 30,
         randomize: false,
         componentSpacing: 100,
         nodeRepulsion: () => 400000,
@@ -37,7 +37,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
       return {
         name: "circle",
         fit: true,
-        padding: 80,
+        padding: 30,
         avoidOverlap: true,
         spacingFactor: 1.5,
         animate: true,
@@ -48,7 +48,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
       return {
         name: "grid",
         fit: true,
-        padding: 80,
+        padding: 30,
         avoidOverlap: true,
         condense: true,
         animate: true,
@@ -62,7 +62,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutOptions {
         nodeSep: 50,
         rankSep: 100,
         fit: true,
-        padding: 80,
+        padding: 30,
         animate: true,
         animationDuration: 500,
       } as LayoutOptions;

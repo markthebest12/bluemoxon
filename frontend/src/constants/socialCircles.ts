@@ -146,7 +146,7 @@ export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
     nodeOverlap: 20, // Padding to prevent node overlap
     refresh: 20, // Frames between layout updates during animation
     fit: true, // Fit graph to viewport when layout completes
-    padding: 80, // Padding around graph when fitting
+    padding: 30, // Padding around graph when fitting
     randomize: false, // Use existing positions as starting point
     componentSpacing: 100, // Space between disconnected components
     nodeRepulsion: 400000, // Higher = nodes push apart more strongly
@@ -161,14 +161,14 @@ export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
   circle: {
     name: "circle",
     fit: true, // Fit graph to viewport when layout completes
-    padding: 80, // Padding around graph when fitting
+    padding: 30, // Padding around graph when fitting
     avoidOverlap: true, // Prevent nodes from overlapping
     spacingFactor: 1.5, // Multiplier for spacing between nodes
   },
   grid: {
     name: "grid",
     fit: true, // Fit graph to viewport when layout completes
-    padding: 80, // Padding around graph when fitting
+    padding: 30, // Padding around graph when fitting
     avoidOverlap: true, // Prevent nodes from overlapping
     condense: true, // Pack grid tightly without gaps
     rows: undefined, // Auto-calculate row count
@@ -180,7 +180,7 @@ export const LAYOUT_CONFIGS: Record<LayoutMode, object> = {
     nodeSep: 50, // Horizontal spacing between nodes
     rankSep: 100, // Vertical spacing between ranks/levels
     fit: true, // Fit graph to viewport when layout completes
-    padding: 80, // Padding around graph when fitting
+    padding: 30, // Padding around graph when fitting
   },
 };
 
