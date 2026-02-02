@@ -1,9 +1,12 @@
-# Deploy Pipeline - Deploys to staging/production based on branch
+# Deploy Pipeline - Deploys to staging/production
 # Uses AWS OIDC for secure, keyless authentication
 #
 # Workflow:
-#   push to staging → deploy to staging environment
-#   push to main    → deploy to production environment
+#   push to staging  → deploy to staging environment
+#   tag push (v*)    → deploy to production environment
+#
+# Production deploys are triggered by Uplift creating a semver tag on main.
+# See .github/workflows/release.yml for the Uplift workflow.
 #
 # PERFORMANCE: Lambda deploys run in parallel after layer is published
 # This reduces deploy time from ~7min to ~3-4min
@@ -12,7 +15,8 @@ name: Deploy
 
 on:
   push:
-    branches: [main, staging]
+    branches: [staging]
+    tags: ['v*']  # Note: paths-ignore is not evaluated for tag pushes (GitHub docs)
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -34,20 +38,20 @@ on:
 
 # Only one deployment at a time per environment
 concurrency:
-  group: deploy-${{ github.ref_name }}
+  group: deploy-${{ startsWith(github.ref, 'refs/tags/v') && 'production' || github.ref_name }}
   cancel-in-progress: false
 
 env:
   AWS_REGION: us-west-2
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
-  # Auto-generated version: YYYY.MM.DD-<short-sha>
+  # Semver from tag (production) or pyproject.toml+sha (staging)
   APP_VERSION: ""  # Set dynamically in generate-version job
 
-# Required for AWS OIDC authentication, release tagging, and drift issues
+# Required for AWS OIDC authentication and drift issues
 permissions:
   id-token: write
-  contents: write  # Required for creating release tags
+  contents: write  # Required for drift issue management
   issues: write    # Required for creating/updating drift issues
 
 jobs:
@@ -73,8 +77,20 @@ jobs:
       scraper: ${{ steps.filter.outputs.scraper }}
       image_processor: ${{ steps.filter.outputs.image_processor }}
       retry_queue_failed: ${{ steps.filter.outputs.retry_queue_failed }}
+      is_tag: ${{ steps.check-tag.outputs.is_tag }}
     steps:
       - uses: actions/checkout@v6
+
+      # Tag pushes bypass change detection — production releases deploy all components.
+      # dorny/paths-filter cannot meaningfully diff a tag push, so is_tag forces full deploy.
+      - name: Check if tag push
+        id: check-tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Detect changed paths
         uses: dorny/paths-filter@v3
@@ -142,14 +158,14 @@ jobs:
       - name: Determine environment
         id: env
         run: |
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
             echo "tf_backend_file=backends/prod.hcl" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref_name }}" == "staging" ]]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
             echo "tf_backend_file=backends/staging.hcl" >> $GITHUB_OUTPUT
           else
-            echo "ERROR: Unknown branch ${{ github.ref_name }}"
+            echo "ERROR: Unknown ref ${{ github.ref }}"
             exit 1
           fi
 
@@ -431,13 +447,25 @@ jobs:
       short_sha: ${{ steps.version.outputs.short_sha }}
       deployed_at: ${{ steps.version.outputs.deployed_at }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: backend/pyproject.toml
+          sparse-checkout-cone-mode: false
+
       - name: Generate version string
         id: version
         run: |
-          DATE=$(date -u +%Y.%m.%d)
           SHORT_SHA=${GITHUB_SHA::7}
-          VERSION="${DATE}-${SHORT_SHA}"
           DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Production: extract semver from tag (strip 'v' prefix)
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            # Staging: read from pyproject.toml + build metadata
+            PYPROJECT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' backend/pyproject.toml)
+            VERSION="${PYPROJECT_VERSION}+${SHORT_SHA}"
+          fi
 
           echo "Generated version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -455,7 +483,7 @@ jobs:
     name: Validate Lambda Config
     runs-on: ubuntu-latest
     needs: [configure, changes]
-    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true'
+    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true'
 
     steps:
       - uses: actions/checkout@v6
@@ -511,7 +539,7 @@ jobs:
     name: Build Lambda Layer
     runs-on: ubuntu-latest
     needs: [ci, configure, changes, validate-config]
-    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true'
+    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true'
     outputs:
       layer_s3_key: ${{ steps.layer-check.outputs.layer_s3_key }}
       layer_exists: ${{ steps.layer-check.outputs.exists }}
@@ -581,7 +609,7 @@ jobs:
     name: Build Lambda Package
     runs-on: ubuntu-latest
     needs: [ci, configure, generate-version, changes, validate-config]
-    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true'
+    if: needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true'
 
     steps:
       - uses: actions/checkout@v6
@@ -639,7 +667,7 @@ jobs:
     needs: [ci, configure, generate-version, changes, validate-config]
     if: |
       needs.configure.outputs.scraper_function_name != '' &&
-      (needs.changes.outputs.scraper == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.scraper == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
 
     steps:
       - uses: actions/checkout@v6
@@ -676,7 +704,7 @@ jobs:
     name: Build Frontend
     runs-on: ubuntu-latest
     needs: [ci, configure, generate-version, changes]
-    if: needs.changes.outputs.frontend == 'true' || github.event.inputs.force_full_deploy == 'true'
+    if: needs.changes.outputs.frontend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true'
 
     steps:
       - uses: actions/checkout@v6
@@ -720,7 +748,7 @@ jobs:
     name: Test Image Processor
     runs-on: ubuntu-latest
     needs: [ci, changes]
-    if: needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true'
+    if: needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true'
 
     steps:
       - uses: actions/checkout@v6
@@ -760,7 +788,7 @@ jobs:
       always() &&
       needs.test-image-processor.result == 'success' &&
       needs.configure.outputs.image_processor_function_name != '' &&
-      (needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     outputs:
       image_uri: ${{ steps.build.outputs.image_uri }}
 
@@ -818,7 +846,7 @@ jobs:
       needs.configure.result == 'success' &&
       needs.build-backend.result == 'success' &&
       needs.build-layer.result == 'success' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       version: ${{ steps.publish-version.outputs.version }}
@@ -948,7 +976,7 @@ jobs:
       always() &&
       needs.configure.result == 'success' &&
       needs.deploy-api-lambda.result == 'success' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     environment: ${{ needs.configure.outputs.environment }}
     strategy:
       matrix:
@@ -1094,7 +1122,7 @@ jobs:
       needs.configure.result == 'success' &&
       needs.build-scraper.result == 'success' &&
       needs.configure.outputs.scraper_function_name != '' &&
-      (needs.changes.outputs.scraper == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.scraper == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       version: ${{ steps.publish-version.outputs.version }}
@@ -1161,7 +1189,7 @@ jobs:
       needs.configure.result == 'success' &&
       needs.build-image-processor.result == 'success' &&
       needs.configure.outputs.image_processor_function_name != '' &&
-      (needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.image_processor == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     environment: ${{ needs.configure.outputs.environment }}
     outputs:
       version: ${{ steps.publish-version.outputs.version }}
@@ -1248,7 +1276,7 @@ jobs:
       always() &&
       needs.configure.result == 'success' &&
       needs.build-frontend.result == 'success' &&
-      (needs.changes.outputs.frontend == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.frontend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
     environment: ${{ needs.configure.outputs.environment }}
 
     steps:
@@ -1324,7 +1352,7 @@ jobs:
     if: |
       always() &&
       needs.deploy-api-lambda.result == 'success' &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true')
+      (needs.changes.outputs.backend == 'true' || github.event.inputs.force_full_deploy == 'true' || needs.changes.outputs.is_tag == 'true')
 
     steps:
       - name: Verify API key secret exists
@@ -1802,36 +1830,6 @@ jobs:
           echo "  Worker: v${{ needs.deploy-workers.outputs.worker_version }}"
           echo "  Eval Worker: v${{ needs.deploy-workers.outputs.eval_worker_version }}"
           echo "========================================"
-
-  # ============================================
-  # Create Release Tag (production only)
-  # ============================================
-
-  create-release:
-    name: Create Release Tag
-    runs-on: ubuntu-latest
-    needs: [configure, smoke-test]
-    if: needs.configure.outputs.environment == 'production'
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Create release tag
-        run: |
-          VERSION="v$(date -u '+%Y.%m.%d')-$(echo ${{ github.sha }} | head -c 7)"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git tag -a "$VERSION" -m "Release $VERSION
-
-          Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          Commit: ${{ github.sha }}"
-
-          git push origin "$VERSION"
-          echo "Release tag created: $VERSION"
 
   # ============================================
   # Post-Deploy E2E Smoke Tests
