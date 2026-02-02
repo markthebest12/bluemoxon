@@ -87,6 +87,44 @@ def _strip_markdown_fences(text: str) -> str:
     return stripped.strip()
 
 
+def _format_connection_instructions(connections: list[dict] | None) -> str:
+    """Format entity cross-link instructions for AI prompts."""
+    if not connections:
+        return ""
+    conn_lines = "\n".join(
+        f'- {c["entity_type"]}:{c["entity_id"]} "{c["name"]}"' for c in connections
+    )
+    return f"""
+
+When mentioning any of these connected entities by name, wrap them in markers like this:
+{{{{entity:author:32|Robert Browning}}}}
+
+Connection list (ONLY use markers for entities in this list — never invent IDs):
+{conn_lines}"""
+
+
+_ENTITY_MARKER_RE = re.compile(r"\{\{entity:(\w+):(\d+)\|([^}]+)\}\}")
+
+
+def strip_invalid_markers(text: str, valid_entity_ids: set[str]) -> str:
+    """Strip entity markers whose IDs are not in the valid set.
+
+    Valid markers are preserved. Invalid markers are replaced with just
+    the display name (graceful degradation).
+    """
+
+    def _replace(match: re.Match) -> str:
+        entity_type = match.group(1)
+        entity_id = match.group(2)
+        display_name = match.group(3)
+        key = f"{entity_type}:{entity_id}"
+        if key in valid_entity_ids:
+            return match.group(0)  # preserve valid marker
+        return display_name  # strip to plain text
+
+    return _ENTITY_MARKER_RE.sub(_replace, text)
+
+
 _BIO_SYSTEM_PROMPT = (
     "You are a reference librarian and literary historian specializing in Victorian-era "
     "literature and publishing. You have deep knowledge of personal histories, scandals, "
@@ -113,6 +151,7 @@ def generate_bio_and_stories(
     death_year: int | None = None,
     founded_year: int | None = None,
     book_titles: list[str] | None = None,
+    connections: list[dict] | None = None,
 ) -> dict:
     """Generate bio summary and personal stories for an entity.
 
@@ -147,7 +186,7 @@ should have:
    - tone: "dramatic", "scandalous", "tragic", "intellectual", or "triumphant"
 
 Return ONLY valid JSON: {{"biography": "...", "personal_stories": [...]}}
-If the entity is obscure, provide what is known and note the obscurity."""
+If the entity is obscure, provide what is known and note the obscurity.{_format_connection_instructions(connections)}"""
 
     try:
         raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
@@ -174,17 +213,19 @@ def generate_connection_narrative(
     entity2_type: str,
     connection_type: str,
     shared_book_titles: list[str],
+    connections: list[dict] | None = None,
 ) -> str | None:
     """Generate one-sentence narrative for a connection.
 
     Returns: narrative string or None on failure.
     """
     books_str = ", ".join(shared_book_titles) if shared_book_titles else "various works"
+    conn_instructions = _format_connection_instructions(connections)
 
     user_prompt = f"""Describe this connection in one sentence for a rare book collector:
   {entity1_name} ({entity1_type}) connected to {entity2_name} ({entity2_type})
   Connection: {connection_type}
-  Shared works: {books_str}
+  Shared works: {books_str}{conn_instructions}
 
 Return ONLY the single sentence, no quotes."""
 
@@ -205,12 +246,14 @@ def generate_relationship_story(
     connection_type: str,
     shared_book_titles: list[str],
     trigger_type: str,
+    connections: list[dict] | None = None,
 ) -> dict | None:
     """Generate full relationship story for high-impact connections.
 
     Returns: {"summary": str, "details": list[dict], "narrative_style": str} or None.
     """
     books_str = ", ".join(shared_book_titles) if shared_book_titles else "various works"
+    conn_instructions = _format_connection_instructions(connections)
 
     user_prompt = f"""Given this connection between two entities in a rare book collection:
   Entity 1: {entity1_name} ({entity1_type}, {entity1_dates})
@@ -231,7 +274,7 @@ Provide the relationship story:
 3. NARRATIVE_STYLE: "prose-paragraph" for dramatic stories, "bullet-facts" for factual \
 relationships, "timeline-events" for long-spanning connections.
 
-Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}"""
+Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}{conn_instructions}"""
 
     try:
         raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024)

@@ -31,6 +31,7 @@ from app.services.ai_profile_generator import (
     generate_bio_and_stories,
     generate_connection_narrative,
     generate_relationship_story,
+    strip_invalid_markers,
 )
 from app.services.narrative_classifier import classify_connection
 from app.services.social_circles_cache import get_or_build_graph
@@ -64,6 +65,9 @@ _HIGH_IMPACT_TRIGGERS = frozenset({"cross_era_bridge", "social_circle"})
 
 # Maximum shared books to include per connection.
 _MAX_SHARED_BOOKS_PER_CONNECTION = 5
+
+# Maximum connections to include in AI prompts to control token cost (#1654).
+_MAX_PROMPT_CONNECTIONS = 15
 
 
 def _get_entity(
@@ -387,6 +391,34 @@ def generate_and_cache_profile(
     books = _get_entity_books(db, entity_type, entity_id)
     book_titles = [b.title for b in books]
 
+    # Build graph and connection list for cross-link markers (#1618)
+    node_id = f"{entity_type}:{entity_id}"
+    if graph is None:
+        graph = get_or_build_graph(db)
+    connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
+    connected_edges = sorted(connected_edges, key=lambda e: e.strength, reverse=True)
+    node_map = {n.id: n for n in graph.nodes}
+    source_node = node_map.get(node_id)
+    source_connection_count = len(connected_edges)
+
+    connection_list = []
+    for edge in connected_edges:
+        other_id = edge.target if edge.source == node_id else edge.source
+        other = node_map.get(other_id)
+        if other:
+            other_type = other.type.value if hasattr(other.type, "value") else str(other.type)
+            connection_list.append(
+                {
+                    "entity_type": other_type,
+                    "entity_id": other.entity_id,
+                    "name": other.name,
+                }
+            )
+    valid_entity_ids = {f"{c['entity_type']}:{c['entity_id']}" for c in connection_list}
+
+    # Cap connections in AI prompts to control token cost (#1654)
+    prompt_connections = connection_list[:_MAX_PROMPT_CONNECTIONS]
+
     # Generate bio + personal stories
     bio_data = generate_bio_and_stories(
         name=entity.name,
@@ -395,17 +427,17 @@ def generate_and_cache_profile(
         death_year=getattr(entity, "death_year", None),
         founded_year=getattr(entity, "founded_year", None),
         book_titles=book_titles,
+        connections=prompt_connections,
     )
 
-    # Generate connection narratives using trigger-based selection (#1553)
-    node_id = f"{entity_type}:{entity_id}"
-    if graph is None:
-        graph = get_or_build_graph(db)
-    connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
-    node_map = {n.id: n for n in graph.nodes}
-    source_node = node_map.get(node_id)
-    source_connection_count = len(connected_edges)
+    # Validate cross-link markers in bio and stories
+    if bio_data.get("biography"):
+        bio_data["biography"] = strip_invalid_markers(bio_data["biography"], valid_entity_ids)
+    for story in bio_data.get("personal_stories", []):
+        if story.get("text"):
+            story["text"] = strip_invalid_markers(story["text"], valid_entity_ids)
 
+    # Generate connection narratives using trigger-based selection (#1553)
     narratives: dict[str, str] = {}
     rel_stories: dict[str, dict] = {}
     narrated_count = 0
@@ -452,8 +484,15 @@ def generate_and_cache_profile(
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
                 trigger_type=trigger,
+                connections=prompt_connections,
             )
             if story:
+                # Validate markers in story text
+                if story.get("summary"):
+                    story["summary"] = strip_invalid_markers(story["summary"], valid_entity_ids)
+                for detail in story.get("details", []):
+                    if detail.get("text"):
+                        detail["text"] = strip_invalid_markers(detail["text"], valid_entity_ids)
                 rel_stories[key] = story
                 # Use story summary as the simple narrative too
                 narratives[key] = story.get("summary", "")
@@ -467,9 +506,10 @@ def generate_and_cache_profile(
                 entity2_type=other_type_str,
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
+                connections=prompt_connections,
             )
             if narrative:
-                narratives[key] = narrative
+                narratives[key] = strip_invalid_markers(narrative, valid_entity_ids)
                 narrated_count += 1
 
     model_version = _get_model_id()

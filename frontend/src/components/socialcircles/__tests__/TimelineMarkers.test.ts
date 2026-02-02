@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import TimelineMarkers from "../TimelineMarkers.vue";
 import type { HistoricalEvent } from "@/types/socialCircles";
@@ -11,7 +12,12 @@ const testEvents: HistoricalEvent[] = [
   { year: 1901, label: "Victoria Dies", type: "political" },
 ];
 
-function mountMarkers(props: { minYear: number; maxYear: number; events?: HistoricalEvent[] }) {
+function mountMarkers(props: {
+  minYear: number;
+  maxYear: number;
+  sliderYear?: number;
+  events?: HistoricalEvent[];
+}) {
   return mount(TimelineMarkers, { props });
 }
 
@@ -706,6 +712,93 @@ describe("TimelineMarkers - year label overlap prevention", () => {
     expect(yearLabels[1].isVisible()).toBe(false);
     expect(yearLabels[2].isVisible()).toBe(false);
     expect(yearLabels[0].text()).toBe("1850");
+  });
+
+  it("hides marker label when too close to slider position", () => {
+    // Range 1700-1967 = 267 years. Slider at 1850.
+    // Event at 1851: (1851-1700)/267 = 56.55%
+    // Slider at 1850: (1850-1700)/267 = 56.18%
+    // Gap: 0.37% — well under MIN_LABEL_SPACING (4%)
+    const wrapper = mountMarkers({
+      minYear: 1700,
+      maxYear: 1967,
+      sliderYear: 1850,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1851, label: "Great Exhibition", type: "cultural" },
+        { year: 1901, label: "Victoria Dies", type: "political" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(3);
+    // 1837 visible (far from slider)
+    expect(yearLabels[0].isVisible()).toBe(true);
+    // 1851 hidden (too close to slider at 1850)
+    expect(yearLabels[1].isVisible()).toBe(false);
+    // 1901 visible (far from slider)
+    expect(yearLabels[2].isVisible()).toBe(true);
+  });
+
+  it("shows all markers when sliderYear is not provided", () => {
+    const wrapper = mountMarkers({
+      minYear: 1837,
+      maxYear: 1901,
+      events: [
+        { year: 1837, label: "Victoria's Coronation", type: "political" },
+        { year: 1870, label: "Education Act", type: "cultural" },
+        { year: 1901, label: "Victoria Dies", type: "political" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(3);
+    expect(yearLabels[0].isVisible()).toBe(true);
+    expect(yearLabels[1].isVisible()).toBe(true);
+    expect(yearLabels[2].isVisible()).toBe(true);
+  });
+
+  it("updates label visibility reactively when slider moves", async () => {
+    const wrapper = mountMarkers({
+      minYear: 1837,
+      maxYear: 1901,
+      sliderYear: 1837,
+      events: [{ year: 1870, label: "Education Act", type: "cultural" }],
+    });
+    let yearLabels = wrapper.findAll(".timeline-markers__year");
+    // isVisible() unreliable in JSDOM after reactive prop changes; use style attr
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+
+    await wrapper.setProps({ sliderYear: 1869 });
+    await nextTick();
+    yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels[0].attributes("style") || "").toContain("display: none");
+  });
+
+  it("slider-hidden marker does not affect marker-to-marker spacing", () => {
+    // Range 1700-1900 = 200 years.
+    // 1750: 25%, 1755: 27.5%, 1800: 50%
+    // Slider at 1759: 29.5%
+    // 1750: shown (|25 - 29.5| = 4.5%, not < 4%, first marker)
+    // 1755: hidden by slider (|27.5 - 29.5| = 2% < 4%)
+    // 1800: should be shown — measures from 1750 (25%), not 1755
+    //        gap 50% - 25% = 25% > 4%
+    const wrapper = mountMarkers({
+      minYear: 1700,
+      maxYear: 1900,
+      sliderYear: 1759,
+      events: [
+        { year: 1750, label: "Event A", type: "political" },
+        { year: 1755, label: "Event B", type: "cultural" },
+        { year: 1800, label: "Event C", type: "literary" },
+      ],
+    });
+    const yearLabels = wrapper.findAll(".timeline-markers__year");
+    expect(yearLabels).toHaveLength(3);
+    // 1750: shown (not hidden by slider, first marker)
+    expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
+    // 1755: hidden by slider proximity
+    expect(yearLabels[1].attributes("style") || "").toContain("display: none");
+    // 1800: shown — spacing measured from 1750 (25%), not hidden 1755
+    expect(yearLabels[2].attributes("style") || "").not.toContain("display: none");
   });
 
   it("preserves marker order by year (sorted left-to-right)", () => {

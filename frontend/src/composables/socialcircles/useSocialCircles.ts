@@ -3,12 +3,13 @@
  * Combines all social circles composables into a single interface.
  */
 
-import { computed, watch, shallowRef } from "vue";
+import { computed, watch, shallowRef, type Ref } from "vue";
 import { useNetworkData } from "./useNetworkData";
 import { useNetworkFilters } from "./useNetworkFilters";
 import { useNetworkSelection } from "./useNetworkSelection";
 import { useNetworkTimeline } from "./useNetworkTimeline";
 import { useUrlState } from "./useUrlState";
+import { useHubMode } from "./useHubMode";
 import { transformToCytoscapeElements } from "@/utils/socialCircles/dataTransformers";
 import type {
   ApiNode,
@@ -41,8 +42,14 @@ export function useSocialCircles() {
   const edges = computed(() => networkData.data.value?.edges ?? []);
   const meta = computed(() => networkData.data.value?.meta ?? null);
 
-  // Computed: filtered nodes based on current filter state
-  const filteredNodes = computed(() => {
+  // Hub mode for progressive disclosure
+  const hubMode = useHubMode(
+    nodes as unknown as Ref<ApiNode[]>,
+    edges as unknown as Ref<ApiEdge[]>
+  );
+
+  // Stage 1: Apply user filters (type, era, search, timeline)
+  const filterPassedNodes = computed(() => {
     const nodeList = nodes.value;
     if (!nodeList.length) return [];
 
@@ -80,6 +87,14 @@ export function useSocialCircles() {
 
       return true;
     });
+  });
+
+  // Stage 2: Apply hub mode on top of filter results
+  const filteredNodes = computed(() => {
+    const filtered = filterPassedNodes.value;
+    if (hubMode.isFullyExpanded.value) return filtered;
+    const visibleIds = hubMode.visibleNodeIds.value;
+    return filtered.filter((n) => visibleIds.has(n.id));
   });
 
   // Computed: filtered edges (edges where both source and target are in filteredNodes)
@@ -249,7 +264,7 @@ export function useSocialCircles() {
   // Get Cytoscape elements for rendering
   function getCytoscapeElements() {
     const m = meta.value;
-    return transformToCytoscapeElements({
+    const elements = transformToCytoscapeElements({
       nodes: [...filteredNodes.value] as ApiNode[],
       edges: [...filteredEdges.value] as ApiEdge[],
       meta: {
@@ -262,6 +277,19 @@ export function useSocialCircles() {
         truncated: m?.truncated ?? false,
       },
     });
+
+    // Inject hub mode badge data into node elements (#1655)
+    // Uses pre-computed O(E) map instead of per-node O(E) calls
+    const hiddenCounts = hubMode.hiddenNeighborCounts.value;
+    for (const el of elements) {
+      if (el.group === "nodes" && el.data?.id) {
+        const hidden = hiddenCounts.get(el.data.id as NodeId) ?? 0;
+        el.data.hiddenCount = hidden;
+        el.data.label = hidden > 0 ? `${el.data.name}  +${hidden}` : el.data.name;
+      }
+    }
+
+    return elements;
   }
 
   // Export functions
@@ -374,6 +402,9 @@ export function useSocialCircles() {
 
     // Fetch data
     await networkData.fetchData();
+
+    // Initialize hub mode (progressive disclosure)
+    hubMode.initializeHubs();
 
     // Set up selection data
     if (networkData.data.value) {
@@ -513,6 +544,21 @@ export function useSocialCircles() {
     exportPng,
     exportJson,
     shareUrl,
+
+    // Hub mode
+    hubMode: {
+      statusText: hubMode.statusText,
+      isFullyExpanded: hubMode.isFullyExpanded,
+      canShowLess: hubMode.canShowLess,
+      expandNode: hubMode.expandNode,
+      expandMore: hubMode.expandMore,
+      showMore: hubMode.showMore,
+      showLess: hubMode.showLess,
+      hiddenNeighborCount: hubMode.hiddenNeighborCount,
+      hiddenNeighborCounts: hubMode.hiddenNeighborCounts,
+      isExpanded: hubMode.isExpanded,
+      hubLevel: hubMode.hubLevel,
+    },
 
     // Lifecycle
     initialize,

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ProfileEntity, ProfileData } from "@/types/entityProfile";
+import type { ProfileEntity, ProfileData, ProfileConnection } from "@/types/entityProfile";
 import { formatTier } from "@/utils/socialCircles/formatters";
 import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
+import EntityLinkedText from "./EntityLinkedText.vue";
 
 const props = defineProps<{
   entity: ProfileEntity;
   profile: ProfileData | null;
+  connections?: ProfileConnection[];
 }>();
 
 const dateDisplay = computed(() => {
@@ -38,7 +40,7 @@ const heroStories = computed(() => {
       </div>
 
       <p v-if="profile?.bio_summary" class="profile-hero__bio">
-        {{ profile.bio_summary }}
+        <EntityLinkedText :text="profile.bio_summary" :connections="connections ?? []" />
       </p>
       <p v-else class="profile-hero__bio profile-hero__bio--placeholder">
         Biographical summary not yet generated.
@@ -52,7 +54,7 @@ const heroStories = computed(() => {
           :style="{ borderLeftColor: getToneStyle(story.tone).color }"
         >
           <span v-if="story.year" class="profile-hero__story-year">{{ story.year }}</span>
-          {{ story.text }}
+          <EntityLinkedText :text="story.text" :connections="connections ?? []" />
         </div>
       </div>
     </div>

@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { RelationshipNarrative, NarrativeTrigger } from "@/types/entityProfile";
+import type {
+  RelationshipNarrative,
+  NarrativeTrigger,
+  ProfileConnection,
+} from "@/types/entityProfile";
 import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
+import EntityLinkedText from "./EntityLinkedText.vue";
 
 defineProps<{
   narrative: RelationshipNarrative;
   trigger: NarrativeTrigger;
+  connections?: ProfileConnection[];
 }>();
 
 const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
@@ -21,7 +27,9 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
       {{ TRIGGER_LABELS[trigger] ?? trigger }}
     </span>
 
-    <p class="gossip-panel__summary">{{ narrative.summary }}</p>
+    <p class="gossip-panel__summary">
+      <EntityLinkedText :text="narrative.summary" :connections="connections ?? []" />
+    </p>
 
     <!-- Prose paragraph mode -->
     <div
@@ -35,7 +43,7 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
         :style="{ borderLeftColor: getToneStyle(fact.tone).color }"
       >
         <span v-if="fact.year" class="gossip-panel__year">{{ fact.year }}</span>
-        {{ fact.text }}
+        <EntityLinkedText :text="fact.text" :connections="connections ?? []" />
       </p>
     </div>
 
@@ -50,7 +58,7 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
         :style="{ borderLeftColor: getToneStyle(fact.tone).color }"
       >
         <span v-if="fact.year" class="gossip-panel__year">{{ fact.year }}</span>
-        {{ fact.text }}
+        <EntityLinkedText :text="fact.text" :connections="connections ?? []" />
       </li>
     </ul>
 
@@ -65,7 +73,9 @@ const TRIGGER_LABELS: Record<NonNullable<NarrativeTrigger>, string> = {
         <span v-if="fact.year" class="gossip-panel__year gossip-panel__year--badge">
           {{ fact.year }}
         </span>
-        <span class="gossip-panel__event-text">{{ fact.text }}</span>
+        <span class="gossip-panel__event-text">
+          <EntityLinkedText :text="fact.text" :connections="connections ?? []" />
+        </span>
       </div>
     </div>
   </div>

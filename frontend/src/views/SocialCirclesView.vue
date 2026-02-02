@@ -7,7 +7,7 @@
  * Shows connections between authors, publishers, and binders.
  */
 
-import { computed, onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from "vue";
 import { useWindowSize } from "@vueuse/core";
 import { useRouter } from "vue-router";
 import {
@@ -54,6 +54,7 @@ import StatsPanel from "@/components/socialcircles/StatsPanel.vue";
 import PathFinderPanel from "@/components/socialcircles/PathFinderPanel.vue";
 import BottomSheet from "@/components/socialcircles/BottomSheet.vue";
 import MobileFilterFab from "@/components/socialcircles/MobileFilterFab.vue";
+import ShowMoreButton from "@/components/socialcircles/ShowMoreButton.vue";
 
 // Initialize the main orchestrator composable
 const socialCircles = useSocialCircles();
@@ -132,6 +133,28 @@ const {
   cleanup,
 } = socialCircles;
 
+const { hubMode } = socialCircles;
+
+// Track whether the last hub action was "show less" so NetworkGraph
+// can restore cached positions instead of running a full force layout.
+const preserveGraphPositions = ref(false);
+
+function handleShowLess() {
+  preserveGraphPositions.value = true;
+  hubMode.showLess();
+}
+
+// Reset the flag after the reactive chain propagates:
+// preservePositions=true → showLess() → hubLevel changes → elements recompute →
+// NetworkGraph's element watch fires and reads preservePositions=true → nextTick resets
+watch(preserveGraphPositions, (val) => {
+  if (val) {
+    void nextTick(() => {
+      preserveGraphPositions.value = false;
+    });
+  }
+});
+
 const router = useRouter();
 
 // Viewport tracking for smart card positioning
@@ -207,6 +230,23 @@ function handleSearchSelect(node: { id: string }) {
   // Track search before the early return so every search selection is recorded,
   // even when the node is not in the current filtered view.
   analytics.trackSearch(preSelectSearchQuery.value, resultCount);
+
+  // Auto-reveal searched node if not in current hub view
+  if (!hubMode.isFullyExpanded.value) {
+    const nodeInFiltered = filteredNodes.value.some((n) => n.id === node.id);
+    if (!nodeInFiltered) {
+      // Try expanding the node's neighborhood into the hub view
+      hubMode.expandNode(node.id as NodeId);
+      // If still not visible after expand, escalate to full view
+      if (!filteredNodes.value.some((n) => n.id === node.id)) {
+        hubMode.showMore();
+        // Only escalate to full if node still not visible after first expansion
+        if (!filteredNodes.value.some((n) => n.id === node.id)) {
+          hubMode.showMore();
+        }
+      }
+    }
+  }
 
   // Verify node exists in current filtered set before selecting
   const nodeExists = filteredNodes.value.some((n) => n.id === node.id);
@@ -461,6 +501,12 @@ const filterPills = computed(() =>
 // Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
+    // Expand hidden neighbors on click (#1655)
+    const hiddenCount = hubMode.hiddenNeighborCounts.value.get(nodeId as NodeId) ?? 0;
+    if (hiddenCount > 0) {
+      hubMode.expandNode(nodeId as NodeId);
+    }
+
     toggleSelectNode(nodeId);
     // Only track if the panel was opened (not toggled closed)
     if (isPanelOpen.value) {
@@ -658,6 +704,7 @@ onUnmounted(() => {
             :selected-edge="selectedEdge"
             :highlighted-nodes="highlightedNodes"
             :highlighted-edges="highlightedEdges"
+            :preserve-positions="preserveGraphPositions"
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
@@ -677,6 +724,17 @@ onUnmounted(() => {
           <!-- Legend (bottom-right of graph) - hide when detail panel open -->
           <div v-show="!showDetailPanel" class="legend-container">
             <NetworkLegend />
+          </div>
+
+          <!-- Show More Button (bottom-left of graph) -->
+          <div v-show="!showDetailPanel" class="show-more-container">
+            <ShowMoreButton
+              :status-text="hubMode.statusText.value"
+              :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
+              @show-more="hubMode.showMore"
+              @show-less="handleShowLess"
+            />
           </div>
         </div>
 
@@ -763,6 +821,7 @@ onUnmounted(() => {
             :selected-edge="selectedEdge"
             :highlighted-nodes="highlightedNodes"
             :highlighted-edges="highlightedEdges"
+            :preserve-positions="preserveGraphPositions"
             class="mobile-network-graph"
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
@@ -783,6 +842,20 @@ onUnmounted(() => {
           <!-- Legend -->
           <div v-show="!showDetailPanel && !isFiltersOpen" class="legend-container mobile-legend">
             <NetworkLegend />
+          </div>
+
+          <!-- Show More Button (bottom-left of graph) -->
+          <div
+            v-show="!showDetailPanel && !isFiltersOpen"
+            class="show-more-container mobile-show-more"
+          >
+            <ShowMoreButton
+              :status-text="hubMode.statusText.value"
+              :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
+              @show-more="hubMode.showMore"
+              @show-less="handleShowLess"
+            />
           </div>
         </div>
 
@@ -929,6 +1002,18 @@ onUnmounted(() => {
   bottom: 1rem;
   right: 1rem;
   z-index: 10;
+}
+
+.show-more-container {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 10;
+}
+
+.mobile-show-more {
+  bottom: 0.5rem;
+  left: 0.5rem;
 }
 
 .timeline-area {

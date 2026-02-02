@@ -81,6 +81,7 @@ function isExpanded(conn: ProfileConnection): boolean {
           v-if="conn.relationship_story && isExpanded(conn)"
           :narrative="conn.relationship_story"
           :trigger="conn.narrative_trigger"
+          :connections="connections"
         />
       </div>
     </div>
