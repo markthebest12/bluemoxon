@@ -596,7 +596,7 @@ describe("TimelineMarkers - year label overlap prevention", () => {
     // 1837: (1837-1265)/702 = 81.48%
     // 1851: (1851-1265)/702 = 83.48%
     // 1859: (1859-1265)/702 = 84.62%
-    // Spacing: 1837->1851 is ~2%, 1851->1859 is ~1.14% -- both under 4%
+    // Spacing: 1837->1851 is ~2%, 1851->1859 is ~1.14% -- both under 8%
     const wrapper = mountMarkers({
       minYear: 1265,
       maxYear: 1967,
@@ -641,7 +641,7 @@ describe("TimelineMarkers - year label overlap prevention", () => {
       ],
     });
     let yearLabels = wrapper.findAll(".timeline-markers__year");
-    // Initially, only 1837 label is visible (1851 is within 4% so hidden)
+    // Initially, only 1837 label is visible (1851 is within 8% so hidden)
     expect(yearLabels).toHaveLength(2);
     expect(yearLabels[0].attributes("style") || "").not.toContain("display: none");
     expect(yearLabels[1].attributes("style") || "").toContain("display: none");
@@ -679,7 +679,7 @@ describe("TimelineMarkers - year label overlap prevention", () => {
   it("shows all labels on narrow range where spacing exceeds threshold", () => {
     // Range 1837-1901 = 64 years. Events at 1837,1851,1859,1901:
     // 1837: 0%, 1851: 21.87%, 1859: 34.37%, 1901: 100%
-    // All spacings exceed 4%
+    // All spacings exceed 8%
     const wrapper = mountMarkers({
       minYear: 1837,
       maxYear: 1901,
