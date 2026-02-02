@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/src/**"
       - "frontend/e2e/**"
+      - "frontend/index.html"
       - "frontend/playwright.config.ts"
 
 concurrency:
@@ -28,6 +29,7 @@ jobs:
       dashboard: ${{ steps.filter.outputs.dashboard }}
       admin: ${{ steps.filter.outputs.admin }}
       profile: ${{ steps.filter.outputs.profile }}
+      appshell: ${{ steps.filter.outputs.appshell }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -67,6 +69,14 @@ jobs:
             profile:
               - 'frontend/src/views/ProfileView.vue'
               - 'frontend/e2e/profile.spec.ts'
+            appshell:
+              - 'frontend/index.html'
+              - 'frontend/src/App.vue'
+              - 'frontend/src/components/layout/NavBar.vue'
+              - 'frontend/src/assets/main.css'
+              - 'frontend/src/composables/useTheme.ts'
+              - 'frontend/src/views/HomeView.vue'
+              - 'frontend/e2e/app-shell.spec.ts'
 
   smoke:
     needs: detect-changes
@@ -138,6 +148,15 @@ jobs:
     with:
       suite-name: profile
       test-pattern: "e2e/profile.spec.ts"
+
+  app-shell:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.appshell == 'true'
+    uses: ./.github/workflows/e2e-suite.yml
+    secrets: inherit
+    with:
+      suite-name: app-shell
+      test-pattern: "e2e/app-shell.spec.ts"
 
   performance:
     needs: detect-changes
