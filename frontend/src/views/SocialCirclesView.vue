@@ -7,7 +7,7 @@
  * Shows connections between authors, publishers, and binders.
  */
 
-import { computed, onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from "vue";
 import { useWindowSize } from "@vueuse/core";
 import { useRouter } from "vue-router";
 import {
@@ -134,6 +134,26 @@ const {
 } = socialCircles;
 
 const { hubMode } = socialCircles;
+
+// Track whether the last hub action was "show less" so NetworkGraph
+// can restore cached positions instead of running a full force layout.
+const preserveGraphPositions = ref(false);
+
+function handleShowLess() {
+  preserveGraphPositions.value = true;
+  hubMode.showLess();
+}
+
+// Reset the flag after the reactive chain propagates:
+// preservePositions=true → showLess() → hubLevel changes → elements recompute →
+// NetworkGraph's element watch fires and reads preservePositions=true → nextTick resets
+watch(preserveGraphPositions, (val) => {
+  if (val) {
+    void nextTick(() => {
+      preserveGraphPositions.value = false;
+    });
+  }
+});
 
 const router = useRouter();
 
@@ -678,6 +698,7 @@ onUnmounted(() => {
             :selected-edge="selectedEdge"
             :highlighted-nodes="highlightedNodes"
             :highlighted-edges="highlightedEdges"
+            :preserve-positions="preserveGraphPositions"
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
             @edge-hover="handleEdgeHover"
@@ -706,7 +727,7 @@ onUnmounted(() => {
               :is-fully-expanded="hubMode.isFullyExpanded.value"
               :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
-              @show-less="hubMode.showLess"
+              @show-less="handleShowLess"
             />
           </div>
         </div>
@@ -794,6 +815,7 @@ onUnmounted(() => {
             :selected-edge="selectedEdge"
             :highlighted-nodes="highlightedNodes"
             :highlighted-edges="highlightedEdges"
+            :preserve-positions="preserveGraphPositions"
             class="mobile-network-graph"
             @node-select="handleNodeSelect"
             @edge-select="handleEdgeSelect"
@@ -826,7 +848,7 @@ onUnmounted(() => {
               :is-fully-expanded="hubMode.isFullyExpanded.value"
               :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
-              @show-less="hubMode.showLess"
+              @show-less="handleShowLess"
             />
           </div>
         </div>
