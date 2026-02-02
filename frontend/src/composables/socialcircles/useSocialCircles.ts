@@ -257,7 +257,7 @@ export function useSocialCircles() {
 
   function fitToView() {
     if (cytoscapeInstance.value) {
-      cytoscapeInstance.value.fit(undefined, 50);
+      cytoscapeInstance.value.fit(undefined, 80);
     }
   }
 
