@@ -501,6 +501,12 @@ const filterPills = computed(() =>
 // Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
+    // Expand hidden neighbors on click (#1655)
+    const hiddenCount = hubMode.hiddenNeighborCounts.value.get(nodeId as NodeId) ?? 0;
+    if (hiddenCount > 0) {
+      hubMode.expandNode(nodeId as NodeId);
+    }
+
     toggleSelectNode(nodeId);
     // Only track if the panel was opened (not toggled closed)
     if (isPanelOpen.value) {
