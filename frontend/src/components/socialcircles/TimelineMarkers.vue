@@ -19,10 +19,12 @@ import { VICTORIAN_EVENTS } from "@/constants/socialCircles";
 interface Props {
   minYear: number;
   maxYear: number;
+  sliderYear?: number;
   events?: readonly HistoricalEvent[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  sliderYear: undefined,
   events: () => VICTORIAN_EVENTS,
 });
 
@@ -42,8 +44,8 @@ function getEventId(event: HistoricalEvent): string {
 type EnrichedEvent = HistoricalEvent & { _id: string; _showLabel: boolean };
 
 // Minimum percentage spacing between year labels to prevent overlap.
-// At 8%, labels need ~8% of the timeline width apart to both display.
-const MIN_LABEL_SPACING = 8;
+// At 4%, labels need ~4% of the timeline width apart to both display.
+const MIN_LABEL_SPACING = 4;
 
 // Epsilon for floating point comparison tolerance
 const EPSILON = 0.001;
@@ -59,10 +61,15 @@ const visibleEvents = computed<EnrichedEvent[]>(() => {
   // Sort by year to evaluate label spacing left-to-right
   filtered.sort((a, b) => a.year - b.year);
 
+  const sliderPercent =
+    props.sliderYear !== undefined ? getPositionPercent(props.sliderYear) : null;
+
   let lastShownPercent = -Infinity;
   for (const event of filtered) {
     const percent = getPositionPercent(event.year);
-    if (percent - lastShownPercent >= MIN_LABEL_SPACING - EPSILON) {
+    const tooCloseToSlider =
+      sliderPercent !== null && Math.abs(percent - sliderPercent) < MIN_LABEL_SPACING;
+    if (!tooCloseToSlider && percent - lastShownPercent >= MIN_LABEL_SPACING - EPSILON) {
       event._showLabel = true;
       lastShownPercent = percent;
     }

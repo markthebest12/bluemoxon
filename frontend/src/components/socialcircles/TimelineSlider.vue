@@ -120,7 +120,7 @@ function handlePlay() {
           aria-label="Timeline year selector"
           @change="updateYear(localYear)"
         />
-        <TimelineMarkers :min-year="minYear" :max-year="maxYear" />
+        <TimelineMarkers :min-year="minYear" :max-year="maxYear" :slider-year="localYear" />
       </div>
       <span class="timeline-slider__label">{{ maxYear }}</span>
     </div>
