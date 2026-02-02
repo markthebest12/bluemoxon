@@ -80,6 +80,7 @@ const {
   // Data
   nodes,
   edges,
+  filterPassedNodes,
   filteredNodes,
   filteredEdges,
   meta,
@@ -231,6 +232,13 @@ function handleSearchSelect(node: { id: string }) {
   // even when the node is not in the current filtered view.
   analytics.trackSearch(preSelectSearchQuery.value, resultCount);
 
+  // Skip hub escalation if node is excluded by user filters (type, era, timeline)
+  const passesUserFilters = filterPassedNodes.value.some((n) => n.id === node.id);
+  if (!passesUserFilters) {
+    showToastMessage("Node hidden by active filters");
+    return;
+  }
+
   // Auto-reveal searched node if not in current hub view
   if (!hubMode.isFullyExpanded.value) {
     const nodeInFiltered = filteredNodes.value.some((n) => n.id === node.id);
@@ -240,7 +248,6 @@ function handleSearchSelect(node: { id: string }) {
       // If still not visible after expand, escalate to full view
       if (!filteredNodes.value.some((n) => n.id === node.id)) {
         hubMode.showMore();
-        // Only escalate to full if node still not visible after first expansion
         if (!filteredNodes.value.some((n) => n.id === node.id)) {
           hubMode.showMore();
         }
