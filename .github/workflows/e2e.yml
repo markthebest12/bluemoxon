@@ -73,6 +73,9 @@ jobs:
               - 'frontend/index.html'
               - 'frontend/src/App.vue'
               - 'frontend/src/components/layout/NavBar.vue'
+              - 'frontend/src/assets/main.css'
+              - 'frontend/src/composables/useTheme.ts'
+              - 'frontend/src/views/HomeView.vue'
               - 'frontend/e2e/app-shell.spec.ts'
 
   smoke:
