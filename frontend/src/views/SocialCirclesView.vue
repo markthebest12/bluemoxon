@@ -704,7 +704,9 @@ onUnmounted(() => {
             <ShowMoreButton
               :status-text="hubMode.statusText.value"
               :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
+              @show-less="hubMode.showLess"
             />
           </div>
         </div>
@@ -822,7 +824,9 @@ onUnmounted(() => {
             <ShowMoreButton
               :status-text="hubMode.statusText.value"
               :is-fully-expanded="hubMode.isFullyExpanded.value"
+              :can-show-less="hubMode.canShowLess.value"
               @show-more="hubMode.showMore"
+              @show-less="hubMode.showLess"
             />
           </div>
         </div>
