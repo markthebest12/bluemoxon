@@ -481,10 +481,6 @@ const filterPills = computed(() =>
 // Handle node selection from graph (with toggle behavior)
 function handleNodeSelect(nodeId: string | null) {
   if (nodeId) {
-    // Expand hub neighborhood on node click for progressive disclosure
-    if (!hubMode.isFullyExpanded.value) {
-      hubMode.expandNode(nodeId as NodeId);
-    }
     toggleSelectNode(nodeId);
     // Only track if the panel was opened (not toggled closed)
     if (isPanelOpen.value) {
