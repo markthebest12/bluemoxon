@@ -28,6 +28,7 @@ interface Props {
   selectedEdge?: { id: string } | null;
   highlightedNodes?: string[];
   highlightedEdges?: string[];
+  preservePositions?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
   selectedEdge: null,
   highlightedNodes: () => [],
   highlightedEdges: () => [],
+  preservePositions: false,
 });
 
 // Emits
@@ -238,6 +240,9 @@ onUnmounted(() => {
 // Track element IDs to avoid unnecessary re-layouts (using Set for O(n) lookup)
 let lastElementIds = new Set<string>();
 
+// Cache node positions before re-layout for "show less" restoration
+let positionCache = new Map<string, { x: number; y: number }>();
+
 // Watch elements for filter changes - only re-layout if elements actually changed
 watch(
   () => props.elements,
@@ -255,13 +260,36 @@ watch(
 
     if (!idsChanged) return; // Skip if same elements
 
+    // Cache current positions before removing elements
+    if (cy.value.nodes().length > 0) {
+      positionCache = new Map(
+        cy.value.nodes().map((n) => [n.id(), { ...n.position() }])
+      );
+    }
+
+    // Use preserved positions when parent signals hub-level decrease
+    const usePreset = props.preservePositions && positionCache.size > 0;
+
     lastElementIds = newIdSet;
 
     cy.value.batch(() => {
       cy.value!.elements().remove();
       cy.value!.add(newElements);
     });
-    cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
+
+    if (usePreset) {
+      // Restore cached positions for remaining nodes (deterministic reversal)
+      cy.value
+        .layout({
+          name: "preset",
+          positions: (node: { id: () => string }) => positionCache.get(node.id()),
+          fit: true,
+          padding: (LAYOUT_CONFIGS.force as Record<string, unknown>).padding as number ?? 80,
+        } as LayoutOptions)
+        .run();
+    } else {
+      cy.value.layout(LAYOUT_CONFIGS.force as LayoutOptions).run();
+    }
   },
   // flush: "post" ensures DOM is ready; deep: true is defensive in case elements
   // are ever mutated in-place (currently they're replaced via computed)
