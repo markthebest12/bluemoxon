@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      # PAT requires: fine-grained token scoped to this repo with contents:write
+      # Needed to push Uplift's version commit and tag past branch protection
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
