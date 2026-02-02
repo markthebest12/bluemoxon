@@ -173,6 +173,18 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     }
   }
 
+  // "Show less" level transition (deterministic reversal)
+  function showLess() {
+    if (hubLevel.value === "full") {
+      hubLevel.value = "medium";
+    } else if (hubLevel.value === "medium") {
+      hubLevel.value = "compact";
+    }
+    // Clear manually expanded nodes so user gets the exact hub set for this level
+    manuallyAddedNodes.value = new Set();
+    expandedNodes.value = new Set();
+  }
+
   // Initialize (called on mount)
   function initializeHubs() {
     hubLevel.value = "compact";
@@ -190,6 +202,8 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
 
   const isFullyExpanded = computed(() => hubLevel.value === "full");
 
+  const canShowLess = computed(() => hubLevel.value !== "compact");
+
   return {
     // State
     hubLevel,
@@ -198,12 +212,14 @@ export function useHubMode(allNodes: Ref<ApiNode[]>, allEdges: Ref<ApiEdge[]>) {
     visibleNodeIds,
     statusText,
     isFullyExpanded,
+    canShowLess,
 
     // Actions
     initializeHubs,
     expandNode,
     expandMore,
     showMore,
+    showLess,
     hiddenNeighborCount,
     hiddenNeighborCounts,
     isExpanded,
