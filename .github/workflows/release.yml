@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Skip if this is an Uplift release commit
+    if: "!startsWith(github.event.head_commit.message, 'ci(release):')"
+    permissions:
+      contents: write
+    steps:
+      # PAT requires: fine-grained token scoped to this repo with contents:write
+      # Needed to push Uplift's version commit and tag past branch protection
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT }}
+
+      - name: Release
+        uses: gembaadvantage/uplift-action@0d28005618a55f97d0bb9253329383720d3e9031 # v2
+        with:
+          args: release
+          version: 'v2.26.0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
