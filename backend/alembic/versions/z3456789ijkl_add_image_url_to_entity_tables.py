@@ -1,7 +1,7 @@
 """Add image_url to entity tables (authors, publishers, binders).
 
 Revision ID: z3456789ijkl
-Revises: z2345678ghij
+Revises: h8i9j0k1l2m3
 Create Date: 2026-02-02
 
 Issue #1632: Add image_url column to entity tables for portrait images.
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "z3456789ijkl"
-down_revision: str | None = "z2345678ghij"
+down_revision: str | None = "h8i9j0k1l2m3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
