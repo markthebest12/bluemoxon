@@ -4,7 +4,7 @@ import KeyConnections from "../KeyConnections.vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 
 const connWithStory: ProfileConnection = {
-  entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning" },
+  entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning", image_url: null },
   connection_type: "literary_associate",
   strength: 8,
   shared_book_count: 3,
@@ -28,7 +28,7 @@ const connWithStory: ProfileConnection = {
 };
 
 const connWithoutStory: ProfileConnection = {
-  entity: { id: 7, type: "publisher", name: "Smith, Elder & Co." },
+  entity: { id: 7, type: "publisher", name: "Smith, Elder & Co.", image_url: null },
   connection_type: "publisher",
   strength: 6,
   shared_book_count: 5,
@@ -103,7 +103,7 @@ describe("KeyConnections", () => {
       props: {
         connections: [
           {
-            entity: { id: 31, type: "author", name: "EBB" },
+            entity: { id: 31, type: "author", name: "EBB", image_url: null },
             connection_type: "shared_publisher",
             strength: 5,
             shared_book_count: 1,

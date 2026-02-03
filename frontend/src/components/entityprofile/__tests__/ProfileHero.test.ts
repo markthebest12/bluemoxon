@@ -12,6 +12,7 @@ const mockAuthor: ProfileEntity = {
   death_year: 1861,
   era: "romantic",
   tier: "TIER_1",
+  image_url: null,
 };
 
 const mockProfile: ProfileData = {
@@ -91,6 +92,7 @@ describe("ProfileHero", () => {
       name: "Smith, Elder & Co.",
       founded_year: 1816,
       tier: "TIER_1",
+      image_url: null,
     };
     const wrapper = mount(ProfileHero, {
       props: { entity: publisher, profile: null },
