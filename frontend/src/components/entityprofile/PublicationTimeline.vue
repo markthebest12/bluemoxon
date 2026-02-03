@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { ProfileBook } from "@/types/entityProfile";
+import ConditionBadge from "./ConditionBadge.vue";
 import { bookDetailRoute } from "@/utils/routes";
 
 const props = defineProps<{
@@ -86,8 +87,18 @@ function navigateToBook(bookId: number) {
         class="publication-timeline__tooltip"
         :style="{ left: tooltipX + 'px' }"
       >
-        {{ hoveredBook.title }}
-        <span v-if="hoveredBook.year"> ({{ hoveredBook.year }})</span>
+        <img
+          v-if="hoveredBook.primary_image_url"
+          :src="hoveredBook.primary_image_url"
+          :alt="hoveredBook.title"
+          class="publication-timeline__tooltip-thumb"
+          data-testid="tooltip-thumbnail"
+        />
+        <div class="publication-timeline__tooltip-text">
+          {{ hoveredBook.title }}
+          <span v-if="hoveredBook.year"> ({{ hoveredBook.year }})</span>
+          <ConditionBadge v-if="hoveredBook.condition" :condition="hoveredBook.condition" />
+        </div>
       </div>
     </div>
   </section>
@@ -137,15 +148,32 @@ function navigateToBook(bookId: number) {
 
 .publication-timeline__tooltip {
   position: absolute;
-  top: -30px;
+  bottom: calc(100% + 8px);
   transform: translateX(-50%);
-  padding: 4px 8px;
+  padding: 6px 8px;
   background: var(--color-text, #2c2420);
   color: #fff;
   font-size: 12px;
   border-radius: 4px;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  max-width: 160px;
   pointer-events: none;
+}
+
+.publication-timeline__tooltip-thumb {
+  width: 40px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.publication-timeline__tooltip-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 @media (max-width: 768px) {
