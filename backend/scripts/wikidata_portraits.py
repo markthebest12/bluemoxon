@@ -561,6 +561,11 @@ def main():
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--skip-nls",
+        action="store_true",
+        help="Skip NLS historical map fallback for unmatched publishers/binders",
+    )
 
     args = parser.parse_args()
 
@@ -616,6 +621,36 @@ def main():
                     results.append(result)
                     print(json.dumps(result))
                     time.sleep(WIKIDATA_REQUEST_INTERVAL)
+
+            # NLS map fallback for unmatched publishers/binders
+            if not args.skip_nls and etype in ("publisher", "binder"):
+                unmatched_statuses = {"no_results", "below_threshold", "no_portrait"}
+                unmatched = [
+                    r
+                    for r in results
+                    if r["entity_type"] == etype and r["status"] in unmatched_statuses
+                ]
+                if unmatched:
+                    logger.info(
+                        "Running NLS map fallback for %d unmatched %ss",
+                        len(unmatched),
+                        etype,
+                    )
+                    from scripts.nls_map_fallback import process_nls_fallback
+
+                    # Build lookup of unmatched entity IDs
+                    unmatched_ids = {r["entity_id"] for r in unmatched}
+
+                    # Re-query entities for unmatched IDs
+                    model_cls = Publisher if etype == "publisher" else Binder
+                    nls_entities = db.query(model_cls).filter(model_cls.id.in_(unmatched_ids)).all()
+
+                    for nls_entity in nls_entities:
+                        nls_result = process_nls_fallback(
+                            db, nls_entity, etype, args.dry_run, settings
+                        )
+                        results.append(nls_result)
+                        print(json.dumps(nls_result))
 
         # Summary to stderr
         total = len(results)
