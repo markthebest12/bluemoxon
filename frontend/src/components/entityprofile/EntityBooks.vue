@@ -20,7 +20,7 @@ const visibleBooks = computed(() => {
 </script>
 
 <template>
-  <section class="entity-books">
+  <section class="entity-books" data-testid="entity-books">
     <h2 class="entity-books__title">Books in Collection ({{ books.length }})</h2>
     <div class="entity-books__list">
       <router-link

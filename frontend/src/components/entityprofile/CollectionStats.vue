@@ -25,7 +25,7 @@ const isSingleCondition = computed(() => conditionEntries.value.length === 1);
 </script>
 
 <template>
-  <section class="collection-stats">
+  <section class="collection-stats" data-testid="collection-stats">
     <h2 class="collection-stats__title">Collection Stats</h2>
     <dl class="collection-stats__grid">
       <div class="collection-stats__item">
