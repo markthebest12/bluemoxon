@@ -47,6 +47,7 @@ class ProfileEntity(BaseModel):
     closed_year: int | None = None
     era: str | None = None
     tier: str | None = None
+    image_url: str | None = None
 
 
 class ProfileData(BaseModel):

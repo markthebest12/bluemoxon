@@ -22,6 +22,7 @@ class Author(Base):
     priority_score: Mapped[int] = mapped_column(Integer, default=0)
     tier: Mapped[str | None] = mapped_column(String(10))  # TIER_1, TIER_2, TIER_3
     preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500))
 
     # Relationships
     books = relationship("Book", back_populates="author")

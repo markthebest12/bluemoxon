@@ -673,6 +673,14 @@ MIGRATION_H8I9J0K1L2M3_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_profile_generation_jobs_status ON profile_generation_jobs (status)",
 ]
 
+# Migration SQL for z3456789ijkl_add_image_url_to_entity_tables
+# Adds image_url column to authors, publishers, binders for portrait images (#1632)
+MIGRATION_Z3456789IJKL_SQL = [
+    "ALTER TABLE authors ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+    "ALTER TABLE publishers ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+    "ALTER TABLE binders ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -919,5 +927,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "h8i9j0k1l2m3",
         "name": "add_profile_generation_jobs",
         "sql_statements": MIGRATION_H8I9J0K1L2M3_SQL,
+    },
+    {
+        "id": "z3456789ijkl",
+        "name": "add_image_url_to_entity_tables",
+        "sql_statements": MIGRATION_Z3456789IJKL_SQL,
     },
 ]

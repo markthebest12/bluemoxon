@@ -101,6 +101,7 @@ def _build_profile_entity(entity: Author | Publisher | Binder, entity_type: str)
         closed_year=getattr(entity, "closed_year", None),
         era=getattr(entity, "era", None),
         tier=getattr(entity, "tier", None),
+        image_url=getattr(entity, "image_url", None),
     )
 
 
