@@ -425,6 +425,48 @@ class TestEntityProfileEndpoint:
         assert data["stats"]["first_editions"] == 1
         assert data["stats"]["date_range"] == [1850, 1870]
 
+    def test_cached_profile_visible_across_owner_ids(self, profile_client, db):
+        """Cached profile created by userA is visible when read by userB (#1715).
+
+        Profiles are per-entity, not per-user. When a profile is generated via
+        API key (one owner_id) but read via Cognito browser login (different
+        owner_id), the cached bio_summary must still be returned.
+        """
+        author = Author(name="Cross-Owner Author", birth_year=1800, death_year=1870)
+        db.add(author)
+        db.flush()
+
+        # Create a separate user (userA) who "generated" the profile
+        user_a = User(cognito_sub="test-owner-a", email="owner-a@example.com", role="editor")
+        db.add(user_a)
+        db.flush()
+
+        # Cache a profile under userA's owner_id
+        cached_profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user_a.id,
+            bio_summary="A distinguished Victorian author.",
+            personal_stories=[
+                {
+                    "title": "Early life",
+                    "text": "Born in 1800.",
+                    "significance": "context",
+                    "tone": "intellectual",
+                }
+            ],
+        )
+        db.add(cached_profile)
+        db.commit()
+
+        # Request as profile_client's user (userB — different owner_id)
+        response = profile_client.get(f"/api/v1/entity/author/{author.id}/profile")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["profile"]["bio_summary"] == "A distinguished Victorian author."
+        assert len(data["profile"]["personal_stories"]) == 1
+
     def test_requires_authentication(self, unauthenticated_client, db):
         """Endpoint requires authentication."""
         response = unauthenticated_client.get("/api/v1/entity/author/1/profile")
@@ -1288,6 +1330,48 @@ class TestGenerateAndCacheProfileTriggers:
         # Existing story is preserved (merged, not overwritten)
         assert "author:1:binder:99" in result.relationship_stories
         assert result.relationship_stories["author:1:binder:99"]["summary"] == "Existing story"
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.generate_bio_and_stories")
+    @patch("app.services.entity_profile.classify_connection")
+    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    def test_null_bio_from_ai_logs_warning_and_creates_profile(
+        self, _mock_model, mock_classify, mock_bio, mock_graph, db, caplog
+    ):
+        """AI returning null biography logs a warning but still creates profile (#1717).
+
+        generate_bio_and_stories can return {"biography": None}. The service
+        should log a warning and still persist the profile (with bio_summary=None).
+        """
+        import logging
+
+        user = User(cognito_sub="test-null-bio", email="null-bio@example.com", role="editor")
+        db.add(user)
+        db.flush()
+        author = Author(name="Null Bio Author")
+        db.add(author)
+        db.flush()
+        db.commit()
+
+        mock_bio.return_value = {"biography": None, "personal_stories": []}
+        mock_classify.return_value = None
+
+        source = _make_graph_node("author:1", author.id, "Null Bio Author")
+        graph = MagicMock()
+        graph.nodes = [source]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        with caplog.at_level(logging.WARNING, logger="app.services.entity_profile"):
+            result = generate_and_cache_profile(db, "author", author.id, user.id)
+
+        # Profile is created successfully with None bio
+        assert result is not None
+        assert result.bio_summary is None
+        assert result.personal_stories == []
+
+        # Warning was logged
+        assert any("empty biography" in record.message for record in caplog.records)
 
 
 @pytest.fixture(scope="function")
