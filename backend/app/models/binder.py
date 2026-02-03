@@ -17,6 +17,7 @@ class Binder(Base):
     full_name: Mapped[str | None] = mapped_column(String(200))
     authentication_markers: Mapped[str | None] = mapped_column(Text)
     preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500))
     founded_year: Mapped[int | None] = mapped_column(Integer)
     closed_year: Mapped[int | None] = mapped_column(Integer)  # null if still operating
 
