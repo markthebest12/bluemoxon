@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file.
 This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
-## v3.0.1 - Bootstrap Release
+## Unreleased
+
+## [v3.0.1] - 2026-02-02
 
 Version 3.0.1 is the first semantically versioned release. Prior versions used
 date-based tags (`vYYYY.MM.DD-<sha>`). The version number reflects the maturity
