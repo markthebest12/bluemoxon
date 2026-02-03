@@ -1,7 +1,7 @@
 """Tests for entity profile endpoint."""
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +17,7 @@ from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
 from app.services.entity_profile import (
     _build_connections,
+    _build_stats,
     _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
@@ -1342,3 +1343,92 @@ class TestCancelJob:
         """Viewer auth gets 403 on cancel endpoint (require_admin)."""
         response = viewer_client.post("/api/v1/entity/profiles/generate-all/some-job-id/cancel")
         assert response.status_code == 403
+
+
+class TestBuildStatsAggregation:
+    """Tests for _build_stats condition_distribution and acquisition_by_year (#1633)."""
+
+    def _make_book(self, **kwargs):
+        """Create a Book with sensible defaults for stats testing."""
+        defaults = {
+            "title": "Test Book",
+            "status": "ON_HAND",
+            "year_start": None,
+            "value_mid": None,
+            "is_first_edition": False,
+            "condition_grade": None,
+            "purchase_date": None,
+        }
+        defaults.update(kwargs)
+        return Book(**defaults)
+
+    def test_mixed_conditions(self, db):
+        """Books with varied condition grades produce correct counts per grade."""
+        books = [
+            self._make_book(title="Fine Book", condition_grade="FINE"),
+            self._make_book(title="Near Fine Book", condition_grade="NEAR_FINE"),
+            self._make_book(title="VG Book 1", condition_grade="VERY_GOOD"),
+            self._make_book(title="VG Book 2", condition_grade="VERY_GOOD"),
+            self._make_book(title="Good Book", condition_grade="GOOD"),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.condition_distribution == {
+            "FINE": 1,
+            "NEAR_FINE": 1,
+            "VERY_GOOD": 2,
+            "GOOD": 1,
+        }
+
+    def test_null_conditions_counted_as_ungraded(self, db):
+        """Books with null condition_grade are counted as 'UNGRADED'."""
+        books = [
+            self._make_book(title="Graded", condition_grade="FINE"),
+            self._make_book(title="Ungraded 1", condition_grade=None),
+            self._make_book(title="Ungraded 2", condition_grade=None),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.condition_distribution == {
+            "FINE": 1,
+            "UNGRADED": 2,
+        }
+
+    def test_acquisition_by_year(self, db):
+        """Books with varied purchase_date values produce correct year grouping."""
+        books = [
+            self._make_book(title="Book 2020", purchase_date=date(2020, 3, 15)),
+            self._make_book(title="Book 2020b", purchase_date=date(2020, 11, 1)),
+            self._make_book(title="Book 2021", purchase_date=date(2021, 6, 20)),
+            self._make_book(title="Book 2023", purchase_date=date(2023, 1, 5)),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.acquisition_by_year == {
+            2020: 2,
+            2021: 1,
+            2023: 1,
+        }
+
+    def test_empty_books_returns_empty_dicts(self, db):
+        """Empty book list produces empty dicts for both new fields."""
+        stats = _build_stats([])
+
+        assert stats.condition_distribution == {}
+        assert stats.acquisition_by_year == {}
+
+    def test_no_acquisition_dates_returns_empty_dict(self, db):
+        """Books all without purchase_date produce empty acquisition_by_year."""
+        books = [
+            self._make_book(title="No Date 1", condition_grade="FINE"),
+            self._make_book(title="No Date 2", condition_grade="GOOD"),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.acquisition_by_year == {}
+        # condition_distribution should still be populated
+        assert stats.condition_distribution == {"FINE": 1, "GOOD": 1}

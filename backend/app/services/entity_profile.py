@@ -126,11 +126,27 @@ def _build_stats(books: list[Book]) -> ProfileStats:
     years = [b.year_start for b in books if b.year_start]
     values = [float(b.value_mid) for b in books if b.value_mid is not None]
 
+    # Condition distribution: count books per condition grade
+    condition_distribution: dict[str, int] = {}
+    for b in books:
+        grade = b.condition_grade if b.condition_grade else "UNGRADED"
+        condition_distribution[grade] = condition_distribution.get(grade, 0) + 1
+
+    # Acquisition by year: count books per purchase year, sorted ascending
+    acquisition_by_year: dict[int, int] = {}
+    for b in books:
+        if b.purchase_date:
+            yr = b.purchase_date.year
+            acquisition_by_year[yr] = acquisition_by_year.get(yr, 0) + 1
+    acquisition_by_year = dict(sorted(acquisition_by_year.items()))
+
     return ProfileStats(
         total_books=len(books),
         total_estimated_value=sum(values) if values else None,
         first_editions=sum(1 for b in books if b.is_first_edition),
         date_range=[min(years), max(years)] if years else [],
+        condition_distribution=condition_distribution,
+        acquisition_by_year=acquisition_by_year,
     )
 
 
