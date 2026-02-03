@@ -116,7 +116,7 @@ class TestWorksOverlap:
 
     def test_no_overlap(self):
         """No shared titles -> 0.0."""
-        score = works_overlap(["Book A"], ["Book B"])
+        score = works_overlap(["Oliver Twist"], ["Great Expectations"])
         assert score == 0.0
 
     def test_empty_lists(self):
@@ -138,20 +138,20 @@ class TestOccupationMatch:
     """Test occupation_match function."""
 
     def test_writer_occupation(self):
-        """Writer occupation -> 0.3 bonus."""
-        assert occupation_match(["writer"]) == 0.3
+        """Writer occupation -> 1.0 (weight controls contribution)."""
+        assert occupation_match(["writer"]) == 1.0
 
     def test_novelist_occupation(self):
-        """Novelist occupation -> 0.3 bonus."""
-        assert occupation_match(["novelist"]) == 0.3
+        """Novelist occupation -> 1.0."""
+        assert occupation_match(["novelist"]) == 1.0
 
     def test_publisher_occupation(self):
-        """Publisher occupation -> 0.3 bonus."""
-        assert occupation_match(["publisher"]) == 0.3
+        """Publisher occupation -> 1.0."""
+        assert occupation_match(["publisher"]) == 1.0
 
     def test_bookbinder_occupation(self):
-        """Bookbinder occupation -> 0.3 bonus."""
-        assert occupation_match(["bookbinder"]) == 0.3
+        """Bookbinder occupation -> 1.0."""
+        assert occupation_match(["bookbinder"]) == 1.0
 
     def test_irrelevant_occupation(self):
         """Irrelevant occupation -> 0.0."""
@@ -162,8 +162,8 @@ class TestOccupationMatch:
         assert occupation_match([]) == 0.0
 
     def test_mixed_occupations(self):
-        """Mix of relevant and irrelevant -> 0.3."""
-        assert occupation_match(["politician", "novelist"]) == 0.3
+        """Mix of relevant and irrelevant -> 1.0."""
+        assert occupation_match(["politician", "novelist"]) == 1.0
 
 
 # --- Combined scoring tests ---

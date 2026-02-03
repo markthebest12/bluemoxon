@@ -11,6 +11,7 @@ Usage:
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --dry-run
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --threshold 0.8
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --entity-type author
+    cd backend && poetry run python -m scripts.wikidata_portraits --env staging --entity-type author --entity-id 31 --entity-id 227
 """
 
 # ruff: noqa: T201
@@ -24,7 +25,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import requests
 from PIL import Image, ImageOps
@@ -210,7 +211,8 @@ def download_portrait(image_url: str) -> bytes | None:
         Image bytes or None on failure.
     """
     filename = extract_filename_from_commons_url(image_url)
-    url = COMMONS_FILE_URL.format(filename=quote(filename, safe=""))
+    # Decode first to avoid double-encoding (Wikidata returns pre-encoded URLs)
+    url = COMMONS_FILE_URL.format(filename=quote(unquote(filename), safe=""))
 
     try:
         resp = requests.get(
@@ -557,6 +559,12 @@ def main():
         help="Process only this entity type (default: all)",
     )
     parser.add_argument(
+        "--entity-id",
+        type=int,
+        action="append",
+        help="Process only this entity ID (requires --entity-type). Can be repeated.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable debug logging",
@@ -568,6 +576,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.entity_id and not args.entity_type:
+        parser.error("--entity-id requires --entity-type")
 
     # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
@@ -589,7 +600,10 @@ def main():
 
         for etype in entity_types:
             if etype == "author":
-                entities = db.query(Author).all()
+                query = db.query(Author)
+                if args.entity_id:
+                    query = query.filter(Author.id.in_(args.entity_id))
+                entities = query.all()
                 logger.info("Processing %d authors", len(entities))
                 for entity in entities:
                     result = process_person_entity(
@@ -601,7 +615,10 @@ def main():
                     time.sleep(WIKIDATA_REQUEST_INTERVAL)
 
             elif etype == "publisher":
-                entities = db.query(Publisher).all()
+                query = db.query(Publisher)
+                if args.entity_id:
+                    query = query.filter(Publisher.id.in_(args.entity_id))
+                entities = query.all()
                 logger.info("Processing %d publishers", len(entities))
                 for entity in entities:
                     result = process_publisher_entity(
@@ -612,7 +629,10 @@ def main():
                     time.sleep(WIKIDATA_REQUEST_INTERVAL)
 
             elif etype == "binder":
-                entities = db.query(Binder).all()
+                query = db.query(Binder)
+                if args.entity_id:
+                    query = query.filter(Binder.id.in_(args.entity_id))
+                entities = query.all()
                 logger.info("Processing %d binders", len(entities))
                 for entity in entities:
                     result = process_person_entity(
