@@ -74,4 +74,52 @@ describe("parseEntityMarkers", () => {
     // Should not have empty text segments between markers
     expect(result.every((s) => s.type === "link" || s.content !== "")).toBe(true);
   });
+
+  it("handles marker without entity: prefix", () => {
+    const result = parseEntityMarkers("Bound by {{binder:4|Bayntun}} in leather.");
+    expect(result).toEqual([
+      { type: "text", content: "Bound by " },
+      { type: "link", entityType: "binder", entityId: 4, displayName: "Bayntun" },
+      { type: "text", content: " in leather." },
+    ]);
+  });
+
+  it("strips marker with missing ID as plain text", () => {
+    const result = parseEntityMarkers("Bound by {{entity:binder|Rivière & Son}} in leather.");
+    expect(result[0]).toEqual({ type: "text", content: "Bound by " });
+    expect(result[1]).toEqual({ type: "text", content: "Rivière & Son" });
+    expect(result[2]).toEqual({ type: "text", content: " in leather." });
+  });
+
+  it("strips bare name marker as plain text", () => {
+    const result = parseEntityMarkers("Met {{Elizabeth Barrett Browning}} at a salon.");
+    expect(result[0]).toEqual({ type: "text", content: "Met " });
+    expect(result[1]).toEqual({ type: "text", content: "Elizabeth Barrett Browning" });
+    expect(result[2]).toEqual({ type: "text", content: " at a salon." });
+  });
+
+  it("handles mixed valid and malformed markers", () => {
+    const text =
+      "{{entity:author:32|Robert Browning}} knew {{Elizabeth Barrett Browning}} and published with {{publisher:7|Smith, Elder & Co.}}.";
+    const result = parseEntityMarkers(text);
+    // First should be a link (canonical format)
+    expect(result[0]).toEqual({
+      type: "link",
+      entityType: "author",
+      entityId: 32,
+      displayName: "Robert Browning",
+    });
+    // Second should be plain text (bare name, malformed)
+    expect(result[1]).toEqual({ type: "text", content: " knew " });
+    expect(result[2]).toEqual({ type: "text", content: "Elizabeth Barrett Browning" });
+    // Third should be a link (TYPE:ID|Name without entity: prefix)
+    expect(result[3]).toEqual({ type: "text", content: " and published with " });
+    expect(result[4]).toEqual({
+      type: "link",
+      entityType: "publisher",
+      entityId: 7,
+      displayName: "Smith, Elder & Co.",
+    });
+    expect(result[5]).toEqual({ type: "text", content: "." });
+  });
 });
