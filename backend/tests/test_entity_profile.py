@@ -11,12 +11,14 @@ from fastapi.testclient import TestClient
 from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
-from app.models import Author, Binder, Book, Publisher
+from app.models import Author, Binder, Book, BookImage, Publisher
 from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
+from app.schemas.entity_profile import ProfileBook
 from app.services.entity_profile import (
     _build_connections,
+    _build_profile_books,
     _build_stats,
     _check_staleness,
     _get_entity_books,
@@ -27,6 +29,165 @@ from app.services.entity_profile import (
 # (User creation, CurrentUser mock, get_db override). A factory extraction was
 # considered but deferred — SQLAlchemy session scoping requires the User and
 # db override to live in the fixture scope to avoid DetachedInstanceError.
+
+
+class TestProfileBookImageUrl:
+    """Tests for primary_image_url in ProfileBook (#1634)."""
+
+    def test_schema_accepts_primary_image_url(self):
+        """ProfileBook schema accepts and serializes primary_image_url."""
+        book = ProfileBook(
+            id=1,
+            title="Test Book",
+            year=1850,
+            primary_image_url="/api/v1/books/1/images/10/file",
+        )
+        assert book.primary_image_url == "/api/v1/books/1/images/10/file"
+
+    def test_schema_defaults_primary_image_url_to_none(self):
+        """ProfileBook schema defaults primary_image_url to None."""
+        book = ProfileBook(id=1, title="Test Book")
+        assert book.primary_image_url is None
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_with_primary_image(self, mock_settings, db):
+        """_build_profile_books returns primary_image_url for books with images."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        author = Author(name="Image Test Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(
+            title="Book With Image",
+            author_id=author.id,
+            status="ON_HAND",
+            year_start=1860,
+        )
+        db.add(book)
+        db.flush()
+
+        image = BookImage(
+            book_id=book.id,
+            s3_key="test_image.jpg",
+            display_order=0,
+            is_primary=True,
+        )
+        db.add(image)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert len(result) == 1
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{image.id}/file"
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_without_images(self, mock_settings, db):
+        """_build_profile_books returns None for primary_image_url when no images."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        author = Author(name="No Image Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(
+            title="Book Without Image",
+            author_id=author.id,
+            status="ON_HAND",
+        )
+        db.add(book)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert len(result) == 1
+        assert result[0].primary_image_url is None
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_prefers_primary_image(self, mock_settings, db):
+        """_build_profile_books uses is_primary=True image over display_order."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        book = Book(title="Multi Image Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        # Non-primary image with lower display_order
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="first.jpg",
+            display_order=0,
+            is_primary=False,
+        )
+        # Primary image with higher display_order
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="primary.jpg",
+            display_order=1,
+            is_primary=True,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{img2.id}/file"
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_falls_back_to_first_by_display_order(self, mock_settings, db):
+        """Without is_primary, uses first image by display_order."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        book = Book(title="Fallback Image Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="second.jpg",
+            display_order=1,
+            is_primary=False,
+        )
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="first.jpg",
+            display_order=0,
+            is_primary=False,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        # Should pick img2 (display_order=0)
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{img2.id}/file"
+
+    @patch("app.services.entity_profile.get_cloudfront_url")
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_uses_cloudfront_in_lambda(self, mock_settings, mock_cf_url, db):
+        """_build_profile_books uses CloudFront URL when running in Lambda."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=True)
+        mock_cf_url.return_value = "https://cdn.example.com/books/test_image.jpg"
+
+        book = Book(title="Lambda Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        image = BookImage(
+            book_id=book.id,
+            s3_key="test_image.jpg",
+            display_order=0,
+            is_primary=True,
+        )
+        db.add(image)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert result[0].primary_image_url == "https://cdn.example.com/books/test_image.jpg"
+        mock_cf_url.assert_called_once_with("test_image.jpg")
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_empty_list(self, mock_settings, db):
+        """_build_profile_books handles empty list."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+        result = _build_profile_books(db, [])
+        assert result == []
 
 
 @pytest.fixture(scope="function")

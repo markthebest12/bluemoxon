@@ -67,6 +67,7 @@ class ProfileBook(BaseModel):
     year: int | None = None
     condition: str | None = None
     edition: str | None = None
+    primary_image_url: str | None = None
 
 
 class ProfileConnection(BaseModel):
