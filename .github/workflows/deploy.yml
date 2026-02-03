@@ -444,6 +444,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      docker_tag: ${{ steps.version.outputs.docker_tag }}
       short_sha: ${{ steps.version.outputs.short_sha }}
       deployed_at: ${{ steps.version.outputs.deployed_at }}
     steps:
@@ -467,8 +468,13 @@ jobs:
             VERSION="${PYPROJECT_VERSION}+${SHORT_SHA}"
           fi
 
+          # Docker tags don't support '+' (semver build metadata separator)
+          DOCKER_TAG="${VERSION//+/-}"
+
           echo "Generated version: $VERSION"
+          echo "Docker tag: $DOCKER_TAG"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "docker_tag=$DOCKER_TAG" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "deployed_at=$DEPLOYED_AT" >> $GITHUB_OUTPUT
 
@@ -689,7 +695,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ needs.configure.outputs.scraper_ecr_repository }}
-          IMAGE_TAG: ${{ needs.generate-version.outputs.version }}
+          IMAGE_TAG: ${{ needs.generate-version.outputs.docker_tag }}
         working-directory: scraper
         run: |
           docker build \
@@ -812,7 +818,7 @@ jobs:
         id: build
         env:
           ECR_URL: ${{ needs.configure.outputs.image_processor_ecr_repository }}
-          IMAGE_TAG: ${{ needs.generate-version.outputs.version }}
+          IMAGE_TAG: ${{ needs.generate-version.outputs.docker_tag }}
         run: |
           IMAGE_URI="${ECR_URL}:${IMAGE_TAG}"
           echo "Building image: $IMAGE_URI"
@@ -1139,7 +1145,7 @@ jobs:
           SCRAPER_FUNCTION="${{ needs.configure.outputs.scraper_function_name }}"
           ECR_REPOSITORY="${{ needs.configure.outputs.scraper_ecr_repository }}"
           AWS_ACCOUNT="${{ needs.configure.outputs.aws_account_id }}"
-          IMAGE_TAG="${{ needs.generate-version.outputs.version }}"
+          IMAGE_TAG="${{ needs.generate-version.outputs.docker_tag }}"
           IMAGE_URI="${AWS_ACCOUNT}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
           echo "Deploying scraper Lambda: $SCRAPER_FUNCTION"
