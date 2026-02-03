@@ -402,13 +402,14 @@ def get_entity_profile(
 
     books = _get_entity_books(db, entity_type, entity_id)
 
-    # Fetch cached profile
+    # Fetch cached profile — profiles are per-entity, not per-user (#1715).
+    # owner_id is intentionally omitted so profiles generated via API key
+    # are visible to browser (Cognito) users and vice-versa.
     cached = (
         db.query(EntityProfile)
         .filter(
             EntityProfile.entity_type == entity_type,
             EntityProfile.entity_id == entity_id,
-            EntityProfile.owner_id == owner_id,
         )
         .first()
     )
@@ -489,6 +490,13 @@ def generate_and_cache_profile(
         book_titles=book_titles,
         connections=prompt_connections,
     )
+
+    if not bio_data.get("biography"):
+        logger.warning(
+            "AI generation returned empty biography for %s:%d",
+            entity_type,
+            entity_id,
+        )
 
     # Validate cross-link markers in bio and stories
     if bio_data.get("biography"):
