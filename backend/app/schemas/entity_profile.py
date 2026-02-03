@@ -90,6 +90,8 @@ class ProfileStats(BaseModel):
     total_estimated_value: float | None = None
     first_editions: int = 0
     date_range: list[int] = Field(default_factory=list)
+    condition_distribution: dict[str, int] = Field(default_factory=dict)
+    acquisition_by_year: dict[int, int] = Field(default_factory=dict)
 
 
 class EntityProfileResponse(BaseModel):
