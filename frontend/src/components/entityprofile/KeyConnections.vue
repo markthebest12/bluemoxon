@@ -2,6 +2,7 @@
 import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
+import ConditionBadge from "./ConditionBadge.vue";
 import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
 
 const props = defineProps<{
@@ -26,7 +27,7 @@ function isExpanded(conn: ProfileConnection): boolean {
 </script>
 
 <template>
-  <section class="key-connections">
+  <section class="key-connections" data-testid="key-connections">
     <h2 class="key-connections__title">Key Connections</h2>
     <div class="key-connections__list">
       <div
@@ -47,11 +48,20 @@ function isExpanded(conn: ProfileConnection): boolean {
           {{ conn.narrative }}
         </p>
         <ul v-if="conn.shared_books.length" class="key-connections__books">
-          <li v-for="book in conn.shared_books" :key="book.id">
+          <li v-for="book in conn.shared_books" :key="book.id" class="key-connections__book-item">
+            <img
+              v-if="book.primary_image_url"
+              :src="book.primary_image_url"
+              :alt="book.title"
+              loading="lazy"
+              class="key-connections__book-thumb"
+              data-testid="book-thumbnail"
+            />
             <router-link :to="bookDetailRoute(book.id)" class="key-connections__book-link">
               {{ book.title }}
             </router-link>
             <span v-if="book.year"> ({{ book.year }})</span>
+            <ConditionBadge v-if="book.condition" :condition="book.condition" />
           </li>
         </ul>
         <div class="key-connections__meta">
@@ -142,6 +152,20 @@ function isExpanded(conn: ProfileConnection): boolean {
   padding: 0;
   margin: 8px 0;
   font-size: 13px;
+}
+
+.key-connections__book-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-connections__book-thumb {
+  width: 32px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .key-connections__books li {

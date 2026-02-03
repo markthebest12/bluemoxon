@@ -1,7 +1,7 @@
 """Tests for entity profile endpoint."""
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,12 +11,15 @@ from fastapi.testclient import TestClient
 from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
-from app.models import Author, Binder, Book, Publisher
+from app.models import Author, Binder, Book, BookImage, Publisher
 from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
+from app.schemas.entity_profile import ProfileBook
 from app.services.entity_profile import (
     _build_connections,
+    _build_profile_books,
+    _build_stats,
     _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
@@ -26,6 +29,165 @@ from app.services.entity_profile import (
 # (User creation, CurrentUser mock, get_db override). A factory extraction was
 # considered but deferred — SQLAlchemy session scoping requires the User and
 # db override to live in the fixture scope to avoid DetachedInstanceError.
+
+
+class TestProfileBookImageUrl:
+    """Tests for primary_image_url in ProfileBook (#1634)."""
+
+    def test_schema_accepts_primary_image_url(self):
+        """ProfileBook schema accepts and serializes primary_image_url."""
+        book = ProfileBook(
+            id=1,
+            title="Test Book",
+            year=1850,
+            primary_image_url="/api/v1/books/1/images/10/file",
+        )
+        assert book.primary_image_url == "/api/v1/books/1/images/10/file"
+
+    def test_schema_defaults_primary_image_url_to_none(self):
+        """ProfileBook schema defaults primary_image_url to None."""
+        book = ProfileBook(id=1, title="Test Book")
+        assert book.primary_image_url is None
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_with_primary_image(self, mock_settings, db):
+        """_build_profile_books returns primary_image_url for books with images."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        author = Author(name="Image Test Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(
+            title="Book With Image",
+            author_id=author.id,
+            status="ON_HAND",
+            year_start=1860,
+        )
+        db.add(book)
+        db.flush()
+
+        image = BookImage(
+            book_id=book.id,
+            s3_key="test_image.jpg",
+            display_order=0,
+            is_primary=True,
+        )
+        db.add(image)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert len(result) == 1
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{image.id}/file"
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_without_images(self, mock_settings, db):
+        """_build_profile_books returns None for primary_image_url when no images."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        author = Author(name="No Image Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(
+            title="Book Without Image",
+            author_id=author.id,
+            status="ON_HAND",
+        )
+        db.add(book)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert len(result) == 1
+        assert result[0].primary_image_url is None
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_prefers_primary_image(self, mock_settings, db):
+        """_build_profile_books uses is_primary=True image over display_order."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        book = Book(title="Multi Image Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        # Non-primary image with lower display_order
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="first.jpg",
+            display_order=0,
+            is_primary=False,
+        )
+        # Primary image with higher display_order
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="primary.jpg",
+            display_order=1,
+            is_primary=True,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{img2.id}/file"
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_falls_back_to_first_by_display_order(self, mock_settings, db):
+        """Without is_primary, uses first image by display_order."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+
+        book = Book(title="Fallback Image Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        img1 = BookImage(
+            book_id=book.id,
+            s3_key="second.jpg",
+            display_order=1,
+            is_primary=False,
+        )
+        img2 = BookImage(
+            book_id=book.id,
+            s3_key="first.jpg",
+            display_order=0,
+            is_primary=False,
+        )
+        db.add_all([img1, img2])
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        # Should pick img2 (display_order=0)
+        assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{img2.id}/file"
+
+    @patch("app.services.entity_profile.get_cloudfront_url")
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_uses_cloudfront_in_lambda(self, mock_settings, mock_cf_url, db):
+        """_build_profile_books uses CloudFront URL when running in Lambda."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=True)
+        mock_cf_url.return_value = "https://cdn.example.com/books/test_image.jpg"
+
+        book = Book(title="Lambda Book", status="ON_HAND")
+        db.add(book)
+        db.flush()
+
+        image = BookImage(
+            book_id=book.id,
+            s3_key="test_image.jpg",
+            display_order=0,
+            is_primary=True,
+        )
+        db.add(image)
+        db.commit()
+
+        result = _build_profile_books(db, [book])
+        assert result[0].primary_image_url == "https://cdn.example.com/books/test_image.jpg"
+        mock_cf_url.assert_called_once_with("test_image.jpg")
+
+    @patch("app.services.entity_profile.get_settings")
+    def test_build_profile_books_empty_list(self, mock_settings, db):
+        """_build_profile_books handles empty list."""
+        mock_settings.return_value = MagicMock(is_aws_lambda=False)
+        result = _build_profile_books(db, [])
+        assert result == []
 
 
 @pytest.fixture(scope="function")
@@ -262,6 +424,48 @@ class TestEntityProfileEndpoint:
         assert data["stats"]["total_books"] == 2
         assert data["stats"]["first_editions"] == 1
         assert data["stats"]["date_range"] == [1850, 1870]
+
+    def test_cached_profile_visible_across_owner_ids(self, profile_client, db):
+        """Cached profile created by userA is visible when read by userB (#1715).
+
+        Profiles are per-entity, not per-user. When a profile is generated via
+        API key (one owner_id) but read via Cognito browser login (different
+        owner_id), the cached bio_summary must still be returned.
+        """
+        author = Author(name="Cross-Owner Author", birth_year=1800, death_year=1870)
+        db.add(author)
+        db.flush()
+
+        # Create a separate user (userA) who "generated" the profile
+        user_a = User(cognito_sub="test-owner-a", email="owner-a@example.com", role="editor")
+        db.add(user_a)
+        db.flush()
+
+        # Cache a profile under userA's owner_id
+        cached_profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user_a.id,
+            bio_summary="A distinguished Victorian author.",
+            personal_stories=[
+                {
+                    "title": "Early life",
+                    "text": "Born in 1800.",
+                    "significance": "context",
+                    "tone": "intellectual",
+                }
+            ],
+        )
+        db.add(cached_profile)
+        db.commit()
+
+        # Request as profile_client's user (userB — different owner_id)
+        response = profile_client.get(f"/api/v1/entity/author/{author.id}/profile")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["profile"]["bio_summary"] == "A distinguished Victorian author."
+        assert len(data["profile"]["personal_stories"]) == 1
 
     def test_requires_authentication(self, unauthenticated_client, db):
         """Endpoint requires authentication."""
@@ -1127,6 +1331,48 @@ class TestGenerateAndCacheProfileTriggers:
         assert "author:1:binder:99" in result.relationship_stories
         assert result.relationship_stories["author:1:binder:99"]["summary"] == "Existing story"
 
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.generate_bio_and_stories")
+    @patch("app.services.entity_profile.classify_connection")
+    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    def test_null_bio_from_ai_logs_warning_and_creates_profile(
+        self, _mock_model, mock_classify, mock_bio, mock_graph, db, caplog
+    ):
+        """AI returning null biography logs a warning but still creates profile (#1717).
+
+        generate_bio_and_stories can return {"biography": None}. The service
+        should log a warning and still persist the profile (with bio_summary=None).
+        """
+        import logging
+
+        user = User(cognito_sub="test-null-bio", email="null-bio@example.com", role="editor")
+        db.add(user)
+        db.flush()
+        author = Author(name="Null Bio Author")
+        db.add(author)
+        db.flush()
+        db.commit()
+
+        mock_bio.return_value = {"biography": None, "personal_stories": []}
+        mock_classify.return_value = None
+
+        source = _make_graph_node("author:1", author.id, "Null Bio Author")
+        graph = MagicMock()
+        graph.nodes = [source]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        with caplog.at_level(logging.WARNING, logger="app.services.entity_profile"):
+            result = generate_and_cache_profile(db, "author", author.id, user.id)
+
+        # Profile is created successfully with None bio
+        assert result is not None
+        assert result.bio_summary is None
+        assert result.personal_stories == []
+
+        # Warning was logged
+        assert any("empty biography" in record.message for record in caplog.records)
+
 
 @pytest.fixture(scope="function")
 def admin_client(db):
@@ -1342,3 +1588,92 @@ class TestCancelJob:
         """Viewer auth gets 403 on cancel endpoint (require_admin)."""
         response = viewer_client.post("/api/v1/entity/profiles/generate-all/some-job-id/cancel")
         assert response.status_code == 403
+
+
+class TestBuildStatsAggregation:
+    """Tests for _build_stats condition_distribution and acquisition_by_year (#1633)."""
+
+    def _make_book(self, **kwargs):
+        """Create a Book with sensible defaults for stats testing."""
+        defaults = {
+            "title": "Test Book",
+            "status": "ON_HAND",
+            "year_start": None,
+            "value_mid": None,
+            "is_first_edition": False,
+            "condition_grade": None,
+            "purchase_date": None,
+        }
+        defaults.update(kwargs)
+        return Book(**defaults)
+
+    def test_mixed_conditions(self, db):
+        """Books with varied condition grades produce correct counts per grade."""
+        books = [
+            self._make_book(title="Fine Book", condition_grade="FINE"),
+            self._make_book(title="Near Fine Book", condition_grade="NEAR_FINE"),
+            self._make_book(title="VG Book 1", condition_grade="VERY_GOOD"),
+            self._make_book(title="VG Book 2", condition_grade="VERY_GOOD"),
+            self._make_book(title="Good Book", condition_grade="GOOD"),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.condition_distribution == {
+            "FINE": 1,
+            "NEAR_FINE": 1,
+            "VERY_GOOD": 2,
+            "GOOD": 1,
+        }
+
+    def test_null_conditions_counted_as_ungraded(self, db):
+        """Books with null condition_grade are counted as 'UNGRADED'."""
+        books = [
+            self._make_book(title="Graded", condition_grade="FINE"),
+            self._make_book(title="Ungraded 1", condition_grade=None),
+            self._make_book(title="Ungraded 2", condition_grade=None),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.condition_distribution == {
+            "FINE": 1,
+            "UNGRADED": 2,
+        }
+
+    def test_acquisition_by_year(self, db):
+        """Books with varied purchase_date values produce correct year grouping."""
+        books = [
+            self._make_book(title="Book 2020", purchase_date=date(2020, 3, 15)),
+            self._make_book(title="Book 2020b", purchase_date=date(2020, 11, 1)),
+            self._make_book(title="Book 2021", purchase_date=date(2021, 6, 20)),
+            self._make_book(title="Book 2023", purchase_date=date(2023, 1, 5)),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.acquisition_by_year == {
+            2020: 2,
+            2021: 1,
+            2023: 1,
+        }
+
+    def test_empty_books_returns_empty_dicts(self, db):
+        """Empty book list produces empty dicts for both new fields."""
+        stats = _build_stats([])
+
+        assert stats.condition_distribution == {}
+        assert stats.acquisition_by_year == {}
+
+    def test_no_acquisition_dates_returns_empty_dict(self, db):
+        """Books all without purchase_date produce empty acquisition_by_year."""
+        books = [
+            self._make_book(title="No Date 1", condition_grade="FINE"),
+            self._make_book(title="No Date 2", condition_grade="GOOD"),
+        ]
+
+        stats = _build_stats(books)
+
+        assert stats.acquisition_by_year == {}
+        # condition_distribution should still be populated
+        assert stats.condition_distribution == {"FINE": 1, "GOOD": 1}

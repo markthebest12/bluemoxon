@@ -17,6 +17,7 @@ class Publisher(Base):
     founded_year: Mapped[int | None] = mapped_column(Integer)
     description: Mapped[str | None] = mapped_column(Text)
     preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500))
 
     # Relationships
     aliases = relationship(

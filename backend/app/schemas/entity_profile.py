@@ -47,6 +47,7 @@ class ProfileEntity(BaseModel):
     closed_year: int | None = None
     era: str | None = None
     tier: str | None = None
+    image_url: str | None = None
 
 
 class ProfileData(BaseModel):
@@ -67,6 +68,7 @@ class ProfileBook(BaseModel):
     year: int | None = None
     condition: str | None = None
     edition: str | None = None
+    primary_image_url: str | None = None
 
 
 class ProfileConnection(BaseModel):
@@ -90,6 +92,8 @@ class ProfileStats(BaseModel):
     total_estimated_value: float | None = None
     first_editions: int = 0
     date_range: list[int] = Field(default_factory=list)
+    condition_distribution: dict[str, int] = Field(default_factory=dict)
+    acquisition_by_year: dict[int, int] = Field(default_factory=dict)
 
 
 class EntityProfileResponse(BaseModel):

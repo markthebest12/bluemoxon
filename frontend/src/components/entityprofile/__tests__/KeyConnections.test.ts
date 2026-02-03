@@ -4,7 +4,7 @@ import KeyConnections from "../KeyConnections.vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 
 const connWithStory: ProfileConnection = {
-  entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning" },
+  entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning", image_url: null },
   connection_type: "literary_associate",
   strength: 8,
   shared_book_count: 3,
@@ -28,7 +28,7 @@ const connWithStory: ProfileConnection = {
 };
 
 const connWithoutStory: ProfileConnection = {
-  entity: { id: 7, type: "publisher", name: "Smith, Elder & Co." },
+  entity: { id: 7, type: "publisher", name: "Smith, Elder & Co.", image_url: null },
   connection_type: "publisher",
   strength: 6,
   shared_book_count: 5,
@@ -103,7 +103,7 @@ describe("KeyConnections", () => {
       props: {
         connections: [
           {
-            entity: { id: 31, type: "author", name: "EBB" },
+            entity: { id: 31, type: "author", name: "EBB", image_url: null },
             connection_type: "shared_publisher",
             strength: 5,
             shared_book_count: 1,
@@ -130,5 +130,69 @@ describe("KeyConnections", () => {
     const to = JSON.parse(bookLinks[0].attributes("data-to")!);
     expect(to.name).toBe("book-detail");
     expect(to.params.id).toBe("57");
+  });
+});
+
+describe("KeyConnections — Thumbnails & Badges", () => {
+  it("renders inline thumbnail for shared books with primary_image_url", () => {
+    const connWithThumbnails: ProfileConnection = {
+      entity: { id: 31, type: "author", name: "EBB", image_url: null },
+      connection_type: "literary_associate",
+      strength: 5,
+      shared_book_count: 2,
+      shared_books: [
+        {
+          id: 1,
+          title: "Aurora Leigh",
+          year: 1856,
+          primary_image_url: "https://cdn.example.com/1.jpg",
+          condition: "FINE",
+        },
+        {
+          id: 2,
+          title: "Sonnets",
+          year: 1850,
+          primary_image_url: "https://cdn.example.com/2.jpg",
+        },
+      ],
+      narrative: null,
+      narrative_trigger: null,
+      is_key: true,
+      relationship_story: null,
+    };
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [connWithThumbnails] },
+      global: { stubs },
+    });
+    const thumbnails = wrapper.findAll("[data-testid='book-thumbnail']");
+    expect(thumbnails).toHaveLength(2);
+    expect(thumbnails[0].attributes("src")).toBe("https://cdn.example.com/1.jpg");
+  });
+
+  it("renders condition badge inline for shared books with condition", () => {
+    const connWithCondition: ProfileConnection = {
+      entity: { id: 31, type: "author", name: "EBB", image_url: null },
+      connection_type: "literary_associate",
+      strength: 5,
+      shared_book_count: 1,
+      shared_books: [
+        {
+          id: 1,
+          title: "Aurora Leigh",
+          year: 1856,
+          condition: "NEAR_FINE",
+          primary_image_url: "https://cdn.example.com/1.jpg",
+        },
+      ],
+      narrative: null,
+      narrative_trigger: null,
+      is_key: true,
+      relationship_story: null,
+    };
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [connWithCondition] },
+      global: { stubs },
+    });
+    expect(wrapper.find(".condition-badge").exists()).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ProfileEntity, ProfileData, ProfileConnection } from "@/types/entityProfile";
-import { formatTier } from "@/utils/socialCircles/formatters";
+import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
 import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
 import EntityLinkedText from "./EntityLinkedText.vue";
 
@@ -21,6 +21,10 @@ const dateDisplay = computed(() => {
   return null;
 });
 
+const portraitSrc = computed(
+  () => props.entity.image_url || getPlaceholderImage(props.entity.type, props.entity.id)
+);
+
 const heroStories = computed(() => {
   if (!props.profile?.personal_stories) return [];
   return props.profile.personal_stories.filter((s) => s.display_in.includes("hero-bio"));
@@ -28,7 +32,13 @@ const heroStories = computed(() => {
 </script>
 
 <template>
-  <section class="profile-hero" :class="`profile-hero--${entity.type}`">
+  <section class="profile-hero" :class="`profile-hero--${entity.type}`" data-testid="profile-hero">
+    <img
+      :src="portraitSrc"
+      :alt="entity.name + ' portrait'"
+      class="profile-hero__portrait"
+      data-testid="profile-portrait"
+    />
     <div class="profile-hero__info">
       <h1 class="profile-hero__name">{{ entity.name }}</h1>
       <div class="profile-hero__meta">
@@ -67,6 +77,23 @@ const heroStories = computed(() => {
   background: var(--color-surface, #faf8f5);
   border-radius: 8px;
   border: 1px solid var(--color-border, #e8e4de);
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.profile-hero__portrait {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--color-accent-gold, #b8860b);
+  flex-shrink: 0;
+}
+
+.profile-hero__info {
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-hero__name {
@@ -117,11 +144,24 @@ const heroStories = computed(() => {
 
 @media (max-width: 768px) {
   .profile-hero {
+    flex-direction: column;
+    align-items: center;
     padding: 20px;
+  }
+
+  .profile-hero__portrait {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 0;
   }
 
   .profile-hero__name {
     font-size: 22px;
+    text-align: center;
+  }
+
+  .profile-hero__meta {
+    justify-content: center;
   }
 
   .profile-hero__bio {

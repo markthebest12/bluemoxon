@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { ProfileBook } from "@/types/entityProfile";
-import { formatConditionGrade } from "@/utils/format";
 import { bookDetailRoute } from "@/utils/routes";
+import ConditionBadge from "./ConditionBadge.vue";
 
 const props = defineProps<{
   books: ProfileBook[];
@@ -20,7 +20,7 @@ const visibleBooks = computed(() => {
 </script>
 
 <template>
-  <section class="entity-books">
+  <section class="entity-books" data-testid="entity-books">
     <h2 class="entity-books__title">Books in Collection ({{ books.length }})</h2>
     <div class="entity-books__list">
       <router-link
@@ -29,13 +29,21 @@ const visibleBooks = computed(() => {
         :to="bookDetailRoute(book.id)"
         class="entity-books__card"
       >
-        <span class="entity-books__book-title">{{ book.title }}</span>
-        <div class="entity-books__book-meta">
-          <span v-if="book.year">{{ book.year }}</span>
-          <span v-if="book.condition" class="entity-books__condition">{{
-            formatConditionGrade(book.condition)
-          }}</span>
-          <span v-if="book.edition" class="entity-books__edition">{{ book.edition }}</span>
+        <img
+          v-if="book.primary_image_url"
+          :src="book.primary_image_url"
+          :alt="book.title"
+          loading="lazy"
+          class="entity-books__thumbnail"
+          data-testid="book-thumbnail"
+        />
+        <div class="entity-books__content">
+          <span class="entity-books__book-title">{{ book.title }}</span>
+          <div class="entity-books__book-meta">
+            <span v-if="book.year">{{ book.year }}</span>
+            <ConditionBadge v-if="book.condition" :condition="book.condition" />
+            <span v-if="book.edition" class="entity-books__edition">{{ book.edition }}</span>
+          </div>
         </div>
       </router-link>
     </div>
@@ -63,7 +71,9 @@ const visibleBooks = computed(() => {
 
 .entity-books__card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   padding: 12px 16px;
   background: var(--color-surface, #faf8f5);
   border-radius: 6px;
@@ -77,22 +87,30 @@ const visibleBooks = computed(() => {
   border-color: var(--color-accent-gold, #b8860b);
 }
 
+.entity-books__thumbnail {
+  width: 48px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.entity-books__content {
+  flex: 1;
+  min-width: 0;
+}
+
 .entity-books__book-title {
   font-weight: 500;
 }
 
 .entity-books__book-meta {
   display: flex;
+  align-items: center;
   gap: 8px;
   font-size: 12px;
   color: var(--color-text-muted, #8b8579);
   margin-top: 4px;
-}
-
-.entity-books__condition {
-  padding: 1px 6px;
-  background: var(--color-border, #e8e4de);
-  border-radius: 3px;
 }
 
 .entity-books__show-all {

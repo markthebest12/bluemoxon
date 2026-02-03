@@ -1,19 +1,24 @@
 """Entity profile API endpoints."""
 
+import io
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from PIL import Image, ImageOps
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.api.v1.images import get_cloudfront_cdn_url
 from app.auth import require_admin, require_editor, require_viewer
+from app.config import get_settings
 from app.db import get_db
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
+from app.services.aws_clients import get_s3_client
 from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
 from app.services.social_circles_cache import get_or_build_graph
 from app.services.sqs import send_profile_generation_jobs
@@ -220,3 +225,92 @@ def regenerate_profile(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
         ) from exc
     return {"status": "regenerated"}
+
+
+# Map entity type strings to model classes for portrait upload.
+_PORTRAIT_MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
+    "author": Author,
+    "publisher": Publisher,
+    "binder": Binder,
+}
+
+# Portrait image settings.
+PORTRAIT_SIZE = (400, 400)
+PORTRAIT_QUALITY = 85
+PORTRAIT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@router.put(
+    "/{entity_type}/{entity_id}/portrait",
+    summary="Upload entity portrait image",
+    description="Admin-only: upload or replace the portrait image for an entity.",
+)
+async def upload_entity_portrait(
+    entity_type: str = Path(..., description="Entity type: author, publisher, or binder"),
+    entity_id: int = Path(..., ge=1, description="Entity database ID"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Upload a portrait image for an entity.
+
+    Resizes to 400x400 JPEG, uploads to S3, and updates the entity's image_url.
+    """
+    # Validate entity type
+    model = _PORTRAIT_MODEL_MAP.get(entity_type)
+    if not model:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid entity type: {entity_type}. Must be author, publisher, or binder.",
+        )
+
+    # Verify entity exists
+    entity = db.query(model).filter(model.id == entity_id).first()
+    if not entity:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Entity {entity_type}:{entity_id} not found",
+        )
+
+    # Read and validate image
+    content = await file.read()
+    if len(content) > PORTRAIT_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({len(content)} bytes). Maximum is {PORTRAIT_MAX_BYTES} bytes.",
+        )
+
+    try:
+        img = Image.open(io.BytesIO(content))
+        img = ImageOps.exif_transpose(img)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file. Supported formats: JPEG, PNG, WEBP.",
+        ) from exc
+
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    img = img.resize(PORTRAIT_SIZE, Image.Resampling.LANCZOS)
+
+    buffer = io.BytesIO()
+    img.save(buffer, "JPEG", quality=PORTRAIT_QUALITY)
+    buffer.seek(0)
+
+    # Upload to S3
+    s3_key = f"entities/{entity_type}/{entity_id}/portrait.jpg"
+    settings = get_settings()
+    s3 = get_s3_client()
+    s3.upload_fileobj(
+        buffer,
+        settings.images_bucket,
+        s3_key,
+        ExtraArgs={"ContentType": "image/jpeg"},
+    )
+
+    # Update entity's image_url with CloudFront URL
+    cdn_url = get_cloudfront_cdn_url()
+    entity.image_url = f"{cdn_url}/{s3_key}"
+    db.commit()
+
+    return {"image_url": entity.image_url, "s3_key": s3_key}

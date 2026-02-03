@@ -6,7 +6,7 @@ import type { ProfileConnection } from "@/types/entityProfile";
 let nextId = 1;
 function makeConn(name: string, isKey: boolean): ProfileConnection {
   return {
-    entity: { id: nextId++, type: "author", name },
+    entity: { id: nextId++, type: "author", name, image_url: null },
     connection_type: "associate",
     strength: 5,
     shared_book_count: 1,

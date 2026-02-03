@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
+from app.api.v1.images import get_cloudfront_url
+from app.config import get_settings
 from app.enums import OWNED_STATUSES
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.book import Book
 from app.models.entity_profile import EntityProfile
+from app.models.image import BookImage
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import (
     EntityProfileResponse,
@@ -37,9 +40,6 @@ from app.services.narrative_classifier import classify_connection
 from app.services.social_circles_cache import get_or_build_graph
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 
 # Map entity type strings to SQLAlchemy model classes.
@@ -101,21 +101,60 @@ def _build_profile_entity(entity: Author | Publisher | Binder, entity_type: str)
         closed_year=getattr(entity, "closed_year", None),
         era=getattr(entity, "era", None),
         tier=getattr(entity, "tier", None),
+        image_url=getattr(entity, "image_url", None),
     )
 
 
-def _build_profile_books(books: list[Book]) -> list[ProfileBook]:
-    """Convert Book models to ProfileBook schemas."""
-    return [
-        ProfileBook(
-            id=book.id,
-            title=book.title,
-            year=book.year_start,
-            condition=book.condition_grade,
-            edition=book.edition,
+def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookImage]:
+    """Batch-load primary images for books, returning {book_id: BookImage}.
+
+    Picks the is_primary=True image for each book, or falls back to the
+    image with the lowest display_order.
+    """
+    if not book_ids:
+        return {}
+
+    images = (
+        db.query(BookImage)
+        .filter(BookImage.book_id.in_(book_ids))
+        .order_by(BookImage.display_order)
+        .all()
+    )
+
+    image_map: dict[int, BookImage] = {}
+    for img in images:
+        if img.book_id not in image_map or img.is_primary:
+            image_map[img.book_id] = img
+
+    return image_map
+
+
+def _image_url(book_id: int, image: BookImage) -> str:
+    """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
+    settings = get_settings()
+    if settings.is_aws_lambda:
+        return get_cloudfront_url(image.s3_key)
+    return f"/api/v1/books/{book_id}/images/{image.id}/file"
+
+
+def _build_profile_books(db: Session, books: list[Book]) -> list[ProfileBook]:
+    """Convert Book models to ProfileBook schemas with primary image URLs."""
+    image_map = _get_primary_image_map(db, [b.id for b in books])
+
+    result: list[ProfileBook] = []
+    for book in books:
+        img = image_map.get(book.id)
+        result.append(
+            ProfileBook(
+                id=book.id,
+                title=book.title,
+                year=book.year_start,
+                condition=book.condition_grade,
+                edition=book.edition,
+                primary_image_url=_image_url(book.id, img) if img else None,
+            )
         )
-        for book in books
-    ]
+    return result
 
 
 def _build_stats(books: list[Book]) -> ProfileStats:
@@ -126,11 +165,27 @@ def _build_stats(books: list[Book]) -> ProfileStats:
     years = [b.year_start for b in books if b.year_start]
     values = [float(b.value_mid) for b in books if b.value_mid is not None]
 
+    # Condition distribution: count books per condition grade
+    condition_distribution: dict[str, int] = {}
+    for b in books:
+        grade = b.condition_grade if b.condition_grade else "UNGRADED"
+        condition_distribution[grade] = condition_distribution.get(grade, 0) + 1
+
+    # Acquisition by year: count books per purchase year, sorted ascending
+    acquisition_by_year: dict[int, int] = {}
+    for b in books:
+        if b.purchase_date:
+            yr = b.purchase_date.year
+            acquisition_by_year[yr] = acquisition_by_year.get(yr, 0) + 1
+    acquisition_by_year = dict(sorted(acquisition_by_year.items()))
+
     return ProfileStats(
         total_books=len(books),
         total_estimated_value=sum(values) if values else None,
         first_editions=sum(1 for b in books if b.is_first_edition),
         date_range=[min(years), max(years)] if years else [],
+        condition_distribution=condition_distribution,
+        acquisition_by_year=acquisition_by_year,
     )
 
 
@@ -218,6 +273,9 @@ def _build_connections(
         shared_books_db = db.query(Book).filter(Book.id.in_(all_shared_ids)).all()
         shared_book_lookup = {b.id: b for b in shared_books_db}
 
+    # Batch-load primary images for shared books (#1634)
+    shared_image_map = _get_primary_image_map(db, list(all_shared_ids))
+
     # Get cached narratives and relationship stories
     narratives: dict[str, str] = {}
     rel_stories: dict[str, dict] = {}
@@ -260,6 +318,7 @@ def _build_connections(
             for book_id in edge.shared_book_ids[:_MAX_SHARED_BOOKS_PER_CONNECTION]:
                 book = shared_book_lookup.get(book_id)
                 if book:
+                    img = shared_image_map.get(book.id)
                     shared_books.append(
                         ProfileBook(
                             id=book.id,
@@ -267,6 +326,7 @@ def _build_connections(
                             year=book.year_start,
                             condition=book.condition_grade,
                             edition=book.edition,
+                            primary_image_url=_image_url(book.id, img) if img else None,
                         )
                     )
 
@@ -342,13 +402,14 @@ def get_entity_profile(
 
     books = _get_entity_books(db, entity_type, entity_id)
 
-    # Fetch cached profile
+    # Fetch cached profile — profiles are per-entity, not per-user (#1715).
+    # owner_id is intentionally omitted so profiles generated via API key
+    # are visible to browser (Cognito) users and vice-versa.
     cached = (
         db.query(EntityProfile)
         .filter(
             EntityProfile.entity_type == entity_type,
             EntityProfile.entity_id == entity_id,
-            EntityProfile.owner_id == owner_id,
         )
         .first()
     )
@@ -370,7 +431,7 @@ def get_entity_profile(
         entity=_build_profile_entity(entity, entity_type),
         profile=profile_data,
         connections=connections,
-        books=_build_profile_books(books),
+        books=_build_profile_books(db, books),
         stats=_build_stats(books),
     )
 
@@ -429,6 +490,13 @@ def generate_and_cache_profile(
         book_titles=book_titles,
         connections=prompt_connections,
     )
+
+    if not bio_data.get("biography"):
+        logger.warning(
+            "AI generation returned empty biography for %s:%d",
+            entity_type,
+            entity_id,
+        )
 
     # Validate cross-link markers in bio and stories
     if bio_data.get("biography"):
