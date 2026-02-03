@@ -237,6 +237,7 @@ _PORTRAIT_MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
 # Portrait image settings.
 PORTRAIT_SIZE = (400, 400)
 PORTRAIT_QUALITY = 85
+PORTRAIT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 @router.put(
@@ -271,10 +272,23 @@ async def upload_entity_portrait(
             detail=f"Entity {entity_type}:{entity_id} not found",
         )
 
-    # Read and process image
+    # Read and validate image
     content = await file.read()
-    img = Image.open(io.BytesIO(content))
-    img = ImageOps.exif_transpose(img)
+    if len(content) > PORTRAIT_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({len(content)} bytes). Maximum is {PORTRAIT_MAX_BYTES} bytes.",
+        )
+
+    try:
+        img = Image.open(io.BytesIO(content))
+        img = ImageOps.exif_transpose(img)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file. Supported formats: JPEG, PNG, WEBP.",
+        ) from exc
+
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     img = img.resize(PORTRAIT_SIZE, Image.Resampling.LANCZOS)
