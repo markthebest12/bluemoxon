@@ -521,6 +521,26 @@ bmx-api --prod GET "/books/{BOOK_ID}/analysis/status"
 
 Always use `AWS_PROFILE=bmx-staging` for staging operations.
 
+### E2E Browser Login Accounts
+
+Three test accounts exist for browser access (Cognito users). Passwords stored in AWS Secrets Manager:
+
+| Role | Email | Secret Name |
+|------|-------|-------------|
+| Admin | `e2e-test-admin@bluemoxon.com` | `bluemoxon-{env}/e2e-admin-password` |
+| Editor | `e2e-test-editor@bluemoxon.com` | `bluemoxon-{env}/e2e-editor-password` |
+| Viewer | `e2e-test-viewer@bluemoxon.com` | `bluemoxon-{env}/e2e-viewer-password` |
+
+Fetch password:
+
+```bash
+AWS_PROFILE=bmx-staging aws secretsmanager get-secret-value \
+  --secret-id bluemoxon-staging/e2e-admin-password \
+  --query SecretString --output text
+```
+
+Defined in `frontend/e2e/global-setup.ts` (lines 38-52).
+
 ### Create/Reset Staging User
 
 ```bash
