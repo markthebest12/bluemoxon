@@ -27,7 +27,7 @@ function isExpanded(conn: ProfileConnection): boolean {
 </script>
 
 <template>
-  <section class="key-connections">
+  <section class="key-connections" data-testid="key-connections">
     <h2 class="key-connections__title">Key Connections</h2>
     <div class="key-connections__list">
       <div

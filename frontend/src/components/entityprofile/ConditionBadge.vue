@@ -20,6 +20,7 @@ const textColor = computed(() =>
 <template>
   <span
     class="condition-badge"
+    data-testid="condition-badge"
     :style="{
       backgroundColor: bgColor,
       color: textColor,
