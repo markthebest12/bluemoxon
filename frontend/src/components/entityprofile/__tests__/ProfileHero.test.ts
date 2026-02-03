@@ -311,3 +311,51 @@ describe("ProfileHero cross-link integration", () => {
     expect(text).toContain("and moved to Italy.");
   });
 });
+
+describe("ProfileHero — Portrait", () => {
+  const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+
+  it("renders portrait with image_url when present", () => {
+    const authorWithPortrait: ProfileEntity = {
+      ...mockAuthor,
+      image_url: "https://cdn.example.com/entities/author/31/portrait.jpg",
+    };
+    const wrapper = mount(ProfileHero, {
+      props: { entity: authorWithPortrait, profile: mockProfile },
+      global: globalStubs,
+    });
+    const portrait = wrapper.find("[data-testid='profile-portrait']");
+    expect(portrait.exists()).toBe(true);
+    expect(portrait.attributes("src")).toBe(
+      "https://cdn.example.com/entities/author/31/portrait.jpg"
+    );
+  });
+
+  it("falls back to placeholder when image_url is null", () => {
+    const wrapper = mount(ProfileHero, {
+      props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
+    });
+    const portrait = wrapper.find("[data-testid='profile-portrait']");
+    expect(portrait.exists()).toBe(true);
+    expect(portrait.attributes("src")).toContain("entity-placeholders");
+  });
+
+  it("alt text includes entity name", () => {
+    const wrapper = mount(ProfileHero, {
+      props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
+    });
+    const portrait = wrapper.find("[data-testid='profile-portrait']");
+    expect(portrait.attributes("alt")).toContain("Elizabeth Barrett Browning");
+  });
+
+  it("portrait has circular styling", () => {
+    const wrapper = mount(ProfileHero, {
+      props: { entity: mockAuthor, profile: mockProfile },
+      global: globalStubs,
+    });
+    const portrait = wrapper.find("[data-testid='profile-portrait']");
+    expect(portrait.classes()).toContain("profile-hero__portrait");
+  });
+});
