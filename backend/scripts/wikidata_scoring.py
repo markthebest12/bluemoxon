@@ -5,6 +5,8 @@ signals: name similarity, year overlap, works overlap, and occupation
 relevance. Used by wikidata_portraits.py to determine the best match.
 """
 
+import re
+
 
 def name_similarity(entity_name: str, candidate_label: str) -> float:
     """Normalized token overlap similarity (0-1).
@@ -62,29 +64,64 @@ def _year_match(a: int | None, b: int | None) -> str:
     return "none"
 
 
-def works_overlap(entity_book_titles: list[str], candidate_works: list[str]) -> float:
-    """Jaccard similarity between book titles (0-1).
+def _title_tokens(title: str) -> set[str]:
+    """Extract significant tokens from a title, dropping noise words and punctuation."""
+    noise = {"a", "an", "the", "of", "and", "for", "in", "to", "from", "by"}
+    # Strip punctuation, then split on whitespace
+    cleaned = re.sub(r"[^\w\s]", "", title.lower())
+    return {w for w in cleaned.split() if w not in noise and len(w) > 1}
 
-    Case-insensitive comparison with whitespace stripping.
+
+def _fuzzy_title_match(title_a: str, title_b: str) -> bool:
+    """Return True if two titles share enough significant tokens to be the same work.
+
+    For titles with only one significant token (e.g. "Poems"), requires exact
+    token-set equality to avoid false positives like "Poems" matching "Poems of 1842".
+    For multi-token titles, matches if the shorter title's tokens are a subset of the longer.
+    """
+    tokens_a = _title_tokens(title_a)
+    tokens_b = _title_tokens(title_b)
+    if not tokens_a or not tokens_b:
+        return False
+    shorter, longer = sorted([tokens_a, tokens_b], key=len)
+    # Single-token titles: require exact equality to avoid false positives
+    if len(shorter) <= 1:
+        return shorter == longer
+    # Multi-token: match if shorter is a subset of longer
+    return shorter <= longer
+
+
+def works_overlap(entity_book_titles: list[str], candidate_works: list[str]) -> float:
+    """Fuzzy Jaccard similarity between book titles (0-1).
+
+    Uses token-based matching to handle title variations like
+    "Aurora Leigh: A Poem" vs "Aurora Leigh".
     """
     if not entity_book_titles or not candidate_works:
         return 0.0
-    set_a = {t.lower().strip() for t in entity_book_titles}
-    set_b = {t.lower().strip() for t in candidate_works}
-    intersection = set_a & set_b
-    union = set_a | set_b
-    return len(intersection) / len(union) if union else 0.0
+    matched = 0
+    unmatched_candidates = list(candidate_works)
+    # Sort longest-first to prevent greedy consumption by shorter titles
+    for title in sorted(entity_book_titles, key=len, reverse=True):
+        for i, cand in enumerate(unmatched_candidates):
+            if _fuzzy_title_match(title, cand):
+                matched += 1
+                unmatched_candidates.pop(i)
+                break
+    total_unique = len(entity_book_titles) + len(candidate_works) - matched
+    return matched / total_unique if total_unique else 0.0
 
 
 def occupation_match(occupations: list[str]) -> float:
-    """Bonus for relevant occupation (0 or 0.3).
+    """Score occupation relevance (0-1).
 
-    Returns 0.3 if any occupation contains a book-trade-relevant term.
+    Returns 1.0 if any occupation contains a book-trade-relevant term, else 0.
+    The weight parameter in score_candidate controls the contribution.
     """
     relevant = {"writer", "poet", "novelist", "publisher", "author", "printer", "bookbinder"}
     for occ in occupations:
         if any(r in occ.lower() for r in relevant):
-            return 0.3
+            return 1.0
     return 0.0
 
 
