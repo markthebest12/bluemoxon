@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { ProfileStats } from "@/types/entityProfile";
 import { getConditionColor, formatConditionGrade } from "@/utils/conditionColors";
+import AcquisitionTimeline from "./AcquisitionTimeline.vue";
 
 const props = defineProps<{
   stats: ProfileStats;
@@ -87,6 +88,8 @@ const isSingleCondition = computed(() => conditionEntries.value.length === 1);
         </div>
       </template>
     </section>
+
+    <AcquisitionTimeline :data="stats.acquisition_by_year" />
   </section>
 </template>
 
