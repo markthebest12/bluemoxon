@@ -8,6 +8,8 @@ const mockStats: ProfileStats = {
   total_estimated_value: 800,
   first_editions: 0,
   date_range: [1877, 1920],
+  condition_distribution: {},
+  acquisition_by_year: {},
 };
 
 describe("CollectionStats", () => {

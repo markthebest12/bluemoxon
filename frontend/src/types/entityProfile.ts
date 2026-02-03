@@ -44,6 +44,7 @@ export interface ProfileEntity {
   closed_year?: number;
   era?: Era;
   tier?: Tier;
+  image_url: string | null;
 }
 
 export interface ProfileData {
@@ -72,6 +73,7 @@ export interface ProfileBook {
   year?: number;
   condition?: string;
   edition?: string;
+  primary_image_url?: string;
 }
 
 export interface ProfileStats {
@@ -79,6 +81,8 @@ export interface ProfileStats {
   total_estimated_value: number | null;
   first_editions: number;
   date_range: number[];
+  condition_distribution: Record<string, number>;
+  acquisition_by_year: Record<number, number>;
 }
 
 export interface EntityProfileResponse {

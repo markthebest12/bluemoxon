@@ -35,7 +35,7 @@ import type { ProfileConnection } from "@/types/entityProfile";
 
 const connections: ProfileConnection[] = [
   {
-    entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning" },
+    entity: { id: 31, type: "author", name: "Elizabeth Barrett Browning", image_url: null },
     connection_type: "literary_associate",
     strength: 8,
     shared_book_count: 3,

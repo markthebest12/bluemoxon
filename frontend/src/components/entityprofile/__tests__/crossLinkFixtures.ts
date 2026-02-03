@@ -6,7 +6,7 @@ import type { ProfileConnection } from "@/types/entityProfile";
  */
 export const mockCrossLinkConnections: ProfileConnection[] = [
   {
-    entity: { id: 32, type: "author", name: "Robert Browning" },
+    entity: { id: 32, type: "author", name: "Robert Browning", image_url: null },
     connection_type: "shared_publisher",
     strength: 5,
     shared_book_count: 2,
@@ -17,7 +17,7 @@ export const mockCrossLinkConnections: ProfileConnection[] = [
     relationship_story: null,
   },
   {
-    entity: { id: 7, type: "publisher", name: "Smith, Elder & Co." },
+    entity: { id: 7, type: "publisher", name: "Smith, Elder & Co.", image_url: null },
     connection_type: "publisher",
     strength: 3,
     shared_book_count: 4,
