@@ -4,8 +4,10 @@
  * Version and build info are injected at build time by vite.config.ts
  */
 
-// Build-time injected version info
+// Build-time injected version info (full string includes +sha build metadata)
 export const APP_VERSION = __APP_VERSION__;
+// Semver only (strips +build metadata) for UI display
+export const APP_VERSION_DISPLAY = APP_VERSION.split("+")[0];
 export const BUILD_TIME = __BUILD_TIME__;
 
 // Runtime config from environment variables
