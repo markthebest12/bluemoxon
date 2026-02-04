@@ -125,6 +125,7 @@ jobs:
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       drift_detected: ${{ steps.drift.outputs.drift_detected }}
+      api_key: ${{ steps.api-key.outputs.api_key }}
       aws_account_id: ${{ steps.config.outputs.aws_account_id }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
@@ -184,7 +185,15 @@ jobs:
             SECRET_NAME="bluemoxon-staging/api-key"
           fi
           echo "Fetching API key from: $SECRET_NAME"
-          API_KEY=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query 'SecretString' --output text)
+          RAW_SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query 'SecretString' --output text)
+          # Handle both plain string and JSON blob formats.
+          # The secret may be a JSON object {"key":"...","hash":"...","prefix":"..."}
+          # from the API key management system, or a plain string (legacy format).
+          API_KEY=$(echo "$RAW_SECRET" | jq -r '.key // empty' 2>/dev/null || true)
+          if [[ -z "$API_KEY" ]]; then
+            # Not JSON or no .key field — treat the raw value as a plain API key
+            API_KEY="$RAW_SECRET"
+          fi
           echo "::add-mask::$API_KEY"
           echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
 
@@ -1363,11 +1372,11 @@ jobs:
     steps:
       - name: Verify API key secret exists
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
           if [ -z "${BMX_API_KEY}" ]; then
-            echo "::error::BMX_API_KEY secret is not set for ${{ needs.configure.outputs.environment }}"
-            echo "Required secrets: BMX_API_KEY (production) or BMX_STAGING_API_KEY (staging)"
+            echo "::error::BMX_API_KEY is not set for ${{ needs.configure.outputs.environment }}"
+            echo "The configure job should fetch this from Secrets Manager"
             exit 1
           fi
           echo "API key secret verified"
@@ -1377,7 +1386,7 @@ jobs:
 
       - name: Run database migrations
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
           echo "Running database migrations..."
           API_URL="${{ needs.configure.outputs.api_url }}"
@@ -1620,7 +1629,7 @@ jobs:
 
       - name: Test API books endpoint
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
           API_URL="${{ needs.configure.outputs.api_url }}"
           response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" "${API_URL}/books?per_page=1")
@@ -1692,7 +1701,7 @@ jobs:
 
       - name: Test image endpoint
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
+          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
           API_URL="${{ needs.configure.outputs.api_url }}"
           API_BASE="${{ steps.urls.outputs.api_base }}"
