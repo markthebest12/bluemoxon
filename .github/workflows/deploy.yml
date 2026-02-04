@@ -125,7 +125,7 @@ jobs:
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       drift_detected: ${{ steps.drift.outputs.drift_detected }}
-      api_key: ${{ steps.api-key.outputs.api_key }}
+
       aws_account_id: ${{ steps.config.outputs.aws_account_id }}
       lambda_function_name: ${{ steps.config.outputs.lambda_function_name }}
       worker_function_name: ${{ steps.config.outputs.worker_function_name }}
@@ -1372,11 +1372,10 @@ jobs:
     steps:
       - name: Verify API key secret exists
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           if [ -z "${BMX_API_KEY}" ]; then
             echo "::error::BMX_API_KEY is not set for ${{ needs.configure.outputs.environment }}"
-            echo "The configure job should fetch this from Secrets Manager"
             exit 1
           fi
           echo "API key secret verified"
@@ -1386,7 +1385,7 @@ jobs:
 
       - name: Run database migrations
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           echo "Running database migrations..."
           API_URL="${{ needs.configure.outputs.api_url }}"
@@ -1676,7 +1675,7 @@ jobs:
 
       - name: Test API books endpoint
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           retry_curl() {
             local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
@@ -1797,7 +1796,7 @@ jobs:
 
       - name: Test image endpoint
         env:
-          BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
+          BMX_API_KEY: ${{ needs.configure.outputs.environment == 'production' && secrets.BMX_API_KEY || secrets.BMX_STAGING_API_KEY }}
         run: |
           retry_curl() {
             local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
