@@ -1,5 +1,13 @@
 import { test, expect } from "@playwright/test";
 
+import {
+  getCytoscapeInstance,
+  getNodeCount,
+  tapNode,
+  waitForLayoutSettled,
+  waitForNodeCountAbove,
+} from "./utils/cytoscape";
+
 /**
  * Social Circles Hub Mode E2E Tests
  *
@@ -141,40 +149,15 @@ test.describe("Social Circles Hub Mode", () => {
     expect(toastVisible).toBe(false);
   });
 
-  /**
-   * Wait for the Cytoscape layout to finish animating and have nodes rendered.
-   * Accesses Cytoscape via its internal _cyreg property (set at core/index.mjs:43).
-   * This is NOT a public Cytoscape API — if a Cytoscape upgrade breaks it,
-   * update this helper and the inline evaluate calls below.
-   * Note: _cyreg access is repeated in page.evaluate() calls because
-   * Playwright serializes evaluate functions to the browser context.
-   */
-  async function waitForLayoutSettled(page: import("@playwright/test").Page) {
-    await page.waitForFunction(
-      () => {
-        const container = document.querySelector(
-          "[data-testid='network-graph']"
-        ) as HTMLElement | null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cy = (container as any)?._cyreg?.cy;
-        return cy && cy.nodes().length > 0 && !cy.animated();
-      },
-      { timeout: 10000 }
-    );
-  }
-
   test("nodes display +N more badge labels at compact level", async ({ page }) => {
     await waitForLayoutSettled(page);
 
-    const badgeNodes = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
+    const cy = await getCytoscapeInstance(page);
+    const badgeNodes = await page.evaluate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return [];
-      return (
-        cy
+      (cyInst: any) => {
+        if (!cyInst) return [];
+        return cyInst
           .nodes()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((n: any) => {
@@ -186,9 +169,10 @@ test.describe("Social Circles Hub Mode", () => {
             id: n.id(),
             label: n.data("label") as string,
             hiddenCount: n.data("hiddenCount") as number,
-          }))
-      );
-    });
+          }));
+      },
+      cy,
+    );
 
     // At compact level (25 nodes out of 200+), many nodes should have badges
     expect(badgeNodes.length).toBeGreaterThan(0);
@@ -204,20 +188,18 @@ test.describe("Social Circles Hub Mode", () => {
     await waitForLayoutSettled(page);
 
     // Verify badges exist at compact level before expanding
-    const hasBadgesInitially = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
+    const cy = await getCytoscapeInstance(page);
+    const hasBadgesInitially = await page.evaluate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return false;
-      return (
-        cy
+      (cyInst: any) => {
+        if (!cyInst) return false;
+        return cyInst
           .nodes()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .some((n: any) => (n.data("hiddenCount") || 0) > 0)
-      );
-    });
+          .some((n: any) => (n.data("hiddenCount") || 0) > 0);
+      },
+      cy,
+    );
 
     test.skip(!hasBadgesInitially, "No badge nodes at compact level — dataset may be small");
 
@@ -233,20 +215,18 @@ test.describe("Social Circles Hub Mode", () => {
     await waitForLayoutSettled(page);
 
     // At full level, no nodes should have hidden counts
-    const badgeCountAfter = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
+    const cyAfter = await getCytoscapeInstance(page);
+    const badgeCountAfter = await page.evaluate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return 0;
-      return (
-        cy
+      (cyInst: any) => {
+        if (!cyInst) return 0;
+        return cyInst
           .nodes()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((n: any) => (n.data("hiddenCount") || 0) > 0).length
-      );
-    });
+          .filter((n: any) => (n.data("hiddenCount") || 0) > 0).length;
+      },
+      cyAfter,
+    );
 
     expect(badgeCountAfter).toBe(0);
   });
@@ -255,33 +235,26 @@ test.describe("Social Circles Hub Mode", () => {
     await waitForLayoutSettled(page);
 
     // Find a node with hidden neighbors (skip for small datasets)
-    const targetNode = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
+    const cy = await getCytoscapeInstance(page);
+    const targetNode = await page.evaluate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return null;
-      const node = cy
-        .nodes()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((n: any) => (n.data("hiddenCount") || 0) > 0)
-        .first();
-      if (node.length === 0) return null;
-      return { id: node.id() as string };
-    });
+      (cyInst: any) => {
+        if (!cyInst) return null;
+        const node = cyInst
+          .nodes()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((n: any) => (n.data("hiddenCount") || 0) > 0)
+          .first();
+        if (node.length === 0) return null;
+        return { id: node.id() as string };
+      },
+      cy,
+    );
 
     test.skip(!targetNode, "No nodes with hidden neighbors found at compact level");
 
     // Get initial node count
-    const initialCount = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      return cy ? (cy.nodes().length as number) : 0;
-    });
+    const initialCount = await getNodeCount(page);
 
     // Emit a Cytoscape "tap" event directly on the node instead of using
     // coordinate-based mouse.click(), which suffers from sub-pixel offset
@@ -289,43 +262,14 @@ test.describe("Social Circles Hub Mode", () => {
     // NOTE: This tests the data pipeline (hidden neighbors expand) but not the
     // full interaction path — the emitted event lacks position/mouse properties
     // that a real user tap would include.
-    await page.evaluate((nodeId: string) => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return;
-      const node = cy.getElementById(nodeId);
-      if (node && node.length > 0) {
-        node.emit("tap");
-      }
-    }, targetNode!.id);
+    await tapNode(page, targetNode!.id);
 
     // Wait for the node count to increase (hidden neighbors added)
     // then for the layout animation to finish settling
-    await page.waitForFunction(
-      (expected: number) => {
-        const container = document.querySelector(
-          "[data-testid='network-graph']"
-        ) as HTMLElement | null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cy = (container as any)?._cyreg?.cy;
-        return cy && cy.nodes().length > expected && !cy.animated();
-      },
-      initialCount,
-      { timeout: 10000 }
-    );
+    await waitForNodeCountAbove(page, initialCount);
 
     // Node count should have increased (hidden neighbors were added)
-    const afterCount = await page.evaluate(() => {
-      const container = document.querySelector(
-        "[data-testid='network-graph']"
-      ) as HTMLElement | null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cy = (container as any)?._cyreg?.cy;
-      return cy ? (cy.nodes().length as number) : 0;
-    });
+    const afterCount = await getNodeCount(page);
 
     expect(afterCount).toBeGreaterThan(initialCount);
   });
