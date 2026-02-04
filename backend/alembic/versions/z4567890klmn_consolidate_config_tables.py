@@ -1,19 +1,21 @@
 """Consolidate admin_config into app_config table.
 
 Revision ID: z4567890klmn
-Revises: z3456789ijkl
+Revises: z3456789ijkl, 708c5a15f5bb
 Create Date: 2026-02-04
 
 Issue #1776: Merge admin_config rows into app_config and drop admin_config table.
+Also merges the two migration heads (z3456789ijkl and 708c5a15f5bb).
 """
 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "z4567890klmn"
-down_revision: str = "z3456789ijkl"
+down_revision: tuple[str, ...] = ("z3456789ijkl", "708c5a15f5bb")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
