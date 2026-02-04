@@ -26,6 +26,7 @@ from app.services.analysis_summary import (
 )
 from app.services.app_config import get_config
 from app.services.bedrock import (
+    MODEL_IDS,
     build_bedrock_messages,
     extract_structured_data,
     fetch_book_images_for_bedrock,
@@ -172,6 +173,14 @@ def process_analysis_job(job_id: str, book_id: int, model: str | None = None) ->
         # Resolve model: SQS override > app_config > default
         if model is None:
             model = get_config(db, "model.napoleon_analysis", DEFAULT_ANALYSIS_MODEL)
+        if model not in MODEL_IDS:
+            logger.warning(
+                "Resolved model '%s' for job %s not in MODEL_IDS, falling back to %s",
+                model,
+                job_id,
+                DEFAULT_ANALYSIS_MODEL,
+            )
+            model = DEFAULT_ANALYSIS_MODEL
         logger.info(f"Resolved model for job {job_id}: {model}")
 
         # Get the job record

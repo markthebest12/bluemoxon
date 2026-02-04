@@ -88,7 +88,7 @@ MODEL_CONFIG_FLOWS = {
     },
     "model.order_extraction": {
         "label": "Order Extraction",
-        "description": "Extract structured data from order confirmation emails",
+        "description": "Extract structured data from order confirmation emails (not yet wired)",
         "default": "haiku",
     },
 }
@@ -116,6 +116,14 @@ class ModelConfigUpdate(BaseModel):
     """Request body for updating a flow's model."""
 
     model: str
+
+
+class ModelConfigUpdateResponse(BaseModel):
+    """Response from updating a flow's model."""
+
+    key: str
+    model: str
+    is_default: bool
 
 
 class HealthCheck(BaseModel):
@@ -495,7 +503,7 @@ def get_model_config(
     )
 
 
-@router.put("/model-config/{flow_key:path}")
+@router.put("/model-config/{flow_key}", response_model=ModelConfigUpdateResponse)
 def update_model_config(
     flow_key: str,
     body: ModelConfigUpdate,
@@ -520,13 +528,14 @@ def update_model_config(
         description=meta["description"],
         updated_by=getattr(_user, "email", None) or "admin",
     )
+    db.commit()
 
     current = get_app_config(db, flow_key, meta["default"])
-    return {
-        "key": flow_key,
-        "model": current,
-        "is_default": current == meta["default"],
-    }
+    return ModelConfigUpdateResponse(
+        key=flow_key,
+        model=current or meta["default"],
+        is_default=(current or meta["default"]) == meta["default"],
+    )
 
 
 @router.get("/system-info", response_model=SystemInfoResponse)

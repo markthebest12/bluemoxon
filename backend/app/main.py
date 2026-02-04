@@ -24,7 +24,7 @@ app_version = get_version()
 # Enable interactive API docs on staging and in debug mode.
 # Staging is already protected by Cognito auth at the ALB/API-Gateway level,
 # so no additional middleware is needed for /docs or /openapi.json.
-_enable_docs = settings.debug or settings.environment == "staging"
+_enable_docs = settings.debug or settings.environment.lower() == "staging"
 
 API_DESCRIPTION = """
 ## BlueMoxon API
