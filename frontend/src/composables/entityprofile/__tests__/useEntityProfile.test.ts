@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useEntityProfile } from "../useEntityProfile";
 import { api } from "@/services/api";
 
@@ -11,12 +11,17 @@ vi.mock("@/services/api", () => ({
 
 describe("useEntityProfile", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.mocked(api.get).mockReset();
     vi.mocked(api.post).mockReset();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("#1558: regenerateProfile sets loadingState on error", () => {
-    it("sets loadingState to error when regenerate fails", async () => {
+    it("sets loadingState to error when regenerate POST fails", async () => {
       vi.mocked(api.post).mockRejectedValueOnce(new Error("API failure"));
 
       const { regenerateProfile, loadingState, hasError, error } = useEntityProfile();
@@ -106,9 +111,6 @@ describe("useEntityProfile", () => {
       vi.mocked(api.post).mockImplementation(
         () => new Promise<void>((resolve) => (resolvePost = resolve))
       );
-      vi.mocked(api.get).mockResolvedValue({
-        data: { entity: {}, profile: {}, connections: [], books: [], stats: {} },
-      });
 
       const { regenerateProfile, isRegenerating } = useEntityProfile();
 
@@ -118,25 +120,45 @@ describe("useEntityProfile", () => {
       const second = regenerateProfile("author", 1);
 
       resolvePost!();
+      // After POST resolves, polling starts. Return a profile with bio to stop polling.
+      vi.mocked(api.get).mockResolvedValue({
+        data: {
+          entity: {},
+          profile: { bio_summary: "done" },
+          connections: [],
+          books: [],
+          stats: {},
+        },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
       await first;
       await second;
 
       expect(api.post).toHaveBeenCalledTimes(1);
     });
 
-    it("resets isRegenerating after completion", async () => {
+    it("resets isRegenerating after profile appears", async () => {
       vi.mocked(api.post).mockResolvedValueOnce(undefined);
+      // First poll returns profile with bio_summary (generation complete)
       vi.mocked(api.get).mockResolvedValueOnce({
-        data: { entity: {}, profile: {}, connections: [], books: [], stats: {} },
+        data: {
+          entity: {},
+          profile: { bio_summary: "Generated bio" },
+          connections: [],
+          books: [],
+          stats: {},
+        },
       });
 
       const { regenerateProfile, isRegenerating } = useEntityProfile();
-      await regenerateProfile("author", 1);
+      const promise = regenerateProfile("author", 1);
+      await vi.advanceTimersByTimeAsync(5000);
+      await promise;
 
       expect(isRegenerating.value).toBe(false);
     });
 
-    it("resets isRegenerating after error", async () => {
+    it("resets isRegenerating after POST error", async () => {
       vi.mocked(api.post).mockRejectedValueOnce(new Error("fail"));
 
       const { regenerateProfile, isRegenerating } = useEntityProfile();

@@ -61,12 +61,37 @@ export function useEntityProfile() {
     isRegenerating.value = true;
     try {
       await api.post(`/entity/${entityType}/${entityId}/profile/regenerate`);
-      await fetchProfile(entityType, entityId);
+      // Backend returns 202 and queues async generation.
+      // Poll until the profile reappears (bio_summary becomes non-null).
+      await pollForProfile(entityType, entityId);
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Regeneration failed";
       loadingState.value = "error";
     } finally {
       isRegenerating.value = false;
+    }
+  }
+
+  async function pollForProfile(
+    entityType: string,
+    entityId: number | string,
+    intervalMs = 5000,
+    maxAttempts = 24
+  ): Promise<void> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      try {
+        const response = await api.get<EntityProfileResponse>(
+          `/entity/${entityType}/${entityId}/profile`
+        );
+        profileData.value = response.data;
+        loadingState.value = "loaded";
+        if (response.data?.profile?.bio_summary) {
+          return;
+        }
+      } catch {
+        // Profile fetch failed during polling; keep trying
+      }
     }
   }
 
