@@ -33,7 +33,7 @@ test.describe("Profile Page", () => {
     await expect(emailDefinition).toBeVisible();
     const emailValue = emailDefinition.locator("+ dd");
     // Use extended timeout and regex to wait for auth store to populate
-    await expect(emailValue).toHaveText(/.+@.+/, { timeout: 10000 });
+    await expect(emailValue).toHaveText(/\S+@\S+\.\S+/, { timeout: 10000 });
   });
 
   test("displays user role", async ({ page }) => {
