@@ -2,7 +2,7 @@
 
 Revision ID: f7624c3b4e76
 Revises: 184855af397c
-Create Date: 2026-02-04
+Create Date: 2026-02-03
 
 Issue #1765: The owner_id column on entity_profiles is vestigial after
 narrowing the unique constraint in #1731. Profiles are per-entity, not
