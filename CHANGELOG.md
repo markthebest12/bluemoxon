@@ -5,6 +5,14 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.1.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.3) - 2026-02-03
+
+- [`d2d68a5`](https://github.com/markthebest12/bluemoxon/commit/d2d68a5c9350e116558a75da27ba1ae7462b4c02) Merge pull request #1771 from markthebest12/staging
+- [`0ec64ce`](https://github.com/markthebest12/bluemoxon/commit/0ec64cea5604e71b34a937eeda09066aec7a6eec) fix: remove stale owner_id from SQS test message payloads (#1765) (#1769)
+- [`3f2a9b4`](https://github.com/markthebest12/bluemoxon/commit/3f2a9b47385c801dad4e5ff19db13fdae9ae3423) refactor: drop vestigial owner_id from entity_profiles (#1765) (#1768)
+- [`c288f0e`](https://github.com/markthebest12/bluemoxon/commit/c288f0ee49d0f1afb37739c928c2a100575a39ee) fix: populate email from API response in auth store (#1727) (#1767)
+- [`3f2a9b4`](https://github.com/markthebest12/bluemoxon/commit/3f2a9b47385c801dad4e5ff19db13fdae9ae3423) refactor: drop vestigial owner_id from entity_profiles (#1765) (#1768)
+
 ## [v3.1.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.2) - 2026-02-03
 
 - [`4d6f65e`](https://github.com/markthebest12/bluemoxon/commit/4d6f65e483d02a61b46d4466b47c426dfaa69969) Merge pull request #1766 from markthebest12/staging
