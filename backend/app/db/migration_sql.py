@@ -721,6 +721,19 @@ MIGRATION_708C5A15F5BB_SQL = [
     )""",
 ]
 
+# Migration SQL for z4567890klmn_consolidate_config_tables
+# Merges admin_config rows into app_config and drops admin_config table (#1776)
+MIGRATION_Z4567890KLMN_SQL = [
+    """INSERT INTO app_config (key, value, description, updated_at)
+       SELECT key,
+              TRIM(BOTH '"' FROM value::text),
+              'Migrated from admin_config',
+              updated_at
+       FROM admin_config
+       ON CONFLICT (key) DO NOTHING""",
+    "DROP TABLE IF EXISTS admin_config",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -987,5 +1000,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "708c5a15f5bb",
         "name": "add_app_config_table",
         "sql_statements": MIGRATION_708C5A15F5BB_SQL,
+    },
+    {
+        "id": "z4567890klmn",
+        "name": "consolidate_config_tables",
+        "sql_statements": MIGRATION_Z4567890KLMN_SQL,
     },
 ]

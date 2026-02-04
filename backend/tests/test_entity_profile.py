@@ -1114,7 +1114,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_high_impact_trigger_generates_relationship_story(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1158,7 +1158,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_low_impact_trigger_generates_simple_narrative(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1191,7 +1191,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_no_trigger_skips_narrative_generation(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1224,7 +1224,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_max_narratives_respected(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1258,7 +1258,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_regeneration_preserves_existing_relationship_stories(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1314,7 +1314,7 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
-    @patch("app.services.entity_profile._get_model_id", return_value="claude-3-haiku")
+    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
     def test_null_bio_from_ai_logs_warning_and_creates_profile(
         self, _mock_model, mock_classify, mock_bio, mock_graph, db, caplog
     ):

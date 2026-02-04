@@ -8,6 +8,7 @@ import re
 import time
 
 from botocore.exceptions import ClientError
+from sqlalchemy.orm import Session
 
 from app.services.bedrock import MODEL_IDS, get_bedrock_client, get_model_id
 
@@ -19,45 +20,24 @@ MAX_RETRIES = 3
 BASE_DELAY = 2.0
 
 
-def _get_model_id() -> str:
-    """Get Bedrock model ID, checking app_config then env var, then default.
+def resolve_model_id(db: Session) -> str:
+    """Resolve the Bedrock model ID for entity profile generation.
 
     Resolution order:
-      1. app_config 'model.entity_profiles' (if DB is reachable)
+      1. app_config 'model.entity_profiles' (from DB, cached)
       2. ENTITY_PROFILE_MODEL env var
       3. DEFAULT_MODEL constant ('haiku')
     """
-    model_name: str | None = None
+    # Lazy import to avoid circular dependency: app_config → models → ...
+    from app.services.app_config import get_config
 
-    # Try reading from app_config — check cache first to avoid creating
-    # a DB session on every invocation when the value is already cached.
+    model_name = None
     try:
-        from app.services.app_config import CACHE_TTL, _cache
-
-        cache_key = "model.entity_profiles"
-        now = time.time()
-        if cache_key in _cache and now - _cache[cache_key][1] < CACHE_TTL:
-            from app.services.app_config import _MISSING
-
-            cached = _cache[cache_key][0]
-            model_name = None if cached == _MISSING else cached
-        else:
-            # Cache miss — need a DB session
-            from app.db import SessionLocal
-            from app.services.app_config import get_config
-
-            db = SessionLocal()
-            try:
-                model_name = get_config(db, cache_key)
-            finally:
-                db.close()
+        model_name = get_config(db, "model.entity_profiles")
     except Exception:
-        logger.warning("Could not read model.entity_profiles from app_config, using fallback")
-
-    # Fall back to env var, then default
+        logger.warning("Failed to read model config from DB, falling back to env/default")
     if not model_name:
         model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
-
     if model_name not in MODEL_IDS:
         logger.warning(
             "Entity profile model '%s' not in MODEL_IDS, falling back to default (%s)",
@@ -68,14 +48,13 @@ def _get_model_id() -> str:
     return get_model_id(model_name)
 
 
-def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str:
+def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024, *, model_id: str) -> str:
     """Invoke Bedrock Claude with retry/backoff and return response text.
 
     Retries on ThrottlingException with exponential backoff matching
     the pattern in bedrock.invoke_bedrock().
     """
     client = get_bedrock_client()
-    model_id = _get_model_id()
     body = json.dumps(
         {
             "anthropic_version": "bedrock-2023-05-31",
@@ -188,6 +167,8 @@ def generate_bio_and_stories(
     founded_year: int | None = None,
     book_titles: list[str] | None = None,
     connections: list[dict] | None = None,
+    *,
+    model_id: str,
 ) -> dict:
     """Generate bio summary and personal stories for an entity.
 
@@ -225,7 +206,7 @@ Return ONLY valid JSON: {{"biography": "...", "personal_stories": [...]}}
 If the entity is obscure, provide what is known and note the obscurity.{_format_connection_instructions(connections)}"""
 
     try:
-        raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
+        raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024, model_id=model_id)
         text = _strip_markdown_fences(raw)
         result = json.loads(text)
         # Validate expected shape — must have biography string and personal_stories list
@@ -250,6 +231,8 @@ def generate_connection_narrative(
     connection_type: str,
     shared_book_titles: list[str],
     connections: list[dict] | None = None,
+    *,
+    model_id: str,
 ) -> str | None:
     """Generate one-sentence narrative for a connection.
 
@@ -266,7 +249,9 @@ def generate_connection_narrative(
 Return ONLY the single sentence, no quotes."""
 
     try:
-        return _invoke(_CONNECTION_SYSTEM_PROMPT, user_prompt, max_tokens=200).strip()
+        return _invoke(
+            _CONNECTION_SYSTEM_PROMPT, user_prompt, max_tokens=200, model_id=model_id
+        ).strip()
     except Exception:
         logger.exception("Failed to generate narrative for %s-%s", entity1_name, entity2_name)
         return None
@@ -283,6 +268,8 @@ def generate_relationship_story(
     shared_book_titles: list[str],
     trigger_type: str,
     connections: list[dict] | None = None,
+    *,
+    model_id: str,
 ) -> dict | None:
     """Generate full relationship story for high-impact connections.
 
@@ -313,7 +300,7 @@ relationships, "timeline-events" for long-spanning connections.
 Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}{conn_instructions}"""
 
     try:
-        raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024)
+        raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024, model_id=model_id)
         text = _strip_markdown_fences(raw)
         result = json.loads(text)
         if not isinstance(result, dict) or "summary" not in result:
