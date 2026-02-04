@@ -13,6 +13,7 @@
  */
 
 import { computed, ref } from "vue";
+import { useElementSize } from "@vueuse/core";
 import type { HistoricalEvent } from "@/types/socialCircles";
 import { VICTORIAN_EVENTS } from "@/constants/socialCircles";
 
@@ -27,6 +28,10 @@ const props = withDefaults(defineProps<Props>(), {
   sliderYear: undefined,
   events: () => VICTORIAN_EVENTS,
 });
+
+// Reactive container width for pixel-based label spacing
+const containerRef = ref<HTMLElement>();
+const { width: containerWidth } = useElementSize(containerRef);
 
 // Track which marker is being hovered or focused (by ID string)
 const hoveredEventKey = ref<string | null>(null);
@@ -43,9 +48,10 @@ function getEventId(event: HistoricalEvent): string {
 // Enriched event with precomputed _id and label visibility flag
 type EnrichedEvent = HistoricalEvent & { _id: string; _showLabel: boolean };
 
-// Minimum percentage spacing between year labels to prevent overlap.
-// At 4%, labels need ~4% of the timeline width apart to both display.
-const MIN_LABEL_SPACING = 4;
+// Minimum pixel spacing between year labels to prevent overlap.
+// Converted dynamically to a percentage based on actual container width
+// so label density stays consistent across viewports.
+const MIN_LABEL_PX = 60;
 
 // Epsilon for floating point comparison tolerance
 const EPSILON = 0.001;
@@ -61,6 +67,9 @@ const visibleEvents = computed<EnrichedEvent[]>(() => {
   // Sort by year to evaluate label spacing left-to-right
   filtered.sort((a, b) => a.year - b.year);
 
+  // Convert pixel threshold to percentage based on actual container width
+  const minSpacing = containerWidth.value > 0 ? (MIN_LABEL_PX / containerWidth.value) * 100 : 4;
+
   const sliderPercent =
     props.sliderYear !== undefined ? getPositionPercent(props.sliderYear) : null;
 
@@ -68,8 +77,8 @@ const visibleEvents = computed<EnrichedEvent[]>(() => {
   for (const event of filtered) {
     const percent = getPositionPercent(event.year);
     const tooCloseToSlider =
-      sliderPercent !== null && Math.abs(percent - sliderPercent) < MIN_LABEL_SPACING;
-    if (!tooCloseToSlider && percent - lastShownPercent >= MIN_LABEL_SPACING - EPSILON) {
+      sliderPercent !== null && Math.abs(percent - sliderPercent) < minSpacing;
+    if (!tooCloseToSlider && percent - lastShownPercent >= minSpacing - EPSILON) {
       event._showLabel = true;
       lastShownPercent = percent;
     }
@@ -137,7 +146,12 @@ function handleKeydown(e: KeyboardEvent, id: string) {
 </script>
 
 <template>
-  <div class="timeline-markers" role="list" aria-label="Historical timeline events">
+  <div
+    ref="containerRef"
+    class="timeline-markers"
+    role="list"
+    aria-label="Historical timeline events"
+  >
     <div
       v-for="event in visibleEvents"
       :key="event._id"

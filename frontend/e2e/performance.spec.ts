@@ -201,39 +201,4 @@ test.describe("Performance Tests", () => {
     expect(metrics.firstContentfulPaint).toBeLessThan(BOOKS_FCP_BUDGET);
   });
 
-  test("Core Web Vitals summary", async ({ page }) => {
-    const pages = [
-      { name: "Home", url: "/" },
-      { name: "Books", url: "/books" },
-      { name: "Book Detail", url: "/books/401" },
-    ];
-
-    console.log("\n╔══════════════════════════════════════════════════════════════════╗");
-    console.log("║              CORE WEB VITALS SUMMARY                             ║");
-    console.log("╠══════════════════════════════════════════════════════════════════╣");
-    console.log("║  Page         │  FCP      │  LCP      │  DCL      │  Transfer   ║");
-    console.log("╠═══════════════╪═══════════╪═══════════╪═══════════╪═════════════╣");
-
-    for (const p of pages) {
-      await page.goto(p.url, { waitUntil: "networkidle" });
-      await page.waitForTimeout(1500);
-      const metrics = await measurePerformance(page);
-
-      const fcp = metrics.firstContentfulPaint
-        ? `${metrics.firstContentfulPaint.toFixed(0)}ms`.padEnd(9)
-        : "N/A".padEnd(9);
-      const lcp = metrics.largestContentfulPaint
-        ? `${metrics.largestContentfulPaint.toFixed(0)}ms`.padEnd(9)
-        : "N/A".padEnd(9);
-      const dcl = `${metrics.domContentLoaded.toFixed(0)}ms`.padEnd(9);
-      const transfer = formatBytes(metrics.totalTransferSize).padEnd(11);
-
-      console.log(`║  ${p.name.padEnd(12)} │  ${fcp} │  ${lcp} │  ${dcl} │  ${transfer} ║`);
-    }
-
-    console.log("╚══════════════════════════════════════════════════════════════════╝");
-    console.log("\n📋 Web Vitals Targets (Google):");
-    console.log("   FCP: Good < 1.8s, Needs Improvement < 3s, Poor > 3s");
-    console.log("   LCP: Good < 2.5s, Needs Improvement < 4s, Poor > 4s");
-  });
 });
