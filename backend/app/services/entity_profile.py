@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -129,10 +131,9 @@ def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookIm
     return image_map
 
 
-def _image_url(book_id: int, image: BookImage) -> str:
+def _image_url(book_id: int, image: BookImage, *, is_lambda: bool) -> str:
     """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
-    settings = get_settings()
-    if settings.is_aws_lambda:
+    if is_lambda:
         return get_cloudfront_url(image.s3_key)
     return f"/api/v1/books/{book_id}/images/{image.id}/file"
 
@@ -140,6 +141,7 @@ def _image_url(book_id: int, image: BookImage) -> str:
 def _build_profile_books(db: Session, books: list[Book]) -> list[ProfileBook]:
     """Convert Book models to ProfileBook schemas with primary image URLs."""
     image_map = _get_primary_image_map(db, [b.id for b in books])
+    is_lambda = get_settings().is_aws_lambda
 
     result: list[ProfileBook] = []
     for book in books:
@@ -151,7 +153,7 @@ def _build_profile_books(db: Session, books: list[Book]) -> list[ProfileBook]:
                 year=book.year_start,
                 condition=book.condition_grade,
                 edition=book.edition,
-                primary_image_url=_image_url(book.id, img) if img else None,
+                primary_image_url=_image_url(book.id, img, is_lambda=is_lambda) if img else None,
             )
         )
     return result
@@ -225,6 +227,30 @@ def _node_years(node) -> tuple[int | None, int | None]:
     )
 
 
+def _iter_connected_entities(
+    node_id: str,
+    graph: SocialCirclesResponse,
+) -> Iterator[tuple[str, int, str, Any, Any]]:
+    """Yield (entity_type, entity_id, name, node, edge) for each connected entity.
+
+    Edges are sorted by strength descending so highest-strength connections
+    come first.  Edges whose "other" node cannot be resolved are skipped.
+    """
+    connected_edges = sorted(
+        (e for e in graph.edges if e.source == node_id or e.target == node_id),
+        key=lambda e: e.strength,
+        reverse=True,
+    )
+    node_map = {n.id: n for n in graph.nodes}
+    for edge in connected_edges:
+        other_id = edge.target if edge.source == node_id else edge.source
+        node = node_map.get(other_id)
+        if not node:
+            continue
+        type_str = node.type.value if hasattr(node.type, "value") else str(node.type)
+        yield type_str, node.entity_id, node.name, node, edge
+
+
 def _format_entity_dates(node) -> str:
     """Format entity dates as a human-readable string for AI prompts."""
     if node.birth_year:
@@ -254,17 +280,18 @@ def _build_connections(
     if graph is None:
         graph = get_or_build_graph(db)
 
-    # Find edges connected to this entity
-    connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
+    # Resolve source node and count edges (needed before iterating)
+    source_node = next((n for n in graph.nodes if n.id == node_id), None)
+    source_connection_count = sum(
+        1 for e in graph.edges if e.source == node_id or e.target == node_id
+    )
 
-    # Build node lookup
-    node_map = {n.id: n for n in graph.nodes}
-    source_node = node_map.get(node_id)
-    source_connection_count = len(connected_edges)
+    # Materialise connected entities so we can bulk-fetch shared books
+    connected = list(_iter_connected_entities(node_id, graph))
 
     # Bulk-fetch shared books for all edges in a single query
     all_shared_ids: set[int] = set()
-    for edge in connected_edges:
+    for _etype, _eid, _name, _node, edge in connected:
         if edge.shared_book_ids:
             all_shared_ids.update(edge.shared_book_ids)
 
@@ -275,6 +302,7 @@ def _build_connections(
 
     # Batch-load primary images for shared books (#1634)
     shared_image_map = _get_primary_image_map(db, list(all_shared_ids))
+    is_lambda = get_settings().is_aws_lambda
 
     # Get cached narratives and relationship stories
     narratives: dict[str, str] = {}
@@ -285,20 +313,13 @@ def _build_connections(
         rel_stories = profile.relationship_stories
 
     connections: list[ProfileConnection] = []
-    for edge in connected_edges:
+    for type_str, _eid, _name, other_node, edge in connected:
         other_id = edge.target if edge.source == node_id else edge.source
-        other_node = node_map.get(other_id)
-        if not other_node:
-            continue
-
         narrative_key = f"{node_id}:{other_id}"
         narrative_key_rev = f"{other_id}:{node_id}"
 
         era_value = _era_str(other_node)
         conn_type_str = edge.type.value if hasattr(edge.type, "value") else str(edge.type)
-        type_str = (
-            other_node.type.value if hasattr(other_node.type, "value") else str(other_node.type)
-        )
 
         # Classify connection (#1553)
         cached_story_data = rel_stories.get(narrative_key) or rel_stories.get(narrative_key_rev)
@@ -326,7 +347,9 @@ def _build_connections(
                             year=book.year_start,
                             condition=book.condition_grade,
                             edition=book.edition,
-                            primary_image_url=_image_url(book.id, img) if img else None,
+                            primary_image_url=(
+                                _image_url(book.id, img, is_lambda=is_lambda) if img else None
+                            ),
                         )
                     )
 
@@ -456,25 +479,20 @@ def generate_and_cache_profile(
     node_id = f"{entity_type}:{entity_id}"
     if graph is None:
         graph = get_or_build_graph(db)
-    connected_edges = [e for e in graph.edges if e.source == node_id or e.target == node_id]
-    connected_edges = sorted(connected_edges, key=lambda e: e.strength, reverse=True)
-    node_map = {n.id: n for n in graph.nodes}
-    source_node = node_map.get(node_id)
-    source_connection_count = len(connected_edges)
 
-    connection_list = []
-    for edge in connected_edges:
-        other_id = edge.target if edge.source == node_id else edge.source
-        other = node_map.get(other_id)
-        if other:
-            other_type = other.type.value if hasattr(other.type, "value") else str(other.type)
-            connection_list.append(
-                {
-                    "entity_type": other_type,
-                    "entity_id": other.entity_id,
-                    "name": other.name,
-                }
-            )
+    # Resolve source node and count edges (needed before iterating)
+    source_node = next((n for n in graph.nodes if n.id == node_id), None)
+    source_connection_count = sum(
+        1 for e in graph.edges if e.source == node_id or e.target == node_id
+    )
+
+    # Materialise connected entities (sorted by strength descending)
+    connected = list(_iter_connected_entities(node_id, graph))
+
+    connection_list = [
+        {"entity_type": etype, "entity_id": eid, "name": name}
+        for etype, eid, name, _node, _edge in connected
+    ]
     valid_entity_ids = {f"{c['entity_type']}:{c['entity_id']}" for c in connection_list}
 
     # Cap connections in AI prompts to control token cost (#1654)
@@ -509,19 +527,12 @@ def generate_and_cache_profile(
     narratives: dict[str, str] = {}
     rel_stories: dict[str, dict] = {}
     narrated_count = 0
-    for edge in connected_edges:
+    for other_type_str, _eid, _name, other_node, edge in connected:
         if max_narratives and narrated_count >= max_narratives:
             break
 
         other_id = edge.target if edge.source == node_id else edge.source
-        other_node = node_map.get(other_id)
-        if not other_node:
-            continue
-
         conn_type_str = edge.type.value if hasattr(edge.type, "value") else str(edge.type)
-        other_type_str = (
-            other_node.type.value if hasattr(other_node.type, "value") else str(other_node.type)
-        )
         shared_ids_set = set(edge.shared_book_ids) if edge.shared_book_ids else set()
         shared_titles = [b.title for b in books if b.id in shared_ids_set]
         key = f"{node_id}:{other_id}"
