@@ -26,12 +26,13 @@ def _check_staleness(db: Session, entity_type: str, entity_id: int, owner_id: in
 
     Returns True if entity has no profile or profile is stale.
     """
+    # Profiles are per-entity, not per-user (#1715). Query without owner_id
+    # to match the narrowed unique constraint on (entity_type, entity_id).
     profile = (
         db.query(EntityProfile)
         .filter(
             EntityProfile.entity_type == entity_type,
             EntityProfile.entity_id == entity_id,
-            EntityProfile.owner_id == owner_id,
         )
         .first()
     )

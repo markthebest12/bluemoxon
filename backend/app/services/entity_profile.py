@@ -593,13 +593,13 @@ def generate_and_cache_profile(
 
     model_version = _get_model_id()
 
-    # Upsert profile
+    # Upsert profile — query without owner_id to match the narrowed unique
+    # constraint on (entity_type, entity_id). Profiles are per-entity (#1715).
     existing = (
         db.query(EntityProfile)
         .filter(
             EntityProfile.entity_type == entity_type,
             EntityProfile.entity_id == entity_id,
-            EntityProfile.owner_id == owner_id,
         )
         .first()
     )

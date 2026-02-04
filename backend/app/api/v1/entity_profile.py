@@ -238,14 +238,8 @@ def regenerate_profile(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
         )
 
-    # Delete existing cached profile so the UI shows loading state
-    db.query(EntityProfile).filter(
-        EntityProfile.entity_type == entity_type.value,
-        EntityProfile.entity_id == entity_id,
-    ).delete()
-    db.commit()
-
-    # Enqueue async regeneration via SQS
+    # Enqueue async regeneration via SQS first — if this fails, the old
+    # profile is preserved (no data-loss window).
     message = {
         "job_id": None,
         "entity_type": entity_type.value,
@@ -263,6 +257,14 @@ def regenerate_profile(
         raise HTTPException(
             status_code=500, detail="Failed to enqueue profile regeneration"
         ) from exc
+
+    # Delete existing cached profile so the UI shows loading state.
+    # Done after enqueue so a failure above doesn't leave the profile deleted.
+    db.query(EntityProfile).filter(
+        EntityProfile.entity_type == entity_type.value,
+        EntityProfile.entity_id == entity_id,
+    ).delete()
+    db.commit()
 
     return JSONResponse(
         status_code=202,
