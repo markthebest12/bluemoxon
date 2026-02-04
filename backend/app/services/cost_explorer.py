@@ -35,7 +35,7 @@ AWS_SERVICE_TO_MODEL = {
 MODEL_USAGE_DESCRIPTIONS = {
     "Sonnet 4.5": MODEL_USAGE.get("sonnet", "Primary analysis"),
     "Opus 4.5": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Haiku 3": MODEL_USAGE.get("haiku", "Fast extraction"),
+    "Haiku 3.5": MODEL_USAGE.get("haiku", "Fast extraction"),
     "Sonnet 3.5": "Legacy analysis",
     "Sonnet 3.5 v2": "Legacy analysis",
 }
