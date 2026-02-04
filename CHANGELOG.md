@@ -5,6 +5,23 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.1.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.1) - 2026-02-03
+
+- [`90bf520`](https://github.com/markthebest12/bluemoxon/commit/90bf5201722b9c7e537f3d474dcd75ee6aae7a55) Merge pull request #1754 from markthebest12/staging
+- [`bd367ad`](https://github.com/markthebest12/bluemoxon/commit/bd367adea85d6fe694e6d8dddf54833a3fb50143) fix: restore response headers in retry_head smoke helper (#1753)
+- [`60e2394`](https://github.com/markthebest12/bluemoxon/commit/60e23944dc1c8f6a953d60eb8d9699543aabe493) fix: address code review findings from bug sweep (#1752)
+- [`1333ad6`](https://github.com/markthebest12/bluemoxon/commit/1333ad6f29345590b751b9339e6f31914d27e150) fix: revert smoke/migration API key to GitHub Secrets (#1748)
+- [`17ae795`](https://github.com/markthebest12/bluemoxon/commit/17ae79551a61abfb1bd996863c5bac7db10e3cc4) fix: format TimelineMarkers.vue with Prettier (#1747)
+- [`0f80cea`](https://github.com/markthebest12/bluemoxon/commit/0f80cea284814f9538be8427cbf0e9931b338dbd) fix: add retry logic to deploy smoke tests (#1691) (#1745)
+- [`b41e8f2`](https://github.com/markthebest12/bluemoxon/commit/b41e8f24ca0d653a734a8e245ef13c2e3c20da5c) fix: resolve deploy migration endpoint 401 auth error (#1700) (#1746)
+- [`b30ebca`](https://github.com/markthebest12/bluemoxon/commit/b30ebca4f4bf0bcaa138d3988610d4e328724be4) fix: use pixel-based timeline label spacing instead of percentage (#1666) (#1743)
+- [`e015847`](https://github.com/markthebest12/bluemoxon/commit/e01584755fc6fbf5c95ae0840fa89c4455b1aebc) fix: use Cytoscape tap event instead of coordinate click in hub-mode E2E (#1692) (#1744)
+- [`d1562e2`](https://github.com/markthebest12/bluemoxon/commit/d1562e234897019582ab23af96749542c363b355) fix: resolve app-shell skeleton nav visibility timeout (#1699) (#1741)
+- [`2b2850d`](https://github.com/markthebest12/bluemoxon/commit/2b2850d20569e73995fea5f3768c5813c3312d50) fix: improve profile email E2E test stability (#1727) (#1742)
+- [`2f4ff5f`](https://github.com/markthebest12/bluemoxon/commit/2f4ff5fefd556ffc4b7a81d815a54eb65d7d8275) fix: remove no-assertion Core Web Vitals summary test (#1737) (#1740)
+- [`bb21d55`](https://github.com/markthebest12/bluemoxon/commit/bb21d55f92db5fbe32938fe5b14121086d51f363) fix: increase social circles layout E2E timeout for production (#1736) (#1739)
+- [`d98471e`](https://github.com/markthebest12/bluemoxon/commit/d98471e5b934c4215b7fe24fa98d6b7484acf508) fix: improve acquisitions kanban E2E test stability (#1726) (#1738)
+
 ## [v3.1.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.0) - 2026-02-03
 
 - [`5fa98fa`](https://github.com/markthebest12/bluemoxon/commit/5fa98fa4a36f46d70942a23e28c17951ab2cc8ce) feat: add portrait image to ProfileHero with placeholder fallback (#1632) (#1713)
