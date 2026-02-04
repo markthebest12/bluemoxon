@@ -64,10 +64,24 @@ USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 logger = logging.getLogger(__name__)
 
 
+def _escape_sparql_string(value: str) -> str:
+    """Escape a value for use in a SPARQL string literal (double-quoted).
+
+    Handles backslashes, double quotes, newlines, carriage returns, and tabs
+    per the SPARQL 1.1 grammar for STRING_LITERAL2 (double-quoted strings).
+    """
+    return (
+        value.replace("\\", "\\\\")  # Backslash first
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+
+
 def build_sparql_query_person(entity_name: str) -> str:
     """Build SPARQL query for a human entity (author, binder person)."""
-    # Escape quotes in name for SPARQL
-    escaped_name = entity_name.replace('"', '\\"')
+    escaped_name = _escape_sparql_string(entity_name)
     return f"""
 SELECT ?item ?itemLabel ?itemDescription ?birth ?death
        ?image ?occupation ?occupationLabel ?work ?workLabel
@@ -95,7 +109,7 @@ LIMIT 10
 
 def build_sparql_query_org(entity_name: str) -> str:
     """Build SPARQL query for an organizational entity (publisher)."""
-    escaped_name = entity_name.replace('"', '\\"')
+    escaped_name = _escape_sparql_string(entity_name)
     return f"""
 SELECT ?item ?itemLabel ?itemDescription ?image ?inception
 WHERE {{

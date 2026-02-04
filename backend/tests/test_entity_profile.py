@@ -538,30 +538,78 @@ class TestEntityProfileTimestamps:
 
 
 class TestRegenerateEndpoint:
-    """Tests for POST /api/v1/entity/{entity_type}/{entity_id}/profile/regenerate (#1557)."""
+    """Tests for POST /api/v1/entity/{entity_type}/{entity_id}/profile/regenerate (#1718).
 
-    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
-    def test_regenerate_returns_200(self, mock_generate, editor_client, db):
-        """Regenerate succeeds with mocked AI service."""
+    The endpoint is async: it deletes cached profile, enqueues an SQS message,
+    and returns 202 Accepted immediately.
+    """
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_regenerate_returns_202_and_enqueues_sqs(self, mock_send, editor_client, db):
+        """Regenerate returns 202 and sends SQS message."""
         author = Author(name="Test Author")
         db.add(author)
         db.commit()
 
-        mock_generate.return_value = MagicMock(spec=EntityProfile)
+        response = editor_client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
+        assert response.status_code == 202
+        data = response.json()
+        assert data["status"] == "queued"
+        assert "queued" in data["message"].lower()
+        mock_send.assert_called_once()
+
+        # Verify the SQS message contents
+        messages = mock_send.call_args.args[0]
+        assert len(messages) == 1
+        msg = messages[0]
+        assert msg["entity_type"] == "author"
+        assert msg["entity_id"] == author.id
+        assert msg["job_id"] is None
+
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_regenerate_deletes_existing_profile(self, mock_send, editor_client, db):
+        """Existing cached profile is deleted before enqueueing."""
+        user = db.query(User).filter(User.cognito_sub == "test-editor-ep").first()
+        author = Author(name="Cached Author")
+        db.add(author)
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            owner_id=user.id,
+            bio_summary="Old bio",
+        )
+        db.add(profile)
+        db.commit()
+
+        # Verify profile exists
+        assert (
+            db.query(EntityProfile)
+            .filter(
+                EntityProfile.entity_type == "author",
+                EntityProfile.entity_id == author.id,
+            )
+            .count()
+            == 1
+        )
 
         response = editor_client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
-        assert response.status_code == 200
-        assert response.json() == {"status": "regenerated"}
-        mock_generate.assert_called_once()
-        call_args = mock_generate.call_args
-        assert call_args.args[1] == "author"
-        assert call_args.args[2] == author.id
+        assert response.status_code == 202
 
-    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
-    def test_regenerate_nonexistent_entity_returns_404(self, mock_generate, editor_client, db):
+        # Profile should be deleted
+        assert (
+            db.query(EntityProfile)
+            .filter(
+                EntityProfile.entity_type == "author",
+                EntityProfile.entity_id == author.id,
+            )
+            .count()
+            == 0
+        )
+
+    def test_regenerate_nonexistent_entity_returns_404(self, editor_client, db):
         """Regenerating profile for nonexistent entity returns 404."""
-        mock_generate.side_effect = ValueError("Entity not found")
-
         response = editor_client.post("/api/v1/entity/author/99999/profile/regenerate")
         assert response.status_code == 404
 
@@ -579,13 +627,12 @@ class TestRegenerateEndpoint:
         response = editor_client.post("/api/v1/entity/invalid/1/profile/regenerate")
         assert response.status_code == 422
 
-    @patch("app.api.v1.entity_profile.generate_and_cache_profile")
-    def test_regenerate_ai_service_error_returns_500(self, mock_generate, db):
-        """Non-ValueError from AI service returns 500.
+    @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
+    def test_regenerate_sqs_failure_returns_500(self, mock_send, db):
+        """SQS send failure returns 500.
 
         Uses a dedicated client with raise_server_exceptions=False so the
-        unhandled RuntimeError surfaces as a 500 response instead of
-        propagating through TestClient.
+        HTTP 500 surfaces as a response instead of propagating through TestClient.
         """
         user = User(cognito_sub="test-editor-500", email="ep-500@example.com", role="editor")
         db.add(user)
@@ -611,7 +658,7 @@ class TestRegenerateEndpoint:
         db.add(author)
         db.commit()
 
-        mock_generate.side_effect = RuntimeError("Bedrock connection failed")
+        mock_send.side_effect = RuntimeError("SQS connection failed")
 
         with TestClient(app, raise_server_exceptions=False) as client:
             response = client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")

@@ -15,6 +15,7 @@ export function useEntityProfile() {
   const loadingState = ref<LoadingState>("idle");
   const error = ref<string | null>(null);
   const isRegenerating = ref(false);
+  let pollAbortController: AbortController | null = null;
 
   const isLoading = computed(() => loadingState.value === "loading");
   const hasError = computed(() => loadingState.value === "error");
@@ -61,13 +62,51 @@ export function useEntityProfile() {
     isRegenerating.value = true;
     try {
       await api.post(`/entity/${entityType}/${entityId}/profile/regenerate`);
-      await fetchProfile(entityType, entityId);
+      // Backend returns 202 and queues async generation.
+      // Poll until the profile reappears (bio_summary becomes non-null).
+      await pollForProfile(entityType, entityId);
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Regeneration failed";
       loadingState.value = "error";
     } finally {
       isRegenerating.value = false;
     }
+  }
+
+  function cancelPolling(): void {
+    pollAbortController?.abort();
+    pollAbortController = null;
+  }
+
+  async function pollForProfile(
+    entityType: string,
+    entityId: number | string,
+    intervalMs = 5000,
+    maxAttempts = 24
+  ): Promise<void> {
+    pollAbortController?.abort();
+    pollAbortController = new AbortController();
+    const { signal } = pollAbortController;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      if (signal.aborted) return;
+      try {
+        const response = await api.get<EntityProfileResponse>(
+          `/entity/${entityType}/${entityId}/profile`
+        );
+        profileData.value = response.data;
+        loadingState.value = "loaded";
+        if (response.data?.profile?.bio_summary) {
+          return;
+        }
+      } catch {
+        // Profile fetch failed during polling; keep trying
+      }
+    }
+    // Max attempts exhausted — surface error state
+    error.value = "Profile regeneration timed out. Please try again.";
+    loadingState.value = "error";
   }
 
   return {
@@ -86,5 +125,6 @@ export function useEntityProfile() {
     isRegenerating,
     fetchProfile,
     regenerateProfile,
+    cancelPolling,
   };
 }

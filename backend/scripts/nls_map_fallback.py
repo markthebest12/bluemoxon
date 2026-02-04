@@ -16,6 +16,7 @@ import json
 import logging
 import math
 import os
+import threading
 from datetime import UTC, datetime
 
 import anthropic
@@ -29,6 +30,30 @@ from scripts.wikidata_portraits import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Lazy singleton for Anthropic client — avoids creating a new instance per call
+_anthropic_client: anthropic.Anthropic | None = None
+_anthropic_lock = threading.Lock()
+
+
+def _get_anthropic_client() -> anthropic.Anthropic | None:
+    """Return a shared Anthropic client, creating it on first use.
+
+    Returns None (with a warning) when ANTHROPIC_API_KEY is not set.
+    Thread-safe via lock on first creation.
+    """
+    global _anthropic_client  # noqa: PLW0603
+    if _anthropic_client is not None:
+        return _anthropic_client
+    with _anthropic_lock:
+        if _anthropic_client is None:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                logger.warning("ANTHROPIC_API_KEY not set, skipping location extraction")
+                return None
+            _anthropic_client = anthropic.Anthropic(api_key=api_key)
+    return _anthropic_client
+
 
 # NLS tile URL template for OS 6-inch 2nd edition maps
 NLS_TILE_URL = "https://mapseries-tilesets.s3.amazonaws.com/os/6inch_2nd_ed/{z}/{x}/{y}.png"
@@ -47,13 +72,11 @@ def extract_location(entity_name: str, entity_description: str | None) -> str | 
     Returns:
         Location string (e.g. "Albemarle Street, London") or None.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY not set, skipping location extraction")
+    client = _get_anthropic_client()
+    if client is None:
         return None
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
         prompt = (
             "Extract the primary city or street address associated with this "
             "Victorian-era publisher or binder. "

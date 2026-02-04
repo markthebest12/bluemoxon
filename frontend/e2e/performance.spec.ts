@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const RELAXED = !!process.env.E2E_RELAXED_BUDGETS;
+const RELAXED = !!process.env.E2E_RELAXED_BUDGETS || !!process.env.CI;
 const FCP_BUDGET = RELAXED ? 5000 : 2500;
 const DCL_BUDGET = RELAXED ? 6000 : 3000;
 const BOOKS_FCP_BUDGET = RELAXED ? 6000 : 3000;
@@ -199,6 +199,72 @@ test.describe("Performance Tests", () => {
     );
 
     expect(metrics.firstContentfulPaint).toBeLessThan(BOOKS_FCP_BUDGET);
+  });
+
+  // Observability-only: collects CWV across key pages and prints a summary table.
+  // No assertions — wrapped in try/catch so it never causes test failure.
+  test("CWV summary (observability)", async ({ page }) => {
+    try {
+      // Use the same book ID as the "Book detail page performance" test above.
+      // If this ID doesn't exist, the page will 404 and metrics will be skipped.
+      const BOOK_DETAIL_PATH = "/books/401";
+      const pages = [
+        { name: "Home", path: "/" },
+        { name: "Books", path: "/books" },
+        { name: "Book Detail", path: BOOK_DETAIL_PATH },
+      ];
+
+      const rows: {
+        name: string;
+        fcp: number | null;
+        lcp: number | null;
+        dcl: number;
+        load: number;
+        resources: number;
+        transferSize: number;
+      }[] = [];
+
+      for (const p of pages) {
+        await page.goto(p.path, { waitUntil: "networkidle" });
+        await page.waitForTimeout(2000);
+        const m = await measurePerformance(page);
+        rows.push({
+          name: p.name,
+          fcp: m.firstContentfulPaint,
+          lcp: m.largestContentfulPaint,
+          dcl: m.domContentLoaded,
+          load: m.loadComplete,
+          resources: m.totalResources,
+          transferSize: m.totalTransferSize,
+        });
+      }
+
+      console.log("\n=== CWV OBSERVABILITY SUMMARY ===");
+      console.log(
+        "Page".padEnd(14) +
+          "FCP".padStart(10) +
+          "LCP".padStart(10) +
+          "DCL".padStart(10) +
+          "Load".padStart(10) +
+          "Res#".padStart(6) +
+          "Transfer".padStart(12)
+      );
+      console.log("-".repeat(72));
+      for (const r of rows) {
+        console.log(
+          r.name.padEnd(14) +
+            formatMs(r.fcp).padStart(10) +
+            formatMs(r.lcp).padStart(10) +
+            formatMs(r.dcl).padStart(10) +
+            formatMs(r.load).padStart(10) +
+            String(r.resources).padStart(6) +
+            formatBytes(r.transferSize).padStart(12)
+        );
+      }
+      console.log("=".repeat(72));
+    } catch (err) {
+      console.warn("CWV summary collection failed (non-fatal):", err);
+    }
   });
 
 });

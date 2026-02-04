@@ -5,6 +5,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi.responses import JSONResponse
 from PIL import Image, ImageOps
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -15,12 +16,12 @@ from app.config import get_settings
 from app.db import get_db
 from app.models.author import Author
 from app.models.binder import Binder
+from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.aws_clients import get_s3_client
-from app.services.entity_profile import generate_and_cache_profile, get_entity_profile
-from app.services.social_circles_cache import get_or_build_graph
+from app.services.entity_profile import get_entity_profile
 from app.services.sqs import send_profile_generation_jobs
 
 logger = logging.getLogger(__name__)
@@ -203,8 +204,9 @@ def get_profile(
 
 @router.post(
     "/{entity_type}/{entity_id}/profile/regenerate",
-    summary="Regenerate entity profile",
-    description="Triggers regeneration of AI-generated profile content.",
+    status_code=202,
+    summary="Regenerate entity profile (async)",
+    description="Deletes cached profile and enqueues async regeneration via SQS.",
 )
 def regenerate_profile(
     entity_type: EntityType = Path(...),
@@ -212,19 +214,62 @@ def regenerate_profile(
     db: Session = Depends(get_db),
     current_user=Depends(require_editor),
 ):
-    """Regenerate AI profile content. Requires editor role due to API cost."""
+    """Enqueue async profile regeneration via SQS.
+
+    Deletes existing cached profile so the UI shows a loading state,
+    then sends a message to the profile generation queue. The profile
+    worker Lambda picks up the message and generates the new profile.
+
+    Returns 202 Accepted immediately -- the caller should poll
+    GET /{entity_type}/{entity_id}/profile until the profile reappears.
+    """
     if not current_user.db_user:
         raise HTTPException(status_code=403, detail="API key auth requires linked database user")
-    try:
-        graph = get_or_build_graph(db)
-        generate_and_cache_profile(
-            db, entity_type.value, entity_id, current_user.db_user.id, graph=graph
-        )
-    except ValueError as exc:
+
+    # Validate entity exists
+    model = _PORTRAIT_MODEL_MAP.get(entity_type.value)
+    if not model:
         raise HTTPException(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
+        )
+    entity = db.query(model).filter(model.id == entity_id).first()
+    if not entity:
+        raise HTTPException(
+            status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
+        )
+
+    # Enqueue async regeneration via SQS first — if this fails, the old
+    # profile is preserved (no data-loss window).
+    message = {
+        "job_id": None,
+        "entity_type": entity_type.value,
+        "entity_id": entity_id,
+        "owner_id": current_user.db_user.id,
+    }
+    try:
+        send_profile_generation_jobs([message])
+    except Exception as exc:
+        logger.exception(
+            "Failed to enqueue profile regeneration for %s:%s",
+            entity_type.value,
+            entity_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to enqueue profile regeneration"
         ) from exc
-    return {"status": "regenerated"}
+
+    # Delete existing cached profile so the UI shows loading state.
+    # Done after enqueue so a failure above doesn't leave the profile deleted.
+    db.query(EntityProfile).filter(
+        EntityProfile.entity_type == entity_type.value,
+        EntityProfile.entity_id == entity_id,
+    ).delete()
+    db.commit()
+
+    return JSONResponse(
+        status_code=202,
+        content={"status": "queued", "message": "Profile regeneration queued"},
+    )
 
 
 # Map entity type strings to model classes for portrait upload.
