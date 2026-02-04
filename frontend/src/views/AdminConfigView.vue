@@ -720,7 +720,7 @@ function getBarWidth(cost: number): string {
               <select
                 :value="flow.current_model"
                 :disabled="savingModelFlow === flow.key"
-                class="rounded-sm border-gray-300 text-sm py-1 px-2 min-w-[120px]"
+                class="rounded-sm border-gray-300 text-sm py-1 pl-2 pr-8 min-w-[120px]"
                 @change="updateFlowModel(flow.key, ($event.target as HTMLSelectElement).value)"
               >
                 <option v-for="model in modelConfig.available_models" :key="model" :value="model">
