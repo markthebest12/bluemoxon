@@ -78,10 +78,11 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
     """Process a single profile generation message.
 
     Args:
-        message: Dict with keys: job_id, entity_type, entity_id, owner_id
+        message: Dict with keys: job_id (nullable), entity_type, entity_id, owner_id.
+                 job_id is None for ad-hoc single-entity regeneration requests.
         db: Database session
     """
-    job_id = message["job_id"]
+    job_id = message.get("job_id")
     entity_type = message["entity_type"]
     entity_id = message["entity_id"]
     owner_id = message["owner_id"]
@@ -90,7 +91,8 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
         # Idempotency: skip if entity already has a non-stale profile
         if not _check_staleness(db, entity_type, entity_id, owner_id):
             logger.info("Skipping %s:%s (profile is current)", entity_type, entity_id)
-            _update_job_progress(db, job_id, success=True)
+            if job_id:
+                _update_job_progress(db, job_id, success=True)
             return
 
         # Get cached graph (first worker builds, rest get cache hits)
@@ -107,11 +109,15 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
         )
 
         logger.info("Generated profile for %s:%s", entity_type, entity_id)
-        _update_job_progress(db, job_id, success=True)
+        if job_id:
+            _update_job_progress(db, job_id, success=True)
 
     except Exception as exc:
         logger.exception("Failed to generate profile for %s:%s", entity_type, entity_id)
-        _update_job_progress(db, job_id, success=False, error=f"{entity_type}:{entity_id}: {exc}")
+        if job_id:
+            _update_job_progress(
+                db, job_id, success=False, error=f"{entity_type}:{entity_id}: {exc}"
+            )
 
 
 def handler(event: dict, context) -> dict:
