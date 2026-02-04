@@ -1555,24 +1555,58 @@ jobs:
 
       - name: Test API liveness
         run: |
-          API_URL="${{ needs.configure.outputs.api_url }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_URL}/health/deep")
-          http_code=$(echo "$response" | tail -n1)
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
 
-          if [[ "$http_code" != "200" ]]; then
-            echo "Liveness check failed!"
-            exit 1
-          fi
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          retry_curl "${API_URL}/health/deep" "API liveness check" 5 3
           echo "API liveness check passed!"
 
       - name: Validate version and environment
         if: needs.deploy-api-lambda.result == 'success'
         run: |
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
+
           API_URL="${{ needs.configure.outputs.api_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
           EXPECTED_ENV="${{ needs.configure.outputs.environment }}"
 
-          response=$(curl -s "${API_URL}/health/version")
+          response=$(retry_curl "${API_URL}/health/version" "Version endpoint" 5 3)
           ACTUAL_VERSION=$(echo "$response" | jq -r '.version')
           ACTUAL_ENV=$(echo "$response" | jq -r '.environment')
 
@@ -1608,15 +1642,28 @@ jobs:
 
       - name: Test API deep health check
         run: |
-          API_URL="${{ needs.configure.outputs.api_url }}"
-          response=$(curl -s -w "\n%{http_code}" "${API_URL}/health/deep")
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
 
-          if [[ "$http_code" != "200" ]]; then
-            echo "Deep health check failed!"
-            exit 1
-          fi
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          body=$(retry_curl "${API_URL}/health/deep" "Deep health check" 5 3)
 
           status=$(echo "$body" | jq -r '.status' 2>/dev/null)
           if [[ "$status" == "unhealthy" ]]; then
@@ -1631,35 +1678,84 @@ jobs:
         env:
           BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
-          API_URL="${{ needs.configure.outputs.api_url }}"
-          response=$(curl -s -w "\n%{http_code}" -H "X-API-Key: ${BMX_API_KEY}" "${API_URL}/books?per_page=1")
-          http_code=$(echo "$response" | tail -n1)
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
 
-          if [[ "$http_code" != "200" ]]; then
-            echo "Books API check failed!"
-            exit 1
-          fi
+          API_URL="${{ needs.configure.outputs.api_url }}"
+          retry_curl "${API_URL}/books?per_page=1" "Books API check" 5 3 -H "X-API-Key: ${BMX_API_KEY}"
           echo "Books API check passed!"
 
       - name: Test Vue app loads
         run: |
-          APP_URL="${{ steps.urls.outputs.app_url }}"
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL")
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
 
-          if [[ "$http_code" != "200" ]]; then
-            echo "Vue app check failed!"
-            exit 1
-          fi
+          APP_URL="${{ steps.urls.outputs.app_url }}"
+          retry_curl "$APP_URL" "Vue app load" 5 3
           echo "Vue app check passed!"
 
       - name: Validate frontend config
         if: needs.deploy-frontend.result == 'success'
         run: |
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
+
           APP_URL="${{ steps.urls.outputs.app_url }}"
           EXPECTED_VERSION="${{ needs.generate-version.outputs.version }}"
           EXPECTED_CLIENT_ID="${{ needs.configure.outputs.cognito_client_id }}"
 
-          html=$(curl -s "$APP_URL")
+          html=$(retry_curl "$APP_URL" "Frontend HTML fetch" 5 3)
           js_file=$(echo "$html" | grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' | head -1)
 
           if [[ -z "$js_file" ]]; then
@@ -1667,7 +1763,7 @@ jobs:
             exit 1
           fi
 
-          js_content=$(curl -s "${APP_URL}${js_file}")
+          js_content=$(retry_curl "${APP_URL}${js_file}" "Frontend JS bundle fetch" 5 3)
 
           if ! echo "$js_content" | grep -q "$EXPECTED_VERSION"; then
             echo "ERROR: Frontend version mismatch!"
@@ -1703,11 +1799,49 @@ jobs:
         env:
           BMX_API_KEY: ${{ needs.configure.outputs.api_key }}
         run: |
+          retry_curl() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            shift 4 2>/dev/null || shift $#
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -s -w "\n%{http_code}" "$@" "$url")
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$body"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
+
+          retry_head() {
+            local url="$1"; local desc="$2"; local max="${3:-5}"; local delay="${4:-3}"
+            for attempt in $(seq 1 "$max"); do
+              echo "Attempt $attempt/$max: $desc" >&2
+              response=$(curl -sI -L "$url")
+              http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
+              if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
+                echo "✓ $desc succeeded (HTTP $http_code)" >&2
+                echo "$response"
+                return 0
+              fi
+              echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            echo "::error::$desc failed after $max attempts" >&2
+            return 1
+          }
+
           API_URL="${{ needs.configure.outputs.api_url }}"
           API_BASE="${{ steps.urls.outputs.api_base }}"
           ENV="${{ needs.configure.outputs.environment }}"
 
-          book_response=$(curl -s -H "X-API-Key: ${BMX_API_KEY}" "${API_URL}/books?has_images=true&per_page=1")
+          book_response=$(retry_curl "${API_URL}/books?has_images=true&per_page=1" "Books with images fetch" 5 3 -H "X-API-Key: ${BMX_API_KEY}")
           total_with_images=$(echo "$book_response" | jq -r '.total' 2>/dev/null)
 
           if [[ "$total_with_images" == "0" || "$total_with_images" == "null" ]]; then
@@ -1727,14 +1861,8 @@ jobs:
             fi
 
             if [[ -n "$image_url" && "$image_url" != "null" ]]; then
-              response=$(curl -sI -L "$image_url")
-              http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
+              response=$(retry_head "$image_url" "Image HEAD check" 5 3)
               content_type=$(echo "$response" | grep -i "^content-type:" | tail -1 | awk '{print $2}' | tr -d '\r')
-
-              if [[ "$http_code" != "200" ]]; then
-                echo "ERROR: Image returned HTTP $http_code"
-                exit 1
-              fi
 
               if [[ ! "$content_type" =~ ^image/ ]]; then
                 echo "ERROR: Image returned content-type '$content_type', expected image/*"
