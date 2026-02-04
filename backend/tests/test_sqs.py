@@ -40,10 +40,7 @@ class TestProfileGenerationQueue:
         mock_client_fn.return_value = client
         mock_url.return_value = "https://sqs/queue"
 
-        messages = [
-            {"job_id": "j1", "entity_type": "author", "entity_id": i, "owner_id": 1}
-            for i in range(25)
-        ]
+        messages = [{"job_id": "j1", "entity_type": "author", "entity_id": i} for i in range(25)]
         send_profile_generation_jobs(messages)
 
         assert client.send_message_batch.call_count == 3
