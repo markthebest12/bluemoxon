@@ -1,6 +1,6 @@
 """Drop owner_id column from entity_profiles.
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: f7624c3b4e76
 Revises: 184855af397c
 Create Date: 2026-02-04
 
@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "f7624c3b4e76"
 down_revision: str | None = "184855af397c"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
