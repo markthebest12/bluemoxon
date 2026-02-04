@@ -416,7 +416,6 @@ def get_entity_profile(
     db: Session,
     entity_type: str,
     entity_id: int,
-    owner_id: int,
 ) -> EntityProfileResponse | None:
     """Assemble full entity profile response."""
     entity = _get_entity(db, entity_type, entity_id)
@@ -426,8 +425,6 @@ def get_entity_profile(
     books = _get_entity_books(db, entity_type, entity_id)
 
     # Fetch cached profile — profiles are per-entity, not per-user (#1715).
-    # owner_id is intentionally omitted so profiles generated via API key
-    # are visible to browser (Cognito) users and vice-versa.
     cached = (
         db.query(EntityProfile)
         .filter(
@@ -463,7 +460,6 @@ def generate_and_cache_profile(
     db: Session,
     entity_type: str,
     entity_id: int,
-    owner_id: int,
     max_narratives: int | None = None,
     graph: SocialCirclesResponse | None = None,
 ) -> EntityProfile:
@@ -593,8 +589,7 @@ def generate_and_cache_profile(
 
     model_version = _get_model_id()
 
-    # Upsert profile — query without owner_id to match the narrowed unique
-    # constraint on (entity_type, entity_id). Profiles are per-entity (#1715).
+    # Upsert profile — unique constraint on (entity_type, entity_id).
     existing = (
         db.query(EntityProfile)
         .filter(
@@ -625,7 +620,6 @@ def generate_and_cache_profile(
             connection_narratives=narratives,
             relationship_stories=rel_stories,
             model_version=model_version,
-            owner_id=owner_id,
         )
         db.add(profile)
 

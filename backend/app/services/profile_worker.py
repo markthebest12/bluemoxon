@@ -21,13 +21,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _check_staleness(db: Session, entity_type: str, entity_id: int, owner_id: int) -> bool:
+def _check_staleness(db: Session, entity_type: str, entity_id: int) -> bool:
     """Check if entity needs profile generation.
 
     Returns True if entity has no profile or profile is stale.
     """
-    # Profiles are per-entity, not per-user (#1715). Query without owner_id
-    # to match the narrowed unique constraint on (entity_type, entity_id).
     profile = (
         db.query(EntityProfile)
         .filter(
@@ -79,18 +77,17 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
     """Process a single profile generation message.
 
     Args:
-        message: Dict with keys: job_id (nullable), entity_type, entity_id, owner_id.
+        message: Dict with keys: job_id (nullable), entity_type, entity_id.
                  job_id is None for ad-hoc single-entity regeneration requests.
         db: Database session
     """
     job_id = message.get("job_id")
     entity_type = message["entity_type"]
     entity_id = message["entity_id"]
-    owner_id = message["owner_id"]
 
     try:
         # Idempotency: skip if entity already has a non-stale profile
-        if not _check_staleness(db, entity_type, entity_id, owner_id):
+        if not _check_staleness(db, entity_type, entity_id):
             logger.info("Skipping %s:%s (profile is current)", entity_type, entity_id)
             if job_id:
                 _update_job_progress(db, job_id, success=True)
@@ -104,7 +101,6 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
             db,
             entity_type,
             entity_id,
-            owner_id,
             max_narratives=3,
             graph=graph,
         )

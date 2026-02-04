@@ -28,7 +28,6 @@ class TestProfileWorker:
             "job_id": "test-job-1",
             "entity_type": "author",
             "entity_id": 1,
-            "owner_id": 1,
         }
 
         handle_profile_generation_message(message, db)
@@ -48,7 +47,6 @@ class TestProfileWorker:
             "job_id": "test-job-1",
             "entity_type": "author",
             "entity_id": 1,
-            "owner_id": 1,
         }
 
         handle_profile_generation_message(message, db)
@@ -70,7 +68,6 @@ class TestProfileWorker:
             "job_id": "test-job-1",
             "entity_type": "author",
             "entity_id": 1,
-            "owner_id": 1,
         }
 
         handle_profile_generation_message(message, db)
@@ -148,7 +145,6 @@ class TestProfileWorkerHandler:
                             "job_id": "j1",
                             "entity_type": "author",
                             "entity_id": 1,
-                            "owner_id": 1,
                         }
                     ),
                 },
@@ -172,9 +168,7 @@ class TestProfileWorkerHandler:
             "Records": [
                 {
                     "messageId": "msg-1",
-                    "body": json.dumps(
-                        {"job_id": "j1", "entity_type": "author", "entity_id": 1, "owner_id": 1}
-                    ),
+                    "body": json.dumps({"job_id": "j1", "entity_type": "author", "entity_id": 1}),
                 },
             ]
         }

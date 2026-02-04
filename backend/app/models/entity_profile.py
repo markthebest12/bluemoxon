@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -25,4 +25,3 @@ class EntityProfile(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     model_version: Mapped[str | None] = mapped_column(String(100))
-    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)

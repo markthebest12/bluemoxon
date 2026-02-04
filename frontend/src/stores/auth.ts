@@ -39,6 +39,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   interface UserProfileResponse {
     data: {
+      email?: string;
       role?: string;
       first_name?: string;
       last_name?: string;
@@ -176,6 +177,7 @@ export const useAuthStore = defineStore("auth", () => {
       let isMfaExempt = false;
       if (userResult?.data) {
         user.value.role = userResult.data.role || user.value.role;
+        user.value.email = userResult.data.email || user.value.email;
         user.value.first_name = userResult.data.first_name;
         user.value.last_name = userResult.data.last_name;
         isMfaExempt = userResult.data.mfa_exempt === true;
