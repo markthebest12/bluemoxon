@@ -709,6 +709,18 @@ MIGRATION_F7624C3B4E76_SQL: list[str] = [
     "ALTER TABLE entity_profiles DROP COLUMN IF EXISTS owner_id",
 ]
 
+# Migration SQL for 708c5a15f5bb_add_app_config_table
+# Creates app_config table for runtime key-value configuration (model selectors, etc.)
+MIGRATION_708C5A15F5BB_SQL = [
+    """CREATE TABLE IF NOT EXISTS app_config (
+        key VARCHAR(100) PRIMARY KEY,
+        value VARCHAR(500) NOT NULL,
+        description VARCHAR(500),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_by VARCHAR(100)
+    )""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -970,5 +982,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "f7624c3b4e76",
         "name": "drop_entity_profile_owner_id",
         "sql_statements": MIGRATION_F7624C3B4E76_SQL,
+    },
+    {
+        "id": "708c5a15f5bb",
+        "name": "add_app_config_table",
+        "sql_statements": MIGRATION_708C5A15F5BB_SQL,
     },
 ]
