@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 
+const RELAXED = !!process.env.E2E_RELAXED_BUDGETS || !!process.env.CI;
+const SHELL_TIMEOUT = RELAXED ? 5000 : 2000;
+const MOUNT_TIMEOUT = RELAXED ? 15000 : 8000;
+
 test.describe("App Shell Skeleton", () => {
   test("nav bar is visible quickly after navigation start", async ({ page }) => {
     // Measure time from navigation start to nav visibility
@@ -8,9 +12,9 @@ test.describe("App Shell Skeleton", () => {
     // Start navigation but don't wait for network idle
     await page.goto("/", { waitUntil: "commit" });
 
-    // Check that the app shell nav is visible (5s timeout accounts for CI variability)
+    // Check that the app shell nav is visible (timeout varies by environment)
     const navBar = page.locator(".app-shell-nav");
-    await expect(navBar).toBeVisible({ timeout: 5000 });
+    await expect(navBar).toBeVisible({ timeout: SHELL_TIMEOUT });
 
     const elapsed = Date.now() - startTime;
     console.log(`App shell nav visible in ${elapsed}ms`);
@@ -26,7 +30,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Skeleton stat cards should be visible
     const skeletonStats = page.locator(".skeleton-stat");
-    await expect(skeletonStats.first()).toBeVisible({ timeout: 5000 });
+    await expect(skeletonStats.first()).toBeVisible({ timeout: SHELL_TIMEOUT });
 
     // Should have 4 stat cards (matching HomeView dashboard)
     const statCount = await skeletonStats.count();
@@ -41,7 +45,7 @@ test.describe("App Shell Skeleton", () => {
     // Wait for Vue to mount - the real NavBar should be visible
     // NavBar.vue uses <nav class="bg-victorian-hunter-900...">
     const realNav = page.locator("nav.bg-victorian-hunter-900");
-    await expect(realNav).toBeVisible({ timeout: 15000 });
+    await expect(realNav).toBeVisible({ timeout: MOUNT_TIMEOUT });
 
     // App shell nav should no longer be visible (replaced by Vue)
     const appShellNav = page.locator(".app-shell-nav");
@@ -65,7 +69,7 @@ test.describe("App Shell Skeleton", () => {
     // At any point after commit, we should have SOME nav visible
     // Either the app shell nav OR the real Vue nav
     const anyNav = page.locator(".app-shell-nav, nav.bg-victorian-hunter-900");
-    await expect(anyNav.first()).toBeVisible({ timeout: 5000 });
+    await expect(anyNav.first()).toBeVisible({ timeout: SHELL_TIMEOUT });
 
     // Wait for full load and verify real nav replaced skeleton
     await page.waitForLoadState("networkidle");
@@ -79,7 +83,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Check app shell structure
     const appShellNav = page.locator(".app-shell-nav");
-    await expect(appShellNav).toBeVisible({ timeout: 5000 });
+    await expect(appShellNav).toBeVisible({ timeout: SHELL_TIMEOUT });
 
     // Check nav container and logo
     const navContainer = appShellNav.locator(".nav-container");
@@ -113,7 +117,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Nav bar should be visible
     const navBar = page.locator(".app-shell-nav");
-    await expect(navBar).toBeVisible({ timeout: 5000 });
+    await expect(navBar).toBeVisible({ timeout: SHELL_TIMEOUT });
 
     // Nav links should be hidden on mobile (display: none below md breakpoint)
     const navLinks = page.locator(".nav-links");
