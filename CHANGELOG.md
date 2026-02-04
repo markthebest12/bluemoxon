@@ -5,6 +5,14 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.1) - 2026-02-04
+
+- [`aa1a414`](https://github.com/markthebest12/bluemoxon/commit/aa1a4146bce7993072d6dfa103921cc076928cd5) fix: address code review findings from #1776 and #1777 (#1786)
+- [`57b2cde`](https://github.com/markthebest12/bluemoxon/commit/57b2cde4e600eb2022895e0924be94f76dff2e20) refactor: remove inline SessionLocal from ai_profile_generator (#1777) (#1783)
+- [`70a0412`](https://github.com/markthebest12/bluemoxon/commit/70a0412c5f397f1ffd9aeb4ae883d52547ae0e76) refactor: consolidate admin_config into app_config table (#1776) (#1782)
+- [`57b2cde`](https://github.com/markthebest12/bluemoxon/commit/57b2cde4e600eb2022895e0924be94f76dff2e20) refactor: remove inline SessionLocal from ai_profile_generator (#1777) (#1783)
+- [`70a0412`](https://github.com/markthebest12/bluemoxon/commit/70a0412c5f397f1ffd9aeb4ae883d52547ae0e76) refactor: consolidate admin_config into app_config table (#1776) (#1782)
+
 ## [v3.2.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.0) - 2026-02-04
 
 - [`d42c317`](https://github.com/markthebest12/bluemoxon/commit/d42c317aa94a07fb45dd1265e55e725b04dfce22) Merge pull request #1781 from markthebest12/staging
