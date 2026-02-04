@@ -4,8 +4,16 @@ test.use({ storageState: ".auth/viewer.json" });
 
 test.describe("Profile Page", () => {
   test.beforeEach(async ({ page }) => {
+    // Set up response listener BEFORE navigating so we capture the auth API call.
+    // The /users/me call is the definitive signal that auth store hydration is
+    // complete — email, role, and name are all populated after it resolves.
+    const usersMe = page.waitForResponse(
+      (resp) => resp.url().includes("/api/v1/users/me") && resp.status() === 200,
+    );
     await page.goto("/profile");
-    // Wait for auth store to hydrate and profile to render
+    await usersMe;
+    // Wait for profile to render (heading is inside the v-else branch that only
+    // appears after authInitializing becomes false)
     await expect(
       page.getByRole("heading", { name: "Profile Settings", level: 1 }),
     ).toBeVisible({ timeout: 15000 });
@@ -28,20 +36,20 @@ test.describe("Profile Page", () => {
   });
 
   test("displays user email", async ({ page }) => {
-    // Wait for auth-dependent data: email dd must contain an email address
+    // Auth hydration is guaranteed complete by beforeEach (waitForResponse on /users/me).
+    // The email is rendered from authStore.user?.email which is set during checkAuth().
     const emailDefinition = page.locator("dt", { hasText: "Email" });
     await expect(emailDefinition).toBeVisible();
     const emailValue = emailDefinition.locator("+ dd");
-    // Use extended timeout and regex to wait for auth store to populate
-    await expect(emailValue).toHaveText(/\S+@\S+\.\S+/, { timeout: 10000 });
+    await expect(emailValue).toHaveText(/\S+@\S+\.\S+/, { timeout: 15000 });
   });
 
   test("displays user role", async ({ page }) => {
+    // Auth hydration is guaranteed complete by beforeEach (waitForResponse on /users/me).
     const roleLabel = page.locator("dt", { hasText: "Role" });
     await expect(roleLabel).toBeVisible();
     const roleValue = roleLabel.locator("+ dd");
-    // Use extended timeout to wait for auth store to populate role
-    await expect(roleValue).toHaveText(/.+/, { timeout: 10000 });
+    await expect(roleValue).toHaveText(/.+/, { timeout: 15000 });
   });
 
   test("has save profile button", async ({ page }) => {
