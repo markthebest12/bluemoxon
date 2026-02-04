@@ -61,6 +61,25 @@ const config = ref({ gbp_to_usd_rate: 1.28, eur_to_usd_rate: 1.1 });
 const saving = ref(false);
 const settingsMessage = ref("");
 
+// Model configuration state
+interface ModelConfigFlow {
+  key: string;
+  label: string;
+  description: string;
+  current_model: string;
+  default_model: string;
+  is_default: boolean;
+}
+interface ModelConfigData {
+  flows: ModelConfigFlow[];
+  available_models: string[];
+}
+const modelConfig = ref<ModelConfigData | null>(null);
+const loadingModelConfig = ref(false);
+const modelConfigError = ref("");
+const savingModelFlow = ref<string | null>(null);
+const modelConfigMessage = ref("");
+
 // System info (for other tabs)
 const systemInfo = ref<SystemInfoResponse | null>(null);
 const loadingInfo = ref(false);
@@ -134,7 +153,7 @@ const keyTunables = new Set([
 const isKeyTunable = (key: string) => keyTunables.has(key);
 
 onMounted(async () => {
-  await loadConfig();
+  await Promise.all([loadConfig(), loadModelConfig()]);
   await loadSystemInfo();
 });
 
@@ -161,6 +180,46 @@ async function saveConfig() {
     console.error("Failed to save config:", e);
   } finally {
     saving.value = false;
+  }
+}
+
+async function loadModelConfig() {
+  loadingModelConfig.value = true;
+  modelConfigError.value = "";
+  try {
+    const res = await api.get("/admin/model-config");
+    modelConfig.value = res.data;
+  } catch (e) {
+    modelConfigError.value = "Failed to load model configuration";
+    console.error("Failed to load model config:", e);
+  } finally {
+    loadingModelConfig.value = false;
+  }
+}
+
+async function updateFlowModel(flowKey: string, model: string) {
+  savingModelFlow.value = flowKey;
+  modelConfigMessage.value = "";
+  try {
+    await api.put(`/admin/model-config/${flowKey}`, { model });
+    // Update local state
+    if (modelConfig.value) {
+      const flow = modelConfig.value.flows.find((f) => f.key === flowKey);
+      if (flow) {
+        const meta = modelConfig.value.flows.find((f) => f.key === flowKey);
+        flow.current_model = model;
+        flow.is_default = model === (meta?.default_model ?? model);
+      }
+    }
+    modelConfigMessage.value = "Model updated";
+    setTimeout(() => {
+      modelConfigMessage.value = "";
+    }, 3000);
+  } catch (e) {
+    modelConfigMessage.value = "Failed to update model";
+    console.error("Failed to update model config:", e);
+  } finally {
+    savingModelFlow.value = null;
   }
 }
 
@@ -595,38 +654,96 @@ function getBarWidth(cost: number): string {
     </div>
 
     <!-- Settings Tab -->
-    <div
-      v-if="activeTab === 'settings'"
-      class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4"
-    >
-      <h2 class="text-lg font-semibold">Currency Conversion Rates</h2>
-      <div class="grid grid-cols-2 gap-4">
-        <label class="block">
-          <span class="text-sm text-gray-700">GBP to USD</span>
-          <input
-            v-model.number="config.gbp_to_usd_rate"
-            type="number"
-            step="0.01"
-            class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
-          />
-        </label>
-        <label class="block">
-          <span class="text-sm text-gray-700">EUR to USD</span>
-          <input
-            v-model.number="config.eur_to_usd_rate"
-            type="number"
-            step="0.01"
-            class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
-          />
-        </label>
+    <div v-if="activeTab === 'settings'" class="flex flex-col gap-6">
+      <div class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">Currency Conversion Rates</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block">
+            <span class="text-sm text-gray-700">GBP to USD</span>
+            <input
+              v-model.number="config.gbp_to_usd_rate"
+              type="number"
+              step="0.01"
+              class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
+            />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-700">EUR to USD</span>
+            <input
+              v-model.number="config.eur_to_usd_rate"
+              type="number"
+              step="0.01"
+              class="mt-1 block w-full rounded-sm border-gray-300 shadow-xs"
+            />
+          </label>
+        </div>
+        <div class="flex items-center gap-4">
+          <button :disabled="saving" class="btn-primary" @click="saveConfig">
+            {{ saving ? "Saving..." : "Save" }}
+          </button>
+          <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{
+            settingsMessage
+          }}</span>
+        </div>
       </div>
-      <div class="flex items-center gap-4">
-        <button :disabled="saving" class="btn-primary" @click="saveConfig">
-          {{ saving ? "Saving..." : "Save" }}
-        </button>
-        <span v-if="settingsMessage" class="text-sm text-[var(--color-status-success-accent)]">{{
-          settingsMessage
-        }}</span>
+
+      <!-- Model Configuration Section -->
+      <div class="bg-white rounded-lg shadow-sm p-6 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">AI Model Configuration</h2>
+        <p class="text-sm text-gray-500">
+          Select which Claude model to use for each workflow. Changes take effect on the next
+          invocation.
+        </p>
+
+        <div
+          v-if="modelConfigError"
+          class="p-3 bg-[var(--color-status-error-bg)] text-[var(--color-status-error-text)] rounded-sm text-sm"
+        >
+          {{ modelConfigError }}
+        </div>
+
+        <div v-else-if="loadingModelConfig" class="text-sm text-gray-500">
+          Loading model configuration...
+        </div>
+
+        <div v-else-if="modelConfig" class="flex flex-col gap-4">
+          <div
+            v-for="flow in modelConfig.flows"
+            :key="flow.key"
+            class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border border-gray-100 rounded-md"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-900 text-sm">{{ flow.label }}</div>
+              <div class="text-xs text-gray-500">{{ flow.description }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <select
+                :value="flow.current_model"
+                :disabled="savingModelFlow === flow.key"
+                class="rounded-sm border-gray-300 text-sm py-1 px-2 min-w-[120px]"
+                @change="updateFlowModel(flow.key, ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="model in modelConfig.available_models" :key="model" :value="model">
+                  {{ model }}{{ model === flow.default_model ? " (default)" : "" }}
+                </option>
+              </select>
+              <span v-if="savingModelFlow === flow.key" class="text-xs text-gray-400 animate-pulse">
+                Saving...
+              </span>
+            </div>
+          </div>
+          <div
+            v-if="modelConfigMessage"
+            class="text-sm"
+            :class="
+              modelConfigMessage.includes('Failed')
+                ? 'text-[var(--color-status-error-accent)]'
+                : 'text-[var(--color-status-success-accent)]'
+            "
+          >
+            {{ modelConfigMessage }}
+          </div>
+        </div>
       </div>
     </div>
 
