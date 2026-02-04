@@ -11,6 +11,7 @@ Also merges the two migration heads (z3456789ijkl and 708c5a15f5bb).
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -37,17 +38,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Recreate with JSONB to match the original migration (9d7720474d6d)
     op.create_table(
         "admin_config",
         sa.Column("key", sa.String(50), primary_key=True),
-        sa.Column("value", sa.JSON, nullable=False),
+        sa.Column("value", postgresql.JSONB, nullable=False),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),
         ),
     )
-    # Move rate rows back as JSON numbers
+    # Move rate rows back as JSON numbers.
+    # Note: only these two keys existed in admin_config at migration time.
+    # Any new rate keys added post-migration won't be moved back.
     op.execute("""
         INSERT INTO admin_config (key, value)
         SELECT key, value::jsonb
