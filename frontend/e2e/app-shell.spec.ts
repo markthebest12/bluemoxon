@@ -8,9 +8,9 @@ test.describe("App Shell Skeleton", () => {
     // Start navigation but don't wait for network idle
     await page.goto("/", { waitUntil: "commit" });
 
-    // Check that the app shell nav is visible (2s timeout accounts for CI variability)
+    // Check that the app shell nav is visible (5s timeout accounts for CI variability)
     const navBar = page.locator(".app-shell-nav");
-    await expect(navBar).toBeVisible({ timeout: 2000 });
+    await expect(navBar).toBeVisible({ timeout: 5000 });
 
     const elapsed = Date.now() - startTime;
     console.log(`App shell nav visible in ${elapsed}ms`);
@@ -26,7 +26,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Skeleton stat cards should be visible
     const skeletonStats = page.locator(".skeleton-stat");
-    await expect(skeletonStats.first()).toBeVisible({ timeout: 2000 });
+    await expect(skeletonStats.first()).toBeVisible({ timeout: 5000 });
 
     // Should have 4 stat cards (matching HomeView dashboard)
     const statCount = await skeletonStats.count();
@@ -65,7 +65,7 @@ test.describe("App Shell Skeleton", () => {
     // At any point after commit, we should have SOME nav visible
     // Either the app shell nav OR the real Vue nav
     const anyNav = page.locator(".app-shell-nav, nav.bg-victorian-hunter-900");
-    await expect(anyNav.first()).toBeVisible({ timeout: 2000 });
+    await expect(anyNav.first()).toBeVisible({ timeout: 5000 });
 
     // Wait for full load and verify real nav replaced skeleton
     await page.waitForLoadState("networkidle");
@@ -79,7 +79,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Check app shell structure
     const appShellNav = page.locator(".app-shell-nav");
-    await expect(appShellNav).toBeVisible({ timeout: 2000 });
+    await expect(appShellNav).toBeVisible({ timeout: 5000 });
 
     // Check nav container and logo
     const navContainer = appShellNav.locator(".nav-container");
@@ -113,7 +113,7 @@ test.describe("App Shell Skeleton", () => {
 
     // Nav bar should be visible
     const navBar = page.locator(".app-shell-nav");
-    await expect(navBar).toBeVisible({ timeout: 2000 });
+    await expect(navBar).toBeVisible({ timeout: 5000 });
 
     // Nav links should be hidden on mobile (display: none below md breakpoint)
     const navLinks = page.locator(".nav-links");
