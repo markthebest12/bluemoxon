@@ -119,6 +119,17 @@ class TestResolveModelId:
         model_id = resolve_model_id(db)
         assert "haiku" in model_id
 
+    def test_db_config_takes_priority(self, db):
+        from app.models.app_config import AppConfig
+        from app.services.app_config import clear_cache
+
+        clear_cache()
+        db.add(AppConfig(key="model.entity_profiles", value="sonnet"))
+        db.flush()
+        model_id = resolve_model_id(db)
+        assert "sonnet" in model_id
+        clear_cache()
+
     @patch.dict("os.environ", {"ENTITY_PROFILE_MODEL": "sonnet"})
     def test_env_override(self, db):
         model_id = resolve_model_id(db)
@@ -126,6 +137,11 @@ class TestResolveModelId:
 
     @patch.dict("os.environ", {"ENTITY_PROFILE_MODEL": "claude-3-5-haiku-20241022"})
     def test_unknown_model_falls_back_to_default(self, db):
+        model_id = resolve_model_id(db)
+        assert "haiku" in model_id
+
+    @patch("app.services.app_config.get_config", side_effect=Exception("DB down"))
+    def test_db_error_falls_back_to_default(self, _mock_config, db):
         model_id = resolve_model_id(db)
         assert "haiku" in model_id
 

@@ -28,9 +28,14 @@ def resolve_model_id(db: Session) -> str:
       2. ENTITY_PROFILE_MODEL env var
       3. DEFAULT_MODEL constant ('haiku')
     """
+    # Lazy import to avoid circular dependency: app_config → models → ...
     from app.services.app_config import get_config
 
-    model_name = get_config(db, "model.entity_profiles")
+    model_name = None
+    try:
+        model_name = get_config(db, "model.entity_profiles")
+    except Exception:
+        logger.warning("Failed to read model config from DB, falling back to env/default")
     if not model_name:
         model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
     if model_name not in MODEL_IDS:
