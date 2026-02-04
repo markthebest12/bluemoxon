@@ -42,7 +42,7 @@ MODEL_IDS = {
 MODEL_USAGE = {
     "sonnet": "Eval runbooks, FMV lookup, Listing extraction, Napoleon analysis (optional)",
     "opus": "Napoleon analysis (default)",
-    "haiku": "Order data extraction",
+    "haiku": "Entity profiles",
 }
 
 # Prompt cache with TTL
