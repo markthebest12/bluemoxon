@@ -28,9 +28,11 @@ retry_head() {
   shift 4 2>/dev/null || shift $#
   for attempt in $(seq 1 "$max"); do
     echo "Attempt $attempt/$max: $desc" >&2
-    http_code=$(curl -sI -L -o /dev/null -w "%{http_code}" "$@" "$url")
-    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ]; then
+    response=$(curl -sI -L "$@" "$url")
+    http_code=$(echo "$response" | grep -i "^HTTP" | tail -1 | awk '{print $2}')
+    if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 400 ] 2>/dev/null; then
       echo "✓ $desc succeeded (HTTP $http_code)" >&2
+      echo "$response"
       return 0
     fi
     echo "✗ $desc failed (HTTP $http_code), retrying in ${delay}s..." >&2
