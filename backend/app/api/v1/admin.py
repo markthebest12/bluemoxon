@@ -39,6 +39,8 @@ from app.schemas.migration import (
     MigrationStats,
 )
 from app.services import tiered_scoring
+from app.services.app_config import get_config as get_app_config
+from app.services.app_config import set_config as set_app_config
 from app.services.bedrock import (
     CLAUDE_MAX_IMAGE_BYTES,
     CLAUDE_SAFE_RAW_BYTES,
@@ -70,6 +72,50 @@ class ConfigUpdate(BaseModel):
 
     gbp_to_usd_rate: float | None = None
     eur_to_usd_rate: float | None = None
+
+
+# Model configuration flow definitions
+MODEL_CONFIG_FLOWS = {
+    "model.napoleon_analysis": {
+        "label": "Napoleon Analysis",
+        "description": "Full book analysis using the Napoleon framework",
+        "default": "opus",
+    },
+    "model.entity_profiles": {
+        "label": "Entity Profiles",
+        "description": "AI-generated biographical profiles for authors, publishers, and binders",
+        "default": "haiku",
+    },
+    "model.order_extraction": {
+        "label": "Order Extraction",
+        "description": "Extract structured data from order confirmation emails",
+        "default": "haiku",
+    },
+}
+
+
+class ModelConfigFlow(BaseModel):
+    """Model configuration for a single flow."""
+
+    key: str
+    label: str
+    description: str
+    current_model: str
+    default_model: str
+    is_default: bool
+
+
+class ModelConfigResponse(BaseModel):
+    """Response for model configuration endpoint."""
+
+    flows: list[ModelConfigFlow]
+    available_models: list[str]
+
+
+class ModelConfigUpdate(BaseModel):
+    """Request body for updating a flow's model."""
+
+    model: str
 
 
 class HealthCheck(BaseModel):
@@ -418,6 +464,69 @@ def update_config(
             db.add(AdminConfig(key=key, value=value))
     db.commit()
     return get_config(response, db)
+
+
+@router.get("/model-config", response_model=ModelConfigResponse)
+def get_model_config(
+    response: Response,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Get current model assignments for each workflow (admin only)."""
+    response.headers["Cache-Control"] = "no-store"
+
+    flows = []
+    for key, meta in MODEL_CONFIG_FLOWS.items():
+        current = get_app_config(db, key, meta["default"])
+        flows.append(
+            ModelConfigFlow(
+                key=key,
+                label=meta["label"],
+                description=meta["description"],
+                current_model=current or meta["default"],
+                default_model=meta["default"],
+                is_default=(current or meta["default"]) == meta["default"],
+            )
+        )
+
+    return ModelConfigResponse(
+        flows=flows,
+        available_models=list(MODEL_IDS.keys()),
+    )
+
+
+@router.put("/model-config/{flow_key:path}")
+def update_model_config(
+    flow_key: str,
+    body: ModelConfigUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Update the model for a specific workflow (admin only)."""
+    if flow_key not in MODEL_CONFIG_FLOWS:
+        raise HTTPException(status_code=404, detail=f"Unknown flow: {flow_key}")
+
+    if body.model not in MODEL_IDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid model '{body.model}'. Must be one of: {', '.join(MODEL_IDS.keys())}",
+        )
+
+    meta = MODEL_CONFIG_FLOWS[flow_key]
+    set_app_config(
+        db,
+        key=flow_key,
+        value=body.model,
+        description=meta["description"],
+        updated_by=getattr(_user, "email", None) or "admin",
+    )
+
+    current = get_app_config(db, flow_key, meta["default"])
+    return {
+        "key": flow_key,
+        "model": current,
+        "is_default": current == meta["default"],
+    }
 
 
 @router.get("/system-info", response_model=SystemInfoResponse)

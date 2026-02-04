@@ -4,6 +4,7 @@ from app.models.admin_config import AdminConfig
 from app.models.analysis import BookAnalysis
 from app.models.analysis_job import AnalysisJob
 from app.models.api_key import APIKey
+from app.models.app_config import AppConfig
 from app.models.author import Author
 from app.models.base import Base
 from app.models.binder import Binder
@@ -24,6 +25,7 @@ from app.models.user import User
 __all__ = [
     "AdminConfig",
     "AnalysisJob",
+    "AppConfig",
     "APIKey",
     "Base",
     "CarrierCircuit",
