@@ -5,6 +5,18 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.0) - 2026-02-04
+
+- [`d42c317`](https://github.com/markthebest12/bluemoxon/commit/d42c317aa94a07fb45dd1265e55e725b04dfce22) Merge pull request #1781 from markthebest12/staging
+- [`4bcf259`](https://github.com/markthebest12/bluemoxon/commit/4bcf2599baebd0786a15530b60027c9eae3d79b8) fix: address code review findings from backlog features (#1714, #1570, #1571) (#1775)
+- [`4f7d760`](https://github.com/markthebest12/bluemoxon/commit/4f7d7600f4033974caec66a7bed0199688b72ab2) feat: add model dropdown selectors per flow (#1571) (#1774)
+- [`e40382a`](https://github.com/markthebest12/bluemoxon/commit/e40382aa42aa922aee5d67aad2781ab26d98a30e) feat: enable OpenAPI docs on staging (#1714) (#1772)
+- [`5901233`](https://github.com/markthebest12/bluemoxon/commit/5901233d802018c1b8e83a006e48c18944b06ace) fix: correct Haiku key in MODEL_USAGE_DESCRIPTIONS mapping (#1780)
+- [`73e6517`](https://github.com/markthebest12/bluemoxon/commit/73e651720da5b7ccd3d0fb232ec5e0135221dd95) fix: polish model config UI and correct Haiku usage description (#1778)
+- [`4bcf259`](https://github.com/markthebest12/bluemoxon/commit/4bcf2599baebd0786a15530b60027c9eae3d79b8) fix: address code review findings from backlog features (#1714, #1570, #1571) (#1775)
+- [`4f7d760`](https://github.com/markthebest12/bluemoxon/commit/4f7d7600f4033974caec66a7bed0199688b72ab2) feat: add model dropdown selectors per flow (#1571) (#1774)
+- [`e37f8b3`](https://github.com/markthebest12/bluemoxon/commit/e37f8b35d96cc741262851abab86102b2b833236) fix: ensure Haiku costs appear on admin config page (#1570) (#1773)
+
 ## [v3.1.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.3) - 2026-02-03
 
 - [`d2d68a5`](https://github.com/markthebest12/bluemoxon/commit/d2d68a5c9350e116558a75da27ba1ae7462b4c02) Merge pull request #1771 from markthebest12/staging
