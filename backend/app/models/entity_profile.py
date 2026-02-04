@@ -12,9 +12,7 @@ class EntityProfile(TimestampMixin, Base):
     """Cached AI-generated profile for an entity (author, publisher, binder)."""
 
     __tablename__ = "entity_profiles"
-    __table_args__ = (
-        UniqueConstraint("entity_type", "entity_id", "owner_id", name="uq_entity_profile"),
-    )
+    __table_args__ = (UniqueConstraint("entity_type", "entity_id", name="uq_entity_profile"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
