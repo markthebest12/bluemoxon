@@ -704,6 +704,11 @@ MIGRATION_184855AF397C_SQL = [
     END $$""",
 ]
 
+# Migration a1b2c3d4e5f6: Drop owner_id from entity_profiles (#1765)
+MIGRATION_A1B2C3D4E5F6_SQL: list[str] = [
+    "ALTER TABLE entity_profiles DROP COLUMN IF EXISTS owner_id",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -960,5 +965,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "184855af397c",
         "name": "narrow_entity_profile_unique_constraint",
         "sql_statements": MIGRATION_184855AF397C_SQL,
+    },
+    {
+        "id": "a1b2c3d4e5f6",
+        "name": "drop_entity_profile_owner_id",
+        "sql_statements": MIGRATION_A1B2C3D4E5F6_SQL,
     },
 ]

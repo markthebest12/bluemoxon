@@ -83,7 +83,6 @@ def generate_all_profiles(
             "job_id": job.id,
             "entity_type": entity_type,
             "entity_id": entity_id,
-            "owner_id": current_user.db_user.id,
         }
         for entity_type, entity_id in entities
     ]
@@ -194,7 +193,7 @@ def get_profile(
     """Get entity profile with AI-generated content if available."""
     if not current_user.db_user:
         raise HTTPException(status_code=403, detail="API key auth requires linked database user")
-    result = get_entity_profile(db, entity_type.value, entity_id, current_user.db_user.id)
+    result = get_entity_profile(db, entity_type.value, entity_id)
     if not result:
         raise HTTPException(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
@@ -244,7 +243,6 @@ def regenerate_profile(
         "job_id": None,
         "entity_type": entity_type.value,
         "entity_id": entity_id,
-        "owner_id": current_user.db_user.id,
     }
     try:
         send_profile_generation_jobs([message])
