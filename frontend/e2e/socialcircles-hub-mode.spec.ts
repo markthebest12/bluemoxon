@@ -271,30 +271,36 @@ test.describe("Social Circles Hub Mode", () => {
       return cy ? (cy.nodes().length as number) : 0;
     });
 
-    // Read rendered position immediately before clicking to avoid stale coordinates
-    const graphEl = page.getByTestId("network-graph");
-    const graphBox = await graphEl.boundingBox();
-    expect(graphBox).toBeTruthy();
-
-    const nodePos = await page.evaluate((nodeId: string) => {
+    // Emit a Cytoscape "tap" event directly on the node instead of using
+    // coordinate-based mouse.click(), which suffers from sub-pixel offset
+    // mismatches between Cytoscape's canvas coordinates and the DOM bounding box.
+    await page.evaluate((nodeId: string) => {
       const container = document.querySelector(
         "[data-testid='network-graph']"
       ) as HTMLElement | null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (container as any)?._cyreg?.cy;
-      if (!cy) return null;
+      if (!cy) return;
       const node = cy.getElementById(nodeId);
-      if (!node || node.length === 0) return null;
-      const pos = node.renderedPosition();
-      return { x: pos.x as number, y: pos.y as number };
+      if (node && node.length > 0) {
+        node.emit("tap");
+      }
     }, targetNode!.id);
 
-    expect(nodePos).toBeTruthy();
-
-    await page.mouse.click(graphBox!.x + nodePos!.x, graphBox!.y + nodePos!.y);
-
-    // Wait for expansion and layout to settle
-    await waitForLayoutSettled(page);
+    // Wait for the node count to increase (hidden neighbors added)
+    // then for the layout animation to finish settling
+    await page.waitForFunction(
+      (expected: number) => {
+        const container = document.querySelector(
+          "[data-testid='network-graph']"
+        ) as HTMLElement | null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cy = (container as any)?._cyreg?.cy;
+        return cy && cy.nodes().length > expected && !cy.animated();
+      },
+      initialCount,
+      { timeout: 10000 }
+    );
 
     // Node count should have increased (hidden neighbors were added)
     const afterCount = await page.evaluate(() => {
