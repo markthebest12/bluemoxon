@@ -16,8 +16,21 @@ test.describe("Social Circles Layout Switching", () => {
     const viewport = page.viewportSize();
     test.skip(!!viewport && viewport.width <= 768, "Layout switcher requires desktop viewport");
 
+    // Set up response listener before navigation to capture Lambda cold-start latency
+    const apiResponse = page.waitForResponse(
+      (resp) => resp.url().includes("/api/v1/social-circles") && resp.status() === 200
+    );
     await page.goto("/social-circles");
-    await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
+
+    // Wait for the API response first — separates network/Lambda latency from render time
+    await apiResponse;
+
+    // Wait for loading spinner to disappear before asserting graph visibility
+    await expect(page.getByText("Loading social circles...")).toBeHidden({ timeout: 10000 });
+
+    // Production's larger dataset causes the force-directed graph to initialize slower,
+    // so allow 30s for the graph to render after data arrives
+    await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 30000 });
   });
 
   test("layout switcher component is visible", async ({ page }) => {
