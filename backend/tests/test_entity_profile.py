@@ -425,27 +425,19 @@ class TestEntityProfileEndpoint:
         assert data["stats"]["first_editions"] == 1
         assert data["stats"]["date_range"] == [1850, 1870]
 
-    def test_cached_profile_visible_across_owner_ids(self, profile_client, db):
-        """Cached profile created by userA is visible when read by userB (#1715).
+    def test_cached_profile_visible_to_any_user(self, profile_client, db):
+        """Cached profile is visible to any authenticated user (#1715).
 
-        Profiles are per-entity, not per-user. When a profile is generated via
-        API key (one owner_id) but read via Cognito browser login (different
-        owner_id), the cached bio_summary must still be returned.
+        Profiles are per-entity, not per-user. A cached bio_summary is
+        returned regardless of which user requests it.
         """
         author = Author(name="Cross-Owner Author", birth_year=1800, death_year=1870)
         db.add(author)
         db.flush()
 
-        # Create a separate user (userA) who "generated" the profile
-        user_a = User(cognito_sub="test-owner-a", email="owner-a@example.com", role="editor")
-        db.add(user_a)
-        db.flush()
-
-        # Cache a profile under userA's owner_id
         cached_profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            owner_id=user_a.id,
             bio_summary="A distinguished Victorian author.",
             personal_stories=[
                 {
@@ -459,7 +451,6 @@ class TestEntityProfileEndpoint:
         db.add(cached_profile)
         db.commit()
 
-        # Request as profile_client's user (userB — different owner_id)
         response = profile_client.get(f"/api/v1/entity/author/{author.id}/profile")
         assert response.status_code == 200
 
@@ -478,14 +469,9 @@ class TestEntityProfileTimestamps:
 
     def test_entity_profile_has_created_at(self, db):
         """EntityProfile model has created_at as timezone-aware datetime."""
-        user = User(cognito_sub="test-ts", email="ts@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         profile = EntityProfile(
             entity_type="author",
             entity_id=1,
-            owner_id=user.id,
         )
         db.add(profile)
         db.commit()
@@ -495,14 +481,9 @@ class TestEntityProfileTimestamps:
 
     def test_entity_profile_has_updated_at(self, db):
         """EntityProfile model has updated_at from TimestampMixin."""
-        user = User(cognito_sub="test-ts2", email="ts2@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         profile = EntityProfile(
             entity_type="author",
             entity_id=2,
-            owner_id=user.id,
         )
         db.add(profile)
         db.commit()
@@ -512,14 +493,9 @@ class TestEntityProfileTimestamps:
 
     def test_updated_at_changes_on_modification(self, db):
         """updated_at advances when the profile is modified."""
-        user = User(cognito_sub="test-ts3", email="ts3@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         profile = EntityProfile(
             entity_type="author",
             entity_id=3,
-            owner_id=user.id,
             bio_summary="Original bio",
         )
         db.add(profile)
@@ -569,7 +545,6 @@ class TestRegenerateEndpoint:
     @patch("app.api.v1.entity_profile.send_profile_generation_jobs")
     def test_regenerate_deletes_existing_profile(self, mock_send, editor_client, db):
         """Existing cached profile is deleted before enqueueing."""
-        user = db.query(User).filter(User.cognito_sub == "test-editor-ep").first()
         author = Author(name="Cached Author")
         db.add(author)
         db.flush()
@@ -577,7 +552,6 @@ class TestRegenerateEndpoint:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            owner_id=user.id,
             bio_summary="Old bio",
         )
         db.add(profile)
@@ -719,14 +693,9 @@ class TestEntityFKMap:
 
     def test_check_staleness_unknown_type_returns_false(self, db):
         """_check_staleness returns False for unknown entity type."""
-        user = User(cognito_sub="test-fk-stale", email="fk-stale@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         profile = EntityProfile(
             entity_type="unknown",
             entity_id=1,
-            owner_id=user.id,
             generated_at=datetime(2020, 1, 1, tzinfo=UTC),
         )
         db.add(profile)
@@ -737,10 +706,6 @@ class TestEntityFKMap:
 
     def test_check_staleness_returns_true_when_book_updated_after_profile(self, db):
         """_check_staleness returns True when a book was updated after generated_at."""
-        user = User(cognito_sub="test-stale-true", email="stale-true@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         author = Author(name="Stale Author")
         db.add(author)
         db.flush()
@@ -753,7 +718,6 @@ class TestEntityFKMap:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            owner_id=user.id,
             generated_at=old_time,
         )
         db.add(profile)
@@ -768,10 +732,6 @@ class TestEntityFKMap:
 
     def test_check_staleness_returns_false_when_profile_is_fresh(self, db):
         """_check_staleness returns False when generated_at is after book updates."""
-        user = User(cognito_sub="test-stale-false", email="stale-false@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         author = Author(name="Fresh Author")
         db.add(author)
         db.flush()
@@ -784,7 +744,6 @@ class TestEntityFKMap:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            owner_id=user.id,
             generated_at=future_time,
         )
         db.add(profile)
@@ -922,14 +881,9 @@ class TestBuildConnectionsClassifier:
         self, mock_classify, mock_graph, db
     ):
         """has_relationship_story=True when cached profile has a story for this pair."""
-        user = User(cognito_sub="test-rel-story", email="rel@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         profile = EntityProfile(
             entity_type="author",
             entity_id=1,
-            owner_id=user.id,
             relationship_stories={"author:1:publisher:2": {"summary": "test"}},
         )
         db.add(profile)
@@ -1097,10 +1051,6 @@ class TestBuildConnectionsRelationshipStory:
     @patch("app.services.entity_profile.classify_connection", return_value="cross_era_bridge")
     def test_cached_relationship_story_populated(self, _mock_classify, mock_graph, db):
         """relationship_story is populated from cached profile data."""
-        user = User(cognito_sub="test-story-pop", email="story@example.com", role="viewer")
-        db.add(user)
-        db.flush()
-
         story_data = {
             "summary": "Darwin and Murray had a productive partnership",
             "details": [
@@ -1115,7 +1065,6 @@ class TestBuildConnectionsRelationshipStory:
         profile = EntityProfile(
             entity_type="author",
             entity_id=1,
-            owner_id=user.id,
             relationship_stories={"author:1:publisher:2": story_data},
         )
         db.add(profile)
@@ -1170,9 +1119,6 @@ class TestGenerateAndCacheProfileTriggers:
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
         """cross_era_bridge trigger calls generate_relationship_story."""
-        user = User(cognito_sub="test-gen-story", email="gen-story@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Darwin", birth_year=1809, death_year=1882)
         db.add(author)
         db.flush()
@@ -1196,7 +1142,7 @@ class TestGenerateAndCacheProfileTriggers:
         graph.edges = [edge]
         mock_graph.return_value = graph
 
-        result = generate_and_cache_profile(db, "author", author.id, user.id)
+        result = generate_and_cache_profile(db, "author", author.id)
 
         mock_story.assert_called_once()
         mock_narrative.assert_not_called()
@@ -1217,9 +1163,6 @@ class TestGenerateAndCacheProfileTriggers:
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
         """hub_figure trigger calls generate_connection_narrative, not generate_relationship_story."""
-        user = User(cognito_sub="test-gen-narr", email="gen-narr@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Hub Author")
         db.add(author)
         db.flush()
@@ -1237,7 +1180,7 @@ class TestGenerateAndCacheProfileTriggers:
         graph.edges = [edge]
         mock_graph.return_value = graph
 
-        result = generate_and_cache_profile(db, "author", author.id, user.id)
+        result = generate_and_cache_profile(db, "author", author.id)
 
         mock_narrative.assert_called_once()
         mock_story.assert_not_called()
@@ -1253,9 +1196,6 @@ class TestGenerateAndCacheProfileTriggers:
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
         """No trigger means no AI generation for that connection."""
-        user = User(cognito_sub="test-gen-skip", email="gen-skip@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Skip Author")
         db.add(author)
         db.flush()
@@ -1272,7 +1212,7 @@ class TestGenerateAndCacheProfileTriggers:
         graph.edges = [edge]
         mock_graph.return_value = graph
 
-        result = generate_and_cache_profile(db, "author", author.id, user.id)
+        result = generate_and_cache_profile(db, "author", author.id)
 
         mock_narrative.assert_not_called()
         mock_story.assert_not_called()
@@ -1289,9 +1229,6 @@ class TestGenerateAndCacheProfileTriggers:
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
         """max_narratives limits total AI generations."""
-        user = User(cognito_sub="test-gen-max", email="gen-max@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Max Author")
         db.add(author)
         db.flush()
@@ -1312,7 +1249,7 @@ class TestGenerateAndCacheProfileTriggers:
         graph.edges = edges
         mock_graph.return_value = graph
 
-        generate_and_cache_profile(db, "author", author.id, user.id, max_narratives=2)
+        generate_and_cache_profile(db, "author", author.id, max_narratives=2)
 
         assert mock_narrative.call_count == 2
 
@@ -1326,9 +1263,6 @@ class TestGenerateAndCacheProfileTriggers:
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
         """Regeneration merges new stories into existing ones instead of replacing."""
-        user = User(cognito_sub="test-gen-merge", email="gen-merge@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Merge Author")
         db.add(author)
         db.flush()
@@ -1337,7 +1271,6 @@ class TestGenerateAndCacheProfileTriggers:
         existing_profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            owner_id=user.id,
             bio_summary="Old bio",
             relationship_stories={
                 "author:1:binder:99": {
@@ -1370,7 +1303,7 @@ class TestGenerateAndCacheProfileTriggers:
         graph.edges = [edge]
         mock_graph.return_value = graph
 
-        result = generate_and_cache_profile(db, "author", author.id, user.id)
+        result = generate_and_cache_profile(db, "author", author.id)
 
         # New story is present
         assert f"author:{author.id}:publisher:2" in result.relationship_stories
@@ -1392,9 +1325,6 @@ class TestGenerateAndCacheProfileTriggers:
         """
         import logging
 
-        user = User(cognito_sub="test-null-bio", email="null-bio@example.com", role="editor")
-        db.add(user)
-        db.flush()
         author = Author(name="Null Bio Author")
         db.add(author)
         db.flush()
@@ -1410,7 +1340,7 @@ class TestGenerateAndCacheProfileTriggers:
         mock_graph.return_value = graph
 
         with caplog.at_level(logging.WARNING, logger="app.services.entity_profile"):
-            result = generate_and_cache_profile(db, "author", author.id, user.id)
+            result = generate_and_cache_profile(db, "author", author.id)
 
         # Profile is created successfully with None bio
         assert result is not None

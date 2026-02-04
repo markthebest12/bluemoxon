@@ -125,7 +125,7 @@ def send_profile_generation_jobs(messages: list[dict]) -> None:
     """Send profile generation job messages to SQS in batches.
 
     Args:
-        messages: List of dicts with keys: job_id, entity_type, entity_id, owner_id
+        messages: List of dicts with keys: job_id, entity_type, entity_id
     """
     sqs = get_sqs_client()
     queue_url = get_profile_generation_queue_url()
