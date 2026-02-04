@@ -12,9 +12,21 @@ test.describe("Social Circles Hub Mode", () => {
     const viewport = page.viewportSize();
     test.skip(!!viewport && viewport.width <= 768, "Hub mode controls require desktop viewport");
 
+    // Set up response listener before navigation to capture Lambda cold-start latency
+    const apiResponse = page.waitForResponse(
+      (resp) => resp.url().includes("/api/v1/social-circles") && resp.status() === 200
+    );
     await page.goto("/social-circles");
+
+    // Wait for API response first — separates network/Lambda latency from render time
+    await apiResponse;
+
+    // Wait for loading spinner to disappear before asserting graph visibility
+    await expect(page.getByText("Loading social circles...")).toBeHidden({ timeout: 10000 });
+
+    // Allow 30s for graph render after data arrives (consistent with layout spec)
     await expect(page.getByTestId("network-graph")).toBeVisible({
-      timeout: 15000,
+      timeout: 30000,
     });
   });
 
@@ -274,6 +286,9 @@ test.describe("Social Circles Hub Mode", () => {
     // Emit a Cytoscape "tap" event directly on the node instead of using
     // coordinate-based mouse.click(), which suffers from sub-pixel offset
     // mismatches between Cytoscape's canvas coordinates and the DOM bounding box.
+    // NOTE: This tests the data pipeline (hidden neighbors expand) but not the
+    // full interaction path — the emitted event lacks position/mouse properties
+    // that a real user tap would include.
     await page.evaluate((nodeId: string) => {
       const container = document.querySelector(
         "[data-testid='network-graph']"

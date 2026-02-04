@@ -87,10 +87,11 @@ test.describe("Acquisitions Page", () => {
   });
 
   test("shows kanban board columns", async ({ page }) => {
-    // Wait for loading skeletons to disappear (data fetched from API)
-    await expect(page.locator(".skeleton").first()).toBeHidden({ timeout: 15000 }).catch(() => {
-      // Skeletons may never have appeared if data loaded instantly
-    });
+    // Wait for loading skeletons to disappear if any are present
+    const skeletonCount = await page.locator(".skeleton").count();
+    if (skeletonCount > 0) {
+      await expect(page.locator(".skeleton").first()).toBeHidden({ timeout: 15000 });
+    }
 
     // Three kanban columns: Evaluating, In Transit, Received
     await expect(page.getByText("Evaluating")).toBeVisible({ timeout: 10000 });
