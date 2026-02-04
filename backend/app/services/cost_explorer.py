@@ -25,8 +25,8 @@ CACHE_TTL_SECONDS = 3600  # 1 hour
 AWS_SERVICE_TO_MODEL = {
     "Claude Sonnet 4.5 (Amazon Bedrock Edition)": "Sonnet 4.5",
     "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
-    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3",
-    "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3",
+    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
+    "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
     "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
     "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)": "Sonnet 3.5 v2",
 }

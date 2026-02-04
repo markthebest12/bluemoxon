@@ -206,12 +206,12 @@ async function updateFlowModel(flowKey: string, model: string) {
     if (modelConfig.value) {
       const flow = modelConfig.value.flows.find((f) => f.key === flowKey);
       if (flow) {
-        const meta = modelConfig.value.flows.find((f) => f.key === flowKey);
         flow.current_model = model;
-        flow.is_default = model === (meta?.default_model ?? model);
+        flow.is_default = model === flow.default_model;
       }
     }
-    modelConfigMessage.value = "Model updated";
+    const flowLabel = modelConfig.value?.flows.find((f) => f.key === flowKey)?.label ?? flowKey;
+    modelConfigMessage.value = `${flowLabel} updated to ${model}`;
     setTimeout(() => {
       modelConfigMessage.value = "";
     }, 3000);
