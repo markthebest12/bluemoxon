@@ -16,6 +16,7 @@ import json
 import logging
 import math
 import os
+import threading
 from datetime import UTC, datetime
 
 import anthropic
@@ -32,20 +33,25 @@ logger = logging.getLogger(__name__)
 
 # Lazy singleton for Anthropic client — avoids creating a new instance per call
 _anthropic_client: anthropic.Anthropic | None = None
+_anthropic_lock = threading.Lock()
 
 
 def _get_anthropic_client() -> anthropic.Anthropic | None:
     """Return a shared Anthropic client, creating it on first use.
 
     Returns None (with a warning) when ANTHROPIC_API_KEY is not set.
+    Thread-safe via lock on first creation.
     """
     global _anthropic_client  # noqa: PLW0603
-    if _anthropic_client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            logger.warning("ANTHROPIC_API_KEY not set, skipping location extraction")
-            return None
-        _anthropic_client = anthropic.Anthropic(api_key=api_key)
+    if _anthropic_client is not None:
+        return _anthropic_client
+    with _anthropic_lock:
+        if _anthropic_client is None:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                logger.warning("ANTHROPIC_API_KEY not set, skipping location extraction")
+                return None
+            _anthropic_client = anthropic.Anthropic(api_key=api_key)
     return _anthropic_client
 
 

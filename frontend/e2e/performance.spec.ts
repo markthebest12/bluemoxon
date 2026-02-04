@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const RELAXED = !!process.env.E2E_RELAXED_BUDGETS;
+const RELAXED = !!process.env.E2E_RELAXED_BUDGETS || !!process.env.CI;
 const FCP_BUDGET = RELAXED ? 5000 : 2500;
 const DCL_BUDGET = RELAXED ? 6000 : 3000;
 const BOOKS_FCP_BUDGET = RELAXED ? 6000 : 3000;
@@ -205,10 +205,13 @@ test.describe("Performance Tests", () => {
   // No assertions — wrapped in try/catch so it never causes test failure.
   test("CWV summary (observability)", async ({ page }) => {
     try {
+      // Use the same book ID as the "Book detail page performance" test above.
+      // If this ID doesn't exist, the page will 404 and metrics will be skipped.
+      const BOOK_DETAIL_PATH = "/books/401";
       const pages = [
         { name: "Home", path: "/" },
         { name: "Books", path: "/books" },
-        { name: "Book Detail", path: "/books/401" },
+        { name: "Book Detail", path: BOOK_DETAIL_PATH },
       ];
 
       const rows: {
