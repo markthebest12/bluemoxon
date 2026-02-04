@@ -20,10 +20,13 @@ _cost_cache: dict[str, Any] = {}
 CACHE_TTL_SECONDS = 3600  # 1 hour
 
 # Map AWS service names to our model names
+# Note: AWS billing may list "Claude 3 Haiku" or "Claude 3.5 Haiku" depending on
+# when the model was provisioned; include both variants so costs are always captured.
 AWS_SERVICE_TO_MODEL = {
     "Claude Sonnet 4.5 (Amazon Bedrock Edition)": "Sonnet 4.5",
     "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
-    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3",
+    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
+    "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
     "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
     "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)": "Sonnet 3.5 v2",
 }
@@ -32,7 +35,7 @@ AWS_SERVICE_TO_MODEL = {
 MODEL_USAGE_DESCRIPTIONS = {
     "Sonnet 4.5": MODEL_USAGE.get("sonnet", "Primary analysis"),
     "Opus 4.5": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Haiku 3": MODEL_USAGE.get("haiku", "Fast extraction"),
+    "Haiku 3.5": MODEL_USAGE.get("haiku", "Fast extraction"),
     "Sonnet 3.5": "Legacy analysis",
     "Sonnet 3.5 v2": "Legacy analysis",
 }
@@ -212,8 +215,18 @@ def _fetch_costs_from_aws(timezone: str | None = None) -> dict[str, Any]:
         Filter=daily_filter,
     )
 
-    # Parse monthly costs
-    bedrock_models = []
+    # Seed all known models at $0.00 so they always appear, even with no MTD usage.
+    # AWS Cost Explorer only returns services with non-zero spend, so without
+    # seeding, models like Haiku would disappear when not used in the current month.
+    bedrock_costs: dict[str, dict] = {}
+    for model_name in dict.fromkeys(AWS_SERVICE_TO_MODEL.values()):
+        bedrock_costs[model_name] = {
+            "model_name": model_name,
+            "usage": MODEL_USAGE_DESCRIPTIONS.get(model_name, ""),
+            "mtd_cost": 0.0,
+        }
+
+    # Parse monthly costs — overlay actual AWS data onto seeded models
     other_costs = {}
     total_aws_cost = 0.0
 
@@ -225,12 +238,8 @@ def _fetch_costs_from_aws(timezone: str | None = None) -> dict[str, Any]:
 
             if service_name in AWS_SERVICE_TO_MODEL:
                 model_name = AWS_SERVICE_TO_MODEL[service_name]
-                bedrock_models.append(
-                    {
-                        "model_name": model_name,
-                        "usage": MODEL_USAGE_DESCRIPTIONS.get(model_name, ""),
-                        "mtd_cost": round(cost, 2),
-                    }
+                bedrock_costs[model_name]["mtd_cost"] = round(
+                    bedrock_costs[model_name]["mtd_cost"] + cost, 2
                 )
             elif service_name in OTHER_SERVICES:
                 # Shorten service names
@@ -240,7 +249,7 @@ def _fetch_costs_from_aws(timezone: str | None = None) -> dict[str, Any]:
                 other_costs[short_name] = round(cost, 2)
 
     # Sort bedrock models by cost descending
-    bedrock_models.sort(key=lambda x: x["mtd_cost"], reverse=True)
+    bedrock_models = sorted(bedrock_costs.values(), key=lambda x: x["mtd_cost"], reverse=True)
     bedrock_total = sum(m["mtd_cost"] for m in bedrock_models)
 
     # Parse daily trend

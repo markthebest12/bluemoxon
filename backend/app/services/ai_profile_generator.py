@@ -20,11 +20,47 @@ BASE_DELAY = 2.0
 
 
 def _get_model_id() -> str:
-    """Get Bedrock model ID from env var, falling back to default."""
-    model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+    """Get Bedrock model ID, checking app_config then env var, then default.
+
+    Resolution order:
+      1. app_config 'model.entity_profiles' (if DB is reachable)
+      2. ENTITY_PROFILE_MODEL env var
+      3. DEFAULT_MODEL constant ('haiku')
+    """
+    model_name: str | None = None
+
+    # Try reading from app_config — check cache first to avoid creating
+    # a DB session on every invocation when the value is already cached.
+    try:
+        from app.services.app_config import CACHE_TTL, _cache
+
+        cache_key = "model.entity_profiles"
+        now = time.time()
+        if cache_key in _cache and now - _cache[cache_key][1] < CACHE_TTL:
+            from app.services.app_config import _MISSING
+
+            cached = _cache[cache_key][0]
+            model_name = None if cached == _MISSING else cached
+        else:
+            # Cache miss — need a DB session
+            from app.db import SessionLocal
+            from app.services.app_config import get_config
+
+            db = SessionLocal()
+            try:
+                model_name = get_config(db, cache_key)
+            finally:
+                db.close()
+    except Exception:
+        logger.warning("Could not read model.entity_profiles from app_config, using fallback")
+
+    # Fall back to env var, then default
+    if not model_name:
+        model_name = os.environ.get("ENTITY_PROFILE_MODEL", DEFAULT_MODEL)
+
     if model_name not in MODEL_IDS:
         logger.warning(
-            "ENTITY_PROFILE_MODEL=%s not in MODEL_IDS, falling back to default (%s)",
+            "Entity profile model '%s' not in MODEL_IDS, falling back to default (%s)",
             model_name,
             DEFAULT_MODEL,
         )

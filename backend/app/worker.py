@@ -24,7 +24,9 @@ from app.services.analysis_summary import (
     extract_book_updates_from_yaml,
     parse_analysis_summary,
 )
+from app.services.app_config import get_config
 from app.services.bedrock import (
+    MODEL_IDS,
     build_bedrock_messages,
     extract_structured_data,
     fetch_book_images_for_bedrock,
@@ -132,12 +134,16 @@ def handler(event: dict, context) -> dict:
             body = json.loads(record["body"])
             job_id = body["job_id"]
             book_id = body["book_id"]
-            model = body.get("model", DEFAULT_ANALYSIS_MODEL)
+            # SQS message can override model (for testing); otherwise use None
+            # to signal that process_analysis_job should read from config
+            model_override = body.get("model")
 
-            logger.info(f"Processing job {job_id} for book {book_id}, model={model}")
+            logger.info(
+                f"Processing job {job_id} for book {book_id}, model_override={model_override}"
+            )
 
             # Process the job
-            process_analysis_job(job_id, book_id, model)
+            process_analysis_job(job_id, book_id, model_override)
 
             logger.info(f"Successfully processed job {job_id}")
 
@@ -149,13 +155,13 @@ def handler(event: dict, context) -> dict:
     return {"batchItemFailures": batch_item_failures}
 
 
-def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
+def process_analysis_job(job_id: str, book_id: int, model: str | None = None) -> None:
     """Process a single analysis job.
 
     Args:
         job_id: UUID of the analysis job
         book_id: ID of the book to analyze
-        model: Model to use (sonnet or opus)
+        model: Model override (from SQS message). If None, reads from app_config.
 
     Raises:
         Exception: If processing fails
@@ -164,6 +170,19 @@ def process_analysis_job(job_id: str, book_id: int, model: str) -> None:
     job = None
 
     try:
+        # Resolve model: SQS override > app_config > default
+        if model is None:
+            model = get_config(db, "model.napoleon_analysis", DEFAULT_ANALYSIS_MODEL)
+        if model not in MODEL_IDS:
+            logger.warning(
+                "Resolved model '%s' for job %s not in MODEL_IDS, falling back to %s",
+                model,
+                job_id,
+                DEFAULT_ANALYSIS_MODEL,
+            )
+            model = DEFAULT_ANALYSIS_MODEL
+        logger.info(f"Resolved model for job {job_id}: {model}")
+
         # Get the job record
         job = db.query(AnalysisJob).filter(AnalysisJob.id == job_id).first()
         if not job:
