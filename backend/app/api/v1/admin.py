@@ -27,7 +27,6 @@ from app.constants.image_processing import (
     U2NET_FALLBACK_ATTEMPT,
 )
 from app.db.session import get_db
-from app.models.admin_config import AdminConfig
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.cleanup_job import CleanupJob
@@ -448,11 +447,9 @@ def get_config(
 ):
     """Get admin configuration (admin only)."""
     response.headers["Cache-Control"] = "no-store"
-    result = db.execute(select(AdminConfig))
-    configs = {c.key: c.value for c in result.scalars().all()}
     return ConfigResponse(
-        gbp_to_usd_rate=float(configs.get("gbp_to_usd_rate", 1.35)),
-        eur_to_usd_rate=float(configs.get("eur_to_usd_rate", 1.17)),
+        gbp_to_usd_rate=float(get_app_config(db, "gbp_to_usd_rate", "1.35")),
+        eur_to_usd_rate=float(get_app_config(db, "eur_to_usd_rate", "1.17")),
     )
 
 
@@ -465,11 +462,7 @@ def update_config(
 ):
     """Update admin configuration (admin only)."""
     for key, value in updates.model_dump(exclude_none=True).items():
-        config = db.get(AdminConfig, key)
-        if config:
-            config.value = value
-        else:
-            db.add(AdminConfig(key=key, value=value))
+        set_app_config(db, key, str(value), description="Exchange rate")
     db.commit()
     return get_config(response, db)
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_editor
 from app.db import get_db
-from app.models.admin_config import AdminConfig
+from app.services.app_config import get_config as get_app_config
 from app.services.bedrock import get_bedrock_client
 from app.services.order_extractor import extract_with_regex
 
@@ -119,10 +119,10 @@ def get_conversion_rate(currency: str, db: Session) -> float:
         return 1.0
 
     key = f"{currency.lower()}_to_usd_rate"
-    config = db.query(AdminConfig).filter(AdminConfig.key == key).first()
+    config_value = get_app_config(db, key)
 
-    if config:
-        return float(config.value)
+    if config_value is not None:
+        return float(config_value)
 
     # Fallback defaults - DB is source of truth, these are safety nets
     fallback_rates = {"GBP": 1.35, "EUR": 1.17}
