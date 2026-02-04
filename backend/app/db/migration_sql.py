@@ -681,6 +681,29 @@ MIGRATION_Z3456789IJKL_SQL = [
     "ALTER TABLE binders ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
 ]
 
+# Migration SQL for 184855af397c_narrow_entity_profile_unique_constraint
+MIGRATION_184855AF397C_SQL = [
+    # Deduplicate: keep most recently updated profile per (entity_type, entity_id)
+    """DELETE FROM entity_profiles
+    WHERE id NOT IN (
+        SELECT DISTINCT ON (entity_type, entity_id) id
+        FROM entity_profiles
+        ORDER BY entity_type, entity_id, updated_at DESC NULLS LAST
+    )""",
+    # Drop old constraint that included owner_id
+    "ALTER TABLE entity_profiles DROP CONSTRAINT IF EXISTS uq_entity_profile",
+    # Add new constraint on (entity_type, entity_id) only
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_entity_profile'
+        ) THEN
+            ALTER TABLE entity_profiles
+            ADD CONSTRAINT uq_entity_profile UNIQUE (entity_type, entity_id);
+        END IF;
+    END $$""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -932,5 +955,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "z3456789ijkl",
         "name": "add_image_url_to_entity_tables",
         "sql_statements": MIGRATION_Z3456789IJKL_SQL,
+    },
+    {
+        "id": "184855af397c",
+        "name": "narrow_entity_profile_unique_constraint",
+        "sql_statements": MIGRATION_184855AF397C_SQL,
     },
 ]
