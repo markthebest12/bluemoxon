@@ -68,8 +68,7 @@ const visibleEvents = computed<EnrichedEvent[]>(() => {
   filtered.sort((a, b) => a.year - b.year);
 
   // Convert pixel threshold to percentage based on actual container width
-  const minSpacing =
-    containerWidth.value > 0 ? (MIN_LABEL_PX / containerWidth.value) * 100 : 4;
+  const minSpacing = containerWidth.value > 0 ? (MIN_LABEL_PX / containerWidth.value) * 100 : 4;
 
   const sliderPercent =
     props.sliderYear !== undefined ? getPositionPercent(props.sliderYear) : null;
@@ -147,7 +146,12 @@ function handleKeydown(e: KeyboardEvent, id: string) {
 </script>
 
 <template>
-  <div ref="containerRef" class="timeline-markers" role="list" aria-label="Historical timeline events">
+  <div
+    ref="containerRef"
+    class="timeline-markers"
+    role="list"
+    aria-label="Historical timeline events"
+  >
     <div
       v-for="event in visibleEvents"
       :key="event._id"
