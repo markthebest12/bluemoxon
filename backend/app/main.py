@@ -21,6 +21,11 @@ logger.setLevel(logging.INFO)
 settings = get_settings()
 app_version = get_version()
 
+# Enable interactive API docs on staging and in debug mode.
+# Staging is already protected by Cognito auth at the ALB/API-Gateway level,
+# so no additional middleware is needed for /docs or /openapi.json.
+_enable_docs = settings.debug or settings.environment == "staging"
+
 API_DESCRIPTION = """
 ## BlueMoxon API
 
@@ -62,8 +67,8 @@ app = FastAPI(
     title="BlueMoxon API",
     description=API_DESCRIPTION,
     version=app_version,
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
     openapi_tags=[
         {"name": "health", "description": "Health check and monitoring endpoints"},
         {"name": "books", "description": "Book CRUD operations"},
