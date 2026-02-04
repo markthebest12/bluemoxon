@@ -4,11 +4,58 @@ import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import scripts.nls_map_fallback as nls_mod
+
+# --- TestGetAnthropicClient ---
+
+
+class TestGetAnthropicClient:
+    """Test _get_anthropic_client lazy singleton."""
+
+    def setup_method(self):
+        """Reset singleton before each test."""
+        nls_mod._anthropic_client = None
+
+    def teardown_method(self):
+        """Reset singleton after each test."""
+        nls_mod._anthropic_client = None
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+    @patch("scripts.nls_map_fallback.anthropic")
+    def test_returns_same_instance_on_repeated_calls(self, mock_anthropic):
+        """Calling _get_anthropic_client() twice returns the same object."""
+        mock_client = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        first = nls_mod._get_anthropic_client()
+        second = nls_mod._get_anthropic_client()
+
+        assert first is second
+        # Constructor should only be called once
+        mock_anthropic.Anthropic.assert_called_once()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_returns_none_when_api_key_not_set(self):
+        """Returns None when ANTHROPIC_API_KEY is not in environment."""
+        # Ensure key is absent
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        result = nls_mod._get_anthropic_client()
+        assert result is None
+
+
 # --- TestExtractLocation ---
 
 
 class TestExtractLocation:
     """Test extract_location function."""
+
+    def setup_method(self):
+        """Reset singleton before each test."""
+        nls_mod._anthropic_client = None
+
+    def teardown_method(self):
+        """Reset singleton after each test."""
+        nls_mod._anthropic_client = None
 
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
     @patch("scripts.nls_map_fallback.anthropic")
@@ -69,6 +116,13 @@ class TestExtractLocation:
         assert result == "Paternoster Row, London"
         # Verify Anthropic was still called
         mock_client.messages.create.assert_called_once()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_returns_none_when_api_key_not_set(self):
+        """extract_location returns None when ANTHROPIC_API_KEY is absent."""
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        result = nls_mod.extract_location("John Murray", "Some description")
+        assert result is None
 
 
 # --- TestGeocodeLocation ---
