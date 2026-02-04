@@ -5,6 +5,20 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.1.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.2) - 2026-02-03
+
+- [`4d6f65e`](https://github.com/markthebest12/bluemoxon/commit/4d6f65e483d02a61b46d4466b47c426dfaa69969) Merge pull request #1766 from markthebest12/staging
+- [`666bb19`](https://github.com/markthebest12/bluemoxon/commit/666bb190223c0c305afc68141cfb18de604852cb) fix: address code review findings from cleanup sweep (#1764)
+- [`bab2e3d`](https://github.com/markthebest12/bluemoxon/commit/bab2e3da244fb309b12aeac11197a35d5b5b787b) fix: narrow entity profile unique constraint to (entity_type, entity_id) (#1731) (#1761)
+- [`f1f1eda`](https://github.com/markthebest12/bluemoxon/commit/f1f1eda6df85973ad1a40a74d089b523ec991aa1) fix: make profile regeneration async via SQS (#1718) (#1763)
+- [`f3e2a22`](https://github.com/markthebest12/bluemoxon/commit/f3e2a22c6bf49931643d840a45b078d5fda7b29c) fix: improve profile email E2E test reliability (#1727) (#1760)
+- [`b01a809`](https://github.com/markthebest12/bluemoxon/commit/b01a8095c3db45b41ba0f0853d22887d079dfd11) fix: add proper SPARQL string escaping for entity names (#1731) (#1755)
+- [`666bb19`](https://github.com/markthebest12/bluemoxon/commit/666bb190223c0c305afc68141cfb18de604852cb) fix: address code review findings from cleanup sweep (#1764)
+- [`9099218`](https://github.com/markthebest12/bluemoxon/commit/90992188a021136157dcb229cf2f0e80e278dac5) chore: restore CWV observability summary in performance tests (#1749) (#1758)
+- [`87b2b48`](https://github.com/markthebest12/bluemoxon/commit/87b2b480248d48064ad6876782a7f710775a9ab6) refactor: hoist settings and extract connection iterator in entity profile service (#1731) (#1762)
+- [`3c2bd2c`](https://github.com/markthebest12/bluemoxon/commit/3c2bd2c2484096d5940fe95b4076f1795f8b9f01) refactor: extract Cytoscape test utilities (#1751) (#1759)
+- [`b20feab`](https://github.com/markthebest12/bluemoxon/commit/b20feab3d335770ed00bfd31bfba7c1522c21d00) refactor: use lazy singleton for Anthropic client in NLS fallback (#1731) (#1756)
+
 ## [v3.1.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.1.1) - 2026-02-03
 
 - [`90bf520`](https://github.com/markthebest12/bluemoxon/commit/90bf5201722b9c7e537f3d474dcd75ee6aae7a55) Merge pull request #1754 from markthebest12/staging
