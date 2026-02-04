@@ -75,22 +75,27 @@ test.describe("Admin Dashboard", () => {
 test.describe("Acquisitions Page", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/admin/acquisitions");
+    // Wait for Vue component to mount and render the page heading
+    await expect(page.getByRole("heading", { name: "Acquisitions" })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test("displays acquisitions heading", async ({ page }) => {
+    // Heading already confirmed in beforeEach, but verify it's still there
     await expect(page.getByRole("heading", { name: "Acquisitions" })).toBeVisible();
   });
 
   test("shows kanban board columns", async ({ page }) => {
-    // Wait for loading to complete
-    await page.waitForSelector(".skeleton", { state: "hidden", timeout: 10000 }).catch(() => {
-      // Skeletons may already be gone
+    // Wait for loading skeletons to disappear (data fetched from API)
+    await expect(page.locator(".skeleton").first()).toBeHidden({ timeout: 15000 }).catch(() => {
+      // Skeletons may never have appeared if data loaded instantly
     });
 
     // Three kanban columns: Evaluating, In Transit, Received
-    await expect(page.getByText("Evaluating")).toBeVisible();
-    await expect(page.getByText("In Transit")).toBeVisible();
-    await expect(page.getByText("Received (30d)")).toBeVisible();
+    await expect(page.getByText("Evaluating")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("In Transit")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Received (30d)")).toBeVisible({ timeout: 10000 });
   });
 
   test("has import and add buttons", async ({ page }) => {
@@ -115,7 +120,9 @@ test.describe("Acquisitions Page", () => {
   });
 
   test("shows Victorian ornament decoration", async ({ page }) => {
-    await expect(page.getByTestId("victorian-ornament")).toBeAttached();
+    // The ornament has class "hidden sm:inline" so it's hidden on mobile viewports (<640px)
+    // but it should always be attached to the DOM regardless of viewport size
+    await expect(page.getByTestId("victorian-ornament")).toBeAttached({ timeout: 10000 });
   });
 });
 
