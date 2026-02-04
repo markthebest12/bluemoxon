@@ -32,10 +32,10 @@ from app.schemas.entity_profile import (
 )
 from app.schemas.social_circles import SocialCirclesResponse
 from app.services.ai_profile_generator import (
-    _get_model_id,
     generate_bio_and_stories,
     generate_connection_narrative,
     generate_relationship_story,
+    resolve_model_id,
     strip_invalid_markers,
 )
 from app.services.narrative_classifier import classify_connection
@@ -471,6 +471,9 @@ def generate_and_cache_profile(
     books = _get_entity_books(db, entity_type, entity_id)
     book_titles = [b.title for b in books]
 
+    # Resolve model ONCE for all AI calls in this profile generation
+    model_id = resolve_model_id(db)
+
     # Build graph and connection list for cross-link markers (#1618)
     node_id = f"{entity_type}:{entity_id}"
     if graph is None:
@@ -503,6 +506,7 @@ def generate_and_cache_profile(
         founded_year=getattr(entity, "founded_year", None),
         book_titles=book_titles,
         connections=prompt_connections,
+        model_id=model_id,
     )
 
     if not bio_data.get("biography"):
@@ -560,6 +564,7 @@ def generate_and_cache_profile(
                 shared_book_titles=shared_titles,
                 trigger_type=trigger,
                 connections=prompt_connections,
+                model_id=model_id,
             )
             if story:
                 # Validate markers in story text
@@ -582,12 +587,13 @@ def generate_and_cache_profile(
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
                 connections=prompt_connections,
+                model_id=model_id,
             )
             if narrative:
                 narratives[key] = strip_invalid_markers(narrative, valid_entity_ids)
                 narrated_count += 1
 
-    model_version = _get_model_id()
+    model_version = model_id
 
     # Upsert profile — unique constraint on (entity_type, entity_id).
     existing = (
