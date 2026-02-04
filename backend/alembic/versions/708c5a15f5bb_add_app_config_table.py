@@ -1,12 +1,11 @@
 """Add app_config table for runtime key-value configuration.
 
-Revision ID: z4567890klmn
-Revises: z3456789ijkl
+Revision ID: 708c5a15f5bb
+Revises: f7624c3b4e76
 Create Date: 2026-02-03
 
 Issue #1571: Add app_config table to store runtime configuration
-such as model selections per workflow. Separate from admin_config
-which stores JSON values for exchange rates.
+such as model selections per workflow.
 """
 
 from collections.abc import Sequence
@@ -16,8 +15,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "z4567890klmn"
-down_revision: str | None = "z3456789ijkl"
+revision: str = "708c5a15f5bb"
+down_revision: str | None = "f7624c3b4e76"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
