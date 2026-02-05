@@ -21,9 +21,11 @@ changelog:
 
 hooks:
   afterBump:
-    - cd frontend && npm install --package-lock-only
+    - echo "Syncing lockfile version..." && cd frontend && npm install --package-lock-only && cd .. && git add frontend/package-lock.json && echo "Staged lockfile"
 
 git:
+  # Whitelist only — prevents Uplift's dirty-check from failing if lockfile
+  # is already modified. The actual staging is done by the afterBump hook above.
   includeArtifacts:
     - frontend/package-lock.json
 
