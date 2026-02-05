@@ -69,7 +69,10 @@ class TestConnectionCapBehavior:
     """Behavioral tests for connection cap in generate_and_cache_profile (#1654)."""
 
     @patch("app.services.entity_profile.strip_invalid_markers", side_effect=lambda t, _ids: t)
-    @patch("app.services.entity_profile.GeneratorConfig.resolve", return_value=GeneratorConfig(model_id="claude-3-haiku"))
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     @patch("app.services.entity_profile.generate_connection_narrative")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
