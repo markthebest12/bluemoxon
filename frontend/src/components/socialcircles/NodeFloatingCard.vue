@@ -137,10 +137,10 @@ function getConnectionIcon(type: ConnectionType): string {
     binder: "🪡",
     // AI-discovered connections
     family: "👨‍👩‍👧",
-    friendship: "🤗",
-    influence: "💡",
+    friendship: "🫂",
+    influence: "🎓",
     collaboration: "✍️",
-    scandal: "⚡",
+    scandal: "🔥",
   };
   return icons[type] || "→";
 }

@@ -25,3 +25,4 @@ class EntityProfile(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     model_version: Mapped[str | None] = mapped_column(String(100))
+    ai_connections: Mapped[list | None] = mapped_column(JSON)

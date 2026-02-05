@@ -83,6 +83,10 @@ class ProfileConnection(BaseModel):
     narrative_trigger: str | None = None
     is_key: bool = False
     relationship_story: RelationshipNarrative | None = None
+    # AI-discovered connection fields
+    sub_type: str | None = None
+    confidence: float | None = None
+    is_ai_discovered: bool = False
 
 
 class ProfileStats(BaseModel):

@@ -73,10 +73,10 @@ const connectionLabel = computed(() => {
     shared_publisher: "Shared Publisher",
     binder: "Bound works",
     // AI-discovered connections
-    family: "Family Connection",
-    friendship: "Friendship",
+    family: "Family",
+    friendship: "Friends",
     influence: "Influence",
-    collaboration: "Collaboration",
+    collaboration: "Collaborators",
     scandal: "Scandal",
   };
   return labels[props.edge.type];

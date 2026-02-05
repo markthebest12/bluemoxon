@@ -32,24 +32,24 @@ const CONNECTION_LABELS: Record<ConnectionType, { label: string; description: st
   },
   // AI-discovered connections
   family: {
-    label: "Family Connection",
-    description: "Related by blood or marriage",
+    label: "Family",
+    description: "Family relationship (marriage, siblings, etc.)",
   },
   friendship: {
     label: "Friendship",
-    description: "Known personal friendship",
+    description: "Personal friends and social connections",
   },
   influence: {
     label: "Influence",
-    description: "Intellectual or artistic influence",
+    description: "Mentorship or intellectual influence",
   },
   collaboration: {
     label: "Collaboration",
-    description: "Worked together on projects",
+    description: "Literary partnership or co-authorship",
   },
   scandal: {
     label: "Scandal",
-    description: "Connected through controversy or scandal",
+    description: "Affairs, feuds, or public controversies",
   },
 };
 

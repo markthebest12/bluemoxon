@@ -11,7 +11,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app.api.v1.images import get_cloudfront_url
 from app.config import get_settings
 from app.enums import OWNED_STATUSES
 from app.models.author import Author
@@ -33,6 +32,7 @@ from app.schemas.entity_profile import (
 from app.schemas.social_circles import SocialCirclesResponse
 from app.services.ai_profile_generator import (
     GeneratorConfig,
+    generate_ai_connections,
     generate_bio_and_stories,
     generate_connection_narrative,
     generate_relationship_story,
@@ -70,6 +70,32 @@ _MAX_SHARED_BOOKS_PER_CONNECTION = 5
 
 # Maximum connections to include in AI prompts to control token cost (#1654).
 _MAX_PROMPT_CONNECTIONS = 15
+
+
+def _get_all_collection_entities(db: Session) -> list[dict]:
+    """Fetch all collection entities for AI connection discovery.
+
+    Returns list of dicts with entity_type, entity_id, name for all
+    authors, publishers, and binders that have at least one owned book.
+    """
+    entities: list[dict] = []
+    for entity_type_str, model_cls in _MODEL_MAP.items():
+        fk_column = _ENTITY_FK_MAP[entity_type_str]
+        # Subquery: entity IDs that have at least one owned book
+        entity_ids_with_books = (
+            db.query(fk_column)
+            .filter(Book.status.in_(OWNED_STATUSES), fk_column.isnot(None))
+            .distinct()
+            .subquery()
+        )
+        rows = (
+            db.query(model_cls.id, model_cls.name)
+            .filter(model_cls.id.in_(entity_ids_with_books))
+            .all()
+        )
+        for row in rows:
+            entities.append({"entity_type": entity_type_str, "entity_id": row.id, "name": row.name})
+    return entities
 
 
 def _get_entity(
@@ -134,6 +160,8 @@ def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookIm
 def _image_url(book_id: int, image: BookImage, *, is_lambda: bool) -> str:
     """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
     if is_lambda:
+        from app.api.v1.images import get_cloudfront_url
+
         return get_cloudfront_url(image.s3_key)
     return f"/api/v1/books/{book_id}/images/{image.id}/file"
 
@@ -410,21 +438,115 @@ def _build_connections(
             )
         )
 
-    # Sort by strength descending
-    connections.sort(key=lambda c: c.strength, reverse=True)
+    # Merge AI-discovered connections from cached profile (#1803)
+    if profile and profile.ai_connections:
+        # Build set of existing (target, relationship) pairs to avoid duplicates
+        existing_edges = {
+            (
+                f"{c.entity.type.value if hasattr(c.entity.type, 'value') else c.entity.type}:{c.entity.id}",
+                c.connection_type,
+            )
+            for c in connections
+        }
+        for ai_conn in profile.ai_connections:
+            target_type = ai_conn.get("target_type")
+            target_id = ai_conn.get("target_id")
+            if not target_type or target_id is None:
+                continue
 
-    # Mark top 5 as key connections (prefer type diversity, then fill by strength)
+            target_key = f"{target_type}:{target_id}"
+            ai_relationship = ai_conn.get("relationship", "friendship")
+            edge_key = (target_key, ai_relationship)
+
+            # Skip if same target+relationship already exists
+            if edge_key in existing_edges:
+                # Enrich existing connection with AI fields (same relationship type)
+                for conn in connections:
+                    et = (
+                        conn.entity.type.value
+                        if hasattr(conn.entity.type, "value")
+                        else conn.entity.type
+                    )
+                    if (
+                        et == target_type
+                        and conn.entity.id == target_id
+                        and conn.connection_type == ai_relationship
+                    ):
+                        conn.is_ai_discovered = True
+                        conn.sub_type = ai_conn.get("sub_type")
+                        conn.confidence = ai_conn.get("confidence")
+                        break
+                continue
+
+            # Look up target entity in graph nodes
+            target_node_id = f"{target_type}:{target_id}"
+            if graph is None:
+                continue
+            target_node = next((n for n in graph.nodes if n.id == target_node_id), None)
+            if not target_node:
+                continue
+
+            type_str = (
+                target_node.type.value
+                if hasattr(target_node.type, "value")
+                else str(target_node.type)
+            )
+            era_value = _era_str(target_node)
+            confidence = ai_conn.get("confidence", 0.5)
+            strength = max(2, min(int(confidence * 10), 10))
+
+            connections.append(
+                ProfileConnection(
+                    entity=ProfileEntity(
+                        id=target_node.entity_id,
+                        type=EntityType(type_str),
+                        name=target_node.name,
+                        birth_year=target_node.birth_year,
+                        death_year=target_node.death_year,
+                        founded_year=target_node.founded_year,
+                        closed_year=target_node.closed_year,
+                        era=era_value,
+                        tier=target_node.tier,
+                    ),
+                    connection_type=ai_conn.get("relationship", "friendship"),
+                    strength=strength,
+                    shared_book_count=0,
+                    narrative=ai_conn.get("evidence"),
+                    is_key=False,
+                    is_ai_discovered=True,
+                    sub_type=ai_conn.get("sub_type"),
+                    confidence=confidence,
+                )
+            )
+            existing_edges.add(edge_key)
+
+    # Sort: AI-discovered personal connections first, then by strength descending
+    connections.sort(
+        key=lambda c: (c.is_ai_discovered, c.strength),
+        reverse=True,
+    )
+
+    # Mark top 5 as key connections
+    # Personal (AI-discovered) connections get priority for key slots
     seen_types: set[str] = set()
     key_count = 0
-    # First pass: prefer diverse types for first 3 slots
+    # First pass: AI-discovered connections get first key slots
     for conn in connections:
         if key_count >= 3:
             break
-        if conn.connection_type not in seen_types:
+        if conn.is_ai_discovered and conn.connection_type not in seen_types:
             conn.is_key = True
             seen_types.add(conn.connection_type)
             key_count += 1
-    # Second pass: fill remaining slots (up to 5) by strength regardless of type
+    # Second pass: diverse types from remaining connections
+    for conn in connections:
+        if key_count >= 3:
+            break
+        if not conn.is_key and conn.connection_type not in seen_types:
+            conn.is_key = True
+            seen_types.add(conn.connection_type)
+            key_count += 1
+    # Third pass: fill remaining slots (up to 5) by strength regardless of type
     for conn in connections:
         if key_count >= 5:
             break
@@ -485,6 +607,7 @@ def generate_and_cache_profile(
     entity_id: int,
     max_narratives: int | None = None,
     graph: SocialCirclesResponse | None = None,
+    all_entities: list[dict] | None = None,
 ) -> EntityProfile:
     """Generate AI profile and cache in DB."""
     entity = _get_entity(db, entity_type, entity_id)
@@ -519,6 +642,17 @@ def generate_and_cache_profile(
 
     # Cap connections in AI prompts to control token cost (#1654)
     prompt_connections = connection_list[:_MAX_PROMPT_CONNECTIONS]
+
+    # Discover AI connections BEFORE bio generation so bios can reference them (#1803)
+    if all_entities is None:
+        all_entities = _get_all_collection_entities(db)
+    ai_connections = generate_ai_connections(
+        entity_name=entity.name,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        all_entities=all_entities,
+        config=config,
+    )
 
     # Generate bio + personal stories
     bio_data = generate_bio_and_stories(
@@ -637,6 +771,7 @@ def generate_and_cache_profile(
         merged_stories = dict(existing.relationship_stories or {})
         merged_stories.update(rel_stories)
         existing.relationship_stories = merged_stories
+        existing.ai_connections = ai_connections or None
         existing.generated_at = datetime.now(UTC)
         existing.model_version = model_version
         profile = existing
@@ -648,6 +783,7 @@ def generate_and_cache_profile(
             personal_stories=bio_data.get("personal_stories", []),
             connection_narratives=narratives,
             relationship_stories=rel_stories,
+            ai_connections=ai_connections or None,
             model_version=model_version,
         )
         db.add(profile)

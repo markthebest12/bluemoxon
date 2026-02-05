@@ -11,7 +11,11 @@ from sqlalchemy import update
 
 from app.db import SessionLocal
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
-from app.services.entity_profile import generate_and_cache_profile, is_profile_stale
+from app.services.entity_profile import (
+    _get_all_collection_entities,
+    generate_and_cache_profile,
+    is_profile_stale,
+)
 from app.services.social_circles_cache import get_or_build_graph
 
 if TYPE_CHECKING:
@@ -51,13 +55,16 @@ def _update_job_progress(db: Session, job_id: str, success: bool, error: str | N
         db.commit()
 
 
-def handle_profile_generation_message(message: dict, db: Session) -> None:
+def handle_profile_generation_message(
+    message: dict, db: Session, all_entities: list[dict] | None = None
+) -> None:
     """Process a single profile generation message.
 
     Args:
         message: Dict with keys: job_id (nullable), entity_type, entity_id.
                  job_id is None for ad-hoc single-entity regeneration requests.
         db: Database session
+        all_entities: Pre-computed collection entities (avoids N repeated queries in batch)
     """
     job_id = message.get("job_id")
     entity_type = message["entity_type"]
@@ -81,6 +88,7 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
             entity_id,
             max_narratives=3,
             graph=graph,
+            all_entities=all_entities,
         )
 
         logger.info("Generated profile for %s:%s", entity_type, entity_id)
@@ -125,6 +133,18 @@ def handler(event: dict, context) -> dict:
 
     batch_item_failures = []
 
+    # Pre-compute collection entities once per batch to avoid N repeated queries (#1803)
+    all_entities: list[dict] | None = None
+    if len(event.get("Records", [])) > 1:
+        try:
+            db = SessionLocal()
+            try:
+                all_entities = _get_all_collection_entities(db)
+            finally:
+                db.close()
+        except Exception:
+            logger.warning("Failed to pre-compute collection entities, will compute per-message")
+
     for record in event.get("Records", []):
         message_id = record.get("messageId", "unknown")
 
@@ -138,7 +158,7 @@ def handler(event: dict, context) -> dict:
 
             db = SessionLocal()
             try:
-                handle_profile_generation_message(body, db)
+                handle_profile_generation_message(body, db, all_entities=all_entities)
             finally:
                 db.close()
 

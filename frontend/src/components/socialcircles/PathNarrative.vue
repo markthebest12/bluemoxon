@@ -34,11 +34,11 @@ const CONNECTION_LABELS: Record<ConnectionType, string> = {
   shared_publisher: "shared publisher with",
   binder: "bound by",
   // AI-discovered connections
-  family: "related to",
-  friendship: "friends with",
-  influence: "influenced",
+  family: "family of",
+  friendship: "friend of",
+  influence: "influenced by",
   collaboration: "collaborated with",
-  scandal: "involved in scandal with",
+  scandal: "scandal with",
 };
 
 /** Node lookup map for efficient access */

@@ -26,6 +26,12 @@ class ConnectionType(str, Enum):
     publisher = "publisher"  # Author published by publisher
     shared_publisher = "shared_publisher"  # Two authors share a publisher
     binder = "binder"  # Author's book bound by binder
+    # AI-discovered personal connections
+    family = "family"
+    friendship = "friendship"
+    influence = "influence"
+    collaboration = "collaboration"
+    scandal = "scandal"
 
 
 class Era(str, Enum):

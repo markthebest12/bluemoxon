@@ -127,11 +127,11 @@ export const EDGE_STYLES: Record<ConnectionType, { lineStyle: string; opacity: n
   shared_publisher: { lineStyle: "solid", opacity: 0.6 },
   binder: { lineStyle: "dashed", opacity: 0.5 },
   // AI-discovered connections
-  family: { lineStyle: "solid", opacity: 0.7 },
+  family: { lineStyle: "solid", opacity: 0.8 },
   friendship: { lineStyle: "solid", opacity: 0.7 },
-  influence: { lineStyle: "dotted", opacity: 0.6 },
+  influence: { lineStyle: "dotted", opacity: 0.7 },
   collaboration: { lineStyle: "solid", opacity: 0.7 },
-  scandal: { lineStyle: "dashed", opacity: 0.6 },
+  scandal: { lineStyle: "dashed", opacity: 0.8 },
 };
 
 /** Calculate edge width from strength */
