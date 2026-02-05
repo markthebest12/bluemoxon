@@ -11,7 +11,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app.api.v1.images import get_cloudfront_url
 from app.config import get_settings
 from app.enums import OWNED_STATUSES
 from app.models.author import Author
@@ -161,6 +160,8 @@ def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookIm
 def _image_url(book_id: int, image: BookImage, *, is_lambda: bool) -> str:
     """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
     if is_lambda:
+        from app.api.v1.images import get_cloudfront_url
+
         return get_cloudfront_url(image.s3_key)
     return f"/api/v1/books/{book_id}/images/{image.id}/file"
 
