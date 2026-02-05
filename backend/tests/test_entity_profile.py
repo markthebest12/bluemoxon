@@ -24,6 +24,7 @@ from app.services.entity_profile import (
     _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
+    is_profile_stale,
 )
 
 # NOTE: profile_client, editor_client, and viewer_regen_client share boilerplate
@@ -752,6 +753,63 @@ class TestEntityFKMap:
 
         result = _check_staleness(db, profile, "author", author.id)
         assert result is False
+
+
+class TestIsProfileStale:
+    """Tests for the public is_profile_stale() API (#1770)."""
+
+    def test_returns_true_when_no_profile_exists(self, db):
+        """is_profile_stale returns True when entity has no profile at all."""
+        author = Author(name="No Profile Author")
+        db.add(author)
+        db.flush()
+
+        assert is_profile_stale(db, "author", author.id) is True
+
+    def test_returns_true_when_books_updated_after_profile(self, db):
+        """is_profile_stale returns True when books were updated after profile generation."""
+        author = Author(name="Stale Profile Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Updated Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        old_time = datetime.now(UTC) - timedelta(hours=2)
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            generated_at=old_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        db.query(Book).filter(Book.id == book.id).update({"updated_at": datetime.now(UTC)})
+        db.commit()
+
+        assert is_profile_stale(db, "author", author.id) is True
+
+    def test_returns_false_when_profile_is_fresh(self, db):
+        """is_profile_stale returns False when profile was generated after latest book update."""
+        author = Author(name="Fresh Profile Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Fresh Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        future_time = datetime.now(UTC) + timedelta(hours=1)
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            generated_at=future_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        assert is_profile_stale(db, "author", author.id) is False
 
 
 def _make_graph_node(

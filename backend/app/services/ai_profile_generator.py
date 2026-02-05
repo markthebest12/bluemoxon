@@ -21,7 +21,7 @@ MAX_RETRIES = 3
 BASE_DELAY = 2.0
 
 
-def resolve_model_id(db: Session) -> str:
+def _resolve_model_id(db: Session) -> str:
     """Resolve the Bedrock model ID for entity profile generation.
 
     Resolution order:
@@ -58,7 +58,7 @@ class GeneratorConfig:
     @classmethod
     def resolve(cls, db: Session) -> "GeneratorConfig":
         """Resolve config from DB / env / default."""
-        return cls(model_id=resolve_model_id(db))
+        return cls(model_id=_resolve_model_id(db))
 
 
 def _invoke(

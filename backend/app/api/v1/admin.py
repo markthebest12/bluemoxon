@@ -444,7 +444,7 @@ def get_exchange_rates(
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
 ):
-    """Get admin configuration (admin only)."""
+    """Get exchange rate configuration (admin only)."""
     response.headers["Cache-Control"] = "no-store"
     return ConfigResponse(
         gbp_to_usd_rate=float(get_config(db, "gbp_to_usd_rate", "1.35")),
@@ -459,7 +459,7 @@ def update_exchange_rates(
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
 ):
-    """Update admin configuration (admin only)."""
+    """Update exchange rate configuration (admin only)."""
     for key, value in updates.model_dump(exclude_none=True).items():
         set_config(db, key, str(value), description="Exchange rate")
     db.commit()
