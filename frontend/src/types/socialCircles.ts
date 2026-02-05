@@ -25,9 +25,11 @@ export type BookId = number & { readonly __brand: "BookId" };
 export type NodeType = "author" | "publisher" | "binder";
 
 export type ConnectionType =
+  // Book-based connections
   | "publisher"
   | "shared_publisher"
   | "binder"
+  // AI-discovered connections
   | "family"
   | "friendship"
   | "influence"

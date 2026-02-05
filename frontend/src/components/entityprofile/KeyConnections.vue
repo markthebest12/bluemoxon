@@ -3,6 +3,7 @@ import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 import ConditionBadge from "./ConditionBadge.vue";
+import EntityLinkedText from "./EntityLinkedText.vue";
 import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
 
 const props = defineProps<{
@@ -56,7 +57,7 @@ function isExpanded(conn: ProfileConnection): boolean {
               conn.confidence !== undefined && conn.confidence < 0.3,
           }"
         >
-          {{ conn.narrative }}
+          <EntityLinkedText :text="conn.narrative" :connections="connections" />
         </p>
         <ul v-if="conn.shared_books.length" class="key-connections__books">
           <li v-for="book in conn.shared_books" :key="book.id" class="key-connections__book-item">

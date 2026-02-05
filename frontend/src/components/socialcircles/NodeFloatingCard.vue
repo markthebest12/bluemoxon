@@ -131,9 +131,11 @@ const remainingConnections = computed(() => {
 // Connection type icons
 function getConnectionIcon(type: ConnectionType): string {
   const icons: Record<ConnectionType, string> = {
+    // Book-based connections
     publisher: "📚",
     shared_publisher: "🤝",
     binder: "🪡",
+    // AI-discovered connections
     family: "👨‍👩‍👧",
     friendship: "🫂",
     influence: "🎓",
