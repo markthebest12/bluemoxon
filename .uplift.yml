@@ -19,6 +19,10 @@ changelog:
     - "^chore"
   trimHeader: true
 
+hooks:
+  afterBump:
+    - cd frontend && npm install --package-lock-only
+
 git:
   includeArtifacts:
     - frontend/package-lock.json
