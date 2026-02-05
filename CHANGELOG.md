@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.3) - 2026-02-04
+
+- [`fdc028b`](https://github.com/markthebest12/bluemoxon/commit/fdc028b6de0a4297701780751e81c46f76f186d6) fix: use Uplift default commit message to show actual version (#1788)
+
 ## [v3.2.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.2) - 2026-02-04
 
 - [`3782d9e`](https://github.com/markthebest12/bluemoxon/commit/3782d9e802f9a9404b13a26683f3b7dee5b26387) fix: code review findings + scoring docs (#1796)
