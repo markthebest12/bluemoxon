@@ -25,6 +25,7 @@ CACHE_TTL_SECONDS = 3600  # 1 hour
 AWS_SERVICE_TO_MODEL = {
     "Claude Sonnet 4.5 (Amazon Bedrock Edition)": "Sonnet 4.5",
     "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
+    "Claude Opus 4.6 (Amazon Bedrock Edition)": "Opus 4.6",
     "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
     "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
     "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
@@ -35,6 +36,7 @@ AWS_SERVICE_TO_MODEL = {
 MODEL_USAGE_DESCRIPTIONS = {
     "Sonnet 4.5": MODEL_USAGE.get("sonnet", "Primary analysis"),
     "Opus 4.5": MODEL_USAGE.get("opus", "High quality analysis"),
+    "Opus 4.6": MODEL_USAGE.get("opus", "High quality analysis"),
     "Haiku 3.5": MODEL_USAGE.get("haiku", "Fast extraction"),
     "Sonnet 3.5": "Legacy analysis",
     "Sonnet 3.5 v2": "Legacy analysis",

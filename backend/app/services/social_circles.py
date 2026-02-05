@@ -330,9 +330,19 @@ def build_social_circles_graph(
             target_id = connection.get("target_id")
             relationship = connection.get("relationship")
 
-            # Skip connections with missing required fields
-            if not all([source_type, source_id, target_type, target_id, relationship]):
-                logger.warning("Skipping AI connection with missing fields: %s", connection)
+            # Skip connections with missing required fields (explicit None checks
+            # to avoid falsiness of 0 from all())
+            if (
+                source_type is None
+                or source_id is None
+                or target_type is None
+                or target_id is None
+                or relationship is None
+            ):
+                logger.warning(
+                    "Skipping AI connection with missing fields, keys=%s",
+                    list(connection.keys()),
+                )
                 continue
 
             source_node_id = f"{source_type}:{source_id}"
