@@ -10,36 +10,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import update
 
 from app.db import SessionLocal
-from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
-from app.services.entity_profile import generate_and_cache_profile
+from app.services.entity_profile import generate_and_cache_profile, is_profile_stale
 from app.services.social_circles_cache import get_or_build_graph
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
-
-
-def _check_staleness(db: Session, entity_type: str, entity_id: int) -> bool:
-    """Check if entity needs profile generation.
-
-    Returns True if entity has no profile or profile is stale.
-    """
-    profile = (
-        db.query(EntityProfile)
-        .filter(
-            EntityProfile.entity_type == entity_type,
-            EntityProfile.entity_id == entity_id,
-        )
-        .first()
-    )
-    if not profile or not profile.generated_at:
-        return True  # No profile = needs generation
-
-    from app.services.entity_profile import _check_staleness as check_stale
-
-    return check_stale(db, profile, entity_type, entity_id)
 
 
 def _update_job_progress(db: Session, job_id: str, success: bool, error: str | None = None) -> None:
@@ -87,7 +65,7 @@ def handle_profile_generation_message(message: dict, db: Session) -> None:
 
     try:
         # Idempotency: skip if entity already has a non-stale profile
-        if not _check_staleness(db, entity_type, entity_id):
+        if not is_profile_stale(db, entity_type, entity_id):
             logger.info("Skipping %s:%s (profile is current)", entity_type, entity_id)
             if job_id:
                 _update_job_progress(db, job_id, success=True)

@@ -32,10 +32,10 @@ from app.schemas.entity_profile import (
 )
 from app.schemas.social_circles import SocialCirclesResponse
 from app.services.ai_profile_generator import (
+    GeneratorConfig,
     generate_bio_and_stories,
     generate_connection_narrative,
     generate_relationship_story,
-    resolve_model_id,
     strip_invalid_markers,
 )
 from app.services.narrative_classifier import classify_connection
@@ -210,6 +210,29 @@ def _check_staleness(
     if latest_update and latest_update > profile.generated_at:
         return True
     return False
+
+
+def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
+    """Check if entity needs profile (re)generation.
+
+    Returns True if:
+      - No profile exists for this entity
+      - Profile exists but books have been updated since generation
+
+    Public API for profile_worker and any future staleness checks.
+    """
+    profile = (
+        db.query(EntityProfile)
+        .filter(
+            EntityProfile.entity_type == entity_type,
+            EntityProfile.entity_id == entity_id,
+        )
+        .first()
+    )
+    if not profile or not profile.generated_at:
+        return True
+
+    return _check_staleness(db, profile, entity_type, entity_id)
 
 
 def _era_str(node) -> str | None:
@@ -471,8 +494,8 @@ def generate_and_cache_profile(
     books = _get_entity_books(db, entity_type, entity_id)
     book_titles = [b.title for b in books]
 
-    # Resolve model ONCE for all AI calls in this profile generation
-    model_id = resolve_model_id(db)
+    # Resolve config ONCE for all AI calls in this profile generation
+    config = GeneratorConfig.resolve(db)
 
     # Build graph and connection list for cross-link markers (#1618)
     node_id = f"{entity_type}:{entity_id}"
@@ -506,7 +529,7 @@ def generate_and_cache_profile(
         founded_year=getattr(entity, "founded_year", None),
         book_titles=book_titles,
         connections=prompt_connections,
-        model_id=model_id,
+        config=config,
     )
 
     if not bio_data.get("biography"):
@@ -564,7 +587,7 @@ def generate_and_cache_profile(
                 shared_book_titles=shared_titles,
                 trigger_type=trigger,
                 connections=prompt_connections,
-                model_id=model_id,
+                config=config,
             )
             if story:
                 # Validate markers in story text
@@ -587,13 +610,13 @@ def generate_and_cache_profile(
                 connection_type=conn_type_str,
                 shared_book_titles=shared_titles,
                 connections=prompt_connections,
-                model_id=model_id,
+                config=config,
             )
             if narrative:
                 narratives[key] = strip_invalid_markers(narrative, valid_entity_ids)
                 narrated_count += 1
 
-    model_version = model_id
+    model_version = config.model_id
 
     # Upsert profile — unique constraint on (entity_type, entity_id).
     existing = (

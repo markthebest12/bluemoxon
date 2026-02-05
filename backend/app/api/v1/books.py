@@ -1328,7 +1328,20 @@ def calculate_book_scores(
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
 ):
-    """Calculate and persist scores for a book."""
+    """Calculate and persist scores for a book.
+
+    Runs the full scoring engine: investment_grade, strategic_fit, and
+    collection_impact.  Results are persisted to the book record.
+
+    **Investment Grade** uses ``book.purchase_price`` and ``book.value_mid``.
+    It does NOT read asking price from the eval runbook.  For EVALUATING
+    books, set ``purchase_price`` (via PUT /books/{id}) to the intended
+    offer price before calling this endpoint; otherwise investment_grade
+    will be 0.
+
+    **PUT /books/{id}** recalculates ``discount_pct`` automatically but
+    does NOT recalculate scores — you must call this endpoint separately.
+    """
     book = db.get(Book, book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -1352,10 +1365,26 @@ def get_book_score_breakdown(
     db: Session = Depends(get_db),
     _user=Depends(require_viewer),
 ):
-    """
-    Get detailed score breakdown explaining why each score was calculated.
+    """Get detailed score breakdown for a book.
 
-    Returns score values plus breakdown with factors and explanations.
+    Returns each scoring component (investment_grade, strategic_fit,
+    collection_impact) with per-factor points and human-readable
+    explanations.
+
+    Investment Grade is driven by the discount between
+    ``purchase_price`` and ``value_mid``:
+
+    | Discount | Points |
+    |----------|--------|
+    | 70%+     | 100    |
+    | 60-69%   | 85     |
+    | 50-59%   | 70     |
+    | 40-49%   | 55     |
+    | 30-39%   | 35     |
+    | 20-29%   | 20     |
+    | 0-19%    | 5      |
+    | Negative | 0      |
+    | No data  | 0      |
     """
     book = db.get(Book, book_id)
     if not book:
@@ -1421,7 +1450,11 @@ def calculate_all_book_scores(
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
 ):
-    """Calculate scores for all books. Admin only."""
+    """Calculate scores for all books. Admin only.
+
+    Iterates every book and runs the full scoring engine.  Useful after
+    bulk data changes (e.g. entity tier updates, FMV recalculations).
+    """
     books = db.query(Book).all()
     updated = 0
     errors = []

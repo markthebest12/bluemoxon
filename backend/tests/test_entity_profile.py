@@ -16,6 +16,7 @@ from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
 from app.schemas.entity_profile import ProfileBook
+from app.services.ai_profile_generator import GeneratorConfig
 from app.services.entity_profile import (
     _build_connections,
     _build_profile_books,
@@ -23,6 +24,7 @@ from app.services.entity_profile import (
     _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
+    is_profile_stale,
 )
 
 # NOTE: profile_client, editor_client, and viewer_regen_client share boilerplate
@@ -753,6 +755,63 @@ class TestEntityFKMap:
         assert result is False
 
 
+class TestIsProfileStale:
+    """Tests for the public is_profile_stale() API (#1770)."""
+
+    def test_returns_true_when_no_profile_exists(self, db):
+        """is_profile_stale returns True when entity has no profile at all."""
+        author = Author(name="No Profile Author")
+        db.add(author)
+        db.flush()
+
+        assert is_profile_stale(db, "author", author.id) is True
+
+    def test_returns_true_when_books_updated_after_profile(self, db):
+        """is_profile_stale returns True when books were updated after profile generation."""
+        author = Author(name="Stale Profile Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Updated Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        old_time = datetime.now(UTC) - timedelta(hours=2)
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            generated_at=old_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        db.query(Book).filter(Book.id == book.id).update({"updated_at": datetime.now(UTC)})
+        db.commit()
+
+        assert is_profile_stale(db, "author", author.id) is True
+
+    def test_returns_false_when_profile_is_fresh(self, db):
+        """is_profile_stale returns False when profile was generated after latest book update."""
+        author = Author(name="Fresh Profile Author")
+        db.add(author)
+        db.flush()
+
+        book = Book(title="Fresh Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
+        db.commit()
+
+        future_time = datetime.now(UTC) + timedelta(hours=1)
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            generated_at=future_time,
+        )
+        db.add(profile)
+        db.commit()
+
+        assert is_profile_stale(db, "author", author.id) is False
+
+
 def _make_graph_node(
     node_id,
     entity_id,
@@ -1114,7 +1173,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_high_impact_trigger_generates_relationship_story(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1158,7 +1220,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_low_impact_trigger_generates_simple_narrative(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1191,7 +1256,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_no_trigger_skips_narrative_generation(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1224,7 +1292,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_max_narratives_respected(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1258,7 +1329,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.classify_connection")
     @patch("app.services.entity_profile.generate_relationship_story")
     @patch("app.services.entity_profile.generate_connection_narrative")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_regeneration_preserves_existing_relationship_stories(
         self, _mock_model, mock_narrative, mock_story, mock_classify, mock_bio, mock_graph, db
     ):
@@ -1314,7 +1388,10 @@ class TestGenerateAndCacheProfileTriggers:
     @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.generate_bio_and_stories")
     @patch("app.services.entity_profile.classify_connection")
-    @patch("app.services.entity_profile.resolve_model_id", return_value="claude-3-haiku")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
     def test_null_bio_from_ai_logs_warning_and_creates_profile(
         self, _mock_model, mock_classify, mock_bio, mock_graph, db, caplog
     ):

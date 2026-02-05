@@ -6,6 +6,7 @@ import os
 import random
 import re
 import time
+from dataclasses import dataclass
 
 from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
@@ -20,7 +21,7 @@ MAX_RETRIES = 3
 BASE_DELAY = 2.0
 
 
-def resolve_model_id(db: Session) -> str:
+def _resolve_model_id(db: Session) -> str:
     """Resolve the Bedrock model ID for entity profile generation.
 
     Resolution order:
@@ -48,7 +49,21 @@ def resolve_model_id(db: Session) -> str:
     return get_model_id(model_name)
 
 
-def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024, *, model_id: str) -> str:
+@dataclass(frozen=True)
+class GeneratorConfig:
+    """Configuration resolved once per profile generation."""
+
+    model_id: str
+
+    @classmethod
+    def resolve(cls, db: Session) -> "GeneratorConfig":
+        """Resolve config from DB / env / default."""
+        return cls(model_id=_resolve_model_id(db))
+
+
+def _invoke(
+    system_prompt: str, user_prompt: str, max_tokens: int = 1024, *, config: GeneratorConfig
+) -> str:
     """Invoke Bedrock Claude with retry/backoff and return response text.
 
     Retries on ThrottlingException with exponential backoff matching
@@ -73,7 +88,7 @@ def _invoke(system_prompt: str, user_prompt: str, max_tokens: int = 1024, *, mod
                 time.sleep(delay)
 
             response = client.invoke_model(
-                modelId=model_id,
+                modelId=config.model_id,
                 body=body,
                 contentType="application/json",
                 accept="application/json",
@@ -168,7 +183,7 @@ def generate_bio_and_stories(
     book_titles: list[str] | None = None,
     connections: list[dict] | None = None,
     *,
-    model_id: str,
+    config: GeneratorConfig,
 ) -> dict:
     """Generate bio summary and personal stories for an entity.
 
@@ -206,7 +221,7 @@ Return ONLY valid JSON: {{"biography": "...", "personal_stories": [...]}}
 If the entity is obscure, provide what is known and note the obscurity.{_format_connection_instructions(connections)}"""
 
     try:
-        raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024, model_id=model_id)
+        raw = _invoke(_BIO_SYSTEM_PROMPT, user_prompt, max_tokens=1024, config=config)
         text = _strip_markdown_fences(raw)
         result = json.loads(text)
         # Validate expected shape — must have biography string and personal_stories list
@@ -232,7 +247,7 @@ def generate_connection_narrative(
     shared_book_titles: list[str],
     connections: list[dict] | None = None,
     *,
-    model_id: str,
+    config: GeneratorConfig,
 ) -> str | None:
     """Generate one-sentence narrative for a connection.
 
@@ -250,7 +265,7 @@ Return ONLY the single sentence, no quotes."""
 
     try:
         return _invoke(
-            _CONNECTION_SYSTEM_PROMPT, user_prompt, max_tokens=200, model_id=model_id
+            _CONNECTION_SYSTEM_PROMPT, user_prompt, max_tokens=200, config=config
         ).strip()
     except Exception:
         logger.exception("Failed to generate narrative for %s-%s", entity1_name, entity2_name)
@@ -269,7 +284,7 @@ def generate_relationship_story(
     trigger_type: str,
     connections: list[dict] | None = None,
     *,
-    model_id: str,
+    config: GeneratorConfig,
 ) -> dict | None:
     """Generate full relationship story for high-impact connections.
 
@@ -300,7 +315,7 @@ relationships, "timeline-events" for long-spanning connections.
 Return ONLY valid JSON: {{"summary": "...", "details": [...], "narrative_style": "..."}}{conn_instructions}"""
 
     try:
-        raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024, model_id=model_id)
+        raw = _invoke(_RELATIONSHIP_SYSTEM_PROMPT, user_prompt, max_tokens=1024, config=config)
         text = _strip_markdown_fences(raw)
         result = json.loads(text)
         if not isinstance(result, dict) or "summary" not in result:

@@ -56,7 +56,7 @@ class TestProfileWorker:
         )
 
     @patch("app.services.profile_worker.get_or_build_graph")
-    @patch("app.services.profile_worker._check_staleness")
+    @patch("app.services.profile_worker.is_profile_stale")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
     def test_skips_non_stale_entity(self, mock_update, mock_gen, mock_stale, mock_graph, db):

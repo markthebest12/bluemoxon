@@ -3,6 +3,10 @@ bumps:
     regex:
       - pattern: 'version\s*=\s*".*"'
         semver: true
+  - file: frontend/package.json
+    json:
+      - path: "version"
+        semver: true
 
 changelog:
   include:
@@ -10,6 +14,14 @@ changelog:
     - fix
     - perf
     - refactor
+  exclude:
+    - "^Merge"
+    - "^chore"
+  trimHeader: true
+
+git:
+  includeArtifacts:
+    - frontend/package-lock.json
 
 commitAuthor:
   name: uplift-bot
