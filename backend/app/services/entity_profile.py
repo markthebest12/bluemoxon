@@ -520,9 +520,10 @@ def _build_connections(
             )
             existing_edges.add(edge_key)
 
-    # Sort: AI-discovered personal connections first, then by strength descending
+    # Sort by strength with mild AI boost (1.2x) — strong book connections
+    # still rank above weak AI guesses, but equal-strength AI connections win
     connections.sort(
-        key=lambda c: (c.is_ai_discovered, c.strength),
+        key=lambda c: c.strength * (1.2 if c.is_ai_discovered else 1.0),
         reverse=True,
     )
 
