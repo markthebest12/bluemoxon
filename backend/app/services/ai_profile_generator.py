@@ -173,6 +173,177 @@ _RELATIONSHIP_SYSTEM_PROMPT = (
     "Be factual. Draw from commonly known historical record. Return ONLY valid JSON."
 )
 
+_DISCOVERY_SYSTEM_PROMPT = (
+    "You are a literary historian specializing in Victorian-era personal relationships. "
+    "You identify connections between authors, publishers, and binders that go beyond "
+    "professional publishing ties — marriages, friendships, feuds, mentorships, and scandals. "
+    "Be factual. Only report well-documented historical connections. Return ONLY valid JSON."
+)
+
+# Valid AI-discovered connection types (must match ConnectionType enum values)
+_VALID_AI_CONNECTION_TYPES = frozenset(
+    {"family", "friendship", "influence", "collaboration", "scandal"}
+)
+
+
+def generate_ai_connections(
+    entity_name: str,
+    entity_type: str,
+    entity_id: int,
+    all_entities: list[dict],
+    *,
+    config: GeneratorConfig,
+) -> list[dict]:
+    """Discover personal connections between this entity and others in the collection.
+
+    Args:
+        entity_name: Name of the entity to discover connections for.
+        entity_type: Type of entity (author, publisher, binder).
+        entity_id: Database ID of the entity.
+        all_entities: List of all collection entities as dicts with keys:
+            entity_type, entity_id, name.
+        config: Generator config with resolved model_id.
+
+    Returns:
+        List of validated connection dicts, each with:
+            source_type, source_id, target_type, target_id,
+            relationship, sub_type, confidence, evidence.
+    """
+    if not all_entities:
+        return []
+
+    entity_lines = "\n".join(
+        f'- {e["entity_type"]}:{e["entity_id"]} "{e["name"]}"' for e in all_entities
+    )
+
+    user_prompt = f"""Given this entity from a Victorian rare book collection:
+  Name: {entity_name}
+  Type: {entity_type}
+  ID: {entity_id}
+
+And these other entities in the same collection:
+{entity_lines}
+
+Identify any PERSONAL connections between {entity_name} and the other entities listed above.
+Only include connections you are confident are historically documented.
+
+Connection types (use exactly these values):
+- family: Marriage, siblings, parent-child, in-laws
+- friendship: Close personal friends, social circle members
+- influence: Mentorship, intellectual influence, inspiration
+- collaboration: Co-authorship, literary partnerships, joint ventures
+- scandal: Affairs, feuds, public controversies, legal disputes
+
+For each connection, provide:
+- target_type: The entity type from the list (author, publisher, binder)
+- target_id: The entity ID number from the list
+- relationship: One of: family, friendship, influence, collaboration, scandal
+- sub_type: Specific relationship (e.g., "MARRIAGE", "MENTOR", "RIVALS", "CO-AUTHORS")
+- confidence: 0.0 to 1.0 (1.0 = certain, 0.5 = likely, below 0.3 = rumored)
+- evidence: One sentence explaining the connection
+
+Return ONLY valid JSON: {{"connections": [...]}}
+If no personal connections are known, return: {{"connections": []}}"""
+
+    try:
+        raw = _invoke(_DISCOVERY_SYSTEM_PROMPT, user_prompt, max_tokens=2048, config=config)
+        text = _strip_markdown_fences(raw)
+        result = json.loads(text)
+        if not isinstance(result, dict) or not isinstance(result.get("connections"), list):
+            logger.warning(
+                "AI returned invalid shape for connections of %s:%d", entity_type, entity_id
+            )
+            return []
+
+        all_entity_ids = {f"{e['entity_type']}:{e['entity_id']}" for e in all_entities}
+        return _validate_ai_connections(
+            result["connections"], entity_type, entity_id, all_entity_ids
+        )
+    except Exception:
+        logger.exception("Failed to generate AI connections for %s %s", entity_type, entity_name)
+        return []
+
+
+def _validate_ai_connections(
+    raw_connections: list,
+    source_type: str,
+    source_id: int,
+    all_entity_ids: set[str],
+) -> list[dict]:
+    """Validate and clean AI-discovered connections.
+
+    Filters out:
+    - Self-connections (source == target)
+    - Invalid relationship types
+    - Targets not in the collection
+    - Duplicates (same source+target+relationship)
+
+    Returns cleaned list of connection dicts.
+    """
+    seen: set[str] = set()
+    validated: list[dict] = []
+
+    for conn in raw_connections:
+        if not isinstance(conn, dict):
+            continue
+
+        target_type = conn.get("target_type")
+        target_id = conn.get("target_id")
+        relationship = conn.get("relationship")
+
+        # Skip if missing required fields
+        if not all([target_type, target_id is not None, relationship]):
+            continue
+
+        # Coerce target_id to int
+        try:
+            target_id = int(target_id)
+        except (ValueError, TypeError):
+            continue
+
+        # Skip invalid relationship types
+        if relationship not in _VALID_AI_CONNECTION_TYPES:
+            continue
+
+        # Skip self-connections
+        if target_type == source_type and target_id == source_id:
+            continue
+
+        # Skip targets not in collection
+        target_key = f"{target_type}:{target_id}"
+        if target_key not in all_entity_ids:
+            continue
+
+        # Dedup by canonical key (lower ID first)
+        source_key = f"{source_type}:{source_id}"
+        pair = tuple(sorted([source_key, target_key]))
+        dedup_key = f"{pair[0]}:{pair[1]}:{relationship}"
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+
+        # Clamp confidence
+        confidence = conn.get("confidence", 0.5)
+        try:
+            confidence = max(0.0, min(1.0, float(confidence)))
+        except (ValueError, TypeError):
+            confidence = 0.5
+
+        validated.append(
+            {
+                "source_type": source_type,
+                "source_id": source_id,
+                "target_type": target_type,
+                "target_id": target_id,
+                "relationship": relationship,
+                "sub_type": conn.get("sub_type"),
+                "confidence": confidence,
+                "evidence": conn.get("evidence"),
+            }
+        )
+
+    return validated
+
 
 def generate_bio_and_stories(
     name: str,

@@ -11,12 +11,27 @@ An interactive network graph showing the human connections in the book collectio
 ### Why This Matters
 
 The collection reveals the interconnected web of Victorian intellectual life:
-- **Lord Byron → John Murray → Charles Darwin** - Same publisher, 40 years apart
-- **Charlotte Brontë → Elizabeth Gaskell** - Personal friends, both Smith Elder authors
+- **Elizabeth Barrett Browning → Robert Browning** - Married; the most famous literary couple in Victorian England
+- **Lord Byron → John Murray (publisher) → Charles Darwin** - Same publisher, 40 years later!
+- **Charlotte Brontë → Elizabeth Gaskell** - Friends, both Smith Elder authors
 - **Charles Dickens → Wilkie Collins** - Collaborators, Chapman & Hall connection
-- **Leigh Hunt → Keats, Shelley, Byron** - Central figure in Romantic circle
+- **Leigh Hunt → Keats, Shelley, Byron** - Knew them all!
+- **Thomas Carlyle → John Ruskin** - Mentor/influence, both published major works
 
-**Your collection isn't just books - it's a map of Victorian intellectual London.**
+**Your collection isn't just books - it's a map of Victorian intellectual London. Everyone knew everyone. Same publishers, same binderies, same social circles.**
+
+### Connection Visualization Vision
+
+**Connections:** Lines showing relationships
+- **Thick line** = strong connection (frequent publisher, personal friendship)
+- **Dotted line** = influence (Carlyle influenced Ruskin)
+- **Colored by type:** green = publisher relationship, blue = personal, purple = same binder
+
+**Interactive:** Click a node and it highlights all connections
+- Click "John Murray" → lights up Byron, Darwin, Lyell, Goldsmith, Borrow
+- Click "Rivière" → lights up all books they bound
+
+**The revelation:** Your collection isn't just books - it's a map of Victorian intellectual London. Everyone knew everyone. Same publishers, same binderies, same social circles.
 
 ---
 
