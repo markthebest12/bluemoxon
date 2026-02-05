@@ -5,8 +5,7 @@
 import { ref, computed, readonly } from "vue";
 import type { FilterState, ConnectionType, Era } from "@/types/socialCircles";
 import { DEFAULT_FILTER_STATE } from "@/types/socialCircles";
-
-const ALL_CONNECTION_TYPES: ConnectionType[] = ["publisher", "shared_publisher", "binder"];
+import { ALL_CONNECTION_TYPES } from "@/constants/socialCircles";
 
 export function useNetworkFilters() {
   const filters = ref<FilterState>({ ...DEFAULT_FILTER_STATE });

@@ -68,9 +68,16 @@ const targetNode = computed(() => {
 const connectionLabel = computed(() => {
   if (!props.edge) return "";
   const labels: Record<ConnectionType, string> = {
+    // Book-based connections
     publisher: "Published together",
     shared_publisher: "Shared Publisher",
     binder: "Bound works",
+    // AI-discovered connections
+    family: "Family Connection",
+    friendship: "Friendship",
+    influence: "Influence",
+    collaboration: "Collaboration",
+    scandal: "Scandal",
   };
   return labels[props.edge.type];
 });

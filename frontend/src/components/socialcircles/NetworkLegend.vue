@@ -10,9 +10,13 @@ const nodeTypes = [
 ];
 
 const connectionTypes = [
-  { style: "solid", color: "var(--color-victorian-gold)", label: "Published by" },
-  { style: "solid", color: "var(--color-victorian-hunter-500)", label: "Shared publisher" },
-  { style: "dashed", color: "var(--color-victorian-burgundy)", label: "Bound by" },
+  // Book-based connections
+  { style: "solid", color: "#4ade80", label: "Publisher" },
+  { style: "dashed", color: "#a78bfa", label: "Binder" },
+  // AI-discovered connections (personal relationships)
+  { style: "solid", color: "#60a5fa", label: "Personal" },
+  { style: "dotted", color: "#60a5fa", label: "Influence" },
+  { style: "dashed", color: "#f87171", label: "Scandal" },
 ];
 </script>
 
@@ -112,6 +116,16 @@ const connectionTypes = [
     currentColor 4px,
     transparent 4px,
     transparent 8px
+  );
+}
+
+.network-legend__line--dotted {
+  background: repeating-linear-gradient(
+    to right,
+    currentColor,
+    currentColor 2px,
+    transparent 2px,
+    transparent 5px
   );
 }
 

@@ -29,9 +29,16 @@ const TYPE_LABELS: Record<NodeType, string> = {
 
 /** Display labels for connection types */
 const CONNECTION_LABELS: Record<ConnectionType, string> = {
+  // Book-based connections
   publisher: "published by",
   shared_publisher: "shared publisher with",
   binder: "bound by",
+  // AI-discovered connections
+  family: "related to",
+  friendship: "friends with",
+  influence: "influenced",
+  collaboration: "collaborated with",
+  scandal: "involved in scandal with",
 };
 
 /** Node lookup map for efficient access */

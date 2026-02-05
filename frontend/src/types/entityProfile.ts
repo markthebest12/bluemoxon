@@ -65,6 +65,8 @@ export interface ProfileConnection {
   narrative_trigger: NarrativeTrigger;
   is_key: boolean;
   relationship_story: RelationshipNarrative | null;
+  /** AI confidence score (0-1). Only present for AI-discovered connections. */
+  confidence?: number;
 }
 
 export interface ProfileBook {

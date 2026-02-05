@@ -32,9 +32,16 @@ export const VICTORIAN_EVENTS = [
  * Type assertion ensures this array stays in sync with ConnectionType union.
  */
 export const ALL_CONNECTION_TYPES = [
+  // Book-based connections
   "publisher",
   "shared_publisher",
   "binder",
+  // AI-discovered connections
+  "family",
+  "friendship",
+  "influence",
+  "collaboration",
+  "scandal",
 ] as const satisfies readonly ConnectionType[];
 
 // =============================================================================
@@ -64,9 +71,16 @@ export const NODE_COLORS: Record<string, string> = {
 
 /** Edge colors by connection type (hex values - Cytoscape doesn't support CSS variables) */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
-  publisher: "#c9a227", // gold
-  shared_publisher: "#3a6b5c", // hunter-500
-  binder: "#722f37", // burgundy
+  // Book-based connections
+  publisher: "#4ade80", // green
+  shared_publisher: "#4ade80", // green
+  binder: "#a78bfa", // purple
+  // AI-discovered connections
+  family: "#60a5fa", // blue (Personal)
+  friendship: "#60a5fa", // blue (Personal)
+  influence: "#60a5fa", // blue
+  collaboration: "#60a5fa", // blue (Personal)
+  scandal: "#f87171", // red
 };
 
 // =============================================================================
@@ -108,9 +122,16 @@ export const EDGE_WIDTH = {
 
 /** Edge styles by connection type */
 export const EDGE_STYLES: Record<ConnectionType, { lineStyle: string; opacity: number }> = {
+  // Book-based connections
   publisher: { lineStyle: "solid", opacity: 0.8 },
   shared_publisher: { lineStyle: "solid", opacity: 0.6 },
   binder: { lineStyle: "dashed", opacity: 0.5 },
+  // AI-discovered connections
+  family: { lineStyle: "solid", opacity: 0.7 },
+  friendship: { lineStyle: "solid", opacity: 0.7 },
+  influence: { lineStyle: "dotted", opacity: 0.6 },
+  collaboration: { lineStyle: "solid", opacity: 0.7 },
+  scandal: { lineStyle: "dashed", opacity: 0.6 },
 };
 
 /** Calculate edge width from strength */

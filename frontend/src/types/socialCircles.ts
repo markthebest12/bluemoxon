@@ -24,7 +24,17 @@ export type BookId = number & { readonly __brand: "BookId" };
 
 export type NodeType = "author" | "publisher" | "binder";
 
-export type ConnectionType = "publisher" | "shared_publisher" | "binder";
+export type ConnectionType =
+  // Book-based connections
+  | "publisher"
+  | "shared_publisher"
+  | "binder"
+  // AI-discovered connections
+  | "family"
+  | "friendship"
+  | "influence"
+  | "collaboration"
+  | "scandal";
 
 export type Era = "pre_romantic" | "romantic" | "victorian" | "edwardian" | "post_1910" | "unknown";
 
@@ -197,7 +207,16 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   showAuthors: true,
   showPublishers: true,
   showBinders: true,
-  connectionTypes: ["publisher", "shared_publisher", "binder"],
+  connectionTypes: [
+    "publisher",
+    "shared_publisher",
+    "binder",
+    "family",
+    "friendship",
+    "influence",
+    "collaboration",
+    "scandal",
+  ],
   tier1Only: false,
   eras: [],
   searchQuery: "",

@@ -21,7 +21,16 @@ describe("useNetworkFilters", () => {
         showAuthors: true,
         showPublishers: true,
         showBinders: true,
-        connectionTypes: ["publisher", "shared_publisher", "binder"],
+        connectionTypes: [
+          "publisher",
+          "shared_publisher",
+          "binder",
+          "family",
+          "friendship",
+          "influence",
+          "collaboration",
+          "scandal",
+        ],
         tier1Only: false,
         eras: [],
         searchQuery: "",
@@ -41,7 +50,16 @@ describe("useNetworkFilters", () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { filters } = useNetworkFilters();
 
-      expect(filters.value.connectionTypes).toEqual(["publisher", "shared_publisher", "binder"]);
+      expect(filters.value.connectionTypes).toEqual([
+        "publisher",
+        "shared_publisher",
+        "binder",
+        "family",
+        "friendship",
+        "influence",
+        "collaboration",
+        "scandal",
+      ]);
     });
 
     it("initializes with tier1Only disabled", async () => {
@@ -315,7 +333,8 @@ describe("useNetworkFilters", () => {
 
       toggleConnectionType("publisher");
 
-      expect(filters.value.connectionTypes).toEqual(["shared_publisher", "binder"]);
+      expect(filters.value.connectionTypes).toHaveLength(7);
+      expect(filters.value.connectionTypes).not.toContain("publisher");
     });
 
     it("adds connection type when not present", async () => {
@@ -334,28 +353,31 @@ describe("useNetworkFilters", () => {
 
       // Remove binder
       toggleConnectionType("binder");
-      expect(filters.value.connectionTypes).toEqual(["publisher", "shared_publisher"]);
+      expect(filters.value.connectionTypes).toHaveLength(7);
+      expect(filters.value.connectionTypes).not.toContain("binder");
 
       // Add binder back
       toggleConnectionType("binder");
       expect(filters.value.connectionTypes).toContain("binder");
+      expect(filters.value.connectionTypes).toHaveLength(8);
     });
 
     it("can toggle all types off one by one", async () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { filters, toggleConnectionType } = useNetworkFilters();
 
-      // Start with all 3 types
-      expect(filters.value.connectionTypes).toHaveLength(3);
+      // Start with all 8 connection types
+      expect(filters.value.connectionTypes).toHaveLength(8);
 
+      // Toggle off all 8 types
       toggleConnectionType("publisher");
-      expect(filters.value.connectionTypes).not.toContain("publisher");
-
       toggleConnectionType("shared_publisher");
-      expect(filters.value.connectionTypes).not.toContain("shared_publisher");
-
       toggleConnectionType("binder");
-      expect(filters.value.connectionTypes).not.toContain("binder");
+      toggleConnectionType("family");
+      toggleConnectionType("friendship");
+      toggleConnectionType("influence");
+      toggleConnectionType("collaboration");
+      toggleConnectionType("scandal");
 
       expect(filters.value.connectionTypes).toEqual([]);
     });
@@ -653,8 +675,8 @@ describe("useNetworkFilters", () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { hasActiveFilters, filters, setConnectionTypes } = useNetworkFilters();
 
-      // At exactly 3 connection types, hasActiveFilters should be false
-      expect(filters.value.connectionTypes).toHaveLength(3);
+      // At exactly 8 connection types, hasActiveFilters should be false
+      expect(filters.value.connectionTypes).toHaveLength(8);
       expect(hasActiveFilters.value).toBe(false);
 
       // At 2 connection types, hasActiveFilters should be true
@@ -681,14 +703,23 @@ describe("useNetworkFilters", () => {
   });
 
   describe("hasActiveFilters edge cases", () => {
-    it("returns false when all connection types restored to 3", async () => {
+    it("returns false when all connection types restored", async () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { hasActiveFilters, setConnectionTypes } = useNetworkFilters();
 
       setConnectionTypes(["publisher"]);
       expect(hasActiveFilters.value).toBe(true);
 
-      setConnectionTypes(["publisher", "shared_publisher", "binder"]);
+      setConnectionTypes([
+        "publisher",
+        "shared_publisher",
+        "binder",
+        "family",
+        "friendship",
+        "influence",
+        "collaboration",
+        "scandal",
+      ]);
       expect(hasActiveFilters.value).toBe(false);
     });
 
@@ -721,11 +752,20 @@ describe("useNetworkFilters", () => {
       expect(activeFilterCount.value).toBe(1);
     });
 
-    it("does not count connection types when all 3 present", async () => {
+    it("does not count connection types when all 8 present", async () => {
       const useNetworkFilters = await getUseNetworkFilters();
       const { activeFilterCount, setConnectionTypes } = useNetworkFilters();
 
-      setConnectionTypes(["publisher", "shared_publisher", "binder"]);
+      setConnectionTypes([
+        "publisher",
+        "shared_publisher",
+        "binder",
+        "family",
+        "friendship",
+        "influence",
+        "collaboration",
+        "scandal",
+      ]);
       expect(activeFilterCount.value).toBe(0);
     });
 
