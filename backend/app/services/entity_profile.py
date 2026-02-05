@@ -212,6 +212,29 @@ def _check_staleness(
     return False
 
 
+def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
+    """Check if entity needs profile (re)generation.
+
+    Returns True if:
+      - No profile exists for this entity
+      - Profile exists but books have been updated since generation
+
+    Public API for profile_worker and any future staleness checks.
+    """
+    profile = (
+        db.query(EntityProfile)
+        .filter(
+            EntityProfile.entity_type == entity_type,
+            EntityProfile.entity_id == entity_id,
+        )
+        .first()
+    )
+    if not profile or not profile.generated_at:
+        return True
+
+    return _check_staleness(db, profile, entity_type, entity_id)
+
+
 def _era_str(node) -> str | None:
     """Extract era as a plain string from a social circles node."""
     if node.era is None:
