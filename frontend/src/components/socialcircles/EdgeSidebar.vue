@@ -71,6 +71,11 @@ const connectionLabel = computed(() => {
     publisher: "Published together",
     shared_publisher: "Shared Publisher",
     binder: "Bound works",
+    family: "Family",
+    friendship: "Friends",
+    influence: "Influence",
+    collaboration: "Collaborators",
+    scandal: "Scandal",
   };
   return labels[props.edge.type];
 });

@@ -35,6 +35,11 @@ export const ALL_CONNECTION_TYPES = [
   "publisher",
   "shared_publisher",
   "binder",
+  "family",
+  "friendship",
+  "influence",
+  "collaboration",
+  "scandal",
 ] as const satisfies readonly ConnectionType[];
 
 // =============================================================================
@@ -64,9 +69,14 @@ export const NODE_COLORS: Record<string, string> = {
 
 /** Edge colors by connection type (hex values - Cytoscape doesn't support CSS variables) */
 export const EDGE_COLORS: Record<ConnectionType, string> = {
-  publisher: "#c9a227", // gold
-  shared_publisher: "#3a6b5c", // hunter-500
-  binder: "#722f37", // burgundy
+  publisher: "#4ade80", // green
+  shared_publisher: "#4ade80", // green
+  binder: "#a78bfa", // purple
+  family: "#60a5fa", // blue
+  friendship: "#60a5fa", // blue
+  influence: "#60a5fa", // blue
+  collaboration: "#60a5fa", // blue
+  scandal: "#f87171", // rose
 };
 
 // =============================================================================
@@ -111,6 +121,11 @@ export const EDGE_STYLES: Record<ConnectionType, { lineStyle: string; opacity: n
   publisher: { lineStyle: "solid", opacity: 0.8 },
   shared_publisher: { lineStyle: "solid", opacity: 0.6 },
   binder: { lineStyle: "dashed", opacity: 0.5 },
+  family: { lineStyle: "solid", opacity: 0.8 },
+  friendship: { lineStyle: "solid", opacity: 0.7 },
+  influence: { lineStyle: "dotted", opacity: 0.7 },
+  collaboration: { lineStyle: "solid", opacity: 0.7 },
+  scandal: { lineStyle: "dashed", opacity: 0.8 },
 };
 
 /** Calculate edge width from strength */
