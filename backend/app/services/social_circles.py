@@ -6,10 +6,13 @@ No manual data entry required - all relationships are derived from existing data
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 from itertools import combinations
 from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import load_only
 
 from app.enums import OWNED_STATUSES
 from app.models.entity_profile import EntityProfile
@@ -25,6 +28,8 @@ from app.schemas.social_circles import (
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 # Maximum book IDs to include per node to reduce response size
 # Frontend only displays first few anyway
@@ -312,12 +317,26 @@ def build_social_circles_graph(
 
     # Merge AI-discovered edges from entity profiles
     profiles_with_ai = (
-        db.query(EntityProfile).filter(EntityProfile.ai_connections.isnot(None)).all()
+        db.query(EntityProfile)
+        .options(load_only(EntityProfile.ai_connections))
+        .filter(EntityProfile.ai_connections.isnot(None))
+        .all()
     )
     for profile in profiles_with_ai:
         for connection in profile.ai_connections or []:
-            source_node_id = f"{connection['source_type']}:{connection['source_id']}"
-            target_node_id = f"{connection['target_type']}:{connection['target_id']}"
+            source_type = connection.get("source_type")
+            source_id = connection.get("source_id")
+            target_type = connection.get("target_type")
+            target_id = connection.get("target_id")
+            relationship = connection.get("relationship")
+
+            # Skip connections with missing required fields
+            if not all([source_type, source_id, target_type, target_id, relationship]):
+                logger.warning("Skipping AI connection with missing fields: %s", connection)
+                continue
+
+            source_node_id = f"{source_type}:{source_id}"
+            target_node_id = f"{target_type}:{target_id}"
 
             # Skip if either node is not in the current graph
             if source_node_id not in nodes or target_node_id not in nodes:
@@ -326,9 +345,13 @@ def build_social_circles_graph(
             # Canonical ordering: lower node ID first (by string comparison)
             if source_node_id > target_node_id:
                 source_node_id, target_node_id = target_node_id, source_node_id
-
-            relationship = connection["relationship"]
             edge_id = f"e:{source_node_id}:{target_node_id}:{relationship}"
+
+            try:
+                conn_type = ConnectionType(relationship)
+            except ValueError:
+                logger.warning("Skipping AI connection with invalid type: %s", relationship)
+                continue
 
             # Map confidence to strength (2-10 range)
             confidence = connection.get("confidence", 0.5)
@@ -341,7 +364,7 @@ def build_social_circles_graph(
                         id=edge_id,
                         source=source_node_id,
                         target=target_node_id,
-                        type=ConnectionType(relationship),
+                        type=conn_type,
                         strength=ai_strength,
                         evidence=connection.get("evidence"),
                         shared_book_ids=None,
@@ -352,7 +375,7 @@ def build_social_circles_graph(
                 id=edge_id,
                 source=source_node_id,
                 target=target_node_id,
-                type=ConnectionType(relationship),
+                type=conn_type,
                 strength=ai_strength,
                 evidence=connection.get("evidence"),
                 shared_book_ids=None,
