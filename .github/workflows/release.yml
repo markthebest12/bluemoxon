@@ -19,6 +19,10 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
       - name: Release
         uses: gembaadvantage/uplift-action@0d28005618a55f97d0bb9253329383720d3e9031 # v2
         with:
