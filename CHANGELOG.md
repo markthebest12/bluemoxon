@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.5) - 2026-02-04
+
+- [`89dd4af`](https://github.com/markthebest12/bluemoxon/commit/89dd4af78c4e8500dcffb764b4e8a8551897f2b2) fix: stage lockfile in Uplift afterBump hook (#1800)
+
 ## [v3.2.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.4) - 2026-02-04
 
 - [`00a1e5f`](https://github.com/markthebest12/bluemoxon/commit/00a1e5fa8479419ee2ea0861655c5b6596730986) fix: sync package-lock.json version with package.json (#1798)
