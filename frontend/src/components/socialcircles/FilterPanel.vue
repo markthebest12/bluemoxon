@@ -18,9 +18,16 @@ import type { ApiNode, ConnectionType, Era } from "@/types/socialCircles";
 
 // Connection type display info
 const CONNECTION_INFO: Record<ConnectionType, { label: string; color: string }> = {
-  publisher: { label: "Published By", color: "#c9a227" },
-  shared_publisher: { label: "Shared Publisher", color: "#3a6b5c" },
-  binder: { label: "Same Bindery", color: "#722f37" },
+  // Book-based connections
+  publisher: { label: "Published By", color: "#4ade80" },
+  shared_publisher: { label: "Shared Publisher", color: "#4ade80" },
+  binder: { label: "Same Bindery", color: "#a78bfa" },
+  // AI-discovered connections
+  family: { label: "Family", color: "#60a5fa" },
+  friendship: { label: "Friendship", color: "#60a5fa" },
+  influence: { label: "Influence", color: "#60a5fa" },
+  collaboration: { label: "Collaboration", color: "#60a5fa" },
+  scandal: { label: "Scandal", color: "#f87171" },
 };
 
 // Era display info
@@ -120,8 +127,17 @@ function handleReset() {
   emit("reset");
 }
 
-// All connection types for iteration
-const allConnectionTypes: ConnectionType[] = ["publisher", "shared_publisher", "binder"];
+// All connection types for iteration (book-based + AI-discovered)
+const allConnectionTypes: ConnectionType[] = [
+  "publisher",
+  "shared_publisher",
+  "binder",
+  "family",
+  "friendship",
+  "influence",
+  "collaboration",
+  "scandal",
+];
 
 // Eras to show (excluding unknown typically)
 const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian", "post_1910"];

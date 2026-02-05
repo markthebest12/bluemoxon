@@ -20,6 +20,17 @@ from app.models import BookImage
 from app.services.aws_clients import get_s3_client
 from app.utils.image_utils import detect_content_type
 
+# Bedrock error codes that warrant a retry (transient rate/availability issues).
+# Omits ModelStreamErrorException (we don't use streaming) and InternalServerException
+# (undocumented for invoke_model; would mask genuine bugs).
+RETRYABLE_ERROR_CODES = frozenset(
+    {
+        "ThrottlingException",
+        "TooManyRequestsException",
+        "ServiceUnavailableException",
+    }
+)
+
 # Claude's maximum image size limit (base64 encoded) is 5MB
 # Base64 adds ~33% overhead, so raw limit is ~3.75MB
 CLAUDE_MAX_IMAGE_BYTES = 5_242_880  # 5MB in bytes
@@ -471,12 +482,18 @@ def invoke_bedrock(
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            if error_code == "ThrottlingException" and attempt < max_retries:
-                logger.warning(f"Bedrock throttled (attempt {attempt + 1}/{max_retries + 1}): {e}")
+            if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
+                logger.warning(
+                    "Bedrock %s (attempt %d/%d): %s",
+                    error_code,
+                    attempt + 1,
+                    max_retries + 1,
+                    e,
+                )
                 last_error = e
                 continue
             else:
-                # Non-throttling error or retries exhausted, re-raise
+                # Non-retryable error or retries exhausted, re-raise
                 raise
 
     # All retries exhausted (shouldn't reach here, but just in case)
@@ -609,12 +626,18 @@ def extract_structured_data(
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            if error_code == "ThrottlingException" and attempt < max_retries:
-                logger.warning(f"Bedrock throttled (attempt {attempt + 1}/{max_retries + 1}): {e}")
+            if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
+                logger.warning(
+                    "Bedrock %s (attempt %d/%d): %s",
+                    error_code,
+                    attempt + 1,
+                    max_retries + 1,
+                    e,
+                )
                 last_error = e
                 continue
             else:
-                logger.error(f"Bedrock ClientError: {e}")
+                logger.error("Bedrock ClientError: %s", e)
                 return None
 
         except json.JSONDecodeError as e:

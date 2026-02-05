@@ -734,6 +734,10 @@ MIGRATION_Z4567890KLMN_SQL = [
     "DROP TABLE IF EXISTS admin_config",
 ]
 
+MIGRATION_E9A5101C8557_SQL = [
+    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSONB",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -1005,5 +1009,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "z4567890klmn",
         "name": "consolidate_config_tables",
         "sql_statements": MIGRATION_Z4567890KLMN_SQL,
+    },
+    {
+        "id": "e9a5101c8557",
+        "name": "add_ai_connections_column",
+        "sql_statements": MIGRATION_E9A5101C8557_SQL,
     },
 ]

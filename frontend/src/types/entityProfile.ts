@@ -65,6 +65,13 @@ export interface ProfileConnection {
   narrative_trigger: NarrativeTrigger;
   is_key: boolean;
   relationship_story: RelationshipNarrative | null;
+  // AI-discovered connection fields
+  /** Sub-type of AI-discovered connection (e.g., "familial", "romantic") */
+  sub_type?: string;
+  /** AI confidence score (0-1). Only present for AI-discovered connections. */
+  confidence?: number;
+  /** Whether this connection was discovered by AI */
+  is_ai_discovered?: boolean;
 }
 
 export interface ProfileBook {
