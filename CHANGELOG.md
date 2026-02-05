@@ -5,6 +5,14 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.3.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.0) - 2026-02-05
+
+- [`faf351e`](https://github.com/markthebest12/bluemoxon/commit/faf351ea7b9713d8d91abb2deda2c382a7574f99) feat: AI-discovered personal connections (#1803) (#1811)
+- [`8f73cf5`](https://github.com/markthebest12/bluemoxon/commit/8f73cf5675c1b4616c0609c9cc82ce23fe9cbd6d) fix: add 5 AI-discovered connection types to frontend (#1828)
+- [`c91823c`](https://github.com/markthebest12/bluemoxon/commit/c91823c3ab1a4c579871de5a52d6ebede8280f31) fix: add TooManyRequestsException and ServiceUnavailableException to Bedrock retries (#1817)
+- [`1e0ed37`](https://github.com/markthebest12/bluemoxon/commit/1e0ed37cea6d66fdb9304f4577ce5a9e8d0d8a5e) fix: break circular import in entity_profile → api.v1.images (#1816)
+- [`faf351e`](https://github.com/markthebest12/bluemoxon/commit/faf351ea7b9713d8d91abb2deda2c382a7574f99) feat: AI-discovered personal connections (#1803) (#1811)
+
 ## [v3.2.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.5) - 2026-02-04
 
 - [`89dd4af`](https://github.com/markthebest12/bluemoxon/commit/89dd4af78c4e8500dcffb764b4e8a8551897f2b2) fix: stage lockfile in Uplift afterBump hook (#1800)
