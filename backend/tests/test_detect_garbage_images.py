@@ -471,7 +471,7 @@ class TestDetectGarbageImages:
         assert mock_sleep.call_count == 1
 
         # Should have logged throttling warning
-        assert any("throttled" in record.message.lower() for record in caplog.records)
+        assert any("attempt" in record.message.lower() for record in caplog.records)
 
     def test_gives_up_after_max_retries(self, db, caplog):
         """Test that function gives up after max retries exhausted."""
@@ -527,7 +527,7 @@ class TestDetectGarbageImages:
         mock_delete.assert_not_called()
 
         # Should have logged throttling warnings and final failure
-        assert any("throttled" in record.message.lower() for record in caplog.records)
+        assert any("attempt" in record.message.lower() for record in caplog.records)
         assert any(
             "garbage detection failed" in record.message.lower() for record in caplog.records
         )

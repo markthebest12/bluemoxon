@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
-from app.services.bedrock import MODEL_IDS, get_bedrock_client, get_model_id
+from app.services.bedrock import MODEL_IDS, RETRYABLE_ERROR_CODES, get_bedrock_client, get_model_id
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def _invoke(
 ) -> str:
     """Invoke Bedrock Claude with retry/backoff and return response text.
 
-    Retries on ThrottlingException with exponential backoff matching
+    Retries on transient Bedrock errors with exponential backoff matching
     the pattern in bedrock.invoke_bedrock().
     """
     client = get_bedrock_client()
@@ -101,8 +101,10 @@ def _invoke(
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            if error_code == "ThrottlingException" and attempt < MAX_RETRIES:
-                logger.warning("Bedrock throttled (attempt %d/%d)", attempt + 1, MAX_RETRIES + 1)
+            if error_code in RETRYABLE_ERROR_CODES and attempt < MAX_RETRIES:
+                logger.warning(
+                    "Bedrock %s (attempt %d/%d)", error_code, attempt + 1, MAX_RETRIES + 1
+                )
                 last_error = e
                 continue
             raise
