@@ -2083,7 +2083,7 @@ class TestPipelineAIConnections:
     def test_empty_ai_connections_stored(
         self, _mock_model, mock_classify, mock_ai_conn, mock_bio, mock_graph, db
     ):
-        """Empty AI connections are stored as empty list."""
+        """Empty AI connections are stored as None (not empty list) for efficient filtering."""
         author = Author(name="Obscure Author")
         db.add(author)
         db.flush()
@@ -2101,4 +2101,4 @@ class TestPipelineAIConnections:
 
         result = generate_and_cache_profile(db, "author", author.id)
 
-        assert result.ai_connections == []
+        assert result.ai_connections is None

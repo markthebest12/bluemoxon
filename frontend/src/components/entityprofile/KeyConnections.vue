@@ -186,7 +186,6 @@ function isExpanded(conn: ProfileConnection): boolean {
 }
 
 .key-connections__narrative--rumored {
-  font-style: italic;
   opacity: 0.8;
 }
 

@@ -330,13 +330,23 @@ def build_social_circles_graph(
             relationship = connection["relationship"]
             edge_id = f"e:{source_node_id}:{target_node_id}:{relationship}"
 
-            # Skip if this exact edge already exists
-            if edge_id in edges:
-                continue
-
             # Map confidence to strength (2-10 range)
             confidence = connection.get("confidence", 0.5)
             ai_strength = max(2, min(int(confidence * 10), 10))
+
+            # If this edge already exists, keep the higher-confidence version
+            if edge_id in edges:
+                if ai_strength > edges[edge_id].strength:
+                    edges[edge_id] = SocialCircleEdge(
+                        id=edge_id,
+                        source=source_node_id,
+                        target=target_node_id,
+                        type=ConnectionType(relationship),
+                        strength=ai_strength,
+                        evidence=connection.get("evidence"),
+                        shared_book_ids=None,
+                    )
+                continue
 
             edges[edge_id] = SocialCircleEdge(
                 id=edge_id,

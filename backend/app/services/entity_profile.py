@@ -439,9 +439,12 @@ def _build_connections(
 
     # Merge AI-discovered connections from cached profile (#1803)
     if profile and profile.ai_connections:
-        # Build set of existing connection targets to avoid duplicates
-        existing_targets = {
-            f"{c.entity.type.value if hasattr(c.entity.type, 'value') else c.entity.type}:{c.entity.id}"
+        # Build set of existing (target, relationship) pairs to avoid duplicates
+        existing_edges = {
+            (
+                f"{c.entity.type.value if hasattr(c.entity.type, 'value') else c.entity.type}:{c.entity.id}",
+                c.connection_type,
+            )
             for c in connections
         }
         for ai_conn in profile.ai_connections:
@@ -451,16 +454,23 @@ def _build_connections(
                 continue
 
             target_key = f"{target_type}:{target_id}"
-            # Skip if already connected via book-derived edge
-            if target_key in existing_targets:
-                # But enrich existing connection with AI fields
+            ai_relationship = ai_conn.get("relationship", "friendship")
+            edge_key = (target_key, ai_relationship)
+
+            # Skip if same target+relationship already exists
+            if edge_key in existing_edges:
+                # Enrich existing connection with AI fields (same relationship type)
                 for conn in connections:
                     et = (
                         conn.entity.type.value
                         if hasattr(conn.entity.type, "value")
                         else conn.entity.type
                     )
-                    if et == target_type and conn.entity.id == target_id:
+                    if (
+                        et == target_type
+                        and conn.entity.id == target_id
+                        and conn.connection_type == ai_relationship
+                    ):
                         conn.is_ai_discovered = True
                         conn.sub_type = ai_conn.get("sub_type")
                         conn.confidence = ai_conn.get("confidence")
@@ -507,7 +517,7 @@ def _build_connections(
                     confidence=confidence,
                 )
             )
-            existing_targets.add(target_key)
+            existing_edges.add(edge_key)
 
     # Sort: AI-discovered personal connections first, then by strength descending
     connections.sort(
@@ -596,6 +606,7 @@ def generate_and_cache_profile(
     entity_id: int,
     max_narratives: int | None = None,
     graph: SocialCirclesResponse | None = None,
+    all_entities: list[dict] | None = None,
 ) -> EntityProfile:
     """Generate AI profile and cache in DB."""
     entity = _get_entity(db, entity_type, entity_id)
@@ -632,7 +643,8 @@ def generate_and_cache_profile(
     prompt_connections = connection_list[:_MAX_PROMPT_CONNECTIONS]
 
     # Discover AI connections BEFORE bio generation so bios can reference them (#1803)
-    all_entities = _get_all_collection_entities(db)
+    if all_entities is None:
+        all_entities = _get_all_collection_entities(db)
     ai_connections = generate_ai_connections(
         entity_name=entity.name,
         entity_type=entity_type,
@@ -758,7 +770,7 @@ def generate_and_cache_profile(
         merged_stories = dict(existing.relationship_stories or {})
         merged_stories.update(rel_stories)
         existing.relationship_stories = merged_stories
-        existing.ai_connections = ai_connections
+        existing.ai_connections = ai_connections or None
         existing.generated_at = datetime.now(UTC)
         existing.model_version = model_version
         profile = existing
@@ -770,7 +782,7 @@ def generate_and_cache_profile(
             personal_stories=bio_data.get("personal_stories", []),
             connection_narratives=narratives,
             relationship_stories=rel_stories,
-            ai_connections=ai_connections,
+            ai_connections=ai_connections or None,
             model_version=model_version,
         )
         db.add(profile)

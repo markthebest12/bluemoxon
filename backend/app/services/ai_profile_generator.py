@@ -185,6 +185,9 @@ _VALID_AI_CONNECTION_TYPES = frozenset(
     {"family", "friendship", "influence", "collaboration", "scandal"}
 )
 
+# Maximum AI connections per entity to prevent LLM hallucination bloat
+_MAX_AI_CONNECTIONS = 10
+
 
 def generate_ai_connections(
     entity_name: str,
@@ -284,6 +287,9 @@ def _validate_ai_connections(
     validated: list[dict] = []
 
     for conn in raw_connections:
+        if len(validated) >= _MAX_AI_CONNECTIONS:
+            break
+
         if not isinstance(conn, dict):
             continue
 
@@ -329,6 +335,9 @@ def _validate_ai_connections(
         except (ValueError, TypeError):
             confidence = 0.5
 
+        raw_sub_type = conn.get("sub_type")
+        sub_type = raw_sub_type.upper().strip() if isinstance(raw_sub_type, str) else raw_sub_type
+
         validated.append(
             {
                 "source_type": source_type,
@@ -336,7 +345,7 @@ def _validate_ai_connections(
                 "target_type": target_type,
                 "target_id": target_id,
                 "relationship": relationship,
-                "sub_type": conn.get("sub_type"),
+                "sub_type": sub_type,
                 "confidence": confidence,
                 "evidence": conn.get("evidence"),
             }
