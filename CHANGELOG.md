@@ -5,6 +5,15 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.2) - 2026-02-04
+
+- [`3782d9e`](https://github.com/markthebest12/bluemoxon/commit/3782d9e802f9a9404b13a26683f3b7dee5b26387) fix: code review findings + scoring docs (#1796)
+- [`2464d6e`](https://github.com/markthebest12/bluemoxon/commit/2464d6ed903029d87b09bdbbc65b0fd9b6164005) refactor: replace resolve_model_id with GeneratorConfig dataclass (#1785) (#1793)
+- [`3782d9e`](https://github.com/markthebest12/bluemoxon/commit/3782d9e802f9a9404b13a26683f3b7dee5b26387) fix: code review findings + scoring docs (#1796)
+- [`6abb65f`](https://github.com/markthebest12/bluemoxon/commit/6abb65f79c57f45bbb91242c1bad910cabc50db5) refactor: expose public is_profile_stale() API (#1770) (#1792)
+- [`2464d6e`](https://github.com/markthebest12/bluemoxon/commit/2464d6ed903029d87b09bdbbc65b0fd9b6164005) refactor: replace resolve_model_id with GeneratorConfig dataclass (#1785) (#1793)
+- [`3bc0f44`](https://github.com/markthebest12/bluemoxon/commit/3bc0f44981df840db8fd6e91064000fb07ea9a37) refactor: rename config endpoint handlers to avoid naming collision (#1784) (#1790)
+
 ## [v3.2.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.1) - 2026-02-04
 
 - [`aa1a414`](https://github.com/markthebest12/bluemoxon/commit/aa1a4146bce7993072d6dfa103921cc076928cd5) fix: address code review findings from #1776 and #1777 (#1786)
