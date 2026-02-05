@@ -1054,7 +1054,11 @@ Return ONLY valid JSON, no other text."""
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
                 logger.warning(
-                    f"Garbage detection {error_code} (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                    "Garbage detection %s (attempt %d/%d): %s",
+                    error_code,
+                    attempt + 1,
+                    max_retries + 1,
+                    e,
                 )
                 last_error = e
                 continue

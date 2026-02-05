@@ -71,12 +71,20 @@ class TestInvoke:
         with pytest.raises(ValueError, match="Empty content"):
             _invoke("sys", "user", config=_TEST_CONFIG)
 
+    @pytest.mark.parametrize(
+        "error_code",
+        ["ThrottlingException", "TooManyRequestsException", "ServiceUnavailableException"],
+    )
     @patch("app.services.ai_profile_generator.time")
     @patch("app.services.ai_profile_generator.get_bedrock_client")
-    def test_invoke_retries_on_throttling(self, mock_get_client, mock_time):
+    def test_invoke_retries_on_retryable_errors(self, mock_get_client, mock_time, error_code):
+        retryable_error = ClientError(
+            {"Error": {"Code": error_code, "Message": "Transient error"}},
+            "InvokeModel",
+        )
         mock_client = MagicMock()
         mock_client.invoke_model.side_effect = [
-            _make_throttle_error(),
+            retryable_error,
             _make_bedrock_response("ok after retry"),
         ]
         mock_get_client.return_value = mock_client

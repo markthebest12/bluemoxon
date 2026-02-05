@@ -21,6 +21,8 @@ from app.services.aws_clients import get_s3_client
 from app.utils.image_utils import detect_content_type
 
 # Bedrock error codes that warrant a retry (transient rate/availability issues).
+# Omits ModelStreamErrorException (we don't use streaming) and InternalServerException
+# (undocumented for invoke_model; would mask genuine bugs).
 RETRYABLE_ERROR_CODES = frozenset(
     {
         "ThrottlingException",
@@ -482,7 +484,11 @@ def invoke_bedrock(
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
                 logger.warning(
-                    f"Bedrock {error_code} (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                    "Bedrock %s (attempt %d/%d): %s",
+                    error_code,
+                    attempt + 1,
+                    max_retries + 1,
+                    e,
                 )
                 last_error = e
                 continue
@@ -622,12 +628,16 @@ def extract_structured_data(
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
                 logger.warning(
-                    f"Bedrock {error_code} (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                    "Bedrock %s (attempt %d/%d): %s",
+                    error_code,
+                    attempt + 1,
+                    max_retries + 1,
+                    e,
                 )
                 last_error = e
                 continue
             else:
-                logger.error(f"Bedrock ClientError: {e}")
+                logger.error("Bedrock ClientError: %s", e)
                 return None
 
         except json.JSONDecodeError as e:
