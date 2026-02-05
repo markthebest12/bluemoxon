@@ -38,8 +38,7 @@ from app.schemas.migration import (
     MigrationStats,
 )
 from app.services import tiered_scoring
-from app.services.app_config import get_config as get_app_config
-from app.services.app_config import set_config as set_app_config
+from app.services.app_config import get_config, set_config
 from app.services.bedrock import (
     CLAUDE_MAX_IMAGE_BYTES,
     CLAUDE_SAFE_RAW_BYTES,
@@ -440,7 +439,7 @@ def get_scoring_config() -> dict:
 
 
 @router.get("/config", response_model=ConfigResponse)
-def get_config(
+def get_exchange_rates(
     response: Response,
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
@@ -448,13 +447,13 @@ def get_config(
     """Get admin configuration (admin only)."""
     response.headers["Cache-Control"] = "no-store"
     return ConfigResponse(
-        gbp_to_usd_rate=float(get_app_config(db, "gbp_to_usd_rate", "1.35")),
-        eur_to_usd_rate=float(get_app_config(db, "eur_to_usd_rate", "1.17")),
+        gbp_to_usd_rate=float(get_config(db, "gbp_to_usd_rate", "1.35")),
+        eur_to_usd_rate=float(get_config(db, "eur_to_usd_rate", "1.17")),
     )
 
 
 @router.put("/config", response_model=ConfigResponse)
-def update_config(
+def update_exchange_rates(
     updates: ConfigUpdate,
     response: Response,
     db: Session = Depends(get_db),
@@ -462,9 +461,9 @@ def update_config(
 ):
     """Update admin configuration (admin only)."""
     for key, value in updates.model_dump(exclude_none=True).items():
-        set_app_config(db, key, str(value), description="Exchange rate")
+        set_config(db, key, str(value), description="Exchange rate")
     db.commit()
-    return get_config(response, db)
+    return get_exchange_rates(response, db)
 
 
 @router.get("/model-config", response_model=ModelConfigResponse)
@@ -478,7 +477,7 @@ def get_model_config(
 
     flows = []
     for key, meta in MODEL_CONFIG_FLOWS.items():
-        current = get_app_config(db, key, meta["default"])
+        current = get_config(db, key, meta["default"])
         flows.append(
             ModelConfigFlow(
                 key=key,
@@ -514,7 +513,7 @@ def update_model_config(
         )
 
     meta = MODEL_CONFIG_FLOWS[flow_key]
-    set_app_config(
+    set_config(
         db,
         key=flow_key,
         value=body.model,
@@ -523,7 +522,7 @@ def update_model_config(
     )
     db.commit()
 
-    current = get_app_config(db, flow_key, meta["default"])
+    current = get_config(db, flow_key, meta["default"])
     return ModelConfigUpdateResponse(
         key=flow_key,
         model=current or meta["default"],
