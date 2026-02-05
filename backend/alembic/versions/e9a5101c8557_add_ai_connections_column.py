@@ -1,6 +1,6 @@
 """Add ai_connections column to entity_profiles.
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e9a5101c8557
 Revises: z4567890klmn
 Create Date: 2026-02-05
 
@@ -13,7 +13,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "e9a5101c8557"
 down_revision: str | None = "z4567890klmn"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
