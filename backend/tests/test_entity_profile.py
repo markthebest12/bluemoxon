@@ -164,7 +164,7 @@ class TestProfileBookImageUrl:
         # Should pick img2 (display_order=0)
         assert result[0].primary_image_url == f"/api/v1/books/{book.id}/images/{img2.id}/file"
 
-    @patch("app.services.entity_profile.get_cloudfront_url")
+    @patch("app.api.v1.images.get_cloudfront_url")
     @patch("app.services.entity_profile.get_settings")
     def test_build_profile_books_uses_cloudfront_in_lambda(self, mock_settings, mock_cf_url, db):
         """_build_profile_books uses CloudFront URL when running in Lambda."""
